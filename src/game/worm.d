@@ -328,26 +328,16 @@ class WormSprite : GObjectSprite {
             auto curW = mWeapon;
             bool shooting = mShooterMain && mShooterMain.activity;
             if (shooting)
-                curW = mShooterMain.weapon;
+                curW = mShooterMain.weapon; //what why???
             assert(!!curW);
 
-            char[] w = curW.animations[WeaponWormAnimations.Arm];
-            if (shooting) {
-                char[] w_f = curW.animations[WeaponWormAnimations.Fire];
-                //firing animation is optional
-                if (w_f.length)
-                    w = w_f;
-            }
-
-            auto state = wsc.findSequenceState(w, true);
-            bool noState = !state;
-            if (noState) {
-                //no specific weapon animation there
-                state = wsc.findSequenceState("weapon_unknown");
-            }
-            mWeaponAsIcon = noState || curW !is mWeapon;
-            graphic.setState(state);
-            return;
+            char[] w = curW.animation;
+            graphic.weapon = w;
+            graphic.weapon_firing = shooting;
+            mWeaponAsIcon = !graphic.weapon_ok;
+        } else {
+            graphic.weapon = "";
+            mWeaponAsIcon = false;
         }
         if (currentState is wsc.st_jump) {
             switch (mJumpMode) {
@@ -369,7 +359,7 @@ class WormSprite : GObjectSprite {
 
     protected override void fillAnimUpdate() {
         super.fillAnimUpdate();
-        graphic.pointto_angle = weaponAngle;
+        graphic.weapon_angle = weaponAngle;
         //for jetpack
         graphic.selfForce = physics.selfForce;
     }
@@ -998,8 +988,8 @@ class WormSprite : GObjectSprite {
             if (currentState is wsc.st_fly && graphic) {
                 //worm is falling to fast -> use roll animation
                 if (physics.velocity.length >= wsc.rollVelocity)
-                    if (graphic.getCurrentState is wsc.flyState[FlyMode.fall]
-                        || graphic.getCurrentState is
+                    if (graphic.currentState is wsc.flyState[FlyMode.fall]
+                        || graphic.currentState is
                             wsc.flyState[FlyMode.slide])
                     {
                         setFlyAnim(FlyMode.roll);
@@ -1283,7 +1273,7 @@ class RenderCrosshair : SceneObject {
         assert(!!infos,"Can only attach a target cross to worm sprites");
         auto pos = mAttach.interpolated_position; //toVector2i(infos.position);
         auto angle = fullAngleFromSideAngle(infos.rotation_angle,
-            infos.pointto_angle);
+            infos.weapon_angle);
         //normalized weapon direction
         auto dir = Vector2f.fromPolar(1.0f, angle);
 
@@ -1294,7 +1284,7 @@ class RenderCrosshair : SceneObject {
             - target_offset*mIP.interp.value));
         AnimationParams ap;
         ap.p1 = cast(int)((angle + 2*PI*mIP.interp.value)*180/PI);
-        Animation cs = mAttach.teamOwner.aim;
+        Animation cs = mAttach.team.aim;
         //(if really an animation should be supported, it's probably better to
         // use Sequence or so - and no more interpolation)
         cs.draw(canvas, target_pos, ap, Time.Null);

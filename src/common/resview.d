@@ -331,8 +331,8 @@ class AnimationHandler : ResViewHandler!(Animation) {
     private {
         TimeSource mTime;
         Animator mAnim;
-        ScrollBar[2] mParams;
-        Label[2] mParLbl;
+        ScrollBar[3] mParams;
+        Label[3] mParLbl;
         ScrollBar mFrame;
         Label mFrameLabel;
         ScrollBar mSpeed;
@@ -379,6 +379,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
 
         addp(0);
         addp(1);
+        addp(2);
 
         auto box = new BoxContainer(false, false, 10);
         table.setLayout(WidgetLayout.Expand(true));
@@ -417,9 +418,10 @@ class AnimationHandler : ResViewHandler!(Animation) {
         AnimationParams p;
         p.p1 = mParams[0].curValue;
         p.p2 = mParams[1].curValue;
+        p.p3 = mParams[2].curValue;
         mAnim.params = p;
-        for (int n = 0; n < 2; n++)
-            mParLbl[n].text = myformat("Param {}: {}", n, mParams[n].curValue);
+        foreach (int idx, Label l; mParLbl)
+            l.text = myformat("Param {}: {}", idx, mParams[idx].curValue);
         mFrameLabel.text = myformat("Frame: {}/{}", mFrame.curValue,
             mFrame.maxValue);
         float speed = 2.0f*mSpeed.curValue/mSpeed.maxValue;

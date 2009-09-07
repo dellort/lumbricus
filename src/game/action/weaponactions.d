@@ -41,6 +41,11 @@ static this() {
     regAction!(homing, "force_a, force_t")("homing");
 
     regAction!(team, "action")("team");
+
+    regAction!(nothing, "")("nothing");
+}
+
+void nothing(WeaponContext wx) {
 }
 
 void explosion(WeaponContext wx, float damage) {

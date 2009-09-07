@@ -7,14 +7,6 @@ import utils.randval;
 import utils.time;
 import utils.vector2;
 
-enum WeaponWormAnimations {
-    Arm,  //worm gets armed (or unarmed: animation played backwards)
-    Hold, //worm holds the weapon
-    Fire, //animation played while worm is shooting
-}
-//WeaponWormAnimations -> string
-const char[][] cWWA2Str = ["arm", "hold", "fire"];
-
 enum PointMode {
     none,
     target,

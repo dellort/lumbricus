@@ -245,10 +245,8 @@ class ProjectileSpriteClass : ActionSpriteClass {
             initState.physic_properties.loadFromConfig(config.getSubNode("physics"));
 
             if (config.hasValue("sequence_object")) {
-                //sequenceObject = engine.gfx.resources.resource!(SequenceObject)
-                //    (config["sequence_object"]).get;
-                sequencePrefix = config["sequence_object"];
-                assert(sequencePrefix.length > 0, "bla: "~config.name);
+                sequenceType = gfx.resources.get!(SequenceType)
+                    (config["sequence_object"]);
                 initState.animation = findSequenceState("normal");
             }
 

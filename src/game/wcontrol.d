@@ -265,13 +265,13 @@ class WormControl : WormController {
     void selectWeapon(WeaponClass weapon) {
         if (!isControllable || mLimitedMode)
             return;
-        mCurrentWeapon = weapon;
-        if (!canUseWeapon(mCurrentWeapon))
-            mCurrentWeapon = null;
+        if (!canUseWeapon(weapon))
+            weapon = null;
         //(changed later: selecting no-weapon is an action too)
         if (weapon !is mCurrentWeapon) {
             wormAction();
         }
+        mCurrentWeapon = weapon;
         updateWeapon();
     }
 

@@ -383,9 +383,9 @@ class Team {
         parent.events.onTeamEvent(TeamEvent.surrender, this);
         current = null;
         //xxx: set worms to "white flag" animation first
-        //foreach (m; mMembers) {
-        //    m.removeWorm();
-        //}
+        foreach (m; mMembers) {
+            m.sprite.pleasedie();
+        }
     }
 
     void addDoubleDamage() {

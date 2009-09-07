@@ -14,9 +14,12 @@ import utils.vector2;
 
 //xxx the following two types should be in common.animation
 
-//used in the game: p1 = thing/worm angle, p2 = weapon angle
+//used in the game (typically, not fixed):
+//  p1 = thing/worm angle
+//  p2 = weapon angle
+//  p3 = team color index + 1, or 0 when neutral
 struct AnimationParams {
-    int p1, p2;
+    int p1, p2, p3;
 }
 
 //for some derived classes see below
@@ -103,11 +106,16 @@ abstract class Animation {
         assert(ft <= mLengthMS);
         if (ft == mLengthMS) {
             assert(!repeat);
-            if (keepLastFrame) {
+            /+if (keepLastFrame) {
                 return mFrameCount - 1;
             } else {
                 return -1;
-            }
+            }+/
+            //always show last frame - gets rid of animation transition "gaps"
+            //if you really want the animation to disappear after done, add an
+            //  empty frame to the animation (using animconv), or just stop
+            //  calling draw()
+            return mFrameCount - 1;
         }
         int frame = ft / mFrameTimeMS;
         assert(frame >= 0 && frame < mFrameCount);
@@ -122,7 +130,8 @@ abstract class Animation {
     }
 
     bool finished(Time t) {
-        if (repeat || keepLastFrame)
+        //if (repeat || keepLastFrame)
+        if (repeat)
             return false;
         return t.msecs >= mLengthMS;
     }
@@ -216,8 +225,8 @@ class ComplicatedAnimation : Animation {
     private {
         //animation data
         Frames mFrames;
-        //the indices mean: [0] for p1, [1] for p2
-        AnimationParamConvertDelegate[2] mParamConvert;
+        //the indices mean: [0] for p1, [1] for p2, ...
+        AnimationParamConvertDelegate[3] mParamConvert;
     }
 
     this(ConfigNode node, AniFrames frames) {
@@ -229,13 +238,14 @@ class ComplicatedAnimation : Animation {
         void loadParamStuff(int index, char[] name) {
             auto val = node.getStringValue(name, "none");
             if (!(val in gAnimationParamConverters)) {
-                assert(false, "not found; add error handling");
+                assert(false, "not found; add error handling: '"~val~"'");
             }
             mParamConvert[index] = gAnimationParamConverters[val];
         }
 
         loadParamStuff(0, "param_1");
         loadParamStuff(1, "param_2");
+        loadParamStuff(2, "param_3");
 
         //find out how long this is - needs reverse lookup
         //default value 1 in case time isn't used for a param (not animated)
@@ -276,6 +286,8 @@ class ComplicatedAnimation : Animation {
                     return doParam(mParamConvert[0], p.p1, cnt);
                 case FileAnimationParamType.P2:
                     return doParam(mParamConvert[1], p.p2, cnt);
+                case FileAnimationParamType.P3:
+                    return doParam(mParamConvert[2], p.p3, cnt);
                 default:
                     return 0;
             }

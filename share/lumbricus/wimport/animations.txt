@@ -161,25 +161,6 @@ mainspr {
             _params = "p1/rot360inv,time"
             _flags = "+repeat"
 
-            mine = "50"
-            mine_red = "51"
-            mine_blue = "52"
-            mine_green = "53"
-            mine_yellow = "54"
-            mine_cyan = "55"
-            mine_magenta = "56"
-
-            {
-                _flags = "f:250"
-                mine_flashing = "43 50"
-                mine_flashing_red = "44 51"
-                mine_flashing_blue = "45 52"
-                mine_flashing_green = "46 53"
-                mine_flashing_yellow = "47 54"
-                mine_flashing_cyan = "48 55"
-                mine_flashing_magenta = "49 56"
-            }
-
             arrow_fly = "57"
             bazooka_fly = "58"
             magicbullet_fly = "59"
@@ -192,6 +173,18 @@ mainspr {
             supersheep_blue = "f:150; 165 166"
 
             worm_rope = "156"
+        }
+        //same as above, but now with a 3rd axis for team colors
+        {
+            _params = "p1/rot360inv,time,p3/direct"
+            _flags = "+repeat"
+
+            mine = "50 | 51 | 52 | 53 | 54 | 55 | 56"
+
+            {
+                _flags = "f:250"
+                mine_flashing = "43 50 | 44 51 | 45 52 | 46 53 | 47 54 | 48 55 | 49 56"
+            }
         }
         {
             _params = "p1/rot360inv,p2/linear100"
@@ -245,7 +238,7 @@ mainspr {
             worm_bump_into_ground = "-repeat; 301"
             worm_parachute_enter = "-repeat; 296"
             worm_parachute_fly = "+append_backwards_a; 297"
-            worm_getdrill = "-repeat,+keeplast,f:25; 368" //wtf, 369/370 are longer???
+            worm_drill_get = "-repeat,+keeplast,f:25; 368" //wtf, 369/370 are longer???
             worm_usedrill = "f:15,+append_backwards_a; 371"
 
             //vertical/horizontal jetpack exhaust flames
@@ -293,24 +286,24 @@ mainspr {
                 //            weapons will play "get" backwards)
                 _flags = "+keeplast,f:25"
 
-                worm_get_no_weapon = "338"
-                worm_getmine = "398"
-                worm_getairstrike = "422"
-                worm_getdynamite = "344"
-                worm_getmingvase = "347"
-                worm_getbeamer = "428"
-                worm_gethelmet = "317"
-                worm_getatomtest = "320"
-                worm_getcow = "350"
-                worm_getsheep = "353"
-                worm_getgranny = "356"
-                worm_getskunk = "359"
-                worm_getmole = "362"
-                worm_getsally_army = "365"
-                worm_getprod = "372"
-                worm_getaxe = "407"
-                worm_getheadband = "419"
-                worm_getfreezer = "479"
+                worm_no_weapon_get = "338"
+                worm_atomtest_get = "320"
+                worm_beamer_get = "428"
+                worm_dynamite_get = "344"
+                worm_airstrike_get = "422"
+                worm_mingvase_get = "347"
+                worm_mine_get = "398"
+                worm_granny_get = "356"
+                worm_sally_army_get = "365"
+                worm_cow_get = "350"
+                worm_sheep_get = "353"
+                worm_prod_get = "372"
+                worm_axe_get = "407"
+                worm_helmet_get = "317"
+                worm_skunk_get = "359"
+                worm_mole_get = "362"
+                worm_headband_get = "419"
+                worm_freezer_get = "479"
             }
             {
                 //special: limited angle range
@@ -342,6 +335,7 @@ mainspr {
                 worm_look2 = "275"
                 worm_mustache = "241"
                 worm_pout = "238"
+
                 worm_slide_leave1 = "305"
                 worm_slide_leave2 = "308"
 
@@ -392,7 +386,7 @@ mainspr {
                 worm_relieved = "+repeat; 197"
                 worm_sad = "+repeat; 188"
 
-                worm_useairstrike = "425"
+                worm_airstrike_fire = "425"
                 worm_usebeamer = "431"
             }
             {
@@ -402,8 +396,7 @@ mainspr {
                 worm_frozen_leave = "485"
             }
             {
-                //xxx mostly animations that would require time as the third
-                //    parameter (which is not supported)
+                //animations that would require time as the third parameter
                 _params = "p2/rot180,p1/step3,time"
 
                 worm_pistol_fire = "+repeat,f:300; 568 | 571"
@@ -415,6 +408,21 @@ mainspr {
                 worm_throw = "f:250; 601"
                 worm_baseball_fire = "f:250; 532"
             }
+        }
+        //that silly hat, specialized with worm color
+        //all entries separated by '|' are for a given team color ('|' orders
+        //  the animation on the 3rd axis, which is mapped to the team color...)
+        //NOTE: for both, the first and second entries are doubled
+        //      this is because color 0 is for "neutral" (needed for mine)
+        {
+            _params = "time,p1/step3,p3/direct"
+            _flags = "+mirror_y_b"
+            worm_hat_get = "461 462 463 | 461 462 463 | 464 465 466 | 467 468 469 | 470 471 472 | 473 474 475 | 476 477 478"
+        }
+        {
+            _params = "time,p1/step3,p3/direct"
+            _flags = "+mirror_y_b,+repeat,+append_backwards_a"
+            worm_hat_hold = "254 255 256 | 254 255 256 | 257 258 259 | 260 261 262 | 263 264 265 | 266 267 268 | 269 270 271"
         }
     }
     //special code for worm weapons; each entry generates two animations
@@ -463,13 +471,6 @@ water_anims {
         worm_drown = "18"
         barrel_drown = "19"
         meteor_drown = "20"
-        mine_drown = "21"
-        mine_drown_red = "22"
-        mine_drown_blue = "23"
-        mine_drown_green = "24"
-        mine_drown_yellow = "25"
-        mine_drown_magenta = "26"
-        mine_drown_cyan = "27"
         bazooka_drown = "28"
         airstrike_drown = "29"
         grenade_drown = "30"
@@ -514,6 +515,11 @@ water_anims {
             homing_active_underwater = "54"
 
             supersheep_blue_underwater = "f:150; 56 57"
+        }
+
+        {
+            _params = "time,p3/direct"
+            mine_drown = "21 | 22 | 23 | 24 | 25 | 26 | 27"
         }
     }
 }

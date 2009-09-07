@@ -57,7 +57,7 @@ abstract class WeaponClass {
     FireMode fireMode;
 
     //weapon-holding animations
-    char[][WeaponWormAnimations.max+1] animations;
+    char[] animation;
 
     GfxSet gfx() {
         return mGfx;
@@ -82,14 +82,8 @@ abstract class WeaponClass {
             fireMode.loadFromConfig(fire);
         }
 
-        //load the transition animations
-        auto anis = node.getSubNode("animation");
-        foreach (int i, char[] name; cWWA2Str) {
-            auto val = anis.findValue(name);
-            if (val) {
-                animations[i] =val.value;
-            }
-        }
+        //load the animations
+        animation = node["animation"];
 
         //load projectiles
         foreach (ConfigNode pr; node.getSubNode("projectiles")) {

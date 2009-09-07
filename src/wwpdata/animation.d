@@ -23,7 +23,8 @@ class AnimList {
         foreach (int i, Animation a; animations) {
             char[] afn, apath;
             if (tosubdir) {
-                afn = myformat("anim_{}", i);
+                //ah, how I love those "intuitive" formatting parameters...
+                afn = myformat("anim_{0:d3}", i);
                 apath = outPath ~ pathsep ~ fnBase;
                 trymkdir(apath);
             } else {

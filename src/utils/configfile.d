@@ -1188,7 +1188,11 @@ public class ConfigFile {
             dchar offender = mData[mNextPos.bytePos];
             mNextPos.bytePos++;
             while (mNextPos.bytePos < mData.length) {
-                uint adv = str.stride(mData, mNextPos.bytePos);
+                uint adv = 0xFF;
+                try {
+                    adv = str.stride(mData, mNextPos.bytePos);
+                } catch (str.UnicodeException utfe) {
+                }
                 if (adv != 0xFF)
                     break;
                 mNextPos.bytePos++;
@@ -1329,6 +1333,12 @@ public class ConfigFile {
         const final char cValueClose = '"';
         const final char cValueOpen2 = '`';
         const final char cValueClose2 = '`';
+        //lololo
+        const final char cValueOpen3 = '<';
+        const final char cValueClose3 = '>';
+        const final char cValueMark3 = ':';
+
+        dchar value3_endmark;
 
         if (curChar == cValueOpen) {
             //parse a VALUE; VALUEs must end with another '"'
@@ -1339,6 +1349,22 @@ public class ConfigFile {
         } else if (curChar == cValueOpen2) {
             next();
             is_value = 2;
+        } else if (curChar == cValueOpen3) {
+            next();
+            if (curChar == EOF)
+                reportError(true, "long string literal with '<': EOF");
+            //NOTE: I'd like to be able to have an end mark longer than one char
+            //  then you could write: <foo: blablabla foo>
+            //but questionable feature, and not worth the effort right now
+            value3_endmark = curChar;
+            next();
+            if (curChar == ':') {
+                next();
+            } else {
+                reportError(false, "long string literal with '<': ':' after "
+                    " '<' and end marker expected, e.g. '<#: ...stuff... #>'");
+            }
+            is_value = 3;
         }
 
         //if not a value: any chars that come now must form ID tokens
@@ -1354,6 +1380,13 @@ public class ConfigFile {
         }
 
         for (;;) {
+            if (curChar == '\r') {
+                //remove windows CR
+                next();
+                val_copy(curpos);
+                continue;
+            }
+
             if (is_value == 1) {
                 //special handling for VALUEs
                 if (curChar == '\\') {
@@ -1375,15 +1408,23 @@ public class ConfigFile {
                 }
             } else if (is_value == 2) {
                 //`backtick` string, read as is, no escaping
-                if (curChar == cValueClose2) {
+                if (curChar == cValueClose2)
                     break;
-                } else {
-                    if (curChar == '\r') {
-                        //remove windows CR
+            } else if (is_value == 3) {
+                if (curChar == value3_endmark) {
+                    //xxx: could look-ahead, and only end the literal if '>'
+                    //  really follows (and otherwise continue the literal)
+                    val_copy(curpos);
+                    next();
+                    if (curChar == cValueClose3) {
                         next();
-                        val_copy(curpos);
-                        continue;
+                    } else {
+                        reportError(false, "long string literal with '<': "
+                            "'>' expected when closing the literal, e.g.:"
+                            " '<#: foo #>'");
                     }
+                    strstart = curpos;
+                    break;
                 }
             } else {
                 //special handling for IDs
@@ -1744,6 +1785,20 @@ char[] t5 =
     }
 }`;
 
+//just check the <?: ... ?> string literal
+char[] t6_1 =
+`moo = "hello" //a
+ foo = <Ä: brrr grrr
+    hrrr drrr "a" 'b' <a: kdfg a> Ä>
+ goo = "123"
+`;
+char[] t6_2 =
+`moo = "hello"
+//a
+foo = " brrr grrr\n    hrrr drrr \"a\" \'b\' <a: kdfg a> "
+goo = "123"
+`;
+
 unittest {
     auto n1 = debugParseFile(t1);
     auto s1 = n1.writeAsString();
@@ -1766,6 +1821,10 @@ unittest {
 
     debugParseFile(t5);
 
+    auto n6 = debugParseFile(t6_1);
+    auto s6 = n6.writeAsString();
+    assert (s6 == t6_2, s6 ~ " -- " ~ t6_2);
+
     assert (!test_error);
 }
 
@@ -1773,8 +1832,13 @@ unittest {
 Lexer:
     it's all utf-8
     newlines count as whitespace
-    comments
+    comments: /* ... */ /+ ... +/ //...<eol>
+        xxx: /+ +/ doesn't nest as in D
     escapes in strings
+    string literals:
+        "...." (one line, with escapes)
+        `....` (multiline, without escapes)
+        <?: ... ?> (multiline, without escapes, instead of '?', any char goes)
 
 Syntax:
     //normal syntax

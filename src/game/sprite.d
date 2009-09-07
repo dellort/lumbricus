@@ -90,6 +90,7 @@ class GObjectSprite : GameObject {
             graphic.setState(currentState.animationWater);
         } else {
             SequenceState nstate = currentState.animation;
+            /+
             if (mType.teamAnimation) {
                 auto m = engine.controller.memberFromGameObject(this, true);
                 if (m) {
@@ -97,6 +98,7 @@ class GObjectSprite : GameObject {
                         TeamTheme.cTeamColors[m.team.color.colorIndex]];
                 }
             }
+            +/
             graphic.setState(nstate);
         }
     }
@@ -446,12 +448,14 @@ class StaticStateInfo {
 
         if (sc["animation"].length > 0) {
             animation = owner.findSequenceState(sc["animation"]);
+            /+
             if (owner.teamAnimation) {
                 foreach (col; TeamTheme.cTeamColors) {
                     teamAnim[col] =
                         owner.findSequenceState(sc["animation"] ~ "_" ~ col);
                 }
             }
+            +/
         }
         if (sc["animation_water"].length > 0) {
             animationWater = owner.findSequenceState(sc["animation_water"]);
@@ -495,9 +499,8 @@ class GOSpriteClass {
     GfxSet gfx;
     char[] name;
 
-    //SequenceObject sequenceObject;
-    char[] sequencePrefix;
-    bool teamAnimation = false;
+    SequenceType sequenceType;
+    //bool teamAnimation = false;
 
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
@@ -545,10 +548,11 @@ class GOSpriteClass {
         //sequenceObject = engine.gfx.resources.resource!(SequenceObject)
           //  (config["sequence_object"]).get;
         //explanation see worm.conf
-        sequencePrefix = config["sequence_object"];
+        sequenceType = gfx.resources.get!(SequenceType)(
+            config["sequence_object"]);
 
         initialHp = config.getFloatValue("initial_hp", initialHp);
-        teamAnimation = config.getValue("team_animation", teamAnimation);
+        //teamAnimation = config.getValue("team_animation", teamAnimation);
 
         //load states
         //physic stuff is loaded when it's referenced in a state description
@@ -582,11 +586,16 @@ class GOSpriteClass {
         return new StaticStateInfo(a_name);
     }
 
-    SequenceState findSequenceState(char[] pseudo_name,
+    SequenceState findSequenceState(char[] name,
         bool allow_not_found = false)
     {
-        return gfx.sequenceStates.findState(sequencePrefix ~ '_' ~
-            pseudo_name, allow_not_found);
+        //something in projectile.d seems to need this special case?
+        if (!sequenceType) {
+            if (allow_not_found)
+                return null;
+            assert(false, "bla.");
+        }
+        return sequenceType.findState(name, allow_not_found);
     }
 
     static this() {

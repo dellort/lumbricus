@@ -6,6 +6,7 @@ import game.particles : ParticleType;
 import common.config;
 import common.resset;
 import common.resources : gResources, addToResourceSet;
+//import common.macroconfig;
 import utils.color;
 import utils.configfile;
 import utils.time;
@@ -52,7 +53,6 @@ class GfxSet {
     ConfigNode config;
 
     ResourceSet resources;
-    SequenceStateList sequenceStates;
 
     //keyed by the theme name (TeamTheme.name)
     TeamTheme[char[]] teamThemes;
@@ -122,6 +122,7 @@ class GfxSet {
 
     //Params: n = the "sequences" node, containing loaders
     void addSequenceNode(ConfigNode n) {
+        //process_macros(n);
         mSequenceConfig ~= n;
     }
 
@@ -167,11 +168,12 @@ class GfxSet {
     //--- sprite & weapon stuff (static data)
 
     private void loadSprites() {
-        sequenceStates = new SequenceStateList();
-
         //load sequences
         foreach (ConfigNode node; mSequenceConfig) {
-            loadSequences(this, node);
+            foreach (ConfigNode sub; node) {
+                auto t = new SequenceType(this, sub);
+                resources.addResource(new ResWrap!(SequenceType)(t), t.name);
+            }
         }
 
         //load sprites
@@ -296,7 +298,12 @@ class GfxSet {
         }
 
         foreach (ResourceSet.Entry res; resources.resourceList()) {
-            ctx.addExternal(res.wrapper.get(), "res::" ~ res.name());
+            Object o = res.wrapper.get();
+            ctx.addExternal(o, "res::" ~ res.name());
+            //xxx: maybe generalize using an interface or so?
+            if (auto seq = cast(SequenceType)o) {
+                seq.initSerialization(ctx);
+            }
         }
 
         foreach (char[] key, GOSpriteClass s; mSpriteClasses) {
@@ -315,8 +322,6 @@ class GfxSet {
             assert(key == w.name);
             ctx.addExternal(w, "weapon::" ~ w.name);
         }
-
-        sequenceStates.initSerialization(ctx);
 
         foreach (char[] key, Object o; mActionClasses) {
             ctx.addExternal(o, "action::" ~ key);
@@ -343,6 +348,7 @@ class TeamTheme {
     int colorIndex; //index into cTeamColors
 
     //wwp hardcodes these colors (there are separate bitmaps for each)
+    //the indices are also hardcoded to wwp (0 must be red etc.)
     static const char[][] cTeamColors = [
         "red",
         "blue",

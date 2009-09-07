@@ -448,10 +448,11 @@ void parseParams(char[] s, out AniParams p) {
     map["null"] = Param.Null;
     map["p1"] = Param.P1;
     map["p2"] = Param.P2;
+    map["p3"] = Param.P3;
     map["time"] = Param.Time;
     auto stuff = str.split(s, ",");
     assert(stuff.length <= 3, "only 3 params or less");
-    char[][2] conv = ["",""];
+    char[][3] conv = ["","",""];
     for (int n = 0; n < stuff.length; n++) {
         auto sub = str.split(stuff[n], "/");
         assert(sub.length == 1 || sub.length == 2);
@@ -463,6 +464,7 @@ void parseParams(char[] s, out AniParams p) {
         switch (param) {
             case Param.P1: intp = 0; break;
             case Param.P2: intp = 1; break;
+            case Param.P3: intp = 2; break;
             default: intp = -1;
         }
         if (intp >= 0) {

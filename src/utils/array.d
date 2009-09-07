@@ -233,6 +233,11 @@ struct Appender(T) {
         }
         mArray[mLength-1] = value;
     }
+    void opCatAssign(T[] value) {
+        mLength += value.length;
+        do_grow();
+        mArray[mLength-value.length .. mLength] = value;
+    }
     T[] opSlice() {
         return mArray[0..mLength];
     }
@@ -240,9 +245,12 @@ struct Appender(T) {
         T[] slice = opSlice();
         slice[] = v;
     }
-    //add you're bored, add
+    //if you're bored, add
     //opSlice(size_t a, size_t b)
     //opSliceAssign(T v, size_t a, size_t b)
+    T[] dup() {
+        return opSlice().dup;
+    }
 
     size_t length() {
         return mLength;
@@ -262,6 +270,8 @@ struct Appender(T) {
 
     //so that mLength <= mCapacity; don't initialize new items
     private void do_grow() {
+        if (mLength <= mCapacity)
+            return;
         //make larger exponantially
         mCapacity = max(16, mCapacity);
         while (mCapacity < mLength)

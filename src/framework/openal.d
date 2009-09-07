@@ -206,12 +206,14 @@ class ALSound : DriverSound {
             //decode everything into memory (no streaming for now)
             uint bufSize = Sound_DecodeAll(mSample);
 
+            Sound_AudioInfo fmt = mSample.actual;
+
             //copy sound data to openal buffer
             alGenBuffers(1, &mALBuffer[0]);
             checkALError("alGenBuffers");
             alBufferData(mALBuffer[0],
-                convertSDLFormat(mSample.actual.channels, mSample.actual.format),
-                mSample.buffer, bufSize, mSample.actual.rate);
+                convertSDLFormat(fmt.channels, fmt.format), mSample.buffer,
+                bufSize, fmt.rate);
             checkALError("alBufferData");
 
             //close original sample
@@ -219,6 +221,14 @@ class ALSound : DriverSound {
             mStream.close();
             mStream = null;
             mSample = null;
+
+            //get exact length (because we have it decoded to PCM)
+            //calculation stolen from SDL_sound's wav decoder, lol.
+            uint bps = formatBps(fmt);
+            assert(bps != 0);
+            uint ms_len = (bufSize / bps) * 1000;
+            ms_len += (bufSize % bps) * 1000 / bps;
+            mLength = timeMsecs(ms_len);
         }
     }
 
@@ -235,16 +245,15 @@ class ALSound : DriverSound {
     }
 
     //returns bytes per second for a given SDL format
-    private uint formatBps(ubyte channels, ushort format, uint rate) {
+    private uint formatBps(Sound_AudioInfo fmt) {
         ubyte sampleSize = 2;
-        if (format == AUDIO_U8 || format == AUDIO_S8)
+        if (fmt.format == AUDIO_U8 || fmt.format == AUDIO_S8)
             sampleSize = 1;
-        return sampleSize * channels * rate;
+        return sampleSize * fmt.channels * fmt.rate;
     }
 
     private uint formatBps(Sound_Sample* sample) {
-        return formatBps(sample.actual.channels, sample.actual.format,
-            sample.actual.rate);
+        return formatBps(sample.actual);
     }
 
     //called before the alSourcePlay() call

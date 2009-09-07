@@ -43,8 +43,9 @@ void initGameSerialization() {
         CollectableToolDoubleTime, ControllerMsgs, ControllerStats,
         ControllerPersistence, CollectableToolDoubleDamage, /+LandscapeBitmap,+/
         GravityCenterAction, ProximitySensorAction,
-        NapalmStateDisplay, WormStateDisplay,
-        WormControl);
+        WormControl,
+        SimpleAnimationDisplay, WwpNapalmDisplay, WwpJetpackDisplay,
+        WwpWeaponDisplay);
     /+
     //stuff that is actually redundant and wouldn't need to be in savegames
     //but excluding this from savegames would be too much work for nothing

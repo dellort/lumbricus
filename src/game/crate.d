@@ -387,7 +387,7 @@ class CrateSpriteClass : ActionSpriteClass {
     float collectRadius;
 
     StaticStateInfo st_creation, st_normal, st_parachute, st_drowning;
-    char[][CrateType.max+1] mySequencePrefix;
+    SequenceType[CrateType.max+1] mySequences;
 
     //xxx class
     this (ReflectCtor c) {
@@ -398,9 +398,12 @@ class CrateSpriteClass : ActionSpriteClass {
         super(e, r);
     }
     override void loadFromConfig(ConfigNode config) {
-        mySequencePrefix[CrateType.weapon] = config["sequence_object"];
-        mySequencePrefix[CrateType.med] = config["sequence_object_med"];
-        mySequencePrefix[CrateType.tool] = config["sequence_object_tool"];
+        SequenceType sq(char[] name) {
+            return gfx.resources.get!(SequenceType)(config[name]);
+        }
+        mySequences[CrateType.weapon] = sq("sequence_object");
+        mySequences[CrateType.med] = sq("sequence_object_med");
+        mySequences[CrateType.tool] = sq("sequence_object_tool");
 
         super.loadFromConfig(config);
 
@@ -421,10 +424,8 @@ class CrateSpriteClass : ActionSpriteClass {
         return new CrateStateInfo(name, a_name);
     }
 
-    private SequenceState findSequenceState2(CrateType type, char[] pseudo_name)
-    {
-        return gfx.sequenceStates.findState(mySequencePrefix[type] ~ '_' ~
-            pseudo_name, false);
+    private SequenceState findSequenceState2(CrateType type, char[] name) {
+        return mySequences[type].findState(name);
     }
 
     static this() {

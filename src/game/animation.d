@@ -21,6 +21,7 @@ static this() {
     //documentation on this stuff see implementations
 
     gAnimationParamConverters["none"] = &paramConvertNone;
+    gAnimationParamConverters["direct"] = &paramConvertDirect;
     gAnimationParamConverters["step3"] = &paramConvertStep3;
     gAnimationParamConverters["twosided"] = &paramConvertTwosided;
     gAnimationParamConverters["twosided_inv"] = &paramConvertTwosidedInv;
@@ -70,6 +71,10 @@ private int map3(float val, float rFrom, int rTo) {
 //default
 private int paramConvertNone(int angle, int count) {
     return 0;
+}
+//no change
+private int paramConvertDirect(int angle, int count) {
+    return clampRangeO(angle, 0, count);
 }
 //expects count to be 6 (for the 6 angles)
 private int paramConvertStep3(int angle, int count) {

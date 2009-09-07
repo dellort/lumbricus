@@ -1,4 +1,4 @@
-//Source: http://dsource.org/projects/minid/browser/trunk/mdcl.d r520
+//Source: http://dsource.org/projects/minid/browser/trunk/mdcl.d r555
 /******************************************************************************
 License:
 Copyright (c) 2008 Jarrett Billingsley
@@ -12,12 +12,12 @@ including commercial applications, and to alter it and redistribute it freely,
 subject to the following restrictions:
 
     1. The origin of this software must not be misrepresented; you must not
-        claim that you wrote the original software. If you use this software in a
-        product, an acknowledgment in the product documentation would be
-        appreciated but is not required.
+	claim that you wrote the original software. If you use this software in a
+	product, an acknowledgment in the product documentation would be
+	appreciated but is not required.
 
     2. Altered source versions must be plainly marked as such, and must not
-        be misrepresented as being the original software.
+	be misrepresented as being the original software.
 
     3. This notice may not be removed or altered from any source distribution.
 ******************************************************************************/
@@ -34,10 +34,10 @@ import minid.commandline;
 
 version(MDAllAddons)
 {
-        version = MDSdlAddon;
-        version = MDGlAddon;
-        version = MDNetAddon;
-        version = MDPcreAddon;
+	version = MDSdlAddon;
+	version = MDGlAddon;
+	version = MDNetAddon;
+	version = MDPcreAddon;
 }
 
 version(MDSdlAddon)  import minid.addons.sdl;
@@ -45,7 +45,7 @@ version(MDGlAddon)   import minid.addons.gl;
 version(MDNetAddon)  import minid.addons.net;
 version(MDPcreAddon) import minid.addons.pcre;
 
-        const char[] Usage =
+	const char[] Usage =
 "Usage:
 \tmdcl [flags] [filename [args]]
 
@@ -79,137 +79,137 @@ To end interactive mode, use the \"exit()\" function.
 
 void printVersion()
 {
-        Stdout("MiniD Command-Line interpreter 2.0").newline;
+	Stdout("MiniD Command-Line interpreter 2.0").newline;
 }
 
 void printUsage()
 {
-        printVersion();
-        Stdout(Usage);
+	printVersion();
+	Stdout(Usage);
 }
 
 struct Params
 {
-        bool justStop;
-        bool debugEnabled;
-        char[] inputFile;
-        char[][] args;
+	bool justStop;
+	bool debugEnabled;
+	char[] inputFile;
+	char[][] args;
 }
 
 Params parseArguments(MDThread* t, char[][] args)
 {
-        Params ret;
+	Params ret;
 
-        for(int i = 1; i < args.length; i++)
-        {
-                switch(args[i])
-                {
-                        case "-v":
-                                printVersion();
-                                ret.justStop = true;
-                                break;
+	for(int i = 1; i < args.length; i++)
+	{
+		switch(args[i])
+		{
+			case "-v":
+				printVersion();
+				ret.justStop = true;
+				break;
 
-                        case "-h":
-                                printUsage();
-                                ret.justStop = true;
-                                break;
+			case "-h":
+				printUsage();
+				ret.justStop = true;
+				break;
 
-                        case "-I":
-                                i++;
+			case "-I":
+				i++;
 
-                                if(i >= args.length)
-                                {
-                                        Stdout("-I must be followed by a path").newline;
-                                        printUsage();
-                                        ret.justStop = true;
-                                        break;
-                                }
+				if(i >= args.length)
+				{
+					Stdout("-I must be followed by a path").newline;
+					printUsage();
+					ret.justStop = true;
+					break;
+				}
 
-                                pushGlobal(t, "modules");
-                                field(t, -1, "path");
-                                pushChar(t, ';');
-                                pushString(t, args[i]);
-                                cateq(t, -3, 2);
-                                fielda(t, -2, "path");
-                                pop(t);
-                                continue;
+				pushGlobal(t, "modules");
+				field(t, -1, "path");
+				pushChar(t, ';');
+				pushString(t, args[i]);
+				cateq(t, -3, 2);
+				fielda(t, -2, "path");
+				pop(t);
+				continue;
 
-                        case "-d":
-                                ret.debugEnabled = true;
-                                continue;
+			case "-d":
+				ret.debugEnabled = true;
+				continue;
 
-                        default:
-                                if(args[i].startsWith("-"))
-                                {
-                                        Stdout.formatln("Unknown flag '{}'", args[i]);
-                                        printUsage();
-                                        ret.justStop = true;
-                                        break;
-                                }
+			default:
+				if(args[i].startsWith("-"))
+				{
+					Stdout.formatln("Unknown flag '{}'", args[i]);
+					printUsage();
+					ret.justStop = true;
+					break;
+				}
 
-                                ret.inputFile = args[i];
-                                ret.args = args[i + 1 .. $];
-                                break;
-                }
+				ret.inputFile = args[i];
+				ret.args = args[i + 1 .. $];
+				break;
+		}
 
-                break;
-        }
+		break;
+	}
 
-        return ret;
+	return ret;
 }
 
 void main(char[][] args)
 {
-        MDVM vm;
-        auto t = openVM(&vm);
-        loadStdlibs(t, MDStdlib.All);
+	MDVM vm;
+	auto t = openVM(&vm);
+	loadStdlibs(t, MDStdlib.All);
 
-        version(MDSdlAddon)  SdlLib.init(t);
-        version(MDGlAddon)   GlLib.init(t);
-        version(MDNetAddon)  NetLib.init(t);
-        version(MDPcreAddon) PcreLib.init(t);
+	version(MDSdlAddon)  SdlLib.init(t);
+	version(MDGlAddon)   GlLib.init(t);
+	version(MDNetAddon)  NetLib.init(t);
+	version(MDPcreAddon) PcreLib.init(t);
 
-        auto params = parseArguments(t, args);
-        
-        if(params.justStop)
-                return;
+	auto params = parseArguments(t, args);
+	
+	if(params.justStop)
+		return;
 
-        if(params.debugEnabled)
-                loadStdlibs(t, MDStdlib.Debug);
-                
-        try
-        {
-                if(params.inputFile)
-                {
-                        mdtry(t,
-                        {
-                                foreach(arg; params.args)
-                                        pushString(t, arg);
-        
-                                runFile(t, params.inputFile, params.args.length);
-                        },
-                        (MDException e, word mdEx)
-                        {
-                                Stdout.formatln("Error: {}", e);
-                                getTraceback(t);
-                                Stdout.formatln("{}", getString(t, -1));
-                                pop(t);
-                        });
-                }
-                else
-                {
-                        printVersion();
-        
-                        ConsoleCLI cli;
-                        cli.interactive(t);
-                }
-        }
-        catch(Exception e)
-        {
-                Stdout.formatln("Oh noes!");
-                e.writeOut((char[]s) { Stdout(s); });
-                return;
-        }
-        
-        closeVM(&vm);
+	if(params.debugEnabled)
+		loadStdlibs(t, MDStdlib.Debug);
+		
+	try
+	{
+		if(params.inputFile)
+		{
+			mdtry(t,
+			{
+				foreach(arg; params.args)
+					pushString(t, arg);
+	
+				runFile(t, params.inputFile, params.args.length);
+			},
+			(MDException e, word mdEx)
+			{
+				Stdout.formatln("Error: {}", e);
+				getTraceback(t);
+				Stdout.formatln("{}", getString(t, -1));
+				pop(t);
+			});
+		}
+		else
+		{
+			printVersion();
+	
+			ConsoleCLI cli;
+			cli.interactive(t);
+		}
+	}
+	catch(Exception e)
+	{
+		Stdout.formatln("Oh noes!");
+		e.writeOut((char[]s) { Stdout(s); });
+		return;
+	}
+	
+	closeVM(&vm);
 }
