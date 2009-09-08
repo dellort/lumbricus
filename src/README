@@ -21,6 +21,36 @@ http://www.digitalmars.com/d/1.0/
 There's also a little info on our project page:
 https://gna.org/projects/lumbricus
 
+Version status for tools and libraries:
+- faulty (Linux):
+    D compiler:
+        You need one of those...
+        dmd:
+            1.047: doesn't work; http://d.puremagic.com/issues/show_bug.cgi?id=3301
+            1.046: works
+            1.045: apparently doesn't work (struct forward refs)
+        ldc: *sigh*, if it works depends from the current moonphase
+            (worked with lumbricus r876+1 and ldc 1578:1dee66f6ec0b)
+        gdc: forget it
+    tango:
+        svn r4931: works
+        release 0.99.8: should work, but untested
+    Derelict:
+        http://svn.dsource.org/projects/derelict/trunk/
+        svn r377: works, but...
+        DerelictFT: need this patch: http://www.dsource.org/projects/derelict/ticket/40
+        Devil: I really don't know. Also, this library sucks.
+            (problem is: svn forces you to use a filesystem layout, that doesn't work
+             with the package structure; you need to copy all files from DerelictIL,
+             DerelictILU, and DerelictILUT into the same directory.)
+        DerelictGL: ok
+        DerelictGLU: ok
+        DerelictSDL: ok
+        DerelictAL: ok
+            (note that we have our own, unused-but-needed alut headers. what?)
+        DerelictUtil: ok
+    NOTE: the corresponding C libs usually are stable, because they're written in C, and not in D (where each new compiler version might break everything, *sigh*)
+
 Building it...
 
 - A D compiler for D 1.x is required, pick up the latest version of dmd:

@@ -43,10 +43,16 @@ enum GUIZOrder : int {
 
 TopLevel gTopLevel;
 
+version (LDC) {
+    const cGCStats = false;
+} else {
+    const cGCStats = is(memory.GC.GCStats);
+}
+
 real gc_stat_get_r(char[] name) {
-    static if (is(memory.GC.GCStats)) {
+    static if (cGCStats) {
         memory.GC.GCStats stats = memory.GC.stats();
-        if (stats in name) //someone confused opIn and opIn_r
+        if (name in stats)
             return stats[name];
     }
     return -1; //xD
@@ -644,7 +650,7 @@ private:
         write.writefln("  ...minimize: {}", str.sizeToHuman(c - b));
     }
     private void testGCstats(MyBox[] args, Output write) {
-        static if (is(memory.GC.GCStats)) {
+        static if (cGCStats) {
             foreach (k; memory.GC.stats().keys()) {
                 write.writefln("{} = {}", k, gc_stat_get_r(k));
             }

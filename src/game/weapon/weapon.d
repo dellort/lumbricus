@@ -18,6 +18,8 @@ import utils.serialize;
 import utils.configfile;
 import utils.log;
 
+import tango.util.Convert : to;
+
 import game.gamepublic;
 
 alias StaticFactory!("WeaponClasses", WeaponClass, GfxSet, ConfigNode)

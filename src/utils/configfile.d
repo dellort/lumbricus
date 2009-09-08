@@ -883,6 +883,7 @@ public class ConfigNode {
 version(LDC) {
     //utils/configfile.d(926): Error: Exp type TupleExp not implemented:
     //tuple(x._items_field_0 = (*p).a,x._items_field_1 = (*p).b)
+    //http://dsource.org/projects/ldc/ticket/362
     pragma(msg, "ConfigNode: do_read_struct unsupported on LDC.");
 } else {
         //call the backend function to do the actual work
@@ -1901,10 +1902,13 @@ unittest {
     foo.readAll(&var, "var", &v2, "var2", &z, "varz", &s, "sub");
     foo.read!(X)(&y);
 
-    assert(var == 123 && v2 == true && z == 0.5f);
-    assert(y.var == 123 && y.var2 == true && y.varz == 0.5f);
-    assert(s.a == 456 && s.b == 2.0f);
-    assert(y.sub.a == 456 && y.sub.b == 2.0f);
+    version (LDC) {
+    } else {
+        assert(var == 123 && v2 == true && z == 0.5f);
+        assert(y.var == 123 && y.var2 == true && y.varz == 0.5f);
+        assert(s.a == 456 && s.b == 2.0f);
+        assert(y.sub.a == 456 && y.sub.b == 2.0f);
+    }
 }
 
 unittest {

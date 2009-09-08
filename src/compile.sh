@@ -20,7 +20,7 @@ function invoke_compiler
 {
     DMD_IS_BROKEN=+full
     # libreadline and MDReadline is just for mdcl
-    $CMD xfbuild +c$COMPILER $1.d +xtango -unittest -debug -g -L-lz -L-ldl +o$BINDIR$1 +D.deps_$1 +O.objs_$1 $DMD_IS_BROKEN -version=MDReadline -L-lreadline
+    $CMD xfbuild +c$COMPILER $1.d +noop +xtango -unittest -debug -g -L-lz -L-ldl +o$BINDIR$1 +D.deps_$1 +O.objs_$1 $DMD_IS_BROKEN -version=MDReadline -L-lreadline
 }
 
 TARGETS="lumbricus extractdata test mdcl unworms animutil sdlimginfo"

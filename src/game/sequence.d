@@ -739,12 +739,17 @@ class WeaponPart {
 }
 +/
 
+//compilation fix for LDC - move back into WwpWeaponState as soon as it's fixed
+struct WwpWeaponState_Weapon {
+    //all animations other than "get" and "unget" can be null
+    Animation get, hold, fire, /+fire_end,+/ unget;
+}
 
 //this handles the normal "stand" state as well as armed worms (stand+weaoon)
 class WwpWeaponDisplay : AniStateDisplay {
     WwpWeaponState myclass;
     char[] mCurrentW;
-    WwpWeaponState.Weapon mCurrentAni;
+    WwpWeaponState_Weapon mCurrentAni;
     Time mNextIdle; //just an offset
     int mWeaponDir; //1: get, 0: nothing, -1: unget
 
@@ -881,13 +886,9 @@ class WwpWeaponDisplay : AniStateDisplay {
 
 class WwpWeaponState : SequenceState {
     Animation normal; //stand state
-    struct Weapon {
-        //all animations other than "get" and "unget" can be null
-        Animation get, hold, fire, /+fire_end,+/ unget;
-    }
     //indexed by the name, which is referred to by WeaponClass.animation
-    Weapon[char[]] weapons;
-    Weapon weapon_unknown;
+    WwpWeaponState_Weapon[char[]] weapons;
+    WwpWeaponState_Weapon weapon_unknown;
     //idle animations (xxx: maybe should moved into a more generic class?)
     RandomValue!(Time) idle_wait;
     Animation[] idle_animations;
@@ -906,7 +907,7 @@ class WwpWeaponState : SequenceState {
             if (!str.endsWith(value, "+"))
                 assert(false, "weapon entry doesn't end with '+': "~value);
             value = value[0..$-1];
-            Weapon w;
+            WwpWeaponState_Weapon w;
             w.get = load(value ~ "get", true);
             w.unget = w.get.reversed;
             //optional
@@ -923,7 +924,7 @@ class WwpWeaponState : SequenceState {
 
         assert(!!weapon_unknown.get, "need get animation for "~cUnknown);
         //fix up other weapons that don't have get
-        foreach (ref Weapon w; weapons) {
+        foreach (ref w; weapons) {
             if (!w.get)
                 w.get = weapon_unknown.get;
         }
