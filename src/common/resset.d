@@ -5,24 +5,6 @@ module common.resset;
 
 import utils.misc;
 
-///manages a single resource
-class ResourceObject {
-    ///the resource, must return always the same object
-    abstract Object get();
-}
-
-//this is stupid; but for now... (all stuff in this file could probbaly be
-//radically simplified, because we don't need many things I thought we'd need)
-class ResWrap(T) : ResourceObject {
-    T value;
-    this(T v) {
-        value = v;
-    }
-    override Object get() {
-        return value;
-    }
-}
-
 ///a ResourceSet holds a set of resources and can be i.e. used to do level
 ///themes, graphic themes (GPL versus WWP graphics) or to change graphic aspects
 ///of the game (different water colors + associated graphics for objects)
@@ -34,16 +16,13 @@ class ResWrap(T) : ResourceObject {
 class ResourceSet {
     private {
         Entry[char[]] mResByName;
-        //TODO: possibly change into an array
-        Entry[int] mResByID;
         bool mSealed; //more for debugging, see seal()
     }
 
     class Entry {
         private {
             char[] mName;
-            int mID = -1; //by default an invalid ID
-            ResourceObject mObject;
+            Object mResource;
         }
 
         private this() {
@@ -54,23 +33,14 @@ class ResourceSet {
             return mName;
         }
 
-        ///user managed ID (for free use, changeable by ResourceSet.setResourceID)
-        int id() {
-            return mID;
-        }
-
         ///a cast exception is thrown if resource can't be cast to T
         T get(T)() {
-            return castStrict!(T)(mObject.get());
-        }
-
-        ResourceObject wrapper() {
-            return mObject;
+            return castStrict!(T)(mResource);
         }
     }
 
     ///add a resource with that name
-    void addResource(ResourceObject res, char[] name) {
+    void addResource(Object res, char[] name) {
         if (mSealed) {
             assert(false, "seal() was already called");
         }
@@ -79,7 +49,7 @@ class ResourceSet {
         }
         auto entry = new Entry();
         entry.mName = name;
-        entry.mObject = res;
+        entry.mResource = res;
         mResByName[entry.mName] = entry;
     }
 
@@ -112,6 +82,15 @@ class ResourceSet {
             return null;
         }
         return res.get!(T)();
+    }
+
+    ///slow O(n)
+    Entry reverseLookup(Object res) {
+        foreach (Entry e; mResByName) {
+            if (e.mResource is res)
+                return e;
+        }
+        return null;
     }
 }
 

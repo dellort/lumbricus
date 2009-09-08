@@ -13,6 +13,12 @@ import utils.perf;
 
 import common.resset;
 
+///manages a single resource
+class ResourceObject {
+    ///the resource, must return always the same object
+    abstract Object get();
+}
+
 ///base template for any resource that is held ready for being loaded
 ///resources are loaded on the first call to get(), not when loading them from
 ///file
@@ -90,9 +96,9 @@ class ResourceItem : ResourceObject {
 }
 
 //huh trivial
-void addToResourceSet(ResourceSet rs, ResourceItem[] items) {
+private void addToResourceSet(ResourceSet rs, ResourceItem[] items) {
     foreach (i; items) {
-        rs.addResource(i, i.id);
+        rs.addResource(i.get, i.id);
     }
 }
 
@@ -358,8 +364,8 @@ public class Resources {
         return new Preloader(list);
     }
 
-    public Preloader createPreloader(ResourceSet list) {
-        return new Preloader(list);
+    public Preloader createPreloader(ResourceFile[] files) {
+        return new Preloader(files);
     }
 
     public void preloadAll(ResourceItem[] list) {
@@ -389,13 +395,10 @@ public class Resources {
             mToLoad = list.dup;
         }
 
-        //does some work to get a ResourceItem[] from a ResourceSet again, meh
-        this(ResourceSet list) {
+        this(ResourceFile[] files) {
             ResourceItem[] rilist;
-            foreach (entry; list.resourceList()) {
-                auto ri = cast(ResourceItem)(entry.wrapper());
-                if (ri)
-                    rilist ~= ri;
+            foreach (file; files) {
+                rilist ~= file.getAll();
             }
             doload(rilist);
         }

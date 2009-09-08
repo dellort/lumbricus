@@ -5,7 +5,7 @@ import framework.framework;
 import game.particles : ParticleType;
 import common.config;
 import common.resset;
-import common.resources : gResources, addToResourceSet;
+import common.resources : gResources, ResourceFile;
 //import common.macroconfig;
 import utils.color;
 import utils.configfile;
@@ -52,7 +52,15 @@ class GfxSet {
     //xxx only needed by sky.d
     ConfigNode config;
 
+    //null until begin of finishLoading()
     ResourceSet resources;
+
+    //needed during loading
+    //- first, all resources are collected here
+    //- then, they're loaded bit by bit (loading screen)
+    //- finally, the loaded resources are added to the ResourceSet object above
+    //all files must be added before mResPreloader is created in gameshell.d
+    ResourceFile[] load_resources;
 
     //keyed by the theme name (TeamTheme.name)
     TeamTheme[char[]] teamThemes;
@@ -79,7 +87,7 @@ class GfxSet {
         foreach (ConfigNode node; config.getSubNode("particles")) {
             ParticleType p = new ParticleType();
             p.read(resources, node);
-            resources.addResource(new ResWrap!(ParticleType)(p), node.name);
+            resources.addResource(p, node.name);
         }
     }
 
@@ -91,15 +99,14 @@ class GfxSet {
         gfxId = gfx.getStringValue("config", "wwp");
         char[] watername = gfx.getStringValue("waterset", "blue");
 
-        resources = new ResourceSet();
+        //resources = new ResourceSet();
 
         config = gResources.loadConfigForRes(gfxId ~ ".conf");
         addGfxSet(config);
 
         auto waterfile = gResources.loadConfigForRes("water/"
             ~ watername ~ "/water.conf");
-        auto watergfx = gResources.loadResources(waterfile);
-        addToResourceSet(resources, watergfx.getAll());
+        load_resources ~= gResources.loadResources(waterfile);
 
         waterColor = waterfile.getValue("color", waterColor);
 
@@ -114,8 +121,7 @@ class GfxSet {
 
     void addGfxSet(ConfigNode conf) {
         //resources
-        auto resfile = gResources.loadResources(conf);
-        addToResourceSet(resources, resfile.getAll());
+        load_resources ~= gResources.loadResources(conf);
         //sequences
         addSequenceNode(conf.getSubNode("sequences"));
     }
@@ -127,17 +133,24 @@ class GfxSet {
     }
 
     //call after resources have been preloaded
-    void finishLoading() {
-        if (mFinished)
-            return;
+    void finishLoading(ResourceSet loaded_resources) {
+        assert(!mFinished);
+        assert(load_resources == null, "resources were added after preloading"
+            " started => not good, they'll be missing");
+        assert(!resources, "what");
+        resources = loaded_resources;
+
         reversedHack();
         loadParticles();
         loadSprites();
         //loaded after all this because Sequences depend from Animations etc.
         //loadSequenceStuff();
+
         resources.seal(); //disallow addition of more resources
+
         loadTeamThemes();
         loadExplosions();
+
         mFinished = true;
     }
 
@@ -146,10 +159,8 @@ class GfxSet {
     //the object isn't catched by the resource system
     void reversedHack() {
         foreach (e; resources.resourceList().dup) {
-            if (auto ani = cast(Animation)e.wrapper.get()) {
-                auto rani = new ReverseAnimationResource();
-                rani.ani = ani.reversed();
-                resources.addResource(rani, "reversed_" ~ e.name());
+            if (auto ani = cast(Animation)e.get!(Object)()) {
+                resources.addResource(ani.reversed(), "reversed_" ~ e.name());
             }
         }
     }
@@ -172,7 +183,7 @@ class GfxSet {
         foreach (ConfigNode node; mSequenceConfig) {
             foreach (ConfigNode sub; node) {
                 auto t = new SequenceType(this, sub);
-                resources.addResource(new ResWrap!(SequenceType)(t), t.name);
+                resources.addResource(t, t.name);
             }
         }
 
@@ -298,7 +309,7 @@ class GfxSet {
         }
 
         foreach (ResourceSet.Entry res; resources.resourceList()) {
-            Object o = res.wrapper.get();
+            Object o = res.get!(Object)();
             ctx.addExternal(o, "res::" ~ res.name());
             //xxx: maybe generalize using an interface or so?
             if (auto seq = cast(SequenceType)o) {
@@ -331,13 +342,6 @@ class GfxSet {
         foreach (CollisionType t; collision_map.collisionTypes()) {
             ctx.addExternal(t, "collision_type::" ~ t.name);
         }
-    }
-}
-
-class ReverseAnimationResource : ResourceObject {
-    Animation ani;
-    override Object get() {
-        return ani;
     }
 }
 

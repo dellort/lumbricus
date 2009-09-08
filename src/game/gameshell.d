@@ -263,7 +263,8 @@ class GameLoader {
         mGfx = new GfxSet(mGameConfig);
         loadWeaponSets();
 
-        mResPreloader = gResources.createPreloader(mGfx.resources);
+        mResPreloader = gResources.createPreloader(mGfx.load_resources);
+        mGfx.load_resources = null;
     }
 
     private void initFromSavegame(TarArchive file) {
@@ -314,8 +315,9 @@ class GameLoader {
         //just to be sure caller didn't mess up
         mResPreloader.loadAll();
         assert(mResPreloader.done()); //xxx error handling (failed resources)
+        ResourceSet resset = mResPreloader.createSet();
         mResPreloader = null;
-        mGfx.finishLoading();
+        mGfx.finishLoading(resset);
 
         mShell = new GameShell();
         mShell.mGameConfig = mGameConfig;

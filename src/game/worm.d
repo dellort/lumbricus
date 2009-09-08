@@ -324,21 +324,6 @@ class WormSprite : GObjectSprite {
         if (!graphic)
             return;
 
-        if (currentState is wsc.st_weapon) {
-            auto curW = mWeapon;
-            bool shooting = mShooterMain && mShooterMain.activity;
-            if (shooting)
-                curW = mShooterMain.weapon; //what why???
-            assert(!!curW);
-
-            char[] w = curW.animation;
-            graphic.weapon = w;
-            graphic.weapon_firing = shooting;
-            mWeaponAsIcon = !graphic.weapon_ok;
-        } else {
-            graphic.weapon = "";
-            mWeaponAsIcon = false;
-        }
         if (currentState is wsc.st_jump) {
             switch (mJumpMode) {
                 case JumpMode.normal, JumpMode.smallBack, JumpMode.straightUp:
@@ -362,6 +347,23 @@ class WormSprite : GObjectSprite {
         graphic.weapon_angle = weaponAngle;
         //for jetpack
         graphic.selfForce = physics.selfForce;
+
+        if (currentState is wsc.st_weapon) {
+            WeaponClass curW = shooting ? mShooterMain.weapon : mWeapon;
+            assert(!!curW);
+
+            char[] w = curW.animation;
+            //right now, an empty string means "no weapon", but we mean
+            //  "unknown weapon" (so a default animation is selected, not none)
+            if (w == "")
+                w = "-";
+            graphic.weapon = w;
+            graphic.weapon_firing = shooting;
+            mWeaponAsIcon = !graphic.weapon_ok;
+        } else {
+            graphic.weapon = "";
+            mWeaponAsIcon = false;
+        }
     }
 
     //movement for walking/jetpack
@@ -437,6 +439,8 @@ class WormSprite : GObjectSprite {
         //xxx doesn't work yet, shooter starts as active=false (wtf)
         //if (mWeapon && !mWeapon.active)
           //  shooter = null;
+
+        updateCrosshair();
     }
 
     void jump(JumpMode m) {
@@ -466,6 +470,12 @@ class WormSprite : GObjectSprite {
         return show;
     }
 
+    //if worm is firing
+    bool shooting() {
+        //xxx: I'm not sure about the secondary shooter
+        return mShooterMain && mShooterMain.activity;
+    }
+
     //xxx: clearify relationship between shooter and so on
     void weapon(WeaponClass w) {
         auto oldweapon = mWeapon;
@@ -477,16 +487,14 @@ class WormSprite : GObjectSprite {
             if (mWeaponTimer == Time.Null)
                 //xxx should this be configurable?
                 mWeaponTimer = (w.fireMode.timerFrom+w.fireMode.timerTo)/2;
-            //xxx: if weapon is changed, play the correct animations
-            setCurrentAnimation();
             updateCrosshair();
             //replay the cross-moves-out animation
-            if (mCrosshair && mWeapon !is oldweapon) {
+            if (mCrosshair && mWeapon !is oldweapon && !shooting) {
                 mCrosshair.reset();
             }
         } else {
             mWeaponTimer = Time.Null;
-            if (!mShooterMain || !mShooterMain.activity) {
+            if (!shooting) {
                 if (currentState is wsc.st_weapon)
                     setState(wsc.st_stand);
             }
@@ -692,7 +700,12 @@ class WormSprite : GObjectSprite {
             wcontrol.firedWeapon(shTmp, false);
 
         //update animation, so that fire animation is displayed
-        setCurrentAnimation();
+        //should only be done if this is the mShooterMain (this is a guess)
+        //xxx: this check is a bit dirty, but...
+        if (&sh is &mShooterMain) {
+            //even if the weapon isn't "one shot", this should be fine
+            graphic.weapon_fire_oneshot = true;
+        }
     }
 
     private bool refireWeapon(Shooter sh) {
@@ -732,11 +745,14 @@ class WormSprite : GObjectSprite {
         if (!mShooterMain && mShooterSec)
             swap(mShooterMain, mShooterSec);
         //shooter is done, so check if we need to switch animation
-        setCurrentAnimation();
-        updateCrosshair();
+        //---setCurrentAnimation();
+        //---updateCrosshair();
     }
 
     private void updateCrosshair() {
+        //better don't touch it while firing...
+        if (shooting())
+            return;
         //create/destroy the target cross
         bool exists = !!mCrosshair;
         bool shouldexist = false;
@@ -803,9 +819,9 @@ class WormSprite : GObjectSprite {
             physics.addImpulse(look.mulEntries(wsc.jumpStrength[mJumpMode]));
         }
 
-        if (fromW.canAim || toW.canAim) {
-            updateCrosshair();
-        }
+        //--if (fromW.canAim || toW.canAim) {
+        //--    updateCrosshair();
+        //--}
 
         //die by blowing up
         if (to is wsc.st_dead) {

@@ -184,6 +184,10 @@ final class Sequence : SceneObject {
     char[] weapon;
     float weapon_angle; //always 0 .. PI
     bool weapon_firing;
+    //many weapons don't have a time duration while they're "firing"
+    //this variable is reset to false by the Sequence animation code
+    //to wait until animation end, worm.d could wait until this is false
+    bool weapon_fire_oneshot;
 
     //feedback from weapon display to game logic, if weapon can be properly
     //  displayed (if not, the HUD renders a weapon icon near the worm)
@@ -404,7 +408,7 @@ class AniStateDisplay : StateDisplay {
 
     AnimationParams ani_params;
     //simple queueing mechanism
-    Animation next_animation;//yyy
+    //Animation next_animation;
 
     this (Sequence a_owner) {
         super(a_owner);
@@ -741,8 +745,8 @@ class WeaponPart {
 
 //compilation fix for LDC - move back into WwpWeaponState as soon as it's fixed
 struct WwpWeaponState_Weapon {
-    //all animations other than "get" and "unget" can be null
-    Animation get, hold, fire, /+fire_end,+/ unget;
+    //only "fire" can be null
+    Animation get, hold, fire, unget;
 }
 
 //this handles the normal "stand" state as well as armed worms (stand+weaoon)
@@ -796,6 +800,11 @@ class WwpWeaponDisplay : AniStateDisplay {
                     mWeaponDir = 1;
                 }
             }
+            if (animation is mCurrentAni.fire && !owner.weapon_firing) {
+                //stop firing after one-shot animation
+                owner.weapon_fire_oneshot = false;
+                setAnimation(mCurrentAni.hold);
+            }
             if (animation !is myclass.normal && !mCurrentW.length) {
                 //end of idle animation or weapon-unget => set to normal again
                 setAnimation(myclass.normal);
@@ -813,9 +822,11 @@ class WwpWeaponDisplay : AniStateDisplay {
 
         //set firing animation
         if (mCurrentAni.fire) {
-            if (owner.weapon_firing && animation is mCurrentAni.hold) {
+            bool dofire = owner.weapon_firing | owner.weapon_fire_oneshot;
+            if (dofire && animation is mCurrentAni.hold) {
                 setAnimation(mCurrentAni.fire);
-            } else if (!owner.weapon_firing && animation is mCurrentAni.fire) {
+            } else if (!dofire && animation is mCurrentAni.fire) {
+                //for immediate animation stop (don't wait for animation end)
                 setAnimation(mCurrentAni.hold);
             }
         }
@@ -881,6 +892,8 @@ class WwpWeaponDisplay : AniStateDisplay {
     override void cleanup() {
         super.cleanup();
         owner.weapon_ok = false;
+        //is this ok?
+        owner.weapon_fire_oneshot = false;
     }
 }
 
@@ -898,6 +911,21 @@ class WwpWeaponState : SequenceState {
 
         Animation load(char[] name, bool optional = false) {
             return gfx.resources.get!(Animation)(name, optional);
+        }
+
+        //Create Or Get Transformed Animation Resource
+        //I'm sorry.
+        Animation cogtar(char[] postfix, Animation ani, Animation delegate() c)
+        {
+            ResourceSet.Entry e = gfx.resources.reverseLookup(ani);
+            assert(!!e, "must be an existing resource");
+            char[] transformed_name = e.name() ~ postfix;
+            auto res = gfx.resources.get!(Animation)(transformed_name, true);
+            if (!res) {
+                res = c();
+                gfx.resources.addResource(res, transformed_name);
+            }
+            return res;
         }
 
         normal = loadanim(node, "animation");
@@ -923,10 +951,21 @@ class WwpWeaponState : SequenceState {
         weapon_unknown = weapons[cUnknown];
 
         assert(!!weapon_unknown.get, "need get animation for "~cUnknown);
-        //fix up other weapons that don't have get
+        //fix up other weapons that don't have some animations
         foreach (ref w; weapons) {
             if (!w.get)
                 w.get = weapon_unknown.get;
+            //no hold animation -> show last frame of get animation
+            //and to get such an animation, I'm doing some gross hack
+            if (!w.hold) {
+                w.hold = cogtar("_last_frame", w.get,
+                    {
+                        auto fc = w.get.frameCount();
+                        Animation fixlast = new SubAnimation(w.get, fc-1, fc);
+                        return fixlast;
+                    }
+                );
+            }
         }
 
         idle_wait = node.getValue!(typeof(idle_wait))("idle_wait");

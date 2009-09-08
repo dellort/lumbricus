@@ -131,8 +131,8 @@ abstract class Animation {
 
     bool finished(Time t) {
         //if (repeat || keepLastFrame)
-        if (repeat)
-            return false;
+        //if (repeat)
+        //    return false;
         return t.msecs >= mLengthMS;
     }
 
@@ -165,6 +165,30 @@ class ReversedAnimation : Animation {
     //hurhur
     Animation reversed() {
         return mBase;
+    }
+}
+
+//this is silly, but I just needed that hack, feel free to replace+improve
+class SubAnimation : Animation {
+    private {
+        Animation mBase;
+        int mFrameStart;
+    }
+
+    this(Animation base, int frame_start, int frame_end) {
+        mBase = base;
+        assert(frame_start >= 0);
+        assert(frame_end <= mBase.frameCount);
+        assert(frame_start < frame_end); //also must be at least 1 frame
+        doInit(frame_end - frame_start, mBase.bounds, mBase.repeat,
+            mBase.keepLastFrame, mBase.frameTimeMS);
+        mFrameStart = frame_start;
+    }
+
+    override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
+        int frame)
+    {
+        mBase.drawFrame(c, pos, p, mFrameStart + frame);
     }
 }
 
