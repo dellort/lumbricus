@@ -750,9 +750,9 @@ class WormSprite : GObjectSprite {
     }
 
     private void updateCrosshair() {
-        //better don't touch it while firing...
-        if (shooting())
-            return;
+        //--better don't touch it while firing...
+        //--if (shooting())
+        //--    return;
         //create/destroy the target cross
         bool exists = !!mCrosshair;
         bool shouldexist = false;
@@ -818,10 +818,6 @@ class WormSprite : GObjectSprite {
             look.y = 1;
             physics.addImpulse(look.mulEntries(wsc.jumpStrength[mJumpMode]));
         }
-
-        //--if (fromW.canAim || toW.canAim) {
-        //--    updateCrosshair();
-        //--}
 
         //die by blowing up
         if (to is wsc.st_dead) {

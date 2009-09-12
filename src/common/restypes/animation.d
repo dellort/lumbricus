@@ -320,6 +320,10 @@ class ComplicatedAnimation : Animation {
         mFrames.drawFrame(c, pos, selectParam(0), selectParam(1),
             selectParam(2));
     }
+
+    Frames frames() {
+        return mFrames;
+    }
 }
 
 //resource for animation frames

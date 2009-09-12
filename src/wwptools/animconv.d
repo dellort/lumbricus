@@ -40,7 +40,7 @@ static this() {
 }
 
 class AniEntry {
-    //map a param to the two axis, params = [axis-A, axis-B]
+    //map a param to the two axis, params = [axis-A, axis-B, axis-C]
     Param[3] params = [Param.Time, Param.P1, Param.Null];
     char[][] param_conv;
     FileAnimationFlags flags = cast(FileAnimationFlags)0;
@@ -69,10 +69,15 @@ class AniEntry {
     //if there's more than one Animation in src, they are appended along B
     //possibly modifies the bounding box (box) and frameTimeMS
     //the frame transformation functions work only on the current framelist
-    void addFrames(Animation[] src, int c_idx = 0) {
-        void addAnimation(Animation a) {
+    //append_A: all animations from src are appended to axis A
+    //  e.g. if src=[a1, a2], it's like src=[a3], where a3 is a1 and a2 played
+    //  sequentially (like a2 is played after a1 has ended)
+    void addFrames(Animation[] src, int c_idx = 0, bool append_A = false) {
+        void addAnimation(Animation a, int b_idx) {
             int len_a = a.frames.length;
-            if (length_b() > 0 && len_a != length_a()) {
+            //xxx: using append_A could lead to deformed "non-scare"
+            //  rectangular array, if used incorrectly (maybe)
+            if (!append_A && (length_b() > 0 && len_a != length_a())) {
                 //the joined animations always must form a square
                 assert(false, "animations have different lengths");
             }
@@ -92,13 +97,20 @@ class AniEntry {
                 cur.centerY = frame.y - a.boxHeight/2;
                 cframes ~= cur;
             }
+            if (append_A) {
+                //hack
+                //append array contents
+                mFrames[c_idx][b_idx] ~= cframes;
+                return;
+            }
+            //append array
             mFrames[c_idx] ~= cframes;
         }
 
         if (mFrames.length <= c_idx)
             mFrames.length = c_idx + 1;
-        foreach (s; src) {
-            addAnimation(s);
+        foreach (int idx, s; src) {
+            addAnimation(s, idx);
         }
     }
 
@@ -377,7 +389,7 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
 //val must contain exactly n entries separated by whitespace
 //these are parsed as numbers and the animations with these indices is returned
 //x is the number of animations which are read consecutively for each entry
-//so getSimple("x1 x2",2,3) returns [x1.1, x1.2, x1.3, x2.1, ...]
+//so getSimple("x1 x2",2,3) returns [x1+1, x1+2, x1+3, x2+1, ...]
 //actual number of returned animations is n*x
 //when n is -1, n is set to the number of components found in the string
 Animation[] getSimple(char[] val, int n, int x) {
@@ -520,9 +532,23 @@ private void loadGeneralW(ConfigNode node) {
 
         char[][] vals = str.split(value, "|");
         foreach (int c_idx, v; vals) {
-            Animation[] anims = getSimple(str.strip(v), intFlag("n", -1),
-                intFlag("x", 1));
-            ani.addFrames(anims, c_idx);
+            int x = intFlag("x", 1);
+            Animation[] anims = getSimple(str.strip(v), intFlag("n", -1), x);
+            int n = anims.length / x;
+            assert(anims.length==n*x); //should be guaranteed by getSimple()
+            if (!boolFlag("append_a_hack", false)) {
+                //normal case
+                ani.addFrames(anims, c_idx);
+            } else {
+                //sorry, another "I just needed this quickly" hack
+                //append all further animations (n>1) along axis A
+                ani.addFrames(anims[0..x], c_idx, false);
+                int cur = x;
+                for (int ni = 1; ni < n; ni++) {
+                    ani.addFrames(anims[cur..cur+x], c_idx, true);
+                    cur += x;
+                }
+            }
 
             //add the original flags from the .bnk file (or-wise)
             if (boolFlag("use_bnk_flags") && anims.length > 0) {

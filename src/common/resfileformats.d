@@ -58,6 +58,14 @@ enum FileAnimationParamType {
     P3 = 4,
 }
 
+const char[][] cFileAnimationParamTypeStr = [
+    "Null",
+    "Time",
+    "P1",
+    "P2",
+    "P3"
+];
+
 enum FileAnimationFlags {
     //see common.animation.AnimationData
     Repeat = 1,

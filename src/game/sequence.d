@@ -773,6 +773,11 @@ class WwpWeaponDisplay : AniStateDisplay {
     override void simulate() {
         assert(!!myclass);
 
+        if (!mCurrentW.length) {
+            //xxx: always ack the one shot thing because buggy game logic
+            owner.weapon_fire_oneshot = false;
+        }
+
         //change weapon
         if (mCurrentW != owner.weapon) {
             if (!owner.weapon.length) {
@@ -790,6 +795,7 @@ class WwpWeaponDisplay : AniStateDisplay {
                 mCurrentAni = w ? *w : myclass.weapon_unknown;
                 setAnimation(mCurrentAni.get);
                 mWeaponDir = 0;
+                owner.weapon_fire_oneshot = false;
             }
         }
 

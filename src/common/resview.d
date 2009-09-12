@@ -7,6 +7,7 @@ import common.task;
 import framework.font;
 import framework.framework;
 import common.resources;
+import common.resset;
 import common.allres;
 import framework.timesource;
 import gui.boxcontainer;
@@ -262,68 +263,79 @@ class AtlasHandler : ResViewHandler!(Atlas) {
 
 import common.resfileformats;
 
-class AniHandler : ResViewHandler!(AniFrames) {
+class ViewAniFrames : Container {
     private {
-        Widget mViewer;
-        ScrollBar mSel;
-        SimpleContainer mCont;
     }
 
-    this(Object r) {
-        super(r);
+    this(Animation ani) {
+        //there's also AnimationStrip and some transformed animations
+        auto cani = cast(ComplicatedAnimation)ani;
+        if (!cani)
+            return;
+        Frames frames = cani.frames();
 
-        auto box = new BoxContainer(false);
-        mSel = new ScrollBar(true);
-        mSel.onValueChange = &sel;
-        mSel.maxValue = resource.count-1;
-        mSel.setLayout(WidgetLayout.Expand(true));
-        box.add(mSel);
-        mCont = new SimpleContainer();
-        auto scroller = new ScrollWindow(mCont);
-        box.add(scroller);
-        setGUI(box);
-        sel(mSel);
-    }
+        auto gui = new BoxContainer(false);
 
-    private void sel(ScrollBar sender) {
-        auto frames = resource.frames(sender.curValue);
-        mCont.clear();
-        auto table = new TableContainer(frames.params[0].count,
-            frames.params[1].count, Vector2i(2,2), [true, true]);
-        Rect2i bb = frames.boundingBox();
-        for (int x = 0 ; x < table.width; x++) {
-            for (int y = 0; y < table.height; y++) {
-                auto bmp = new ViewBitmap();
-                bmp.frames = frames;
-                bmp.p1 = x;
-                bmp.p2 = y;
-                bmp.offs = -bb.p1;
-                bmp.size = bb.size;
-                bmp.setLayout(WidgetLayout.Noexpand());
-                table.add(bmp, x, y);
-            }
+        char[] inf;
+
+        inf ~= "Param mappings:\n";
+        foreach (int i, Frames.ParamData p; frames.params) {
+            inf ~= myformat("  {} <- {} ({} frames)\n", i,
+                cFileAnimationParamTypeStr[p.map], p.count);
         }
-        table.setLayout(WidgetLayout.Noexpand());
-        mCont.add(table);
+
+        Label inftxt = new Label();
+        inftxt.textMarkup = inf;
+        inftxt.setLayout(WidgetLayout.Aligned(-1,-1));
+        gui.add(inftxt);
+
+        for (int idx_c = 0; idx_c < frames.params[2].count; idx_c++) {
+            if (idx_c > 0) {
+                auto spacer = new Spacer();
+                spacer.minSize = Vector2i(2,3);
+                spacer.color = Color(1,0,0);
+                WidgetLayout lay;
+                lay.expand[] = [true, false];
+                spacer.setLayout(lay);
+                gui.add(spacer);
+            }
+
+            auto table = new TableContainer(frames.params[0].count,
+                frames.params[1].count, Vector2i(2,2), [true, true]);
+            Rect2i bb = frames.boundingBox();
+            for (int x = 0 ; x < table.width; x++) {
+                for (int y = 0; y < table.height; y++) {
+                    auto bmp = new ViewBitmap();
+                    bmp.frames = frames;
+                    bmp.p1 = x;
+                    bmp.p2 = y;
+                    bmp.p3 = idx_c;
+                    bmp.offs = -bb.p1;
+                    bmp.size = bb.size;
+                    bmp.setLayout(WidgetLayout.Noexpand());
+                    table.add(bmp, x, y);
+                }
+            }
+            table.setLayout(WidgetLayout.Aligned(0,0));
+            gui.add(table);
+        }
+
+        addChild(gui);
     }
 
     class ViewBitmap : Widget {
         Frames frames;
-        int p1, p2;
+        int p1, p2, p3;
         Vector2i offs, size;
 
         override void onDraw(Canvas c) {
-            frames.drawFrame(c, offs, p1, p2, 0);
+            frames.drawFrame(c, offs, p1, p2, p3);
             c.drawRect(Vector2i(), size-Vector2i(1), Color(1,1,0));
         }
 
         Vector2i layoutSizeRequest() {
             return size;
         }
-    }
-
-    static this() {
-        registerHandler!(typeof(this));
     }
 }
 
@@ -337,7 +349,8 @@ class AnimationHandler : ResViewHandler!(Animation) {
         Label mFrameLabel;
         ScrollBar mSpeed;
         Label mSpeedLabel;
-        Button mPaused;
+        Button mPaused, mShowFrames;
+        BoxContainer mGuiBox;
     }
 
     this(Object r) {
@@ -400,16 +413,22 @@ class AnimationHandler : ResViewHandler!(Animation) {
 
         table.addRow();
         mPaused = new Button();
-        mPaused.font = gFramework.getFont("normal");
+        //mPaused.font = gFramework.getFont("normal");
         mPaused.isCheckbox = true;
         mPaused.text = "paused";
         mPaused.onClick = &onPause;
         table.add(mPaused, 0, table.height-1, 2, 1);
 
+        mShowFrames = new Button();
+        mShowFrames.text = "show ani frames";
+        mShowFrames.onClick = &onShowFrames;
+        table.add(mShowFrames, 0, table.height-1, 2, 1);
+
         //update label texts
         onScrollbar(null);
 
-        setGUI(box);
+        mGuiBox = box;
+        setGUI(mGuiBox);
 
         resetAnim();
     }
@@ -431,6 +450,11 @@ class AnimationHandler : ResViewHandler!(Animation) {
 
     private void onPause(Button sender) {
         mTime.paused = mPaused.checked;
+    }
+
+    private void onShowFrames(Button sender) {
+        mGuiBox.clear();
+        mGuiBox.add(new ViewAniFrames(resource()));
     }
 
     private int p1() {
@@ -520,8 +544,12 @@ class AnimationHandler : ResViewHandler!(Animation) {
 
 class ResViewerTask : Task {
     this(TaskManager mgr, char[] args = "") {
+        this(mgr, ResourceSet.init);
+    }
+
+    this(TaskManager mgr, ResourceSet resources) {
         super(mgr);
-        gWindowManager.createWindow(this, new Viewer(), "Res Viewer",
+        gWindowManager.createWindow(this, new Viewer(resources), "Res Viewer",
             Vector2i(750, 500));
     }
 
@@ -530,12 +558,28 @@ class ResViewerTask : Task {
         StringListWidget mResTypeList;
         Button mUpdate;
         SimpleContainer mClient;
-        ResourceItem[] mResList;
+        ResourceSet mSourceSet; //might be null (use global resources then)
+        ResEntry[] mResources;
         ClassInfo[] mResTypes;
         ClassInfo mCurRes;
+        ClassInfo mShowNothing;
         Label mName;
 
-        this() {
+        struct ResEntry {
+            char[] name;
+            Object res;
+
+            int opCmp(ResEntry* other) {
+                return str.cmp(name, other.name);
+            }
+        }
+
+        this(ResourceSet resset) {
+            //some random non-null ClassInfo, that a resource isn't derived of
+            mShowNothing = this.classinfo;
+
+            mSourceSet = resset;
+
             auto side = new BoxContainer(false);
 
             mList = new StringListWidget();
@@ -610,25 +654,37 @@ class ResViewerTask : Task {
         void doUpdate() {
             doSelect(null, null);
             char[][] list;
-            mResList = null;
-            struct Sorter {
-                ResourceItem res;
-                int opCmp(Sorter* other) {
-                    return str.cmp(res.fullname, other.res.fullname);
-                }
-            }
-            Sorter[] sorted;
-            gResources.enumResources(
-                (char[] fullname, ResourceItem res) {
-                    if (isSub(res.get.classinfo, mCurRes)) {
-                        sorted ~= Sorter(res);
+            mResources = null;
+            void add(char[] name, Object res) {
+                bool ok;
+                if (mCurRes) {
+                    ok = isSub(res.classinfo, mCurRes);
+                } else {
+                    ok = true;
+                    foreach (c; mResTypes) {
+                        if (c && isSub(res.classinfo, c))
+                            ok = false;
                     }
                 }
-            );
-            sorted.sort;
-            foreach (s; sorted) {
-                mResList ~= s.res;
-                list ~= s.res.fullname;
+                if (ok) {
+                    mResources ~= ResEntry(name, res);
+                }
+            }
+            if (mSourceSet) {
+                foreach (r; mSourceSet.resourceList) {
+                    add(r.name, r.get!(Object)());
+                }
+            } else {
+                gResources.enumResources(
+                    (char[] fullname, ResourceItem res) {
+                        assert(fullname == res.fullname);
+                        add(fullname, res.get);
+                    }
+                );
+            }
+            mResources.sort;
+            foreach (s; mResources) {
+                list ~= s.name;
             }
             mList.setContents(list);
         }
@@ -648,8 +704,12 @@ class ResViewerTask : Task {
                     list ~= s;
                 }
             }
+            list ~= "<unknown>";
+            //ClassInfo.init doesn't work because Walter is stupid
+            ClassInfo i;
+            mResTypes ~= i;
             mResTypeList.setContents(list);
-            mCurRes = null;
+            mCurRes = mShowNothing;
             doUpdate();
         }
 
@@ -658,21 +718,20 @@ class ResViewerTask : Task {
         }
 
         private void onSelectType(int index) {
-            mCurRes = null;
+            mCurRes = mShowNothing;
             if (index >= 0)
                 mCurRes = mResTypes[index];
             doUpdate();
         }
 
-        private void doSelect(ResourceItem s, ClassInfo type) {
-            mName.text = s ? s.id : "-";
+        private void doSelect(ResEntry* s, ClassInfo type) {
+            mName.text = s ? s.name : "-";
             mClient.clear();
-            if (s) {
-                s.get(); //load (even when no handler exists)
+            if (s && type) {
                 char[] name = type.name;
                 Widget widget;
                 if (ResViewHandlers.exists(name)) {
-                    widget = ResViewHandlers.instantiate(name, s.get).getGUI();
+                    widget = ResViewHandlers.instantiate(name, s.res).getGUI();
                 } else {
                     widget = new Spacer(); //error lol
                 }
@@ -681,7 +740,7 @@ class ResViewerTask : Task {
         }
 
         private void onSelect(int index) {
-            doSelect(index < 0 ? null : mResList[index], mCurRes);
+            doSelect(index < 0 ? null : &mResources[index], mCurRes);
         }
     }
 

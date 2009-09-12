@@ -5,6 +5,7 @@ import common.task;
 import common.loadsave;
 import common.resources;
 import common.resset;
+import common.resview;
 import framework.commandline;
 import framework.framework;
 import framework.filesystem;
@@ -518,6 +519,9 @@ class GameTask : StatefulTask {
         mCmds.register(Command("server", &cmdExecServer,
             "Run a command on the server", ["text...:command"]));
         mCmds.register(Command("show_obj", &cmdShowObj, "", null));
+        mCmds.register(Command("game_res", &cmdGameRes, "show in-game resources"
+            " (doesn't include all global resources, but does include some"
+            " game-only stuff)", null));
     }
 
     class ShowCollide : Container {
@@ -621,6 +625,12 @@ class GameTask : StatefulTask {
             return;
         auto ctx = mGameShell.getSerializeContext;
         ShowObject.CreateWindow(this, ctx, ctx.types.ptrOf(o));
+    }
+
+    private void cmdGameRes(MyBox[] args, Output write) {
+        if (!mGameShell)
+            return;
+        new ResViewerTask(manager, mGameShell.serverEngine.gfx.resources);
     }
 
     private void cmdSafeLevelPNG(MyBox[] args, Output write) {
