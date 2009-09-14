@@ -822,13 +822,15 @@ class WormSprite : GObjectSprite {
         //die by blowing up
         if (to is wsc.st_dead) {
             die();
-            //explosion!
-            engine.explosionAt(physics.pos, wsc.suicideDamage, this);
-            auto grave = castStrict!(GravestoneSprite)(
-                engine.createSprite("grave"));
-            grave.createdBy = this;
-            grave.setGravestone(mGravestone);
-            grave.setPos(physics.pos);
+            if (!died_in_deathzone) {
+                //explosion!
+                engine.explosionAt(physics.pos, wsc.suicideDamage, this);
+                auto grave = castStrict!(GravestoneSprite)(
+                    engine.createSprite("grave"));
+                grave.createdBy = this;
+                grave.setGravestone(mGravestone);
+                grave.setPos(physics.pos);
+            }
         }
 
         //stop movement if not possible

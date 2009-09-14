@@ -42,6 +42,9 @@ class GObjectSprite : GameObject {
     Sequence graphic;
     SequenceState currentAnimation;
 
+    //hack for worm.d
+    bool died_in_deathzone;
+
     private {
         //transient for savegames, Particle created from StaticStateInfo.particle
         //all state associated with this variable is non-deterministic and must not
@@ -158,6 +161,7 @@ class GObjectSprite : GameObject {
         if (!currentState.deathZoneImmune) {
             //_always_ die completely (or are there exceptions?)
             log("exterminate in deathzone: {}", type.name);
+            died_in_deathzone = true;
             die();
         }
     }
@@ -300,13 +304,17 @@ class GObjectSprite : GameObject {
 
     //called by GameEngine on each frame if it's really under water
     //xxx: TriggerEnter/TriggerExit was more beautiful, so maybe bring it back
-    final void isUnderWater() {
+    final void setIsUnderWater() {
         mWaterUpdated = true;
 
         if (mIsUnderWater)
             return;
         mIsUnderWater = true;
         waterStateChange(true);
+    }
+
+    final bool isUnderWater() {
+        return mIsUnderWater;
     }
 
     override void simulate(float deltaT) {

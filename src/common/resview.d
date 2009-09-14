@@ -32,6 +32,7 @@ import tango.math.Math : PI;
 import str = utils.string;
 
 import game.animation;
+import game.particles;
 
 alias StaticFactory!("ResViewers", ResViewHandlerGeneric, Object)
     ResViewHandlers;
@@ -99,6 +100,39 @@ class BitmapHandler : ResViewHandler!(Surface) {
 
         Vector2i layoutSizeRequest() {
             return resource.size()+Vector2i(2); //with frame hurhur
+        }
+    }
+
+    static this() {
+        registerHandler!(typeof(this));
+    }
+}
+
+class ParticleHandler : ResViewHandler!(ParticleType) {
+    this(Object r) {
+        super(r);
+        setGUI(new Drawer());
+    }
+
+    class Drawer : Widget {
+        ParticleWorld world;
+
+        this() {
+            world = new ParticleWorld();
+            world.waterLine = 200;
+        }
+
+        override void onKeyEvent(KeyInfo info) {
+            if (info.isMouseButton && info.isDown) {
+                world.emitParticle(toVector2f(mousePos()), Vector2f(0),
+                    resource);
+            }
+        }
+
+        override void onDraw(Canvas c) {
+            world.draw(c);
+            c.drawLine(Vector2i(0, world.waterLine),
+                Vector2i(size.x, world.waterLine), Color(0,0,1));
         }
     }
 

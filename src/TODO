@@ -35,6 +35,7 @@
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
     (+ "level editor" töten)
 - napalm fällt ins meer => partikel erzeugen (vllt. auf später aufschieben)
+- weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
@@ -51,9 +52,6 @@
 - superrope: wenn das seil verankert wird und der wurm ins am-seil-hängen übergeht, wird für einen frame eine animation mit völlig falschem wurm-winkel angezeigt (one-frame-step ist zum debugging nützlich)
   außerdem: seil fängt in er mitte des wurmes an => passt nicht zur wurm-graphik
 - während minigun feuert, axt auswählen => feuerrichtung wird geändert
-- Luftblasen von ertrinkenden Objekten sehen "oben abgeschnitten" aus
-- ertrunkene Würmer sprengen sich (anscheinend) in der Deathzone (nur die Partikel sind sichtbar)
-- Labels von Würmern werden unter Wasser gezeichnet
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)

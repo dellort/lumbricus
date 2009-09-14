@@ -167,8 +167,11 @@ private class ViewMember {
     }
 
     void simulate() {
-        Sequence graphic = member.member.control.sprite.graphic; //lololol
+        auto sprite = member.member.control.sprite; //lololol
+        Sequence graphic = sprite.graphic;
         bool guiIsActive = !!graphic;
+        if (sprite.isUnderWater()) //no labels when underwater
+            guiIsActive = false;
         if (!guiIsActive) {
             removeGUI();
         } else if (guiIsActive) {

@@ -207,7 +207,7 @@ struct Particle {
 
         if (anim) {
             //die if finished
-            if (anim.finished(diff)) {
+            if (!anim.repeat && anim.finished(diff)) {
                 kill();
                 return;
             }

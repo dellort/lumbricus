@@ -335,7 +335,7 @@ class GameEngine {
 
     private void underWaterTrigger(PhysicTrigger sender, PhysicObject other) {
         auto x = cast(GObjectSprite)(other.backlink);
-        if (x) x.isUnderWater();
+        if (x) x.setIsUnderWater();
     }
 
     private void deathzoneTrigger(PhysicTrigger sender, PhysicObject other) {
