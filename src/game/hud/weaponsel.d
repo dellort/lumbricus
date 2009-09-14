@@ -15,11 +15,13 @@ import gui.container;
 import gui.label;
 import gui.tablecontainer;
 import gui.widget;
+import gui.styles;
 
 import utils.array;
 import utils.random;
 import utils.misc;
 import utils.vector2;
+import utils.time;
 
 import str = utils.string;
 
@@ -31,12 +33,12 @@ class WeaponSelWindow : Container {
         char[][] mCategories;
 
         //weapon or placeholder for a weapon
-        class Cell : Container {
+        class Cell : Button {
             WeaponClass weapon;
             WeaponSet.Entry item;
 
-            Button active;  //enabled, selectable weapon
-            Label inactive; //disabled weapon (like airstrikes in caves)
+            Texture active;   //enabled, selectable weapon
+            Texture inactive; //disabled weapon (like airstrikes in caves)
 
             bool infinite() {
                 return item.infinite;
@@ -48,24 +50,20 @@ class WeaponSelWindow : Container {
                 return item.quantity > 0 && weapon.canUse(mEngine);
             }
 
-            bool visible() {
-                return active.parent || inactive.parent;
-            }
-
             this(WeaponClass c) {
                 weapon = c;
-                active = new Button();
-                mButtonToCell[active] = this;
-                active.image = weapon.icon;
-                active.onClick = &clickWeapon;
-                active.onMouseOver = &mouseoverWeapon;
-                inactive = new Label();
-                auto dimg = active.image.clone;
+
+                active = weapon.icon;
+                inactive = active.clone;
                 //make the image look disabled
-                dimg.applyBCG(-0.3, 0.5f, 2.5f);
-                inactive.image = dimg;
-                active.styles.addClasses(["in-weapon-cell"]);
-                inactive.styles.addClasses(["in-weapon-cell"]);
+                inactive.applyBCG(-0.3, 0.5f, 2.5f);
+
+                image = active;
+                visible = false;
+                styleRegisterColor("cooldown-color");
+                styles.addClasses(["in-weapon-cell"]);
+                onClick = &clickWeapon;
+                onMouseOver = &mouseoverWeapon;
             }
 
             //enable/disable etc. weapon based on the list
@@ -75,10 +73,26 @@ class WeaponSelWindow : Container {
                 } else {
                     item = wset.find(weapon);
                 }
-                active.remove();
-                inactive.remove();
                 if (quantity > 0) {
-                    addChild(canUse ? active : inactive);
+                    image = (canUse ? active : inactive);
+                    enabled = canUse;
+                }
+                visible = (quantity > 0);
+            }
+
+            override void onDraw(Canvas canvas) {
+                super.onDraw(canvas);
+                if (enabled && weapon.cooldown != Time.Null) {
+                    float p = 0f;
+                    if (item.lastFire != Time.Null) {
+                        Time diff = (item.lastFire + weapon.cooldown)
+                            - mEngine.callbacks.interpolateTime.current;
+                        p = diff.secsf / weapon.cooldown.secsf;
+                    }
+                    if (p > float.epsilon) {
+                        Color cdCol = styles.getValue!(Color)("cooldown-color");
+                        canvas.drawPercentRect(Vector2i(0), size, p, cdCol);
+                    }
                 }
             }
 
@@ -92,17 +106,8 @@ class WeaponSelWindow : Container {
                     res = str.cmp(this.weapon.name, w.weapon.name);
                 return res;
             }
-
-            override protected Vector2i layoutSizeRequest() {
-                auto s1 = active.layoutCachedContainerSizeRequest();
-                auto s2 = inactive.layoutCachedContainerSizeRequest();
-                //so that removing a weapon doesn't change size!
-                return s1.max(s2);
-            }
         }
 
-        //kind of SICK
-        Cell[Button] mButtonToCell; //(reverse of Cell.active)
         Cell[][char[]] mRows;
         Cell[] mAll;
         TableContainer mGrid;
@@ -147,7 +152,7 @@ class WeaponSelWindow : Container {
     }
 
     private void clickWeapon(Button sender) {
-        Cell* w = sender in mButtonToCell;
+        Cell w = cast(Cell)sender;
         assert(w !is null);
 
         if (onSelectWeapon) {
@@ -156,7 +161,7 @@ class WeaponSelWindow : Container {
     }
 
     private void mouseoverWeapon(Button sender, bool over) {
-        Cell* w = sender in mButtonToCell;
+        Cell w = cast(Cell)sender;
         assert(w !is null);
 
         mWeaponInfoline = over ? w.weapon : null;
@@ -234,7 +239,6 @@ class WeaponSelWindow : Container {
             mGrid = null;
         }
         mAll = null;
-        mButtonToCell = null;
         mRows = null;
 
         //for each WeaponClass a Cell

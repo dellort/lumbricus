@@ -128,7 +128,7 @@ void team(WeaponContext wx, char[] action) {
             member.serverTeam.surrenderTeam();
             break;
         case "wormselect":
-            wx.putObj(new WormSelectHelper(wx.engine, member));
+            new WormSelectHelper(wx.engine, member);
             break;
         default:
     }

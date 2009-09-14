@@ -345,7 +345,9 @@ class WormControl : WormController {
                 //non-alternate (worms-like) control -> spacebar disables
                 //background weapon if possible (like jetpack)
                 success = mWorm.fireAlternate();
-            } else if (checkPointMode()) {
+            } else if (checkPointMode()
+                && mWeaponSet.canFire(mWorm.firedWeapon))
+            {
                 success = mWorm.fire(false, forceSelected);
             }
             //don't forget a keypress that had no effect
@@ -383,7 +385,9 @@ class WormControl : WormController {
         } else {
             //worms-like: alternate-fire button (return) fires selected
             //weapon if in secondary mode
-            if (mWorm.allowFireSecondary() && checkPointMode()) {
+            if (mWorm.allowFireSecondary() && checkPointMode()
+                && mWeaponSet.canFire(mWorm.firedWeapon))
+            {
                 success = mWorm.fire();
             }
         }
@@ -412,6 +416,8 @@ class WormControl : WormController {
 
     void firedWeapon(Shooter sh, bool refire) {
         assert(!!sh);
+        //for cooldown
+        mWeaponSet.firedWeapon(sh.weapon);
 //xxx        mTeam.parent.events.onFireWeapon(sh.weapon, refire);
     }
 

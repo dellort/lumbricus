@@ -51,6 +51,9 @@
 - superrope: wenn das seil verankert wird und der wurm ins am-seil-hängen übergeht, wird für einen frame eine animation mit völlig falschem wurm-winkel angezeigt (one-frame-step ist zum debugging nützlich)
   außerdem: seil fängt in er mitte des wurmes an => passt nicht zur wurm-graphik
 - während minigun feuert, axt auswählen => feuerrichtung wird geändert
+- Luftblasen von ertrinkenden Objekten sehen "oben abgeschnitten" aus
+- ertrunkene Würmer sprengen sich (anscheinend) in der Deathzone (nur die Partikel sind sichtbar)
+- Labels von Würmern werden unter Wasser gezeichnet
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
@@ -86,7 +89,7 @@
 - statt aktive Teams aktive TeamMembers
 [- 1-frame bug bei würmern]
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
-+ Mehr Powerup-Kisten (Niedrige Schwerkraft etc.), evtl. etwas "enthacken" (siehe z.B. controller.d, 1619)
++ Mehr Powerup-Kisten (Niedrige Schwerkraft etc.)
 *** KI
 *** Scripting
 
@@ -119,7 +122,6 @@
 - Napalm verbessern (Ruckeln verhindern, Würmer mehr wegstoßen, vll. etwas "klebriger" machen)
 - Molotov-Cocktail brennt über mehrere Züge
 + Luftangriff-Steuerung (Mauszeiger, links/rechts)
-+ Waffen-Cooldown (z.B. für Napalmangriff; Wartezeit von x Sek. bis zum nächsten Schuss, Waffe bleibt aber ausgewählt)
 + Anzahl Projektile über Tasten 1-5 einstellen (Rindviecher)
 
 ! Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)

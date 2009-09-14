@@ -215,7 +215,8 @@ class Team {
         if (mCurrent)
             mCurrent.setActive(false);
         mCurrent = cur;
-        mLastActive = cur;
+        if (cur)
+            mLastActive = cur;
         if (mCurrent) {
             mCurrent.setActive(true);
         }

@@ -52,6 +52,7 @@ abstract class WeaponClass {
                                   //weapon while active
     bool dontEndRound = false;
     bool deselectAfterFire = false;
+    Time cooldown = Time.Null;
 
     //for the weapon selection; only needed on client-side
     Surface icon;
@@ -76,6 +77,7 @@ abstract class WeaponClass {
         allowSecondary = node.getBoolValue("allow_secondary", allowSecondary);
         dontEndRound = node.getBoolValue("dont_end_round", dontEndRound);
         deselectAfterFire = node.getBoolValue("deselect", deselectAfterFire);
+        cooldown = node.getValue("cooldown", cooldown);
 
         icon = gfx.resources.get!(Surface)(node["icon"]);
 
@@ -254,6 +256,7 @@ class WeaponSet {
         WeaponClass weapon;
         uint quantity; //cINF means infinite
         const cINF = typeof(quantity).max;
+        Time lastFire;
 
         bool infinite() {
             return quantity == cINF;
@@ -383,6 +386,25 @@ class WeaponSet {
         }
         onChange();
         return true;
+    }
+
+    bool firedWeapon(WeaponClass w) {
+        Entry* e = do_find(w, false);
+        if (!e)
+            return false;
+        //note: e.quantity may be 0 (decreaseWeapon is called before)
+        e.lastFire = engine.gameTime.current;
+        onChange();
+        return true;
+    }
+
+    bool canFire(WeaponClass w) {
+        Entry* e = do_find(w, false);
+        if (!e)
+            return false;
+        //usable in level, and not on cooldown
+        return w && w.canUse(engine) && (e.lastFire == Time.Null
+            || engine.gameTime.current > e.lastFire + w.cooldown);
     }
 
     //choose a random weapon based on this weapon set
