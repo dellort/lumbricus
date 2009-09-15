@@ -398,13 +398,14 @@ class WeaponSet {
         return true;
     }
 
-    bool canFire(WeaponClass w) {
+    //returns true if w currently can't be fired due to cooldown
+    //(returns false in all other cases)
+    bool coolingDown(WeaponClass w) {
         Entry* e = do_find(w, false);
         if (!e)
             return false;
-        //usable in level, and not on cooldown
-        return w && w.canUse(engine) && (e.lastFire == Time.Null
-            || engine.gameTime.current > e.lastFire + w.cooldown);
+        return (e.lastFire != Time.Null
+            && engine.gameTime.current <= e.lastFire + w.cooldown);
     }
 
     //choose a random weapon based on this weapon set

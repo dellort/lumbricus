@@ -334,9 +334,9 @@ class WormControl : WormController {
         wormAction();
     }
 
-    void doFireDown(bool forceSelected = false) {
+    bool doFireDown(bool forceSelected = false) {
         if (!isControllable)
-            return;
+            return true;
 
         bool success = true;
         if (!controllableFire(true)) {
@@ -346,7 +346,7 @@ class WormControl : WormController {
                 //background weapon if possible (like jetpack)
                 success = mWorm.fireAlternate();
             } else if (checkPointMode()
-                && mWeaponSet.canFire(mWorm.firedWeapon))
+                && !mWeaponSet.coolingDown(mWorm.firedWeapon))
             {
                 success = mWorm.fire(false, forceSelected);
             }
@@ -355,6 +355,7 @@ class WormControl : WormController {
         }
         if (success)
             wormAction();
+        return success;
     }
 
     void doFireUp() {
@@ -386,7 +387,7 @@ class WormControl : WormController {
             //worms-like: alternate-fire button (return) fires selected
             //weapon if in secondary mode
             if (mWorm.allowFireSecondary() && checkPointMode()
-                && mWeaponSet.canFire(mWorm.firedWeapon))
+                && !mWeaponSet.coolingDown(mWorm.firedWeapon))
             {
                 success = mWorm.fire();
             }
@@ -653,12 +654,12 @@ class WormControl : WormController {
                 setIndicator(color.pointed, mCurrentTarget.currentPos);
                 break;
             case PointMode.instant, PointMode.instantFree:
-                //click effect
-                mEngine.animationEffect(color.click,
-                    toVector2i(where), AnimationParams.init);
-
                 //instant mode -> fire and forget
-                doFireDown(true);
+                if (doFireDown(true)) {
+                    //click effect (only if firing succeeded)
+                    mEngine.animationEffect(color.click,
+                        toVector2i(where), AnimationParams.init);
+                }
                 doFireUp();
                 mTargetIsSet = false;
                 break;
