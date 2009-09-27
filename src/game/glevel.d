@@ -209,6 +209,14 @@ class GameLandscape : GameObject {
         return count;
     }
 
+    public bool lexelTypeAt(Vector2i pos, int radius, Lexel bits) {
+        Vector2i tmp1;
+        int tmp2;
+        uint collide_bits;
+        mLandscape.checkAt(pos, radius, true, tmp1, tmp2, collide_bits);
+        return (collide_bits & bits) > 0;
+    }
+
     public void insert(Vector2i pos, Surface bitmap, Lexel bits) {
         //not so often called (like damage()), leave clipping to whoever
         pos -= mOffset;

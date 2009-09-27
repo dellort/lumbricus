@@ -494,6 +494,14 @@ class GameEngine {
             }
         }
 
+        //check if the hole would intersect with any indestructable landscape
+        // (we couldn't blast a hole there; forcing the hole would work, but
+        //  worms could get trapped then)
+        foreach (ls; gameLandscapes) {
+            if (ls.lexelTypeAt(toVector2i(drop), holeRadius, Lexel.SolidHard))
+                return false;
+        }
+
         //checks ok, remove land and create platform
         damageLandscape(toVector2i(drop), holeRadius);
         //xxx: can't access level theme resources here <- what??
