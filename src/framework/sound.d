@@ -309,6 +309,9 @@ public class Sample {
 ///  when the sound sample is played in a loop, this will continue to try to get
 ///  a real channel (through the tick() method)
 ///a Source can only play one Sample at a time
+///Warning: not garbage collected; must be released with close()
+/// also, particles.d stores Source in C-memory (not scanned by the GC); if
+//  that's a problem, particles.d should just be reverted to allocate D-memory
 class Source {
     private {
         //moved here from DriverChannel -> less driver code

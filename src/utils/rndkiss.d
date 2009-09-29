@@ -186,6 +186,11 @@ class Random
         }
     }
 
+    /// pick random array item - if array is empty, return def
+    T pickArray(T)(T[] arr, T def = T.init) {
+        return arr.length ? arr[next(0, arr.length)] : def;
+    }
+
     /**
      save/restore internal state, for setting the generator
      back to a specific point in the sequence

@@ -406,7 +406,7 @@ struct CrosshairSettings {
 struct ExplosionSettings {
     //animations for different explosion sizes
     ParticleType[4] shockwave1, shockwave2, comicText, smoke;
-    ParticleType spark;
+    ParticleType spark, sound;
     //tresholds to choose animations matching size
     int[] sizeTreshold = [25, 100, 150, 200];
 
@@ -443,7 +443,9 @@ struct ExplosionSettings {
             smoke[i].wind_influence.min = 0.7f;
             smoke[i].wind_influence.max = 1.0f;
         }
+
         spark = res.get!(ParticleType)("p_spark");
+        sound = res.get!(ParticleType)("p_explosion_sound");
 
         int[] st = conf.getValue("sizetreshold",sizeTreshold);
         if (st.length >= 4)

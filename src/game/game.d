@@ -692,6 +692,10 @@ class GameEngine {
                     mGfx.expl.smoke[rngShared.next(0, r)]);
             }
         }
+
+        //always sound; I don't know how the explosion sound samples relate to
+        //  the explosion size, so the sound is picked randomly
+        emit(mGfx.expl.sound);
     }
 
     void animationEffect(Animation ani, Vector2i at, AnimationParams p) {

@@ -1,4 +1,6 @@
 //warning: case of filenames must match exactly
+//  (xxx: actually, extractdata should try to be case-insensitive on Linux, but
+//        I guess that requires nasty extra code)
 
 //each node here produces a resource file
 //the problem is that some sounds are locale dependend (ouch!)
@@ -11,12 +13,29 @@ sounds {
         dest_path = "sound_samples"
         conffile = "sounds.conf"
         files {
-            test1 = "FrenchAnthem.wav"
-            test2 = "ScalesOfJustice.wav"
-            test3 = "HOLYGRENADE.WAV"
+            a_test1 = "FrenchAnthem.wav"
+            a_test2 = "ScalesOfJustice.wav"
+            a_test3 = "HOLYGRENADE.WAV"
+
+            a_explosion1 = "Explosion1.wav"
+            a_explosion2 = "Explosion2.wav"
+            a_explosion3 = "Explosion3.WAV"
+            a_cursor_select = "CursorSelect.wav"
+            a_blow_torch = "BlowTorch.wav"
         }
     }
     /* -- not implemented
+
+        Probably each node (for each language) should generate an additional
+            .conf file, which is then stored under locale-specific mount points?
+
+        Or simpler: put all .conf files into the same directory, and name them
+            e.g. sounds_en.conf (sounds_<languagecode>.conf), and add special
+            code load the right file.
+
+        Another problem is, that not all languages might be available. E.g. a
+            French WWP probably contains French sounds, but not German ones.
+
     sounds_de {
         //include all the sounds from node "normal", which weren't defined here
         //yet (this means you can do language specific overrides for "normal")
@@ -28,7 +47,7 @@ sounds {
     }
     sounds_en {
         include = "normal"
-        path = "User/Speech/German"
+        path = "User/Speech/English"
         files {
             byebye = "BYEBYE.WAV"
         }

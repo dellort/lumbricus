@@ -39,6 +39,11 @@ class ParticleType {
     //list of available animations, one is randomly selected
     Animation[] animation;
     Color color = Color(0,0,0,0); //temporary hack for drawing
+    //if non-null, play one of those
+    //unless sound is null or sound_repeat is true, the particle lives until
+    //  the sound is done playing
+    Sample[] sound;
+    bool sound_looping;
 
     //array of particles that can be emitted (random pick)
     ParticleEmit[] emit;
@@ -52,6 +57,21 @@ class ParticleType {
     //emit when life time is out
     ParticleEmit[] emit_on_death; //again, random pick
     int emit_on_death_count = 0;
+
+    //get a list of resource T, but also accept a single item if node contains
+    //  a value only, or if the node is empty
+    private static T[] get_res_list(T)(ResourceSet res, ConfigNode node) {
+        T[] list;
+        if (node.value.length) {
+            list = [res.get!(T)(node.value)];
+        } else if (node.count) {
+            char[][] items = node.getCurValue!(char[][]);
+            foreach (id; items) {
+                list ~= res.get!(T)(id);
+            }
+        }
+        return list;
+    }
 
     void read(ResourceSet res, ConfigNode node) {
         //sorry about this
@@ -82,17 +102,8 @@ class ParticleType {
         if (t == t)
             lifetime = timeSecs(t);
 
-        auto ani = node.getSubNode("animation");
-        if (ani.value.length) {
-            animation.length = 1;
-            animation[0] = res.get!(Animation)(ani.value);
-        } else if (ani.count) {
-            animation.length = 0;
-            char[][] anis = ani.getCurValue!(char[][]);
-            foreach (aid; anis) {
-                animation ~= res.get!(Animation)(aid);
-            }
-        }
+        animation = get_res_list!(Animation)(res, node.getSubNode("animation"));
+        sound = get_res_list!(Sample)(res, node.getSubNode("sound"));
 
         void read_sub(char[] name, ref ParticleEmit[] t) {
             auto sub = node.getSubNode(name);
@@ -113,6 +124,8 @@ class ParticleType {
                 t ~= e;
             }
         }
+
+        sound_looping = node.getValue("sound_looping", sound_looping);
 
         read_sub("emit", emit);
         read_sub("emit_on_death", emit_on_death);
@@ -144,6 +157,7 @@ struct Particle {
     Vector2f pos, velocity;
     float gravity, windInfluence;
     Animation anim;
+    Source sound;
 
     //multipurpose random value (can be used for anything you want)
     //constant over lifetime of the particle, initialized with nextDouble()
@@ -165,9 +179,13 @@ struct Particle {
         gravity = props.gravity.sample(rngShared);
         windInfluence = props.wind_influence.sample(rngShared);
         random = rngShared.nextDouble();
-        if (props.animation.length > 0) {
-             anim = props.animation[
-                rngShared.next(0, props.animation.length)];
+        anim = rngShared.pickArray(props.animation);
+        Sample snd = rngShared.pickArray(props.sound);
+        if (!snd) {
+            sound = null;
+        } else {
+            sound = snd.play();
+            sound.looping = props.sound_looping;
         }
         //reasonable defaults of other state that gets set anyway?
         pos.x = pos.y = velocity.x = velocity.y = 0f;
@@ -205,14 +223,38 @@ struct Particle {
             return;
         }
 
-        if (anim) {
-            //die if finished
-            if (!anim.repeat && anim.finished(diff)) {
-                kill();
-                return;
+        bool sound_active = true;
+        bool anim_active = true;
+
+        if (sound) {
+            if (sound.state() == PlaybackState.stopped) {
+                sound_active = false;
+            } else {
+                //update position
+                Rect2i area = owner.mViewArea;
+                Vector2i size = area.size;
+                //only when valid (and setViewArea() was called)
+                if (size.x & size.y) {
+                    auto rel = pos - toVector2f(area.p1);
+                    sound.info.position = (rel / toVector2f(size)) * 2.0f
+                        - Vector2f(1);
+                }
             }
-            AnimationParams p;
-            anim.draw(c, toVector2i(pos), p, diff);
+        }
+
+        if (anim) {
+            if (!anim.repeat && anim.finished(diff)) {
+                anim_active = false;
+            } else {
+                AnimationParams p;
+                anim.draw(c, toVector2i(pos), p, diff);
+            }
+        }
+
+        //die if finished
+        if (!anim_active && !sound_active) {
+            kill();
+            return;
         }
 
         if (props.color.a > 0) {
@@ -242,6 +284,18 @@ struct Particle {
     void kill() {
         //NOTE: will be removed from particle list in the next iteration
         props = null;
+        if (sound) {
+            sound.close();
+            sound = null;
+        }
+    }
+
+    //update pause state
+    void paused(bool p) {
+        //only needed for sound, because everyting else depends just from deltaT
+        if (sound) {
+            sound.paused = p;
+        }
     }
 
     //pick a random particle type from emit[] and create a new particle
@@ -352,6 +406,8 @@ class ParticleWorld {
     private {
         TimeSource mTS; //only !null if no external timesource
         TimeSourcePublic time;
+        bool mPauseState;
+        Rect2i mViewArea;
         ObjectList!(Particle*, "node") mParticles, mFreeParticles;
         ObjectList!(ParticleEffect, "node") mEffects;
         Time mLastFrame = Time.Never;
@@ -387,6 +443,14 @@ class ParticleWorld {
     //must be finalizer-safe (don't access references to GC memory)
     private void free() {
         mGeneration++;
+        //this code should be executed to make sure all sounds are terminated,
+        //  but can't call .kill() within a finalizer
+        //will fix later, when we introduce more manual memory managment
+        //--//for releasing sound sources
+        //--foreach (ref p; mParticleStorage) {
+        //--    p.kill();
+        //--}
+        //release memory
         version (CMemory) {
             //if (mParticleStorage.ptr)
             //    Trace.formatln("-------------- free! -----------");
@@ -502,6 +566,29 @@ class ParticleWorld {
             p.velocity += p.props.explosion_influence * (p.pos-pos)/dist
                 * (radius - dist) * vAdd;
         }
+    }
+
+    //xxx: if an external TimeSource is used, (see ctor), this should set the
+    //     pause state automatically according to whether the _realtime_ is
+    //      paused or not (that is, the full TimeSource hierarchy must be
+    //      checked); but TimeSource doesn't have this yet
+    void paused(bool p) {
+        if (mPauseState == p)
+            return;
+        mPauseState = p;
+        if (mTS) {
+            mTS.paused = p;
+        }
+        foreach (ref particle; mParticles) {
+            particle.paused = mPauseState;
+        }
+    }
+
+    //set the visible screen area - call this before draw()
+    //the draw area is used for positioned sound
+    //could also be used for clipping of graphics and so on
+    void setViewArea(Rect2i rc) {
+        mViewArea = rc;
     }
 }
 

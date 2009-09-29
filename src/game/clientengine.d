@@ -103,7 +103,6 @@ class ClientGameEngine : GameEngineCallback {
         bool mPaused;
 
         ParticleWorld mParticles;
-        TimeSource mParticleTime;
 
         class DrawParticles : SceneObject {
             override void draw(Canvas canvas) {
@@ -111,8 +110,7 @@ class ClientGameEngine : GameEngineCallback {
                 //engine.windSpeed is -1..1, don't ask me why
                 mParticles.windSpeed = mEngine.windSpeed()*150f;
                 mParticles.waterLine = mEngine.waterOffset();
-                mParticleTime.paused = mEngineTime.paused;
-                mParticleTime.update();
+                mParticles.paused = mEngineTime.paused;
                 //simulate & draw
                 mParticles.draw(canvas);
             }
@@ -140,8 +138,7 @@ class ClientGameEngine : GameEngineCallback {
         cb.nukeSplatEffect ~= &nukeSplatEffect;
 
         //why not use mEngineTime? because higher/non-fixed framerate
-        mParticleTime = new TimeSource("particles");
-        mParticles = new ParticleWorld(mParticleTime);
+        mParticles = new ParticleWorld();
         cb.particleEngine = mParticles;
 
         readd_graphics();
@@ -258,6 +255,10 @@ class ClientGameEngine : GameEngineCallback {
 
     Scene scene() {
         return mLocalScene;
+    }
+
+    void setViewArea(Rect2i rc) {
+        mParticles.setViewArea(rc);
     }
 
     void draw(Canvas canvas) {

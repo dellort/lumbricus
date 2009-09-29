@@ -798,5 +798,7 @@ class GameView : Container {
         } else {
             mCamera.noFollow();
         }
+
+        mGame.cengine.setViewArea(mCamera.visibleArea);
     }
 }

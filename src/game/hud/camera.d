@@ -72,7 +72,7 @@ class Camera {
             && enable)
         {
             auto pos = mCameraFollowPos;
-            auto visible = control.visibleArea(control.scrollDestination);
+            auto visible = visibleArea();
             switch (mCameraStyle) {
                 case CameraStyle.Normal:
                     visible.extendBorder(-mCameraBorder);
@@ -88,6 +88,12 @@ class Camera {
                     //dead or so
             }
         }
+    }
+
+    Rect2i visibleArea() {
+        if (!control)
+            return Rect2i.init;
+        return control.visibleArea(control.scrollDestination);
     }
 
 /+

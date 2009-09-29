@@ -16,6 +16,7 @@ import utils.misc;
 import utils.time;
 import utils.configfile;
 import utils.path;
+import utils.log;
 
 
 private void throwALUTError(char[] msg) {
@@ -32,6 +33,8 @@ private void checkALError(char[] msg) {
 }
 
 private ALSoundDriver gBase;
+
+private LogStruct!("openal") gLog;
 
 class ALChannel : DriverChannel {
     ALuint source;
@@ -263,7 +266,7 @@ class ALSound : DriverSound {
         if (mSample) {
             if (mCurrentSource != uint.max) {
                 finishPlay();
-                debug Trace.formatln("ALSound.initPlay warning: tried to"
+                gLog("ALSound.initPlay warning: tried to"
                     " play stream multiple times, current playback cut off");
             }
             Sound_Seek(mSample, startAt.msecs);
@@ -452,7 +455,7 @@ class ALSoundDriver : SoundDriver {
     }
 
     void closeSound(DriverSound s) {
-        debug Trace.formatln("close sound {}", s);
+        gLog("close sound {}", s);
         auto as = castStrict!(ALSound)(s);
         foreach (c; mChannels) {
             if (c.mSound is as)
@@ -463,7 +466,7 @@ class ALSoundDriver : SoundDriver {
     }
 
     void destroy() {
-        debug Trace.formatln("unloading OpenAL");
+        gLog("unloading OpenAL");
         //caller must make sure all stuff has been unloaded
         assert(mSounds.length == 0);
         foreach (c; mChannels) {
@@ -476,7 +479,7 @@ class ALSoundDriver : SoundDriver {
         sdlQuit();
         DerelictALUT.unload();
         DerelictAL.unload();
-        debug Trace.formatln("unloaded OpenAL");
+        gLog("unloaded OpenAL");
     }
 
     static this() {
