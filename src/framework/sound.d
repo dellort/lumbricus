@@ -149,6 +149,20 @@ public class Sound {
         }
     }
 
+    //basically returns the number of hardware channels currently in use
+    int activeSources() {
+        int cnt;
+        foreach (s; mSources) {
+            DriverChannel ch = s.createDC(false);
+            if (ch) {
+                //channel can be assigned, but not in use
+                if (ch.state != PlaybackState.stopped)
+                    cnt++;
+            }
+        }
+        return cnt;
+    }
+
     ///create music/samples from stream
     ///the ownership of st completely goes to the framework, and it might be
     ///accessed at any time (Music: for streaming, Sample: in case the driver
@@ -252,6 +266,16 @@ public class Sample {
     bool release(bool force) {
         if (!mSound)
             return false;
+        if (!force) {
+            //if sample is used, don't free it
+            //this is optional; without this code, the sample is just restarted
+            //xxx: seeking when the sample/music is restarted would be nicer,
+            //  because then music would be continuous even if driver is changed
+            foreach (Source s; mParent.mSources) {
+                if (s.sample() is this && s.state != PlaybackState.stopped)
+                    return false;
+            }
+        }
         mParent.killDriverSound(mSound);
         mSound = null;
         return true;
@@ -269,6 +293,7 @@ public class Sample {
     }
 
     ~this() {
+        Trace.formatln("free!");
         doFree(true);
     }
 

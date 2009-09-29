@@ -116,6 +116,7 @@ private:
     PerfTimer mFrameTime;
 
     Time[PerfTimer] mLastTimerValues;
+    long[char[]] mLastCounterValues;
 
     const cTimerStatsUpdateTimeMs = 1000;
 
@@ -148,6 +149,10 @@ private:
                 mLastTimerValues[cnt] = t / div;
                 cnt.reset();
             }
+            foreach (char[] name, ref long cnt; globals.counters) {
+                mLastCounterValues[name] = cnt;
+                cnt = 0;
+            }
         }
         mLastTimerStatsFrames++;
 
@@ -168,9 +173,14 @@ private:
             cb(name, t);
         }
     }
-
-    int timerCount() {
-        return globals.timers.length;
+    void listCounters(void delegate(char[] name, long value) cb) {
+        foreach (char[] name, long cnt; globals.counters) {
+            long* pt = name in mLastCounterValues;
+            long t = 0;
+            if (pt)
+                t = *pt;
+            cb(name, t);
+        }
     }
 
     public this() {
@@ -633,7 +643,7 @@ private:
 
     private void testGC(MyBox[] args, Output write) {
         if (args[0].unbox!(bool)) {
-            auto n = gFramework.releaseCaches(true);
+            auto n = gFramework.releaseCaches(false);
             write.writefln("release caches: {} house shoes", n);
         }
         size_t getsize() { return gc_stat_get!(size_t)("usedSize"); }
@@ -687,6 +697,8 @@ private:
         mGuiFrameTime.start();
         mGui.doFrame(timeCurrentTime());
         mGuiFrameTime.stop();
+
+        globals.setCounter("soundchannels", gFramework.sound.activeSources());
     }
 
     private void onFrame(Canvas c) {
@@ -835,6 +847,11 @@ class StatsWindow : Task {
             bla.listTimers((char[] a, Time b) {
                 auto buf = lineBuffer();
                 auto s = b.toString_s(buf);
+                addLine(a, s);
+            });
+
+            bla.listCounters((char[] a, long b) {
+                auto s = myformat_s(lineBuffer(), "{}", b);
                 addLine(a, s);
             });
 

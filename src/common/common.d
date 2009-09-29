@@ -38,6 +38,7 @@ class Common {
     //high resolution timers which are updated each frame, or so
     //toplevel.d will reset them all!
     PerfTimer[char[]] timers;
+    long[char[]] counters;
 
     //another hack, see addFrameCallback()
     private {
@@ -206,6 +207,18 @@ class Common {
         auto t = new PerfTimer(true);
         timers[name] = t;
         return t;
+    }
+
+    void incCounter(char[] name, long amount = 1) {
+        long* pold = name in counters;
+        if (!pold) {
+            counters[name] = 0;
+            pold = name in counters;
+        }
+        (*pold) += amount;
+    }
+    void setCounter(char[] name, long cnt) {
+        counters[name] = cnt;
     }
 
     //cb will be called each frame between Task and GUI updates

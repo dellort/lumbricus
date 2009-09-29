@@ -15,6 +15,9 @@ import utils.randval;
 import math = tango.math.Math;
 import cstdlib = tango.stdc.stdlib;
 
+debug import common.common;
+debug import utils.perf;
+
 //use C memory for particles (is lighter on the GC)
 version = CMemory;
 
@@ -223,36 +226,40 @@ struct Particle {
             return;
         }
 
-        bool sound_active = true;
-        bool anim_active = true;
+        //particle lifetime rules:
+        //- if props.lifetime has elapsed, particle always dies
+        //  (but note that lifetime by default is infinite)
+        //- particle dies, unless:
+        //  - animation or sound is active
+        //  - both animation and sound are disabled
+        //    (in this case, it's assumed particle does other work: like being
+        //     drawn with a solid color, or emitting particles)
+        bool sound_active = false;
+        bool anim_active = false;
 
-        if (sound) {
-            if (sound.state() == PlaybackState.stopped) {
-                sound_active = false;
-            } else {
-                //update position
-                Rect2i area = owner.mViewArea;
-                Vector2i size = area.size;
-                //only when valid (and setViewArea() was called)
-                if (size.x & size.y) {
-                    auto rel = pos - toVector2f(area.p1);
-                    sound.info.position = (rel / toVector2f(size)) * 2.0f
-                        - Vector2f(1);
-                }
+        if (sound && sound.state() != PlaybackState.stopped) {
+            sound_active = true;
+            //update position
+            Rect2i area = owner.mViewArea;
+            Vector2i size = area.size;
+            //only when valid (and setViewArea() was called)
+            if (size.x & size.y) {
+                auto rel = pos - toVector2f(area.p1);
+                sound.info.position = (rel / toVector2f(size)) * 2.0f
+                    - Vector2f(1);
             }
         }
 
-        if (anim) {
-            if (!anim.repeat && anim.finished(diff)) {
-                anim_active = false;
-            } else {
-                AnimationParams p;
-                anim.draw(c, toVector2i(pos), p, diff);
-            }
+        if (anim && (anim.repeat || !anim.finished(diff))) {
+            anim_active = true;
+            AnimationParams p;
+            anim.draw(c, toVector2i(pos), p, diff);
         }
 
         //die if finished
-        if (!anim_active && !sound_active) {
+        //never die here if neither animations or sound are enabled
+        bool any_enabled = anim || sound;
+        if (any_enabled && !anim_active && !sound_active) {
             kill();
             return;
         }
@@ -484,6 +491,11 @@ class ParticleWorld {
     }
 
     void draw(Canvas c) {
+        debug {
+            PerfTimer timer = globals.newTimer("particles");
+            timer.start();
+        }
+
         if (mTS) {
             mTS.update();
         }
@@ -520,6 +532,11 @@ class ParticleWorld {
             }
 
             cur = next;
+        }
+
+        debug {
+            timer.stop();
+            globals.setCounter("particles", mParticles.count);
         }
     }
 

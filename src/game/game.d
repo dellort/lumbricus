@@ -419,6 +419,10 @@ class GameEngine {
                 mObjects.remove(o);
             }
         }
+
+        debug {
+            globals.setCounter("gameobjects", mObjects.count);
+        }
     }
 
     //remove all objects etc. from the scene
