@@ -115,9 +115,13 @@ public class Sound {
         float[SoundType.max] mTypeVolume = 1.0f;
     }
 
-    this() {
+    this(ConfigNode cfg) {
         mSources = new typeof(mSources);
         mDriver = new NullSound(this, null);
+        mVolume = cfg.getValue("master_volume", mVolume);
+        foreach (int idx, ref tv; mTypeVolume) {
+            tv = cfg.getValue(myformat("volume{}",idx), tv);
+        }
     }
 
     //disassociate from current sound driver

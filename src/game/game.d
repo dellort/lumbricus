@@ -699,7 +699,9 @@ class GameEngine {
 
         //always sound; I don't know how the explosion sound samples relate to
         //  the explosion size, so the sound is picked randomly
-        emit(mGfx.expl.sound);
+        if (s >= 0) {
+            emit(mGfx.expl.sound);
+        }
     }
 
     void animationEffect(Animation ani, Vector2i at, AnimationParams p) {

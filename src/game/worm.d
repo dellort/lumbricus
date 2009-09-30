@@ -12,6 +12,7 @@ import game.weapon.types;
 import game.weapon.weapon;
 import game.temp;  //whatever, importing gamepublic doesn't give me JumpMode
 import game.gamepublic;
+import game.particles;
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -1223,6 +1224,8 @@ class RenderCrosshair : SceneObject {
         float mLoad = 0.0f;
         bool mDoReset;
         InterpolateState mIP;
+        ParticleType mSfx;
+        ParticleEmitter mEmit;
 
         struct InterpolateState {
             bool did_init;
@@ -1233,6 +1236,7 @@ class RenderCrosshair : SceneObject {
     this(GameEngine a_engine, Sequence a_attach) {
         mEngine = a_engine;
         mAttach = a_attach;
+        mSfx = mEngine.gfx.resources.get!(ParticleType)("p_rocketcharge");
         zorder = GameZOrder.Crosshair;
         init_ip();
         reset();
@@ -1240,6 +1244,7 @@ class RenderCrosshair : SceneObject {
     this (ReflectCtor c) {
         super(c);
         c.transient(this, &mIP);
+        c.transient(this, &mEmit);
     }
 
     private void init_ip() {
@@ -1251,6 +1256,7 @@ class RenderCrosshair : SceneObject {
     //value between 0.0 and 1.0 for the fire strength indicator
     void setLoad(float a_load) {
         mLoad = a_load;
+        mEmit.current = (mLoad > float.epsilon) ? mSfx : null;
     }
 
     //reset animation, called after this becomes .active again
@@ -1326,5 +1332,8 @@ class RenderCrosshair : SceneObject {
             cur -= tcs.add;
             stip++;
         }
+
+        mEmit.pos = toVector2f(pos);
+        mEmit.update(mEngine.callbacks.particleEngine);
     }
 }

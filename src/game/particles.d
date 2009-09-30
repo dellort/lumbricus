@@ -262,8 +262,7 @@ struct Particle {
             //only when valid (and setViewArea() was called)
             if (size.x & size.y) {
                 auto rel = pos - toVector2f(area.p1);
-                sound.info.position = (rel / toVector2f(size)) * 2.0f
-                    - Vector2f(1);
+                sound.info.position = (rel / toVector2f(size)) - Vector2f(0.5f);
             }
         }
 
@@ -442,6 +441,8 @@ struct ParticleEmitter {
                     return;
                 mLastType = current;
                 mPtr = mOwner.newparticle(current, true);
+            } else {
+                mLastType = null;
             }
         }
         if (haveparticles()) {

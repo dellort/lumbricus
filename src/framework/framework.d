@@ -667,7 +667,7 @@ class Framework {
         mKeyStateMap.length = Keycode.max - Keycode.min + 1;
 
         mFontManager = new FontManager();
-        mSound = new Sound();
+        mSound = new Sound(fwconfig.getSubNode("sound"));
 
         replaceDriver(fwconfig);
     }
