@@ -38,7 +38,10 @@ class ParticleType {
     //particle can only exist underwater (e.g. bubbles)
     bool underwater;
 
-    Time lifetime = Time.Never;
+    //lifetime from start of particle
+    //doesn't override animation lifetime etc.; see Particle.draw.moreWork()
+    Time lifetime = Time.Null;
+
     //list of available animations, one is randomly selected
     Animation[] animation;
     Color color = Color(0,0,0,0); //temporary hack for drawing
@@ -60,6 +63,26 @@ class ParticleType {
     //emit when life time is out
     ParticleEmit[] emit_on_death; //again, random pick
     int emit_on_death_count = 0;
+
+    //return if this particle ends at some time in the future
+    //if false, the particle is only destroyed by the game logic, not by itself
+    //return value must be consistent with Particle.draw.moreWork()
+    bool isTransient() {
+        //NOTE: if there's a complicated particle, that doesn't work with this,
+        //  add a new field to ParticleType, that can override the return value
+        //  for this function
+        //arghl; maybe particle stuff should ignore Animation.repeat, and do it
+        //  exactly like sounds?
+        bool animation_looping;
+        foreach (a; animation) {
+            animation_looping |= a.repeat;
+        }
+        //xxx: comparing values with maximum is not very robust
+        return (emit_count != emit_count.max)
+            && (lifetime != Time.Never)
+            && !sound_looping
+            && !animation_looping;
+    }
 
     //get a list of resource T, but also accept a single item if node contains
     //  a value only, or if the node is empty
@@ -197,11 +220,13 @@ struct Particle {
     void draw(Canvas c, float deltaT) {
         assert(!!props);
         auto diff = owner.time.current - start;
-        if (diff >= props.lifetime) {
+
+        //die a natural death (kill() forces death)
+        void die() {
             for (int n = 0; n < props.emit_on_death_count; n++) {
                 emitRandomParticle(props.emit_on_death);
             }
-            props = null;
+            kill();
             return;
         }
 
@@ -222,18 +247,10 @@ struct Particle {
         //Trace.formatln("{} {} {}", pos, velocity, deltaT);
 
         if (props.underwater && pos.y < owner.waterLine) {
-            kill();
+            die();
             return;
         }
 
-        //particle lifetime rules:
-        //- if props.lifetime has elapsed, particle always dies
-        //  (but note that lifetime by default is infinite)
-        //- particle dies, unless:
-        //  - animation or sound is active
-        //  - both animation and sound are disabled
-        //    (in this case, it's assumed particle does other work: like being
-        //     drawn with a solid color, or emitting particles)
         bool sound_active = false;
         bool anim_active = false;
 
@@ -256,16 +273,29 @@ struct Particle {
             anim.draw(c, toVector2i(pos), p, diff);
         }
 
+        //there are those units of "work":
+        //- animation
+        //- sound
+        //- particle emitter
+        //- lifetime
+        //the particle dies, as soon as all work is done
+        //implications:
+        //- if animation or sound are on repeat, it never is done
+        //  (same if lifetime or emit_count are infinite)
+        //- if a particle only has ParticleType.color set, doesn't emit
+        //  anything, doesn't have sound or animation, and lifetime isn't set,
+        //  it dies immediately (you have to set lifetime)
         bool moreWork() {
-            //anim/sound, drawing or emitter
-            return (sound && sound_active) || (anim && anim_active)
-                || (props.color.a > 0) || (emitted < props.emit_count);
+            return (sound && sound_active)
+                || (anim && anim_active)
+                || (emitted < props.emit_count)
+                || (diff < props.lifetime);
         }
 
         //die if finished
         //never die here if neither animations or sound are enabled
         if (!moreWork()) {
-            kill();
+            die();
             return;
         }
 
@@ -362,6 +392,7 @@ struct ParticleEmitter {
         ParticleWorld mOwner;
         ulong mGeneration;
         Particle* mPtr;
+        ParticleType mLastType;
     }
 
     //desired particle emitter
@@ -404,6 +435,12 @@ struct ParticleEmitter {
                 mPtr = null;
             }
             if (wantparticles) {
+                //don't recreate if that particle was transient
+                //recreating the particle would play effects that are meant to
+                //  show up only once
+                if (mLastType is current && current.isTransient())
+                    return;
+                mLastType = current;
                 mPtr = mOwner.newparticle(current, true);
             }
         }
@@ -445,6 +482,7 @@ class ParticleWorld {
             t = mTS;
         }
         time = t;
+
         mEffects = new typeof(mEffects);
         mFreeParticles = new typeof(mFreeParticles);
         mParticles = new typeof(mParticles);
@@ -453,15 +491,12 @@ class ParticleWorld {
     }
 
     //must be finalizer-safe (don't access references to GC memory)
-    private void free() {
+    private void do_dealloc() {
         mGeneration++;
         //this code should be executed to make sure all sounds are terminated,
         //  but can't call .kill() within a finalizer
         //will fix later, when we introduce more manual memory managment
-        //--//for releasing sound sources
-        //--foreach (ref p; mParticleStorage) {
-        //--    p.kill();
-        //--}
+        //-- code moved to free(), the p.kill() bit is important
         //release memory
         version (CMemory) {
             //if (mParticleStorage.ptr)
@@ -472,11 +507,10 @@ class ParticleWorld {
     }
 
     ~this() {
-        free();
+        do_dealloc();
     }
 
-    private void alloc(size_t n) {
-        free();
+    private void do_alloc(size_t n) {
         version (CMemory) {
             void* p = cstdlib.calloc(n, Particle.sizeof);
             if (!p)
@@ -487,12 +521,29 @@ class ParticleWorld {
         }
     }
 
+    void free() {
+        //for releasing sound sources
+        foreach (ref p; mParticleStorage) {
+            p.kill();
+        }
+
+        mEffects.clear();
+        mFreeParticles.clear();
+        mParticles.clear();
+
+        do_dealloc();
+    }
+
     void reinit(int particle_count = 50000) {
         free();
-        alloc(particle_count);
+        do_alloc(particle_count);
         foreach (ref p; mParticleStorage) {
             mFreeParticles.add(&p);
         }
+    }
+
+    int particleCount() {
+        return mParticleStorage.length;
     }
 
     void draw(Canvas c) {

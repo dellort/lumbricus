@@ -21,6 +21,7 @@ import gui.widget;
 import gui.container;
 import gui.label;
 import gui.mousescroller;
+import gui.tablecontainer;
 import utils.rect2;
 import utils.time;
 import utils.math;
@@ -377,8 +378,9 @@ private class ViewMember {
 //it displays the game directly and also handles input directly
 //also draws worm labels
 class GameView : Container {
+    //these are all evil hacks and should go away
     void delegate() onTeamChange;
-    // :(
+    void delegate() onKeyHelp;
     void delegate(char[] category) onSelectCategory;
 
     //for setSettings()
@@ -408,6 +410,11 @@ class GameView : Container {
         //key state for LEFT/RIGHT and UP/DOWN
         Vector2i dirKeyState_lu = {0, 0};  //left/up
         Vector2i dirKeyState_rd = {0, 0};  //right/down
+
+        //key binding identifier to game engine command (wormbinds map_commands)
+        char[][char[]] mKeybindToCommand;
+        //wormbinds.conf/map_commands
+        ConfigNode mCommandMap;
 
         //for worm-name drawing
         ViewMember[] mAllMembers;
@@ -552,6 +559,22 @@ class GameView : Container {
             }
         }
 
+        //all keybinding stuff
+
+        ConfigNode wormbindings = loadConfig("wormbinds");
+        mCommandMap = wormbindings.getSubNode("map_commands");
+
+        bindings = new KeyBindings();
+        bindings.loadFrom(wormbindings.getSubNode("binds"));
+
+        //categories...
+        foreach (ConfigNode cat; mCommandMap) {
+            //commands...
+            foreach (ConfigNode cmd; cat) {
+                mKeybindToCommand[cmd.name] = cmd.value;
+            }
+        }
+
         //xxx currently, there's no way to run these commands from the console
         mCmd = new CommandLine(globals.defaultOut);
         mCmds = new CommandBucket();
@@ -566,6 +589,7 @@ class GameView : Container {
             "disable game camera", ["bool?:disable"]));
         mCmds.register(Command("move", &cmdMove, "-", ["text:key",
             "bool:down"]));
+        mCmds.register(Command("keybindings_help", &cmdShowKeybinds, "-", []));
         mCmds.bind(mCmd);
     }
 
@@ -603,6 +627,42 @@ class GameView : Container {
     private void cmdCameraDisable(MyBox[] args, Output write) {
         enableCamera = !args[0].unboxMaybe!(bool)(enableCamera);
         write.writefln("set camera enable: {}", enableCamera);
+    }
+
+    private void cmdShowKeybinds(MyBox[] args, Output write) {
+        if (onKeyHelp)
+            onKeyHelp();
+    }
+
+    //should be moved elsewhere etc.
+    //this dialog should be game-independent anyway
+    Widget createKeybindingsHelp() {
+        Translator tr_cat = localeRoot.bindNamespace("wormbinds_categories");
+        Translator tr_ids = localeRoot.bindNamespace("wormbinds_ids");
+        auto table = new TableContainer(2, 0, Vector2i(20, 0));
+        table.styles.addClass("keybind_help_table");
+        //category...
+        foreach (ConfigNode cat; mCommandMap) {
+            auto head = new Label();
+            head.text = tr_cat(cat.name);
+            head.styles.addClass("keybind_help_header");
+            table.addRow();
+            table.add(head, 0, table.height-1, 2, 1);
+            //command...
+            foreach (ConfigNode cmd; cat) {
+                char[] id = cmd.name;
+                auto caption = new Label();
+                caption.text = tr_ids(id);
+                caption.styles.addClass("keybind_help_caption");
+                auto bind = new Label();
+                bind.text = globals.translateBind(this.bindings, id);
+                bind.styles.addClass("keybind_help_bind");
+                table.addRow();
+                table.add(caption, 0, table.height-1);
+                table.add(bind, 1, table.height-1);
+            }
+        }
+        return table;
     }
 
     private Vector2i handleDirKey(char[] key, bool up) {
@@ -677,12 +737,16 @@ class GameView : Container {
         return bind;
     }
     override protected void onKeyEvent(KeyInfo ki) {
-        auto bind = processBinding(findBind(ki), ki.isUp);
-        if ((ki.isDown || ki.isUp()) && bind) {
+        if (ki.isDown() || ki.isUp()) {
+            char[] bind = findBind(ki);
+            if (!bind.length)
+                return;
+            if (auto pcmd = bind in mKeybindToCommand) {
+                bind = processBinding(*pcmd, ki.isUp);
+            }
             //if not processed locally, send
             if (!mCmd.execute(bind, true))
                 executeServerCommand(bind);
-            return;
         }
     }
     /*protected void onMouseMove(MouseInfo mouse) {

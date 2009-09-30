@@ -103,9 +103,12 @@ class ClientGameEngine : GameEngineCallback {
         bool mPaused;
 
         ParticleWorld mParticles;
+        bool mEnableParticles = true;
 
         class DrawParticles : SceneObject {
             override void draw(Canvas canvas) {
+                if (!mEnableParticles)
+                    return;
                 //update state
                 //engine.windSpeed is -1..1, don't ask me why
                 mParticles.windSpeed = mEngine.windSpeed()*150f;
@@ -276,22 +279,32 @@ class ClientGameEngine : GameEngineCallback {
     }
     //the higher the less detail (wtf), wraps around if set too high
     public void detailLevel(uint level) {
-        level = level % 7;
+        level = level % 8;
         mDetailLevel = level;
-        bool clouds = true, skyDebris = true, skyBackdrop = true, skyTex = true;
-        bool water = true, gui = true;
+        bool clouds = true, skyDebris = true, skyBackdrop = true, skyTex = true,
+             water = true, gui = true, particles = true;
         if (level >= 1) skyDebris = false;
         if (level >= 2) skyBackdrop = false;
         if (level >= 3) skyTex = false;
         if (level >= 4) clouds = false;
         if (level >= 5) water = false;
         if (level >= 6) gui = false;
+        if (level >= 7) particles = false;
         mGameWater.simpleMode = !water;
         mGameSky.enableClouds = clouds;
         mGameSky.enableDebris = skyDebris;
         mGameSky.enableSkyBackdrop = skyBackdrop;
         mGameSky.enableSkyTex = skyTex;
         enableSpiffyGui = gui;
+        mEnableParticles = particles;
+        //set particle count to 0 to disable particle system
+        if (mEnableParticles != (mParticles.particleCount() > 0)) {
+            if (mEnableParticles) {
+                mParticles.reinit();
+            } else {
+                mParticles.reinit(0);
+            }
+        }
     }
 
     //if this returns true, the one who calls .draw() will not clear the

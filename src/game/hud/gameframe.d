@@ -54,6 +54,9 @@ class GameFrame : SimpleContainer {
         Time mLastFrameTime, mRestTime;
         bool mFirstFrame = true;
         Vector2i mScrollToAtStart;
+
+        //if non-null, this dialog is modal and blocks other game input
+        Widget mModalDialog;
     }
 
     private void updateWeapons(WeaponSet bla) {
@@ -147,13 +150,55 @@ class GameFrame : SimpleContainer {
         return gameView.doesCover();
     }
 
+    override bool childCanHaveInput(Widget w) {
+        if (!mModalDialog)
+            return true;
+        return w is mModalDialog;
+    }
+
+    private class ModalNotice : SimpleContainer {
+        this(Widget client) {
+            client.setLayout(WidgetLayout.Noexpand());
+            addChild(client);
+        }
+
+        void lock() {
+            claimFocus();
+            //xxx: should somehow pause game while dialog is active
+            //     (but so that stuff doesn't break when you press "pause")
+        }
+
+        override bool canHaveFocus() {
+            return true;
+        }
+        override bool onTestMouse(Vector2i pos) {
+            return true;
+        }
+
+        override void onKeyEvent(KeyInfo info) {
+            //filter against releasing 'h'
+            if (info.isUp() || info.isPress())
+                return;
+            remove();
+            this.outer.mModalDialog = null;
+            //whatever, this all sucks hard
+            this.outer.gameView.claimFocus();
+        }
+    }
+
+    //show current (game) key bindings
+    private void keyHelp() {
+        auto dlg = new ModalNotice(gameView.createKeybindingsHelp());
+        add(dlg);
+        mModalDialog = dlg;
+        mScroller.mouseScrolling = false; //protect against random fuckup
+        dlg.lock();
+    }
+
     this(GameInfo g) {
         game = g;
 
         gDefaultLog("initializeGameGui");
-
-        auto wormbinds = new KeyBindings();
-        wormbinds.loadFrom(loadConfig("wormbinds").getSubNode("binds"));
 
         mGui = new SimpleContainer();
         //needed because I messed up input handling
@@ -180,7 +225,7 @@ class GameFrame : SimpleContainer {
         gameView = new GameView(game);
         gameView.onTeamChange = &teamChanged;
         gameView.onSelectCategory = &selectCategory;
-        gameView.bindings = wormbinds;
+        gameView.onKeyHelp = &keyHelp;
 
         mScroller = new MouseScroller();
         //changed after r845, was WidgetLayout.Aligned(0, -1)
@@ -200,7 +245,7 @@ class GameFrame : SimpleContainer {
         mWeaponSel = new WeaponSelWindow();
         mWeaponSel.onSelectWeapon = &selectWeapon;
 
-        mWeaponSel.selectionBindings = wormbinds;
+        mWeaponSel.selectionBindings = gameView.bindings;
 
         add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
 

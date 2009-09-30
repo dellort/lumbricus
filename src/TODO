@@ -6,21 +6,6 @@
 [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
 
 == RFCs (d.h. blablabla) ==
-- offensichtlich sollten alle sprites (nicht nur waffen) "events" haben, und die
-  event-handler sollten in der .conf-datei deklariert werden
-  1. gleich minid verwenden, und das alte action-zeug zur kompatibilität unverändert lassen?
-  2. können ActionSprites und ProjectileSprite abgeschafft werden?
-     (bis auf die tatsache, dass sie aufgrund der kompatibilität vorerst nicht entfernt werden,
-      aber der rest des programmes wird sie nicht mehr verwenden)
-  + ActionSprite existiert nur, um den Event-Code aus GObjectSprite rauszuhalten. Es spricht 
-    nichts dagegen, dass alle Sprites ActionSprites sind, die Trennung würde ich aber gerne
-    beibehalten. 
-    ProjectileSprite war mir aber schon immer ein Dorn im Auge, nur weg damit
-  + imo sollten "Events" von der Implementierung der Aktionen unabhängiger sein, die "Reaktion" 
-    auf ein Event könnte dann als Action oder in Minid implementiert sein
-  + schön wäre auch eine Verallgemeinerung der Events, so dass nicht nur Actions/Skripte, sondern
-    auch Partikel und/oder Sounds erzeugt werden können, und das selbe System auch für 
-    "GameEngine-Events" verwendet wird (z.B. ein Soundeffekt bei Spielstart, oder beim Sieg)
 - d0c: "Die Trennung von Engine und Darstellung fand ich immer ganz gut und übersichtlich."
   - ok, aber sie hat nicht soviel sinn gemacht (der ganze müll in clientengine.d und gamepublic.d NUR damit der "draw(Canvas c)"-aufruf nicht im "server" ist?)
     eher: man sollte die trennung zwischen server- und client-engine stattdessen "frontend" (teile der GUI, indeterministisch) und "backend" nennen, und soweit wie möglich in unterschiedliche vezeichnisse stecken:
@@ -28,6 +13,19 @@
     game.d, action/, weapon/, worm.d, etc. -> src/backend/
     ?
 - zeugs in gameview.d direkt in die engine verschieben?
+- partikel zeug:
+    - der bug mit p_donkey kam daher, dass ParticleEmitter nach dem partikel-tod
+      eines partikels das partikel neu erzeugt
+    - das wird deshalb gemacht, weil 1. nach dem laden eines spiels alle partikel
+      tot sind, und 2. wenn sehr viele partikel erzeugt werden, werden alte
+      partikel spontan gelöscht, um neue partikel allokieren zu können
+    - damit kurzlebige partikel nicht dauernd neu erzeugt werden, wurde ParticleType.isTransient() eingeführt (siehe particles.d)
+    - aber beim savegame-laden wird das partikel trotzdem neu erzeugt => DUMM
+    - besserer weg gesucht (aber bitte ein leichtgewichtiger ansatz, da ich unter performance-paranoia leide)
+    - es sollte zwischen einmal-effekt und dauerhaften effekt unterscheiden
+      z.Zt. werden beide durch StaticStateInfo.particle behandelt
+    - außerdem: die meisten effekte sollten von Sequence, nicht sprite, ausgelöst werden
+    - wir brauchen eh eine "generische" event-behandlung, so dass man z.b. in wwp.conf einen event-handler deklarieren kann, der die erzeugung eines partikels veranlässt
 
 == Sonstiges/Minor ==
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
@@ -45,7 +43,6 @@
 - Bohrer/Lötlampe stoßen Würmer nicht weg
     notdürftig implementiert, muss verbessert werden (mehr impuls, weniger schaden?)
 - Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
-- sound effekte ins spiel integrieren
 - wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt (lösung: z.B. könnte die spiellogik pollen, wann Sequence.weapon_fire_oneshot zurückgesetzt wird)
 - feuer animation kann verfrüht durch selektion anderer waffe abgebrochen werden (z.B. axt)
 - axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchron
