@@ -435,6 +435,7 @@ class GameTask : StatefulTask {
         if (!mFader) {
             mFader = new Fader(cFadeOutDuration, false);
             mWindow.add(mFader);
+            mClientEngine.fadeoutMusic(cFadeOutDuration);
         }
     }
 

@@ -74,6 +74,7 @@ class FMODChannel : DriverChannel {
     private {
         SoundSourceInfo mSourceInfo;
         FMOD_CHANNEL* mChannel;
+        bool mLooping;
     }
     ObjListNode!(typeof(this)) chNode;
 
@@ -93,7 +94,23 @@ class FMODChannel : DriverChannel {
         FMOD_Channel_SetVolume(mChannel, v);
     }
 
-    override void play(DriverSound s, bool loop, Time startAt) {
+    void looping(bool loop) {
+        mLooping = loop;
+    }
+
+    private void setLooping(bool loop) {
+        if (!checkChannel())
+            return;
+        if (loop) {
+            FMOD_ErrorCheck(FMOD_Channel_SetMode(mChannel, FMOD_LOOP_NORMAL));
+            //0 = no looping, -1 = loop forever
+            FMOD_ErrorCheck(FMOD_Channel_SetLoopCount(mChannel, -1));
+        } else {
+            FMOD_ErrorCheck(FMOD_Channel_SetMode(mChannel, FMOD_LOOP_OFF));
+        }
+    }
+
+    override void play(DriverSound s, Time startAt) {
         auto fs = castStrict!(FMODSound)(s);
         assert(!!fs);
         assert(!!reserved_for);
@@ -105,13 +122,7 @@ class FMODChannel : DriverChannel {
         update(mSourceInfo);
         FMOD_ErrorCheck(FMOD_Channel_SetPosition(mChannel, startAt.msecs(),
             FMOD_TIMEUNIT_MS));
-        if (loop) {
-            FMOD_ErrorCheck(FMOD_Channel_SetMode(mChannel, FMOD_LOOP_NORMAL));
-            //0 = no looping, -1 = loop forever
-            FMOD_ErrorCheck(FMOD_Channel_SetLoopCount(mChannel, -1));
-        } else {
-            FMOD_ErrorCheck(FMOD_Channel_SetMode(mChannel, FMOD_LOOP_OFF));
-        }
+        setLooping(mLooping);
 
         FMOD_ErrorCheck(FMOD_Channel_SetPaused(mChannel, false));
     }
@@ -123,6 +134,7 @@ class FMODChannel : DriverChannel {
 
         if (unreserve) {
             reserved_for = null;
+            mLooping = false;
         }
     }
 

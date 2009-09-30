@@ -70,10 +70,12 @@ abstract class DriverChannel {
     abstract void setInfo(ref SoundSourceInfo info);
     //set absolute volume of this channel
     abstract void setVolume(float value);
+    //true to loop the played sound (does not have to be supported)
+    abstract void looping(bool loop);
 
     //play() and stop() must only be called if you're still the owner by
     //reserved_by
-    abstract void play(DriverSound s, bool loop, Time startAt);
+    abstract void play(DriverSound s, Time startAt);
 
     abstract void paused(bool p);
 
@@ -389,6 +391,9 @@ class Source {
     }
     final void looping(bool l) {
         mLooping = l;
+        auto dc = createDC(false);
+        if (dc)
+            dc.looping = l;
     }
 
     ///Private volume for this source
@@ -427,10 +432,9 @@ class Source {
                 dc.setVolume(0);
                 startFade(FadeType.fadeIn, fadeinTime);
             }
+            dc.looping = mLooping;
 
-            //xxx mLooping is only passed here, setting it after the play()
-            //    call has no effect
-            dc.play(mSample.getDriverSound(), mLooping, start);
+            dc.play(mSample.getDriverSound(), start);
             mState = PlaybackState.playing;
         }
     }

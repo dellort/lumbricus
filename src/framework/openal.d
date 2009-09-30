@@ -54,16 +54,12 @@ class ALChannel : DriverChannel {
         alSource3f(source,AL_POSITION, info.position.x, info.position.y, -1.0f);
     }
 
-    void play(DriverSound s, bool loop, Time startAt) {
+    void play(DriverSound s, Time startAt) {
         mSound = castStrict!(ALSound)(s);
         assert(!!mSound);
         assert(!!reserved_for);
         alSourceStop(source);
-        //xxx AL_LOOPING does not work with streaming; currently, playback will
-        //    stop and be immediately restarted by code in
-        //    framework.sound.Source (=hack)
-        if (mSound.canLoop)
-            alSourcei(source, AL_LOOPING, loop ? AL_TRUE : AL_FALSE);
+
         mSound.initPlay(source, startAt);
         alSourcePlay(source);
         assert (oalState() == AL_PLAYING);
@@ -80,6 +76,7 @@ class ALChannel : DriverChannel {
         alSourcei(source, AL_BUFFER, AL_NONE);
         if (unreserve) {
             reserved_for = null;
+            alSourcei(source, AL_LOOPING, AL_FALSE);
         }
     }
 
@@ -88,6 +85,16 @@ class ALChannel : DriverChannel {
             alSourcePause(source);
         } else if (oalState() == AL_PAUSED) {
             alSourcePlay(source);
+        }
+    }
+
+    void looping(bool loop) {
+        if (mSound) {
+            //xxx AL_LOOPING does not work with streaming; currently, playback
+            //    will stop and be immediately restarted by code in
+            //    framework.sound.Source (=hack)
+            if (mSound.canLoop)
+                alSourcei(source, AL_LOOPING, loop ? AL_TRUE : AL_FALSE);
         }
     }
 

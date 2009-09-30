@@ -256,10 +256,15 @@ struct Particle {
             anim.draw(c, toVector2i(pos), p, diff);
         }
 
+        bool moreWork() {
+            //anim/sound, drawing or emitter
+            return (sound && sound_active) || (anim && anim_active)
+                || (props.color.a > 0) || (emitted < props.emit_count);
+        }
+
         //die if finished
         //never die here if neither animations or sound are enabled
-        bool any_enabled = anim || sound;
-        if (any_enabled && !anim_active && !sound_active) {
+        if (!moreWork()) {
             kill();
             return;
         }

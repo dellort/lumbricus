@@ -193,6 +193,10 @@ class ClientGameEngine : GameEngineCallback {
         mMusic.play();
     }
 
+    void fadeoutMusic(Time t) {
+        mMusic.stop(t);
+    }
+
     //synchronize graphics list
     //graphics currently are removed lazily using the "removed" flag
     private void createGraphics() {
