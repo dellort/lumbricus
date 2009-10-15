@@ -6,6 +6,7 @@ import gzip = utils.gzip;
 import utils.output;
 import utils.configfile;
 import utils.misc;
+import utils.path;
 
 import tango.stdc.stringz;
 
@@ -109,7 +110,41 @@ class TarArchive {
         }
     }
 
+    bool fileExists(char[] name) {
+        Trace.formatln("fileExists: {}", name);
+        foreach (Entry e; mEntries) {
+            if (e.name == name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool pathExists(char[] name) {
+        Trace.formatln("pathExists: {}", name);
+        //xxx directories are stored in tar files (h.link == '5'), but I'm too
+        //    lazy to change the parsing code above
+        auto vp = VFSPath(name);
+        //search for a file starting with that directory name
+        foreach (Entry e; mEntries) {
+            if (vp.isChild(VFSPath(e.name))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    int opApply(int delegate(ref char[] filename) del) {
+        foreach (Entry e; mEntries) {
+            int res = del(e.name);
+            if (res)
+                return res;
+        }
+        return 0;
+    }
+
     Stream openReadStreamUncompressed(char[] name, bool can_fail = false) {
+        Trace.formatln("open: {}", name);
         foreach (Entry e; mEntries) {
             if (e.name == name) {
                 auto s = new SliceStream(mFile, e.offset + 512,

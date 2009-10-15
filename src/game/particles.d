@@ -355,10 +355,10 @@ struct Particle {
             if (select >= sum && select < nsum) {
                 //actually emit
                 auto at = pos;
-                auto nvel = velocity*e.initial_speed;
-                nvel += Vector2f(0, -1) * e.absolute_speed;
+                auto nvel = Vector2f(0, -1) * e.absolute_speed;
                 nvel = nvel.rotated(e.spread_angle*(180.0f/math.PI) *
                     (rngShared.nextDouble() - 0.5f));
+                nvel += velocity*e.initial_speed;
                 if (e.offset != 0f) {
                     //xxx I realize I'd need the emitter rotation, not velocity
                     // OTOH, the code that creates the emitter should set the

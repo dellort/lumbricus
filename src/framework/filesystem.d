@@ -10,6 +10,7 @@ import utils.misc;
 import utils.log;
 import utils.output;
 import utils.path;
+import utils.archive;
 
 import tango.sys.Environment;
 version(Windows) {
@@ -87,6 +88,8 @@ private abstract class HandlerInstance {
     ///if callback returns false, you should abort and return false too
     abstract bool listdir(VFSPath handlerPath, char[] pattern, bool findDir,
         bool delegate(char[] filename) callback);
+
+    abstract void close();
 }
 
 ///Specific MountPointHandler for mounting directories
@@ -178,6 +181,10 @@ private class HandlerDirectory : HandlerInstance {
         }
 
         return true;
+    }
+
+    void close() {
+        mDirPath = null;
     }
 }
 
@@ -304,10 +311,101 @@ private class HandlerTangoVfs : HandlerInstance {
         }
         return true;
     }
+
+    void close() {
+        mVfsFolder.close();
+        mVfsFolder = null;
+    }
 }
 
 //  ZIP support end
 //----------------------------------------------------------------
+
+///Specific MountPointHandler for mounting ZIP archives
+private class MountPointHandlerTar : MountPointHandler {
+    bool canHandle(char[] absPath) {
+        //exisiting files, name ending with ".tar"
+        return tpath.exists(absPath) && !tpath.isFolder(absPath)
+            && absPath.length > 4 && str.tolower(absPath[$-4..$]) == ".tar";
+    }
+
+    HandlerInstance mount(char[] absPath) {
+        Trace.formatln("mount tar: {}", absPath);
+        assert(canHandle(absPath));
+        return new HandlerTar(absPath);
+    }
+
+    static this() {
+        FileSystem.registerHandler(new typeof(this)());
+    }
+}
+
+private class HandlerTar : HandlerInstance {
+    private {
+        TarArchive mTarFile;
+    }
+
+    this(char[] archivePath) {
+        auto archFile = new ConduitStream(castStrict!(Conduit)(
+            new File(archivePath, File.ReadExisting)));
+        mTarFile = new TarArchive(archFile, true);
+    }
+
+    bool isWritable() {
+        return false;
+    }
+
+    bool exists(VFSPath handlerPath) {
+        return mTarFile.fileExists(handlerPath.get(false));
+    }
+
+    bool pathExists(VFSPath handlerPath) {
+        return mTarFile.pathExists(handlerPath.get(false));
+    }
+
+    Stream open(VFSPath handlerPath, File.Style mode) {
+        return mTarFile.openReadStreamUncompressed(handlerPath.get(false));
+    }
+
+    bool listdir(VFSPath handlerPath, char[] pattern, bool findDir,
+        bool delegate(char[] filename) callback)
+    {
+        bool[char[]] dirCache;
+        foreach (char[] fn; mTarFile) {
+            auto cur = VFSPath(fn);
+            if (handlerPath.isChild(cur)) {
+                auto rel = cur.relativePath(handlerPath);
+                if (rel.parent.isEmpty) {
+                    //entry is a file in the directory
+                    char[] filen = rel.get(false);
+                    if (!patternMatch(filen, pattern))
+                        continue;
+                    if (!callback(filen))
+                        return false;
+                } else if (rel.parent.parent.isEmpty) {
+                    //entry is a file in a direct subdirectory
+                    if (findDir) {
+                        char[] dirn = rel.parent.get(false);
+                        if (!patternMatch(dirn, pattern))
+                            continue;
+                        if (!(dirn in dirCache)) {
+                            dirCache[dirn] = true;
+                            if (!callback(dirn))
+                                return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    void close() {
+        mTarFile.close();
+        mTarFile = null;
+    }
+}
+
 
 private class HandlerLink : HandlerInstance {
     private VFSPath mLinkedPath;
@@ -344,6 +442,11 @@ private class HandlerLink : HandlerInstance {
     {
         return mParent.listdir(mLinkedPath.join(handlerPath), pattern, findDirs,
             callback, this);
+    }
+
+    void close() {
+        mLinkedPath.set("");
+        mParent = null;
     }
 }
 
@@ -615,6 +718,7 @@ class FileSystem {
     public bool unmount(MountId mid) {
         foreach (int idx, ref mp; mMountedPaths) {
             if (mp.mountId == mid) {
+                mp.handler.close();
                 mMountedPaths = mMountedPaths[0..idx] ~ mMountedPaths[idx+1..$];
                 return true;
             }
