@@ -214,6 +214,12 @@ private void actionParse(GfxSet gfx, out Surface ret, char[] value,
     if (value.length > 0)
         ret = gfx.resources.get!(Surface)(value);
 }
+void actionParse(GfxSet gfx, out ParticleType ret, char[] value,
+    char[] def)
+{
+    if (value.length > 0)
+        ret = gfx.resources.get!(ParticleType)(value);
+}
 
 //generic action class with a lot of template magic
 //the ONLY reason for this is to cache parameters loaded from config files

@@ -24,12 +24,18 @@ sounds {
             a_blow_torch = "BlowTorch.wav"
             a_rocket_charge = "ROCKETPOWERUP.WAV"
             a_rocket_fire = "ROCKETRELEASE.WAV"   //non-repeating
+            a_throw_fire = "THROWRELEASE.WAV"
             a_splash = "Splash.wav"   //drown
             a_splish = "Splish.wav"   //surface bounce
             a_supersheep_release = "SUPERSHEEPRELEASE.WAV"
             a_donkey_create = "HOLYDONKEY.WAV"
             a_armageddon = "Armageddon.wav"
             a_beam = "Teleport.wav"
+            a_homing = "WEAPONHOMING.WAV"
+            a_dynamite_fuse = "FUSE.WAV"
+            a_cow_release = "CowMoo.wav"
+            a_granny = "OLDWOMAN.WAV"
+            a_sheep = "SHEEPBAA.WAV"
         }
     }
     /* -- not implemented

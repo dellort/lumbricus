@@ -79,8 +79,11 @@ class TarArchive {
                     break;
                 //"so relying on the first white space trimmed six digits for
                 // checksum yields better compatibility."
-                if (h.getchecksum()[0..6] != h.checksum[0..6])
-                    throw new Exception("tar error");
+                char[6] hcs = h.checksum[0..6];
+                foreach (ref digit; hcs)
+                    if (digit == ' ') digit = '0';
+                if (h.getchecksum()[0..6] != hcs)
+                    throw new Exception("tar error: CS "~h.getchecksum()[0..6]~" != "~hcs);
                 char[] getField(char[] f) {
                     assert (f.length > 0);
                     //else we had a buffer overflow with toString
@@ -90,10 +93,11 @@ class TarArchive {
                     return fromStringz(&f[0]);
                 }
                 e.name = getField(h.filename).dup;
-                char[] sz = getField(h.filesize);
+                char[] sz = h.filesize[0..11].dup;
                 //parse octal by myself, Phobos is too stupid to do it
                 ulong isz = 0;
                 while (sz.length) {
+                    if (sz[0] == ' ') sz[0] = '0';
                     int digit = sz[0] - '0';
                     if (digit < 0 || digit > 7)
                         throw new Exception("tar error");
@@ -102,16 +106,16 @@ class TarArchive {
                 }
                 e.size = isz;
                 //normal file?
-                if (h.link[0] == '0' || h.link[0] == '\0')
+                if (h.link[0] == '0' || h.link[0] == '\0') {
                     mEntries ~= e;
-                mFile.position = mFile.position + e.size;
+                    mFile.position = mFile.position + e.size;
+                }
                 align512();
             }
         }
     }
 
     bool fileExists(char[] name) {
-        Trace.formatln("fileExists: {}", name);
         foreach (Entry e; mEntries) {
             if (e.name == name) {
                 return true;
@@ -121,7 +125,6 @@ class TarArchive {
     }
 
     bool pathExists(char[] name) {
-        Trace.formatln("pathExists: {}", name);
         //xxx directories are stored in tar files (h.link == '5'), but I'm too
         //    lazy to change the parsing code above
         auto vp = VFSPath(name);
@@ -144,7 +147,6 @@ class TarArchive {
     }
 
     Stream openReadStreamUncompressed(char[] name, bool can_fail = false) {
-        Trace.formatln("open: {}", name);
         foreach (Entry e; mEntries) {
             if (e.name == name) {
                 auto s = new SliceStream(mFile, e.offset + 512,

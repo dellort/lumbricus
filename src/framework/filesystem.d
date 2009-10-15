@@ -330,7 +330,6 @@ private class MountPointHandlerTar : MountPointHandler {
     }
 
     HandlerInstance mount(char[] absPath) {
-        Trace.formatln("mount tar: {}", absPath);
         assert(canHandle(absPath));
         return new HandlerTar(absPath);
     }
@@ -390,7 +389,7 @@ private class HandlerTar : HandlerInstance {
                             continue;
                         if (!(dirn in dirCache)) {
                             dirCache[dirn] = true;
-                            if (!callback(dirn))
+                            if (!callback(dirn ~ '/'))
                                 return false;
                         }
                     }
