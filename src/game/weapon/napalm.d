@@ -6,6 +6,7 @@ import game.actionsprite;
 import game.game;
 import game.gfxset;
 import game.gobject;
+import game.particles;
 import game.sprite;
 import game.sequence;
 import game.weapon.weapon;
@@ -89,6 +90,16 @@ class NapalmSprite : ProjectileSprite {
         graphic.lifePercent = clampRangeC(100.0f-mDecayPerc*80, 0.0f, 100.0f);
     }
 
+    override void waterStateChange(bool under) {
+        if (under && myclass.emitOnWater) {
+            //emit some particles when we die
+            engine.callbacks.particleEngine.emitParticle(physics.pos,
+                Vector2f(0), myclass.emitOnWater);
+        }
+        //if under=true, this will make the sprite die
+        super.waterStateChange(under);
+    }
+
     this(GameEngine engine, NapalmSpriteClass type) {
         super(engine, type);
 
@@ -113,6 +124,7 @@ class NapalmSpriteClass : ProjectileSpriteClass {
     //can't change initState.physic_properties, so reduced radius is put here
     POSP physMedium, physSmall;
     float lightupVelocity = 400;
+    ParticleType emitOnWater;
 
     override NapalmSprite createSprite(GameEngine engine) {
         return new NapalmSprite(engine, this);
@@ -130,6 +142,9 @@ class NapalmSpriteClass : ProjectileSpriteClass {
         physSmall.radius = config.getFloatValue("radius_s", 1);
         lightupVelocity = config.getFloatValue("lightup_velocity",
             lightupVelocity);
+        auto odp = config["on_drown_particle"];
+        if (odp.length)
+            emitOnWater = gfx.resources.get!(ParticleType)(odp);
     }
 
     this(GfxSet e, char[] r) {

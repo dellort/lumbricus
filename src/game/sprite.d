@@ -478,9 +478,8 @@ class StaticStateInfo {
 
         auto particlename = sc["particle"];
         if (particlename.length) {
-            //isn't this funny
-            particle = owner.gfx.resources
-                .get!(ParticleType)(particlename);
+            //xxx move to Sequence (the "animation" should display particles)
+            particle = owner.gfx.resources.get!(ParticleType)(particlename);
         }
     }
 
@@ -514,6 +513,8 @@ class GOSpriteClass {
     StaticStateInfo initState;
 
     float initialHp = float.infinity;
+
+    //ParticleType
 
     protected static LogStruct!("game.spriteclass") log;
 
@@ -551,16 +552,19 @@ class GOSpriteClass {
 
     void loadFromConfig(ConfigNode config) {
         //load collision map
-        gfx.addCollideConf(config.getSubNode("collisions"));
+        auto col = config.findNode("collisions");
+        if (col)
+            gfx.addCollideConf(col);
 
-        //sequenceObject = engine.gfx.resources.resource!(SequenceObject)
-          //  (config["sequence_object"]).get;
-        //explanation see worm.conf
-        sequenceType = gfx.resources.get!(SequenceType)(
-            config["sequence_object"]);
+        sequenceType = gfx.resources.get!(SequenceType)
+            (config["sequence_object"]);
+        //some sprites don't have a "normal" state
+        //the "normal" sprite is mostly needed for very simple projectiles only
+        //actually, the complex sprites (worm) don't use initState at all or
+        //  replace it with "initstate"...
+        initState.animation = findSequenceState("normal", true);
 
         initialHp = config.getFloatValue("initial_hp", initialHp);
-        //teamAnimation = config.getValue("team_animation", teamAnimation);
 
         //load states
         //physic stuff is loaded when it's referenced in a state description
@@ -568,25 +572,25 @@ class GOSpriteClass {
             auto ssi = createStateInfo(sc.name);
             ssi.loadFromConfig(sc, config.getSubNode("physics"), this);
             states[ssi.name] = ssi;
-
-            //make the first state the init state (possibly overriden by
-            //"initstate" later)
-            if (!initState)
-                initState = ssi;
         } //foreach state to load
 
-        //resolve forward refs
-        foreach (s; states) {
-            s.fixup(this);
-        }
+        fixStates();
 
-        StaticStateInfo* init = config["initstate"] in states;
-        if (init && *init)
+        char[] init_name = config.getValue!(char[])("initstate", "normal");
+        StaticStateInfo* init = init_name in states;
+        if (init)
             initState = *init;
 
         //at least the constructor created a default state
         assert(initState !is null);
         assert(states.length > 0);
+    }
+
+    //resolve forward refs
+    protected void fixStates() {
+        foreach (s; states) {
+            s.fixup(this);
+        }
     }
 
     //for derived classes: return your StateInfo class here

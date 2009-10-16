@@ -170,10 +170,12 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
 
 int main(char[][] args)
 {
+    /+ ???
     auto zf = new ZipFolder(r"H:\Code\D\lumbricus\share\lumbricus\data2.zip");
     auto f = zf.file("sounds.conf");
     auto i = f.input;
     return 0;
+    +/
     bool usageerror;
     bool nolevelthemes;
     bool zipdata;

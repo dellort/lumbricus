@@ -39,7 +39,7 @@ struct WWPDirEntry {
         st.position = offset;
         scope fileOut = Stream.OpenFile(outPath ~ pathsep ~ filename,
             File.WriteCreate);
-        fileOut.copyFrom(st, size);
+        fileOut.pipeOut.copyFrom(st.pipeIn, size);
     }
 
     //st: the .dir file, same as for read() and writeFile()

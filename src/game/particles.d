@@ -133,6 +133,15 @@ class ParticleType {
 
         void read_sub(char[] name, ref ParticleEmit[] t) {
             auto sub = node.getSubNode(name);
+
+            if (!sub.hasSubNodes() && sub.value.length > 0) {
+                //reference another node
+                //disgusting hack etc. (see wwp.conf, p_napalmsmoke_short)
+                ParticleType other = res.get!(ParticleType)(sub.value);
+                t = other.emit;
+                return;
+            }
+
             foreach (ConfigNode s; sub) {
                 ParticleEmit e;
                 //read both ParticleEmit and ParticleEmit.particle from the same

@@ -16,8 +16,6 @@ import tango.io.model.IConduit;
 import utils.misc;
 
 
-
-
 //HAHAHAHAHAHAHAHAHAHAHAHAHA
 //actually, I don't feel like inventing my own I/O API
 //so, if anyone happens to know which are the exact Tango equivalents...
@@ -65,6 +63,18 @@ struct PipeOut {
     void close() {
         if (do_close) do_close();
     }
+
+    void copyFrom(PipeIn source, ulong sz) {
+        ubyte[4096*4] buffer = void;
+        while (sz) {
+            auto b = buffer[0..min(sz, buffer.length)];
+            b = source.read(b);
+            if (b.length == 0)
+                throw new IOException("this function sucks");
+            write(b);
+            sz -= b.length;
+        }
+    }
 }
 
 //for reading
@@ -103,6 +113,17 @@ struct PipeIn {
     void readExact(ubyte[] d) {
         if (read(d).length != d.length)
             throw new IOException("could not read all data");
+    }
+
+    //works like readExact, but throw away read bytes
+    void skip(size_t len) {
+        //obviously room for improvement here
+        ubyte[512] garbage = void;
+        while (len) {
+            size_t eat = min(len, garbage.length);
+            readExact(garbage[0..eat]);
+            len -= eat;
+        }
     }
 
     //read until EOF is reached
@@ -236,17 +257,6 @@ abstract class Stream {
     }
     void readExact(void* ptr, size_t sz) {
         readExact(cast(ubyte[])ptr[0..sz]);
-    }
-    void copyFrom(Stream source, ulong sz) {
-        ubyte[4096*4] buffer = void;
-        while (sz) {
-            auto b = buffer[0..min(sz, buffer.length)];
-            b = source.readUntilEof(b);
-            if (b.length == 0)
-                ioerror("this function sucks");
-            writeExact(b);
-            sz -= b.length;
-        }
     }
 
     //like readExact, but a partial read when EOF is hit is allowed

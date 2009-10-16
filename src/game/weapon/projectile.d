@@ -203,10 +203,10 @@ class ProjectileStateInfo : ActionStateInfo {
     {
         super.loadFromConfig(sc, physNode, owner);
 
-        loadDetonateConfig(sc);
+        loadStuff(sc);
     }
 
-    private void loadDetonateConfig(ConfigNode sc) {
+    private void loadStuff(ConfigNode sc) {
         auto detonateNode = sc.getSubNode("detonate");
         minimumGluedTime = detonateNode.getValue("gluetime", minimumGluedTime);
         inactiveWhenGlued = sc.getBoolValue("inactive_when_glued");
@@ -217,13 +217,6 @@ class ProjectileStateInfo : ActionStateInfo {
     }
 }
 
-//xxx:
-//maybe the "old" state mechanism from GOSpriteClass should still be made
-//available (but how...? currently not needed anyway)
-//you also can decide not to need state at all... then create a sprite class
-//without any states: derive from it both the spriteclass having the state
-//mechanism (at least needed for worm.d) and the WeaponSpriteClass from it...
-
 //can load weapon config from configfile, see weapons.conf; it's a projectile
 class ProjectileSpriteClass : ActionSpriteClass {
     override ProjectileSprite createSprite(GameEngine engine) {
@@ -232,23 +225,12 @@ class ProjectileSpriteClass : ActionSpriteClass {
 
     //config = a subnode in the weapons.conf which describes a single projectile
     override void loadFromConfig(ConfigNode config) {
+        super.loadFromConfig(config);
         bool stateful = config.getBoolValue("stateful", false);
-        if (stateful)
-            //treat like a normal sprite
-            super.loadFromConfig(config);
-        else {
-            //missing super call is intended
-            asLoadFromConfig(config);
-
+        if (!stateful) {
             //hm, state stuff unused, so only that state
             initState.physic_properties = new POSP();
             initState.physic_properties.loadFromConfig(config.getSubNode("physics"));
-
-            if (config.hasValue("sequence_object")) {
-                sequenceType = gfx.resources.get!(SequenceType)
-                    (config["sequence_object"]);
-                initState.animation = findSequenceState("normal");
-            }
 
             if (auto drownani = findSequenceState("drown", true)) {
                 auto drownstate = createStateInfo("drowning");
@@ -265,7 +247,7 @@ class ProjectileSpriteClass : ActionSpriteClass {
                 states[drownstate.name] = drownstate;
             }
 
-            (cast(ProjectileStateInfo)initState).loadDetonateConfig(config);
+            castStrict!(ProjectileStateInfo)(initState).loadStuff(config);
 
             //duplicated from sprite.d
             //having different loading code was the worst idea ever
@@ -274,10 +256,6 @@ class ProjectileSpriteClass : ActionSpriteClass {
                 //isn't this funny
                 initState.particle = gfx.resources
                     .get!(ParticleType)(particlename);
-            }
-
-            foreach (s; states) {
-                s.fixup(this);
             }
         }  //if stateful
     }

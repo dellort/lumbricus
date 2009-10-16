@@ -154,6 +154,7 @@ class ActionSprite : GObjectSprite {
             else ac = type.actions.action(id);
             if (ac) {
                 //run action if found
+                //xxx: why is a new ctx created for each event?
                 auto ctx = createContext();
                 ac.execute(ctx);
                 if (!ctx.done) {
