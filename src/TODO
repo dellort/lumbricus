@@ -32,7 +32,6 @@
 - configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
     (+ "level editor" töten)
-- napalm fällt ins meer => partikel erzeugen (vllt. auf später aufschieben)
 - weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
 
 == bekannte, lösbare Bugs ==

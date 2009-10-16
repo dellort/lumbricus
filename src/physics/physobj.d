@@ -169,15 +169,17 @@ class PhysicObject : PhysicBase {
 
     void update(float deltaT) {
         mHadUpdate = true;
-        scope(exit) clearAccumulators();
+        scope(exit) {
+            clearAccumulators();
 
-        //lookey_smooth should gradually become lookey()
-        //the value should become equal faster, if the worm received a big
-        //  impulse or so; right now, I completely ignore this
-        //xxx: ok I failed. don't know if this approach is worth following
-        //  but changing rotation chaotically definitely isn't ok
-        float curlook = lookey();
-        lookey_smooth = curlook;
+            //lookey_smooth should gradually become lookey()
+            //the value should become equal faster, if the worm received a big
+            //  impulse or so; right now, I completely ignore this
+            //xxx: ok I failed. don't know if this approach is worth following
+            //  but changing rotation chaotically definitely isn't ok
+            float curlook = lookey();
+            lookey_smooth = curlook;
+        }
 
         if (mPosp.mass == float.infinity) {
             //even a concrete donkey would not move that...
@@ -192,7 +194,7 @@ class PhysicObject : PhysicBase {
             return;
         //some sanity checks
         assert(mPosp.mass > 0, "Zero mass forbidden");
-        assert(deltaT > 0);
+        assert(deltaT >= 0);
 
         if (mOnSurface || mSurfaceCtr > 0) {
             //sliding on surface, so apply friction
