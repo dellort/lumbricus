@@ -171,14 +171,6 @@ class PhysicObject : PhysicBase {
         mHadUpdate = true;
         scope(exit) {
             clearAccumulators();
-
-            //lookey_smooth should gradually become lookey()
-            //the value should become equal faster, if the worm received a big
-            //  impulse or so; right now, I completely ignore this
-            //xxx: ok I failed. don't know if this approach is worth following
-            //  but changing rotation chaotically definitely isn't ok
-            float curlook = lookey();
-            lookey_smooth = curlook;
         }
 
         if (mPosp.mass == float.infinity) {
@@ -309,7 +301,9 @@ class PhysicObject : PhysicBase {
     float surface_friction = 1.0f;
     //return value of lookey(), but smoothened over time
     //introduced because rotation changes chaotically
-    float lookey_smooth = 0;
+    float lookey_smooth() {
+        return lookey();
+    }
 
     //angle where the worm wants to look to
     //the worm is mostly forced to look somewhere else, but when there's still

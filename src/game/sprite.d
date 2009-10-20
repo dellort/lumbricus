@@ -207,7 +207,6 @@ class GObjectSprite : GameObject {
     //force position
     void setPos(Vector2f pos) {
         physics.setPos(pos, false);
-        physics.update(0); //semi-bad idea
         if (graphic)
             fillAnimUpdate();
     }

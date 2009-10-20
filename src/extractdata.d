@@ -20,6 +20,7 @@ import utils.path;
 import utils.misc;
 import utils.output : TangoStreamOutput;
 import utils.color;
+import utils.archive;
 import wwpdata.animation;
 import wwpdata.common;
 import wwpdata.reader_img;
@@ -170,15 +171,9 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
 
 int main(char[][] args)
 {
-    /+ ???
-    auto zf = new ZipFolder(r"H:\Code\D\lumbricus\share\lumbricus\data2.zip");
-    auto f = zf.file("sounds.conf");
-    auto i = f.input;
-    return 0;
-    +/
     bool usageerror;
     bool nolevelthemes;
-    bool zipdata;
+    int archive_fmt;  //0: don't pack; 1: zip; 2: tar
     while (args.length > 1) {
         auto opt = args[1];
         if (opt.length == 0 || opt[0] != '-')
@@ -187,7 +182,7 @@ int main(char[][] args)
         if (opt == "-T") {
             nolevelthemes = true;
         } else if (opt == "-z") {
-            zipdata = true;
+            archive_fmt = 2;
         } else if (opt == "--") {
             //stop argument parsing, standard on Linux
             break;
@@ -220,10 +215,19 @@ Options:
     //} catch (Exception e) {
     //    writefln("Error: %s",e.msg);
     //}
-    if (zipdata) {
+    if (archive_fmt) {
         //create archive, and remove output folder
         auto outd = new FileFolder(outputDir);
-        zipDirectory(outd, outputDir ~ "/../data2.zip");
+        switch (archive_fmt) {
+            case 1:
+                zipDirectory(outd, outputDir ~ "/../data2.zip");
+                break;
+            case 2:
+                tarDirectory(outd, outputDir ~ "/../data2.tar");
+                break;
+            default:
+                assert(false);
+        }
         remove_dir(outputDir);
     }
     return 0;
@@ -254,7 +258,7 @@ void browse(VfsFolder fld, void delegate(VfsFile file, char[] fn) del,
 
 //pack inFolder into a zip archive, using relative filenames
 void zipDirectory(FileFolder inFolder, char[] zipFile) {
-    Stdout.formatln("Creating archive '{}'...", zipFile);
+    Stdout.formatln("Creating ZIP archive '{}'...", zipFile);
     auto zb = new ZipBlockWriter(zipFile);
     browse(inFolder, (VfsFile file, char[] fname) {
         //no compression for png files
@@ -265,10 +269,29 @@ void zipDirectory(FileFolder inFolder, char[] zipFile) {
         scope fin = file.input;
         ZipEntryInfo info;
         info.name = fname;
+        Stdout.format("                                              \r").flush;
         Stdout.format("Deflating {}\r", fname).flush;
         zb.putStream(info, fin);
     });
     zb.finish();
+    Stdout.formatln(
+        "Done.                                                               ");
+}
+
+//pack inFolder into a tar archive, using relative filenames
+void tarDirectory(FileFolder inFolder, char[] tarFile) {
+    Stdout.formatln("Creating TAR archive '{}'...", tarFile);
+    auto ta = new TarArchive(Stream.OpenFile(tarFile, File.WriteCreate), false);
+    browse(inFolder, (VfsFile file, char[] fname) {
+        auto fin = new ConduitStream(file.input);
+        auto fout = ta.openUncompressed(fname);
+        Stdout.format("                                              \r").flush;
+        Stdout.format("Storing {}\r", fname).flush;
+        fout.pipeOut.copyFrom(fin.pipeIn);
+        fin.close();
+        fout.close();
+    });
+    ta.close();
     Stdout.formatln(
         "Done.                                                               ");
 }

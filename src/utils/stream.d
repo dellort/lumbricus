@@ -64,15 +64,21 @@ struct PipeOut {
         if (do_close) do_close();
     }
 
-    void copyFrom(PipeIn source, ulong sz) {
+    //sz==ulong.max: special case; copy until eof
+    void copyFrom(PipeIn source, ulong sz = ulong.max) {
         ubyte[4096*4] buffer = void;
+        bool until_eof = sz == ulong.max;
         while (sz) {
             auto b = buffer[0..min(sz, buffer.length)];
             b = source.read(b);
-            if (b.length == 0)
-                throw new IOException("this function sucks");
+            if (b.length == 0) {
+                if (until_eof)
+                    return;
+                throw new IOException("not enough to read");
+            }
             write(b);
-            sz -= b.length;
+            if (!until_eof)
+                sz -= b.length;
         }
     }
 }

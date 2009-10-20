@@ -303,6 +303,7 @@ class AniFile {
 
         scope dataout = Stream.OpenFile(outPath ~ fnBase ~ ".meta",
             File.WriteCreate);
+        scope(exit) dataout.close();
         //again, endian issues etc....
         FileAnimations header;
         header.animationCount = animations.length;
@@ -320,6 +321,7 @@ class AniFile {
                 File.WriteCreate);
             auto textstream = new StreamOutput(confst);
             output_conf.writeFile(textstream);
+            confst.close();
         }
     }
 
