@@ -41,51 +41,6 @@ private bool checkGLError(char[] msg, bool crash = false) {
     return true;
 }
 
-/*
-abstract class DrawCache {
-}
-
-class DrawCacheGl : DrawCache {
-    private {
-        Texture mSource;
-        Vector2i mDest, mSourcePos, mSourceSize, mAdvance;
-        GLuint mListId = 0;
-        GLuint mCachedTexId = 0;
-    }
-
-    this(Texture source, Vector2i destOffset,
-        Vector2i sourcePos, Vector2i sourceSize, Vector2i advance)
-    {
-        mSource = source;
-        mDest = destOffset;
-        mSourcePos = sourcePos;
-        mSourceSize = sourceSize;
-        mAdvance = advance;
-    }
-
-    void validate() {
-        assert(mSource !is null);
-        GLSurface glsurf = cast(GLSurface)(mSource.getDriverSurface(
-            SurfaceMode.NORMAL));
-        assert(glsurf !is null);
-        if (mListId == 0 || mCachedTexId != glsurf.mTexId) {
-            mCachedTexId = glsurf.mTexId;
-            mListId = glGenLists(1);
-            assert(mListId > 0, "glGenLists failed");
-            glNewList(mListId, GL_COMPILE);
-            glsurf.prepareDraw2();
-            GLCanvas.simpleDraw(mSourcePos, mDest, mSourceSize, glsurf, false);
-            glTranslatef(cast(float)mAdvance.x, cast(float)mAdvance.y, 0f);
-            glEndList();
-        }
-    }
-
-    void call() {
-        glCallList(mListId);
-    }
-}
-*/
-
 class GLSurface : SDLDriverSurface {
     const GLuint GLID_INVALID = 0;
 
@@ -93,6 +48,10 @@ class GLSurface : SDLDriverSurface {
     Vector2f mTexMax;
     Vector2i mTexSize;
     bool mError;
+
+    //GL display lists for drawing sub surfaces
+    //in sync with mData.subsurfaces / SubSurface.index()
+    GLuint[] mSubSurfaces;
 
     //create from Framework's data
     this(SurfaceData data) {
@@ -106,8 +65,12 @@ class GLSurface : SDLDriverSurface {
             getPixelData(); //possibly read back memory
             glDeleteTextures(1, &mTexId);
             mTexId = GLID_INVALID;
-            mError = false;
         }
+        foreach (GLuint s; mSubSurfaces) {
+            glDeleteLists(s, 1);
+        }
+        mSubSurfaces = null;
+        mError = false;
         if (mData) {
             assert(mData.data !is null);
         }
@@ -173,6 +136,9 @@ class GLSurface : SDLDriverSurface {
         }
 
         steal();
+
+        //recreate all SubSurfaces
+        createSubSurfaces(mData.subsurfaces);
     }
 
     //like updatePixels, but assumes texture is already bound (and does
@@ -302,20 +268,67 @@ class GLSurface : SDLDriverSurface {
         checkGLError("endDraw", true);
     }
 
-    /*
-    private void prepareDraw2() {
-        glBindTexture(GL_TEXTURE_2D, mTexId);
+    override void newSubSurface(SubSurface ss) {
+        createSubSurfaces(mData.subsurfaces[ss.index..ss.index+1]);
     }
 
-    DrawCache cachePrepare(Texture source, Vector2i destOffset,
-        Vector2i sourcePos, Vector2i sourceSize, Vector2i advance)
-    {
-        auto ret = new DrawCacheGl(source, destOffset, sourcePos, sourceSize,
-            advance);
-        ret.validate();
-        return ret;
+    private void createSubSurfaces(SubSurface[] subs) {
+        static assert(mSubSurfaces[0].init == GLID_INVALID); //array init, hurf
+
+        if (!gSDLDriver.mOpenGL_UseSubSurfaces)
+            return;
+
+        foreach (s; subs) {
+            if (s.index() >= mSubSurfaces.length) {
+                mSubSurfaces.length = s.index() + 1;
+            }
+            if (mSubSurfaces[s.index] != GLID_INVALID)
+                continue;
+            GLuint nid = glGenLists(1);
+            if (nid == GLID_INVALID) {
+                checkGLError("out of display lists?");
+                assert(false); //shouldn't happen; must have generated GL error
+            }
+            glNewList(nid, GL_COMPILE);
+                prepareDraw();
+                simpleDraw(s.origin, Vector2i(0), s.size);
+                endDraw();
+            glEndList();
+            mSubSurfaces[s.index] = nid;
+        }
     }
-    */
+
+    final void simpleDraw(Vector2i sourceP, Vector2i destP,
+        Vector2i destS, bool mirrorY = false)
+    {
+        Vector2i p1 = destP;
+        Vector2i p2 = destP + destS;
+        Vector2f t1, t2;
+
+        //select the right part of the texture (in 0.0-1.0 coordinates)
+        t1.x = cast(float)sourceP.x / mTexSize.x;
+        t1.y = cast(float)sourceP.y / mTexSize.y;
+        t2.x = cast(float)(sourceP.x+destS.x) / mTexSize.x;
+        t2.y = cast(float)(sourceP.y+destS.y) / mTexSize.y;
+
+        //draw textured rect
+        glBegin(GL_QUADS);
+
+        if (!mirrorY) {
+            glTexCoord2f(t1.x, t1.y); glVertex2i(p1.x, p1.y);
+            glTexCoord2f(t1.x, t2.y); glVertex2i(p1.x, p2.y);
+            glTexCoord2f(t2.x, t2.y); glVertex2i(p2.x, p2.y);
+            glTexCoord2f(t2.x, t1.y); glVertex2i(p2.x, p1.y);
+        } else {
+            glTexCoord2f(t2.x, t1.y); glVertex2i(p1.x, p1.y);
+            glTexCoord2f(t2.x, t2.y); glVertex2i(p1.x, p2.y);
+            glTexCoord2f(t1.x, t2.y); glVertex2i(p2.x, p2.y);
+            glTexCoord2f(t1.x, t1.y); glVertex2i(p2.x, p1.y);
+        }
+
+        glEnd();
+    }
+
 
     char[] toString() {
         return myformat("GLSurface, {}, id={}, data={}",
@@ -409,6 +422,8 @@ class GLCanvas : Canvas {
             //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
             glShadeModel(GL_FLAT);
         }
+
+        glDisable(GL_DEPTH_TEST); //??
 
         checkGLError("initGLViewport", true);
     }
@@ -812,38 +827,32 @@ class GLCanvas : Canvas {
             mirrorY);
     }
 
-    public void drawTiled(Texture source, Vector2i destPos, Vector2i destSize) {
-        drawTextureInt(source, Vector2i(0,0), source.size, destPos, destSize);
-    }
+    override void drawFast(SubSurface source, Vector2i destPos,
+        bool mirrorY = false)
+    {
+        GLSurface glsurf = cast(GLSurface)source.surface.getDriverSurface();
 
-    private static void simpleDraw(Vector2i sourceP, Vector2i destP, Vector2i destS,
-        GLSurface gls, bool mirrorY = false) {
-        Vector2i p1 = destP;
-        Vector2i p2 = destP + destS;
-        Vector2f t1, t2;
-
-        //select the right part of the texture (in 0.0-1.0 coordinates)
-        t1.x = cast(float)sourceP.x / gls.mTexSize.x;
-        t1.y = cast(float)sourceP.y / gls.mTexSize.y;
-        t2.x = cast(float)(sourceP.x+destS.x) / gls.mTexSize.x;
-        t2.y = cast(float)(sourceP.y+destS.y) / gls.mTexSize.y;
-
-        //draw textured rect
-        glBegin(GL_QUADS);
-
-        if (!mirrorY) {
-            glTexCoord2f(t1.x, t1.y); glVertex2i(p1.x, p1.y);
-            glTexCoord2f(t1.x, t2.y); glVertex2i(p1.x, p2.y);
-            glTexCoord2f(t2.x, t2.y); glVertex2i(p2.x, p2.y);
-            glTexCoord2f(t2.x, t1.y); glVertex2i(p2.x, p1.y);
-        } else {
-            glTexCoord2f(t2.x, t1.y); glVertex2i(p1.x, p1.y);
-            glTexCoord2f(t2.x, t2.y); glVertex2i(p1.x, p2.y);
-            glTexCoord2f(t1.x, t2.y); glVertex2i(p2.x, p2.y);
-            glTexCoord2f(t1.x, t1.y); glVertex2i(p2.x, p1.y);
+        if (!glsurf.mSubSurfaces.length) {
+            //disabled; normal code path
+            super.drawFast(source, destPos, mirrorY);
+            return;
         }
 
-        glEnd();
+        glTranslatef(destPos.x, destPos.y, 0.0f);
+        if (mirrorY) {
+            glTranslatef(source.size.x, 0.0f, 0.0f);
+            glScalef(-1.0f, 1.0f, 1.0f);
+        }
+        glCallList(glsurf.mSubSurfaces[source.index]);
+        if (mirrorY) {
+            glScalef(-1.0f, 1.0f, 1.0f);
+            glTranslatef(-source.size.x, 0.0f, 0.0f);
+        }
+        glTranslatef(-destPos.x, -destPos.y, 0.0f);
+    }
+
+    public void drawTiled(Texture source, Vector2i destPos, Vector2i destSize) {
+        drawTextureInt(source, Vector2i(0,0), source.size, destPos, destSize);
     }
 
     //this will draw the texture source tiled in the destination area
@@ -870,7 +879,6 @@ class GLCanvas : Canvas {
 
         //glPushAttrib(GL_ENABLE_BIT);
         checkGLError("draw texture - begin", true);
-        glDisable(GL_DEPTH_TEST);
         glsurf.prepareDraw();
 
 
@@ -884,7 +892,7 @@ class GLCanvas : Canvas {
 
         if (noTileSpecial) {
             //pure OpenGL drawing (and tiling)
-            simpleDraw(sourcePos, destPos, destSize, glsurf, mirrorY);
+            glsurf.simpleDraw(sourcePos, destPos, destSize, mirrorY);
         } else {
             //manual tiling code, partially using OpenGL tiling if possible
             //xxx sorry for code duplication, but the differences seemed too big
@@ -909,8 +917,8 @@ class GLCanvas : Canvas {
                         if (tmp.x + restx > mVisibleArea.p1.x
                             && tmp.x < mVisibleArea.p2.x)
                         {
-                            simpleDraw(Vector2i(0, 0), tmp,
-                                Vector2i(restx, resty), glsurf, mirrorY);
+                            glsurf.simpleDraw(Vector2i(0, 0), tmp,
+                                Vector2i(restx, resty), mirrorY);
                         }
                         x += restx;
                     }
@@ -940,7 +948,6 @@ class GLCanvas : Canvas {
 
         //glPushAttrib(GL_ENABLE_BIT);
         checkGLError("draw texture 2", true);
-        glDisable(GL_DEPTH_TEST);
         glsurf.prepareDraw();
 
 
@@ -958,37 +965,4 @@ class GLCanvas : Canvas {
         glsurf.endDraw();
     }
 
-    /*
-    public void cachedBegin(Vector2i destPos, Transparency tr) {
-        glPushMatrix();
-        glEnable(GL_TEXTURE_2D);
-        glDisable(GL_DEPTH_TEST);
-        switch (tr) {
-            case Transparency.Colorkey:
-                glEnable(GL_ALPHA_TEST);
-                glAlphaFunc(GL_GREATER, 0.1f);
-                break;
-            case Transparency.Alpha:
-                glEnable(GL_BLEND);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                break;
-            default:
-        }
-        glTranslatef(cast(float)destPos.x, cast(float)destPos.y, 0f);
-    }
-
-    public void cachedDraw(DrawCache cache) {
-        auto c = cast(DrawCacheGl)cache;
-        assert(!!c);
-        c.validate();
-        c.call();
-    }
-
-    public void cachedEnd() {
-        glPopMatrix();
-        glDisable(GL_TEXTURE_2D);
-        glDisable(GL_ALPHA_TEST);
-        glDisable(GL_BLEND);
-    }
-    */
 }

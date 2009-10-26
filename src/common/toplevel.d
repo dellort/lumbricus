@@ -877,7 +877,7 @@ import gui.scrollbar;
 class SwitchDriver : Task {
     char[][] configs = ["sdl.enable_caching", "sdl.mark_alpha", "sdl.open_gl",
         "sdl.gl_debug_wireframe", "sdl.lowquality",
-        "sdl.rle", "freetype.font_packer"];
+        "sdl.rle", "sdl.subsurfaces", "freetype.font_packer"];
 
     Button[] mChks;
 

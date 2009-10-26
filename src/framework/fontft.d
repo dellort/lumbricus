@@ -18,8 +18,8 @@ import utils.configfile;
 import utils.stream;
 
 private struct GlyphData {
-    TextureRef tex;     //glyph texture
-    TextureRef border;  //second texture for border, can be null
+    SubSurface tex;     //glyph texture
+    SubSurface border;  //second texture for border, can be null
     Vector2i offset;    //texture drawing offset, relative to text top
     Vector2i border_offset; //same for border
     Vector2i size;      //space this glyph takes (!= tex.size)
@@ -257,7 +257,7 @@ class FTGlyphCache {
         mFrags[ch] = ret;
     }
 
-    private TextureRef ftbitmapToTex(FT_Bitmap* bmp, Color color) {
+    private SubSurface ftbitmapToTex(FT_Bitmap* bmp, Color color) {
         //create a surface for a glyph
         Surface tmp = gFramework.createSurface(
             Vector2i(bmp.width, bmp.rows),
@@ -283,12 +283,12 @@ class FTGlyphCache {
         }
         tmp.unlockPixels(tmp.rect);
 
-        TextureRef ret;
+        SubSurface ret;
         if (mPacker) {
             ret = mPacker.add(tmp);
             tmp.free();
         } else {
-            ret = TextureRef(tmp, Vector2i(0), tmp.size);
+            ret = tmp.createSubSurface(Rect2i(tmp.size));
         }
         return ret;
     }
@@ -317,9 +317,9 @@ class FTFont : DriverFont {
             c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back);
 
         setColor(mProps.fore);
-        glyph.tex.draw(c, pos+glyph.offset);
+        c.drawFast(glyph.tex, pos+glyph.offset);
 
-        if (glyph.border.surface) {
+        if (glyph.border) {
             setColor(mProps.border_color);
             glyph.border.draw(c, pos+glyph.border_offset);
         }

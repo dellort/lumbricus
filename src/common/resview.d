@@ -254,7 +254,7 @@ class AtlasHandler : ResViewHandler!(Atlas) {
     private {
         Widget mViewer;
         ScrollBar mSel;
-        TextureRef mCur;
+        SubSurface mCur;
     }
 
     this(Object r) {

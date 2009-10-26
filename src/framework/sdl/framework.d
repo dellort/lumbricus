@@ -369,7 +369,7 @@ class SDLDriver : FrameworkDriver {
         SDL_PixelFormat mRGBA32, mPFScreen, mPFAlphaScreen;
 
         //if OpenGL enabled (if not, use 2D SDL drawing)
-        package bool mOpenGL, mOpenGL_LowQuality;
+        package bool mOpenGL, mOpenGL_LowQuality, mOpenGL_UseSubSurfaces;
 
         //depending if OpenGL or plain-old-SDL-2D mode
         SDLCanvas mScreenCanvas2D;
@@ -422,6 +422,7 @@ class SDLDriver : FrameworkDriver {
         mOpenGL = config.getBoolValue("open_gl", true);
         mOpenGL_LowQuality = config.getBoolValue("lowquality", false);
         glWireframeDebug = config.getBoolValue("gl_debug_wireframe", false);
+        mOpenGL_UseSubSurfaces = config.getValue!(bool)("subsurfaces", true);
 
         //default (empty) means use OS default
         char[] wndPos = config.getStringValue("window_pos");

@@ -6,24 +6,6 @@ import utils.boxpacker;
 import utils.rect2;
 import utils.vector2;
 
-///part of a Surface, also returned by TexturePack
-struct TextureRef {
-    Surface surface;
-    Vector2i origin, size;
-
-    bool valid() {
-        return surface !is null;
-    }
-
-    Rect2i rect() {
-        return Rect2i(origin, origin + size);
-    }
-
-    void draw(Canvas c, Vector2i at) {
-        c.draw(surface, at, origin, size);
-    }
-}
-
 ///add small surfaces to bigger textures
 ///like utils.BoxPacker (and internally uses it), but with Surfaces
 ///new surfaces are created with caching ddisabled (.enableCaching(false))
@@ -46,7 +28,7 @@ class TexturePack {
     ///find/create free space on any Surface managed by this class, and copy the
     ///Surface s on it. the function returns the surface it was on and its
     ///position.
-    TextureRef add(Surface s) {
+    SubSurface add(Surface s) {
         auto k = TexTypeKey(s.transparency, s.getColorkey());
         Packer packer = aaIfIn(mPackers, k);
         if (!packer) {
@@ -81,7 +63,7 @@ class TexturePack {
             mPacker.pageSize = mDefaultSize;
         }
 
-        TextureRef add(Surface s) {
+        SubSurface add(Surface s) {
             auto size = s.size;
             if (size.x > mPacker.pageSize.x || size.y > mPacker.pageSize.y) {
                 //too big, make an exception
@@ -89,7 +71,7 @@ class TexturePack {
                 //work (but the caller might free s after adding it)
                 auto surface = s.clone();
                 mSurfaces ~= s;
-                return TextureRef(surface, Vector2i(0), size);
+                return surface.createSubSurface(Rect2i(size));
             }
             Block* b = mPacker.getBlock(size);
             assert(!!b);  //never happens?
@@ -104,7 +86,7 @@ class TexturePack {
             }
             auto dest = mPages[b.page];
             dest.copyFrom(s, b.origin, Vector2i(0), size);
-            return TextureRef(dest, b.origin, size);
+            return dest.createSubSurface(Rect2i.Span(b.origin, size));
         }
 
         void free() {

@@ -80,8 +80,7 @@ class AniFramesAtlas : AniFrames {
                 FileAnimationFrame* frame = &frames[idx];
                 auto image = mImages.texture(frame.bitmapIndex);
 
-                c.draw(image.surface, pos+Vector2i(frame.centerX, frame.centerY),
-                    image.origin, image.size,
+                c.drawFast(image, pos+Vector2i(frame.centerX, frame.centerY),
                     !!(frame.drawEffects & FileDrawEffects.MirrorY));
             }
 

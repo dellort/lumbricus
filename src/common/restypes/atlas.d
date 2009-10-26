@@ -6,23 +6,27 @@ import framework.framework;
 import utils.configfile;
 import utils.vector2;
 
-public import framework.texturepack : TextureRef;
-
 class Atlas {
     private {
         Surface[] mPages;
         FileAtlasTexture[] mTextures;
+        SubSurface[] mTextureRefs;
     }
 
-    TextureRef texture(int index) {
-        auto tex = &mTextures[index];
-        TextureRef res;
-        res.origin.x = tex.x;
-        res.origin.y = tex.y;
-        res.size.x = tex.w;
-        res.size.y = tex.h;
-        res.surface = mPages[tex.page];
-        return res;
+    private this() {
+    }
+
+    //create the SubSurfaces corresponding to the atlas parts
+    private void load() {
+        assert(mTextureRefs.length == 0);
+        foreach (t; mTextures) {
+            Surface s = mPages[t.page];
+            mTextureRefs ~= s.createSubSurface(Rect2i.Span(t.x, t.y, t.w, t.h));
+        }
+    }
+
+    final SubSurface texture(int index) {
+        return mTextureRefs[index];
     }
 
     int count() {
@@ -71,6 +75,8 @@ class AtlasResource : ResourceItem {
             debug gResources.ls_stop("AtlasResource:read meta file");
         }
         atlas.mTextures = textures;
+
+        atlas.load();
 
         mContents = atlas;
     }

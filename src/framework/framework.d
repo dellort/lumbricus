@@ -44,6 +44,10 @@ abstract class DriverSurface {
     ///update pixels again; it is unspecified if changes to the pixel data will
     ///be reflected immediately or only after this function is called
     abstract void updatePixels(in Rect2i rc);
+    ///notify about new SubSurface instance attached to this Surface
+    ///if the driver doesn't care about SubSurface, this can be a no-op
+    void newSubSurface(SubSurface ss) {
+    }
 
     //useful debugging infos lol
     abstract void getInfos(out char[] desc, out uint extra_data);
@@ -169,6 +173,9 @@ final class SurfaceData {
 
     //I don't really know why this is here, but having it in Surface is annoying
     DriverSurface driver_surface;
+
+    //indexed by SubSurface.index()
+    SubSurface[] subsurfaces;
 
     //alloc/set data
     //size must be set before calling this
@@ -345,6 +352,20 @@ class Surface {
     ///load surface into backend
     final void preload() {
         getDriverSurface(true);
+    }
+
+    //see SubSurface
+    final SubSurface createSubSurface(Rect2i rc) {
+        auto ss = new SubSurface();
+        ss.mSurface = this;
+        ss.mRect = rc;
+        ss.mIndex = mData.subsurfaces.length;
+        mData.subsurfaces ~= ss;
+        //notify the driver of the new SubSurface entry
+        if (auto drs = getDriverSurface(false)) {
+            drs.newSubSurface(ss);
+        }
+        return ss;
     }
 
     //call everytime the format in mData is changed
@@ -584,6 +605,33 @@ class Surface {
 
 //for "compatibility"
 alias Surface Texture;
+
+//represents a sub rectangle of a Surface
+//used to speed up drawing (HOPEFULLY)
+final class SubSurface {
+    private {
+        int mIndex;
+        Surface mSurface;
+        Rect2i mRect;
+    }
+
+    //violating coding style for boring getters
+    Surface surface() { return mSurface; }
+    Vector2i origin() { return mRect.p1; }
+    Vector2i size() { return mRect.size; }
+    Rect2i rect() { return mRect; }
+
+    //index into the corresponding Surface's SubSurface array
+    //can be used by the framework driver to lokup driver specific stuff
+    //(like a display list for the OpenGL driver)
+    int index() {
+        return mIndex;
+    }
+
+    void draw(Canvas c, Vector2i at) {
+        c.drawFast(this, at);
+    }
+}
 
 private const Time cFPSTimeSpan = timeSecs(1); //how often to recalc FPS
 
