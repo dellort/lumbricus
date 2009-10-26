@@ -87,45 +87,6 @@ import game.gamemodes.mdebug;
 import game.gamemodes.realtime;
 import game.controller_plugins;
 
-/+
-
-//this is a test: it explodes the landscape graphic into several smaller ones
-Level fuzzleLevel(Level level) {
-    return level; //comment out for testing
-
-    const cTile = 512;
-    const cSpace = 4; //even more for testing only
-    const cTileSize = cTile + cSpace;
-
-    auto rlevel = level.copy();
-    //remove all landscapes from new level
-    rlevel.objects = arrayFilter(rlevel.objects, (LevelItem i) {
-        return !cast(LevelLandscape)i;
-    });
-    foreach (o; level.objects) {
-        if (auto ls = cast(LevelLandscape)o) {
-            auto sx = (ls.landscape.size.x + cTile - 1) / cTile;
-            auto sy = (ls.landscape.size.y + cTile - 1) / cTile;
-            for (int y = 0; y < sy; y++) {
-                for (int x = 0; x < sx; x++) {
-                    auto nls = castStrict!(LevelLandscape)(ls.copy);
-                    nls.name = myformat("{}_{}_{}", nls.name, x, y);
-                    auto offs = Vector2i(x, y) * cTileSize;
-                    auto soffs = Vector2i(x, y) * cTile;
-                    nls.position += offs;
-                    nls.landscape = ls.landscape.
-                        cutOutRect(Rect2i(Vector2i(cTile))+soffs);
-                    nls.owner = rlevel;
-                    rlevel.objects ~= nls;
-                }
-            }
-        }
-    }
-
-    return rlevel;
-}
-
-+/
 
 class Fader : Spacer {
     private {

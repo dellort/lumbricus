@@ -5,27 +5,6 @@
 *** völlig unmöglich,
 [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
 
-== RFCs (d.h. blablabla) ==
-- d0c: "Die Trennung von Engine und Darstellung fand ich immer ganz gut und übersichtlich."
-  - ok, aber sie hat nicht soviel sinn gemacht (der ganze müll in clientengine.d und gamepublic.d NUR damit der "draw(Canvas c)"-aufruf nicht im "server" ist?)
-    eher: man sollte die trennung zwischen server- und client-engine stattdessen "frontend" (teile der GUI, indeterministisch) und "backend" nennen, und soweit wie möglich in unterschiedliche vezeichnisse stecken:
-    gui/hud/, sky.d, water.d, gameshell.d, gametask.d -> src/frontend/
-    game.d, action/, weapon/, worm.d, etc. -> src/backend/
-    ?
-- zeugs in gameview.d direkt in die engine verschieben?
-- partikel zeug:
-    - der bug mit p_donkey kam daher, dass ParticleEmitter nach dem partikel-tod
-      eines partikels das partikel neu erzeugt
-    - das wird deshalb gemacht, weil 1. nach dem laden eines spiels alle partikel
-      tot sind, und 2. wenn sehr viele partikel erzeugt werden, werden alte
-      partikel spontan gelöscht, um neue partikel allokieren zu können
-    - damit kurzlebige partikel nicht dauernd neu erzeugt werden, wurde ParticleType.isTransient() eingeführt (siehe particles.d)
-    - aber beim savegame-laden wird das partikel trotzdem neu erzeugt => DUMM
-    - besserer weg gesucht (aber bitte ein leichtgewichtiger ansatz, da ich unter performance-paranoia leide)
-    - es sollte zwischen einmal-effekt und dauerhaften effekt unterscheiden
-      z.Zt. werden beide durch StaticStateInfo.particle behandelt
-    - außerdem: die meisten effekte sollten von Sequence, nicht sprite, ausgelöst werden
-    - wir brauchen eh eine "generische" event-behandlung, so dass man z.b. in wwp.conf einen event-handler deklarieren kann, der die erzeugung eines partikels veranlässt
 
 == Sonstiges/Minor ==
 ! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)

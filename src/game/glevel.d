@@ -41,6 +41,15 @@ class LandscapeGeometry : PhysicGeometry {
         int pixelcount;
         uint collide_bits;
 
+        //fast out
+        auto po = ls.mOffset;
+        auto ps = ls.mSize;
+        if (pos.x + radius < po.x
+            || pos.x - radius > po.x + ps.x
+            || pos.y + radius < po.y
+            || pos.y - radius > po.y + ps.y)
+            return false;
+
         version (CircularCollision) {
             int iradius = cast(int)radius;
             ls.mLandscape.checkAt(toVector2i(pos) - ls.mOffset,
