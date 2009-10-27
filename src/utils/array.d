@@ -291,7 +291,6 @@ unittest {
     assert(arr[] == [1,0,0]);
 }
 
-
 //arrays allocated with C's malloc/free
 //because the D GC really really sucks with big arrays
 //Warning: pointers/slices to the actual array are not GC tracked
@@ -314,10 +313,11 @@ final class BigArray(T) {
             //xxx: throw out of memroy exception instead?
             assert(false, "out of memory");
         }
+        auto oldlen = mData.length;
         mData = (cast(T*)res)[0..newlen];
         //init memory like native D arrays are initialized
-        if (newlen > mData.length) {
-            T[] ndata = mData[mData.length..newlen];
+        if (newlen > oldlen) {
+            T[] ndata = mData[oldlen..newlen];
             ndata[] = T.init;
         }
     }
@@ -348,3 +348,4 @@ final class BigArray(T) {
         slice[] = v;
     }
 }
+
