@@ -40,7 +40,6 @@ abstract class DrawDriver {
     abstract void stopScreenRendering();
 
     abstract void initVideoMode(Vector2i screen_size);
-    abstract void uninitVideoMode();
 
     abstract Surface screenshot();
 
@@ -50,10 +49,6 @@ abstract class DrawDriver {
 
     int releaseCaches() {
         return 0;
-    }
-
-    bool isOpenGL() {
-        return false;
     }
 }
 
@@ -129,6 +124,12 @@ struct DriverInputState {
     bool mouse_locked;
 }
 
+version(Windows) {
+    alias void* SysWinHandle;
+} else {
+    alias uint SysWinHandle;
+}
+
 struct VideoWindowState {
     bool video_active;
     ///sizes for windowed mode/fullscreen
@@ -136,6 +137,11 @@ struct VideoWindowState {
     int bitdepth;
     bool fullscreen;
     char[] window_caption;
+    SysWinHandle window_handle;
+
+    Vector2i actualSize() {
+        return fullscreen ? fs_size : window_size;
+    }
 }
 
 //use C's malloc() for pixel data (D GC can't handle big sizes very well)
@@ -764,6 +770,10 @@ class Framework {
             throw new FrameworkException("Base driver doesn't exist: "
                 ~ drivers["base"]);
         }
+        if (!DrawDriverFactory.exists(drivers["draw"])) {
+            throw new FrameworkException("Draw driver doesn't exist: "
+                ~ drivers["draw"]);
+        }
         if (!FontDriverFactory.exists(drivers["font"])) {
             throw new FrameworkException("Font driver doesn't exist: "
                 ~ drivers["font"]);
@@ -1096,7 +1106,6 @@ class Framework {
         state.fullscreen = fullscreen;
         state.video_active = true;
         mDriver.setVideoWindowState(state);
-        mDrawDriver.initVideoMode(size);
     }
 
     //version for default arguments
@@ -1111,14 +1120,6 @@ class Framework {
     bool fullScreen() {
         return mDriver.getVideoWindowState().fullscreen;
     }
-
-/*
-    void fullScreen(bool s) {
-        VideoWindowState state = mDriver.getVideoWindowState();
-        state.fullscreen = s;
-        mDriver.setVideoWindowState(state);
-    }
-*/
 
     Vector2i screenSize() {
         VideoWindowState state = mDriver.getVideoWindowState();
@@ -1300,6 +1301,7 @@ class Framework {
     }
 
     void driver_doVideoInit() {
+        mDrawDriver.initVideoMode(mDriver.getVideoWindowState().actualSize());
         if (onVideoInit) {
             onVideoInit(false); //xxx: argument
         }

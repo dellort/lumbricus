@@ -875,9 +875,11 @@ import gui.scrollbar;
 //maybe until better configfile and GUI stuff is available
 //(maybe configfile schema, generic handling of datatypes)
 class SwitchDriver : Task {
-    char[][] configs = ["sdl.enable_caching", "sdl.mark_alpha", "sdl.open_gl",
-        "sdl.gl_debug_wireframe", "sdl.lowquality",
-        "sdl.rle", "sdl.subsurfaces", "freetype.font_packer"];
+    //xxx added opengl hack, needs to be replaced
+    char[][] configs = ["Enable OpenGL", "Enable sound (OpenAL)",
+        "sdl.enable_caching", "sdl.mark_alpha", "sdl.rle",
+        "opengl.enable_caching", "opengl.mark_alpha", "opengl.wireframe",
+        "opengl.lowquality", "opengl.subsurfaces", "freetype.font_packer"];
 
     Button[] mChks;
 
@@ -910,9 +912,21 @@ class SwitchDriver : Task {
         //xxx: implement better driver configuration
         drvNode["base"] = "sdl";
         drvNode["font"] = "freetype";
-        drvNode["sound"] = "null";
         foreach (int index, b; mChks) {
-            node.setStringValueByPath(configs[index], b.checked ? "true" : "false");
+            if (index == 0) {
+                if (b.checked)
+                    drvNode["draw"] = "opengl";
+                else
+                    drvNode["draw"] = "sdl";
+            } else if (index == 1) {
+                if (b.checked)
+                    drvNode["sound"] = "openal";
+                else
+                    drvNode["sound"] = "null";
+            } else {
+                node.setStringValueByPath(configs[index],
+                    b.checked ? "true" : "false");
+            }
         }
         gFramework.scheduleDriverReload(Framework.DriverReload(node));
     }

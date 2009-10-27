@@ -49,12 +49,12 @@ class GLDrawDriver : DrawDriver {
 
     this(ConfigNode config) {
         DerelictGL.load();
-        DerelictGL.loadExtensions();
         DerelictGLU.load();
 
         mEnableCaching = config.getBoolValue("enable_caching", true);
+        mMarkAlpha = config.getBoolValue("mark_alpha", false);
         mLowQuality = config.getBoolValue("lowquality", false);
-        mWireframe = config.getBoolValue("gl_debug_wireframe", false);
+        mWireframe = config.getBoolValue("wireframe", false);
         mUseSubSurfaces = config.getValue!(bool)("subsurfaces", true);
 
         mCanvas = new GLCanvas(this);
@@ -74,10 +74,9 @@ class GLDrawDriver : DrawDriver {
     }
 
     override void initVideoMode(Vector2i screen_size) {
+        assert(screen_size.quad_length > 0);
         mScreenSize = screen_size;
-    }
-
-    override void uninitVideoMode() {
+        DerelictGL.loadExtensions();
     }
 
     override Surface screenshot() {
@@ -95,10 +94,6 @@ class GLDrawDriver : DrawDriver {
         res.getData().doMirrorX();
         res.unlockPixels(res.rect());
         return res;
-    }
-
-    override bool isOpenGL() {
-        return true;
     }
 
     override int getFeatures() {

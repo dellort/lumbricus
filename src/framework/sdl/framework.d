@@ -31,13 +31,17 @@ class SDLDrawDriver : DrawDriver {
     private {
         SDLCanvas mCanvas;
         Vector2i mScreenSize;
-        bool mRLE;
+        //convert stuff to display format if it isn't already
+        //+ mark all alpha surfaces drawn on the screen
+        bool mRLE, mMarkAlpha, mEnableCaching;
         //cache for being able to draw alpha blended filled rects without OpenGL
         Surface[uint] mInsanityCache;
     }
 
     this(ConfigNode config) {
-        mRLE = config.getBoolValue("rle", false);
+        mRLE = config.getBoolValue("rle", true);
+        mMarkAlpha = config.getBoolValue("mark_alpha", false);
+        mEnableCaching = config.getBoolValue("enable_caching", true);
 
         mCanvas = new SDLCanvas(this);
     }
@@ -57,9 +61,6 @@ class SDLDrawDriver : DrawDriver {
 
     override void initVideoMode(Vector2i screen_size) {
         mScreenSize = screen_size;
-    }
-
-    override void uninitVideoMode() {
     }
 
     override Surface screenshot() {
@@ -311,7 +312,7 @@ class SDLDriverSurface : DriverSurface {
     private bool convertToDisplay() {
         assert(!!mSurface);
 
-        if (!(mData.enable_cache && gSDLDriver.mEnableCaching)) {
+        if (!(mData.enable_cache && mDrawDriver.mEnableCaching)) {
             return false;
         }
 
@@ -405,10 +406,6 @@ class SDLDriver : FrameworkDriver {
         VideoWindowState mCurVideoState;
         DriverInputState mInputState;
 
-        //convert stuff to display format if it isn't already
-        //+ mark all alpha surfaces drawn on the screen
-        package bool mEnableCaching, mMarkAlpha, mRLE;
-
         //instead of a DriverSurface list (we don't need that yet?)
         //package uint mDriverSurfaceCount;
 
@@ -446,10 +443,6 @@ class SDLDriver : FrameworkDriver {
 
         mFramework = fw;
         mConfig = config;
-
-        mEnableCaching = config.getBoolValue("enable_caching", true);
-        mMarkAlpha = config.getBoolValue("mark_alpha", false);
-        mRLE = config.getBoolValue("rle", true);
 
         //default (empty) means use OS default
         char[] wndPos = config.getStringValue("window_pos");
@@ -538,10 +531,10 @@ class SDLDriver : FrameworkDriver {
         //i.e. reload textures, get rid of stuff in too low resolution...
         mFramework.releaseCaches(false);
 
-        Vector2i size = state.fullscreen ? state.fs_size : state.window_size;
+        Vector2i size = state.actualSize();
 
         int vidflags = 0;
-        if (gFramework.drawDriver.isOpenGL()) {
+        if (gFramework.drawDriver.getFeatures() & DriverFeatures.usingOpenGL) {
             //SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
             SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
@@ -568,6 +561,13 @@ class SDLDriver : FrameworkDriver {
         //xxx: oh well... but it was true for both 32 bit and 16 bit screenmodes
         mPFAlphaScreen = sdlpfRGBA32();
 
+        version(Windows) {
+            //get window handle (some draw drivers need this)
+            SDL_SysWMinfo wminfo;
+            SDL_GetWMInfo(&wminfo);
+            state.window_handle = wminfo.window;
+        }
+
         mCurVideoState = state;
 
         return true;
@@ -580,7 +580,7 @@ class SDLDriver : FrameworkDriver {
     }
 
     override void flipScreen() {
-        if (gFramework.drawDriver.isOpenGL())
+        if (gFramework.drawDriver.getFeatures() & DriverFeatures.usingOpenGL)
             SDL_GL_SwapBuffers();
     }
 
@@ -1081,7 +1081,7 @@ class SDLCanvas : Canvas {
         version(DrawStats) gSDLDriver.mDrawTime.stop();
 
         version (MarkAlpha) {
-            if (!gSDLDriver.mMarkAlpha)
+            if (!mDrawDriver.mMarkAlpha)
                 return;
             //only when drawn on screen
             bool isscreen = mSurface is gSDLDriver.mSDLScreen;
