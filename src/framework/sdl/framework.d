@@ -30,6 +30,8 @@ class SDLDrawDriver : DrawDriver {
     private {
         SDLCanvas mCanvas;
         Vector2i mScreenSize;
+        //the screen
+        SDL_Surface* mSDLScreen;
         //convert stuff to display format if it isn't already
         //+ mark all alpha surfaces drawn on the screen
         bool mRLE, mMarkAlpha, mEnableCaching;
@@ -42,7 +44,15 @@ class SDLDrawDriver : DrawDriver {
         mMarkAlpha = config.getBoolValue("mark_alpha", false);
         mEnableCaching = config.getBoolValue("enable_caching", true);
 
+        get_screen();
+
         mCanvas = new SDLCanvas(this);
+    }
+
+    private void get_screen() {
+        //this obviously means this DrawDriver is bound to SDL
+        SDLDriver driver = castStrict!(SDLDriver)(gFramework.driver());
+        mSDLScreen = driver.mSDLScreen;
     }
 
     override DriverSurface createSurface(SurfaceData data) {
@@ -60,11 +70,12 @@ class SDLDrawDriver : DrawDriver {
 
     override void initVideoMode(Vector2i screen_size) {
         mScreenSize = screen_size;
+        get_screen();
     }
 
     override Surface screenshot() {
         //this is possibly dangerous, but I'm too lazy to write proper code
-        return convertFromSDLSurface(gSDLDriver.mSDLScreen, Transparency.None, false);
+        return convertFromSDLSurface(mSDLScreen, Transparency.None, false);
     }
 
     override int getFeatures() {
@@ -116,34 +127,8 @@ class SDLDrawDriver : DrawDriver {
     }
 }
 
-//common base class for SDLSurface and GLSurface
-class SDLDriverSurface : DriverSurface {
-    SurfaceData mData;
-    bool mCustom;
-
-    //custom means kill() should free the pixel memory in mData
-    this(SurfaceData data, bool custom = false) {
-        //gSDLDriver.mDriverSurfaceCount++;
-        mData = data;
-        mCustom = custom;
-    }
-
-    //must be overriden; super method must be called on end
-    override void kill() {
-        assert(!!mData, "double kill()?");
-        //gSDLDriver.mDriverSurfaceCount--;
-        if (mCustom) {
-            //only in SDL mode, for mirrored surfaces
-            mData.pixels_free();
-        }
-        mData = null;
-    }
-}
-
-
-//cache for effects like mirroring; this is only used when you're using i.e.
-//drawMirrored() on a SDLCanvas (when no OpenGL is used / for offscreen drawing)
-/+final+/ class EffectCache {
+//meh.
+final class EffectCache {
     private {
         SDLSurface mSource;
         SDLSurface mMirroredY;
@@ -165,14 +150,7 @@ class SDLDriverSurface : DriverSurface {
 
     SDLSurface mirroredY() {
         if (!mMirroredY) {
-            //NOTE: this is a bit unclean. sry!
-            SurfaceData s = mSource.mData;
-            SurfaceData ns = new SurfaceData();
-            ns.size = s.size;
-            ns.transparency = s.transparency;
-            ns.colorkey = s.colorkey;
-            ns.pixels_alloc();
-            ns.data[] = s.data;
+            SurfaceData ns = mSource.mData.clone();
             ns.doMirrorY();
             mMirroredY = new SDLSurface(mSource.mDrawDriver, ns, true);
         }
@@ -180,8 +158,10 @@ class SDLDriverSurface : DriverSurface {
     }
 }
 
-/+final+/ class SDLSurface : SDLDriverSurface {
+final class SDLSurface : DriverSurface {
     SDLDrawDriver mDrawDriver;
+    SurfaceData mData;
+    bool mCustom;
     SDL_Surface* mSurface;
     bool mCacheEnabled;
 
@@ -190,16 +170,23 @@ class SDLDriverSurface : DriverSurface {
     EffectCache mEffects;
 
     //create from Framework's data
+    //custom: only for internal stuff; if true, free pixel data on kill()
     this(SDLDrawDriver driver, SurfaceData data, bool custom = false) {
-        super(data, custom);
+        mData = data;
+        mCustom = custom;
         mDrawDriver = driver;
         reinit();
     }
 
     //release data from driver surface
     override void kill() {
+        assert(!!mData, "double kill()?");
         releaseSurface();
-        super.kill();
+        if (mCustom) {
+            //only for mirrored surfaces (we allocated it, so we should free it)
+            mData.pixels_free();
+        }
+        mData = null;
     }
 
     private void releaseSurface() {
@@ -261,11 +248,7 @@ class SDLDriverSurface : DriverSurface {
     }
 
     void getPixelData() {
-        //nop
-        //this SDLSurface never kills the SurfaceData.data pointer
-        //but still:
-        //assert(!SDL_MUSTLOCK(mSurface));
-        //^ no, not a requirement, I think... I hope...
+        assert(!SDL_MUSTLOCK(mSurface));
     }
 
     void updatePixels(in Rect2i rc) {
@@ -308,6 +291,15 @@ class SDLDriverSurface : DriverSurface {
         }
     }
 
+    //NOTE: disregards screen alpha channel if non-existant
+    private bool isDisplayFormat(SDL_Surface* s, bool alpha) {
+        //pfAlphaScreen = best SDL format to render alpha surfaces to screen
+        //at least, SDL_DisplayFormatAlpha always uses it
+        auto pfAlphaScreen = sdlpfRGBA32();
+        return cmpPixelFormat(s.format,
+            alpha ? &pfAlphaScreen : mDrawDriver.mSDLScreen.format, true);
+    }
+
     private bool convertToDisplay() {
         assert(!!mSurface);
 
@@ -324,7 +316,7 @@ class SDLDriverSurface : DriverSurface {
                 colorkey = true;
                 //yay, first time in my life I want to fall through!
             case Transparency.None: {
-                if (rle || !gSDLDriver.isDisplayFormat(mSurface, false)) {
+                if (rle || !isDisplayFormat(mSurface, false)) {
                     nsurf = SDL_DisplayFormat(mSurface);
                     assert(!!nsurf);
                     /+Trace.formatln("before: {}",
@@ -340,7 +332,7 @@ class SDLDriverSurface : DriverSurface {
                 break;
             }
             case Transparency.Alpha: {
-                if (rle || !gSDLDriver.isDisplayFormat(mSurface, true)) {
+                if (rle || !isDisplayFormat(mSurface, true)) {
                     nsurf = SDL_DisplayFormatAlpha(mSurface);
                     assert(!!nsurf);
                     //does RLE with alpha make any sense?
@@ -394,7 +386,6 @@ class SDLDriverSurface : DriverSurface {
 
 package {
     Keycode[int] gSdlToKeycode;
-    SDLDriver gSDLDriver;
 }
 
 
@@ -404,13 +395,6 @@ class SDLDriver : FrameworkDriver {
         ConfigNode mConfig;
         VideoWindowState mCurVideoState;
         DriverInputState mInputState;
-
-        //instead of a DriverSurface list (we don't need that yet?)
-        //package uint mDriverSurfaceCount;
-
-        //used only for non-OpenGL rendering
-        //valid fields: BitsPerPixel, Rmask, Gmask, Bmask, Amask
-        SDL_PixelFormat mPFScreen, mPFAlphaScreen;
 
         SDL_Cursor* mCursorStd, mCursorNull;
 
@@ -424,22 +408,11 @@ class SDLDriver : FrameworkDriver {
 
         //SDL window is focused
         bool mInputFocus = true;
-    }
-    package {
+
         SDL_Surface* mSDLScreen;
-
-        bool glWireframeDebug;
-
-        //hurhurhur
-        PerfTimer mDrawTime, mClearTime, mFlipTime, mInputTime, mWasteTime;
     }
 
     this(Framework fw, ConfigNode config) {
-        if (gSDLDriver) {
-            assert(false, "singleton!");
-        }
-        gSDLDriver = this;
-
         mFramework = fw;
         mConfig = config;
 
@@ -497,17 +470,6 @@ class SDLDriver : FrameworkDriver {
         foreach (SDLToKeycode item; g_sdl_to_code) {
             gSdlToKeycode[item.sdlcode] = item.code;
         }
-
-        //for some worthless statistics...
-        void timer(out PerfTimer tmr, char[] name) {
-            tmr = new PerfTimer;
-            //mTimers[name] = tmr;
-        }
-        timer(mDrawTime, "fw_draw");
-        timer(mClearTime, "fw_clear");
-        timer(mFlipTime, "fw_flip");
-        timer(mInputTime, "fw_input");
-        timer(mWasteTime, "fw_waste");
     }
 
     void destroy() {
@@ -519,8 +481,6 @@ class SDLDriver : FrameworkDriver {
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
         DerelictSDLImage.unload();
         sdlQuit();
-
-        gSDLDriver = null;
     }
 
     private bool switchVideoTo(VideoWindowState state) {
@@ -555,10 +515,6 @@ class SDLDriver : FrameworkDriver {
             return false;
         }
         mSDLScreen = newscreen;
-        mPFScreen = *(mSDLScreen.format);
-
-        //xxx: oh well... but it was true for both 32 bit and 16 bit screenmodes
-        mPFAlphaScreen = sdlpfRGBA32();
 
         version(Windows) {
             //get window handle (some draw drivers need this)
@@ -570,12 +526,6 @@ class SDLDriver : FrameworkDriver {
         mCurVideoState = state;
 
         return true;
-    }
-
-    //NOTE: disregards screen alpha channel if non-existant
-    bool isDisplayFormat(SDL_Surface* s, bool alpha) {
-        return cmpPixelFormat(s.format, alpha ? &mPFAlphaScreen : &mPFScreen,
-            true);
     }
 
     override void flipScreen() {
@@ -903,12 +853,9 @@ class SDLCanvas : Canvas {
         assert(mSurface is null);
 
         mTrans = Vector2i(0, 0);
-        mSurface = gSDLDriver.mSDLScreen;
+        mSurface = mDrawDriver.mSDLScreen;
 
-        gSDLDriver.mClearTime.start();
-        auto clearColor = Color(0,0,0);
-        SDL_FillRect(mSurface, null, toSDLColor(clearColor));
-        gSDLDriver.mClearTime.stop();
+        SDL_FillRect(mSurface, null, toSDLColor(Color(0,0,0)));
 
         startDraw();
     }
@@ -945,38 +892,26 @@ class SDLCanvas : Canvas {
     public void pushState() {
         assert(mStackTop < MAX_STACK);
 
-        gSDLDriver.mWasteTime.start();
-
         mStack[mStackTop].clip = mSurface.clip_rect;
         mStack[mStackTop].translate = mTrans;
         mStack[mStackTop].clientsize = mClientSize;
         mStackTop++;
-
-        gSDLDriver.mWasteTime.stop();
     }
 
     public void popState() {
         assert(mStackTop > 0);
-
-        gSDLDriver.mWasteTime.start();
 
         mStackTop--;
         SDL_Rect* rc = &mStack[mStackTop].clip;
         SDL_SetClipRect(mSurface, rc);
         mTrans = mStack[mStackTop].translate;
         mClientSize = mStack[mStackTop].clientsize;
-
-        gSDLDriver.mWasteTime.stop();
     }
 
     public void setWindow(Vector2i p1, Vector2i p2) {
-        gSDLDriver.mWasteTime.start();
-
         addclip(p1, p2);
         mTrans = p1 + mTrans;
         mClientSize = p2 - p1;
-
-        gSDLDriver.mWasteTime.stop();
     }
 
     //xxx: unify with clip(), or whatever, ..., etc.
@@ -1074,17 +1009,13 @@ class SDLCanvas : Canvas {
         destrc.x = cast(short)destPos.x;
         destrc.y = cast(short)destPos.y; //destrc.w/h ignored by SDL_BlitSurface
 
-        version(DrawStats) gSDLDriver.mDrawTime.start();
         int res = SDL_BlitSurface(src, &rc, mSurface, &destrc);
         assert(res == 0);
-        version(DrawStats) gSDLDriver.mDrawTime.stop();
 
         version (MarkAlpha) {
             if (!mDrawDriver.mMarkAlpha)
                 return;
-            //only when drawn on screen
-            bool isscreen = mSurface is gSDLDriver.mSDLScreen;
-            if (isscreen && sdlIsAlpha(src)) {
+            if (sdlIsAlpha(src)) {
                 auto c = Color(0,1,0);
                 destPos -= mTrans;
                 drawRect(destPos, destPos + sourceSize, c);

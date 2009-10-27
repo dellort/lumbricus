@@ -245,6 +245,12 @@ class ProjectileSpriteClass : ActionSpriteClass {
                 drownstate.particle = gfx.resources
                     .get!(ParticleType)("p_projectiledrown");
                 states[drownstate.name] = drownstate;
+
+                //when sprite in defaultstate goes underwater
+                initState.onDrown = drownstate;
+                //and this because waterStateChange() is called too often
+                //should be fixed in sprite.d
+                drownstate.onDrown = drownstate;
             }
 
             castStrict!(ProjectileStateInfo)(initState).loadStuff(config);

@@ -277,7 +277,22 @@ final class SurfaceData {
         return driver_surface;
     }
 
+    //functions used by SDL driver, and defined here for unknown reasons
+    //stuff might break when using them
+
+    SurfaceData clone() {
+        assert(data !is null);
+        auto ns = new SurfaceData();
+        ns.size = size;
+        ns.transparency = transparency;
+        ns.colorkey = colorkey;
+        ns.pixels_alloc();
+        ns.data[] = data;
+        return ns;
+    }
+
     void doMirrorY() {
+        assert(data !is null);
         for (uint y = 0; y < size.y; y++) {
             Color.RGBA32* src = data.ptr+y*pitch+size.x;
             Color.RGBA32* dst = data.ptr+y*pitch;
@@ -290,6 +305,7 @@ final class SurfaceData {
     }
 
     void doMirrorX() {
+        assert(data !is null);
         Color.RGBA32[] tmp = new Color.RGBA32[pitch];
         for (int y = 0; y < size.y/2; y++) {
             int ym = size.y - y - 1;
