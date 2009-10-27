@@ -478,7 +478,7 @@ class PhysicWorld {
     {
         //subtracting r at both sides to avoid hitting landscape at
         //beside start/end of line
-        for (float d = r; d < maxLen-r; d += r) {
+        for (float d = 0; d < maxLen; d += r) {
             auto p = start + dir*d;
             if (collideGeometry(p, r, contact)) {
                 if (contact.depth != float.infinity)

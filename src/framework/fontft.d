@@ -420,7 +420,7 @@ class FTFontDriver : FontDriver {
     private FTGlyphCache getCache(FontProperties props) {
         FontProperties gc_props = props;
         //on OpenGL, you can color up surfaces at no costs, so...
-        if (gFramework.driver.getFeatures() & DriverFeatures.usingOpenGL) {
+        if (gFramework.drawDriver.getFeatures() & DriverFeatures.usingOpenGL) {
             //normalize to a standard color
             //because of issues with the border, keep alpha component
             gc_props.fore = Color(1, 1, 1, gc_props.fore.a);   //white

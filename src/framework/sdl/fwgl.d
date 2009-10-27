@@ -4,9 +4,7 @@ module framework.sdl.fwgl;
 
 import derelict.opengl.gl;
 import derelict.opengl.glu;
-import derelict.sdl.sdl;
 import framework.framework;
-import framework.sdl.framework;
 import framework.drawing;
 import tango.math.Math;
 import tango.stdc.stringz;
@@ -41,8 +39,87 @@ private bool checkGLError(char[] msg, bool crash = false) {
     return true;
 }
 
-class GLSurface : SDLDriverSurface {
+class GLDrawDriver : DrawDriver {
+    private {
+        Vector2i mScreenSize;
+        GLCanvas mCanvas;
+        bool mEnableCaching;
+        bool mLowQuality, mMarkAlpha, mWireframe, mUseSubSurfaces;
+    }
+
+    this(ConfigNode config) {
+        DerelictGL.load();
+        DerelictGL.loadExtensions();
+        DerelictGLU.load();
+
+        mEnableCaching = config.getBoolValue("enable_caching", true);
+        mLowQuality = config.getBoolValue("lowquality", false);
+        mWireframe = config.getBoolValue("gl_debug_wireframe", false);
+        mUseSubSurfaces = config.getValue!(bool)("subsurfaces", true);
+
+        mCanvas = new GLCanvas(this);
+    }
+
+    override DriverSurface createSurface(SurfaceData data) {
+        return new GLSurface(this, data);
+    }
+
+    override Canvas startScreenRendering() {
+        mCanvas.startScreenRendering();
+        return mCanvas;
+    }
+
+    override void stopScreenRendering() {
+        mCanvas.stopScreenRendering();
+    }
+
+    override void initVideoMode(Vector2i screen_size) {
+        mScreenSize = screen_size;
+    }
+
+    override void uninitVideoMode() {
+    }
+
+    override Surface screenshot() {
+        Surface res = new Surface(mScreenSize, Transparency.None);
+        //get screen contents, (0, 0) is bottom left in OpenGL, so
+        //  image will be upside-down
+        Color.RGBA32* ptr;
+        uint pitch;
+        res.lockPixelsRGBA32(ptr, pitch);
+        assert(pitch == res.size.x);
+        glReadPixels(0, 0, mScreenSize.x, mScreenSize.y, GL_RGBA,
+            GL_UNSIGNED_BYTE, ptr);
+        //checkGLError("glReadPixels");
+        //mirror image on x axis
+        res.getData().doMirrorX();
+        res.unlockPixels(res.rect());
+        return res;
+    }
+
+    override bool isOpenGL() {
+        return true;
+    }
+
+    override int getFeatures() {
+        return mCanvas.features();
+    }
+
+    override void destroy() {
+        DerelictGL.unload();
+        DerelictGLU.unload();
+    }
+
+    static this() {
+        DrawDriverFactory.register!(typeof(this))("opengl");
+    }
+}
+
+class GLSurface : DriverSurface {
     const GLuint GLID_INVALID = 0;
+
+    GLDrawDriver mDrawDriver;
+    SurfaceData mData;
 
     GLuint mTexId = GLID_INVALID;
     Vector2f mTexMax;
@@ -54,8 +131,9 @@ class GLSurface : SDLDriverSurface {
     GLuint[] mSubSurfaces;
 
     //create from Framework's data
-    this(SurfaceData data) {
-        super(data);
+    this(GLDrawDriver draw_driver, SurfaceData data) {
+        mDrawDriver = draw_driver;
+        mData = data;
         assert(data.data !is null);
         reinit();
     }
@@ -78,7 +156,7 @@ class GLSurface : SDLDriverSurface {
 
     override void kill() {
         releaseSurface();
-        super.kill();
+        mData = null;
     }
 
     void reinit() {
@@ -187,7 +265,7 @@ class GLSurface : SDLDriverSurface {
 
         assert(mTexId != GLID_INVALID);
 
-        if (!(cStealSurfaceData && gSDLDriver.mEnableCaching))
+        if (!(cStealSurfaceData && mDrawDriver.mEnableCaching))
             return;
 
         if (mData.data !is null && mData.canSteal()) {
@@ -275,7 +353,7 @@ class GLSurface : SDLDriverSurface {
     private void createSubSurfaces(SubSurface[] subs) {
         static assert(mSubSurfaces[0].init == GLID_INVALID); //array init, hurf
 
-        if (!gSDLDriver.mOpenGL_UseSubSurfaces)
+        if (!mDrawDriver.mUseSubSurfaces)
             return;
 
         foreach (s; subs) {
@@ -352,20 +430,22 @@ class GLCanvas : Canvas {
         State[MAX_STACK] mStack;
         uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
         Rect2i mParentArea, mVisibleArea;
+
+        GLDrawDriver mDrawDriver;
+    }
+
+    this(GLDrawDriver drv) {
+        mDrawDriver = drv;
     }
 
     void startScreenRendering() {
-        mStack[0].clientsize = Vector2i(gSDLDriver.mSDLScreen.w,
-            gSDLDriver.mSDLScreen.h);
+        mStack[0].clientsize = mDrawDriver.mScreenSize;
         mStack[0].clip.p2 = mStack[0].clientsize;
         mStack[0].enableClip = false;
 
         initGLViewport();
 
-        gSDLDriver.mClearTime.start();
-        auto clearColor = Color(0,0,0);
-        clear(clearColor);
-        gSDLDriver.mClearTime.stop();
+        clear(Color(0,0,0));
 
         checkGLError("start rendering", true);
 
@@ -374,14 +454,6 @@ class GLCanvas : Canvas {
 
     void stopScreenRendering() {
         endDraw();
-
-        checkGLError("end rendering", true);
-
-        gSDLDriver.mFlipTime.start();
-        SDL_GL_SwapBuffers();
-        gSDLDriver.mFlipTime.stop();
-
-        checkGLError("SDK_GL_swapBuffers", true);
     }
 
     package void startDraw() {
@@ -394,7 +466,8 @@ class GLCanvas : Canvas {
     }
 
     public int features() {
-        return gSDLDriver.getFeatures();
+        return DriverFeatures.canvasScaling | DriverFeatures.transformedQuads
+            | DriverFeatures.usingOpenGL;
     }
 
     private void initGLViewport() {
@@ -413,7 +486,7 @@ class GLCanvas : Canvas {
 
         glDisable(GL_SCISSOR_TEST);
 
-        bool lowquality = gSDLDriver.mOpenGL_LowQuality;
+        bool lowquality = mDrawDriver.mLowQuality;
         if (!lowquality) {
             glEnable(GL_LINE_SMOOTH);
         } else {
@@ -709,7 +782,7 @@ class GLCanvas : Canvas {
     }
 
     private void markAlpha(Vector2i p, Vector2i size) {
-        if (!gSDLDriver.mMarkAlpha)
+        if (!mDrawDriver.mMarkAlpha)
             return;
         auto c = Color(0,1,0);
         drawRect(p, p + size, c);
@@ -866,7 +939,7 @@ class GLCanvas : Canvas {
         if (!mVisibleArea.intersects(destPos, destPos + destSize))
             return;
 
-        if (gSDLDriver.glWireframeDebug) {
+        if (mDrawDriver.mWireframe) {
             //wireframe mode
             drawRect(destPos, destPos+destSize, Color(1,1,1));
             drawLine(destPos, destPos+destSize, Color(1,1,1));
@@ -928,7 +1001,7 @@ class GLCanvas : Canvas {
         }
 
         GLboolean isalpha;
-        if (gSDLDriver.mMarkAlpha)
+        if (mDrawDriver.mMarkAlpha)
             glGetBooleanv(GL_BLEND, &isalpha);
 
         glsurf.endDraw();

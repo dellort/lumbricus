@@ -33,6 +33,30 @@ import cstdlib = tango.stdc.stdlib;
 //**** driver stuff
 
 
+abstract class DrawDriver {
+    abstract DriverSurface createSurface(SurfaceData data);
+
+    abstract Canvas startScreenRendering();
+    abstract void stopScreenRendering();
+
+    abstract void initVideoMode(Vector2i screen_size);
+    abstract void uninitVideoMode();
+
+    abstract Surface screenshot();
+
+    abstract int getFeatures();
+
+    abstract void destroy();
+
+    int releaseCaches() {
+        return 0;
+    }
+
+    bool isOpenGL() {
+        return false;
+    }
+}
+
 ///actual surface stored/managed in a driver specific way
 ///i.e. SDL_Surface for SDL, a texture in OpenGL...
 ///manually memory managment by the Framework and the Driver
@@ -49,6 +73,9 @@ abstract class DriverSurface {
     void newSubSurface(SubSurface ss) {
     }
 
+    ///deallocate
+    abstract void kill();
+
     //useful debugging infos lol
     abstract void getInfos(out char[] desc, out uint extra_data);
 }
@@ -63,20 +90,10 @@ enum DriverFeatures {
 }
 
 abstract class FrameworkDriver {
-    ///create a driver surface from this data... the driver might modify the
-    ///struct pointed to by data at any time
-    abstract DriverSurface createSurface(SurfaceData data);
-    ///destroy the surface (leaves this instance back unuseable) and possibly
-    ///write back surface data (also set surface to null)
-    abstract void killSurface(inout DriverSurface surface);
-
-    ///start/stop rendering on screen
-    abstract Canvas startScreenRendering();
-    abstract void stopScreenRendering();
+    ///flip screen after drawing
+    abstract void flipScreen();
 
     abstract Surface loadImage(Stream source, Transparency transparency);
-
-    abstract Surface screenshot();
 
     ///release internal caches - does not include DriverSurfaces
     abstract int releaseCaches();
@@ -102,10 +119,6 @@ abstract class FrameworkDriver {
 
     ///for debugging
     abstract char[] getDriverInfo();
-
-    ///return an or'ed combination of optional DriverFeatures
-    ///this driver supports
-    abstract int getFeatures();
 
     ///deinit driver
     abstract void destroy();
@@ -256,6 +269,30 @@ final class SurfaceData {
             assert(!!driver_surface);
         }
         return driver_surface;
+    }
+
+    void doMirrorY() {
+        for (uint y = 0; y < size.y; y++) {
+            Color.RGBA32* src = data.ptr+y*pitch+size.x;
+            Color.RGBA32* dst = data.ptr+y*pitch;
+            for (uint x = 0; x < size.x/2; x++) {
+                src--;
+                swap(*dst, *src);
+                dst++;
+            }
+        }
+    }
+
+    void doMirrorX() {
+        Color.RGBA32[] tmp = new Color.RGBA32[pitch];
+        for (int y = 0; y < size.y/2; y++) {
+            int ym = size.y - y - 1;
+            tmp[] = data[y*pitch..(y+1)*pitch];
+            data[y*pitch..(y+1)*pitch] =
+                data[ym*pitch..(ym+1)*pitch];
+            data[ym*pitch..(ym+1)*pitch] = tmp;
+        }
+        delete tmp;
     }
 }
 
@@ -662,6 +699,7 @@ enum InfoString {
 class Framework {
     private {
         FrameworkDriver mDriver;
+        DrawDriver mDrawDriver;
         DriverReload* mDriverReload;
         ConfigNode mLastWorkingDriver;
 
@@ -745,6 +783,9 @@ class Framework {
         //new driver
         mDriver = FrameworkDriverFactory.instantiate(drivers["base"], this,
             config.getSubNode(drivers["base"]));
+        //for graphics (pure SDL, OpenGL...)
+        mDrawDriver = DrawDriverFactory.instantiate(drivers["draw"],
+            config.getSubNode(drivers["draw"]));
         //init font driver
         mFontDriver = FontDriverFactory.instantiate(drivers["font"], mFontManager,
             config.getSubNode(drivers["font"]));
@@ -786,6 +827,9 @@ class Framework {
         mFontDriver.destroy();
         mFontDriver = null;
 
+        mDrawDriver.destroy();
+        mDrawDriver = null;
+
         mDriver.destroy();
         mDriver = null;
     }
@@ -803,14 +847,14 @@ class Framework {
         return mFontDriver;
     }
 
-    int driverFeatures() {
-        return mDriver.getFeatures();
+    public DrawDriver drawDriver() {
+        return mDrawDriver;
     }
 
     //--- DriverSurface handling
 
     package DriverSurface createDriverSurface(SurfaceData data) {
-        DriverSurface res = mDriver.createSurface(data);
+        DriverSurface res = mDrawDriver.createSurface(data);
         //expect a new instance
         assert(!(res in mDriverSurfaces));
         mDriverSurfaces[res] = true;
@@ -823,8 +867,8 @@ class Framework {
             return;
         assert(surface in mDriverSurfaces);
         mDriverSurfaces.remove(surface);
-        mDriver.killSurface(surface);
-        assert(!surface);
+        surface.kill();
+        surface = null;
     }
 
     //--- Surface handling
@@ -849,7 +893,7 @@ class Framework {
 
     ///create a copy of the screen contents
     Surface screenshot() {
-        return mDriver.screenshot();
+        return mDrawDriver.screenshot();
     }
 
     //--- key stuff
@@ -1052,6 +1096,7 @@ class Framework {
         state.fullscreen = fullscreen;
         state.video_active = true;
         mDriver.setVideoWindowState(state);
+        mDrawDriver.initVideoMode(size);
     }
 
     //version for default arguments
@@ -1135,12 +1180,13 @@ class Framework {
                 onUpdate();
             }
 
-            Canvas c = mDriver.startScreenRendering();
+            Canvas c = mDrawDriver.startScreenRendering();
             if (onFrame) {
                 onFrame(c);
             }
             drawSoftCursor(c);
-            mDriver.stopScreenRendering();
+            mDrawDriver.stopScreenRendering();
+            mDriver.flipScreen();
             c = null;
 
             // defered free (GC related, sucky Phobos forces this to us)
@@ -1235,6 +1281,7 @@ class Framework {
             count += r();
         }
         count += mDriver.releaseCaches();
+        count += mDrawDriver.releaseCaches();
         count += mFontDriver.releaseCaches();
         count += releaseDriverFonts();
         count += releaseDriverSurfaces();
@@ -1344,3 +1391,5 @@ class Framework {
 
 alias StaticFactory!("Drivers", FrameworkDriver, Framework,
     ConfigNode) FrameworkDriverFactory;
+
+alias StaticFactory!("DrawDrivers", DrawDriver, ConfigNode) DrawDriverFactory;

@@ -27,23 +27,93 @@ import str = utils.string;
 
 version = MarkAlpha;
 
-package uint simpleColorToSDLColor(SDL_Surface* s, Color color) {
-    auto c = color.toRGBA32();
-    return SDL_MapRGBA(s.format, c.r, c.g, c.b, c.a);
-}
+class SDLDrawDriver : DrawDriver {
+    private {
+        SDLCanvas mCanvas;
+        Vector2i mScreenSize;
+        bool mRLE;
+        //cache for being able to draw alpha blended filled rects without OpenGL
+        Surface[uint] mInsanityCache;
+    }
 
-package SDL_Color ColorToSDLColor(Color color) {
-    auto c = color.toRGBA32();
-    SDL_Color col;
-    col.r = c.r;
-    col.g = c.g;
-    col.b = c.b;
-    col.unused = c.a;
-    return col;
-}
+    this(ConfigNode config) {
+        mRLE = config.getBoolValue("rle", false);
 
-package bool sdlIsAlpha(SDL_Surface* s) {
-    return s.format.Amask != 0 && (s.flags & SDL_SRCALPHA);
+        mCanvas = new SDLCanvas(this);
+    }
+
+    override DriverSurface createSurface(SurfaceData data) {
+        return new SDLSurface(this, data);
+    }
+
+    override Canvas startScreenRendering() {
+        mCanvas.startScreenRendering();
+        return mCanvas;
+    }
+
+    override void stopScreenRendering() {
+        mCanvas.stopScreenRendering();
+    }
+
+    override void initVideoMode(Vector2i screen_size) {
+        mScreenSize = screen_size;
+    }
+
+    override void uninitVideoMode() {
+    }
+
+    override Surface screenshot() {
+        //this is possibly dangerous, but I'm too lazy to write proper code
+        return convertFromSDLSurface(gSDLDriver.mSDLScreen, Transparency.None, false);
+    }
+
+    override int getFeatures() {
+        return mCanvas.features();
+    }
+
+    override void destroy() {
+    }
+
+    //return a surface with unspecified size containing this color
+    //(used for drawing alpha blended rectangles)
+    private Surface insanityCache(Color c) {
+        uint key = c.toRGBA32().uint_val;
+
+        Surface* s = key in mInsanityCache;
+        if (s)
+            return *s;
+
+        const cTileSize = 64;
+
+        Surface tile = new Surface(Vector2i(cTileSize), Transparency.Alpha);
+
+        tile.fill(Rect2i(tile.size), c);
+
+        tile.enableCaching = true;
+
+        mInsanityCache[key] = tile;
+        return tile;
+    }
+
+    private int releaseInsanityCache() {
+        int rel;
+        foreach (Surface t; mInsanityCache) {
+            t.free();
+            rel++;
+        }
+        mInsanityCache = null;
+        return rel;
+    }
+
+    int releaseCaches() {
+        int count;
+        count += releaseInsanityCache();
+        return count;
+    }
+
+    static this() {
+        DrawDriverFactory.register!(typeof(this))("sdl");
+    }
 }
 
 //common base class for SDLSurface and GLSurface
@@ -53,15 +123,15 @@ class SDLDriverSurface : DriverSurface {
 
     //custom means kill() should free the pixel memory in mData
     this(SurfaceData data, bool custom = false) {
-        gSDLDriver.mDriverSurfaceCount++;
+        //gSDLDriver.mDriverSurfaceCount++;
         mData = data;
         mCustom = custom;
     }
 
     //must be overriden; super method must be called on end
-    void kill() {
+    override void kill() {
         assert(!!mData, "double kill()?");
-        gSDLDriver.mDriverSurfaceCount--;
+        //gSDLDriver.mDriverSurfaceCount--;
         if (mCustom) {
             //only in SDL mode, for mirrored surfaces
             mData.pixels_free();
@@ -70,29 +140,6 @@ class SDLDriverSurface : DriverSurface {
     }
 }
 
-void doMirrorY(SurfaceData data) {
-    for (uint y = 0; y < data.size.y; y++) {
-        Color.RGBA32* src = data.data.ptr+y*data.pitch+data.size.x;
-        Color.RGBA32* dst = data.data.ptr+y*data.pitch;
-        for (uint x = 0; x < data.size.x/2; x++) {
-            src--;
-            swap(*dst, *src);
-            dst++;
-        }
-    }
-}
-
-void doMirrorX(SurfaceData data) {
-    Color.RGBA32[] tmp = new Color.RGBA32[data.pitch];
-    for (int y = 0; y < data.size.y/2; y++) {
-        int ym = data.size.y - y - 1;
-        tmp[] = data.data[y*data.pitch..(y+1)*data.pitch];
-        data.data[y*data.pitch..(y+1)*data.pitch] =
-            data.data[ym*data.pitch..(ym+1)*data.pitch];
-        data.data[ym*data.pitch..(ym+1)*data.pitch] = tmp;
-    }
-    delete tmp;
-}
 
 //cache for effects like mirroring; this is only used when you're using i.e.
 //drawMirrored() on a SDLCanvas (when no OpenGL is used / for offscreen drawing)
@@ -126,14 +173,15 @@ void doMirrorX(SurfaceData data) {
             ns.colorkey = s.colorkey;
             ns.pixels_alloc();
             ns.data[] = s.data;
-            doMirrorY(ns);
-            mMirroredY = new SDLSurface(ns, true);
+            ns.doMirrorY();
+            mMirroredY = new SDLSurface(mSource.mDrawDriver, ns, true);
         }
         return mMirroredY;
     }
 }
 
 /+final+/ class SDLSurface : SDLDriverSurface {
+    SDLDrawDriver mDrawDriver;
     SDL_Surface* mSurface;
     bool mCacheEnabled;
 
@@ -142,8 +190,9 @@ void doMirrorX(SurfaceData data) {
     EffectCache mEffects;
 
     //create from Framework's data
-    this(SurfaceData data, bool custom = false) {
+    this(SDLDrawDriver driver, SurfaceData data, bool custom = false) {
         super(data, custom);
+        mDrawDriver = driver;
         reinit();
     }
 
@@ -171,7 +220,7 @@ void doMirrorX(SurfaceData data) {
 
         //NOTE: SDL_CreateRGBSurfaceFrom doesn't copy the data... so, be sure
         //      to keep the pointer, so D won't GC it
-        auto rgba32 = gSDLDriver.mRGBA32;
+        auto rgba32 = sdlpfRGBA32();
         if (!cc) {
             mSurface = SDL_CreateRGBSurfaceFrom(mData.data.ptr, mData.size.x,
                 mData.size.y, 32, mData.pitch*4, rgba32.Rmask, rgba32.Gmask,
@@ -266,7 +315,7 @@ void doMirrorX(SurfaceData data) {
             return false;
         }
 
-        bool rle = gSDLDriver.mRLE;
+        bool rle = mDrawDriver.mRLE;
 
         SDL_Surface* nsurf;
         bool colorkey;
@@ -361,22 +410,11 @@ class SDLDriver : FrameworkDriver {
         package bool mEnableCaching, mMarkAlpha, mRLE;
 
         //instead of a DriverSurface list (we don't need that yet?)
-        package uint mDriverSurfaceCount;
+        //package uint mDriverSurfaceCount;
 
         //used only for non-OpenGL rendering
         //valid fields: BitsPerPixel, Rmask, Gmask, Bmask, Amask
-        //mRGBA32 corresponds bit-by-bit to Color.RGBA32
-        SDL_PixelFormat mRGBA32, mPFScreen, mPFAlphaScreen;
-
-        //if OpenGL enabled (if not, use 2D SDL drawing)
-        package bool mOpenGL, mOpenGL_LowQuality, mOpenGL_UseSubSurfaces;
-
-        //depending if OpenGL or plain-old-SDL-2D mode
-        SDLCanvas mScreenCanvas2D;
-        GLCanvas mScreenCanvasGL;
-
-        //cache for being able to draw alpha blended filled rects without OpenGL
-        Surface[uint] mInsanityCache;
+        SDL_PixelFormat mPFScreen, mPFAlphaScreen;
 
         SDL_Cursor* mCursorStd, mCursorNull;
 
@@ -409,20 +447,9 @@ class SDLDriver : FrameworkDriver {
         mFramework = fw;
         mConfig = config;
 
-        mRGBA32.BitsPerPixel = 32;
-        mRGBA32.Rmask = Color.cMaskR;
-        mRGBA32.Gmask = Color.cMaskG;
-        mRGBA32.Bmask = Color.cMaskB;
-        mRGBA32.Amask = Color.cMaskAlpha;
-
         mEnableCaching = config.getBoolValue("enable_caching", true);
         mMarkAlpha = config.getBoolValue("mark_alpha", false);
         mRLE = config.getBoolValue("rle", true);
-
-        mOpenGL = config.getBoolValue("open_gl", true);
-        mOpenGL_LowQuality = config.getBoolValue("lowquality", false);
-        glWireframeDebug = config.getBoolValue("gl_debug_wireframe", false);
-        mOpenGL_UseSubSurfaces = config.getValue!(bool)("subsurfaces", true);
 
         //default (empty) means use OS default
         char[] wndPos = config.getStringValue("window_pos");
@@ -447,10 +474,6 @@ class SDLDriver : FrameworkDriver {
         sdlInit();
 
         DerelictSDLImage.load();
-        if (mOpenGL) {
-            DerelictGL.load();
-            DerelictGLU.load();
-        }
 
         if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
             throw new FrameworkException(myformat(
@@ -483,12 +506,6 @@ class SDLDriver : FrameworkDriver {
             gSdlToKeycode[item.sdlcode] = item.code;
         }
 
-        if (!mOpenGL) {
-            mScreenCanvas2D = new SDLCanvas();
-        } else {
-            mScreenCanvasGL = new GLCanvas();
-        }
-
         //for some worthless statistics...
         void timer(out PerfTimer tmr, char[] name) {
             tmr = new PerfTimer;
@@ -504,61 +521,14 @@ class SDLDriver : FrameworkDriver {
     void destroy() {
         //the framework should have destroyed all DriverSurfaces
         //check that!
-        assert(mDriverSurfaceCount == 0);
+        //assert(mDriverSurfaceCount == 0);
 
         //deinit and unload all SDL dlls (in reverse order)
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
-        if (mOpenGL) {
-            DerelictGL.unload();
-            DerelictGLU.unload();
-        }
         DerelictSDLImage.unload();
         sdlQuit();
 
         gSDLDriver = null;
-    }
-
-    int getFeatures() {
-        int features = 0;
-        if (mOpenGL) {
-            features = features | DriverFeatures.canvasScaling
-                | DriverFeatures.transformedQuads | DriverFeatures.usingOpenGL;
-        }
-        return features;
-    }
-
-    DriverSurface createSurface(SurfaceData data) {
-        if (mOpenGL) {
-            return new GLSurface(data);
-        } else {
-            return new SDLSurface(data);
-        }
-    }
-
-    void killSurface(inout DriverSurface surface) {
-        assert(!!surface);
-        auto bla = cast(SDLDriverSurface)surface;
-        assert(!!bla);
-        bla.kill();
-        surface = null;
-    }
-
-    //ignore_a_alpha_bla = ignore alpha, if there's no alpha channel for a
-    package static bool cmpPixelFormat(SDL_PixelFormat* a, SDL_PixelFormat* b,
-        bool ignore_a_alpha_bla = false)
-    {
-        return (a.BitsPerPixel == b.BitsPerPixel
-            && a.Rmask == b.Rmask
-            && a.Gmask == b.Gmask
-            && a.Bmask == b.Bmask
-            && (ignore_a_alpha_bla && a.Amask == 0
-                ? true : a.Amask == b.Amask));
-    }
-
-    //NOTE: disregards screen alpha channel if non-existant
-    package bool isDisplayFormat(SDL_Surface* s, bool alpha) {
-        return cmpPixelFormat(s.format, alpha ? &mPFAlphaScreen : &mPFScreen,
-            true);
     }
 
     private bool switchVideoTo(VideoWindowState state) {
@@ -571,7 +541,7 @@ class SDLDriver : FrameworkDriver {
         Vector2i size = state.fullscreen ? state.fs_size : state.window_size;
 
         int vidflags = 0;
-        if (mOpenGL) {
+        if (gFramework.drawDriver.isOpenGL()) {
             //SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
             SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
@@ -595,17 +565,23 @@ class SDLDriver : FrameworkDriver {
         mSDLScreen = newscreen;
         mPFScreen = *(mSDLScreen.format);
 
-        if (mScreenCanvasGL) {
-            DerelictGL.loadExtensions();
-            //xxx move call to GL initialization here
-        }
-
         //xxx: oh well... but it was true for both 32 bit and 16 bit screenmodes
-        mPFAlphaScreen = mRGBA32;
+        mPFAlphaScreen = sdlpfRGBA32();
 
         mCurVideoState = state;
 
         return true;
+    }
+
+    //NOTE: disregards screen alpha channel if non-existant
+    bool isDisplayFormat(SDL_Surface* s, bool alpha) {
+        return cmpPixelFormat(s.format, alpha ? &mPFAlphaScreen : &mPFScreen,
+            true);
+    }
+
+    override void flipScreen() {
+        if (gFramework.drawDriver.isOpenGL())
+            SDL_GL_SwapBuffers();
     }
 
     VideoWindowState getVideoWindowState() {
@@ -706,25 +682,6 @@ class SDLDriver : FrameworkDriver {
         KeyInfo infos;
         infos.code = sdlToKeycode(g_sdl_mouse_button1 + (mouse.button - 1));
         return infos;
-    }
-
-    Canvas startScreenRendering() {
-        assert(!!mSDLScreen);
-        if (!mOpenGL) {
-            mScreenCanvas2D.startScreenRendering();
-            return mScreenCanvas2D;
-        } else {
-            mScreenCanvasGL.startScreenRendering();
-            return mScreenCanvasGL;
-        }
-    }
-
-    void stopScreenRendering() {
-        if (!mOpenGL) {
-            mScreenCanvas2D.stopScreenRendering();
-        } else {
-            mScreenCanvasGL.stopScreenRendering();
-        }
     }
 
     void setLockMouse(bool s) {
@@ -844,42 +801,8 @@ class SDLDriver : FrameworkDriver {
         SDL_Delay(t.msecs);
     }
 
-    //return a surface with unspecified size containing this color
-    //(used for drawing alpha blended rectangles)
-    private Surface insanityCache(Color c) {
-        uint key = c.toRGBA32().uint_val;
-
-        Surface* s = key in mInsanityCache;
-        if (s)
-            return *s;
-
-        const cTileSize = 64;
-
-        Surface tile = mFramework.createSurface(Vector2i(cTileSize),
-            Transparency.Alpha);
-
-        tile.fill(Rect2i(tile.size), c);
-
-        tile.enableCaching = true;
-
-        mInsanityCache[key] = tile;
-        return tile;
-    }
-
-    private int releaseInsanityCache() {
-        int rel;
-        foreach (Surface t; mInsanityCache) {
-            t.free();
-            rel++;
-        }
-        mInsanityCache = null;
-        return rel;
-    }
-
     int releaseCaches() {
-        int count;
-        count += releaseInsanityCache();
-        return count;
+        return 0;
     }
 
     //this is the SDL_image dependency
@@ -892,130 +815,6 @@ class SDLDriver : FrameworkDriver {
         }
 
         return convertFromSDLSurface(surf, transparency, true);
-    }
-
-    Surface screenshot() {
-        if (mOpenGL) {
-            Surface res = new Surface(Vector2i(mSDLScreen.w, mSDLScreen.h),
-                Transparency.None);
-            //get screen contents, (0, 0) is bottom left in OpenGL, so
-            //  image will be upside-down
-            Color.RGBA32* ptr;
-            uint pitch;
-            res.lockPixelsRGBA32(ptr, pitch);
-            assert(pitch == res.size.x);
-            glReadPixels(0, 0, mSDLScreen.w, mSDLScreen.h, GL_RGBA,
-                GL_UNSIGNED_BYTE, ptr);
-            //checkGLError("glReadPixels");
-            //mirror image on x axis
-            doMirrorX(res.getData());
-            res.unlockPixels(res.rect());
-            return res;
-        } else {
-            //this is possibly dangerous, but I'm too lazy to write proper code
-            //  (pure SDL mode is dying anyway)
-            return convertFromSDLSurface(mSDLScreen, Transparency.None, false);
-        }
-    }
-
-    //convert SDL color to our Color struct; do _not_ try to check the colorkey
-    //to convert it to a transparent color, and also throw away the alpha value
-    //there doesn't seem to be a SDL version for this, I hate SDL!!!
-    private static Color fromSDLColor(SDL_PixelFormat* fmt, uint c) {
-        Color r;
-        if (!fmt.palette) {
-            //warning, untested (I think, maybe)
-            float conv(uint mask, uint shift, uint loss) {
-                return (((c & mask) >> shift) << loss)/255.0f;
-            }
-            r.r = conv(fmt.Rmask, fmt.Rshift, fmt.Rloss);
-            r.g = conv(fmt.Gmask, fmt.Gshift, fmt.Gloss);
-            r.b = conv(fmt.Bmask, fmt.Bshift, fmt.Bloss);
-        } else {
-            //palette... sigh!
-            assert(c < fmt.palette.ncolors, "WHAT THE SHIT");
-            SDL_Color s = fmt.palette.colors[c];
-            r.r = s.r/255.0f;
-            r.g = s.g/255.0f;
-            r.b = s.b/255.0f;
-            r.a = s.unused/255.0f;
-            assert(ColorToSDLColor(r) == s);
-        }
-        return r;
-    }
-
-    //warning: modifies the source surface! (changes transparency modes)
-    Surface convertFromSDLSurface(SDL_Surface* surf, Transparency transparency,
-        bool free_surf)
-    {
-        if (transparency == Transparency.AutoDetect) {
-            //guess by looking at the alpha channel
-            if (sdlIsAlpha(surf)) {
-                transparency = Transparency.Alpha;
-            } else if (surf.flags & SDL_SRCCOLORKEY) {
-                transparency = Transparency.Colorkey;
-            } else {
-                transparency = Transparency.None;
-            }
-        }
-
-        bool hascc = transparency == Transparency.Colorkey;
-        Color colorkey = Color(0);
-
-        if (hascc) {
-            //NOTE: the png loader from SDL_Image sometimes uses the colorkey
-            colorkey = fromSDLColor(surf.format, surf.format.colorkey);
-        }
-
-        Surface res = new Surface(Vector2i(surf.w, surf.h), transparency,
-            colorkey);
-
-        Color.RGBA32* ptr;
-        uint pitch;
-
-        res.lockPixelsRGBA32(ptr, pitch);
-        assert(pitch == res.size.x); //lol, for block copy
-
-        bool not_crap = !!(surf.flags & SDL_SRCALPHA);
-
-        //possibly convert it to RGBA32 (except if it is already)
-        //if there's a colorkey, always convert, hoping the alpha channel gets
-        //fixed (setting the alpha according to colorkey)
-        if (!(not_crap && cmpPixelFormat(surf.format, &mRGBA32))) {
-            SDL_Surface* ns = SDL_CreateRGBSurfaceFrom(ptr,
-                surf.w, surf.h, mRGBA32.BitsPerPixel, pitch*Color.RGBA32.sizeof,
-                mRGBA32.Rmask, mRGBA32.Gmask, mRGBA32.Bmask, mRGBA32.Amask);
-            if (!ns)
-                throw new FrameworkException("out of memory?");
-            SDL_SetAlpha(surf, 0, 0);  //lol SDL, disable all transparencies
-            //not sure about this, but commenting this seems to work better with
-            //paletted+transparent png files (but only in OpenGL mode lol)
-            //by the way, using SDL_ConvertSurface worked even worse
-            //SDL_SetColorKey(surf, 0, 0);
-            SDL_FillRect(ns, null, 0); //transparent background
-            SDL_BlitSurface(surf, null, ns, null);
-            SDL_FreeSurface(ns);
-            //xxx: need to restore for surf what was destroyed by SDL_SetAlpha
-        } else {
-            //just copy the data
-            SDL_LockSurface(surf);
-            ptr[0..res.size.x*res.size.y] = cast(Color.RGBA32[])
-                (surf.pixels[0 .. surf.w*surf.h*surf.format.BytesPerPixel]);
-            SDL_UnlockSurface(surf);
-        }
-
-        res.unlockPixels(res.rect());
-
-        if (free_surf) {
-            SDL_FreeSurface(surf);
-        }
-
-        return res;
-    }
-
-    private char[] pixelFormatToString(SDL_PixelFormat* fmt) {
-        return myformat("bits={} R/G/B/A={:x8}/{:x8}/{:x8}/{:x8}",
-            fmt.BitsPerPixel, fmt.Rmask, fmt.Gmask, fmt.Bmask, fmt.Amask);
     }
 
     char[] getDriverInfo() {
@@ -1058,6 +857,7 @@ class SDLDriver : FrameworkDriver {
         SDL_PixelFormat* fmt = info.vfmt;
         desc ~= myformat("   pixel format = {}\n", pixelFormatToString(fmt));
 
+        /+
         desc ~= myformat("Uses OpenGL: {}\n", mOpenGL);
         if (mOpenGL) {
             void dumpglstr(GLenum t, char[] name) {
@@ -1070,6 +870,7 @@ class SDLDriver : FrameworkDriver {
         }
 
         desc ~= myformat("{} driver surfaces\n", mDriverSurfaceCount);
+        +/
 
         return desc;
     }
@@ -1093,6 +894,8 @@ class SDLCanvas : Canvas {
 
         SDL_Surface* mSurface;
         SDLSurface mSDLSurface;
+
+        SDLDrawDriver mDrawDriver;
     }
 
     void startScreenRendering() {
@@ -1116,15 +919,13 @@ class SDLCanvas : Canvas {
 
         endDraw();
 
-        //TODO: Software backbuffer (or not... not needed with X11/windib)
-        gSDLDriver.mFlipTime.start();
         SDL_Flip(mSurface);
-        gSDLDriver.mFlipTime.stop();
 
         mSurface = null;
     }
 
-    this() {
+    this(SDLDrawDriver drv) {
+        mDrawDriver = drv;
     }
 
     package void startDraw() {
@@ -1139,7 +940,7 @@ class SDLCanvas : Canvas {
     }
 
     public int features() {
-        return gSDLDriver.getFeatures();
+        return 0;
     }
 
     public void pushState() {
@@ -1429,7 +1230,7 @@ class SDLCanvas : Canvas {
             return; //xxx: correct?
         if (alpha != 255) {
             //quite insane insanity here!!!
-            Texture s = gSDLDriver.insanityCache(color);
+            Texture s = mDrawDriver.insanityCache(color);
             assert(s !is null);
             drawTiled(s, p1, p2-p1);
         } else {
@@ -1440,9 +1241,7 @@ class SDLCanvas : Canvas {
             rect.y = p1.y;
             rect.w = p2.x-p1.x;
             rect.h = p2.y-p1.y;
-            version(DrawStats) gSDLDriver.mDrawTime.start();
             int res = SDL_FillRect(mSurface, &rect, toSDLColor(color));
-            version(DrawStats) gSDLDriver.mDrawTime.stop();
             assert(res == 0);
         }
     }

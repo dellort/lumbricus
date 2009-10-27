@@ -423,7 +423,7 @@ class Widget {
     //returns true if current driver supports Canvas.setScale
     //xxx can be removed if we fully switch to OpenGL
     protected bool canScale() {
-        return (gFramework.driverFeatures & DriverFeatures.canvasScaling) > 0;
+        return (gFramework.drawDriver.getFeatures & DriverFeatures.canvasScaling) > 0;
     }
 
     // --- layouting stuff
