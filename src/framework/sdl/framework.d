@@ -7,7 +7,6 @@ import derelict.sdl.image;
 import framework.framework;
 import framework.event;
 import framework.sdl.rwops;
-import framework.sdl.fwgl;
 import framework.sdl.sdl;
 import framework.sdl.keys;
 import utils.vector2;

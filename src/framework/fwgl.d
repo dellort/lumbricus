@@ -1,6 +1,5 @@
-//contains the OpenGL part of the SDL driver, not as well separated as it
-//should be
-module framework.sdl.fwgl;
+//OpenGL renderer
+module framework.fwgl;
 
 import derelict.opengl.gl;
 import derelict.opengl.glu;
@@ -796,8 +795,6 @@ class GLCanvas : Canvas {
     void doDrawRect(Vector2i p1, Vector2i p2, Color[2] c) {
         if (p1.x >= p2.x || p1.y >= p2.y)
             return;
-        //p2.x -= 1; //border exclusive
-        //p2.y -= 1;
 
         bool alpha = (c[0].hasAlpha() || c[1].hasAlpha());
         if (alpha) {
@@ -805,9 +802,6 @@ class GLCanvas : Canvas {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
 
-        //xxx WTF? I don't understand this (the -1), but the result still looks
-        //right (equal to SDL's rendering), so I keep this (wtf...)
-        //glTranslatef(0.5f, 0.5f-1.0f, 0);
         glBegin(GL_QUADS);
             glColor4fv(c[0].ptr);
             glVertex2i(p2.x, p1.y);
