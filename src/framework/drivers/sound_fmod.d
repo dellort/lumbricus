@@ -1,4 +1,4 @@
-module framework.fmod;
+module framework.drivers.sound_fmod;
 
 ///Sound driver implementation for the FMOD sound system, www.fmod.org
 //Based on OpenAL sound driver implementation, which is quite crappy
@@ -8,7 +8,7 @@ module framework.fmod;
 import derelict.fmod.fmod;
 import framework.framework;
 import framework.sound;
-import framework.fmodstreamfs;
+import framework.drivers.fmodstreamfs;
 import utils.stream;
 import tango.stdc.stringz;
 import utils.array;
@@ -27,7 +27,6 @@ class FMODSound : DriverSound {
     }
 
     this(DriverSoundData data) {
-        debug Trace.formatln("Load sound {}",data.filename);
         mSourceSt = gFS.open(data.filename);
 
         FMOD_MODE m = FMOD_2D;
@@ -74,6 +73,7 @@ class FMODChannel : DriverChannel {
     private {
         SoundSourceInfo mSourceInfo;
         FMOD_CHANNEL* mChannel;
+        float mVolume;
         bool mLooping;
     }
     ObjListNode!(typeof(this)) chNode;
@@ -91,7 +91,9 @@ class FMODChannel : DriverChannel {
     }
 
     void setVolume(float v) {
-        FMOD_Channel_SetVolume(mChannel, v);
+        if (checkChannel())
+            FMOD_Channel_SetVolume(mChannel, v);
+        mVolume = v;
     }
 
     void looping(bool loop) {
@@ -123,6 +125,7 @@ class FMODChannel : DriverChannel {
         FMOD_ErrorCheck(FMOD_Channel_SetPosition(mChannel, startAt.msecs(),
             FMOD_TIMEUNIT_MS));
         setLooping(mLooping);
+        setVolume(mVolume);
 
         FMOD_ErrorCheck(FMOD_Channel_SetPaused(mChannel, false));
     }

@@ -838,7 +838,7 @@ class OffByOneTest : Task {
         Surface bmp;
         this() {
             //black pixel
-            bmp = gFramework.createSurface(Vector2i(1), Transparency.None);
+            bmp = new Surface(Vector2i(1), Transparency.None);
             bmp.fill(bmp.rect(), Color(0,0,0));
         }
         override void onDraw(Canvas c) {

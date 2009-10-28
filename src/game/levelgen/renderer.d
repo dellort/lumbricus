@@ -231,7 +231,7 @@ class LandscapeBitmap {
         //prepare image
         if (!mImage) {
             //xxx colorkey
-            mImage = gFramework.createSurface(size, Transparency.Colorkey);
+            mImage = new Surface(size, Transparency.Colorkey);
         }
         assert(mLevelData.length == mImage.size.x*mImage.size.y);
 
@@ -739,7 +739,7 @@ class LandscapeBitmap {
         assert(mLevelData.length == mWidth*mHeight);
 
         if (!dataOnly) {
-            mImage = gFramework.createSurface(size, Transparency.Colorkey);
+            mImage = new Surface(size, Transparency.Colorkey);
             mImage.fill(Rect2i(mImage.size), Color.Transparent);
         }
     }

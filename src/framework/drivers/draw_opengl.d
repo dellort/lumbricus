@@ -1,5 +1,5 @@
 //OpenGL renderer
-module framework.fwgl;
+module framework.drivers.draw_opengl;
 
 import derelict.opengl.gl;
 import derelict.opengl.glu;

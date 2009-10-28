@@ -1,4 +1,4 @@
-module framework.sdl.soundmixer;
+module framework.drivers.sound_sdlmixer;
 
 import derelict.sdl.mixer;
 import derelict.sdl.sdl;

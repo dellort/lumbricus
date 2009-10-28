@@ -536,7 +536,7 @@ class Surface {
             rc = Rect2i.init;
         }
         auto sz = rc.size();
-        auto s = gFramework.createSurface(sz, transparency, getColorkey());
+        auto s = new Surface(sz, transparency, getColorkey());
         s.copyFrom(this, Vector2i(0), rc.p1, sz);
         return s;
     }
@@ -898,12 +898,6 @@ class Framework {
     }
 
     //--- Surface handling
-
-    Surface createSurface(Vector2i size, Transparency transparency,
-        Color colorkey = Color(0))
-    {
-        return new Surface(size, transparency, colorkey);
-    }
 
     Surface loadImage(Stream st, Transparency t = Transparency.AutoDetect) {
         return mDriver.loadImage(st, t);

@@ -1,4 +1,4 @@
-module framework.openal;
+module framework.drivers.sound_openal;
 
 import derelict.openal.al;
 import derelict.openal.alut;

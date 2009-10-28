@@ -744,7 +744,7 @@ class LandscapeGenTheme {
             } else {
                 //sucky color-border hack
                 int height = texNode.getIntValue("height", 1);
-                tex = gFramework.createSurface(Vector2i(1, height),
+                tex = new Surface(Vector2i(1, height),
                     Transparency.None);
                 auto col = texNode.getValue("color", Color(0,0,0));
                 tex.fill(Rect2i(tex.size), col);

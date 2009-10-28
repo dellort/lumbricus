@@ -1,10 +1,8 @@
-module framework.sdl.sdldraw;
+module framework.drivers.draw_sdl;
 
-import derelict.opengl.gl;
-import derelict.opengl.glu;
 import derelict.sdl.sdl;
 import framework.framework;
-import framework.sdl.framework;
+import framework.drivers.base_sdl;
 import framework.sdl.sdl;
 import utils.vector2;
 import utils.drawing;

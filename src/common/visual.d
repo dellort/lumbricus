@@ -214,7 +214,7 @@ BoxTex getBox(BoxProperties props) {
         bool needAlpha = (props.back.a < (1.0f - Color.epsilon))
             || (sideFore.a < (1.0f - Color.epsilon));
 
-        auto surface = gFramework.createSurface(size,
+        auto surface = new Surface(size,
             needAlpha ? Transparency.Alpha : Transparency.None);
 
         Vector2i p1 = Vector2i(0), p2 = size;
@@ -321,7 +321,7 @@ BoxTex getBox(BoxProperties props) {
     }
 
     auto size = Vector2i(q)*2;
-    auto corners = gFramework.createSurface(size, Transparency.Alpha);
+    auto corners = new Surface(size, Transparency.Alpha);
     drawCorner(corners);
 
     //store struct with texture refs in hashmap

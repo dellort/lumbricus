@@ -427,7 +427,7 @@ class PainterWidget : Widget {
         mPaintScale = cast(float)drawSize.x/mLevelSize.x;
         if (mImage)
             mImage.free;
-        mImage = gFramework.createSurface(drawSize, Transparency.None, Color(0));
+        mImage = new Surface(drawSize, Transparency.None, Color(0));
         mLevelRect.p2 = mLevelSize;
         mScaledLevel = new Lexel[drawSize.x*drawSize.y];
 

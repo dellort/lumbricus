@@ -23,17 +23,17 @@ version = Game;
 version = LogExceptions;  //set to write exceptions into logfile, too
 
 //factory-imports (static ctors register stuff globally)
-import framework.sdl.framework;
+import framework.drivers.base_sdl;
 //import framework.sdl.soundmixer;
-import framework.openal;
-import framework.fontft;
+import framework.drivers.sound_openal;
+import framework.drivers.font_freetype;
 import framework.imgwrite;
-import framework.fwgl;
-import framework.sdl.sdldraw;
+import framework.drivers.draw_opengl;
+import framework.drivers.draw_sdl;
 
 //--> FMOD is not perfectly GPL compatible, so you may need to comment
 //    this line in some scenarios (this is all it needs to disable FMOD)
-import framework.fmod;
+import framework.drivers.sound_fmod;
 //<--
 
 

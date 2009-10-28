@@ -1,4 +1,4 @@
-module framework.fmodstreamfs;
+module framework.drivers.fmodstreamfs;
 
 //Some callback functions to connect D streams to FMOD file functions
 

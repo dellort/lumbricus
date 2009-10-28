@@ -1,5 +1,5 @@
 //libfreetype font driver
-module framework.fontft;
+module framework.drivers.font_freetype;
 
 import derelict.opengl.gl;
 import derelict.freetype.ft;
@@ -259,8 +259,7 @@ class FTGlyphCache {
 
     private SubSurface ftbitmapToTex(FT_Bitmap* bmp, Color color) {
         //create a surface for a glyph
-        Surface tmp = gFramework.createSurface(
-            Vector2i(bmp.width, bmp.rows),
+        Surface tmp = new Surface(Vector2i(bmp.width, bmp.rows),
             Transparency.Alpha);
 
         Color.RGBA32 forecol = color.toRGBA32();

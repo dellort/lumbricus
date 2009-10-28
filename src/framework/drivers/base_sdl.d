@@ -1,7 +1,5 @@
-module framework.sdl.framework;
+module framework.drivers.base_sdl;
 
-import derelict.opengl.gl;
-import derelict.opengl.glu;
 import derelict.sdl.sdl;
 import derelict.sdl.image;
 import framework.framework;
