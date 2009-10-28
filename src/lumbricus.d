@@ -29,6 +29,7 @@ import framework.openal;
 import framework.fontft;
 import framework.imgwrite;
 import framework.fwgl;
+import framework.sdl.sdldraw;
 
 //--> FMOD is not perfectly GPL compatible, so you may need to comment
 //    this line in some scenarios (this is all it needs to disable FMOD)
