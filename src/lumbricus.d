@@ -30,6 +30,9 @@ import framework.drivers.font_freetype;
 import framework.imgwrite;
 import framework.drivers.draw_opengl;
 import framework.drivers.draw_sdl;
+version(Windows) {
+    import framework.drivers.draw_directx;
+}
 
 //--> FMOD is not perfectly GPL compatible, so you may need to comment
 //    this line in some scenarios (this is all it needs to disable FMOD)

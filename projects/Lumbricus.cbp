@@ -61,6 +61,12 @@
 		<Unit filename="../src/common/task.d" />
 		<Unit filename="../src/common/toplevel.d" />
 		<Unit filename="../src/common/visual.d" />
+		<Unit filename="../src/derelict/directx/d3d9.d" />
+		<Unit filename="../src/derelict/directx/d3d9caps.d" />
+		<Unit filename="../src/derelict/directx/d3d9types.d" />
+		<Unit filename="../src/derelict/directx/d3dx9.d" />
+		<Unit filename="../src/derelict/directx/dxgi.d" />
+		<Unit filename="../src/derelict/directx/dxgitype.d" />
 		<Unit filename="../src/derelict/enet/enet.d" />
 		<Unit filename="../src/derelict/enet/enetfuncs.d" />
 		<Unit filename="../src/derelict/enet/enettypes.d" />
@@ -77,6 +83,7 @@
 		<Unit filename="../src/framework/commandline.d" />
 		<Unit filename="../src/framework/drawing.d" />
 		<Unit filename="../src/framework/drivers/base_sdl.d" />
+		<Unit filename="../src/framework/drivers/draw_directx.d" />
 		<Unit filename="../src/framework/drivers/draw_opengl.d" />
 		<Unit filename="../src/framework/drivers/draw_sdl.d" />
 		<Unit filename="../src/framework/drivers/fmodstreamfs.d" />

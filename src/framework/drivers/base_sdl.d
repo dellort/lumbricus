@@ -158,15 +158,6 @@ class SDLDriver : FrameworkDriver {
         }
         mSDLScreen = newscreen;
 
-        version(Windows) {
-            //get window handle (some draw drivers need this)
-            SDL_SysWMinfo wminfo;
-            SDL_GetWMInfo(&wminfo);
-            state.window_handle = wminfo.window;
-        }
-
-        mCurVideoState = state;
-
         return true;
     }
 
@@ -185,6 +176,16 @@ class SDLDriver : FrameworkDriver {
         bool res = true;
         if (tmp1 != tmp2 && tmp1.video_active) {
             res = switchVideoTo(state);
+        }
+        version(Windows) {
+            //get window handle (some draw drivers need this)
+            if (mSDLScreen) {
+                //only if a window was opened
+                SDL_SysWMinfo wminfo;
+                SDL_VERSION(&wminfo.ver);
+                assert(SDL_GetWMInfo(&wminfo) == 1);
+                state.window_handle = wminfo.window;
+            }
         }
         SDL_WM_SetCaption(toStringz(state.window_caption), null);
         mCurVideoState = state;
