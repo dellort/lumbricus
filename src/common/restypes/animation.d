@@ -205,7 +205,8 @@ class SubAnimation : Animation {
 class AnimationStrip : Animation {
     private {
         Surface mSurface;
-        Vector2i mFrameSize, mCenterOffset;
+        SubSurface[] mFrames;
+        Vector2i mCenterOffset;
     }
 
     //frameWidth is the x size (in pixels) of one animation frame,
@@ -217,11 +218,15 @@ class AnimationStrip : Animation {
         debug gResources.ls_stop("AnimationStrip:loadImage");
         if (frameWidth < 0)
             frameWidth = mSurface.size.y;
-        mFrameSize = Vector2i(frameWidth, mSurface.size.y);
+        auto frame_size = Vector2i(frameWidth, mSurface.size.y);
         auto framecount = mSurface.size.x / frameWidth;
-        mCenterOffset = -mFrameSize / 2;
+        mCenterOffset = -frame_size / 2;
         auto bounds = Rect2i(mCenterOffset, -mCenterOffset);
         doInit(framecount, bounds);
+        for (int i = 0; i < framecount; i++) {
+            mFrames ~= mSurface.createSubSurface(Rect2i.Span(
+                Vector2i(frame_size.x*i, 0), frame_size));
+        }
     }
 
     //(ignores the params p intentionally)
@@ -230,8 +235,7 @@ class AnimationStrip : Animation {
     {
         //no wrap-around
         assert(frameIdx < frameCount);
-        c.draw(mSurface, pos+mCenterOffset,
-            Vector2i(mFrameSize.x*frameIdx, 0), mFrameSize);
+        c.drawFast(mFrames[frameIdx], pos+mCenterOffset);
     }
 }
 

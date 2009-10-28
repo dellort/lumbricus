@@ -48,7 +48,12 @@ public class Canvas {
 
     /// possibly faster version of draw() (driver might override this method)
     /// right now, GL driver uses display lists for these
-    void drawFast(SubSurface source, Vector2i destPos, bool mirrorY = false) {
+    /// also, just for the SDL driver, only this function can apply "effects",
+    /// as in BitmapEffect
+    /// if effect is null, draw normally
+    void drawFast(SubSurface source, Vector2i destPos,
+        bool mirrorY = false)
+    {
         draw(source.surface, destPos, source.origin, source.size, mirrorY);
     }
 

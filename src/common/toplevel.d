@@ -325,9 +325,6 @@ private:
         globals.cmdLine.registerCommand("fw_debug", &cmdSetFWDebug,
             "Switch some debugging stuff in Framework on/off", ["bool:Value"]);
         +/
-        globals.cmdLine.registerCommand("fw_driver", &cmdSetFWDriver,
-            "Set framework driver", ["bool:OpenGL", "bool?=true:Caching",
-            "bool?=false:mark alpha"]);
 
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "-");
@@ -338,15 +335,6 @@ private:
 
     private void cmdShowFps(MyBox[] args, Output write) {
         mFPS.visible = args[0].unbox!(bool);
-    }
-
-    private void cmdSetFWDriver(MyBox[] args, Output write) {
-        ConfigNode n = new ConfigNode();
-        n["driver"] = "sdl";
-        n.setBoolValue("open_gl", args[0].unbox!(bool));
-        n.setBoolValue("enable_caching", args[1].unbox!(bool));
-        n.setBoolValue("mark_alpha", args[2].unbox!(bool));
-        gFramework.scheduleDriverReload(Framework.DriverReload(n));
     }
 
     private void cmdInfoString(MyBox[] args, Output write) {
@@ -878,8 +866,8 @@ class SwitchDriver : Task {
     //xxx added opengl hack, needs to be replaced
     char[][] configs = ["Enable OpenGL", "Enable sound (OpenAL)",
         "sdl.enable_caching", "sdl.mark_alpha", "sdl.rle",
-        "opengl.enable_caching", "opengl.mark_alpha", "opengl.wireframe",
-        "opengl.lowquality", "opengl.subsurfaces", "freetype.font_packer"];
+        "opengl.steal_data", "opengl.lowquality", "opengl.subsurfaces",
+        "opengl.batch_subtex", "freetype.font_packer"];
 
     Button[] mChks;
 

@@ -390,14 +390,12 @@ class SDLCanvas : Canvas {
         Vector2i mClientSize;
 
         SDL_Surface* mSurface;
-        SDLSurface mSDLSurface;
 
         SDLDrawDriver mDrawDriver;
     }
 
     void startScreenRendering() {
         assert(mStackTop == 0);
-        assert(!mSDLSurface);
         assert(mSurface is null);
 
         mTrans = Vector2i(0, 0);
@@ -572,11 +570,7 @@ class SDLCanvas : Canvas {
     }
 
     private uint toSDLColor(Color color) {
-        if (mSDLSurface) {
-            return mSDLSurface.colorToSDLColor(color);
-        } else {
-            return simpleColorToSDLColor(mSurface, color);
-        }
+        return simpleColorToSDLColor(mSurface, color);
     }
 
     //inefficient, wanted this for debugging
@@ -703,9 +697,10 @@ class SDLCanvas : Canvas {
             return;
         int alpha = cast(ubyte)(color.a*255);
         if (alpha == 0)
-            return; //xxx: correct?
+            return;
         if (alpha != 255) {
-            //quite insane insanity here!!!
+            //SDL doesn't do alpha blending with SDL_FillRect
+            //=> we create a solid colored surface with alpha, and blend this
             Texture s = mDrawDriver.insanityCache(color);
             assert(s !is null);
             drawTiled(s, p1, p2-p1);
@@ -739,8 +734,9 @@ class SDLCanvas : Canvas {
     }
 
     public void drawPercentRect(Vector2i p1, Vector2i p2, float perc, Color c) {
-        //this most likely looks stupid, but who cares
-        drawFilledRect(p1, Vector2i(p2.x, cast(int)(p2.y*perc)), c);
+        //doesn't look like the OpenGL one (draw_opengl.d), but does the job
+        drawFilledRect(Vector2i(p1.x,
+            p2.y - cast(int)((p2.y-p1.y)*perc)), p2, c);
     }
 
     public void clear(Color color) {

@@ -42,19 +42,17 @@ class GLDrawDriver : DrawDriver {
     private {
         Vector2i mScreenSize;
         GLCanvas mCanvas;
-        bool mEnableCaching;
-        bool mLowQuality, mMarkAlpha, mWireframe, mUseSubSurfaces;
+        bool mStealData, mLowQuality, mUseSubSurfaces, mBatchSubTex;
     }
 
     this(ConfigNode config) {
         DerelictGL.load();
         DerelictGLU.load();
 
-        mEnableCaching = config.getBoolValue("enable_caching", true);
-        mMarkAlpha = config.getBoolValue("mark_alpha", false);
+        mStealData = config.getBoolValue("steal_data", true);
         mLowQuality = config.getBoolValue("lowquality", false);
-        mWireframe = config.getBoolValue("wireframe", false);
         mUseSubSurfaces = config.getValue!(bool)("subsurfaces", true);
+        mBatchSubTex = config.getValue!(bool)("batch_subtex", false);
 
         mCanvas = new GLCanvas(this);
     }
@@ -100,8 +98,8 @@ class GLDrawDriver : DrawDriver {
     }
 
     override void destroy() {
-        DerelictGL.unload();
         DerelictGLU.unload();
+        DerelictGL.unload();
     }
 
     static this() {
@@ -109,7 +107,7 @@ class GLDrawDriver : DrawDriver {
     }
 }
 
-class GLSurface : DriverSurface {
+final class GLSurface : DriverSurface {
     const GLuint GLID_INVALID = 0;
 
     GLDrawDriver mDrawDriver;
@@ -123,6 +121,10 @@ class GLSurface : DriverSurface {
     //GL display lists for drawing sub surfaces
     //in sync with mData.subsurfaces / SubSurface.index()
     GLuint[] mSubSurfaces;
+
+    //for mBatchSubTex; region that needs to be updated
+    bool mIsDirty;
+    Rect2i mDirtyRect;
 
     //create from Framework's data
     this(GLDrawDriver draw_driver, SurfaceData data) {
@@ -204,7 +206,7 @@ class GLSurface : DriverSurface {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0,
                 GL_RGBA, GL_UNSIGNED_BYTE, &red);
         } else {
-            updateTexture(Rect2i(mData.size));
+            do_update(Rect2i(mData.size));
         }
 
         steal();
@@ -213,14 +215,20 @@ class GLSurface : DriverSurface {
         createSubSurfaces(mData.subsurfaces);
     }
 
-    //like updatePixels, but assumes texture is already bound (and does
-    //less error checking)
-    private void updateTexture(in Rect2i rc) {
+    private void do_update(Rect2i rc) {
+        //clip rc to the texture area
+        rc.fitInsideB(Rect2i(mData.size));
+
+        mIsDirty = false;
+
         if (rc.size.x <= 0 || rc.size.y <= 0)
             return;
 
         if (mError)
             return;  //texture failed to load and contains only 1 pixel
+
+        assert(mTexId != GLID_INVALID);
+        glBindTexture(GL_TEXTURE_2D, mTexId);
 
         Color.RGBA32* texData = mData.data.ptr;
         assert(!!texData);
@@ -242,15 +250,26 @@ class GLSurface : DriverSurface {
     }
 
     void updatePixels(in Rect2i rc) {
-        if (mError)
+        if (rc.size.x <= 0 || rc.size.y <= 0)
             return;
 
-        assert(mTexId != GLID_INVALID);
+        if (mDrawDriver.mBatchSubTex) {
+            //defer update to later when it's needed (on drawing)
+            if (!mIsDirty) {
+                mIsDirty = true;
+                mDirtyRect = rc;
+            }
+            mDirtyRect.extend(rc);
+        } else {
+            do_update(rc);
+        }
+    }
 
-        //clip rc to the texture area
-        rc.fitInsideB(Rect2i(mData.size));
-        glBindTexture(GL_TEXTURE_2D, mTexId);
-        updateTexture(rc);
+    //ensure all updatePixels() updates are applied
+    package void undirty() {
+        if (mIsDirty) {
+            do_update(mDirtyRect);
+        }
     }
 
     void steal() {
@@ -259,7 +278,7 @@ class GLSurface : DriverSurface {
 
         assert(mTexId != GLID_INVALID);
 
-        if (!(cStealSurfaceData && mDrawDriver.mEnableCaching))
+        if (!(cStealSurfaceData && mDrawDriver.mStealData))
             return;
 
         if (mData.data !is null && mData.canSteal()) {
@@ -312,6 +331,8 @@ class GLSurface : DriverSurface {
     }
 
     void prepareDraw() {
+        undirty();
+
         glEnable(GL_TEXTURE_2D);
 
         //activate blending for proper alpha display
@@ -328,6 +349,8 @@ class GLSurface : DriverSurface {
         }
 
         glBindTexture(GL_TEXTURE_2D, mTexId);
+
+        //
 
         checkGLError("prepareDraw", true);
     }
@@ -775,17 +798,6 @@ class GLCanvas : Canvas {
         checkGLError("drawRect", true);
     }
 
-    private void markAlpha(Vector2i p, Vector2i size) {
-        if (!mDrawDriver.mMarkAlpha)
-            return;
-        auto c = Color(0,1,0);
-        drawRect(p, p + size, c);
-        drawLine(p, p + size, c);
-        drawLine(p + size.Y, p + size.X, c);
-
-        checkGLError("markAlpha", true);
-    }
-
     public void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
         Color[2] c;
         c[0] = c[1] = color;
@@ -796,8 +808,7 @@ class GLCanvas : Canvas {
         if (p1.x >= p2.x || p1.y >= p2.y)
             return;
 
-        bool alpha = (c[0].hasAlpha() || c[1].hasAlpha());
-        if (alpha) {
+        if (c[0].hasAlpha() || c[1].hasAlpha()) {
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
@@ -815,9 +826,6 @@ class GLCanvas : Canvas {
         glColor3f(1.0f, 1.0f, 1.0f);
 
         checkGLError("doDrawRect", true);
-
-        if (alpha)
-            markAlpha(p1, p2-p1);
     }
 
     public void drawVGradient(Rect2i rc, Color c1, Color c2) {
@@ -834,8 +842,7 @@ class GLCanvas : Canvas {
         if (perc < float.epsilon)
             return;
 
-        bool alpha = c.hasAlpha();
-        if (alpha) {
+        if (c.hasAlpha()) {
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
@@ -876,9 +883,6 @@ class GLCanvas : Canvas {
         glColor3f(1.0f, 1.0f, 1.0f);
 
         checkGLError("drawClockRect", true);
-
-        if (alpha)
-            markAlpha(p1, p2-p1);
     }
 
     public void draw(Texture source, Vector2i destPos,
@@ -892,13 +896,20 @@ class GLCanvas : Canvas {
     override void drawFast(SubSurface source, Vector2i destPos,
         bool mirrorY = false)
     {
-        GLSurface glsurf = cast(GLSurface)source.surface.getDriverSurface();
-
-        if (!glsurf.mSubSurfaces.length) {
+        if (!mDrawDriver.mUseSubSurfaces) {
             //disabled; normal code path
             super.drawFast(source, destPos, mirrorY);
             return;
         }
+
+        //on my nvidia card, this brings a slight speed up
+        //and nvidia is known for having _good_ opengl drivers
+        if (!mVisibleArea.intersects(destPos, destPos + source.size))
+            return;
+
+        GLSurface glsurf = cast(GLSurface)source.surface.getDriverSurface();
+
+        glsurf.undirty();
 
         glTranslatef(destPos.x, destPos.y, 0.0f);
         if (mirrorY) {
@@ -927,13 +938,6 @@ class GLCanvas : Canvas {
         //clipping, discard anything that would be invisible anyway
         if (!mVisibleArea.intersects(destPos, destPos + destSize))
             return;
-
-        if (mDrawDriver.mWireframe) {
-            //wireframe mode
-            drawRect(destPos, destPos+destSize, Color(1,1,1));
-            drawLine(destPos, destPos+destSize, Color(1,1,1));
-            return;
-        }
 
         assert(source !is null);
         GLSurface glsurf = cast(GLSurface)source.getDriverSurface();
@@ -989,16 +993,9 @@ class GLCanvas : Canvas {
             }
         }
 
-        GLboolean isalpha;
-        if (mDrawDriver.mMarkAlpha)
-            glGetBooleanv(GL_BLEND, &isalpha);
-
         glsurf.endDraw();
 
         checkGLError("draw texture - end", true);
-
-        if (isalpha)
-            markAlpha(destPos, sourceSize);
     }
 
     public void drawQuad(Surface source, Vertex2i[4] quad) {
