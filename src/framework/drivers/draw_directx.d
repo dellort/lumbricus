@@ -16,6 +16,18 @@ struct TLVERTEX {
     float rhw = 1.0f;    //1 to use screen coordinates
     D3DCOLOR color;
     Vector2f t;
+
+    static TLVERTEX opCall(Vector2i p, Color col, Vector2f t) {
+        TLVERTEX ret;
+        ret.p = toVector2f(p);
+        ret.color = D3DCOLOR_FLOAT(col);
+        ret.t = t;
+        return ret;
+    }
+
+    static TLVERTEX opCall(Vector2i p, Vector2f t) {
+        return opCall(p, Color(1), t);
+    }
 }
 
 D3DCOLOR D3DCOLOR_FLOAT(Color c) {
@@ -104,21 +116,45 @@ class DXDrawDriver : DrawDriver {
 class DXSurface : DriverSurface {
     DXDrawDriver mDrawDriver;
     SurfaceData mData;
+    IDirect3DTexture9 mTex;
 
     this(DXDrawDriver draw_driver, SurfaceData data) {
         mDrawDriver = draw_driver;
         mData = data;
         assert(data.data !is null);
         //reinit();
+        mDrawDriver.d3dDevice.CreateTexture(mData.size.x, mData.size.y, 1, D3DUSAGE_DYNAMIC,
+            D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &mTex, null);
+        updatePixels(Rect2i(mData.size));
     }
 
     override void getPixelData() {
     }
 
     override void updatePixels(in Rect2i rc) {
+        rc.fitInsideB(Rect2i(mData.size));
+        if (rc.size.x < 0 || rc.size.y < 0)
+            return;
+        RECT rc2;
+        rc2.left = rc.p1.x;
+        rc2.top = rc.p1.y;
+        rc2.right = rc.p2.x;
+        rc2.bottom = rc.p2.y;
+        D3DLOCKED_RECT lrc;
+        assert(!FAILED(mTex.LockRect(0, &lrc, &rc2, 0)));
+        for (int y = rc.p1.y; y < rc.p2.y; y++) {
+            Color.RGBA32* psrc = &mData.data[y*mData.pitch + rc.p1.x];
+            Color.RGBA32* pdest = cast(Color.RGBA32*)(lrc.pBits + lrc.Pitch * y);
+            size_t s = rc.size.x;
+            pdest[0..s] = psrc[0..s];
+        }
+        mTex.UnlockRect(0);
     }
 
     override void kill() {
+        assert(!!mTex);
+        mTex.Release();
+        mTex = null;
     }
 
     override void getInfos(out char[] desc, out uint extra_data) {
@@ -191,7 +227,27 @@ class DXCanvas : Canvas {
     }
 
     override void draw(Texture source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i sourceSize, bool mirrorY = false) {
+        Vector2i sourcePos, Vector2i sourceSize, bool mirrorY = false)
+    {
+        auto tex = cast(DXSurface)source.getDriverSurface();
+        Vector2i p1 = destPos;
+        Vector2i p2 = destPos + sourceSize;
+        Vector2f t1, t2;
+
+        //select the right part of the texture (in 0.0-1.0 coordinates)
+        t1.x = cast(float)sourcePos.x / tex.mData.size.x;
+        t1.y = cast(float)sourcePos.y / tex.mData.size.y;
+        t2.x = cast(float)(sourcePos.x+sourceSize.x) / tex.mData.size.x;
+        t2.y = cast(float)(sourcePos.y+sourceSize.y) / tex.mData.size.y;
+
+        TLVERTEX[4] v;
+        v[0] = TLVERTEX(Vector2i(p1.x, p2.y), Vector2f(t1.x, t2.y));
+        v[1] = TLVERTEX(Vector2i(p1.x, p1.y), Vector2f(t1.x, t1.y));
+        v[2] = TLVERTEX(Vector2i(p2.x, p2.y), Vector2f(t2.x, t2.y));
+        v[3] = TLVERTEX(Vector2i(p2.x, p1.y), Vector2f(t2.x, t1.y));
+
+        d3dDevice.SetTexture(0, tex.mTex);
+        d3dDevice.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v.ptr, TLVERTEX.sizeof);
     }
 
     override void drawCircle(Vector2i center, int radius, Color color) {

@@ -140,14 +140,18 @@ final class GLSurface : DriverSurface {
             glDeleteTextures(1, &mTexId);
             mTexId = GLID_INVALID;
         }
-        foreach (GLuint s; mSubSurfaces) {
-            glDeleteLists(s, 1);
-        }
-        mSubSurfaces = null;
+        freeSubsurfaces();
         mError = false;
         if (mData) {
             assert(mData.data !is null);
         }
+    }
+
+    private void freeSubsurfaces() {
+        foreach (GLuint s; mSubSurfaces) {
+            glDeleteLists(s, 1);
+        }
+        mSubSurfaces = null;
     }
 
     override void kill() {
@@ -247,6 +251,11 @@ final class GLSurface : DriverSurface {
         glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
 
         checkGLError("update texture", true);
+
+        if (mDrawDriver.mBatchSubTex) {
+            freeSubsurfaces();
+            createSubSurfaces(mData.subsurfaces);
+        }
     }
 
     void updatePixels(in Rect2i rc) {
