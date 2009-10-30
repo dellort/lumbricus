@@ -865,7 +865,7 @@ import gui.scrollbar;
 class SwitchDriver : Task {
     //xxx added opengl hack, needs to be replaced
     char[][] configs = ["Enable OpenGL", "Enable sound (OpenAL)",
-        "sdl.enable_caching", "sdl.mark_alpha", "sdl.rle",
+        "sdl.enable_conversion", "sdl.mark_alpha", "sdl.rle",
         "opengl.steal_data", "opengl.lowquality", "opengl.subsurfaces",
         "opengl.batch_subtex", "freetype.font_packer"];
 

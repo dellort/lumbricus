@@ -24,7 +24,7 @@ class SDLDrawDriver : DrawDriver {
         SDL_Surface* mSDLScreen;
         //convert stuff to display format if it isn't already
         //+ mark all alpha surfaces drawn on the screen
-        bool mRLE, mMarkAlpha, mEnableCaching;
+        bool mRLE, mMarkAlpha, mEnableConversion;
         //cache for being able to draw alpha blended filled rects without OpenGL
         Surface[uint] mInsanityCache;
     }
@@ -32,7 +32,7 @@ class SDLDrawDriver : DrawDriver {
     this(ConfigNode config) {
         mRLE = config.getBoolValue("rle", true);
         mMarkAlpha = config.getBoolValue("mark_alpha", false);
-        mEnableCaching = config.getBoolValue("enable_caching", true);
+        mEnableConversion = config.getBoolValue("enable_conversion", true);
 
         get_screen();
 
@@ -123,8 +123,6 @@ final class SDLSurface : DriverSurface {
     SDL_Surface* mSurfaceRGBA32;
     SDL_Surface* mSurfaceConverted;
 
-    //cache
-    //SDLSurface mMirroredY; //full surface mirrored along y-axis
     SubCache[] mCache; //array is in sync to SurfaceData.subsurfaces[]
     struct SubCache {
         //not using an AA because AAs waste memory like hell
@@ -279,7 +277,7 @@ final class SDLSurface : DriverSurface {
     }
 
     private bool allow_conversion() {
-        return mData.enable_cache && mDrawDriver.mEnableCaching;
+        return mData.enable_cache && mDrawDriver.mEnableConversion;
     }
 
     //create a sub-surface; mostly needed because rotozoom and

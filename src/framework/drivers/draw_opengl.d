@@ -389,16 +389,14 @@ final class GLSurface : DriverSurface {
                 assert(false); //shouldn't happen; must have generated GL error
             }
             glNewList(nid, GL_COMPILE);
-                prepareDraw();
-                simpleDraw(s.origin, Vector2i(0), s.size);
-                endDraw();
+                simpleDraw(Vector2i(0), s.origin, s.size);
             glEndList();
             mSubSurfaces[s.index] = nid;
         }
     }
 
-    final void simpleDraw(Vector2i sourceP, Vector2i destP,
-        Vector2i destS, bool mirrorY = false)
+    final void simpleDraw(Vector2i destP, Vector2i sourceP, Vector2i destS,
+        bool mirrorY = false)
     {
         Vector2i p1 = destP;
         Vector2i p2 = destP + destS;
@@ -409,6 +407,10 @@ final class GLSurface : DriverSurface {
         t1.y = cast(float)sourceP.y / mTexSize.y;
         t2.x = cast(float)(sourceP.x+destS.x) / mTexSize.x;
         t2.y = cast(float)(sourceP.y+destS.y) / mTexSize.y;
+
+        checkGLError("before draw");
+
+        prepareDraw();
 
         //draw textured rect
         glBegin(GL_QUADS);
@@ -426,6 +428,10 @@ final class GLSurface : DriverSurface {
         }
 
         glEnd();
+
+        endDraw();
+
+        checkGLError("after draw");
     }
 
 
@@ -587,19 +593,13 @@ class GLCanvas : Canvas3DHelper {
         }
     }
 
-    public void draw(Texture source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i sourceSize)
-    {
-        drawTextureInt(source, sourcePos, sourceSize, destPos, sourceSize);
-    }
-
     override void drawFast(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null)
     {
         if (!mDrawDriver.mUseSubSurfaces) {
             //disabled; normal code path
-            drawTextureInt(source.surface, source.origin, source.size, destPos,
-                source.size, effect ? effect.mirrorY : false);
+            drawTextureInt(source.surface, destPos, source.origin, source.size,
+                effect ? effect.mirrorY : false);
             return;
         }
 
@@ -634,79 +634,50 @@ class GLCanvas : Canvas3DHelper {
         }
     }
 
-    public void drawTiled(Texture source, Vector2i destPos, Vector2i destSize) {
-        drawTextureInt(source, Vector2i(0,0), source.size, destPos, destSize);
-    }
-
-    //this will draw the texture source tiled in the destination area
-    //optimized if no tiling needed or tiling can be done by OpenGL
-    //tiling only works for the above case (i.e. when using the whole texture)
-    private void drawTextureInt(Texture source, Vector2i sourcePos,
-        Vector2i sourceSize, Vector2i destPos, Vector2i destSize,
-        bool mirrorY = false)
+    override void drawTiled(Surface source, Vector2i destPos, Vector2i destSize)
     {
-        //clipping, discard anything that would be invisible anyway
-        if (!visibleArea.intersects(destPos, destPos + destSize))
-            return;
-
-        assert(source !is null);
         GLSurface glsurf = cast(GLSurface)source.getDriverSurface();
-        assert(glsurf !is null);
-
-        //glPushAttrib(GL_ENABLE_BIT);
-        checkGLError("draw texture - begin", true);
-        glsurf.prepareDraw();
-
 
         //tiling can be done by OpenGL if texture space is fully used
         bool glTilex = glsurf.mTexMax.x == 1.0f;
         bool glTiley = glsurf.mTexMax.y == 1.0f;
 
         //check if either no tiling is needed, or it can be done entirely by GL
-        bool noTileSpecial = (glTilex || destSize.x <= sourceSize.x)
-            && (glTiley || destSize.y <= sourceSize.y);
+        bool noTileSpecial = (glTilex || destSize.x <= source.size.x)
+            && (glTiley || destSize.y <= source.size.y);
 
         if (noTileSpecial) {
             //pure OpenGL drawing (and tiling)
-            glsurf.simpleDraw(sourcePos, destPos, destSize, mirrorY);
+            //because we want it super-efficient
+            //I wonder if it really is, I bet OpenGL is not good at clipping
+            //  down very big polygons
+            drawTextureInt(source, destPos, Vector2i(0), destSize);
         } else {
-            //manual tiling code, partially using OpenGL tiling if possible
-            //xxx sorry for code duplication, but the differences seemed too big
-            int w = glTilex?destSize.x:sourceSize.x;
-            int h = glTiley?destSize.y:sourceSize.y;
-            int x;
-            Vector2i tmp;
-
-            auto varea = visibleArea();
-
-            int y = 0;
-            while (y < destSize.y) {
-                tmp.y = destPos.y + y;
-                int resty = ((y+h) < destSize.y) ? h : destSize.y - y;
-                //check visibility (y coordinate)
-                if (tmp.y + resty > varea.p1.y
-                    && tmp.y < varea.p2.y)
-                {
-                    x = 0;
-                    while (x < destSize.x) {
-                        tmp.x = destPos.x + x;
-                        int restx = ((x+w) < destSize.x) ? w : destSize.x - x;
-                        //visibility check for x coordinate
-                        if (tmp.x + restx > varea.p1.x
-                            && tmp.x < varea.p2.x)
-                        {
-                            glsurf.simpleDraw(Vector2i(0, 0), tmp,
-                                Vector2i(restx, resty), mirrorY);
-                        }
-                        x += restx;
-                    }
-                }
-                y += resty;
-            }
+            super.drawTiled(source, destPos, destSize);
         }
+    }
 
-        glsurf.endDraw();
+    override void draw(Surface source, Vector2i destPos,
+        Vector2i sourcePos, Vector2i sourceSize)
+    {
+        debug {
+            sourceSize = source.size.min(sourceSize);
+            sourcePos = source.size.min(sourcePos);
+        }
+        drawTextureInt(source, destPos, sourcePos, sourceSize);
+    }
 
-        checkGLError("draw texture - end", true);
+    //this will draw the texture source tiled in the destination area
+    //optimized if no tiling needed or tiling can be done by OpenGL
+    //tiling only works for the above case (i.e. when using the whole texture)
+    private void drawTextureInt(Surface source, Vector2i destPos,
+        Vector2i sourcePos, Vector2i destSize, bool mirrorY = false)
+    {
+        //clipping, discard anything that would be invisible anyway
+        if (!visibleArea.intersects(destPos, destPos + destSize))
+            return;
+
+        GLSurface glsurf = cast(GLSurface)source.getDriverSurface();
+        glsurf.simpleDraw(destPos, sourcePos, destSize, mirrorY);
     }
 }

@@ -257,26 +257,40 @@ public class Canvas {
     /// Fill the area (destPos, destPos+destSize) with source, tiled on wrap
     //will be specialized in OpenGL
     public void drawTiled(Texture source, Vector2i destPos, Vector2i destSize) {
+        if (!visibleArea.intersects(destPos, destPos + destSize))
+            return;
+
         int w = source.size.x1;
         int h = source.size.x2;
         int x;
         Vector2i tmp;
 
-        if (w == 0 || h == 0)
+        if (w <= 0 || h <= 0)
             return;
 
         int y = 0;
         while (y < destSize.y) {
             tmp.y = destPos.y + y;
-            int resty = ((y+h) < destSize.y) ? h : destSize.y - y;
-            x = 0;
-            while (x < destSize.x) {
-                tmp.x = destPos.x + x;
-                int restx = ((x+w) < destSize.x) ? w : destSize.x - x;
-                draw(source, tmp, Vector2i(0, 0), Vector2i(restx, resty));
-                x += restx;
+            Vector2i rest;
+            rest.y = ((y+h) < destSize.y) ? h : destSize.y - y;
+            //check visibility (y coordinate)
+            if (tmp.y + rest.y > mVisibleArea.p1.y
+                && tmp.y < mVisibleArea.p2.y)
+            {
+                x = 0;
+                while (x < destSize.x) {
+                    tmp.x = destPos.x + x;
+                    rest.x = ((x+w) < destSize.x) ? w : destSize.x - x;
+                    //visibility check for x coordinate
+                    if (tmp.x + rest.x > mVisibleArea.p1.x
+                        && tmp.x < mVisibleArea.p2.x)
+                    {
+                        draw(source, tmp, Vector2i(0), rest);
+                    }
+                    x += rest.x;
+                }
             }
-            y += resty;
+            y += rest.y;
         }
     }
 
