@@ -14,30 +14,65 @@ struct Vertex2i {
     Vector2i t;
 }
 
-/// Draw stuffies!
+/// For drawing; the driver inherits his own class from this and overrides the
+/// abstract methods.
 public class Canvas {
+    const int MAX_STACK = 30;
+
+    private {
+        struct State {
+            Rect2i clip;                    //clip rectangle, screen coords
+            Vector2i translate;             //_global_ translation offset
+            Vector2i clientsize;            //scaled size of what's visible
+            Vector2f scale = {1.0f, 1.0f};  //global scale factor
+        }
+
+        State[MAX_STACK] mStack;
+        uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
+        Rect2i mParentArea;                 //I don't know what this is
+        Rect2i mVisibleArea;                //visible area in local canvas coords
+    }
+
+    ///basic per-frame setup, called by driver
+    protected final void initFrame(Vector2i screen_size) {
+        assert(mStackTop == 0);
+        mStack[0].clientsize = screen_size;
+        mStack[0].clip.p2 = mStack[0].clientsize;
+    }
+
+    ///reverse of initFrame; also called by driver
+    protected final void uninitFrame() {
+        assert(mStackTop == 0);
+    }
+
     //see FrameworkDriver.getFeatures()
     public abstract int features();
 
     /// Normally the screen size
-    public abstract Vector2i realSize();
+    final Vector2i realSize() {
+        return mStack[0].clientsize;
+    }
+
     /// Size of the drawable area (not the visible area)
-    public abstract Vector2i clientSize();
+    final Vector2i clientSize() {
+        return mStack[mStackTop].clientsize;
+    }
 
     /// The drawable area of the parent canvas in client coords
     /// (no visibility clipping)
     //xxx I don't know if this makes any sense
-    public abstract Rect2i parentArea();
+    final Rect2i parentArea() {
+        return mParentArea;
+    }
 
     /// The rectangle in client coords which is visible
     /// (right/bottom borders exclusive; with clipping)
-    public abstract Rect2i visibleArea();
+    final Rect2i visibleArea() {
+        return mVisibleArea;
+    }
 
     /// Return true if any part of this rectangle is visible
     //public abstract bool isVisible(in Vector2i p1, in Vector2i p2);
-
-    //must be called after drawing done
-    public abstract void endDraw();
 
     public void draw(Texture source, Vector2i destPos) {
         draw(source, destPos, Vector2i(0, 0), source.size);
@@ -90,22 +125,106 @@ public class Canvas {
     public abstract void drawPercentRect(Vector2i p1, Vector2i p2, float perc,
         Color c);
 
+    /// clear visible area (xxx: I hope, recheck drivers)
     public abstract void clear(Color color);
 
+    //updates parentArea / visibleArea after translating/clipping/scaling
+    private void updateAreas() {
+        if (mStackTop > 0) {
+            mParentArea.p1 =
+                -mStack[mStackTop].translate + mStack[mStackTop - 1].translate;
+            mParentArea.p1 =
+                toVector2i(toVector2f(mParentArea.p1) /mStack[mStackTop].scale);
+            mParentArea.p2 = mParentArea.p1 + mStack[mStackTop - 1].clientsize;
+        } else {
+            mParentArea.p1 = mParentArea.p2 = Vector2i(0);
+        }
+
+        mVisibleArea = mStack[mStackTop].clip - mStack[mStackTop].translate;
+        mVisibleArea.p1 =
+            toVector2i(toVector2f(mVisibleArea.p1) / mStack[mStackTop].scale);
+        mVisibleArea.p2 =
+            toVector2i(toVector2f(mVisibleArea.p2) / mStack[mStackTop].scale);
+    }
+
     /// Set a clipping rect, and use p1 as origin (0, 0)
-    public abstract void setWindow(Vector2i p1, Vector2i p2);
+    final void setWindow(Vector2i p1, Vector2i p2) {
+        clip(p1, p2);
+        translate(p1);
+        mStack[mStackTop].clientsize = p2 - p1;
+        updateAreas();
+    }
+
     /// Add translation offset, by which all coordinates are translated
-    public abstract void translate(Vector2i offset);
+    final void translate(Vector2i offset) {
+        mStack[mStackTop].translate += toVector2i(toVector2f(offset)
+            ^ mStack[mStackTop].scale);
+        updateAreas();
+        updateTranslate(offset);
+    }
+
+    //this is called from translate(); drivers can override it
+    //but actually, the new translation offset is in mStack[mStackTop].translate
+    //popState() also calls thus to reset the translation (that's redundant for
+    //  the OpenGL driver, but needed by the SDL one)
+    protected void updateTranslate(Vector2i offset) {
+    }
+
+    //set the clip rectangle (screen coordinates)
+    protected abstract void updateClip(Vector2i p1, Vector2i p2);
+
+    //set the current scale factor
+    //if the driver doesn't support scaling, this is never called
+    protected void updateScale(Vector2f scale) {
+    }
+
     /// Set the cliprect (doesn't change "window" or so).
-    public abstract void clip(Vector2i p1, Vector2i p2);
+    final void clip(Vector2i p1, Vector2i p2) {
+        p1 = toVector2i(toVector2f(p1) ^ mStack[mStackTop].scale);
+        p2 = toVector2i(toVector2f(p2) ^ mStack[mStackTop].scale);
+        p1 += mStack[mStackTop].translate;
+        p2 += mStack[mStackTop].translate;
+        p1 = mStack[mStackTop].clip.clip(p1);
+        p2 = mStack[mStackTop].clip.clip(p2);
+        mStack[mStackTop].clip = Rect2i(p1, p2);
+        updateAreas();
+        updateClip(p1, p2);
+    }
+
     /// Set the factor by which all drawing will be scaled
     /// (also affects clientSize) for the current state
     /// Scale factor multiplies, absolutely and even per-state (opengl logic...)
-    public abstract void setScale(Vector2f sc);
+    final void setScale(Vector2f sc) {
+        if (!(features() & DriverFeatures.canvasScaling))
+            return;
+        updateScale(sc);
+        mStack[mStackTop].clientsize =
+            toVector2i(toVector2f(mStack[mStackTop].clientsize) / sc);
+        mStack[mStackTop].scale = mStack[mStackTop].scale ^ sc;
+        updateAreas();
+    }
 
-    /// push/pop state as set by setWindow() and translate()
-    public abstract void pushState();
-    public abstract void popState();
+    /// push/pop state as set by most of the functions
+    void pushState() {
+        assert(mStackTop < MAX_STACK, "canvas stack overflow");
+
+        mStack[mStackTop+1] = mStack[mStackTop];
+        mStackTop++;
+        updateAreas();
+    }
+
+    void popState() {
+        assert(mStackTop > 0, "canvas stack underflow (incorrect nesting?)");
+
+        Vector2i oldtrans = mStack[mStackTop].translate;
+
+        mStackTop--;
+        updateClip(mStack[mStackTop].clip.p1, mStack[mStackTop].clip.p2);
+        updateAreas();
+
+        //this silliness is just for the SDL driver
+        updateTranslate(mStack[mStackTop].translate - oldtrans);
+    }
 
     //NOTE: the quad parameter is already by ref (one of the most stupied Disms)
     public abstract void drawQuad(Surface tex, Vertex2i[4] quad);

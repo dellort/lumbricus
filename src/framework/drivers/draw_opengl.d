@@ -251,11 +251,6 @@ final class GLSurface : DriverSurface {
         glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
 
         checkGLError("update texture", true);
-
-        if (mDrawDriver.mBatchSubTex) {
-            freeSubsurfaces();
-            createSubSurfaces(mData.subsurfaces);
-        }
     }
 
     void updatePixels(in Rect2i rc) {
@@ -442,21 +437,7 @@ final class GLSurface : DriverSurface {
 }
 
 class GLCanvas : Canvas {
-    const int MAX_STACK = 30;
-
     private {
-        struct State {
-            bool enableClip;
-            Rect2i clip;
-            Vector2i translate;
-            Vector2i clientsize;
-            Vector2f scale = {1.0f, 1.0f};
-        }
-
-        State[MAX_STACK] mStack;
-        uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
-        Rect2i mParentArea, mVisibleArea;
-
         GLDrawDriver mDrawDriver;
     }
 
@@ -465,9 +446,7 @@ class GLCanvas : Canvas {
     }
 
     void startScreenRendering() {
-        mStack[0].clientsize = mDrawDriver.mScreenSize;
-        mStack[0].clip.p2 = mStack[0].clientsize;
-        mStack[0].enableClip = false;
+        initFrame(mDrawDriver.mScreenSize);
 
         initGLViewport();
 
@@ -475,20 +454,12 @@ class GLCanvas : Canvas {
 
         checkGLError("start rendering", true);
 
-        startDraw();
+        pushState();
     }
 
     void stopScreenRendering() {
-        endDraw();
-    }
-
-    package void startDraw() {
-        assert(mStackTop == 0);
-        pushState();
-    }
-    public void endDraw() {
         popState();
-        assert(mStackTop == 0);
+        uninitFrame();
     }
 
     public int features() {
@@ -497,17 +468,19 @@ class GLCanvas : Canvas {
     }
 
     private void initGLViewport() {
-        glViewport(0, 0, mStack[0].clientsize.x, mStack[0].clientsize.y);
+        auto scrsize = mDrawDriver.mScreenSize;
+
+        glViewport(0, 0, scrsize.x, scrsize.y);
 
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         //standard top-zero coordinates
-        glOrtho(0, mStack[0].clientsize.x, 0, mStack[0].clientsize.y, 0, 128);
+        glOrtho(0, scrsize.x, 0, scrsize.y, 0, 128);
 
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         glScalef(1, -1, 1);
-        glTranslatef(0, -mStack[0].clientsize.y, 0);
+        glTranslatef(0, -scrsize.y, 0);
         //glTranslatef(0, 1, 0);
 
         glDisable(GL_SCISSOR_TEST);
@@ -527,122 +500,45 @@ class GLCanvas : Canvas {
         checkGLError("initGLViewport", true);
     }
 
-    //screen size
-    public Vector2i realSize() {
-        return mStack[0].clientsize;
-    }
-    //drawable size
-    public Vector2i clientSize() {
-        return mStack[mStackTop].clientsize;
-    }
-
-    //area of the parent window, in current client coords
-    public Rect2i parentArea() {
-        return mParentArea;
-    }
-
-    //what is shown on the screen (in client coords)
-    public Rect2i visibleArea() {
-        return mVisibleArea;
-    }
-
-    //updates parentArea / visibleArea after translating/clipping/scaling
-    private void updateAreas() {
-        if (mStackTop > 0) {
-            mParentArea.p1 =
-                -mStack[mStackTop].translate + mStack[mStackTop - 1].translate;
-            mParentArea.p1 =
-                toVector2i(toVector2f(mParentArea.p1) /mStack[mStackTop].scale);
-            mParentArea.p2 = mParentArea.p1 + mStack[mStackTop - 1].clientsize;
-        } else {
-            mParentArea.p1 = mParentArea.p2 = Vector2i(0);
-        }
-
-        mVisibleArea = mStack[mStackTop].clip - mStack[mStackTop].translate;
-        mVisibleArea.p1 =
-            toVector2i(toVector2f(mVisibleArea.p1) / mStack[mStackTop].scale);
-        mVisibleArea.p2 =
-            toVector2i(toVector2f(mVisibleArea.p2) / mStack[mStackTop].scale);
-    }
-
-    public void translate(Vector2i offset) {
+    override void updateTranslate(Vector2i offset) {
         glTranslatef(cast(float)offset.x, cast(float)offset.y, 0);
         checkGLError("glTranslatef", true);
-        mStack[mStackTop].translate += toVector2i(toVector2f(offset)
-            ^ mStack[mStackTop].scale);
-        updateAreas();
     }
-    public void setWindow(Vector2i p1, Vector2i p2) {
-        clip(p1, p2);
-        translate(p1);
-        mStack[mStackTop].clientsize = p2 - p1;
-        updateAreas();
-    }
-    public void clip(Vector2i p1, Vector2i p2) {
-        p1 = toVector2i(toVector2f(p1) ^ mStack[mStackTop].scale);
-        p2 = toVector2i(toVector2f(p2) ^ mStack[mStackTop].scale);
-        p1 += mStack[mStackTop].translate;
-        p2 += mStack[mStackTop].translate;
-        p1 = mStack[mStackTop].clip.clip(p1);
-        p2 = mStack[mStackTop].clip.clip(p2);
-        mStack[mStackTop].clip = Rect2i(p1, p2);
-        doClip(p1, p2);
-        updateAreas();
-    }
-    private void doClip(Vector2i p1, Vector2i p2) {
-        mStack[mStackTop].enableClip = true;
+
+    override void updateClip(Vector2i p1, Vector2i p2) {
         glEnable(GL_SCISSOR_TEST);
         //negative w/h values generate GL errors
         auto sz = (p2 - p1).max(Vector2i(0));
         glScissor(p1.x, realSize.y-p2.y, sz.x, sz.y);
         checkGLError("doClip", true);
     }
-    public void setScale(Vector2f z) {
+
+    override void updateScale(Vector2f z) {
         glScalef(z.x, z.y, 1);
         checkGLError("glScalef", true);
-        mStack[mStackTop].clientsize =
-            toVector2i(toVector2f(mStack[mStackTop].clientsize) / z);
-        mStack[mStackTop].scale = mStack[mStackTop].scale ^ z;
-        updateAreas();
     }
 
-    public void pushState() {
-        assert(mStackTop < MAX_STACK);
+    override void pushState() {
+        super.pushState();
 
         checkGLError("before pushState", true);
-
         glPushMatrix();
-        mStack[mStackTop+1] = mStack[mStackTop];
-        mStackTop++;
-        updateAreas();
-
         checkGLError("pushState", true);
     }
-    public void popState() {
-        assert(mStackTop > 0);
+    override void popState() {
+        //this will call updateClip(), which calls glScissor
+        //that is before glPopMatrix(); but glScissor uses window coordinates
+        super.popState();
 
         checkGLError("before popState", true);
-
         glPopMatrix();
-        mStackTop--;
-        if (mStack[mStackTop].enableClip) {
-            doClip(mStack[mStackTop].clip.p1, mStack[mStackTop].clip.p2);
-        } else {
-            glDisable(GL_SCISSOR_TEST);
-            checkGLError("glDisable(GL_SCISSOR_TEST)", true);
-        }
-        updateAreas();
-
         checkGLError("popState", true);
     }
 
     public void clear(Color color) {
-        if (mStackTop == 0) {
-            glClearColor(color.r, color.g, color.b, color.a);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        } else {
-            drawFilledRect(Vector2i(0,0), clientSize, color);
-        }
+        //NOTE: glClear respects the scissor test (glScissor)
+        glClearColor(color.r, color.g, color.b, color.a);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         checkGLError("clear", true);
     }
@@ -913,7 +809,7 @@ class GLCanvas : Canvas {
 
         //on my nvidia card, this brings a slight speed up
         //and nvidia is known for having _good_ opengl drivers
-        if (!mVisibleArea.intersects(destPos, destPos + source.size))
+        if (!visibleArea.intersects(destPos, destPos + source.size))
             return;
 
         GLSurface glsurf = cast(GLSurface)source.surface.getDriverSurface();
@@ -945,7 +841,7 @@ class GLCanvas : Canvas {
         bool mirrorY = false)
     {
         //clipping, discard anything that would be invisible anyway
-        if (!mVisibleArea.intersects(destPos, destPos + destSize))
+        if (!visibleArea.intersects(destPos, destPos + destSize))
             return;
 
         assert(source !is null);
@@ -976,21 +872,23 @@ class GLCanvas : Canvas {
             int x;
             Vector2i tmp;
 
+            auto varea = visibleArea();
+
             int y = 0;
             while (y < destSize.y) {
                 tmp.y = destPos.y + y;
                 int resty = ((y+h) < destSize.y) ? h : destSize.y - y;
                 //check visibility (y coordinate)
-                if (tmp.y + resty > mVisibleArea.p1.y
-                    && tmp.y < mVisibleArea.p2.y)
+                if (tmp.y + resty > varea.p1.y
+                    && tmp.y < varea.p2.y)
                 {
                     x = 0;
                     while (x < destSize.x) {
                         tmp.x = destPos.x + x;
                         int restx = ((x+w) < destSize.x) ? w : destSize.x - x;
                         //visibility check for x coordinate
-                        if (tmp.x + restx > mVisibleArea.p1.x
-                            && tmp.x < mVisibleArea.p2.x)
+                        if (tmp.x + restx > varea.p1.x
+                            && tmp.x < varea.p2.x)
                         {
                             glsurf.simpleDraw(Vector2i(0, 0), tmp,
                                 Vector2i(restx, resty), mirrorY);

@@ -374,115 +374,52 @@ final class SDLSurface : DriverSurface {
 
 
 class SDLCanvas : Canvas {
-    const int MAX_STACK = 20;
-
     private {
-        struct State {
-            SDL_Rect clip;
-            Vector2i translate;
-            Vector2i clientsize;
-        }
+        SDLDrawDriver mDrawDriver;
 
         Vector2i mTrans;
-        State[MAX_STACK] mStack;
-        uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
-
-        Vector2i mClientSize;
-
         SDL_Surface* mSurface;
-
-        SDLDrawDriver mDrawDriver;
-    }
-
-    void startScreenRendering() {
-        assert(mStackTop == 0);
-        assert(mSurface is null);
-
-        mTrans = Vector2i(0, 0);
-        mSurface = mDrawDriver.mSDLScreen;
-
-        SDL_FillRect(mSurface, null, toSDLColor(Color(0,0,0)));
-
-        startDraw();
-    }
-
-    void stopScreenRendering() {
-        assert(mSurface !is null);
-
-        endDraw();
-
-        SDL_Flip(mSurface);
-
-        mSurface = null;
     }
 
     this(SDLDrawDriver drv) {
         mDrawDriver = drv;
     }
 
-    package void startDraw() {
-        assert(mStackTop == 0);
-        SDL_SetClipRect(mSurface, null);
+    void startScreenRendering() {
+        initFrame(mDrawDriver.mScreenSize);
+
+        assert(mSurface is null);
+
         mTrans = Vector2i(0, 0);
+
+        mSurface = mDrawDriver.mSDLScreen;
+
+        //--not needed SDL_SetClipRect(mSurface, null);
+        clear(Color(0,0,0));
+
         pushState();
     }
-    void endDraw() {
+
+    void stopScreenRendering() {
+        assert(mSurface !is null);
+
         popState();
-        assert(mStackTop == 0);
+        uninitFrame();
+
+        SDL_Flip(mSurface);
+
+        mSurface = null;
     }
 
-    public int features() {
+    int features() {
         return 0;
     }
 
-    public void pushState() {
-        assert(mStackTop < MAX_STACK);
-
-        mStack[mStackTop].clip = mSurface.clip_rect;
-        mStack[mStackTop].translate = mTrans;
-        mStack[mStackTop].clientsize = mClientSize;
-        mStackTop++;
+    void clear(Color color) {
+        SDL_FillRect(mSurface, null, toSDLColor(color));
     }
 
-    public void popState() {
-        assert(mStackTop > 0);
-
-        mStackTop--;
-        SDL_Rect* rc = &mStack[mStackTop].clip;
-        SDL_SetClipRect(mSurface, rc);
-        mTrans = mStack[mStackTop].translate;
-        mClientSize = mStack[mStackTop].clientsize;
-    }
-
-    public void setWindow(Vector2i p1, Vector2i p2) {
-        addclip(p1, p2);
-        mTrans = p1 + mTrans;
-        mClientSize = p2 - p1;
-    }
-
-    //xxx: unify with clip(), or whatever, ..., etc.
-    //oh, and this is actually needed in only a _very_ few places (scrolling)
-    private void addclip(Vector2i p1, Vector2i p2) {
-        p1 += mTrans; p2 += mTrans;
-        SDL_Rect rc = mSurface.clip_rect;
-
-        int rcx2 = rc.w + rc.x;
-        int rcy2 = rc.h + rc.y;
-
-        //common rect of old cliprect and (p1,p2)
-        rc.x = max(rc.x, p1.x);
-        rc.y = max(rc.y, p1.y);
-        rcx2 = min(rcx2, p2.x);
-        rcy2 = min(rcy2, p2.y);
-
-        rc.w = max(rcx2 - rc.x, 0);
-        rc.h = max(rcy2 - rc.y, 0);
-
-        SDL_SetClipRect(mSurface, &rc);
-    }
-
-    public void clip(Vector2i p1, Vector2i p2) {
-        p1 += mTrans; p2 += mTrans;
+    override void updateClip(Vector2i p1, Vector2i p2) {
         SDL_Rect rc;
         rc.x = p1.x;
         rc.y = p1.y;
@@ -491,39 +428,8 @@ class SDLCanvas : Canvas {
         SDL_SetClipRect(mSurface, &rc);
     }
 
-    public void translate(Vector2i offset) {
+    override void updateTranslate(Vector2i offset) {
         mTrans += offset;
-    }
-
-    public void setScale(Vector2f z) {
-        //not supported
-    }
-
-    public Vector2i realSize() {
-        return Vector2i(mSurface.w, mSurface.h);
-    }
-    public Vector2i clientSize() {
-        return mClientSize;
-    }
-
-    //parent window area, in client coords
-    public Rect2i parentArea() {
-        Rect2i ret;
-        ret.p1 = -mStack[mStackTop].translate + mStack[mStackTop - 1].translate;
-        ret.p2 = ret.p1 + mStack[mStackTop - 1].clientsize;
-        return ret;
-    }
-
-    public Rect2i visibleArea() {
-        Rect2i res;
-        SDL_Rect rc = mSurface.clip_rect;
-        res.p1.x = rc.x;
-        res.p1.y = rc.y;
-        res.p2.x = rc.x + rc.w;
-        res.p2.y = rc.y + rc.h;
-        res.p1 -= mTrans;
-        res.p2 -= mTrans;
-        return res;
     }
 
     public void draw(Surface source, Vector2i destPos,
@@ -618,6 +524,7 @@ class SDLCanvas : Canvas {
             return;
         }
 
+        //my computer science prof said bresenham isn't it worth these days
         uint c = toSDLColor(color);
         Vector2f d = Vector2f((to-from).x,(to-from).y);
         Vector2f old = toVector2f(from + mTrans);
@@ -737,10 +644,6 @@ class SDLCanvas : Canvas {
         //doesn't look like the OpenGL one (draw_opengl.d), but does the job
         drawFilledRect(Vector2i(p1.x,
             p2.y - cast(int)((p2.y-p1.y)*perc)), p2, c);
-    }
-
-    public void clear(Color color) {
-        drawFilledRect(Vector2i(0, 0)-mTrans, clientSize-mTrans, color);
     }
 
     //unsupported

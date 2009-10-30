@@ -165,6 +165,7 @@ class DXCanvas : Canvas {
     private {
         DXDrawDriver mDrawDriver;
         IDirect3DVertexBuffer9 mVertexBuffer;
+        Vector2i mTrans;
     }
     IDirect3DDevice9 d3dDevice;
 
@@ -187,7 +188,7 @@ class DXCanvas : Canvas {
         return mDrawDriver.getFeatures();
     }
 
-    void startScreenRendering() {
+    package void startScreenRendering() {
         d3dDevice.SetRenderState(D3DRS_LIGHTING, FALSE);
         d3dDevice.SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
         d3dDevice.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
@@ -196,39 +197,40 @@ class DXCanvas : Canvas {
 
         clear(Color(0,0,0));
         d3dDevice.BeginScene();
-        startDraw();
+
+        mTrans = Vector2i(0, 0);
+        initFrame(mDrawDriver.mScreenSize);
     }
 
-    void stopScreenRendering() {
-        endDraw();
+    package void stopScreenRendering() {
+        uninitFrame();
         d3dDevice.EndScene();
         d3dDevice.Present(null, null, null, null);
     }
 
-    package void startDraw() {
+    override void updateTranslate(Vector2i offset) {
+        mTrans += offset;
     }
 
-    override void endDraw() {
+    override void updateClip(Vector2i p1, Vector2i p2) {
+        //scissor stuff, p1 and p2 are already in screen coords
     }
 
-    override Vector2i realSize() {
-        return Vector2i(0);
-    }
-    override Vector2i clientSize() {
-        return Vector2i(0);
+    override void updateScale(Vector2f scale) {
     }
 
-    override Rect2i parentArea() {
-        return Rect2i(0, 0, 0, 0);
-    }
-
-    override Rect2i visibleArea() {
-        return Rect2i(0, 0, 0, 0);
+    //NOTE: the other drivers respect clipping; I don't know if this is the case
+    //  with DirectX's .Clear()
+    override void clear(Color color) {
+        d3dDevice.Clear(0, null, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
+            D3DCOLOR_FLOAT(color), 1.0f, 0);
     }
 
     override void draw(Texture source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize, bool mirrorY = false)
     {
+        destPos += mTrans;
+
         auto tex = cast(DXSurface)source.getDriverSurface();
         Vector2i p1 = destPos;
         Vector2i p2 = destPos + sourceSize;
@@ -269,25 +271,6 @@ class DXCanvas : Canvas {
 
     override void drawPercentRect(Vector2i p1, Vector2i p2, float perc,
         Color c) {
-    }
-
-    override void clear(Color color) {
-        d3dDevice.Clear(0, null, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-            D3DCOLOR_FLOAT(color), 1.0f, 0);
-    }
-
-    override void setWindow(Vector2i p1, Vector2i p2) {
-    }
-    override void translate(Vector2i offset) {
-    }
-    override void clip(Vector2i p1, Vector2i p2) {
-    }
-    override void setScale(Vector2f sc) {
-    }
-
-    override void pushState() {
-    }
-    override void popState() {
     }
 
     override void drawQuad(Surface tex, Vertex2i[4] quad) {
