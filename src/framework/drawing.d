@@ -14,6 +14,12 @@ struct Vertex2i {
     Vector2i t;
 }
 
+//default values are set such that no effect is applied
+struct BitmapEffect {
+    bool mirrorY = false;
+    float rotate = 0.0f; //in radians
+}
+
 /// For drawing; the driver inherits his own class from this and overrides the
 /// abstract methods.
 public class Canvas {
@@ -21,16 +27,16 @@ public class Canvas {
 
     private {
         struct State {
-            Rect2i clip;                    //clip rectangle, screen coords
-            Vector2i translate;             //_global_ translation offset
-            Vector2i clientsize;            //scaled size of what's visible
-            Vector2f scale = {1.0f, 1.0f};  //global scale factor
+            Rect2i clip;            //clip rectangle, screen coords
+            Vector2i translate;     //_global_ translation offset
+            Vector2i clientsize;    //scaled size of what's visible
+            Vector2f scale;         //global scale factor
         }
 
         State[MAX_STACK] mStack;
         uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
-        Rect2i mParentArea;                 //I don't know what this is
-        Rect2i mVisibleArea;                //visible area in local canvas coords
+        //Rect2i mParentArea;       //I don't know what this is
+        Rect2i mVisibleArea;        //visible area in local canvas coords
     }
 
     ///basic per-frame setup, called by driver
@@ -38,6 +44,7 @@ public class Canvas {
         assert(mStackTop == 0);
         mStack[0].clientsize = screen_size;
         mStack[0].clip.p2 = mStack[0].clientsize;
+        mStack[0].scale = Vector2f(1.0f);
     }
 
     ///reverse of initFrame; also called by driver
@@ -58,12 +65,14 @@ public class Canvas {
         return mStack[mStackTop].clientsize;
     }
 
+    /+
     /// The drawable area of the parent canvas in client coords
     /// (no visibility clipping)
     //xxx I don't know if this makes any sense
     final Rect2i parentArea() {
         return mParentArea;
     }
+    +/
 
     /// The rectangle in client coords which is visible
     /// (right/bottom borders exclusive; with clipping)
@@ -79,18 +88,15 @@ public class Canvas {
     }
 
     public abstract void draw(Texture source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i sourceSize, bool mirrorY = false);
+        Vector2i sourcePos, Vector2i sourceSize);
 
     /// possibly faster version of draw() (driver might override this method)
     /// right now, GL driver uses display lists for these
     /// also, just for the SDL driver, only this function can apply "effects",
     /// as in BitmapEffect
     /// if effect is null, draw normally
-    void drawFast(SubSurface source, Vector2i destPos,
-        bool mirrorY = false)
-    {
-        draw(source.surface, destPos, source.origin, source.size, mirrorY);
-    }
+    abstract void drawFast(SubSurface source, Vector2i destPos,
+        BitmapEffect* effect = null);
 
     public abstract void drawCircle(Vector2i center, int radius, Color color);
     public abstract void drawFilledCircle(Vector2i center, int radius,
@@ -102,16 +108,27 @@ public class Canvas {
 
     /// the right/bottom border of the passed rectangle (Rect2i(p1, p2) for the
     /// first method) is exclusive!
-    public abstract void drawRect(Vector2i p1, Vector2i p2, Color color);
-    public void drawRect(Rect2i rc, Color color) {
+    /// drivers may override this
+    void drawRect(Vector2i p1, Vector2i p2, Color color) {
+        if (p1.x >= p2.x || p1.y >= p2.y)
+            return;
+        p2.x -= 1; //border exclusive
+        p2.y -= 1;
+        drawLine(p1, Vector2i(p1.x, p2.y), color);
+        drawLine(Vector2i(p1.x, p2.y), p2, color);
+        drawLine(Vector2i(p2.x, p1.y), p2, color);
+        drawLine(p1, Vector2i(p2.x, p1.y), color);
+    }
+
+    final void drawRect(Rect2i rc, Color color) {
         drawRect(rc.p1, rc.p2, color);
     }
 
     /// like with drawRect, bottom/right border is exclusive
     /// use Surface.fill() when the alpha channel should be copied to the
     /// destination surface (without doing alpha blending)
-    public abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color);
-    public void drawFilledRect(Rect2i rc, Color color) {
+    abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color);
+    final void drawFilledRect(Rect2i rc, Color color) {
         drawFilledRect(rc.p1, rc.p2, color);
     }
 
@@ -122,14 +139,19 @@ public class Canvas {
     /// draw a filled rect that shows a percentage (like a rectangular
     /// circle arc; non-accel drivers may draw it simpler)
     /// perc = 1.0 means the rectangle is fully visible
-    public abstract void drawPercentRect(Vector2i p1, Vector2i p2, float perc,
-        Color c);
+    void drawPercentRect(Vector2i p1, Vector2i p2, float perc, Color c) {
+        //some simply fall-back implementation; doesn't look like required (see
+        //  OpenGL implementation for this; draw_opengl.d), but does the job
+        drawFilledRect(Vector2i(p1.x,
+            p2.y - cast(int)((p2.y-p1.y)*perc)), p2, c);
+    }
 
     /// clear visible area (xxx: I hope, recheck drivers)
     public abstract void clear(Color color);
 
     //updates parentArea / visibleArea after translating/clipping/scaling
     private void updateAreas() {
+        /+
         if (mStackTop > 0) {
             mParentArea.p1 =
                 -mStack[mStackTop].translate + mStack[mStackTop - 1].translate;
@@ -139,6 +161,7 @@ public class Canvas {
         } else {
             mParentArea.p1 = mParentArea.p2 = Vector2i(0);
         }
+        +/
 
         mVisibleArea = mStack[mStackTop].clip - mStack[mStackTop].translate;
         mVisibleArea.p1 =

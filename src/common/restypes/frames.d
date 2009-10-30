@@ -80,8 +80,11 @@ class AniFramesAtlas : AniFrames {
                 FileAnimationFrame* frame = &frames[idx];
                 auto image = mImages.texture(frame.bitmapIndex);
 
+                BitmapEffect eff;
+                eff.mirrorY = !!(frame.drawEffects & FileDrawEffects.MirrorY);
+
                 c.drawFast(image, pos+Vector2i(frame.centerX, frame.centerY),
-                    !!(frame.drawEffects & FileDrawEffects.MirrorY));
+                    &eff);
             }
 
             //calculate bounds, xxx slight code duplication with drawFrame()

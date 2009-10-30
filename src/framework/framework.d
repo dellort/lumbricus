@@ -293,9 +293,14 @@ final class SurfaceData {
 
     void doMirrorY() {
         assert(data !is null);
+        doMirrorY_raw(data.ptr, pitch*Color.RGBA32.sizeof, size);
+    }
+    static void doMirrorY_raw(Color.RGBA32* data, size_t pitch, Vector2i size) {
+        assert(pitch % Color.RGBA32.sizeof == 0);
+        pitch /= Color.RGBA32.sizeof;
         for (uint y = 0; y < size.y; y++) {
-            Color.RGBA32* src = data.ptr+y*pitch+size.x;
-            Color.RGBA32* dst = data.ptr+y*pitch;
+            Color.RGBA32* src = data+y*pitch+size.x;
+            Color.RGBA32* dst = data+y*pitch;
             for (uint x = 0; x < size.x/2; x++) {
                 src--;
                 swap(*dst, *src);

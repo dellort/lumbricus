@@ -791,19 +791,18 @@ class GLCanvas : Canvas {
     }
 
     public void draw(Texture source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i sourceSize,
-        bool mirrorY = false)
+        Vector2i sourcePos, Vector2i sourceSize)
     {
-        drawTextureInt(source, sourcePos, sourceSize, destPos, sourceSize,
-            mirrorY);
+        drawTextureInt(source, sourcePos, sourceSize, destPos, sourceSize);
     }
 
     override void drawFast(SubSurface source, Vector2i destPos,
-        bool mirrorY = false)
+        BitmapEffect* effect = null)
     {
         if (!mDrawDriver.mUseSubSurfaces) {
             //disabled; normal code path
-            super.drawFast(source, destPos, mirrorY);
+            drawTextureInt(source.surface, source.origin, source.size, destPos,
+                source.size, effect ? effect.mirrorY : false);
             return;
         }
 
@@ -816,17 +815,26 @@ class GLCanvas : Canvas {
 
         glsurf.undirty();
 
+        if (effect) {
+            glPushMatrix();
+        }
+
         glTranslatef(destPos.x, destPos.y, 0.0f);
-        if (mirrorY) {
-            glTranslatef(source.size.x, 0.0f, 0.0f);
-            glScalef(-1.0f, 1.0f, 1.0f);
+        if (effect) {
+            if (effect.mirrorY) {
+                glTranslatef(source.size.x, 0.0f, 0.0f);
+                glScalef(-1.0f, 1.0f, 1.0f);
+            }
+            if (effect.rotate != 0.0f) {
+                glRotatef(effect.rotate/math.PI*180.0f, 0.0f, 0.0f, 1.0f);
+            }
         }
         glCallList(glsurf.mSubSurfaces[source.index]);
-        if (mirrorY) {
-            glScalef(-1.0f, 1.0f, 1.0f);
-            glTranslatef(-source.size.x, 0.0f, 0.0f);
+        if (effect) {
+            glPopMatrix();
+        } else {
+            glTranslatef(-destPos.x, -destPos.y, 0.0f);
         }
-        glTranslatef(-destPos.x, -destPos.y, 0.0f);
     }
 
     public void drawTiled(Texture source, Vector2i destPos, Vector2i destSize) {
