@@ -436,7 +436,7 @@ final class GLSurface : DriverSurface {
     }
 }
 
-class GLCanvas : Canvas {
+class GLCanvas : Canvas3DHelper {
     private {
         GLDrawDriver mDrawDriver;
     }
@@ -543,251 +543,48 @@ class GLCanvas : Canvas {
         checkGLError("clear", true);
     }
 
-    public void drawCircle(Vector2i center, int radius, Color color) {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    private static const int[] cPrimMap = [
+        Primitive.LINES : GL_LINES,
+        Primitive.LINE_STRIP : GL_LINE_STRIP,
+        Primitive.LINE_LOOP : GL_LINE_LOOP,
+        Primitive.TRIS : GL_TRIANGLES,
+        Primitive.TRI_STRIP : GL_TRIANGLE_STRIP,
+        Primitive.TRI_FAN : GL_TRIANGLE_FAN,
+        Primitive.QUADS : GL_QUADS,
+    ];
 
-        glColor4fv(color.ptr);
-        stroke_circle(center.x, center.y, radius);
-        glColor3f(1.0f, 1.0f, 1.0f);
-
-        glDisable(GL_BLEND);
-
-        checkGLError("drawCircle", true);
-    }
-
-    public void drawFilledCircle(Vector2i center, int radius,
-        Color color)
+    override void draw_verts(Primitive primitive, Surface tex,
+        Vertex2f[] verts)
     {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        GLSurface glsurf = tex ? cast(GLSurface)tex.getDriverSurface() : null;
+        assert(!!glsurf == !!tex);
 
-        glColor4fv(color.ptr);
-        fill_circle(center.x, center.y, radius);
-        glColor3f(1.0f, 1.0f, 1.0f);
+        float ts_x = 1.0f, ts_y = 1.0f;
 
-        glDisable(GL_BLEND);
-
-        checkGLError("drawFilledCircle", true);
-    }
-
-    //Code from Luigi, www.dsource.org/projects/luigi, BSD license
-    //Copyright (C) 2006 William V. Baxter III
-    //Luigi begin -->
-    void fill_circle(float x, float y, float radius, int slices=16)
-    {
-        glTranslatef(x,y,0);
-        glBegin(GL_TRIANGLE_FAN);
-        glVertex2f(0,0);
-        float astep = 2*PI/slices;
-        for(int i=0; i<slices+1; i++)
-        {
-            float a = i*astep;
-            float c = radius*cos(a);
-            float s = radius*sin(a);
-            glVertex2f(c,s);
-        }
-        glEnd();
-        glTranslatef(-x,-y,0);
-
-        checkGLError("full_circle", true);
-    }
-
-    void stroke_circle(float x, float y, float radius=1, int slices=16)
-    {
-        glTranslatef(x,y,0);
-        glBegin(GL_LINE_LOOP);
-        float astep = 2*PI/slices;
-        for(int i=0; i<slices+1; i++)
-        {
-            float a = i*astep;
-            float c = radius*cos(a);
-            float s = radius*sin(a);
-            glVertex2f(c,s);
-        }
-        glEnd();
-        glTranslatef(-x,-y,0);
-
-        checkGLError("stroke_circle", true);
-    }
-
-    void fill_arc(float x, float y, float radius, float start, float radians,
-        int slices=16)
-    {
-        glTranslatef(x,y,0);
-        glBegin(GL_TRIANGLE_FAN);
-        glVertex2f(0,0);
-        float astep = radians/slices;
-        for(int i=0; i<slices+1; i++)
-        {
-            float a = start+i*astep;
-            float c = radius*cos(a);
-            float s = -radius*sin(a);
-            glVertex2f(c,s);
-        }
-        glEnd();
-        glTranslatef(-x,-y,0);
-
-        checkGLError("fill_arc", true);
-    }
-
-    void stroke_arc(float x, float y, float radius, float start, float radians,
-        int slices=16)
-    {
-        glTranslatef(x,y,0);
-        glBegin(GL_LINE_LOOP);
-        glVertex2f(0,0);
-        float astep = radians/slices;
-        for(int i=0; i<slices+1; i++)
-        {
-            float a = start+i*astep;
-            float c = radius*cos(a);
-            float s = -radius*sin(a);
-            glVertex2f(c,s);
-        }
-        glEnd();
-        glTranslatef(-x,-y,0);
-
-        checkGLError("stroke_arc", true);
-    }
-    //<-- Luigi end
-
-    public void drawLine(Vector2i p1, Vector2i p2, Color color, int width = 1) {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glLineWidth(width);
-
-        glColor4fv(color.ptr);
-
-        float trans = width%2==0?0f:0.5f;
-
-        //fixes blurry lines with GL_LINE_SMOOTH
-        glTranslatef(trans, trans, 0);
-        glBegin(GL_LINES);
-            glVertex2i(p1.x, p1.y);
-            glVertex2i(p2.x, p2.y);
-        glEnd();
-        glTranslatef(-trans, -trans, 0);
-
-        glColor3f(1.0f, 1.0f, 1.0f);
-        glDisable(GL_BLEND);
-        glLineWidth(1);
-
-        checkGLError("drawLine", true);
-    }
-
-    public void drawRect(Vector2i p1, Vector2i p2, Color color) {
-        if (p1.x >= p2.x || p1.y >= p2.y)
-            return;
-        p2.x -= 1; //border exclusive
-        p2.y -= 1;
-
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        glColor4fv(color.ptr);
-
-        //fixes blurry lines with GL_LINE_SMOOTH
-        glTranslatef(0.5f, 0.5f, 0);
-        glBegin(GL_LINE_LOOP);
-            glVertex2i(p1.x, p1.y);
-            glVertex2i(p1.x, p2.y);
-            glVertex2i(p2.x, p2.y);
-            glVertex2i(p2.x, p1.y);
-        glEnd();
-        glTranslatef(-0.5f, -0.5f, 0);
-
-        glColor3f(1.0f, 1.0f, 1.0f);
-        glDisable(GL_BLEND);
-
-        checkGLError("drawRect", true);
-    }
-
-    public void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
-        Color[2] c;
-        c[0] = c[1] = color;
-        doDrawRect(p1, p2, c);
-    }
-
-    void doDrawRect(Vector2i p1, Vector2i p2, Color[2] c) {
-        if (p1.x >= p2.x || p1.y >= p2.y)
-            return;
-
-        if (c[0].hasAlpha() || c[1].hasAlpha()) {
+        if (glsurf) {
+            glsurf.prepareDraw();
+            ts_x = 1.0f / glsurf.mTexSize.x;
+            ts_y = 1.0f / glsurf.mTexSize.y;
+        } else {
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
 
-        glBegin(GL_QUADS);
-            glColor4fv(c[0].ptr);
-            glVertex2i(p2.x, p1.y);
-            glVertex2i(p1.x, p1.y);
-            glColor4fv(c[1].ptr);
-            glVertex2i(p1.x, p2.y);
-            glVertex2i(p2.x, p2.y);
+        glBegin(cPrimMap[primitive]);
+            foreach (ref v; verts) {
+                glTexCoord2f(v.t.x * ts_x, v.t.y * ts_y);
+                glColor4fv(v.c.ptr);
+                glVertex2f(v.p.x, v.p.y);
+            }
         glEnd();
 
-        glDisable(GL_BLEND);
         glColor3f(1.0f, 1.0f, 1.0f);
 
-        checkGLError("doDrawRect", true);
-    }
-
-    public void drawVGradient(Rect2i rc, Color c1, Color c2) {
-        Color[2] c;
-        c[0] = c1;
-        c[1] = c2;
-        doDrawRect(rc.p1, rc.p2, c);
-    }
-
-    public void drawPercentRect(Vector2i p1, Vector2i p2, float perc, Color c) {
-        if (p1.x >= p2.x || p1.y >= p2.y)
-            return;
-        //0 -> nothing visible
-        if (perc < float.epsilon)
-            return;
-
-        if (c.hasAlpha()) {
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        if (glsurf) {
+            glsurf.endDraw();
+        } else {
+            glDisable(GL_BLEND);
         }
-
-        //calculate arc angle from percentage (0% is top with an angle of pi/2)
-        //increasing percentage adds counter-clockwise
-        //xxx what about reversing rotation?
-        float a = (perc+0.25)*2*PI;
-        //the "do-it-yourself" tangens (invert y -> math to screen coords)
-        Vector2f av = Vector2f(cos(a)/abs(sin(a)), -sin(a)/abs(cos(a)));
-        av = av.clipAbsEntries(Vector2f(1f));
-        Vector2f center = toVector2f(p1+p2)/2.0f;
-        //this is the arc end-point on the rectangle border
-        Vector2f pOuter = center + ((0.5f*av) ^ toVector2f(p2-p1));
-
-        void doVertices() {
-            glVertex2f(center.x, center.y);
-            glVertex2f(center.x, p1.y);
-            scope(exit) glVertex2f(pOuter.x, pOuter.y);
-            //not all corners are always visible
-            if (perc<0.125) return;
-            glVertex2i(p1.x, p1.y);
-            if (perc<0.375) return;
-            glVertex2i(p1.x, p2.y);
-            if (perc<0.625) return;
-            glVertex2i(p2.x, p2.y);
-            if (perc<0.875) return;
-            glVertex2i(p2.x, p1.y);
-        }
-
-        //triangle fan is much faster than polygon
-        glBegin(GL_TRIANGLE_FAN);
-            glColor4fv(c.ptr);
-            doVertices();
-        glEnd();
-
-        glDisable(GL_BLEND);
-        glColor3f(1.0f, 1.0f, 1.0f);
-
-        checkGLError("drawClockRect", true);
     }
 
     public void draw(Texture source, Vector2i destPos,
@@ -912,31 +709,4 @@ class GLCanvas : Canvas {
 
         checkGLError("draw texture - end", true);
     }
-
-    public void drawQuad(Surface source, Vertex2i[4] quad) {
-        //xxx code duplication with above, sorry I was too lazy
-
-        assert(source !is null);
-        GLSurface glsurf = cast(GLSurface)source.getDriverSurface();
-        assert(glsurf !is null);
-
-        //glPushAttrib(GL_ENABLE_BIT);
-        checkGLError("draw texture 2", true);
-        glsurf.prepareDraw();
-
-
-        glBegin(GL_QUADS);
-
-        for (int i = 0; i < 4; i++) {
-            auto tx = cast(float)quad[i].t.x / glsurf.mTexSize.x;
-            auto ty = cast(float)quad[i].t.y / glsurf.mTexSize.y;
-            glTexCoord2f(tx, ty);
-            glVertex2i(quad[i].p.x, quad[i].p.y);
-        }
-
-        glEnd();
-
-        glsurf.endDraw();
-    }
-
 }

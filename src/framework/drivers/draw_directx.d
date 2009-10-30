@@ -161,7 +161,7 @@ class DXSurface : DriverSurface {
     }
 }
 
-class DXCanvas : Canvas {
+class DXCanvas : Canvas3DHelper {
     private {
         DXDrawDriver mDrawDriver;
         IDirect3DVertexBuffer9 mVertexBuffer;
@@ -226,8 +226,14 @@ class DXCanvas : Canvas {
             D3DCOLOR_FLOAT(color), 1.0f, 0);
     }
 
+    override void drawFast(SubSurface source, Vector2i destPos,
+        BitmapEffect* effect = null)
+    {
+        draw(source.surface, destPos, source.origin, source.size);
+    }
+
     override void draw(Texture source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i sourceSize, bool mirrorY = false)
+        Vector2i sourcePos, Vector2i sourceSize)
     {
         destPos += mTrans;
 
@@ -252,27 +258,8 @@ class DXCanvas : Canvas {
         d3dDevice.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v.ptr, TLVERTEX.sizeof);
     }
 
-    override void drawCircle(Vector2i center, int radius, Color color) {
-    }
-    override void drawFilledCircle(Vector2i center, int radius,
-        Color color) {
-    }
-
-    override void drawLine(Vector2i p1, Vector2i p2, Color color,
-        int width = 1) {
-    }
-
-    override void drawRect(Vector2i p1, Vector2i p2, Color color) {
-    }
-    override void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
-    }
-    override void drawVGradient(Rect2i rc, Color c1, Color c2) {
-    }
-
-    override void drawPercentRect(Vector2i p1, Vector2i p2, float perc,
-        Color c) {
-    }
-
-    override void drawQuad(Surface tex, Vertex2i[4] quad) {
+    override void draw_verts(Primitive primitive, Surface tex, Vertex2f[] verts)
+    {
+        //implement me
     }
 }

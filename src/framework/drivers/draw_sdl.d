@@ -735,7 +735,7 @@ class SDLCanvas : Canvas {
     }
 
     //unsupported
-    public void drawQuad(Surface tex, Vertex2i[4] quad) {
+    public void drawQuad(Surface tex, Vertex2f[4] quad) {
     }
 }
 

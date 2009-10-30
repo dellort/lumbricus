@@ -6,12 +6,14 @@ public import utils.color;
 public import utils.rect2;
 public import utils.vector2;
 
-struct Vertex2i {
+struct Vertex2f {
     //position
-    Vector2i p;
+    Vector2f p;
     //texture coordinates, in pixels
     //xxx or would Vector2f in range 0.0f-1.0f be better?
     Vector2i t;
+    //
+    Color c = Color(1.0f);
 }
 
 //default values are set such that no effect is applied
@@ -250,7 +252,7 @@ public class Canvas {
     }
 
     //NOTE: the quad parameter is already by ref (one of the most stupied Disms)
-    public abstract void drawQuad(Surface tex, Vertex2i[4] quad);
+    public abstract void drawQuad(Surface tex, Vertex2f[4] quad);
 
     /// Fill the area (destPos, destPos+destSize) with source, tiled on wrap
     //will be specialized in OpenGL
@@ -306,7 +308,7 @@ public class Canvas {
 
         auto p1f = toVector2f(p1);
 
-        Vertex2i[4] q;
+        Vertex2f[4] q;
         while (pos < len) {
             auto pnext = pos + s.x;
             if (pnext > len) {
@@ -320,13 +322,13 @@ public class Canvas {
             auto pcur = p1f + ndir*pos;
             auto pcur2 = p1f + ndir*pnext;
 
-            q[0].p = toVector2i(pcur+up);
+            q[0].p = pcur+up;
             q[0].t = Vector2i(offset, 0);
-            q[1].p = toVector2i(pcur2+up);
+            q[1].p = pcur2+up;
             q[1].t = Vector2i(offset2, 0);
-            q[2].p = toVector2i(pcur2+down);
+            q[2].p = pcur2+down;
             q[2].t = Vector2i(offset2, s.y);
-            q[3].p = toVector2i(pcur+down);
+            q[3].p = pcur+down;
             q[3].t = Vector2i(offset, s.y);
 
             drawQuad(tex, q);
@@ -334,5 +336,246 @@ public class Canvas {
             pos = pnext;
             offset = offset2;
         }
+    }
+}
+
+//helper class for drivers
+//implements most of the "annoying" drawing functions using a generic Vertex
+//  renderer function - as a result, these functions might be a little bit
+//  slower due to the additional overhead, but they are seldomly used, and it
+//  doesn't really matter
+class Canvas3DHelper : Canvas {
+    import tango.math.Math : PI, cos, sin, abs;
+
+    enum Primitive {
+        INVALID,
+        LINES,
+        LINE_STRIP,
+        LINE_LOOP,
+        TRIS,
+        TRI_STRIP,
+        TRI_FAN,
+        QUADS,
+    }
+
+    private {
+        //some temporary buffer, just to avoid allocating memory
+        //the idea of putting this here is that you could flush the buffer
+        //  transparently
+        uint mBufferIndex;
+        Vertex2f[20] mBuffer;
+        Primitive mPrimitive;
+        Surface mTexture;
+        Color mColor;
+    }
+
+    //tex can be null
+    protected abstract void draw_verts(Primitive primitive, Surface tex,
+        Vertex2f[] verts);
+
+    override void drawQuad(Surface tex, Vertex2f[4] quad) {
+        draw_verts(Primitive.QUADS, tex, quad);
+    }
+
+    private void begin(Primitive p, Surface tex = null) {
+        mPrimitive = p;
+        mBufferIndex = 0;
+        mTexture = null;
+    }
+
+    private void vertex(float x, float y) {
+        mBuffer[mBufferIndex].p = Vector2f(x, y);
+        mBuffer[mBufferIndex].t = Vector2i.init;
+        mBuffer[mBufferIndex].c = mColor;
+        mBufferIndex++;
+    }
+
+    private void end() {
+        assert(mPrimitive != Primitive.INVALID);
+        draw_verts(mPrimitive, mTexture, mBuffer[0..mBufferIndex]);
+        mPrimitive = Primitive.INVALID;
+        mTexture = null;
+        //be nice
+        mColor = Color(1.0f);
+    }
+
+    override void drawCircle(Vector2i center, int radius, Color color) {
+        mColor = color;
+        stroke_circle(center.x, center.y, radius);
+    }
+
+    override void drawFilledCircle(Vector2i center, int radius,
+        Color color)
+    {
+        mColor = color;
+        fill_circle(center.x, center.y, radius);
+    }
+
+    //Code from Luigi, www.dsource.org/projects/luigi, BSD license
+    //Copyright (C) 2006 William V. Baxter III
+    //modified to not use OpenGL (lol.)
+    //Luigi begin -->
+    private void fill_circle(float x, float y, float radius, int slices=16)
+    {
+        begin(Primitive.TRI_FAN);
+        vertex(x,y);
+        float astep = 2*PI/slices;
+        for(int i=0; i<slices+1; i++)
+        {
+            float a = i*astep;
+            float c = radius*cos(a);
+            float s = radius*sin(a);
+            vertex(x+c,y+s);
+        }
+        end();
+    }
+
+    private void stroke_circle(float x, float y, float radius=1, int slices=16)
+    {
+        begin(Primitive.LINE_LOOP);
+        float astep = 2*PI/slices;
+        for(int i=0; i<slices+1; i++)
+        {
+            float a = i*astep;
+            float c = radius*cos(a);
+            float s = radius*sin(a);
+            vertex(c+x,s+y);
+        }
+        end();
+    }
+
+    private void fill_arc(float x, float y, float radius, float start,
+        float radians, int slices=16)
+    {
+        begin(Primitive.TRI_FAN);
+        vertex(x, y);
+        float astep = radians/slices;
+        for(int i=0; i<slices+1; i++)
+        {
+            float a = start+i*astep;
+            float c = radius*cos(a);
+            float s = -radius*sin(a);
+            vertex(x+c,y+s);
+        }
+        end();
+    }
+
+    private void stroke_arc(float x, float y, float radius, float start,
+        float radians, int slices=16)
+    {
+        begin(Primitive.LINE_LOOP);
+        vertex(x,y);
+        float astep = radians/slices;
+        for(int i=0; i<slices+1; i++)
+        {
+            float a = start+i*astep;
+            float c = radius*cos(a);
+            float s = -radius*sin(a);
+            vertex(x+c,y+s);
+        }
+        end();
+    }
+    //<-- Luigi end
+
+    override void drawLine(Vector2i p1, Vector2i p2, Color color, int width = 1) {
+        //xxx line width is missing, I forgot to think about it
+        //glLineWidth(width);
+        //and this was apparently some hack to avoid ugly lines
+        //float trans = width%2==0?0f:0.5f;
+        ////fixes blurry lines with GL_LINE_SMOOTH
+        //glTranslatef(trans, trans, 0);
+
+        mColor = color;
+
+        begin(Primitive.LINES);
+            vertex(p1.x, p1.y);
+            vertex(p2.x, p2.y);
+        end();
+    }
+
+    override void drawRect(Vector2i p1, Vector2i p2, Color color) {
+        if (p1.x >= p2.x || p1.y >= p2.y)
+            return;
+        p2.x -= 1; //border exclusive
+        p2.y -= 1;
+
+        //fixes blurry lines with GL_LINE_SMOOTH
+        const c = 0.5f;
+
+        mColor = color;
+        begin(Primitive.LINE_LOOP);
+            vertex(p1.x+c, p1.y+c);
+            vertex(p1.x+c, p2.y+c);
+            vertex(p2.x+c, p2.y+c);
+            vertex(p2.x+c, p1.y+c);
+        end();
+    }
+
+    override void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
+        Color[2] c;
+        c[0] = c[1] = color;
+        doDrawRect(p1, p2, c);
+    }
+
+    private void doDrawRect(Vector2i p1, Vector2i p2, Color[2] c) {
+        if (p1.x >= p2.x || p1.y >= p2.y)
+            return;
+
+        begin(Primitive.QUADS);
+            mColor = c[0];
+            vertex(p2.x, p1.y);
+            vertex(p1.x, p1.y);
+            mColor = c[1];
+            vertex(p1.x, p2.y);
+            vertex(p2.x, p2.y);
+        end();
+    }
+
+    override void drawVGradient(Rect2i rc, Color c1, Color c2) {
+        Color[2] c;
+        c[0] = c1;
+        c[1] = c2;
+        doDrawRect(rc.p1, rc.p2, c);
+    }
+
+    override void drawPercentRect(Vector2i p1, Vector2i p2, float perc, Color c)
+    {
+        if (p1.x >= p2.x || p1.y >= p2.y)
+            return;
+        //0 -> nothing visible
+        if (perc < float.epsilon)
+            return;
+
+        //calculate arc angle from percentage (0% is top with an angle of pi/2)
+        //increasing percentage adds counter-clockwise
+        //xxx what about reversing rotation?
+        float a = (perc+0.25)*2*PI;
+        //the "do-it-yourself" tangens (invert y -> math to screen coords)
+        Vector2f av = Vector2f(cos(a)/abs(sin(a)), -sin(a)/abs(cos(a)));
+        av = av.clipAbsEntries(Vector2f(1f));
+        Vector2f center = toVector2f(p1+p2)/2.0f;
+        //this is the arc end-point on the rectangle border
+        Vector2f pOuter = center + ((0.5f*av) ^ toVector2f(p2-p1));
+
+        void doVertices() {
+            vertex(center.x, center.y);
+            vertex(center.x, p1.y);
+            scope(exit) vertex(pOuter.x, pOuter.y);
+            //not all corners are always visible
+            if (perc<0.125) return;
+            vertex(p1.x, p1.y);
+            if (perc<0.375) return;
+            vertex(p1.x, p2.y);
+            if (perc<0.625) return;
+            vertex(p2.x, p2.y);
+            if (perc<0.875) return;
+            vertex(p2.x, p1.y);
+        }
+
+        //triangle fan is much faster than polygon
+        begin(Primitive.TRI_FAN);
+            mColor = c;
+            doVertices();
+        end();
     }
 }
