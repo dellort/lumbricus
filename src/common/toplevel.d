@@ -855,28 +855,59 @@ class StatsWindow : Task {
 }
 
 import gui.boxcontainer;
+import gui.tablecontainer;
 import gui.button;
 import gui.scrollbar;
+import gui.dropdownlist;
 
 //small hack
 //should be replaced by sth... better
 //maybe until better configfile and GUI stuff is available
 //(maybe configfile schema, generic handling of datatypes)
 class SwitchDriver : Task {
-    //xxx added opengl hack, needs to be replaced
-    char[][] configs = ["Enable OpenGL", "Enable sound (OpenAL)",
-        "sdl.enable_conversion", "sdl.mark_alpha", "sdl.rle",
+    const cDriverTypes = 4;
+    char[][cDriverTypes] selects = ["base", "draw", "sound", "font"];
+
+    char[][] configs = ["sdl.enable_conversion", "sdl.mark_alpha", "sdl.rle",
         "opengl.steal_data", "opengl.lowquality", "opengl.subsurfaces",
         "opengl.batch_subtex", "freetype.font_packer"];
 
+    DropDownList[cDriverTypes] mSelects;
     Button[] mChks;
 
     this(TaskManager mgr, char[] args = "") {
         super(mgr);
 
         mChks.length = configs.length;
-
         auto list = new BoxContainer(false, false, 5);
+
+        foreach (ref dd; mSelects) {
+            dd = new DropDownList();
+        }
+        //sorry for this mess
+        mSelects[0].list.setContents(FrameworkDriverFactory.classes());
+        mSelects[0].selection = FrameworkDriverFactory.lookupDynamic(
+            gFramework.driver().classinfo);
+        mSelects[1].list.setContents(DrawDriverFactory.classes());
+        mSelects[1].selection = DrawDriverFactory.lookupDynamic(
+            gFramework.drawDriver().classinfo);
+        mSelects[2].list.setContents(SoundDriverFactory.classes());
+        mSelects[2].selection = SoundDriverFactory.lookupDynamic(
+            gFramework.sound.driver().classinfo);
+        mSelects[3].list.setContents(FontDriverFactory.classes());
+        mSelects[3].selection = FontDriverFactory.lookupDynamic(
+            gFramework.fontDriver().classinfo);
+        auto tbl = new TableContainer(2, cDriverTypes, Vector2i(3, 5));
+        foreach (int idx, dd; mSelects) {
+            //should have selected the current drivers above
+            assert(dd.selection.length > 0);
+            auto lbl = new Label();
+            lbl.text = selects[idx];
+            tbl.add(lbl, 0, idx);
+            tbl.add(dd, 1, idx);
+        }
+        list.add(tbl);
+
         for (int n = 0; n < configs.length; n++) {
             auto b = new Button();
             b.text = configs[n];
@@ -887,6 +918,7 @@ class SwitchDriver : Task {
 
         auto apply = new Button();
         apply.text = "Apply";
+        apply.centerX = true;
         apply.onClick = &onApply;
         list.add(apply);
 
@@ -897,24 +929,12 @@ class SwitchDriver : Task {
     void onApply(Button sender) {
         ConfigNode node = new ConfigNode();
         auto drvNode = node.getSubNode("drivers");
-        //xxx: implement better driver configuration
-        drvNode["base"] = "sdl";
-        drvNode["font"] = "freetype";
+        foreach (int idx, drvName; selects) {
+            drvNode[drvName] = mSelects[idx].selection;
+        }
         foreach (int index, b; mChks) {
-            if (index == 0) {
-                if (b.checked)
-                    drvNode["draw"] = "opengl";
-                else
-                    drvNode["draw"] = "sdl";
-            } else if (index == 1) {
-                if (b.checked)
-                    drvNode["sound"] = "openal";
-                else
-                    drvNode["sound"] = "null";
-            } else {
-                node.setStringValueByPath(configs[index],
-                    b.checked ? "true" : "false");
-            }
+            node.setStringValueByPath(configs[index],
+                b.checked ? "true" : "false");
         }
         gFramework.scheduleDriverReload(Framework.DriverReload(node));
     }

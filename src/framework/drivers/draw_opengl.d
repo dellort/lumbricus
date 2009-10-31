@@ -74,6 +74,31 @@ class GLDrawDriver : DrawDriver {
         assert(screen_size.quad_length > 0);
         mScreenSize = screen_size;
         DerelictGL.loadExtensions();
+
+        //initialize some static OpenGL context attributes
+        if (!mLowQuality) {
+            glEnable(GL_LINE_SMOOTH);
+        } else {
+            glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
+            glDisable(GL_DITHER);
+            //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+            glShadeModel(GL_FLAT);
+        }
+
+        glDisable(GL_DEPTH_TEST); //??
+
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glAlphaFunc(GL_GREATER, 0.1f);
+
+        //setup viewport (2D, screen coordinates)
+        glViewport(0, 0, mScreenSize.x, mScreenSize.y);
+
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        //standard top-zero coordinates
+        glOrtho(0, mScreenSize.x, 0, mScreenSize.y, 0, 128);
+
+        glMatrixMode(GL_MODELVIEW);
     }
 
     override Surface screenshot() {
@@ -343,11 +368,9 @@ final class GLSurface : DriverSurface {
         switch (mData.transparency) {
             case Transparency.Colorkey:
                 glEnable(GL_ALPHA_TEST);
-                glAlphaFunc(GL_GREATER, 0.1f);
                 break;
             case Transparency.Alpha:
                 glEnable(GL_BLEND);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 break;
             default:
         }
@@ -361,8 +384,16 @@ final class GLSurface : DriverSurface {
 
     void endDraw() {
         glDisable(GL_TEXTURE_2D);
-        glDisable(GL_ALPHA_TEST);
-        glDisable(GL_BLEND);
+        //glDisable calls are expensive
+        switch (mData.transparency) {
+            case Transparency.Colorkey:
+                glDisable(GL_ALPHA_TEST);
+                break;
+            case Transparency.Alpha:
+                glDisable(GL_BLEND);
+                break;
+            default:
+        }
 
         checkGLError("endDraw", true);
     }
@@ -476,13 +507,6 @@ class GLCanvas : Canvas3DHelper {
     private void initGLViewport() {
         auto scrsize = mDrawDriver.mScreenSize;
 
-        glViewport(0, 0, scrsize.x, scrsize.y);
-
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        //standard top-zero coordinates
-        glOrtho(0, scrsize.x, 0, scrsize.y, 0, 128);
-
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         glScalef(1, -1, 1);
@@ -490,18 +514,6 @@ class GLCanvas : Canvas3DHelper {
         //glTranslatef(0, 1, 0);
 
         glDisable(GL_SCISSOR_TEST);
-
-        bool lowquality = mDrawDriver.mLowQuality;
-        if (!lowquality) {
-            glEnable(GL_LINE_SMOOTH);
-        } else {
-            glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
-            glDisable(GL_DITHER);
-            //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
-            glShadeModel(GL_FLAT);
-        }
-
-        glDisable(GL_DEPTH_TEST); //??
 
         checkGLError("initGLViewport", true);
     }
@@ -573,7 +585,6 @@ class GLCanvas : Canvas3DHelper {
             ts_y = 1.0f / glsurf.mTexSize.y;
         } else {
             glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
 
         glBegin(cPrimMap[primitive]);

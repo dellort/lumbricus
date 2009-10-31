@@ -874,7 +874,7 @@ class Framework {
         return mDriver;
     }
 
-    package FontDriver fontDriver() {
+    public FontDriver fontDriver() {
         return mFontDriver;
     }
 

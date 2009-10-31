@@ -77,7 +77,7 @@ class DXDrawDriver : DrawDriver {
         mPresentParams.hDeviceWindow = vstate.window_handle;
         mPresentParams.BackBufferWidth = mScreenSize.x;
         mPresentParams.BackBufferHeight = mScreenSize.y;
-        mPresentParams.BackBufferFormat = D3DFMT_R5G6B5;
+        mPresentParams.BackBufferFormat = D3DFMT_X8R8G8B8;
         mPresentParams.MultiSampleType = D3DMULTISAMPLE_NONE;
 
         if (FAILED(d3dObj.CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL,
@@ -123,8 +123,9 @@ class DXSurface : DriverSurface {
         mData = data;
         assert(data.data !is null);
         //reinit();
-        mDrawDriver.d3dDevice.CreateTexture(mData.size.x, mData.size.y, 1, D3DUSAGE_DYNAMIC,
-            D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &mTex, null);
+        mDrawDriver.d3dDevice.CreateTexture(mData.size.x, mData.size.y, 1,
+            D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &mTex, null);
+        assert(!!mTex);
         updatePixels(Rect2i(mData.size));
     }
 
@@ -142,11 +143,20 @@ class DXSurface : DriverSurface {
         rc2.bottom = rc.p2.y;
         D3DLOCKED_RECT lrc;
         assert(!FAILED(mTex.LockRect(0, &lrc, &rc2, 0)));
-        for (int y = rc.p1.y; y < rc.p2.y; y++) {
-            Color.RGBA32* psrc = &mData.data[y*mData.pitch + rc.p1.x];
+        for (int y = 0; y < rc.p2.y - rc.p1.y; y++) {
+            Color.RGBA32* psrc = &mData.data[(y+rc.p1.y)*mData.pitch + rc.p1.x];
             Color.RGBA32* pdest = cast(Color.RGBA32*)(lrc.pBits + lrc.Pitch * y);
             size_t s = rc.size.x;
-            pdest[0..s] = psrc[0..s];
+            for (int i = 0; i < s; i++) {
+                //internal RGBA32 -> Direct3d A8R8G8B8
+                pdest.r = psrc.b;
+                pdest.g = psrc.g;
+                pdest.b = psrc.r;
+                pdest.a = psrc.a;
+                pdest++;
+                psrc++;
+            }
+            //pdest[0..s] = psrc[0..s];
         }
         mTex.UnlockRect(0);
     }
@@ -163,8 +173,10 @@ class DXSurface : DriverSurface {
 
 class DXCanvas : Canvas3DHelper {
     private {
+        const cMaxVertices = 100;
         DXDrawDriver mDrawDriver;
-        IDirect3DVertexBuffer9 mVertexBuffer;
+        //IDirect3DVertexBuffer9 mVertexBuffer;
+        TLVERTEX[cMaxVertices] mVertexBuffer;
         Vector2i mTrans;
     }
     IDirect3DDevice9 d3dDevice;
@@ -179,9 +191,9 @@ class DXCanvas : Canvas3DHelper {
         d3dDevice.SetFVF(D3DFVF_TLVERTEX);
 
         //Create vertex buffer
-        d3dDevice.CreateVertexBuffer(TLVERTEX.sizeof * 4, 0,
+        /*d3dDevice.CreateVertexBuffer(TLVERTEX.sizeof * 4, 0,
             D3DFVF_TLVERTEX, D3DPOOL_MANAGED, &mVertexBuffer, null);
-        d3dDevice.SetStreamSource(0, mVertexBuffer, 0, TLVERTEX.sizeof);
+        d3dDevice.SetStreamSource(0, mVertexBuffer, 0, TLVERTEX.sizeof);*/
     }
 
     override int features() {
@@ -214,14 +226,20 @@ class DXCanvas : Canvas3DHelper {
 
     override void updateClip(Vector2i p1, Vector2i p2) {
         //scissor stuff, p1 and p2 are already in screen coords
+        d3dDevice.SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE);
+        RECT sr;
+        sr.left = p1.x;
+        sr.top = p1.y;
+        sr.right = p2.x;
+        sr.bottom = p2.y;
+        d3dDevice.SetScissorRect(&sr);
     }
 
     override void updateScale(Vector2f scale) {
     }
 
-    //NOTE: the other drivers respect clipping; I don't know if this is the case
-    //  with DirectX's .Clear()
     override void clear(Color color) {
+        //the Clear() call respects the current scissor rect
         d3dDevice.Clear(0, null, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
             D3DCOLOR_FLOAT(color), 1.0f, 0);
     }
@@ -229,12 +247,22 @@ class DXCanvas : Canvas3DHelper {
     override void drawFast(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null)
     {
-        draw(source.surface, destPos, source.origin, source.size);
+        drawTextureInt(source.surface, destPos, source.origin, source.size,
+            effect ? effect.mirrorY : false);
     }
 
     override void draw(Texture source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize)
     {
+        drawTextureInt(source, destPos, sourcePos, sourceSize);
+    }
+
+    private void drawTextureInt(Surface source, Vector2i destPos,
+        Vector2i sourcePos, Vector2i sourceSize, bool mirrorY = false)
+    {
+        if (!visibleArea.intersects(destPos, destPos + sourceSize))
+            return;
+
         destPos += mTrans;
 
         auto tex = cast(DXSurface)source.getDriverSurface();
@@ -248,18 +276,75 @@ class DXCanvas : Canvas3DHelper {
         t2.x = cast(float)(sourcePos.x+sourceSize.x) / tex.mData.size.x;
         t2.y = cast(float)(sourcePos.y+sourceSize.y) / tex.mData.size.y;
 
-        TLVERTEX[4] v;
-        v[0] = TLVERTEX(Vector2i(p1.x, p2.y), Vector2f(t1.x, t2.y));
-        v[1] = TLVERTEX(Vector2i(p1.x, p1.y), Vector2f(t1.x, t1.y));
-        v[2] = TLVERTEX(Vector2i(p2.x, p2.y), Vector2f(t2.x, t2.y));
-        v[3] = TLVERTEX(Vector2i(p2.x, p1.y), Vector2f(t2.x, t1.y));
+        //clockwise rotation, 2nd tri is auto-inverted
+        mVertexBuffer[0] = TLVERTEX(Vector2i(p1.x, p2.y), Vector2f(t1.x, t2.y));
+        mVertexBuffer[1] = TLVERTEX(Vector2i(p1.x, p1.y), Vector2f(t1.x, t1.y));
+        mVertexBuffer[2] = TLVERTEX(Vector2i(p2.x, p2.y), Vector2f(t2.x, t2.y));
+        mVertexBuffer[3] = TLVERTEX(Vector2i(p2.x, p1.y), Vector2f(t2.x, t1.y));
+        if (mirrorY) {
+            swap(mVertexBuffer[0].t, mVertexBuffer[2].t);
+            swap(mVertexBuffer[1].t, mVertexBuffer[3].t);
+        }
 
         d3dDevice.SetTexture(0, tex.mTex);
-        d3dDevice.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v.ptr, TLVERTEX.sizeof);
+        d3dDevice.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, mVertexBuffer.ptr,
+            TLVERTEX.sizeof);
     }
+
+    private static const D3DPRIMITIVETYPE[] cPrimMap = [
+        Primitive.LINES : D3DPT_LINELIST,
+        Primitive.LINE_STRIP : D3DPT_LINESTRIP,
+        Primitive.LINE_LOOP : D3DPT_LINESTRIP,
+        Primitive.TRIS : D3DPT_TRIANGLELIST,
+        Primitive.TRI_STRIP : D3DPT_TRIANGLESTRIP,
+        Primitive.TRI_FAN : D3DPT_TRIANGLEFAN,
+        Primitive.QUADS : D3DPT_TRIANGLESTRIP,
+    ];
 
     override void draw_verts(Primitive primitive, Surface tex, Vertex2f[] verts)
     {
-        //implement me
+        assert(verts.length <= cMaxVertices);
+
+        DXSurface dxsurf = tex ? cast(DXSurface)tex.getDriverSurface() : null;
+        Vector2f ts;
+        if (dxsurf) {
+            ts = Vector2f(1.0f/dxsurf.mData.size.x, 1.0f/dxsurf.mData.size.y);
+            d3dDevice.SetTexture(0, dxsurf.mTex);
+        } else {
+            ts = Vector2f(1.0f);
+            d3dDevice.SetTexture(0, null);
+        }
+
+        Vector2f trans = toVector2f(mTrans);
+        foreach (int idx, ref cv; verts) {
+            mVertexBuffer[idx].p = cv.p + trans;
+            mVertexBuffer[idx].color = D3DCOLOR_FLOAT(cv.c);
+            mVertexBuffer[idx].t = toVector2f(cv.t) ^ ts;
+        }
+
+        int primCount;
+        switch (primitive) {
+            case Primitive.LINES: primCount = verts.length / 2; break;
+            case Primitive.LINE_STRIP: primCount = verts.length - 1; break;
+            case Primitive.LINE_LOOP:
+                //1 extra vertex
+                assert(verts.length < cMaxVertices);
+                primCount = verts.length;
+                mVertexBuffer[verts.length] = mVertexBuffer[0];
+                break;
+            case Primitive.TRIS: primCount = verts.length / 3; break;
+            case Primitive.TRI_STRIP: primCount = verts.length - 2; break;
+            case Primitive.TRI_FAN: primCount = verts.length - 2; break;
+            case Primitive.QUADS:
+                //quads are rendered as TRI_STRIP, more than 1 quad would
+                //require multiple DrawPrimitive calls
+                assert(verts.length == 4, "Implement me");
+                primCount = 2;
+                //2 tris, first rotated clockwise
+                swap(mVertexBuffer[0], mVertexBuffer[1]);
+                break;
+        }
+        d3dDevice.DrawPrimitiveUP(cPrimMap[primitive], primCount,
+            mVertexBuffer.ptr, TLVERTEX.sizeof);
     }
 }

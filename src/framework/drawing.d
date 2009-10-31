@@ -338,12 +338,12 @@ public class Canvas {
 
             q[0].p = pcur+up;
             q[0].t = Vector2i(offset, 0);
-            q[1].p = pcur2+up;
-            q[1].t = Vector2i(offset2, 0);
+            q[1].p = pcur+down;
+            q[1].t = Vector2i(offset, s.y);
             q[2].p = pcur2+down;
             q[2].t = Vector2i(offset2, s.y);
-            q[3].p = pcur+down;
-            q[3].t = Vector2i(offset, s.y);
+            q[3].p = pcur2+up;
+            q[3].t = Vector2i(offset2, 0);
 
             drawQuad(tex, q);
 

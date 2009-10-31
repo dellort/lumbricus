@@ -232,6 +232,10 @@ public class Sound {
         mDriver.closeSound(sound);
         sound = null;
     }
+
+    SoundDriver driver() {
+        return mDriver;
+    }
 }
 
 ///common class for all sounds

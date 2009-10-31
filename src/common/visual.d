@@ -43,6 +43,8 @@ void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props) {
     int m = min(s.x, s.y) / 2;
     props.borderWidth = min(max(0, props.borderWidth), m);
     props.cornerRadius = min(max(0, props.cornerRadius), m);
+    if (props.cornerRadius == 0)
+        return;
 
     BoxTex tex = getBox(props);
 
