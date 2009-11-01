@@ -133,7 +133,6 @@ class DropDownSelect : Button {
         styles.addClass("drop-down-select");
         //shrink = true;
         //enableHighlight = false;
-        font = font; //update mFonts
     }
 
     override bool onTestMouse(Vector2i) {
@@ -141,27 +140,12 @@ class DropDownSelect : Button {
         return !mState;
     }
 
-    alias Label.font font;
-
-    override void font(Font font) {
-        mFonts[0] = font;
-        auto p = font.properties;
-        //invert the font
-        p.fore.r = 1.0f - p.fore.r;
-        p.fore.g = 1.0f - p.fore.g;
-        p.fore.b = 1.0f - p.fore.b;
-        p.back.a = 0.0;
-        mFonts[1] = new Font(p);
-
-        super.font(mFonts[mState ? 1 : 0]);
-    }
-
     bool dropdownState() {
         return mState;
     }
     void dropdownState(bool b) {
         mState = b;
-        super.font = mFonts[b ? 1 : 0];
+        styles.setState("selected", b);
     }
 
     override void onDraw(Canvas canvas) {

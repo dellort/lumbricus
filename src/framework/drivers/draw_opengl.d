@@ -487,8 +487,6 @@ class GLCanvas : Canvas3DHelper {
 
         initGLViewport();
 
-        clear(Color(0,0,0));
-
         checkGLError("start rendering", true);
 
         pushState();
@@ -512,8 +510,6 @@ class GLCanvas : Canvas3DHelper {
         glScalef(1, -1, 1);
         glTranslatef(0, -scrsize.y, 0);
         //glTranslatef(0, 1, 0);
-
-        glDisable(GL_SCISSOR_TEST);
 
         checkGLError("initGLViewport", true);
     }
@@ -556,7 +552,7 @@ class GLCanvas : Canvas3DHelper {
     public void clear(Color color) {
         //NOTE: glClear respects the scissor test (glScissor)
         glClearColor(color.r, color.g, color.b, color.a);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT);
 
         checkGLError("clear", true);
     }
@@ -629,12 +625,17 @@ class GLCanvas : Canvas3DHelper {
 
         glTranslatef(destPos.x, destPos.y, 0.0f);
         if (effect) {
+            //would it be faster to somehow create a direct matrix for all this?
+            if (effect.scale != 1.0f) {
+                glScalef(effect.scale, effect.scale, 0.0f);
+            }
+            if (effect.rotate != 0.0f) {
+                glRotatef(effect.rotate/math.PI*180.0f, 0.0f, 0.0f, -1.0f);
+            }
+            glTranslatef(-effect.center.x, -effect.center.y, 0.0f);
             if (effect.mirrorY) {
                 glTranslatef(source.size.x, 0.0f, 0.0f);
                 glScalef(-1.0f, 1.0f, 1.0f);
-            }
-            if (effect.rotate != 0.0f) {
-                glRotatef(effect.rotate/math.PI*180.0f, 0.0f, 0.0f, 1.0f);
             }
         }
         glCallList(glsurf.mSubSurfaces[source.index]);

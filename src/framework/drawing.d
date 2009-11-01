@@ -19,7 +19,10 @@ struct Vertex2f {
 //default values are set such that no effect is applied
 struct BitmapEffect {
     bool mirrorY = false;
-    float rotate = 0.0f; //in radians
+    float rotate = 0.0f;    //in radians
+    float scale = 1.0f;     //scale factor
+    //should this be a property of the SubSurface?
+    Vector2i center;        //(relative, positive) center of the bitmap/rotation
 }
 
 /// For drawing; the driver inherits his own class from this and overrides the

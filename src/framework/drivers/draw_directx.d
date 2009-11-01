@@ -207,7 +207,6 @@ class DXCanvas : Canvas3DHelper {
         d3dDevice.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
         d3dDevice.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
 
-        clear(Color(0,0,0));
         d3dDevice.BeginScene();
 
         mTrans = Vector2i(0, 0);

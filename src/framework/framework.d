@@ -1197,6 +1197,7 @@ class Framework {
             }
 
             Canvas c = mDrawDriver.startScreenRendering();
+            c.clear(Color(0));
             if (onFrame) {
                 onFrame(c);
             }

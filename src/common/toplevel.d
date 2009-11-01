@@ -869,8 +869,10 @@ class SwitchDriver : Task {
     char[][cDriverTypes] selects = ["base", "draw", "sound", "font"];
 
     char[][] configs = ["sdl.enable_conversion", "sdl.mark_alpha", "sdl.rle",
+        "sdl.high_quality",
         "opengl.steal_data", "opengl.lowquality", "opengl.subsurfaces",
-        "opengl.batch_subtex", "freetype.font_packer"];
+        "opengl.batch_subtex",
+        "freetype.font_packer"];
 
     DropDownList[cDriverTypes] mSelects;
     Button[] mChks;

@@ -941,7 +941,7 @@ class PixelTest : Task {
                 c = Color(0);
             else if (f == 4)
                 c = Color(1);
-            canvas.drawFilledRect(Vector2i(0), size, c);
+            canvas.clear(c);
         }
     }
 
@@ -1006,6 +1006,82 @@ class FoobarTest : Task {
     }
 }
 
+class CanvasTest : Task {
+    private {
+        ScrollBar mRot, mZoom;
+        const cZoomScale = 100;
+        Button mMirrY;
+        Surface mImg;
+        SubSurface mImgSub;
+        Vector2i mCenter;
+        BitmapEffect eff;
+    }
+
+    class Draw : Widget {
+        this() {
+        }
+
+        Vector2i at() {
+            return size/2;
+        }
+
+        override void onDraw(Canvas c) {
+            eff.mirrorY = mMirrY.checked();
+            eff.rotate = mRot.curValue/180.0*3.14159;
+            eff.scale = mZoom.curValue*1.0/cZoomScale;
+            eff.center = mCenter;
+            c.drawFast(mImgSub, at, &eff);
+            c.drawFilledCircle(at, 10, Color(0));
+            auto x = toVector2i(
+                toVector2f(mCenter).rotated(eff.rotate)*eff.scale);
+            c.drawFilledCircle(at-x, 3, Color(1,0,0));
+        }
+
+        override void onKeyEvent(KeyInfo inf) {
+            if (!inf.isDown() || inf.code != Keycode.MOUSE_LEFT)
+                return;
+            auto r = toVector2f(mousePos - at);
+            r = r.rotated(-eff.rotate) / eff.scale;
+            mCenter = toVector2i(r) + eff.center;
+        }
+    }
+
+    this(TaskManager tm, char[] args = "") {
+        super(tm);
+
+        auto box = new BoxContainer(false, false, 10);
+
+        mRot = new ScrollBar(true);
+        mRot.maxValue = 360;
+        mRot.largeChange = 10;
+        mRot.setLayout(WidgetLayout.Expand(true));
+        box.add(mRot);
+
+        mZoom = new ScrollBar(true);
+        mZoom.maxValue = 10*cZoomScale;
+        mZoom.curValue = cZoomScale;
+        mZoom.setLayout(WidgetLayout.Expand(true));
+        box.add(mZoom);
+
+        mMirrY = new Button();
+        mMirrY.isCheckbox = true;
+        mMirrY.text = "Mirror Y";
+        mMirrY.setLayout(WidgetLayout.Expand(true));
+        box.add(mMirrY);
+
+        Draw d = new Draw();
+        box.add(d);
+
+        mImg = gFramework.loadImage("level/gpl/objects/keller.png");
+        mImgSub = mImg.createSubSurface(mImg.rect);
+
+        gWindowManager.createWindow(this, box, "drawtest", Vector2i(500, 500));
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("drawtest");
+    }
+}
 
 /+ Instantiates a lot of templates, uncomment if you need it -->
 

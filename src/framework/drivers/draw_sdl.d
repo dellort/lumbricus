@@ -24,7 +24,7 @@ class SDLDrawDriver : DrawDriver {
         SDL_Surface* mSDLScreen;
         //convert stuff to display format if it isn't already
         //+ mark all alpha surfaces drawn on the screen
-        bool mRLE, mMarkAlpha, mEnableConversion;
+        bool mRLE, mMarkAlpha, mEnableConversion, mHighQuality;
         //cache for being able to draw alpha blended filled rects without OpenGL
         Surface[uint] mInsanityCache;
     }
@@ -33,6 +33,8 @@ class SDLDrawDriver : DrawDriver {
         mRLE = config.getBoolValue("rle", true);
         mMarkAlpha = config.getBoolValue("mark_alpha", false);
         mEnableConversion = config.getBoolValue("enable_conversion", true);
+        //more rotation precission and smoothing
+        mHighQuality = config.getBoolValue("high_quality", false);
 
         get_screen();
 
@@ -133,9 +135,13 @@ final class SDLSurface : DriverSurface {
         //key part
         int mirror;
         int rotate;
+        int zoom;
         //data part
         SDL_Surface* surface;
-        SDL_Rect rc;
+        //parts of the transformation matrix for offset/center vector
+        //basically it caches just the sin/cos of the rotation
+        //also x and y would be easily recalculateable, but why not cache it
+        float a = 1, b = 0, x = 0, y = 0;
     }
 
     //create from Framework's data
@@ -351,6 +357,16 @@ final class SDLSurface : DriverSurface {
         return nsurf;
     }
 
+    private SDL_Surface* convert_free(SDL_Surface* src) {
+        auto res = convert_to_display(src);
+        if (res) {
+            SDL_FreeSurface(src);
+            return res;
+        } else {
+            return src;
+        }
+    }
+
     //includes special handling for the alpha value: if completely transparent,
     //and if using colorkey transparency, return the colorkey
     final uint colorToSDLColor(Color color) {
@@ -375,29 +391,67 @@ final class SDLSurface : DriverSurface {
     }
 
     package void get_from_effect_cache(SubSurface sub, BitmapEffect* effect,
-        ref SDL_Surface* out_surface, ref SDL_Rect out_rc)
+        ref SDL_Surface* out_surface, ref Vector2i offset)
     {
         SubCache* cache = &mCache[sub.index];
 
+        void get(ref CacheEntry e) {
+            out_surface = e.surface;
+            //if no effect, the center vector is 0/0 anyway
+            if (effect) {
+                float x1 = effect.center.x, x2 = effect.center.y;
+                offset.x += cast(int)(-e.a * x1 - e.b * x2 + e.x);
+                offset.y += cast(int)( e.b * x1 - e.a * x2 + e.y);
+
+                //code above is equivalent to the following
+                /+
+                //find out where the upper left corner in the surface returned
+                //  by rotozoom is - this crap requires us to calculate this
+                //  ourselves
+                //the middle is (0,0) here
+                auto upleft = (toVector2f(sub.size)/2.0f
+                    - toVector2f(effect.center) * effect.scale;
+                auto mid = Vector2f(e.surface.w, e.surface.h)/2.0f;
+                upleft = mid - upleft.rotated(effect.rotate);
+                offset -= toVector2i(upleft);
+                +/
+            }
+        }
+
         if (!effect) {
             //some sort of early-out-optimization
-            out_surface = cache.entries[0].surface;
-            out_rc = cache.entries[0].rc;
+            get(cache.entries[0]);
             return;
         }
 
-        int irotate = realmod(cast(int)(effect.rotate/math.PI*180), 360);
+        //number of rotation subdivisions for quantization
+        //should be divisible by 8 (to have good 45° steps)
+        int cRotUnits = 16;
+        int cZoomUnitsHalf = 16; //scale subdivisions
+        const float cZoomMax = 4; //scale is clamped to [0, cZoomMax]
+        if (mDrawDriver.mHighQuality) {
+            cRotUnits *= 4;
+            cZoomUnitsHalf *= 4;
+        }
 
         //search the cache
+        //make sure the values are quantized (=> don't spam the cache)
         int k_mirror = effect.mirrorY ? 1 : 0;
-        int k_rotate = (irotate/10)*10; //quantize
+        int k_rotate = realmod(cast(int)(
+            effect.rotate/(math.PI*2.0)*cRotUnits + 0.5), cRotUnits);
+        //zoom=1.0f must map to k_zoom=0 (else you have a useless cache entry)
+        int k_zoom = cast(int)((clampRangeC(effect.scale, 0.0f, cZoomMax)-1.0f)
+            /cZoomMax*cZoomUnitsHalf+0.5);
+
+        if (effect.scale == 1.0f)
+            assert(k_zoom == 0);
 
         foreach (ref e; cache.entries) {
             if (e.mirror == k_mirror
-                && e.rotate == k_rotate)
+                && e.rotate == k_rotate
+                && e.zoom == k_zoom)
             {
-                out_surface = e.surface;
-                out_rc = e.rc;
+                get(e);
                 return;
             }
         }
@@ -405,6 +459,7 @@ final class SDLSurface : DriverSurface {
         CacheEntry entry;
         entry.mirror = k_mirror;
         entry.rotate = k_rotate;
+        entry.zoom = k_zoom;
 
         SDL_Surface* surf = create_subsurface(sub.rect);
         assert(!!surf);
@@ -420,19 +475,30 @@ final class SDLSurface : DriverSurface {
                 surf.pitch, Vector2i(surf.w, surf.h));
         }
 
-        if (k_rotate) {
-            auto nsurf = rotozoomSurface(surf, -k_rotate, 1.0, 0);
+        if (k_rotate || k_zoom) {
+            double rot_deg = 1.0*k_rotate/cRotUnits*360.0;
+            double rot_rad = rot_deg/180.0*math.PI;
+            double zoom = 1.0*k_zoom/cZoomUnitsHalf*cZoomMax + 1.0;
+            int smooth = mDrawDriver.mHighQuality ? 1 : 0;
+            auto nsurf = rotozoomSurface(surf, rot_deg, zoom, smooth);
             assert(!!nsurf, "out of memory?");
             SDL_FreeSurface(surf);
             surf = nsurf;
+
+            //explanation see elsewhere
+            //in any case, it's better to use the real zoom/rot params, instead
+            //  of the unrounded values passed by the user
+            entry.a = math.cos(rot_rad) * zoom;
+            entry.b = math.sin(rot_rad) * zoom;
+            auto s = toVector2f(sub.size);
+            entry.x = ( entry.a*s.x +  entry.b*s.y - surf.w) / 2;
+            entry.y = (-entry.b*s.x +  entry.a*s.y - surf.h) / 2;
         }
 
-        entry.surface = surf;
-        entry.rc = SDL_Rect(0, 0, surf.w, surf.h);
+        entry.surface = convert_free(surf);
         cache.entries ~= entry;
 
-        out_surface = entry.surface;
-        out_rc = entry.rc;
+        get(entry);
     }
 
     override void newSubSurface(SubSurface ss) {
@@ -456,13 +522,7 @@ final class SDLSurface : DriverSurface {
             //alternatively, could just use get_normal() (=> old behaviour)
             SDL_Surface* sub = create_subsurface(s.rect);
             assert(!!sub, "out of memory?"); //could handle this better
-            entry.surface = convert_to_display(sub);
-            if (!entry.surface) {
-                entry.surface = sub;
-            } else {
-                SDL_FreeSurface(sub);
-            }
-            entry.rc = SDL_Rect(0, 0, s.size.x, s.size.y);
+            entry.surface = convert_free(sub);
         }
     }
 
@@ -491,9 +551,6 @@ class SDLCanvas : Canvas {
         mTrans = Vector2i(0, 0);
 
         mSurface = mDrawDriver.mSDLScreen;
-
-        //--not needed SDL_SetClipRect(mSurface, null);
-        clear(Color(0,0,0));
 
         pushState();
     }
@@ -556,9 +613,11 @@ class SDLCanvas : Canvas {
         BitmapEffect* effect = null)
     {
         SDLSurface sdls = cast(SDLSurface)source.surface.getDriverSurface();
-        SDL_Rect rc;
         SDL_Surface* src;
-        sdls.get_from_effect_cache(source, effect, src, rc);
+        sdls.get_from_effect_cache(source, effect, src, destPos);
+        SDL_Rect rc;
+        rc.w = src.w;
+        rc.h = src.h;
         sdl_draw(destPos, src, rc);
     }
 
@@ -566,11 +625,11 @@ class SDLCanvas : Canvas {
         Vector2i sourcePos, Vector2i sourceSize)
     {
         SDLSurface sdls = cast(SDLSurface)source.getDriverSurface();
-        SDL_Rect rc, destrc;
-        rc.x = cast(short)sourcePos.x;
-        rc.y = cast(short)sourcePos.y;
-        rc.w = cast(ushort)sourceSize.x;
-        rc.h = cast(ushort)sourceSize.y;
+        SDL_Rect rc;
+        rc.x = sourcePos.x;
+        rc.y = sourcePos.y;
+        rc.w = sourceSize.x;
+        rc.h = sourceSize.y;
         sdl_draw(destPos, sdls.get_normal(), rc);
     }
 
