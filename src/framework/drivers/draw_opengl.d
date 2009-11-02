@@ -80,11 +80,11 @@ class GLDrawDriver : DrawDriver {
             glEnable(GL_LINE_SMOOTH);
         } else {
             glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
-            glDisable(GL_DITHER);
             //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
             glShadeModel(GL_FLAT);
         }
 
+        glDisable(GL_DITHER);
         glDisable(GL_DEPTH_TEST); //??
 
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -132,6 +132,14 @@ class GLDrawDriver : DrawDriver {
     }
 }
 
+//corresponds to GL_T2F_V3F
+//relies on Vector2f's byte layout (struct of two floats)
+struct Vertex_T2F_V3F {
+    Vector2f t;
+    Vector2f p;
+    float p3 = 0.0f; //z
+}
+
 final class GLSurface : DriverSurface {
     const GLuint GLID_INVALID = 0;
 
@@ -143,9 +151,10 @@ final class GLSurface : DriverSurface {
     Vector2i mTexSize;
     bool mError;
 
-    //GL display lists for drawing sub surfaces
+    //vertex array for all subrects, cVertCount vertices for each subrect
     //in sync with mData.subsurfaces / SubSurface.index()
-    GLuint[] mSubSurfaces;
+    Vertex_T2F_V3F[] mSubSurfaces;
+    const cVertCount = 4;
 
     //for mBatchSubTex; region that needs to be updated
     bool mIsDirty;
@@ -173,9 +182,6 @@ final class GLSurface : DriverSurface {
     }
 
     private void freeSubsurfaces() {
-        foreach (GLuint s; mSubSurfaces) {
-            glDeleteLists(s, 1);
-        }
         mSubSurfaces = null;
     }
 
@@ -189,6 +195,7 @@ final class GLSurface : DriverSurface {
         assert(mTexId == GLID_INVALID);
 
         //OpenGL textures need width and heigth to be a power of two
+        //could use GL_ARB_texture_non_power_of_two
         mTexSize = Vector2i(powerOfTwo(mData.size.x),
             powerOfTwo(mData.size.y));
         if (mTexSize == mData.size) {
@@ -359,71 +366,52 @@ final class GLSurface : DriverSurface {
         desc = myformat("GLSurface, texid={}", mTexId);
     }
 
-    void prepareDraw() {
-        undirty();
-
-        glEnable(GL_TEXTURE_2D);
-
-        //activate blending for proper alpha display
-        switch (mData.transparency) {
-            case Transparency.Colorkey:
-                glEnable(GL_ALPHA_TEST);
-                break;
-            case Transparency.Alpha:
-                glEnable(GL_BLEND);
-                break;
-            default:
-        }
-
-        glBindTexture(GL_TEXTURE_2D, mTexId);
-
-        //
-
-        checkGLError("prepareDraw", true);
-    }
-
-    void endDraw() {
-        glDisable(GL_TEXTURE_2D);
-        //glDisable calls are expensive
-        switch (mData.transparency) {
-            case Transparency.Colorkey:
-                glDisable(GL_ALPHA_TEST);
-                break;
-            case Transparency.Alpha:
-                glDisable(GL_BLEND);
-                break;
-            default:
-        }
-
-        checkGLError("endDraw", true);
-    }
-
     override void newSubSurface(SubSurface ss) {
         createSubSurfaces(mData.subsurfaces[ss.index..ss.index+1]);
     }
 
     private void createSubSurfaces(SubSurface[] subs) {
-        static assert(mSubSurfaces[0].init == GLID_INVALID); //array init, hurf
-
         if (!mDrawDriver.mUseSubSurfaces)
             return;
 
         foreach (s; subs) {
-            if (s.index() >= mSubSurfaces.length) {
-                mSubSurfaces.length = s.index() + 1;
+            if (s.index() * cVertCount >= mSubSurfaces.length) {
+                mSubSurfaces.length = (s.index() + 1) * cVertCount;
             }
-            if (mSubSurfaces[s.index] != GLID_INVALID)
-                continue;
-            GLuint nid = glGenLists(1);
-            if (nid == GLID_INVALID) {
-                checkGLError("out of display lists?");
-                assert(false); //shouldn't happen; must have generated GL error
+
+            int base = s.index * cVertCount;
+
+            void add(int tx, int ty, int px, int py) {
+                auto vert = &mSubSurfaces[base++];
+                vert.p = Vector2f(px, py);
+                vert.t = Vector2f(tx, ty) / toVector2f(mTexSize);
             }
-            glNewList(nid, GL_COMPILE);
-                simpleDraw(Vector2i(0), s.origin, s.size);
-            glEndList();
-            mSubSurfaces[s.index] = nid;
+
+            static assert(cVertCount == 4);
+            add(s.rect.p1.x, s.rect.p1.y, 0,        0);
+            add(s.rect.p1.x, s.rect.p2.y, 0,        s.size.y);
+            add(s.rect.p2.x, s.rect.p2.y, s.size.x, s.size.y);
+            add(s.rect.p2.x, s.rect.p1.y, s.size.x, 0);
         }
+    }
+
+    final void bind() {
+        //the glEnable(GL_TEXTURE_2D) and the other ones are handled by canvas
+        glBindTexture(GL_TEXTURE_2D, mTexId);
+
+        if (mDrawDriver.mUseSubSurfaces) {
+            Vertex_T2F_V3F* pverts = mSubSurfaces.ptr;
+            glInterleavedArrays(GL_T2F_V3F, Vertex_T2F_V3F.sizeof, pverts);
+        }
+
+        //xxx this could break if the user updates the texture during
+        //  drawing, because set_tex() early exits if the texture is the
+        //  same
+        undirty();
+    }
+
+    final void complicatedDraw(SubSurface sub) {
+        glDrawArrays(GL_QUADS, sub.index*cVertCount, cVertCount);
     }
 
     final void simpleDraw(Vector2i destP, Vector2i sourceP, Vector2i destS,
@@ -440,8 +428,6 @@ final class GLSurface : DriverSurface {
         t2.y = cast(float)(sourceP.y+destS.y) / mTexSize.y;
 
         checkGLError("before draw");
-
-        prepareDraw();
 
         //draw textured rect
         glBegin(GL_QUADS);
@@ -460,8 +446,6 @@ final class GLSurface : DriverSurface {
 
         glEnd();
 
-        endDraw();
-
         checkGLError("after draw");
     }
 
@@ -476,6 +460,9 @@ final class GLSurface : DriverSurface {
 class GLCanvas : Canvas3DHelper {
     private {
         GLDrawDriver mDrawDriver;
+        //some lazy state managment, because they say glEnable etc. are slow
+        GLSurface state_texture;
+        bool state_blend, state_alpha_test;
     }
 
     this(GLDrawDriver drv) {
@@ -483,9 +470,22 @@ class GLCanvas : Canvas3DHelper {
     }
 
     void startScreenRendering() {
-        initFrame(mDrawDriver.mScreenSize);
+        auto scrsize = mDrawDriver.mScreenSize;
 
-        initGLViewport();
+        initFrame(scrsize);
+
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        glScalef(1, -1, 1);
+        glTranslatef(0, -scrsize.y, 0);
+
+        //some initial states, see set_tex()
+        glDisable(GL_TEXTURE_2D);
+        state_texture = null;
+        glDisable(GL_ALPHA_TEST);
+        state_alpha_test = false;
+        glEnable(GL_BLEND);
+        state_blend = true;
 
         checkGLError("start rendering", true);
 
@@ -502,16 +502,46 @@ class GLCanvas : Canvas3DHelper {
             | DriverFeatures.usingOpenGL;
     }
 
-    private void initGLViewport() {
-        auto scrsize = mDrawDriver.mScreenSize;
+    //pass null to enable untextured drawing (also enables alpha blending)
+    private void set_tex(GLSurface tex) {
+        if (state_texture is tex)
+            return;
 
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-        glScalef(1, -1, 1);
-        glTranslatef(0, -scrsize.y, 0);
-        //glTranslatef(0, 1, 0);
+        bool want_tex = false;
+        bool want_blend = false;
+        bool want_atest = false;
 
-        checkGLError("initGLViewport", true);
+        if (!tex) {
+            want_blend = true; //blending for lines etc.
+        } else {
+            want_tex = true;
+            tex.bind();
+            switch (tex.mData.transparency) {
+                case Transparency.Colorkey:
+                    want_atest = true;
+                    break;
+                case Transparency.Alpha:
+                    want_blend = true;
+                    break;
+                default:
+            }
+        }
+
+        void state(bool want_enable, ref bool cur_state, int glstate) {
+            if (want_enable && !cur_state) {
+                glEnable(glstate);
+            } else if (!want_enable && cur_state) {
+                glDisable(glstate);
+            }
+            cur_state = want_enable;
+        }
+
+        state(want_blend, state_blend, GL_BLEND);
+        state(want_atest, state_alpha_test, GL_ALPHA_TEST);
+
+        bool texdummy = !!state_texture;
+        state(want_tex, texdummy, GL_TEXTURE_2D);
+        state_texture = tex;
     }
 
     override void updateTranslate(Vector2i offset) {
@@ -575,12 +605,11 @@ class GLCanvas : Canvas3DHelper {
 
         float ts_x = 1.0f, ts_y = 1.0f;
 
+        set_tex(glsurf);
+
         if (glsurf) {
-            glsurf.prepareDraw();
             ts_x = 1.0f / glsurf.mTexSize.x;
             ts_y = 1.0f / glsurf.mTexSize.y;
-        } else {
-            glEnable(GL_BLEND);
         }
 
         glBegin(cPrimMap[primitive]);
@@ -592,12 +621,6 @@ class GLCanvas : Canvas3DHelper {
         glEnd();
 
         glColor3f(1.0f, 1.0f, 1.0f);
-
-        if (glsurf) {
-            glsurf.endDraw();
-        } else {
-            glDisable(GL_BLEND);
-        }
     }
 
     override void drawFast(SubSurface source, Vector2i destPos,
@@ -612,12 +635,13 @@ class GLCanvas : Canvas3DHelper {
 
         //on my nvidia card, this brings a slight speed up
         //and nvidia is known for having _good_ opengl drivers
+        //NOTE: this clipping is incorrect for scaled/rotated bitmaps
         if (!visibleArea.intersects(destPos, destPos + source.size))
             return;
 
         GLSurface glsurf = cast(GLSurface)source.surface.getDriverSurface();
 
-        glsurf.undirty();
+        set_tex(glsurf);
 
         if (effect) {
             glPushMatrix();
@@ -638,7 +662,9 @@ class GLCanvas : Canvas3DHelper {
                 glScalef(-1.0f, 1.0f, 1.0f);
             }
         }
-        glCallList(glsurf.mSubSurfaces[source.index]);
+
+        glsurf.complicatedDraw(source);
+
         if (effect) {
             glPopMatrix();
         } else {
@@ -690,6 +716,7 @@ class GLCanvas : Canvas3DHelper {
             return;
 
         GLSurface glsurf = cast(GLSurface)source.getDriverSurface();
+        set_tex(glsurf);
         glsurf.simpleDraw(destPos, sourcePos, destSize, mirrorY);
     }
 }
