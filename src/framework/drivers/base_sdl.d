@@ -120,11 +120,6 @@ class SDLDriver : FrameworkDriver {
         sdlQuit();
     }
 
-    //this is for sdldraw.d
-    package SDL_Surface* get_screen() {
-        return mSDLScreen;
-    }
-
     private bool switchVideoTo(VideoWindowState state) {
         if (state.bitdepth < 0)
             state.bitdepth = 0;

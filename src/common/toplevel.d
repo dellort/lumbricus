@@ -316,6 +316,8 @@ private:
             "List timers", []);
         globals.cmdLine.registerCommand("show_fps", &cmdShowFps,
             "Enable/disable FPS display", ["bool:enable"]);
+        globals.cmdLine.registerCommand("show_deltas", &cmdShowDeltas,
+            "Toggle min/max frametime display", []);
 
         globals.cmdLine.registerCommand("fw_info", &cmdInfoString,
             "Query a info string from the framework, with no argument: list "
@@ -335,6 +337,10 @@ private:
 
     private void cmdShowFps(MyBox[] args, Output write) {
         mFPS.visible = args[0].unbox!(bool);
+    }
+
+    private void cmdShowDeltas(MyBox[] args, Output write) {
+        mFPS.showDeltas = !mFPS.showDeltas;
     }
 
     private void cmdInfoString(MyBox[] args, Output write) {

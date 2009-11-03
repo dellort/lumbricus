@@ -407,12 +407,14 @@ class Rope : Shooter {
         }
 
         if (mShooting) {
-            line(mWorm.physics.pos, mAnchorPosition);
+            line(toVector2f(mWorm.graphic.interpolated_position),
+                mAnchorPosition);
         }
 
         texoffs = 0;
-        foreach (ref seg; ropeSegments) {
-            line(seg.start, seg.end);
+        foreach (int idx, ref seg; ropeSegments) {
+            line(seg.start, (idx == ropeSegments.length-1)
+                ? toVector2f(mWorm.graphic.interpolated_position) : seg.end);
         }
 
         AnimationParams ap;

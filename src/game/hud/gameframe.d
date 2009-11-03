@@ -50,8 +50,8 @@ class GameFrame : SimpleContainer {
 
         WeaponSelWindow mWeaponSel;
         //movement of mWeaponSel for blending in/out
-        InterpolateLinear!(float) mWeaponInterp;
-        //InterpolateExp2!(float) mWeaponInterp;
+        //InterpolateLinear!(float) mWeaponInterp;
+        InterpolateExp!(float) mWeaponInterp;
 
         TeamWindow mTeamWindow;
 
@@ -74,6 +74,8 @@ class GameFrame : SimpleContainer {
     private void teamChanged() {
         TeamMember t = game.control.getControlledMember();
         mWeaponSel.update(t ? t.team.weapons : null);
+        if (!t == (mWeaponInterp.target == 0f))
+            mWeaponInterp.revert();
     }
 
     private void selectWeapon(WeaponClass c) {
@@ -204,7 +206,8 @@ class GameFrame : SimpleContainer {
     }
 
     private void toggleWeaponWindow() {
-        mWeaponInterp.revert();
+        if (game.control.getControlledMember())
+            mWeaponInterp.revert();
     }
 
     this(GameInfo g) {
@@ -265,7 +268,7 @@ class GameFrame : SimpleContainer {
         WeaponClass[] wlist = game.engine.gfx.weaponList();
         mWeaponSel.init(game.engine, wlist);
 
-        mWeaponInterp.init_done(timeSecs(0.4), 1, 0);
+        mWeaponInterp.init_done(timeSecs(0.4), 0, 1);
 
         setPosition(game.engine.level.worldCenter);
 

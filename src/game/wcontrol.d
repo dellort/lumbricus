@@ -425,7 +425,7 @@ class WormControl : WormController {
     void doneFiring(Shooter sh) {
         if (!sh.weapon.dontEndRound)
             mWeaponUsed = true;
-        if (sh.weapon.deselectAfterFire)
+        if (sh.weapon.deselectAfterFire && mWorm.weapon is sh.weapon)
             selectWeapon(null);
     }
 

@@ -44,7 +44,7 @@ class SDLDrawDriver : DrawDriver {
     private void get_screen() {
         //this obviously means this DrawDriver is bound to SDL
         SDLDriver driver = castStrict!(SDLDriver)(gFramework.driver());
-        mSDLScreen = driver.get_screen();
+        mSDLScreen = SDL_GetVideoSurface();
     }
 
     override DriverSurface createSurface(SurfaceData data) {

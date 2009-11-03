@@ -36,6 +36,7 @@ sounds {
             a_cow_release = "CowMoo.wav"
             a_granny = "OLDWOMAN.WAV"
             a_sheep = "SHEEPBAA.WAV"
+            a_sizzle = "SIZZLE.WAV"
         }
     }
     /* -- not implemented

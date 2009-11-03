@@ -3,6 +3,7 @@ module framework.drivers.draw_opengl;
 
 import derelict.opengl.gl;
 import derelict.opengl.glu;
+import derelict.opengl.extension.arb.texture_non_power_of_two;
 import framework.framework;
 import framework.drawing;
 import tango.math.Math;
@@ -74,6 +75,8 @@ class GLDrawDriver : DrawDriver {
         assert(screen_size.quad_length > 0);
         mScreenSize = screen_size;
         DerelictGL.loadExtensions();
+        debug Trace.formatln("GL supports non-power-of-two: {}",
+            ARBTextureNonPowerOfTwo.isEnabled);
 
         //initialize some static OpenGL context attributes
         if (!mLowQuality) {

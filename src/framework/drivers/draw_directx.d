@@ -96,7 +96,45 @@ class DXDrawDriver : DrawDriver {
     }
 
     override Surface screenshot() {
-        return null;
+        //xxx stupid Direct3D can only capture the whole screen (with desktop)
+        //    in windowed mode
+        //another approach is to copy the _backbuffer_ before it is flipped and
+        //discarded with the Present() call, but I'm too lazy for that
+        D3DDISPLAYMODE displayMode;
+        d3dDevice.GetDisplayMode(0, &displayMode);
+
+        Surface res = new Surface(
+            Vector2i(displayMode.Width, displayMode.Height), Transparency.None);
+        Color.RGBA32* pDest;
+        uint pitch;
+        res.lockPixelsRGBA32(pDest, pitch);
+        assert(pitch == res.size.x);
+
+        IDirect3DSurface9 tmpSurf;
+        d3dDevice.CreateOffscreenPlainSurface(displayMode.Width,
+            displayMode.Height, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &tmpSurf,
+            null);
+        assert(!!tmpSurf);
+        assert(!FAILED(d3dDevice.GetFrontBufferData(0, tmpSurf)));
+
+        D3DLOCKED_RECT lrc;
+        assert(!FAILED(tmpSurf.LockRect(&lrc, null, D3DLOCK_READONLY)));
+        assert(lrc.Pitch == res.size.x*4);
+        Color.RGBA32* pSrc = cast(Color.RGBA32*)lrc.pBits;
+        for (int i = 0; i < res.size.x*res.size.y; i++) {
+            pDest.r = pSrc.b;
+            pDest.g = pSrc.g;
+            pDest.b = pSrc.r;
+            pDest.a = pSrc.a;
+            pDest++;
+            pSrc++;
+        }
+        tmpSurf.UnlockRect();
+
+        res.unlockPixels(res.rect());
+        tmpSurf.Release();
+        tmpSurf = null;
+        return res;
     }
 
     override int getFeatures() {
@@ -182,7 +220,7 @@ class DXCanvas : Canvas3DHelper {
     private {
         const cMaxVertices = 100;
         DXDrawDriver mDrawDriver;
-        //IDirect3DVertexBuffer9 mVertexBuffer;
+        IDirect3DVertexBuffer9 mDXVertexBuffer;
         TLVERTEX[cMaxVertices] mVertexBuffer;
         Vector2i mTrans;
     }
@@ -201,9 +239,10 @@ class DXCanvas : Canvas3DHelper {
         d3dDevice.SetFVF(D3DFVF_TLVERTEX);
 
         //Create vertex buffer
-        /*d3dDevice.CreateVertexBuffer(TLVERTEX.sizeof * 4, 0,
-            D3DFVF_TLVERTEX, D3DPOOL_MANAGED, &mVertexBuffer, null);
-        d3dDevice.SetStreamSource(0, mVertexBuffer, 0, TLVERTEX.sizeof);*/
+        d3dDevice.CreateVertexBuffer(TLVERTEX.sizeof * 4,
+            D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY,
+            D3DFVF_TLVERTEX, D3DPOOL_DEFAULT, &mDXVertexBuffer, null);
+        d3dDevice.SetStreamSource(0, mDXVertexBuffer, 0, TLVERTEX.sizeof);
     }
 
     override int features() {
@@ -217,6 +256,7 @@ class DXCanvas : Canvas3DHelper {
         d3dDevice.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
         d3dDevice.SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
         d3dDevice.SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, TRUE);
+        d3dDevice.SetRenderState(D3DRS_ZENABLE, FALSE);
         d3dDevice.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
 
         d3dDevice.BeginScene();
@@ -289,18 +329,21 @@ class DXCanvas : Canvas3DHelper {
         t1.y = cast(float)sourcePos.y / tex.mData.size.y;
         t2.x = cast(float)(sourcePos.x+sourceSize.x) / tex.mData.size.x;
         t2.y = cast(float)(sourcePos.y+sourceSize.y) / tex.mData.size.y;
+        if (mirrorY) {
+            swap(t1.x, t2.x);
+        }
 
+        //TLVERTEX* buf;
+        //mDXVertexBuffer.Lock(0, 0, cast(void**)&buf, D3DLOCK_DISCARD);
         //clockwise rotation, 2nd tri is auto-inverted
         mVertexBuffer[0] = TLVERTEX(Vector2i(p1.x, p2.y), Vector2f(t1.x, t2.y));
         mVertexBuffer[1] = TLVERTEX(Vector2i(p1.x, p1.y), Vector2f(t1.x, t1.y));
         mVertexBuffer[2] = TLVERTEX(Vector2i(p2.x, p2.y), Vector2f(t2.x, t2.y));
         mVertexBuffer[3] = TLVERTEX(Vector2i(p2.x, p1.y), Vector2f(t2.x, t1.y));
-        if (mirrorY) {
-            swap(mVertexBuffer[0].t, mVertexBuffer[2].t);
-            swap(mVertexBuffer[1].t, mVertexBuffer[3].t);
-        }
+        //mDXVertexBuffer.Unlock();
 
         d3dDevice.SetTexture(0, tex.mTex);
+        //d3dDevice.DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
         d3dDevice.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, mVertexBuffer.ptr,
             TLVERTEX.sizeof);
     }
