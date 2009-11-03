@@ -523,6 +523,9 @@ class GameEngine {
             return false;
 
         GeomContact contact;
+        //check if origin point is inside geometry
+        if (physicworld.collideGeometry(drop, radius, contact))
+            return false;
         //cast a ray downwards from drop
         if (!physicworld.thickRay(drop, Vector2f(0, 1), area.p2.y - drop.y,
             radius, drop, contact))

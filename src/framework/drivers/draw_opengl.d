@@ -624,6 +624,8 @@ class GLCanvas : Canvas3DHelper {
             }
         glEnd();
 
+        glEnable(GL_BLEND);
+
         glColor3f(1.0f, 1.0f, 1.0f);
     }
 
