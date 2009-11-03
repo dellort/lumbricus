@@ -381,6 +381,7 @@ class GameView : Container {
     //these are all evil hacks and should go away
     void delegate() onTeamChange;
     void delegate() onKeyHelp;
+    void delegate() onToggleWeaponWindow;
     void delegate(char[] category) onSelectCategory;
 
     //for setSettings()
@@ -589,7 +590,10 @@ class GameView : Container {
             "disable game camera", ["bool?:disable"]));
         mCmds.register(Command("move", &cmdMove, "-", ["text:key",
             "bool:down"]));
+        //xxx these should be in gameframe.d
         mCmds.register(Command("keybindings_help", &cmdShowKeybinds, "-", []));
+        mCmds.register(Command("toggle_weaponwindow", &cmdToggleWeaponWnd, "-",
+            []));
         mCmds.bind(mCmd);
     }
 
@@ -632,6 +636,11 @@ class GameView : Container {
     private void cmdShowKeybinds(MyBox[] args, Output write) {
         if (onKeyHelp)
             onKeyHelp();
+    }
+
+    private void cmdToggleWeaponWnd(MyBox[] args, Output write) {
+        if (onToggleWeaponWindow)
+            onToggleWeaponWindow();
     }
 
     //should be moved elsewhere etc.

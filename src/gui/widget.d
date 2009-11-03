@@ -312,7 +312,7 @@ class Widget {
         return mEnabled;
     }
 
-    private Vector2i bordersize() {
+    Vector2i bordersize() {
         if (mDrawBorder)
             return Vector2i(mBorderStyle.borderWidth
                 + mBorderStyle.cornerRadius/3);
@@ -322,18 +322,17 @@ class Widget {
     ///translate parent's coordinates (i.e. containedBounds()) to the Widget's
     ///coords (i.e. mousePos(), in case of containers: child object coordinates)
     final Vector2i coordsFromParent(Vector2i pos) {
+        pos -= mContainedWidgetBounds.p1;
         if (canScale)
-            return doScalei(pos - mContainedWidgetBounds.p1);
-        else
-            return pos - mContainedWidgetBounds.p1;
+            pos = doScalei(pos);
+        return pos;
     }
 
     ///coordsToParent(coordsFromParent(p)) == p
     final Vector2i coordsToParent(Vector2i pos) {
         if (canScale)
-            return doScale(pos) + mContainedWidgetBounds.p1;
-        else
-            return pos + mContainedWidgetBounds.p1;
+            pos = doScale(pos);
+        return pos + mContainedWidgetBounds.p1;
     }
 
     ///rectangle the Widget takes up in parent container
@@ -396,6 +395,32 @@ class Widget {
         }
         prc = rc;
         return true;
+    }
+
+    ///this silly function returns the distance between a border of this widget
+    /// and the border of the parent widget
+    ///e.g. distance of our left border to the right border of the parent
+    ///dx=1, dy=0: right screen border
+    ///dx=0, dy=-1: top screen border
+    ///etc.
+    ///right_bottom: false=left or top bottom of this widget, true=right/bottom
+    int findParentBorderDistance(int dx, int dy, bool right_bottom) {
+        //check the direct parent
+        //xxx: we really must do a bit more, I guess
+        Vector2i pt = right_bottom ? size : Vector2i(0);
+        if (!(parent && parent.translateCoords(this, pt)))
+            return 0; //dummy value, doesn't really matter (widget invisible)
+        //the border thing is very silly: border isn't part of the widget, so
+        //  you have to deal with it manually to get the real left/right border
+        pt += bordersize * (right_bottom ? +1 : -1);
+        if (dx > 0 || dy > 0)
+            pt = parent.size - pt;
+
+        if ((dx == 1 || dx == -1) && dy == 0)
+            return pt.x;
+        if ((dy == 1 || dy == -1) && dx == 0)
+            return pt.y;
+        assert(false, "one of dx or dy must be 1 or -1, the other must be 0");
     }
 
     ///Set current content scaling factor
@@ -834,6 +859,11 @@ class Widget {
     void doDraw(Canvas c) {
         if (!mVisible)
             return;
+
+        //early out if it isn't visible at all
+        if (!c.visibleArea.intersects(mBorderArea+mAddToPos))
+            return;
+
         c.pushState();
         if (drawBorder) {
             drawBox(c, mBorderArea+mAddToPos, mBorderStyle);

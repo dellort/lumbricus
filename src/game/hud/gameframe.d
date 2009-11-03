@@ -29,6 +29,7 @@ import game.gamepublic;
 import game.game;
 import game.weapon.weapon;
 //import levelgen.level;
+import utils.interpolate;
 import utils.time;
 import utils.misc;
 import utils.vector2;
@@ -48,6 +49,9 @@ class GameFrame : SimpleContainer {
         SimpleContainer mGui;
 
         WeaponSelWindow mWeaponSel;
+        //movement of mWeaponSel for blending in/out
+        InterpolateLinear!(float) mWeaponInterp;
+        //InterpolateExp2!(float) mWeaponInterp;
 
         TeamWindow mTeamWindow;
 
@@ -141,6 +145,10 @@ class GameFrame : SimpleContainer {
         mTeamWindow.update(finished);
 
         mScroller.scale = Vector2f(gameView.zoomLevel, gameView.zoomLevel);
+
+        int wsel_edge = mWeaponSel.findParentBorderDistance(1, 0, false);
+        mWeaponSel.setAddToPos(
+            Vector2i(cast(int)(mWeaponInterp.value*wsel_edge), 0));
     }
 
     override bool doesCover() {
@@ -195,6 +203,10 @@ class GameFrame : SimpleContainer {
         dlg.lock();
     }
 
+    private void toggleWeaponWindow() {
+        mWeaponInterp.revert();
+    }
+
     this(GameInfo g) {
         game = g;
 
@@ -226,6 +238,7 @@ class GameFrame : SimpleContainer {
         gameView.onTeamChange = &teamChanged;
         gameView.onSelectCategory = &selectCategory;
         gameView.onKeyHelp = &keyHelp;
+        gameView.onToggleWeaponWindow = &toggleWeaponWindow;
 
         mScroller = new MouseScroller();
         //changed after r845, was WidgetLayout.Aligned(0, -1)
@@ -251,6 +264,8 @@ class GameFrame : SimpleContainer {
 
         WeaponClass[] wlist = game.engine.gfx.weaponList();
         mWeaponSel.init(game.engine, wlist);
+
+        mWeaponInterp.init_done(timeSecs(0.4), 1, 0);
 
         setPosition(game.engine.level.worldCenter);
 

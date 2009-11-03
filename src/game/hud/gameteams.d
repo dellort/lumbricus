@@ -27,6 +27,7 @@ import array = tango.core.Array;
 class TeamWindow : Container {
     const Time cSwapLinesDuration = timeMsecs(500);
     const Time cRemoveLinesDuration = timeMsecs(500);
+    const Time cDropLineDuration = timeMsecs(150);
     private {
         //for memory managment reasons, make larger if too small
         const cWidgetsPerRow = 3;
@@ -38,6 +39,8 @@ class TeamWindow : Container {
         Time currentSwapStart;
         int currentRemoveLines = -1; //number of lines which currently move out
         Time currentRemoveStart;
+        bool mDropLastLine;
+        Time mDropStart;
         bool mUpdating;
         TimeSourcePublic mTimeSource;
 
@@ -136,7 +139,8 @@ class TeamWindow : Container {
         2.3. the positions are swapped now
              go back to 1. and do everything again
     3. the losers are now at the end, if there are losers which died:
-        3.1. move the losers out of the screen
+        3.1. move the losers out of the screen ("drop line")
+        3.2. move down the rest of the team window ("remove line")
     during all that, animating() returns true
     theres also that thing that the health is counted down, this is in
     gameframe.d; during that update(false) is called to update the bar widths
@@ -184,7 +188,9 @@ class TeamWindow : Container {
         }
         if (lines_to_remove == 0)
             return false;
-        startRemoveLines(1);
+        //initiate 3.1
+        mDropLastLine = true;
+        mDropStart = mTimeSource.current();
         return true;
     }
 
@@ -214,11 +220,12 @@ class TeamWindow : Container {
 
     //probably needed to wait until it's done?
     bool animating() {
-        return mUpdating || swapping() || removingLines();
+        return mUpdating;
     }
 
+    //"how to make simple things complicated"
     override void simulate() {
-        if (!animating())
+        if (!mUpdating)
             return;
 
         Time curt = mTimeSource.current();
@@ -324,9 +331,33 @@ class TeamWindow : Container {
             }
         }
 
-        if (!swapping() && !removingLines()) {
+        if (mDropLastLine) {
+            Widget[cWidgetsPerRow] alloc_line;
+            Widget[] line = getRow(mTable.height - 1, alloc_line);
+
+            auto height = mTable.cellRect(0, mTable.height - 1).size.y
+                + mTable.cellSpacing.y;
+            //gap between table and screen
+            height += mTable.findParentBorderDistance(0, 1, true);
+
+            auto f = (curt - mDropStart).secsf / cDropLineDuration.secsf;
+            auto y = height * f;
+            foreach (w; line) {
+                w.setAddToPos(toVector2i(Vector2f(0, y)));
+            }
+
+            if (mDropStart + cDropLineDuration < curt) {
+                //initiate 3.2
+                mDropLastLine = false;
+                startRemoveLines(1);
+            }
+        }
+
+        if (!swapping() && !mDropLastLine && !removingLines()) {
             //d'oh, recheck everything
             mUpdating = checkSort() || checkMoveOut();
         }
+
+        mUpdating = swapping() || mDropLastLine || removingLines();
     }
 }

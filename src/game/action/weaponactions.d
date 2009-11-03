@@ -41,6 +41,7 @@ static this() {
     regAction!(homing, "force_a, force_t")("homing");
 
     regAction!(team, "action")("team");
+    regAction!(kill_everyone_but_me, "")("kill_everyone_but_me");
 
     regAction!(nothing, "")("nothing");
 }
@@ -131,6 +132,23 @@ void team(WeaponContext wx, char[] action) {
             new WormSelectHelper(wx.engine, member);
             break;
         default:
+    }
+}
+
+void kill_everyone_but_me(WeaponContext wx) {
+    auto w = wx.ownerSprite;
+    if (!w)
+        return;
+    auto member = wx.engine.controller.memberFromGameObject(w, false);
+    if (!member)
+        return;
+    foreach (Team t; wx.engine.controller.teams) {
+        if (t is member.team)
+            continue;
+        foreach (TeamMember m; t.getMembers()) {
+            //I thought this is funnier than killing "reliably"
+            m.addHealth(-9999);
+        }
     }
 }
 

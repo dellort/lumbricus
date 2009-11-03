@@ -39,6 +39,14 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
         doneValue = start + cast(T)((target - start) * FN(1.0f));
     }
 
+    ///init as if the animation is done and has stopped; it's like a_duration
+    /// has already passed after this call, and value() will always be a_target
+    ///useful with revert()
+    void init_done(Time a_duration, T a_start, T a_target) {
+        init(a_duration, a_start, a_target);
+        startTime -= a_duration;
+    }
+
     ///Return the current value (will sample time)
     T value() {
         auto d = currentTime() - startTime;
@@ -79,6 +87,11 @@ static if (!is(FN_1 == Missing)) {
     ///Same as above, but doesn't change duration
     void setParams(T a_start, T a_target) {
         setParams(duration, a_start, a_target);
+    }
+
+    ///restart with same duration, but swapped start/target values
+    void revert() {
+        setParams(target, start);
     }
 }
 
