@@ -19,7 +19,7 @@ struct TLVERTEX {
 
     static TLVERTEX opCall(Vector2i p, Color col, Vector2f t) {
         TLVERTEX ret;
-        ret.p = toVector2f(p);
+        ret.p = toVector2f(p) - Vector2f(0.5f);
         ret.color = D3DCOLOR_FLOAT(col);
         ret.t = t;
         return ret;
@@ -39,12 +39,15 @@ class DXDrawDriver : DrawDriver {
         Vector2i mScreenSize;
         DXCanvas mCanvas;
         D3DPRESENT_PARAMETERS mPresentParams;
+        bool mVsync;
     }
 
     IDirect3D9 d3dObj;
     IDirect3DDevice9 d3dDevice;
 
     this(ConfigNode config) {
+        mVsync = config.getValue("vsync", false);
+
         DerelictD3D9.load();
 
         d3dObj = Direct3DCreate9(D3D_SDK_VERSION);
@@ -79,6 +82,8 @@ class DXDrawDriver : DrawDriver {
         mPresentParams.BackBufferHeight = mScreenSize.y;
         mPresentParams.BackBufferFormat = D3DFMT_X8R8G8B8;
         mPresentParams.MultiSampleType = D3DMULTISAMPLE_NONE;
+        mPresentParams.PresentationInterval =
+            mVsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
 
         if (FAILED(d3dObj.CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL,
            vstate.window_handle, D3DCREATE_SOFTWARE_VERTEXPROCESSING,
@@ -95,7 +100,7 @@ class DXDrawDriver : DrawDriver {
     }
 
     override int getFeatures() {
-        return DriverFeatures.canvasScaling | DriverFeatures.transformedQuads;
+        return /*DriverFeatures.canvasScaling |*/ DriverFeatures.transformedQuads;
     }
 
     override void destroy() {
@@ -123,6 +128,8 @@ class DXSurface : DriverSurface {
         mData = data;
         assert(data.data !is null);
         //reinit();
+        if (data.size.quad_length == 0)
+            return;
         mDrawDriver.d3dDevice.CreateTexture(mData.size.x, mData.size.y, 1,
             D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &mTex, null);
         assert(!!mTex);
@@ -162,8 +169,8 @@ class DXSurface : DriverSurface {
     }
 
     override void kill() {
-        assert(!!mTex);
-        mTex.Release();
+        if (mTex)
+            mTex.Release();
         mTex = null;
     }
 
@@ -186,6 +193,9 @@ class DXCanvas : Canvas3DHelper {
         mDrawDriver = draw_driver;
         d3dDevice = mDrawDriver.d3dDevice;
 
+        d3dDevice.SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+        d3dDevice.SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+
         //Set vertex shader
         d3dDevice.SetVertexShader(null);
         d3dDevice.SetFVF(D3DFVF_TLVERTEX);
@@ -205,15 +215,20 @@ class DXCanvas : Canvas3DHelper {
         d3dDevice.SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
         d3dDevice.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
         d3dDevice.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+        d3dDevice.SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+        d3dDevice.SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, TRUE);
         d3dDevice.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
 
         d3dDevice.BeginScene();
 
         mTrans = Vector2i(0, 0);
         initFrame(mDrawDriver.mScreenSize);
+
+        pushState();
     }
 
     package void stopScreenRendering() {
+        popState();
         uninitFrame();
         d3dDevice.EndScene();
         d3dDevice.Present(null, null, null, null);

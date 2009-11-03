@@ -416,6 +416,9 @@ class Canvas3DHelper : Canvas {
         mColor = Color(1.0f);
     }
 
+    protected void lineWidth(int width) {
+    }
+
     override void drawCircle(Vector2i center, int radius, Color color) {
         mColor = color;
         stroke_circle(center.x, center.y, radius);
@@ -495,8 +498,6 @@ class Canvas3DHelper : Canvas {
     //<-- Luigi end
 
     override void drawLine(Vector2i p1, Vector2i p2, Color color, int width = 1) {
-        //xxx line width is missing, I forgot to think about it
-        //glLineWidth(width);
         //and this was apparently some hack to avoid ugly lines
         //float trans = width%2==0?0f:0.5f;
         ////fixes blurry lines with GL_LINE_SMOOTH
@@ -504,6 +505,7 @@ class Canvas3DHelper : Canvas {
 
         mColor = color;
 
+        lineWidth(width);
         begin(Primitive.LINES);
             vertex(p1.x, p1.y);
             vertex(p2.x, p2.y);
@@ -520,6 +522,7 @@ class Canvas3DHelper : Canvas {
         const c = 0.5f;
 
         mColor = color;
+        lineWidth(1);
         begin(Primitive.LINE_LOOP);
             vertex(p1.x+c, p1.y+c);
             vertex(p1.x+c, p2.y+c);

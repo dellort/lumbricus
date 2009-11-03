@@ -90,7 +90,6 @@
 		<Unit filename="../src/framework/drivers/font_freetype.d" />
 		<Unit filename="../src/framework/drivers/sound_fmod.d" />
 		<Unit filename="../src/framework/drivers/sound_openal.d" />
-		<Unit filename="../src/framework/drivers/sound_sdlmixer.d" />
 		<Unit filename="../src/framework/enums.d" />
 		<Unit filename="../src/framework/event.d" />
 		<Unit filename="../src/framework/ffaudiodecode.d" />

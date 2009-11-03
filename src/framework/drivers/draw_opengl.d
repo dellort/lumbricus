@@ -544,6 +544,10 @@ class GLCanvas : Canvas3DHelper {
         state_texture = tex;
     }
 
+    override void lineWidth(int width) {
+        glLineWidth(width);
+    }
+
     override void updateTranslate(Vector2i offset) {
         glTranslatef(cast(float)offset.x, cast(float)offset.y, 0);
         checkGLError("glTranslatef", true);
