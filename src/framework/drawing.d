@@ -188,23 +188,21 @@ public class Canvas {
         mStack[mStackTop].translate += toVector2i(toVector2f(offset)
             ^ mStack[mStackTop].scale);
         updateAreas();
-        updateTranslate(offset);
+        do_update_transform();
     }
 
-    //this is called from translate(); drivers can override it
-    //but actually, the new translation offset is in mStack[mStackTop].translate
-    //popState() also calls thus to reset the translation (that's redundant for
-    //  the OpenGL driver, but needed by the SDL one)
-    protected void updateTranslate(Vector2i offset) {
+    private void do_update_transform() {
+        updateTransform(mStack[mStackTop].translate, mStack[mStackTop].scale);
     }
+
+    //update the current canvas transform; all values are global
+    //first apply translation, then scaling
+    //if the driver doesn't support scaling, the scale value is/should always be
+    //  Vector2f(1.0f)
+    protected abstract void updateTransform(Vector2i trans, Vector2f scale);
 
     //set the clip rectangle (screen coordinates)
     protected abstract void updateClip(Vector2i p1, Vector2i p2);
-
-    //set the current scale factor
-    //if the driver doesn't support scaling, this is never called
-    protected void updateScale(Vector2f scale) {
-    }
 
     /// Set the cliprect (doesn't change "window" or so).
     final void clip(Vector2i p1, Vector2i p2) {
@@ -225,11 +223,11 @@ public class Canvas {
     final void setScale(Vector2f sc) {
         if (!(features() & DriverFeatures.canvasScaling))
             return;
-        updateScale(sc);
         mStack[mStackTop].clientsize =
             toVector2i(toVector2f(mStack[mStackTop].clientsize) / sc);
         mStack[mStackTop].scale = mStack[mStackTop].scale ^ sc;
         updateAreas();
+        do_update_transform();
     }
 
     /// push/pop state as set by most of the functions
@@ -238,7 +236,6 @@ public class Canvas {
 
         mStack[mStackTop+1] = mStack[mStackTop];
         mStackTop++;
-        updateAreas();
     }
 
     void popState() {
@@ -250,8 +247,7 @@ public class Canvas {
         updateClip(mStack[mStackTop].clip.p1, mStack[mStackTop].clip.p2);
         updateAreas();
 
-        //this silliness is just for the SDL driver
-        updateTranslate(mStack[mStackTop].translate - oldtrans);
+        do_update_transform();
     }
 
     //NOTE: the quad parameter is already by ref (one of the most stupied Disms)

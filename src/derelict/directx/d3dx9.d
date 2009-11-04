@@ -1114,8 +1114,6 @@ extern(Windows)
 
 	D3DXPLANE* function( D3DXPLANE *pOut, D3DXPLANE *pP) D3DXPlaneNormalize;
 
-	char* function(HRESULT hr) DXGetErrorDescription9A;
-
 	HRESULT function(
 	        IDirect3DDevice9               pDevice,
 	        LPCSTR                          pSrcFile,
@@ -2024,7 +2022,6 @@ private void load(SharedLib lib) {
     bindFunc(D3DXQuaternionRotationMatrix)("D3DXQuaternionRotationMatrix",lib);
     bindFunc(D3DXQuaternionNormalize)("D3DXQuaternionNormalize",lib);
     bindFunc(D3DXPlaneNormalize)("D3DXPlaneNormalize",lib);
-    bindFunc(DXGetErrorDescription9A)("DXGetErrorDescription9A",lib);
     bindFunc(D3DXCreateEffectFromFileA)("D3DXCreateEffectFromFileA",lib);
     bindFunc(D3DXMatrixTransformation2D)("D3DXMatrixTransformation2D",lib);
     bindFunc(D3DXLoadMeshFromXA)("D3DXLoadMeshFromXA",lib);

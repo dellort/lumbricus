@@ -100,6 +100,8 @@ class GLDrawDriver : DrawDriver {
         glLoadIdentity();
         //standard top-zero coordinates
         glOrtho(0, mScreenSize.x, 0, mScreenSize.y, 0, 128);
+        glScalef(1, -1, 1);
+        glTranslatef(0, -mScreenSize.y, 0);
 
         glMatrixMode(GL_MODELVIEW);
     }
@@ -479,8 +481,6 @@ class GLCanvas : Canvas3DHelper {
 
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
-        glScalef(1, -1, 1);
-        glTranslatef(0, -scrsize.y, 0);
 
         //some initial states, see set_tex()
         glDisable(GL_TEXTURE_2D);
@@ -551,9 +551,11 @@ class GLCanvas : Canvas3DHelper {
         glLineWidth(width);
     }
 
-    override void updateTranslate(Vector2i offset) {
-        glTranslatef(cast(float)offset.x, cast(float)offset.y, 0);
-        checkGLError("glTranslatef", true);
+    override void updateTransform(Vector2i trans, Vector2f scale) {
+        glLoadIdentity();
+        glTranslatef(trans.x, trans.y, 0);
+        glScalef(scale.x, scale.y, 1);
+        checkGLError("update transform", true);
     }
 
     override void updateClip(Vector2i p1, Vector2i p2) {
@@ -562,28 +564,6 @@ class GLCanvas : Canvas3DHelper {
         auto sz = (p2 - p1).max(Vector2i(0));
         glScissor(p1.x, realSize.y-p2.y, sz.x, sz.y);
         checkGLError("doClip", true);
-    }
-
-    override void updateScale(Vector2f z) {
-        glScalef(z.x, z.y, 1);
-        checkGLError("glScalef", true);
-    }
-
-    override void pushState() {
-        super.pushState();
-
-        checkGLError("before pushState", true);
-        glPushMatrix();
-        checkGLError("pushState", true);
-    }
-    override void popState() {
-        //this will call updateClip(), which calls glScissor
-        //that is before glPopMatrix(); but glScissor uses window coordinates
-        super.popState();
-
-        checkGLError("before popState", true);
-        glPopMatrix();
-        checkGLError("popState", true);
     }
 
     public void clear(Color color) {

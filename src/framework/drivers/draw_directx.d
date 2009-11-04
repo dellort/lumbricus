@@ -9,17 +9,16 @@ import tango.sys.win32.Types;
 import utils.misc;
 
 
-const uint D3DFVF_TLVERTEX = D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1;
+const uint D3DFVF_TLVERTEX = D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1;
 struct TLVERTEX {
     Vector2f p;
     float z = 0.0f;      //always 0 for 2D
-    float rhw = 1.0f;    //1 to use screen coordinates
     D3DCOLOR color;
     Vector2f t;
 
     static TLVERTEX opCall(Vector2i p, Color col, Vector2f t) {
         TLVERTEX ret;
-        ret.p = toVector2f(p) - Vector2f(0.5f);
+        ret.p = toVector2f(p);
         ret.color = D3DCOLOR_FLOAT(col);
         ret.t = t;
         return ret;
@@ -49,6 +48,7 @@ class DXDrawDriver : DrawDriver {
         mVsync = config.getValue("vsync", false);
 
         DerelictD3D9.load();
+        DerelictD3DX9.load();
 
         d3dObj = Direct3DCreate9(D3D_SDK_VERSION);
         if (d3dObj is null)
@@ -138,7 +138,7 @@ class DXDrawDriver : DrawDriver {
     }
 
     override int getFeatures() {
-        return /*DriverFeatures.canvasScaling |*/ DriverFeatures.transformedQuads;
+        return DriverFeatures.canvasScaling | DriverFeatures.transformedQuads;
     }
 
     override void destroy() {
@@ -148,6 +148,7 @@ class DXDrawDriver : DrawDriver {
         }
         d3dObj.Release();
         d3dObj = null;
+        DerelictD3DX9.unload();
         DerelictD3D9.unload();
     }
 
@@ -223,6 +224,7 @@ class DXCanvas : Canvas3DHelper {
         IDirect3DVertexBuffer9 mDXVertexBuffer;
         TLVERTEX[cMaxVertices] mVertexBuffer;
         Vector2i mTrans;
+        D3DMATRIX mStdTransform;
     }
     IDirect3DDevice9 d3dDevice;
 
@@ -243,6 +245,15 @@ class DXCanvas : Canvas3DHelper {
             D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY,
             D3DFVF_TLVERTEX, D3DPOOL_DEFAULT, &mDXVertexBuffer, null);
         d3dDevice.SetStreamSource(0, mDXVertexBuffer, 0, TLVERTEX.sizeof);
+
+        D3DMATRIX projMatrix;
+        //D3DXMatrixOrthoLH(&projMatrix, mDrawDriver.mScreenSize.x, -mDrawDriver.mScreenSize.y, 0, 128);
+        D3DXMatrixOrthoOffCenterLH(&projMatrix, 0.5f, mDrawDriver.mScreenSize.x + 0.5f,
+            mDrawDriver.mScreenSize.y + 0.5f, 0.5f, 0, 128);
+        d3dDevice.SetTransform(D3DTS_PROJECTION, &projMatrix);
+        D3DMATRIX viewMatrix;
+        D3DXMatrixIdentity(&viewMatrix);
+        d3dDevice.SetTransform(D3DTS_VIEW, &viewMatrix);
     }
 
     override int features() {
@@ -274,8 +285,12 @@ class DXCanvas : Canvas3DHelper {
         d3dDevice.Present(null, null, null, null);
     }
 
-    override void updateTranslate(Vector2i offset) {
-        mTrans += offset;
+    override void updateTransform(Vector2i trans, Vector2f scale) {
+        D3DMATRIX s, t;
+        D3DXMatrixTranslation(&t, trans.x, trans.y, 0);
+        D3DXMatrixScaling(&s, scale.x, scale.y, 1.0f);
+        D3DXMatrixMultiply(&mStdTransform, &s, &t);
+        d3dDevice.SetTransform(D3DTS_WORLD, &mStdTransform);
     }
 
     override void updateClip(Vector2i p1, Vector2i p2) {
@@ -287,9 +302,6 @@ class DXCanvas : Canvas3DHelper {
         sr.right = p2.x;
         sr.bottom = p2.y;
         d3dDevice.SetScissorRect(&sr);
-    }
-
-    override void updateScale(Vector2f scale) {
     }
 
     override void clear(Color color) {

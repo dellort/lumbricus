@@ -583,8 +583,8 @@ class SDLCanvas : Canvas {
         SDL_SetClipRect(mSurface, &rc);
     }
 
-    override void updateTranslate(Vector2i offset) {
-        mTrans += offset;
+    override void updateTransform(Vector2i trans, Vector2f scale) {
+        mTrans = trans;
     }
 
     //sourcePos and sourceSize null => draw full src surface
