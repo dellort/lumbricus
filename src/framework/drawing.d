@@ -45,15 +45,18 @@ public class Canvas {
     }
 
     ///basic per-frame setup, called by driver
+    ///also calls a first updateTransform()
     protected final void initFrame(Vector2i screen_size) {
         assert(mStackTop == 0);
         mStack[0].clientsize = screen_size;
         mStack[0].clip.p2 = mStack[0].clientsize;
         mStack[0].scale = Vector2f(1.0f);
+        pushState();
     }
 
     ///reverse of initFrame; also called by driver
     protected final void uninitFrame() {
+        popState();
         assert(mStackTop == 0);
     }
 
@@ -231,17 +234,15 @@ public class Canvas {
     }
 
     /// push/pop state as set by most of the functions
-    void pushState() {
+    final void pushState() {
         assert(mStackTop < MAX_STACK, "canvas stack overflow");
 
         mStack[mStackTop+1] = mStack[mStackTop];
         mStackTop++;
     }
 
-    void popState() {
+    final void popState() {
         assert(mStackTop > 0, "canvas stack underflow (incorrect nesting?)");
-
-        Vector2i oldtrans = mStack[mStackTop].translate;
 
         mStackTop--;
         updateClip(mStack[mStackTop].clip.p1, mStack[mStackTop].clip.p2);

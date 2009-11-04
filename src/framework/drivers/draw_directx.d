@@ -223,7 +223,6 @@ class DXCanvas : Canvas3DHelper {
         DXDrawDriver mDrawDriver;
         IDirect3DVertexBuffer9 mDXVertexBuffer;
         TLVERTEX[cMaxVertices] mVertexBuffer;
-        Vector2i mTrans;
         D3DMATRIX mStdTransform;
     }
     IDirect3DDevice9 d3dDevice;
@@ -247,7 +246,6 @@ class DXCanvas : Canvas3DHelper {
         d3dDevice.SetStreamSource(0, mDXVertexBuffer, 0, TLVERTEX.sizeof);
 
         D3DMATRIX projMatrix;
-        //D3DXMatrixOrthoLH(&projMatrix, mDrawDriver.mScreenSize.x, -mDrawDriver.mScreenSize.y, 0, 128);
         D3DXMatrixOrthoOffCenterLH(&projMatrix, 0.5f, mDrawDriver.mScreenSize.x + 0.5f,
             mDrawDriver.mScreenSize.y + 0.5f, 0.5f, 0, 128);
         d3dDevice.SetTransform(D3DTS_PROJECTION, &projMatrix);
@@ -271,15 +269,10 @@ class DXCanvas : Canvas3DHelper {
         d3dDevice.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
 
         d3dDevice.BeginScene();
-
-        mTrans = Vector2i(0, 0);
         initFrame(mDrawDriver.mScreenSize);
-
-        pushState();
     }
 
     package void stopScreenRendering() {
-        popState();
         uninitFrame();
         d3dDevice.EndScene();
         d3dDevice.Present(null, null, null, null);
@@ -328,8 +321,6 @@ class DXCanvas : Canvas3DHelper {
     {
         if (!visibleArea.intersects(destPos, destPos + sourceSize))
             return;
-
-        destPos += mTrans;
 
         auto tex = cast(DXSurface)source.getDriverSurface();
         Vector2i p1 = destPos;
@@ -384,9 +375,8 @@ class DXCanvas : Canvas3DHelper {
             d3dDevice.SetTexture(0, null);
         }
 
-        Vector2f trans = toVector2f(mTrans);
         foreach (int idx, ref cv; verts) {
-            mVertexBuffer[idx].p = cv.p + trans;
+            mVertexBuffer[idx].p = cv.p;
             mVertexBuffer[idx].color = D3DCOLOR_FLOAT(cv.c);
             mVertexBuffer[idx].t = toVector2f(cv.t) ^ ts;
         }

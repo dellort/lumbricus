@@ -543,22 +543,17 @@ class SDLCanvas : Canvas {
         mDrawDriver = drv;
     }
 
-    void startScreenRendering() {
-        initFrame(mDrawDriver.mScreenSize);
-
+    package void startScreenRendering() {
         assert(mSurface is null);
-
-        mTrans = Vector2i(0, 0);
 
         mSurface = mDrawDriver.mSDLScreen;
 
-        pushState();
+        initFrame(mDrawDriver.mScreenSize);
     }
 
-    void stopScreenRendering() {
+    package void stopScreenRendering() {
         assert(mSurface !is null);
 
-        popState();
         uninitFrame();
 
         SDL_Flip(mSurface);

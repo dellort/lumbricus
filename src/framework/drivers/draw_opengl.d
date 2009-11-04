@@ -475,10 +475,6 @@ class GLCanvas : Canvas3DHelper {
     }
 
     void startScreenRendering() {
-        auto scrsize = mDrawDriver.mScreenSize;
-
-        initFrame(scrsize);
-
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
@@ -492,11 +488,10 @@ class GLCanvas : Canvas3DHelper {
 
         checkGLError("start rendering", true);
 
-        pushState();
+        initFrame(mDrawDriver.mScreenSize);
     }
 
     void stopScreenRendering() {
-        popState();
         uninitFrame();
     }
 
@@ -607,7 +602,14 @@ class GLCanvas : Canvas3DHelper {
             }
         glEnd();
 
+        //shitty hack for Intel G31 cards, now with less additional bugs
+        //the glEnable() call is redundant, and somehow causes Intel's driver
+        //  to ACTUALLY set the color with the glColor3f below - cause unknown,
+        //  fix found by experimenting
         glEnable(GL_BLEND);
+        if (!state_blend)
+            glDisable(GL_BLEND);
+
 
         glColor3f(1.0f, 1.0f, 1.0f);
     }
