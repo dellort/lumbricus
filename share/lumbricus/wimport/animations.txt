@@ -529,7 +529,7 @@ water_anims {
         }
 
         {
-            _params = "time,p3/direct"
+            _params = "time,null,p3/direct"
             mine_drown = "21 | 22 | 23 | 24 | 25 | 26 | 27"
         }
     }
