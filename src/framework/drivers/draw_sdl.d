@@ -604,7 +604,7 @@ class SDLCanvas : Canvas {
         }
     }
 
-    override void drawFast(SubSurface source, Vector2i destPos,
+    override void drawSprite(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null)
     {
         SDLSurface sdls = cast(SDLSurface)source.surface.getDriverSurface();

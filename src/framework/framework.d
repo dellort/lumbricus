@@ -686,14 +686,13 @@ final class SubSurface {
     Rect2i rect() { return mRect; }
 
     //index into the corresponding Surface's SubSurface array
-    //can be used by the framework driver to lokup driver specific stuff
-    //(like a display list for the OpenGL driver)
+    //can be used by the framework driver to lookup driver specific stuff
     int index() {
         return mIndex;
     }
 
     void draw(Canvas c, Vector2i at) {
-        c.drawFast(this, at);
+        c.drawSprite(this, at);
     }
 }
 

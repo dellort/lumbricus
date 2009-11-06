@@ -1030,7 +1030,7 @@ class CanvasTest : Task {
             eff.rotate = mRot.curValue/180.0*3.14159;
             eff.scale = mZoom.curValue*1.0/cZoomScale;
             eff.center = mCenter;
-            c.drawFast(mImgSub, at, &eff);
+            c.drawSprite(mImgSub, at, &eff);
             c.drawFilledCircle(at, 10, Color(0));
             auto x = toVector2i(
                 toVector2f(mCenter).rotated(eff.rotate)*eff.scale);

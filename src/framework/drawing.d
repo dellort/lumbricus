@@ -51,6 +51,8 @@ public class Canvas {
         mStack[0].clientsize = screen_size;
         mStack[0].clip.p2 = mStack[0].clientsize;
         mStack[0].scale = Vector2f(1.0f);
+        do_update_transform();
+        updateAreas();
         pushState();
     }
 
@@ -98,12 +100,10 @@ public class Canvas {
     public abstract void draw(Texture source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize);
 
-    /// possibly faster version of draw() (driver might override this method)
-    /// right now, GL driver uses display lists for these
-    /// also, just for the SDL driver, only this function can apply "effects",
-    /// as in BitmapEffect
+    /// more flexible version of draw()
+    /// only this function can apply "effects" as in BitmapEffect
     /// if effect is null, draw normally
-    abstract void drawFast(SubSurface source, Vector2i destPos,
+    abstract void drawSprite(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null);
 
     public abstract void drawCircle(Vector2i center, int radius, Color color);

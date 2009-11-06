@@ -2,7 +2,6 @@ module utils.math;
 
 public import utils.vector2;// : Vector2f;
 import utils.rect2;
-import intr = std.intrinsic;
 import math = tango.math.Math;
 public import utils.misc : realmod;
 
@@ -41,17 +40,6 @@ public bool lineIntersect(Vector2f p1, Vector2f dir_1, Vector2f p2,
     return (out_t1 >= -tx1 && out_t1 <= 1.0f + tx1
         && out_t2 >= -tx2 && out_t2 <= 1.0f + tx2);
 }
-
-/+
-uint log2(uint value)
-out (res) {
-    assert(value >= (1<<res));
-    assert(value < (1<<(res+1)));
-}
-body {
-    return intr.bsr(value);
-}
-+/
 
 //return distance of two angles in radians
 float angleDistance(float a, float b) {

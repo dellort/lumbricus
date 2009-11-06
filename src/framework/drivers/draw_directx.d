@@ -303,7 +303,7 @@ class DXCanvas : Canvas3DHelper {
             D3DCOLOR_FLOAT(color), 1.0f, 0);
     }
 
-    override void drawFast(SubSurface source, Vector2i destPos,
+    override void drawSprite(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null)
     {
         drawTextureInt(source.surface, destPos, source.origin, source.size,

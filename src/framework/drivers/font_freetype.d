@@ -307,24 +307,14 @@ class FTFont : DriverFont {
     }
 
     private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos) {
-        void setColor(Color col) {
-            if (c.features() & DriverFeatures.usingOpenGL)
-                glColor4fv(col.ptr);
-        }
-
         if (mProps.back.a > 0)
             c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back);
 
-        setColor(mProps.fore);
-        c.drawFast(glyph.tex, pos+glyph.offset);
+        c.drawSprite(glyph.tex, pos+glyph.offset);
 
         if (glyph.border) {
-            setColor(mProps.border_color);
             glyph.border.draw(c, pos+glyph.border_offset);
         }
-
-        //GL cleanup
-        setColor(Color(1, 1, 1));
     }
 
     Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
@@ -418,13 +408,6 @@ class FTFontDriver : FontDriver {
 
     private FTGlyphCache getCache(FontProperties props) {
         FontProperties gc_props = props;
-        //on OpenGL, you can color up surfaces at no costs, so...
-        if (gFramework.drawDriver.getFeatures() & DriverFeatures.usingOpenGL) {
-            //normalize to a standard color
-            //because of issues with the border, keep alpha component
-            gc_props.fore = Color(1, 1, 1, gc_props.fore.a);   //white
-            gc_props.border_color = Color(1, 1, 1, gc_props.border_color.a);
-        }
         gc_props.underline = false; //rendered by us, is not in glyph bitmaps
         //background is rendered separately, exclude from AA key
         gc_props.back = Color.init;

@@ -235,7 +235,7 @@ class AnimationStrip : Animation {
     {
         //no wrap-around
         assert(frameIdx < frameCount);
-        c.drawFast(mFrames[frameIdx], pos+mCenterOffset);
+        c.drawSprite(mFrames[frameIdx], pos+mCenterOffset);
     }
 }
 

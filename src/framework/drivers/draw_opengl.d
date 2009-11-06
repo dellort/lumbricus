@@ -19,6 +19,25 @@ import cstdlib = tango.stdc.stdlib;
 //  DriverSurface.getPixelData(), which in turn will read back texture memory
 const bool cStealSurfaceData = true;
 
+//2x2 matrix + translation vector
+//(cheaper and saner than a 3x3 matrix with 3rd row for translation)
+struct Transform2f {
+    //2D matrix
+    //  | a11 a12 |
+    //  | a21 a22 |
+    float a11 = 1.0f, a12 = 0.0f;
+    float a21 = 0.0f, a22 = 1.0f;
+    //translation part
+    Vector2f t;
+
+    Vector2f transform(Vector2f p) {
+        Vector2f r;
+        r.x = a11*p.x + a12*p.y + t.x;
+        r.y = a21*p.x + a22*p.y + t.y;
+        return r;
+    }
+}
+
 
 char[] glErrorToString(GLenum errCode) {
     char[] res = fromStringz(cast(char*)gluErrorString(errCode));
@@ -44,6 +63,7 @@ class GLDrawDriver : DrawDriver {
         Vector2i mScreenSize;
         GLCanvas mCanvas;
         bool mStealData, mLowQuality, mUseSubSurfaces, mBatchSubTex;
+        bool mBatchDrawCalls;
     }
 
     this(ConfigNode config) {
@@ -54,6 +74,7 @@ class GLDrawDriver : DrawDriver {
         mLowQuality = config.getBoolValue("lowquality", false);
         mUseSubSurfaces = config.getValue!(bool)("subsurfaces", true);
         mBatchSubTex = config.getValue!(bool)("batch_subtex", false);
+        mBatchDrawCalls = config.getValue!(bool)("batch_drawcalls", true);
 
         mCanvas = new GLCanvas(this);
     }
@@ -137,12 +158,15 @@ class GLDrawDriver : DrawDriver {
     }
 }
 
-//corresponds to GL_T2F_V3F
-//relies on Vector2f's byte layout (struct of two floats)
-struct Vertex_T2F_V3F {
-    Vector2f t;
+//relies on the byte layout of the members;
+//  Vector2f's = struct of two floats
+//  Color = struct of 4 floats (r,g,b,a)
+//the order and offset of the members is arbitrary (see set_vertex_array())
+struct MyVertex {
     Vector2f p;
-    float p3 = 0.0f; //z
+    Vector2f t;
+    //normally not needed
+    Color c;
 }
 
 final class GLSurface : DriverSurface {
@@ -155,11 +179,6 @@ final class GLSurface : DriverSurface {
     Vector2f mTexMax;
     Vector2i mTexSize;
     bool mError;
-
-    //vertex array for all subrects, cVertCount vertices for each subrect
-    //in sync with mData.subsurfaces / SubSurface.index()
-    Vertex_T2F_V3F[] mSubSurfaces;
-    const cVertCount = 4;
 
     //for mBatchSubTex; region that needs to be updated
     bool mIsDirty;
@@ -179,15 +198,10 @@ final class GLSurface : DriverSurface {
             glDeleteTextures(1, &mTexId);
             mTexId = GLID_INVALID;
         }
-        freeSubsurfaces();
         mError = false;
         if (mData) {
             assert(mData.data !is null);
         }
-    }
-
-    private void freeSubsurfaces() {
-        mSubSurfaces = null;
     }
 
     override void kill() {
@@ -201,8 +215,8 @@ final class GLSurface : DriverSurface {
 
         //OpenGL textures need width and heigth to be a power of two
         //could use GL_ARB_texture_non_power_of_two
-        mTexSize = Vector2i(powerOfTwo(mData.size.x),
-            powerOfTwo(mData.size.y));
+        mTexSize = Vector2i(powerOfTwoRoundUp(mData.size.x),
+            powerOfTwoRoundUp(mData.size.y));
         if (mTexSize == mData.size) {
             //image width and height are already a power of two
             mTexMax.x = 1.0f;
@@ -251,9 +265,6 @@ final class GLSurface : DriverSurface {
         }
 
         steal();
-
-        //recreate all SubSurfaces
-        createSubSurfaces(mData.subsurfaces);
     }
 
     private void do_update(Rect2i rc) {
@@ -371,89 +382,15 @@ final class GLSurface : DriverSurface {
         desc = myformat("GLSurface, texid={}", mTexId);
     }
 
-    override void newSubSurface(SubSurface ss) {
-        createSubSurfaces(mData.subsurfaces[ss.index..ss.index+1]);
-    }
-
-    private void createSubSurfaces(SubSurface[] subs) {
-        if (!mDrawDriver.mUseSubSurfaces)
-            return;
-
-        foreach (s; subs) {
-            if (s.index() * cVertCount >= mSubSurfaces.length) {
-                mSubSurfaces.length = (s.index() + 1) * cVertCount;
-            }
-
-            int base = s.index * cVertCount;
-
-            void add(int tx, int ty, int px, int py) {
-                auto vert = &mSubSurfaces[base++];
-                vert.p = Vector2f(px, py);
-                vert.t = Vector2f(tx, ty) / toVector2f(mTexSize);
-            }
-
-            static assert(cVertCount == 4);
-            add(s.rect.p1.x, s.rect.p1.y, 0,        0);
-            add(s.rect.p1.x, s.rect.p2.y, 0,        s.size.y);
-            add(s.rect.p2.x, s.rect.p2.y, s.size.x, s.size.y);
-            add(s.rect.p2.x, s.rect.p1.y, s.size.x, 0);
-        }
-    }
-
     final void bind() {
         //the glEnable(GL_TEXTURE_2D) and the other ones are handled by canvas
         glBindTexture(GL_TEXTURE_2D, mTexId);
-
-        if (mDrawDriver.mUseSubSurfaces) {
-            Vertex_T2F_V3F* pverts = mSubSurfaces.ptr;
-            glInterleavedArrays(GL_T2F_V3F, Vertex_T2F_V3F.sizeof, pverts);
-        }
 
         //xxx this could break if the user updates the texture during
         //  drawing, because set_tex() early exits if the texture is the
         //  same
         undirty();
     }
-
-    final void complicatedDraw(SubSurface sub) {
-        glDrawArrays(GL_QUADS, sub.index*cVertCount, cVertCount);
-    }
-
-    final void simpleDraw(Vector2i destP, Vector2i sourceP, Vector2i destS,
-        bool mirrorY = false)
-    {
-        Vector2i p1 = destP;
-        Vector2i p2 = destP + destS;
-        Vector2f t1, t2;
-
-        //select the right part of the texture (in 0.0-1.0 coordinates)
-        t1.x = cast(float)sourceP.x / mTexSize.x;
-        t1.y = cast(float)sourceP.y / mTexSize.y;
-        t2.x = cast(float)(sourceP.x+destS.x) / mTexSize.x;
-        t2.y = cast(float)(sourceP.y+destS.y) / mTexSize.y;
-
-        checkGLError("before draw");
-
-        //draw textured rect
-        glBegin(GL_QUADS);
-
-        if (!mirrorY) {
-            glTexCoord2f(t1.x, t1.y); glVertex2i(p1.x, p1.y);
-            glTexCoord2f(t1.x, t2.y); glVertex2i(p1.x, p2.y);
-            glTexCoord2f(t2.x, t2.y); glVertex2i(p2.x, p2.y);
-            glTexCoord2f(t2.x, t1.y); glVertex2i(p2.x, p1.y);
-        } else {
-            glTexCoord2f(t2.x, t1.y); glVertex2i(p1.x, p1.y);
-            glTexCoord2f(t2.x, t2.y); glVertex2i(p1.x, p2.y);
-            glTexCoord2f(t1.x, t2.y); glVertex2i(p2.x, p2.y);
-            glTexCoord2f(t1.x, t1.y); glVertex2i(p2.x, p1.y);
-        }
-
-        glEnd();
-
-        checkGLError("after draw");
-    }
-
 
     char[] toString() {
         return myformat("GLSurface, {}, id={}, data={}",
@@ -468,13 +405,19 @@ class GLCanvas : Canvas3DHelper {
         //some lazy state managment, because they say glEnable etc. are slow
         GLSurface state_texture;
         bool state_blend, state_alpha_test;
+
+        //lazy drawing; assuming reducing the number of glDrawArrays calls
+        //  improves performance
+        MyVertex[100*4] mVertices;
+        size_t mVertexCount;
+        int mCurrentVertexMode; //primitive type, as in GL_QUADS etc.
     }
 
     this(GLDrawDriver drv) {
         mDrawDriver = drv;
     }
 
-    void startScreenRendering() {
+    package void startScreenRendering() {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
@@ -486,13 +429,107 @@ class GLCanvas : Canvas3DHelper {
         glEnable(GL_BLEND);
         state_blend = true;
 
+        //flush() and glDrawArrays use this implicitly
+        set_vertex_array(mVertices.ptr);
+
         checkGLError("start rendering", true);
 
         initFrame(mDrawDriver.mScreenSize);
     }
 
-    void stopScreenRendering() {
+    package void stopScreenRendering() {
+        flush();
         uninitFrame();
+        disable_vertex_array();
+    }
+
+    //set vertex pointer + define the vertex format (basically)
+    //NOTE: the stuff I used before (GL_T2F_V3F) is just legacy crap
+    private void set_vertex_array(MyVertex* ptr) {
+        //commonly used "trick" to define an interleaved vertex array
+        const stride = MyVertex.sizeof;
+        glVertexPointer(2, GL_FLOAT, stride, &ptr[0].p);
+        glTexCoordPointer(2, GL_FLOAT, stride, &ptr[0].t);
+        glColorPointer(4, GL_FLOAT, stride, &ptr[0].c);
+        glEnableClientState(GL_VERTEX_ARRAY);
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        glEnableClientState(GL_COLOR_ARRAY);
+    }
+    private void disable_vertex_array() {
+        glDisableClientState(GL_VERTEX_ARRAY);
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+        glDisableClientState(GL_COLOR_ARRAY);
+    }
+
+    //draw everything what's in the mVertices buffer and "clear" the buffer
+    //should be called before every change to the GL state
+    private void flush() {
+        if (!mVertexCount)
+            return;
+        assert(mVertexCount <= mVertices.length);
+        glDrawArrays(mCurrentVertexMode, 0, mVertexCount);
+        mVertexCount = 0;
+    }
+
+    //allocate count vertices from the mVertices buffer, and return them
+    //the returned vertices get drawn with the next flush()
+    //  tex = see set_tex
+    //  primitive = primitive type, e.g. GL_QUADS (what's passed to glBegin)
+    //  count = number of vertices
+    //call end_verts() with returned vertex array after this
+    //the vertices' texture coords will be scaled by end_verts()
+    private MyVertex[] begin_verts(GLSurface tex, int primitive,
+        size_t count)
+    {
+        if (mVertexCount + count > mVertices.length)
+            flush();
+
+        if (count > mVertices.length) {
+            //could handle this, but when does it happen anyway? the caller code
+            //  is probably buggy for wanting so many vertices at once
+            assert(false, "too many vertices");
+        }
+
+        set_tex(tex);
+
+        //you can't just "append" e.g. triangle strips; this breaks (I think)
+        static bool can_combine(int vmode) {
+            switch (vmode) {
+                case GL_LINES, GL_TRIANGLES, GL_QUADS: return true;
+                default: return false;
+            }
+        }
+
+        if (mCurrentVertexMode != primitive || !can_combine(primitive))
+            flush();
+
+        mCurrentVertexMode = primitive;
+
+        auto res = mVertices[mVertexCount..mVertexCount+count];
+        mVertexCount += count;
+
+        return res;
+    }
+
+    private void end_verts(MyVertex[] verts) {
+        //assumes surface is the same value as passed to begin_verts()
+        GLSurface surface = state_texture;
+
+        if (surface) {
+            float ts_x = 1.0f / surface.mTexSize.x;
+            float ts_y = 1.0f / surface.mTexSize.y;
+
+            foreach (ref v; verts) {
+                v.t.x *= ts_x;
+                v.t.y *= ts_y;
+            }
+        }
+
+        //may help with state bugs etc.
+        if (!mDrawDriver.mBatchDrawCalls) {
+            assert(mVertexCount == verts.length);
+            flush();
+        }
     }
 
     public int features() {
@@ -504,6 +541,8 @@ class GLCanvas : Canvas3DHelper {
     private void set_tex(GLSurface tex) {
         if (state_texture is tex)
             return;
+
+        flush();
 
         bool want_tex = false;
         bool want_blend = false;
@@ -542,11 +581,73 @@ class GLCanvas : Canvas3DHelper {
         state_texture = tex;
     }
 
+    final void do_draw(GLSurface surface, Vector2i destP, Vector2i sourceP,
+        Vector2i destS, Transform2f* tr)
+    {
+        set_tex(surface);
+
+        //fun fact: writing int[2] bla = [1,2]; allocates memory on the heap
+        Vector2f[2] p = void, t = void;
+
+        p[0] = toVector2f(destP);
+        p[1] = toVector2f(destP + destS);
+
+        //pixel coords; will be refitted to 0.0-1.0 in end_verts()
+        t[0] = toVector2f(sourceP);
+        t[1] = toVector2f(sourceP+destS);
+
+        MyVertex[] verts = begin_verts(surface, GL_QUADS, 4);
+
+        Color c = Color(1.0f);
+
+        verts[0].t = Vector2f(t[0].x, t[0].y);
+        verts[0].p = Vector2f(p[0].x, p[0].y);
+        verts[0].c = c;
+
+        verts[1].t = Vector2f(t[0].x, t[1].y);
+        verts[1].p = Vector2f(p[0].x, p[1].y);
+        verts[1].c = c;
+
+        verts[2].t = Vector2f(t[1].x, t[1].y);
+        verts[2].p = Vector2f(p[1].x, p[1].y);
+        verts[2].c = c;
+
+        verts[3].t = Vector2f(t[1].x, t[0].y);
+        verts[3].p = Vector2f(p[1].x, p[0].y);
+        verts[3].c = c;
+
+        /+ is this better or worse than the code above?
+        static const int[4] cX = [0, 0, 1, 1], cY = [0, 1, 1, 0];
+        foreach (int i, ref v; verts) {
+            int x = cX[i], y = cY[i];
+            v.p.x = p[x].x;
+            v.p.y = p[y].y;
+            v.t.x = t[x].x;
+            v.t.y = t[y].y;
+        }
+        +/
+
+        if (tr) {
+            //you also could construct a 4D matrix out of tr, and do
+            //  glPushMatrix; glMultMatrixf; glPopMatrix
+            //but it would be slower
+            foreach (ref v; verts) {
+                v.p = tr.transform(v.p);
+            }
+        }
+
+        end_verts(verts);
+    }
+
     override void lineWidth(int width) {
+        flush();
+
         glLineWidth(width);
     }
 
     override void updateTransform(Vector2i trans, Vector2f scale) {
+        flush();
+
         glLoadIdentity();
         glTranslatef(trans.x, trans.y, 0);
         glScalef(scale.x, scale.y, 1);
@@ -554,6 +655,8 @@ class GLCanvas : Canvas3DHelper {
     }
 
     override void updateClip(Vector2i p1, Vector2i p2) {
+        flush();
+
         glEnable(GL_SCISSOR_TEST);
         //negative w/h values generate GL errors
         auto sz = (p2 - p1).max(Vector2i(0));
@@ -562,6 +665,8 @@ class GLCanvas : Canvas3DHelper {
     }
 
     public void clear(Color color) {
+        flush();
+
         //NOTE: glClear respects the scissor test (glScissor)
         glClearColor(color.r, color.g, color.b, color.a);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -582,45 +687,26 @@ class GLCanvas : Canvas3DHelper {
     override void draw_verts(Primitive primitive, Surface tex,
         Vertex2f[] verts)
     {
-        GLSurface glsurf = tex ? cast(GLSurface)tex.getDriverSurface() : null;
-        assert(!!glsurf == !!tex);
+        GLSurface s = tex ? cast(GLSurface)tex.getDriverSurface() : null;
 
-        float ts_x = 1.0f, ts_y = 1.0f;
+        MyVertex[] verts2 = begin_verts(s, cPrimMap[primitive], verts.length);
 
-        set_tex(glsurf);
-
-        if (glsurf) {
-            ts_x = 1.0f / glsurf.mTexSize.x;
-            ts_y = 1.0f / glsurf.mTexSize.y;
+        //this is silly, but who cares; better be independent from Vertex2f
+        foreach (size_t i, v; verts) {
+            verts2[i].p = v.p;
+            verts2[i].t = toVector2f(v.t);
+            verts2[i].c = v.c;
         }
 
-        glBegin(cPrimMap[primitive]);
-            foreach (ref v; verts) {
-                glTexCoord2f(v.t.x * ts_x, v.t.y * ts_y);
-                glColor4fv(v.c.ptr);
-                glVertex2f(v.p.x, v.p.y);
-            }
-        glEnd();
-
-        //shitty hack for Intel G31 cards, now with less additional bugs
-        //the glEnable() call is redundant, and somehow causes Intel's driver
-        //  to ACTUALLY set the color with the glColor3f below - cause unknown,
-        //  fix found by experimenting
-        glEnable(GL_BLEND);
-        if (!state_blend)
-            glDisable(GL_BLEND);
-
-
-        glColor3f(1.0f, 1.0f, 1.0f);
+        end_verts(verts2);
     }
 
-    override void drawFast(SubSurface source, Vector2i destPos,
+    override void drawSprite(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null)
     {
         if (!mDrawDriver.mUseSubSurfaces) {
             //disabled; normal code path
-            drawTextureInt(source.surface, destPos, source.origin, source.size,
-                effect ? effect.mirrorY : false);
+            drawTextureInt(source.surface, destPos, source.origin, source.size);
             return;
         }
 
@@ -630,37 +716,38 @@ class GLCanvas : Canvas3DHelper {
         if (!visibleArea.intersects(destPos, destPos + source.size))
             return;
 
+        if (!effect)
+            effect = &BitmapEffect.init;
+
         GLSurface glsurf = cast(GLSurface)source.surface.getDriverSurface();
 
-        set_tex(glsurf);
+        //create an explicit 2D matrix according to BitmapEffect
+        //the version using glTranslate etc. is still in r920 in drawFast()
 
-        if (effect) {
-            glPushMatrix();
+        Transform2f tr = void;
+
+        tr.t = toVector2f(destPos);
+
+        //2D rotation+scale matrix
+        tr.a11 = math.cos(effect.rotate) * effect.scale;
+        tr.a12 = math.sin(effect.rotate) * effect.scale;
+        tr.a21 = -tr.a12;
+        tr.a22 = tr.a11;
+
+        //substract transformed vector to center
+        tr.t.x -= tr.a11 * effect.center.x + tr.a12 * effect.center.y;
+        tr.t.y -= tr.a21 * effect.center.x + tr.a22 * effect.center.y;
+
+        if (effect.mirrorY) {
+            //move bitmap by width into x direction
+            tr.t.x += tr.a11 * source.size.x;// + tr.a12 * 0;
+            tr.t.y += tr.a21 * source.size.x;// + tr.a22 * 0;
+            //and mirror on x axis (this is like glScale(-1,1,1))
+            tr.a11 = -tr.a11;
+            tr.a21 = -tr.a21;
         }
 
-        glTranslatef(destPos.x, destPos.y, 0.0f);
-        if (effect) {
-            //would it be faster to somehow create a direct matrix for all this?
-            if (effect.scale != 1.0f) {
-                glScalef(effect.scale, effect.scale, 0.0f);
-            }
-            if (effect.rotate != 0.0f) {
-                glRotatef(effect.rotate/math.PI*180.0f, 0.0f, 0.0f, -1.0f);
-            }
-            glTranslatef(-effect.center.x, -effect.center.y, 0.0f);
-            if (effect.mirrorY) {
-                glTranslatef(source.size.x, 0.0f, 0.0f);
-                glScalef(-1.0f, 1.0f, 1.0f);
-            }
-        }
-
-        glsurf.complicatedDraw(source);
-
-        if (effect) {
-            glPopMatrix();
-        } else {
-            glTranslatef(-destPos.x, -destPos.y, 0.0f);
-        }
+        do_draw(glsurf, Vector2i(0), source.origin, source.size, &tr);
     }
 
     override void drawTiled(Surface source, Vector2i destPos, Vector2i destSize)
@@ -700,14 +787,13 @@ class GLCanvas : Canvas3DHelper {
     //optimized if no tiling needed or tiling can be done by OpenGL
     //tiling only works for the above case (i.e. when using the whole texture)
     private void drawTextureInt(Surface source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i destSize, bool mirrorY = false)
+        Vector2i sourcePos, Vector2i destSize)
     {
         //clipping, discard anything that would be invisible anyway
         if (!visibleArea.intersects(destPos, destPos + destSize))
             return;
 
         GLSurface glsurf = cast(GLSurface)source.getDriverSurface();
-        set_tex(glsurf);
-        glsurf.simpleDraw(destPos, sourcePos, destSize, mirrorY);
+        do_draw(glsurf, destPos, sourcePos, destSize, null);
     }
 }

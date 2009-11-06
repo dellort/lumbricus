@@ -1,6 +1,7 @@
 module utils.misc;
 
 import layout = tango.text.convert.Layout;
+import intr = std.intrinsic;
 
 public import tango.stdc.stdarg : va_list;
 public import tango.core.Tuple : Tuple;
@@ -10,6 +11,7 @@ public import tango.math.Math : min, max;
 
 //because printf debugging is common and usefull
 public import tango.util.log.Trace : Trace;
+
 
 T realmod(T)(T a, T m) {
     T res = a % m;
@@ -38,14 +40,23 @@ T clampRangeO(T)(T val, T low, T high) {
     return (val < low) ? low : val;
 }
 
-/* Quick utility function for texture creation */
-int powerOfTwo(int input) {
+//if input is not a power of two, round up to next power of two (I think)
+int powerOfTwoRoundUp(int input) {
     int value = 1;
 
     while ( value < input ) {
         value <<= 1;
     }
     return value;
+}
+
+uint log2(uint value)
+out (res) {
+    assert(value >= (1<<res));
+    assert(value < (1<<(res+1)));
+}
+body {
+    return intr.bsr(value);
 }
 
 /// Cast object in t to type T, and throw exception if not possible.

@@ -83,7 +83,7 @@ class AniFramesAtlas : AniFrames {
                 BitmapEffect eff;
                 eff.mirrorY = !!(frame.drawEffects & FileDrawEffects.MirrorY);
 
-                c.drawFast(image, pos+Vector2i(frame.centerX, frame.centerY),
+                c.drawSprite(image, pos+Vector2i(frame.centerX, frame.centerY),
                     &eff);
             }
 
