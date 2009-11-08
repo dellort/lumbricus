@@ -177,7 +177,7 @@ SDL_PixelFormat sdlpfRGBA32() {
     rRGBA32.Rmask = Color.cMaskR;
     rRGBA32.Gmask = Color.cMaskG;
     rRGBA32.Bmask = Color.cMaskB;
-    rRGBA32.Amask = Color.cMaskAlpha;
+    rRGBA32.Amask = Color.cMaskA;
     return rRGBA32;
 }
 

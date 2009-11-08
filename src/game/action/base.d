@@ -5,6 +5,7 @@ import framework.framework;
 import game.game;
 import game.gfxset;
 import game.gobject;
+import game.particles;
 import utils.configfile;
 import utils.time;
 import utils.randval;

@@ -1,7 +1,7 @@
 module utils.misc;
 
 import layout = tango.text.convert.Layout;
-import intr = std.intrinsic;
+import intr = tango.core.BitManip;
 
 public import tango.stdc.stdarg : va_list;
 public import tango.core.Tuple : Tuple;

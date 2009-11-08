@@ -80,7 +80,11 @@ class WormSprite : GObjectSprite {
 
         //selected weapon
         WeaponClass mWeapon;
+        //"code" for selected weapon, null for weapons which don't support it
+        WeaponSelector mWeaponSelector;
+        //active weapons
         Shooter mShooterMain, mShooterSec;
+
         Time mStandTime;
 
         //by default off, GameController can use this
@@ -301,6 +305,7 @@ class WormSprite : GObjectSprite {
     }
 
     override protected void die() {
+        weapon_unselect();
         super.die();
         if (currentState !is wsc.st_dead)
             setState(wsc.st_dead);
@@ -365,6 +370,10 @@ class WormSprite : GObjectSprite {
             graphic.weapon = "";
             mWeaponAsIcon = false;
         }
+
+        //xxx there's probably a better place for this
+        if (mWeaponSelector)
+            mWeaponSelector.isSelected = currentState is wsc.st_weapon;
     }
 
     //movement for walking/jetpack
@@ -477,12 +486,24 @@ class WormSprite : GObjectSprite {
         return mShooterMain && mShooterMain.activity;
     }
 
+    //"careful" common code for unselecting a weapon
+    private void weapon_unselect() {
+        if (mWeaponSelector) {
+            mWeaponSelector.isSelected = false;
+            mWeaponSelector = null;
+        }
+        mWeapon = null;
+        //I don't know if mWeaponTimer should be changed or what
+    }
+
     //xxx: clearify relationship between shooter and so on
     void weapon(WeaponClass w) {
         auto oldweapon = mWeapon;
+        weapon_unselect();
         mWeapon = w;
         mThrowing = false;
         if (w) {
+            mWeaponSelector = mWeapon.createSelector(this);
             if (currentState is wsc.st_stand)
                 setState(wsc.st_weapon);
             if (mWeaponTimer == Time.Null)
@@ -661,8 +682,10 @@ class WormSprite : GObjectSprite {
     {
         if (!mWeapon)
             return;
-        if (!sh || sh.weapon != mWeapon)
+        if (!sh || sh.weapon != mWeapon) {
             sh = mWeapon.createShooter(this, engine);
+            sh.selector = mWeaponSelector;
+        }
 
         log("fire: {}", mWeapon.name);
 
@@ -787,7 +810,7 @@ class WormSprite : GObjectSprite {
             mShooterSec.interruptFiring();
         if (mShooterMain && mShooterMain.activity)
             mShooterMain.interruptFiring();
-        mWeapon = null;
+        weapon_unselect();
     }
 
     override protected void stateTransition(StaticStateInfo from,

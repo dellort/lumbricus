@@ -29,7 +29,7 @@ class TexturePack {
     ///Surface s on it. the function returns the surface it was on and its
     ///position.
     SubSurface add(Surface s) {
-        auto k = TexTypeKey(s.transparency, s.getColorkey());
+        auto k = TexTypeKey(s.transparency, s.colorkey());
         Packer packer = aaIfIn(mPackers, k);
         if (!packer) {
             packer = new Packer();
@@ -79,7 +79,7 @@ class TexturePack {
             while (mPacker.pages.length > mPages.length) {
                 auto cur = mPages.length;
                 auto surface = new Surface(mDefaultSize,
-                    s.transparency, s.getColorkey());
+                    s.transparency, s.colorkey());
                 surface.enableCaching = false;
                 mSurfaces ~= surface;
                 mPages ~= surface;

@@ -27,8 +27,10 @@ import utils.gzip;
 import utils.stream;
 
 import str = utils.string;
-
+import math = tango.math.Math;
 import cstdlib = tango.stdc.stdlib;
+
+import rotozoom = framework.sdl.rotozoom;
 
 //**** driver stuff
 
@@ -516,7 +518,7 @@ class Surface {
     }
 
     /// return colorkey or a 0-alpha black, depending from transparency mode
-    final Color getColorkey() {
+    final Color colorkey() {
         return mData.colorkey;
     }
 
@@ -541,7 +543,7 @@ class Surface {
             rc = Rect2i.init;
         }
         auto sz = rc.size();
-        auto s = new Surface(sz, transparency, getColorkey());
+        auto s = new Surface(sz, transparency, colorkey());
         s.copyFrom(this, Vector2i(0), rc.p1, sz);
         return s;
     }
@@ -654,6 +656,32 @@ class Surface {
             dest[rc.p1.x .. rc.p2.x] = c;
         }
         unlockPixels(rc);
+    }
+
+    Surface rotated(float angle, bool interpolate) {
+        static rotozoom.Pixels lockpixels(Surface s) {
+            rotozoom.Pixels r;
+            r.w = s.size.x;
+            r.h = s.size.y;
+            Color.RGBA32* pixels;
+            uint pitch32;
+            s.lockPixelsRGBA32(pixels, pitch32);
+            r.pitch = pitch32*Color.RGBA32.sizeof;
+            r.pixels = pixels;
+            return r;
+        }
+        Surface n;
+        void doalloc(out rotozoom.Pixels dst, int w, int h) {
+            n = new Surface(Vector2i(w, h),
+                interpolate ? Transparency.Alpha : transparency, colorkey);
+            n.fill(n.rect, Color.Transparent);
+            dst = lockpixels(n);
+        }
+        rotozoom.rotozoomSurface(lockpixels(this), angle/math.PI*180, 1.0,
+            interpolate, &doalloc);
+        unlockPixels(Rect2i.init);
+        n.unlockPixels(n.rect);
+        return n;
     }
 
     //fmt is one of the formats registered in gImageFormats

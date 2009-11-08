@@ -9,10 +9,22 @@ import game.weapon.weapon;
 import game.weapon.projectile;
 import utils.reflection;
 
-class WeaponContext : ActionContext {
+//xxx: we really should have a more flexible/sane parameter passing mechanism
+class SpriteContext : ActionContext {
+    GObjectSprite ownerSprite;
+
+    this(GameEngine eng) {
+        super(eng);
+    }
+    this(ReflectCtor c) {
+        super(c);
+    }
+}
+
+class WeaponContext : SpriteContext {
     WrapFireInfo fireInfo;
     GameObject createdBy;
-    GObjectSprite ownerSprite;
+    Shooter shooter;
     ProjectileFeedback feedback;
 
     this(GameEngine eng) {
@@ -32,4 +44,3 @@ class WeaponContext : ActionContext {
         return false;
     }
 }
-

@@ -94,6 +94,4 @@ void do_untile(Image img, char[] filename, VfsFolder destFolder, char[] imgPath,
         scope outp = destFolder.file(confName).create.output;
         conffile.writeFile(new TangoStreamOutput(outp));
     }
-
-    return 0;
 }

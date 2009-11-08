@@ -177,15 +177,10 @@ class LandscapeBitmap {
         }
 
         void drawScanline(int x1, int x2, int y) {
-            assert(x1 <= x2);
             assert(y >= 0 && y < mHeight);
-            //clipping (maybe rasterizePolygon should do that)
-            if (x2 < 0 || x1 >= mWidth)
-                return;
-            if (x1 < 0)
-                x1 = 0;
-            if (x2 > mWidth)
-                x2 = mWidth;
+            assert(x1 >= 0 && x1 <= mWidth);
+            assert(x2 >= 0 && x2 <= mWidth);
+            assert(x1 < x2);
             if (visible && textured) {
                 uint ty = (y + tex.offs.y) % tex.h;
                 Color.RGBA32* dst = dstptr +  y*dstpitch + x1;
@@ -616,6 +611,26 @@ class LandscapeBitmap {
             });
         mCircles[radius] = stuff;
         return stuff;
+    }
+
+    //collide an arbitrary polygon with the landscape
+    //just returns if a collision happened
+    bool collidePolygon(Vector2f[] points) {
+        bool result = false;
+        drawing.rasterizePolygon(mWidth, mHeight, points, false,
+            (int x1, int x2, int y) {
+                if (result)
+                    return;
+                int ly = y*mWidth;
+                foreach (Lexel l; mLevelData[ly+x1..ly+x2]) {
+                    if (l != 0) {
+                        result = true;
+                        return;
+                    }
+                }
+            }
+        );
+        return result;
     }
 
     //oh yeah, manual bitmap drawing code!

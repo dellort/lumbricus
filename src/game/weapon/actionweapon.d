@@ -26,7 +26,7 @@ import utils.time;
 import utils.randval;
 
 class ActionWeapon : WeaponClass {
-    ActionClass onFire, onBlowup;
+    ActionClass onFire, onBlowup; //, onSelect;
     int repeatCount = 1;      //how many shots will be fired on one activation
     int reduceAmmo = int.max; //take 1 ammo every x bullets (and always at end)
     RandomValue!(Time) repeatDelay = {Time.Null, Time.Null};
@@ -38,10 +38,19 @@ class ActionWeapon : WeaponClass {
 
     this(GfxSet gfx, ConfigNode node) {
         super(gfx, node);
-        onFire = actionFromConfig(gfx, node.getSubNode("onfire"),
-            name ~ "::onfire");
-        onBlowup = actionFromConfig(gfx, node.getSubNode("onblowup", false),
-            name ~ "::onblowup");
+        ActionClass getaction(char[] aname, bool required) {
+            auto res = actionFromConfig(gfx, node.getSubNode(aname, required),
+                name ~ "::" ~ aname);
+            if (!res && required) {
+                //xxx error handling...
+                throw new Exception(myformat("Action-based weapon needs action:"
+                    " weapon={} action={}", name, aname));
+            }
+            return res;
+        }
+        onFire = getaction("onfire", true);
+        onBlowup = getaction("onblowup", false);
+        //onSelect = getaction("onselect", false);
         repeatCount = node.getValue("repeat", repeatCount);
         if (node["repeat_delay"] == "user") {
             //repeat on spacebar
@@ -53,15 +62,21 @@ class ActionWeapon : WeaponClass {
         if (node["reduce_ammo"] != "end" && node["reduce_ammo"] != "max") {
             reduceAmmo = node.getValue("reduce_ammo", reduceAmmo);
         }
-        if (!onFire) {
-            //xxx error handling...
-            throw new Exception("Action-based weapon needs onfire action");
-        }
     }
 
     bool manualFire() {
         return !!(repeatDelay.min == Time.Never);
     }
+
+    /+
+    override void select(GObjectSprite selected_by) {
+        if (!onSelect || !selected_by)
+            return;
+        auto ctx = new SpriteContext(selected_by.engine);
+        ctx.ownerSprite = selected_by;
+        onSelect.execute(ctx);
+    }
+    +/
 
     ActionShooter createShooter(GObjectSprite go, GameEngine engine) {
         return new ActionShooter(this, go, engine);
@@ -122,6 +137,7 @@ class ActionShooter : Shooter, ProjectileFeedback {
         ctx.ownerSprite = owner;
         ctx.createdBy = this;
         ctx.feedback = this;
+        ctx.shooter = this;
         return ctx;
     }
 

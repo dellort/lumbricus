@@ -1018,7 +1018,6 @@ class SerializeInConfig : SerializeConfig {
             }
         }
         typeError(ptr, "basetype");
-        return "";
     }
 
     private void doReadCustom(ConfigNode[] stuff, SafePtr ptr,

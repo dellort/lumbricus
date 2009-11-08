@@ -36,19 +36,19 @@ public struct Color {
     }
 
     //for RGBA32.colors
-    const cIdxR = 0, cIdxG = 1, cIdxB = 2, cIdxAlpha = 3;
+    const cIdxR = 0, cIdxG = 1, cIdxB = 2, cIdxA = 3;
 
     //for RGBA32.uint_val
     version (LittleEndian) {
         const cMaskR = 0x00_00_00_FF;
         const cMaskG = 0x00_00_FF_00;
         const cMaskB = 0x00_FF_00_00;
-        const cMaskAlpha = 0xFF_00_00_00;
+        const cMaskA = 0xFF_00_00_00;
     } else version (BigEndian) {
         const cMaskR = 0xFF_00_00_00;
         const cMaskG = 0x00_FF_00_00;
         const cMaskB = 0x00_00_FF_00;
-        const cMaskAlpha = 0x00_00_00_FF;
+        const cMaskA = 0x00_00_00_FF;
     } else {
         static assert(false, "no endian");
     }

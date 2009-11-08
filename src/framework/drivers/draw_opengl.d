@@ -9,6 +9,7 @@ import framework.drawing;
 import tango.math.Math;
 import tango.stdc.stringz;
 import str = utils.string;
+import utils.configfile;
 import utils.misc;
 import cstdlib = tango.stdc.stdlib;
 

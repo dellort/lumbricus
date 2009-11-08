@@ -22,6 +22,10 @@ class EnvironmentTheme {
     Surface skyGradient; //if null, use the color fields below
     Surface skyBackdrop;
 
+    //bridge/girder segment; debateable whether this should be here, but this
+    //  bitmap really depends from the level theme
+    Surface girder;
+
     //(I don't want a "generic" gradient description struct, because that would
     // go too far again, because I'd add gradient directions, color runs, etc.)
     Color skyGradientTop;
@@ -39,6 +43,8 @@ class EnvironmentTheme {
         skyBackdrop = res.get!(Surface)(node["backdrop"], true);
         skyDebris = res.get!(Animation)(node["debris"], true);
         skyColor = node.getValue("skycolor", skyColor);
+
+        girder = res.get!(Surface)(node["girder"]);
 
         //(sky.d uses skyGradient if it exists anyway)
         if (auto sub = node.findNode("sky_gradient")) {

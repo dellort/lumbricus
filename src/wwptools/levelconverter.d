@@ -100,6 +100,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     ldir.unworms("bridge-l.img",destPath~"bridge");
     ldir.unworms("bridge-r.img",destPath~"bridge");
     definedBitmaps ~= BmpDef("bridge_seg","bridge/bridge.png");
+    envBitmaps ~= BmpDef("bridge_seg","bridge/bridge.png");
     definedBitmaps ~= BmpDef("bridge_l","bridge/bridge-l.png");
     definedBitmaps ~= BmpDef("bridge_r","bridge/bridge-r.png");
 
@@ -239,6 +240,7 @@ environment {
   backdrop = "sky_backdrop"
   skycolor = "%skycolor%"
   debris = "debris"
+  girder = "bridge_seg"
 }
 
 landscape {

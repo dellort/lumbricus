@@ -87,6 +87,8 @@ class GameEngine {
             Team team;
         }
 
+        void delegate(Canvas, Vector2i) mMouseRender;
+
         const cWindChange = 80.0f;
         const cMaxWind = 150f;
 
@@ -226,6 +228,29 @@ class GameEngine {
             mCallbacks = new GameEngineCallback();
             createCmd();
         }
+    }
+
+    //for each frame, the delegate gets called with the mouse position and the
+    //  canvas while the topmost layer of the game is drawn
+    //replace_mouse_pointer: if true, the mouse pointer is invisible in the game
+    void addRenderOnMouse(void delegate(Canvas, Vector2i) onRender,
+        bool replace_mouse_pointer = false)
+    {
+        mMouseRender = onRender;
+        //mMouseInvisible = replace_mouse_pointer;
+    }
+
+    //undo addRenderOnMouse()
+    void removeRenderOnMouse(void delegate(Canvas, Vector2i) dg) {
+        if (mMouseRender !is dg)
+            return;
+        mMouseRender = null;
+        //mMouseInvisible = false;
+    }
+
+    void renderOnMouse(Canvas c, Vector2i mousepos) {
+        if (mMouseRender)
+            mMouseRender(c, mousepos);
     }
 
     GObjectSprite createSprite(char[] name) {

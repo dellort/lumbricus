@@ -62,6 +62,20 @@ private int myround(float f) {
 void rasterizePolygon(uint width, uint height, Vector2f[] points,
     bool invert, void delegate (int x1, int x2, int y) renderScanline)
 {
+    void scanline(int x1, int x2, int y) {
+        if (x2 < 0 || x1 >= width)
+            return;
+        if (x1 < 0)
+            x1 = 0;
+        if (x2 > width)
+            x2 = width;
+        assert(y >= 0 && y < height);
+        assert(x2 >= x1);
+        if (x1 == x2)
+            return;
+        renderScanline(x1, x2, y);
+    }
+
     if (points.length < 3)
         return;
 
@@ -181,14 +195,14 @@ void rasterizePolygon(uint width, uint height, Vector2f[] points,
             if (last) {
                 assert(last_xmin <= edge.xmin);
                 if (last_xmin > edge.xmin) {
-                    renderScanline(myround(last.xmin-last.m1),
+                    scanline(myround(last.xmin-last.m1),
                         myround(edge.xmin), y);
                 }
             }
             c = !c;
             assert(y <= edge.ymax);
             if (last && !c) {
-                renderScanline(myround(last.xmin-last.m1),
+                scanline(myround(last.xmin-last.m1),
                     myround(edge.xmin), y);
             }
             //advance

@@ -203,26 +203,29 @@ final class SDLSurface : DriverSurface {
                 myformat("couldn't create SDL surface, size={}", mData.size));
         }
 
+        adjust_transparency_mode(mSurfaceRGBA32);
+
+        updatePixels(Rect2i(mData.size));
+        update_subsurfaces(mData.subsurfaces);
+    }
+
+    private void adjust_transparency_mode(SDL_Surface* src,
+        bool force_alpha = false)
+    {
+        if (!src)
+            return;
+
         //lol SDL - need to clear any transparency modes first
         //but I don't understand why (maybe because there's an alpha channel)
         SDL_SetAlpha(mSurfaceRGBA32, 0, 0);
         //SDL_SetColorKey(mSurfaceRGBA32, 0, 0);
 
-        switch (mData.transparency) {
-            case Transparency.Alpha: {
-                SDL_SetAlpha(mSurfaceRGBA32, SDL_SRCALPHA, SDL_ALPHA_OPAQUE);
-                break;
-            }
-            case Transparency.Colorkey: {
-                uint key = simpleColorToSDLColor(mSurfaceRGBA32, mData.colorkey);
-                SDL_SetColorKey(mSurfaceRGBA32, SDL_SRCCOLORKEY, key);
-                break;
-            }
-            default: //rien
+        if (force_alpha || mData.transparency == Transparency.Alpha) {
+            SDL_SetAlpha(src, SDL_SRCALPHA, SDL_ALPHA_OPAQUE);
+        } else if (mData.transparency == Transparency.Colorkey) {
+            uint key = simpleColorToSDLColor(src, mData.colorkey);
+            SDL_SetColorKey(src, SDL_SRCCOLORKEY, key);
         }
-
-        updatePixels(Rect2i(mData.size));
-        update_subsurfaces(mData.subsurfaces);
     }
 
     void getPixelData() {
@@ -296,6 +299,7 @@ final class SDLSurface : DriverSurface {
             + rc.p1.x * mSurfaceRGBA32.format.BytesPerPixel,
             rc.size.x, rc.size.y, 32, mSurfaceRGBA32.pitch,
             rgba32.Rmask, rgba32.Gmask, rgba32.Bmask, rgba32.Amask);
+        adjust_transparency_mode(nsurf);
         return nsurf;
     }
 
@@ -326,10 +330,6 @@ final class SDLSurface : DriverSurface {
                 if (rle || !isDisplayFormat(surf, false)) {
                     nsurf = SDL_DisplayFormat(surf);
                     assert(!!nsurf);
-                    /+Trace.formatln("before: {}",
-                        gSDLDriver.pixelFormatToString(mSurface.format));
-                    Trace.formatln("after: {}",
-                        gSDLDriver.pixelFormatToString(nsurf.format));+/
                     if (rle) {
                         uint key = simpleColorToSDLColor(nsurf, mData.colorkey);
                         SDL_SetColorKey(nsurf, (colorkey ? SDL_SRCCOLORKEY : 0)
@@ -365,6 +365,17 @@ final class SDLSurface : DriverSurface {
         } else {
             return src;
         }
+    }
+
+    //src must be in the RGBA32 format
+    private Pixels pixels_from_sdl(SDL_Surface* src) {
+        Pixels r;
+        r.w = src.w;
+        r.h = src.h;
+        r.pixels = src.pixels;
+        r.pitch = src.pitch;
+        assert(src.format.BitsPerPixel == 32 && src.format.BytesPerPixel == 4);
+        return r;
     }
 
     //includes special handling for the alpha value: if completely transparent,
@@ -479,8 +490,17 @@ final class SDLSurface : DriverSurface {
             double rot_deg = 1.0*k_rotate/cRotUnits*360.0;
             double rot_rad = rot_deg/180.0*math.PI;
             double zoom = 1.0*k_zoom/cZoomUnitsHalf*cZoomMax + 1.0;
-            int smooth = mDrawDriver.mHighQuality ? 1 : 0;
-            auto nsurf = rotozoomSurface(surf, rot_deg, zoom, smooth);
+            bool smooth = mDrawDriver.mHighQuality;
+            SDL_Surface* nsurf;
+            rotozoomSurface(pixels_from_sdl(surf), rot_deg, zoom, smooth,
+                (out Pixels dst, int w, int h) {
+                    nsurf = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 32,
+                        Color.cMaskR, Color.cMaskG, Color.cMaskB, Color.cMaskA);
+                    adjust_transparency_mode(nsurf, smooth);
+                    SDL_FillRect(nsurf, null, colorToSDLColor(Color.Transparent));
+                    dst = pixels_from_sdl(nsurf);
+                }
+            );
             assert(!!nsurf, "out of memory?");
             SDL_FreeSurface(surf);
             surf = nsurf;

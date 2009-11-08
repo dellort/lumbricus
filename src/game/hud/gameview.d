@@ -22,6 +22,7 @@ import gui.container;
 import gui.label;
 import gui.mousescroller;
 import gui.tablecontainer;
+import utils.configfile;
 import utils.rect2;
 import utils.time;
 import utils.math;
@@ -804,6 +805,10 @@ class GameView : Container {
     override void onDraw(Canvas c) {
         //no super.onDraw(c);, it's called through DrawLabels
         mGame.cengine.draw(c);
+
+        //mouse stuff at last?
+        mGame.engine.renderOnMouse(c, mousePos);
+
         //hmpf
         (cast(GameEngine)mGame.engine).debug_draw(c);
     }

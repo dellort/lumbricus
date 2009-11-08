@@ -25,6 +25,9 @@ import game.gamepublic;
 alias StaticFactory!("WeaponClasses", WeaponClass, GfxSet, ConfigNode)
     WeaponClassFactory;
 
+alias StaticFactory!("WeaponSelectors", WeaponSelector, WeaponClass,
+    GObjectSprite) WeaponSelectorFactory;
+
 alias void delegate(Shooter sh) ShooterCallback;
 
 //wtf? why not make FireInfo a class?
@@ -59,6 +62,9 @@ abstract class WeaponClass {
 
     FireMode fireMode;
 
+    //argument to WeaponSelectorFactory
+    char[] onSelect;
+
     //weapon-holding animations
     char[] animation;
 
@@ -89,6 +95,12 @@ abstract class WeaponClass {
         //load the animations
         animation = node["animation"];
 
+        onSelect = node.getValue!(char[])("on_select", "");
+        if (onSelect.length) {
+            if (!WeaponSelectorFactory.exists(onSelect))
+                throw new Exception("not in WeaponSelectorFactory: "~onSelect);
+        }
+
         //load projectiles
         foreach (ConfigNode pr; node.getSubNode("projectiles")) {
             //if (pr.name in projectiles)
@@ -106,6 +118,17 @@ abstract class WeaponClass {
     this (ReflectCtor c) {
     }
 
+    //called when the sprite selected_by selects this weapon
+    //this is needed when you want to have somewhat more control over the how
+    //  a weapon is _prepared_ to fire
+    //may return null
+    //xxx: and actually, the hardcoded FireMode thing sucks a bit
+    WeaponSelector createSelector(GObjectSprite selected_by) {
+        if (!onSelect.length)
+            return null;
+        return WeaponSelectorFactory.instantiate(onSelect, this, selected_by);
+    }
+
     //just a factory
     //users call fire() on them to actually activate them
     //  go == entity which fires it (its physical properties will be used)
@@ -113,6 +136,52 @@ abstract class WeaponClass {
 
     bool canUse(GameEngine engine) {
         return !isAirstrike || engine.level.airstrikeAllow;
+    }
+}
+
+//some weapons need to do stuff while they're selected (girder construction)
+//this really should be in Shooter, but Shooter is only created right before
+//  the weapon is fired, and much code relies on this; too messy to change
+//note that this is not created by a "double factory"; you can use the passed
+//  WeaponClass to store data
+//as far as I see, a worm never can select two weapons at the same time
+abstract class WeaponSelector {
+    private {
+        bool mIsSelected;
+    }
+
+    this(WeaponClass wc, GObjectSprite owner) {
+    }
+
+    this (ReflectCtor c) {
+    }
+
+    final bool isSelected() {
+        return mIsSelected;
+    }
+
+    //only to be used by the worm weapon control code
+    final void isSelected(bool s) {
+        if (mIsSelected == s)
+            return;
+        mIsSelected = s;
+        if (s) {
+            onSelect();
+        } else {
+            onUnselect();
+        }
+    }
+
+    //called when the weapon is unselected
+    //note that the weapon can be unselected while it's still active
+    //e.g. the rope is always unselected after shooting it
+    protected void onUnselect() {
+    }
+
+    //reselect (because unselection comes often; e.g. a worm will unselect a
+    //  weapon temporarily while it's walking)
+    //select() is also called some time after construction of this object
+    protected void onSelect() {
     }
 }
 
@@ -158,6 +227,11 @@ abstract class Shooter : GameObject {
 
     //shooters should call this to reduce owner's ammo by 1
     ShooterCallback ammoCb, finishCb;
+
+    //if non-null, what was created by WeaponClass.createSelector()
+    //this is set right after the constructor has been run
+    //(xxx: move to ctor... also, use utils.factory to create shooters)
+    WeaponSelector selector;
 
     protected this(WeaponClass base, GObjectSprite a_owner, GameEngine engine) {
         super(engine, false);

@@ -36,9 +36,11 @@ interface SpriteControl {
 
 //separate control for special weapons like super sheep or rope
 interface Controllable {
+    //returning false means the worm's normal action should be executed
     bool fire(bool keyDown);
     bool jump(JumpMode j);
     bool move(Vector2f m);
+    //returning null => no active sprite; worm is considered to be active
     GObjectSprite getSprite();
 }
 
@@ -150,11 +152,15 @@ class WormControl : WormController {
 
     //the worm, or whatever controllable weapon was lunched (e.g. super sheep)
     GObjectSprite controlledSprite() {
+        //NOTE: at least one weapon (girder) can return null here; there's not
+        //  really a sprite or any other game object the user is controlling;
+        //  it's just that the weapon code wants to catch some key presses
+        //thus, it returns the worm sprite if getSprite() returns null
+        GObjectSprite ret;
         if (mControlStack.length > 0) {
-            return mControlStack[$-1].getSprite();
-        } else {
-            return mWorm;
+            ret = mControlStack[$-1].getSprite();
         }
+        return ret ? ret : mWorm;
     }
 
     //this "engaged" is about whether the worm can be made controllable etc.
