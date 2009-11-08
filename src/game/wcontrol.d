@@ -185,6 +185,7 @@ class WormControl : WormController {
             selectWeapon(mCurrentWeapon);
         } else {
             //being deactivated
+            mEngaged = false;
             controllableMove(Vector2f(0));
             mControlStack = null;
             move(Vector2f(0));
@@ -201,7 +202,6 @@ class WormControl : WormController {
             mTargetIsSet = false;
 
             mFireDown = false;
-            mEngaged = false;
         }
 
         mOnHold = false;

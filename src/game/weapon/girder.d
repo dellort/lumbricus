@@ -47,10 +47,13 @@ class GirderControl : WeaponSelector, Controllable {
         GameEngine mEngine;
         GObjectSprite mOwner;
         WormControl mControl;
-        Surface[] mGirders;
-        int mGirderSel;
+        Surface[] mGirders, mGirdersLong;
+        int mGirderSel, mGirderAnimSel;
+        bool mDoubleLen;
         //rectangle for the girder; used as bounding box
         Vector2i mBaseSize;
+
+        const cRotateSteps = 8;
     }
 
     mixin Methods!("mouseRender");
@@ -64,13 +67,27 @@ class GirderControl : WeaponSelector, Controllable {
 
         Surface girder = mEngine.level.theme.girder;
         mBaseSize = girder.size;
-
-        //xxx this should really be cached
-        mGirders = create_girders(girder, 8);
     }
 
     this (ReflectCtor c) {
         super(c);
+        c.transient(this, &mGirders);
+        c.transient(this, &mGirdersLong);
+    }
+
+    void initGirderSurfaces() {
+        Surface girder = mEngine.level.theme.girder;
+        //xxx this should really be cached
+        mGirders = create_girders(girder, cRotateSteps);
+
+        Surface longGirder = new Surface(
+            Vector2i(girder.size.x*2, girder.size.y), girder.transparency);
+        longGirder.copyFrom(girder, Vector2i(0), Vector2i(0), girder.size);
+        longGirder.copyFrom(girder, Vector2i(girder.size.x,0),
+            Vector2i(0), girder.size);
+        mGirdersLong = create_girders(longGirder, cRotateSteps);
+        assert(mGirders.length == mGirdersLong.length);
+        assert(mGirders.length == cRotateSteps);
     }
 
     override void onSelect() {
@@ -83,8 +100,18 @@ class GirderControl : WeaponSelector, Controllable {
         mControl.releaseControllable(this);
     }
 
+    Surface girderSurface() {
+        if (mGirders.length < cRotateSteps
+            || mGirdersLong.length < cRotateSteps)
+        {
+            initGirderSurfaces();
+        }
+        return mDoubleLen ? mGirdersLong[mGirderAnimSel]
+            : mGirders[mGirderAnimSel];
+    }
+
     void mouseRender(Canvas c, Vector2i mousepos) {
-        Surface bmp = mGirders[mGirderSel];
+        Surface bmp = girderSurface();
         bool ok = canInsertAt(mousepos);
         Vector2i pos = mousepos - bmp.size / 2;
         if (c.features & DriverFeatures.transformedQuads) {
@@ -99,22 +126,31 @@ class GirderControl : WeaponSelector, Controllable {
     }
 
     void rotateGirder(int dir) {
-        mGirderSel = realmod!(int)(mGirderSel + dir, mGirders.length);
+        //index over all girders (single+double)
+        mGirderSel = realmod!(int)(mGirderSel + dir, cRotateSteps * 2);
+        //animation index
+        mGirderAnimSel = mGirderSel % cRotateSteps;
+        //so the switch from normal to double is in vertical position
+        mDoubleLen = mGirderSel >= cRotateSteps/2
+            && mGirderSel < 3*cRotateSteps/2;
     }
 
     bool canInsertAt(Vector2i pos) {
         //pixel precise collision test with landscape
         //create a polygon that makes up the rotated girder
         //collisePolygon() will use the rasterization code to check each lexel
+        Vector2i girderSize = mBaseSize;
+        if (mDoubleLen)
+            girderSize.x *= 2;
         Vector2f[4] verts;
         verts[0] = Vector2f(0, 0);
         verts[1] = Vector2f(1, 0);
         verts[2] = Vector2f(1, 1);
         verts[3] = Vector2f(0, 1);
-        float rot = girder_rotation(mGirderSel, mGirders.length);
+        float rot = girder_rotation(mGirderSel, cRotateSteps);
         foreach (ref v; verts) {
-            v = v ^ toVector2f(mBaseSize);
-            v = v - toVector2f(mBaseSize/2);
+            v = v ^ toVector2f(girderSize);
+            v = v - toVector2f(girderSize/2);
             v = v.rotated(rot);
             v += toVector2f(pos);
         }
@@ -150,7 +186,7 @@ class GirderControl : WeaponSelector, Controllable {
     }
 
     void insertAt(Vector2i pos) {
-        Surface bmp = mGirders[mGirderSel];
+        Surface bmp = girderSurface();
         pos -= bmp.size / 2;
         mEngine.insertIntoLandscape(pos, bmp, Lexel.SolidSoft);
     }

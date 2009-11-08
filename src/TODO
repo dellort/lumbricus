@@ -27,7 +27,6 @@
 - superrope: wenn das seil verankert wird und der wurm ins am-seil-hängen übergeht, wird für einen frame eine animation mit völlig falschem wurm-winkel angezeigt (one-frame-step ist zum debugging nützlich)
   außerdem: seil fängt in er mitte des wurmes an => passt nicht zur wurm-graphik
 - während minigun feuert, axt auswählen => feuerrichtung wird geändert
-- hunderte von minen abwerfen, wurm reinbeamen, assertion failure
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)

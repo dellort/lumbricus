@@ -1272,6 +1272,13 @@ class RenderCrosshair : SceneObject {
         c.transient(this, &mEmit);
     }
 
+    override void removeThis() {
+        //make sure sound gets stopped
+        mEmit.current = null;
+        mEmit.update(mEngine.callbacks.particleEngine);
+        super.removeThis();
+    }
+
     private void init_ip() {
         mIP.interp.currentTimeDg = &time.current;
         mIP.interp.init(mEngine.gfx.crosshair.animDur, 1, 0);

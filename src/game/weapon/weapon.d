@@ -56,6 +56,7 @@ abstract class WeaponClass {
     bool dontEndRound = false;
     bool deselectAfterFire = false;
     Time cooldown = Time.Null;
+    int crateAmount = 1;
 
     //for the weapon selection; only needed on client-side
     Surface icon;
@@ -84,6 +85,7 @@ abstract class WeaponClass {
         dontEndRound = node.getBoolValue("dont_end_round", dontEndRound);
         deselectAfterFire = node.getBoolValue("deselect", deselectAfterFire);
         cooldown = node.getValue("cooldown", cooldown);
+        crateAmount = node.getValue("crate_amount", crateAmount);
 
         icon = gfx.resources.get!(Surface)(node["icon"]);
 

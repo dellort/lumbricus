@@ -997,7 +997,7 @@ class GameController {
             //weapon
             auto content = mCrateSet.chooseRandomForCrate();
             if (content) {
-                ret ~= new CollectableWeapon(content, 1);
+                ret ~= new CollectableWeapon(content, content.crateAmount);
                 if (r > cCrateProbs[2]) {
                     //add a bomb to that :D
                     ret ~= new CollectableBomb();
