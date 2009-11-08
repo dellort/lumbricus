@@ -254,6 +254,26 @@ public class Canvas {
     //NOTE: the quad parameter is already by ref (one of the most stupied Disms)
     public abstract void drawQuad(Surface tex, Vertex2f[4] quad);
 
+    //draw tex blended with color col (uses drawQuad)
+    void drawColored(Surface tex, Vector2i pos, Color col) {
+        Vertex2f[4] quad;
+        Vector2f pf = toVector2f(pos);
+        quad[0].p = pf;
+        quad[0].c = col;
+        quad[1].p.x = pf.x;
+        quad[1].p.y = pf.y + tex.size.y;
+        quad[1].t.y = tex.size.y;
+        quad[1].c = col;
+        quad[2].p = pf + toVector2f(tex.size);
+        quad[2].t = tex.size;
+        quad[2].c = col;
+        quad[3].p.x = pf.x + tex.size.x;
+        quad[3].p.y = pf.y;
+        quad[3].t.x = tex.size.x;
+        quad[3].c = col;
+        drawQuad(tex, quad);
+    }
+
     /// Fill the area (destPos, destPos+destSize) with source, tiled on wrap
     //will be specialized in OpenGL
     public void drawTiled(Texture source, Vector2i destPos, Vector2i destSize) {

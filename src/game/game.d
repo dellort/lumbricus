@@ -533,8 +533,8 @@ class GameEngine {
 
         //checks ok, remove land and create platform
         damageLandscape(toVector2i(drop), holeRadius);
-        //xxx: can't access level theme resources here <- what??
-        Surface bmp = gfx.resources.get!(Surface)("place_platform");
+        //same thing that is placed with the girder weapon
+        Surface bmp = level.theme.girder;
         insertIntoLandscape(Vector2i(cast(int)drop.x-bmp.size.x/2,
             cast(int)drop.y+bmp.size.y/2), bmp, Lexel.SolidSoft);
         dest = drop;

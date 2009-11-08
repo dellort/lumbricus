@@ -173,6 +173,7 @@
 		<Unit filename="../src/game/wcontrol.d" />
 		<Unit filename="../src/game/weapon/actionweapon.d" />
 		<Unit filename="../src/game/weapon/drill.d" />
+		<Unit filename="../src/game/weapon/girder.d" />
 		<Unit filename="../src/game/weapon/jetpack.d" />
 		<Unit filename="../src/game/weapon/melee.d" />
 		<Unit filename="../src/game/weapon/napalm.d" />

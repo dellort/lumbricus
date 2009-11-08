@@ -498,6 +498,8 @@ class WormSprite : GObjectSprite {
 
     //xxx: clearify relationship between shooter and so on
     void weapon(WeaponClass w) {
+        if (w && w is mWeapon)
+            return;
         auto oldweapon = mWeapon;
         weapon_unselect();
         mWeapon = w;

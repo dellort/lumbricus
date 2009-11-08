@@ -558,10 +558,11 @@ class GLCanvas : Canvas3DHelper {
                 case Transparency.Colorkey:
                     want_atest = true;
                     break;
-                case Transparency.Alpha:
+                default:
+                    //blend for non-transparent textures, too (else
+                    //  colored quads don't draw correctly)
                     want_blend = true;
                     break;
-                default:
             }
         }
 

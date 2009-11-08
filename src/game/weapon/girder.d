@@ -28,7 +28,8 @@ static this() {
 }
 
 float girder_rotation(int n, int steps) {
-    return math.PI*2/steps * n;
+    //start horizontal, 22.5° steps, no upside-down
+    return math.PI/steps * realmod!(int)(n+steps/2, steps) - math.PI/2;
 }
 
 Surface[] create_girders(Surface girder, int steps) {
@@ -84,12 +85,17 @@ class GirderControl : WeaponSelector, Controllable {
 
     void mouseRender(Canvas c, Vector2i mousepos) {
         Surface bmp = mGirders[mGirderSel];
-        c.draw(bmp, mousepos - bmp.size / 2);
         bool ok = canInsertAt(mousepos);
-        //feel free to make this more beatiful
-        //maybe it would be nice if the bridge segment would be blended with
-        //  red (that'd be OpenGL/DirectX drivers only)
-        c.drawFilledCircle(mousepos, 5, ok ? Color(0,1,0) : Color(1,0,0));
+        Vector2i pos = mousepos - bmp.size / 2;
+        if (c.features & DriverFeatures.transformedQuads) {
+            //accelerated driver, blend with red if invalid
+            c.drawColored(bmp, pos,
+                ok ? Color(1, 1, 1, 0.7) : Color(1, 0.5, 0.5, 0.7));
+        } else {
+            //unaccelerated driver, just show a red circle
+            c.draw(bmp, pos);
+            c.drawFilledCircle(mousepos, 5, ok ? Color(0,1,0) : Color(1,0,0));
+        }
     }
 
     void rotateGirder(int dir) {

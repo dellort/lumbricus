@@ -73,8 +73,8 @@ version (Win32) {
             {
                 //broadcast address is the interface address, but set to 255
                 //  where the netmask is 0
-                sockaddr_in ia = cast(sockaddr_in)(interfaceList[i].iiAddress);
-                sockaddr_in mask = cast(sockaddr_in)(interfaceList[i].iiNetmask);
+                sockaddr_in ia = interfaceList[i].iiAddress.AddressIn;
+                sockaddr_in mask = interfaceList[i].iiNetmask.AddressIn;
                 ia.sin_addr = ia.sin_addr | (~mask.sin_addr);
 
                 addr.sin = ia;
