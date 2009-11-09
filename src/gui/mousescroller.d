@@ -12,8 +12,9 @@ import utils.time;
 //(this is what the SceneObjectViewer was)
 class MouseScroller : ScrollArea {
     private {
-        bool mMouseScrolling;
+        bool mMouseScrolling, mMouseFollow;
         Time mLastMouseScroll;
+        Vector2i mFollowBorder;
     }
 
     ///return last time the area was scrolled using the mouse
@@ -47,6 +48,8 @@ class MouseScroller : ScrollArea {
         if (enable == mMouseScrolling)
             return;
         if (enable) {
+            if (mMouseFollow)
+                stopMouseFollow();
             //shitty hack:
             //- first mouse move event will recheck the mouse cursor shape
             //- the actual mouse cursor is set to the middle of the screen (by
@@ -85,15 +88,20 @@ class MouseScroller : ScrollArea {
         mouseScrolling(!mMouseScrolling);
     }
 
-    /+
-    override protected void onKeyEvent(KeyInfo key) {
-        if (key.code == Keycode.MOUSE_RIGHT) {
-            if (key.isDown) {
-                mouseScrollToggle();
-            }
-        }
+    //don't allow mouse to go further than border
+    void startMouseFollow(Vector2i border) {
+        assert(border.quad_length > 0);
+        if (mMouseScrolling)
+            mouseScrolling(false);
+        mMouseFollow = true;
+        mFollowBorder = border;
     }
-    +/
+    void stopMouseFollow() {
+        mMouseFollow = false;
+    }
+    bool mouseFollow() {
+        return mMouseFollow;
+    }
 
     override void onMouseMove(MouseInfo mi) {
         if (mMouseScrolling) {
@@ -103,21 +111,28 @@ class MouseScroller : ScrollArea {
     }
 
     protected override bool allowInputForChild(Widget child, InputEvent event) {
-        if (event.isKeyEvent && event.keyEvent.code == Keycode.MOUSE_RIGHT) {
-            //ok, this is a dirty hack
-            //- we don't want to take the focus, which would happen if we'd
-            //  steal the event from the sub widget
-            //- so just do it here
-            //- we _have_ to relay the input, else the captureKey widget will
-            //  change and doc will complain (see TODO r831)
-            if (event.keyEvent.isDown) {
-                mouseScrollToggle();
-            }
-            return true;
-        }
-        //catch only mouse events (mouse moving, mouse cursor shape)
+        //catch only mouse movement events (no clicks, or we would take focus)
         if (mMouseScrolling)
-            return !event.isMouseRelated();
+            return !event.isMouseEvent;
+        if (mMouseFollow && event.isMouseEvent) {
+            //another dirty hack: don't eat movement events
+            auto mousePos = event.mouseEvent.pos;
+            //when the mouse would go outside the visible area,
+            //scroll to correct (-> "pushing" the borders)
+            auto visible = Rect2i(size);
+            visible.extendBorder(-mFollowBorder);
+            if (!visible.isInsideB(mousePos)) {
+                //cursor went outside
+                auto npos = visible.clip(mousePos);
+                auto offs = scrollDestination();
+                scrollDeltaSmooth(mousePos - npos);
+                //check how much we actually scrolled to correct...
+                auto doffs = scrollDestination() - offs;
+                //... and move the mouse back by that amount (keep it inside)
+                gFramework.mousePos = gFramework.mousePos + doffs;
+                noticeAction();
+            }
+        }
         return true;
     }
 

@@ -54,6 +54,7 @@ class GirderControl : WeaponSelector, Controllable {
         Vector2i mBaseSize;
 
         const cRotateSteps = 8;
+        const cMaxDistance = 500;  //in pixels from worm position
     }
 
     mixin Methods!("mouseRender");
@@ -118,6 +119,11 @@ class GirderControl : WeaponSelector, Controllable {
             //accelerated driver, blend with red if invalid
             c.drawColored(bmp, pos,
                 ok ? Color(1, 1, 1, 0.7) : Color(1, 0.5, 0.5, 0.7));
+            //draw the valid placing range
+            //xxx can we rely on the canvas having the same coordinate system
+            //    as the engine?
+            c.drawFilledCircle(toVector2i(mOwner.physics.pos), cMaxDistance,
+                Color(0, 1.0, 0, 0.15));
         } else {
             //unaccelerated driver, just show a red circle
             c.draw(bmp, pos);
@@ -136,12 +142,18 @@ class GirderControl : WeaponSelector, Controllable {
     }
 
     bool canInsertAt(Vector2i pos) {
-        //pixel precise collision test with landscape
-        //create a polygon that makes up the rotated girder
-        //collisePolygon() will use the rasterization code to check each lexel
         Vector2i girderSize = mBaseSize;
         if (mDoubleLen)
             girderSize.x *= 2;
+        //check against waterline
+        if (pos.y+girderSize.y/2 >= mEngine.waterOffset)
+            return false;
+        //check distance to worm
+        if ((pos - toVector2i(mOwner.physics.pos)).length > cMaxDistance)
+            return false;
+        //pixel precise collision test with landscape
+        //create a polygon that makes up the rotated girder
+        //collisePolygon() will use the rasterization code to check each lexel
         Vector2f[4] verts;
         verts[0] = Vector2f(0, 0);
         verts[1] = Vector2f(1, 0);

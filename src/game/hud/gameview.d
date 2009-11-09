@@ -595,6 +595,7 @@ class GameView : Container {
         mCmds.register(Command("keybindings_help", &cmdShowKeybinds, "-", []));
         mCmds.register(Command("toggle_weaponwindow", &cmdToggleWeaponWnd, "-",
             []));
+        mCmds.register(Command("toggle_scroll", &cmdToggleScroll, "-", []));
         mCmds.bind(mCmd);
     }
 
@@ -642,6 +643,15 @@ class GameView : Container {
     private void cmdToggleWeaponWnd(MyBox[] args, Output write) {
         if (onToggleWeaponWindow)
             onToggleWeaponWindow();
+    }
+
+    private void cmdToggleScroll(MyBox[] args, Output write) {
+        //hacky: when in mouse-follow mode, right-click shows the weapon window
+        //  (which will end mouse-follow mode)
+        if (mCamera.control.mouseFollow())
+            onToggleWeaponWindow();
+        else
+            mCamera.control.mouseScrollToggle();
     }
 
     //should be moved elsewhere etc.

@@ -28,6 +28,7 @@ import game.clientengine;
 import game.gamepublic;
 import game.game;
 import game.weapon.weapon;
+import game.weapon.types;
 //import levelgen.level;
 import utils.interpolate;
 import utils.time;
@@ -74,11 +75,17 @@ class GameFrame : SimpleContainer {
     private void teamChanged() {
         TeamMember t = game.control.getControlledMember();
         mWeaponSel.update(t ? t.team.weapons : null);
-        if (!t == (mWeaponInterp.target == 0f))
+        if (!t == isWeaponWindowVisible())
             mWeaponInterp.revert();
     }
 
     private void selectWeapon(WeaponClass c) {
+        //xxx not really correct, the "weapon" call could fail in the engine
+        //    better: callback onWeaponSelect
+        if (c.fireMode.point != PointMode.none) {
+            //when a point weapon is selected, hide the weapon window
+            mWeaponInterp.setParams(0, 1.0f);
+        }
         game.control.executeCommand("weapon "~c.name);
     }
 
@@ -148,9 +155,28 @@ class GameFrame : SimpleContainer {
 
         mScroller.scale = Vector2f(gameView.zoomLevel, gameView.zoomLevel);
 
+        if (auto am = game.control.getControlledMember()) {
+            //mouse follow when the weapon requires clicking, and
+            //the weapon window is hidden
+            bool shouldFollow = am.control.pointMode != PointMode.none
+                && !isWeaponWindowVisible();
+            //mouse follow and mouse scrolling are exclusive
+            if (shouldFollow && !mScroller.mouseFollow
+                && !mScroller.mouseScrolling)
+            {
+                mScroller.startMouseFollow(Vector2i(150));
+            } else if (!shouldFollow && mScroller.mouseFollow) {
+                mScroller.stopMouseFollow();
+            }
+        } else {
+            if (mScroller.mouseFollow)
+                mScroller.stopMouseFollow();
+        }
+
         int wsel_edge = mWeaponSel.findParentBorderDistance(1, 0, false);
         mWeaponSel.setAddToPos(
             Vector2i(cast(int)(mWeaponInterp.value*wsel_edge), 0));
+        mWeaponSel.visible = 1.0f-mWeaponInterp.value > float.epsilon;
     }
 
     override bool doesCover() {
@@ -208,6 +234,9 @@ class GameFrame : SimpleContainer {
     private void toggleWeaponWindow() {
         if (game.control.getControlledMember())
             mWeaponInterp.revert();
+    }
+    private bool isWeaponWindowVisible() {
+        return mWeaponInterp.target == 0;
     }
 
     this(GameInfo g) {

@@ -5,6 +5,7 @@ import framework.framework;
 public import utils.color;
 public import utils.rect2;
 public import utils.vector2;
+import utils.misc;
 
 struct Vertex2f {
     //position
@@ -397,7 +398,7 @@ class Canvas3DHelper : Canvas {
         //the idea of putting this here is that you could flush the buffer
         //  transparently
         uint mBufferIndex;
-        Vertex2f[20] mBuffer;
+        Vertex2f[100] mBuffer;
         Primitive mPrimitive;
         Surface mTexture;
         Color mColor;
@@ -436,16 +437,23 @@ class Canvas3DHelper : Canvas {
     protected void lineWidth(int width) {
     }
 
+    private int getSlices(int radius) {
+        //one vertex every 30 pixels on the circumcircle
+        //xxx I don't know if this makes much sense
+        const cRadiusToSteps = 2*PI/30;
+        return clampRangeC(cast(uint)(radius*cRadiusToSteps), 16U,
+            mBuffer.length-2);
+    }
     override void drawCircle(Vector2i center, int radius, Color color) {
         mColor = color;
-        stroke_circle(center.x, center.y, radius);
+        stroke_circle(center.x, center.y, radius, getSlices(radius));
     }
 
     override void drawFilledCircle(Vector2i center, int radius,
         Color color)
     {
         mColor = color;
-        fill_circle(center.x, center.y, radius);
+        fill_circle(center.x, center.y, radius, getSlices(radius));
     }
 
     //Code from Luigi, www.dsource.org/projects/luigi, BSD license

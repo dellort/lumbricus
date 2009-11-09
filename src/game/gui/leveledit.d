@@ -498,6 +498,7 @@ public class LevelEditor : Task {
 
     StringListWidget mLoadTemplateList;
     LevelTemplate[] mTemplateList; //temporary during mLoadTemplate
+    MouseScroller mScroller;
 
     //current rectangle-selection mode
     //(what to do if the user draws this rect)
@@ -559,6 +560,9 @@ public class LevelEditor : Task {
                 didReallyDrag = false;
                 dragPick = mousePos;
                 dragRel = Vector2i(0);
+            }
+            if (infos.code == Keycode.MOUSE_RIGHT) {
+                mScroller.mouseScrollToggle();
             }
             return true;
         }
@@ -816,6 +820,8 @@ public class LevelEditor : Task {
         mLoadTemplateList = loader.lookup!(StringListWidget)("load_list");
         setOnClick2("load_ok", &loadTemplate_OK);
         setOnClick2("load_cancel", &loadTemplate_Cancel);
+
+        mScroller = loader.lookup!(MouseScroller)("scroller");
     }
 
     const cLexelTypes = [Lexel.Null, Lexel.SolidSoft, Lexel.SolidHard];

@@ -614,6 +614,9 @@ class WormControl : WormController {
         return mWorm.teamColor;
     }
 
+    PointMode pointMode() {
+        return mPointMode;
+    }
     //note: also clears the target indicator
     private void setPointMode(PointMode mode) {
         if (mPointMode == mode)
