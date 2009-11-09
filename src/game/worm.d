@@ -955,6 +955,15 @@ class WormSprite : GObjectSprite {
         else
             physics.setWalking(Vector2f(0, 0));
     }
+    bool parachuteActivated() {
+        return currentState is wsc.st_parachute;
+    }
+    void activateParachute(bool activate) {
+        if (activate == parachuteActivated())
+            return;
+
+        setState(activate ? wsc.st_parachute : wsc.st_stand);
+    }
 
     bool isStanding() {
         return currentState is wsc.st_stand;
@@ -1097,7 +1106,8 @@ class WormSpriteClass : GOSpriteClass {
 
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
-        st_jump_start, st_jump, st_jump_to_fly, st_rope, st_drill, st_blowtorch;
+        st_jump_start, st_jump, st_jump_to_fly, st_rope, st_drill, st_blowtorch,
+        st_parachute;
 
     //alias WormSprite.FlyMode FlyMode;
 
@@ -1142,6 +1152,7 @@ class WormSpriteClass : GOSpriteClass {
         st_rope = findState("rope");
         st_drill = findState("drill");
         st_blowtorch = findState("blowtorch");
+        st_parachute = findState("parachute");
 
         flyState[FlyMode.fall] = findSequenceState("fly_fall",true);
         flyState[FlyMode.slide] = findSequenceState("fly_slide",true);

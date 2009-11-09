@@ -177,6 +177,7 @@
 		<Unit filename="../src/game/weapon/jetpack.d" />
 		<Unit filename="../src/game/weapon/melee.d" />
 		<Unit filename="../src/game/weapon/napalm.d" />
+		<Unit filename="../src/game/weapon/parachute.d" />
 		<Unit filename="../src/game/weapon/projectile.d" />
 		<Unit filename="../src/game/weapon/ray.d" />
 		<Unit filename="../src/game/weapon/rope.d" />

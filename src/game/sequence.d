@@ -710,6 +710,51 @@ class WwpJetpackState : SequenceState {
     }
 }
 
+class WwpParachuteDisplay : AniStateDisplay {
+    WwpParachuteState myclass;
+
+    this (Sequence a_owner) { super(a_owner); }
+    this (ReflectCtor c) { super(c); }
+
+    override void init(SequenceState state) {
+        myclass = castStrict!(WwpParachuteState)(state);
+        super.init(state);
+        setAnimation(myclass.enter);
+    }
+
+    override void simulate() {
+        assert(!!myclass);
+
+        std_anim_params();
+
+        if (hasFinished()) {
+            if (animation is myclass.enter) {
+                setAnimation(myclass.normal);
+            }
+        }
+    }
+
+    override void leave() {
+        if (animation !is myclass.leave)
+            setAnimation(myclass.leave);
+    }
+}
+
+class WwpParachuteState : SequenceState {
+    Animation normal, enter, leave;
+
+    this(SequenceType a_owner, ConfigNode node) {
+        super(a_owner, node);
+        normal = loadanim(node, "normal");
+        enter = loadanim(node, "enter");
+        leave = loadanim(node, "leave");
+    }
+
+    override DisplayType getDisplayType() {
+        return DisplayType.Init!(WwpParachuteDisplay);
+    }
+}
+
 /+
 //this is attached to a sequence and means, the sequence should render a weapon
 class WeaponPart {
@@ -994,6 +1039,7 @@ private void register_stuff() {
     SequenceStateFactory.register!(SimpleAnimationState)("simple_animation");
     SequenceStateFactory.register!(WwpNapalmState)("wwp_napalm");
     SequenceStateFactory.register!(WwpJetpackState)("wwp_jetpack");
+    SequenceStateFactory.register!(WwpParachuteState)("wwp_parachute");
     SequenceStateFactory.register!(WwpWeaponState)("wwp_weapon_select");
 }
 

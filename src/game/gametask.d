@@ -81,6 +81,7 @@ import game.weapon.drill;
 import game.weapon.ray;
 import game.weapon.napalm;
 import game.weapon.melee;
+import game.weapon.parachute;
 //import game.weapon.luaweapon;
 import game.gamemodes.turnbased;
 import game.gamemodes.mdebug;
