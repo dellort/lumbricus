@@ -783,6 +783,7 @@ class Framework {
         //for mouse handling
         Vector2i mMousePos;
         MouseCursor mMouseCursor;
+        bool mDisableMouseMoveEvent;
 
         //worthless statistics!
         PerfTimer[char[]] mTimers;
@@ -1050,7 +1051,10 @@ class Framework {
 
     //looks like this didn't trigger an event in the old code either
     void mousePos(Vector2i newPos) {
+        //never generate movement event
+        mDisableMouseMoveEvent = true;
         mDriver.setMousePos(newPos);
+        mDisableMouseMoveEvent = false;
     }
 
     //--- driver input callbacks
@@ -1104,7 +1108,7 @@ class Framework {
 
     //rel is the relative movement; needed for locked mouse mode
     void driver_doUpdateMousePos(Vector2i pos, Vector2i rel) {
-        if (mMousePos == pos && rel == Vector2i(0))
+        if ((mMousePos == pos && rel == Vector2i(0)) || mDisableMouseMoveEvent)
             return;
 
         mMousePos = pos;

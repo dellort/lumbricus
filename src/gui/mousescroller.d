@@ -129,7 +129,8 @@ class MouseScroller : ScrollArea {
                 //check how much we actually scrolled to correct...
                 auto doffs = scrollDestination() - offs;
                 //... and move the mouse back by that amount (keep it inside)
-                gFramework.mousePos = gFramework.mousePos + doffs;
+                if (doffs.quad_length > 0)
+                    gFramework.mousePos = gFramework.mousePos + doffs;
                 noticeAction();
             }
         }
