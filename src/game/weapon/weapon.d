@@ -182,8 +182,13 @@ abstract class WeaponSelector {
 
     //reselect (because unselection comes often; e.g. a worm will unselect a
     //  weapon temporarily while it's walking)
-    //select() is also called some time after construction of this object
+    //onSelect() is also called some time after construction of this object
     protected void onSelect() {
+    }
+
+    //check if firing is possible
+    bool canFire(FireInfo info) {
+        return true;
     }
 }
 
@@ -270,15 +275,22 @@ abstract class Shooter : GameObject {
     }
 
     //fire (i.e. activate) weapon
-    final void fire(FireInfo info) {
+    final bool fire(FireInfo info) {
         assert(!activity);
+        if (selector) {
+            if (!selector.canFire(info))
+                return false;
+        }
         mWorking = true;
         doFire(info);
+        return true;
     }
 
     //fire again (i.e. trigger special actions, like deactivating)
     final bool refire() {
         assert(activity);
+        //xxx: I don't know how not-being-able-to-fire should be handled with
+        //     WeaponSelector (see fire())
         return doRefire();
     }
 

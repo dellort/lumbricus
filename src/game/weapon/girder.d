@@ -153,7 +153,7 @@ class GirderControl : WeaponSelector, Controllable {
             return false;
         //pixel precise collision test with landscape
         //create a polygon that makes up the rotated girder
-        //collisePolygon() will use the rasterization code to check each lexel
+        //collidePolygon() will use the rasterization code to check each lexel
         Vector2f[4] verts;
         verts[0] = Vector2f(0, 0);
         verts[1] = Vector2f(1, 0);
@@ -203,6 +203,19 @@ class GirderControl : WeaponSelector, Controllable {
         mEngine.insertIntoLandscape(pos, bmp, Lexel.SolidSoft);
     }
 
+    override bool canFire(FireInfo info) {
+        return fireCheck(info, false);
+    }
+
+    bool fireCheck(FireInfo info, bool actually_fire) {
+        auto at = toVector2i(info.pointto.currentPos);
+        if (!canInsertAt(at))
+            return false;
+        if (actually_fire)
+            insertAt(at);
+        return true;
+    }
+
     //--- Controllable
     bool fire(bool keyDown) {
         return false;
@@ -233,12 +246,7 @@ class GirderControl : WeaponSelector, Controllable {
 void putgirder(WeaponContext wx) {
     WeaponSelector sel = wx.shooter.selector;
     auto gsel = castStrict!(GirderControl)(sel);
-    auto at = toVector2i(wx.fireInfo.info.pointto.currentPos);
-    //xxx: this should be checked before the girder "weapon" is triggered
-    if (gsel.canInsertAt(at)) {
-        gsel.insertAt(at);
-    } else {
-        Trace.formatln("oh hi, you can't insert this here");
-    }
+    //(should never return false for failure if weapon code is correct)
+    gsel.fireCheck(wx.fireInfo.info, true);
 }
 

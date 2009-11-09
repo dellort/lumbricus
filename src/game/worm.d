@@ -549,6 +549,7 @@ class WormSprite : GObjectSprite {
     }
 
     //fire (or refire) the selected weapon (mWeapon)
+    //returns if firing could be started
     bool fire(bool keyUp = false, bool selectedOnly = false) {
         //1. Try to refire currently active secondary weapon
         if (mShooterSec && mShooterSec.activity) {
@@ -566,8 +567,8 @@ class WormSprite : GObjectSprite {
                 return false;
 
             //no variable strength here, fixed angle
-            fireWeapon(mShooterSec, mWeapon.fireMode.throwStrengthFrom, true);
-            return true;
+            return fireWeapon(mShooterSec, mWeapon.fireMode.throwStrengthFrom,
+                true);
         }
 
         //3. Try to refire active main weapon
@@ -603,9 +604,12 @@ class WormSprite : GObjectSprite {
                 //charge strength
                 mThrowing = true;
                 mThrowingStarted = engine.gameTime.current;
+                //xxx: not sure how to deal with firing success etc.
+                return true;
             } else {
                 //fire instantly with default strength
-                fireWeapon(mShooterMain, mWeapon.fireMode.throwStrengthFrom);
+                return fireWeapon(mShooterMain,
+                    mWeapon.fireMode.throwStrengthFrom);
             }
         } else {
             //fire key released, really fire variable-strength weapon
@@ -614,11 +618,11 @@ class WormSprite : GObjectSprite {
             auto strength = currentFireStrength();
             mThrowing = false;
             auto fm = mWeapon.fireMode;
-            fireWeapon(mShooterMain, fm.throwStrengthFrom + strength
+            return fireWeapon(mShooterMain, fm.throwStrengthFrom + strength
                 * (fm.throwStrengthTo-fm.throwStrengthFrom));
         }
 
-        return true;
+        assert(false, "never reached");
     }
 
     //alternate fire refires the active main weapon if it can't be refired
@@ -680,11 +684,11 @@ class WormSprite : GObjectSprite {
 
     //fire currently selected weapon (mWeapon) as main weapon
     //will also create the shooter if necessary
-    private void fireWeapon(ref Shooter sh, float strength,
+    private bool fireWeapon(ref Shooter sh, float strength,
         bool fixedDir = false)
     {
         if (!mWeapon)
-            return;
+            return false;
         if (!sh || sh.weapon != mWeapon) {
             sh = mWeapon.createShooter(this, engine);
             sh.selector = mWeaponSelector;
@@ -721,7 +725,10 @@ class WormSprite : GObjectSprite {
         //for wcontrol.firedWeapon: sh.fire might complete in one call and
         //  reset sh
         auto shTmp = sh;
-        sh.fire(info);
+        bool success = sh.fire(info);
+
+        if (!success)
+            return false;
 
         if (wcontrol)
             wcontrol.firedWeapon(shTmp, false);
@@ -733,6 +740,8 @@ class WormSprite : GObjectSprite {
             //even if the weapon isn't "one shot", this should be fine
             graphic.weapon_fire_oneshot = true;
         }
+
+        return true;
     }
 
     private bool refireWeapon(Shooter sh) {
