@@ -78,7 +78,7 @@ class GLDrawDriver : DrawDriver {
         Vector2i mScreenSize;
         GLCanvas mCanvas;
         bool mStealData, mLowQuality, mUseSubSurfaces, mBatchSubTex;
-        bool mBatchDrawCalls;
+        bool mBatchDrawCalls, mNonPowerOfTwo;
     }
 
     this(ConfigNode config) {
@@ -90,6 +90,7 @@ class GLDrawDriver : DrawDriver {
         mUseSubSurfaces = config.getValue!(bool)("subsurfaces", true);
         mBatchSubTex = config.getValue!(bool)("batch_subtex", false);
         mBatchDrawCalls = config.getValue!(bool)("batch_drawcalls", true);
+        mNonPowerOfTwo = config.getValue!(bool)("non_power_of_two", false);
 
         mCanvas = new GLCanvas(this);
     }
@@ -226,9 +227,9 @@ final class GLSurface : DriverSurface {
         //releaseSurface();
         assert(mTexId == GLID_INVALID);
 
-        //OpenGL textures need width and heigth to be a power of two
+        //OpenGL textures need width and height to be a power of two
         //at least with older GL drivers
-        if (!ARBTextureNonPowerOfTwo.isEnabled) {
+        if (!ARBTextureNonPowerOfTwo.isEnabled || !mDrawDriver.mNonPowerOfTwo) {
             mTexSize = Vector2i(powerOfTwoRoundUp(mData.size.x),
                 powerOfTwoRoundUp(mData.size.y));
         } else {
@@ -419,7 +420,7 @@ class GLCanvas : Canvas3DHelper {
     private {
         GLDrawDriver mDrawDriver;
         //some lazy state managment, because they say glEnable etc. are slow
-        GLSurface state_texture;
+        Surface state_texture;
         bool state_blend, state_alpha_test;
 
         //lazy drawing; assuming reducing the number of glDrawArrays calls
@@ -494,7 +495,7 @@ class GLCanvas : Canvas3DHelper {
     //  count = number of vertices
     //call end_verts() with returned vertex array after this
     //the vertices' texture coords will be scaled by end_verts()
-    private MyVertex[] begin_verts(GLSurface tex, int primitive,
+    private MyVertex[] begin_verts(Surface tex, int primitive,
         size_t count)
     {
         if (mVertexCount + count > mVertices.length)
@@ -529,7 +530,8 @@ class GLCanvas : Canvas3DHelper {
 
     private void end_verts(MyVertex[] verts) {
         //assumes surface is the same value as passed to begin_verts()
-        GLSurface surface = state_texture;
+        GLSurface surface = state_texture
+            ? cast(GLSurface)state_texture.getDriverSurface() : null;
 
         if (surface) {
             float ts_x = 1.0f / surface.mTexSize.x;
@@ -554,7 +556,7 @@ class GLCanvas : Canvas3DHelper {
     }
 
     //pass null to enable untextured drawing (also enables alpha blending)
-    private void set_tex(GLSurface tex) {
+    private void set_tex(Surface tex) {
         if (state_texture is tex)
             return;
 
@@ -568,8 +570,9 @@ class GLCanvas : Canvas3DHelper {
             want_blend = true; //blending for lines etc.
         } else {
             want_tex = true;
-            tex.bind();
-            switch (tex.mData.transparency) {
+            auto gltex = cast(GLSurface)tex.getDriverSurface();
+            gltex.bind();
+            switch (gltex.mData.transparency) {
                 case Transparency.Colorkey:
                     want_atest = true;
                     break;
@@ -598,11 +601,9 @@ class GLCanvas : Canvas3DHelper {
         state_texture = tex;
     }
 
-    final void do_draw(GLSurface surface, Vector2i destP, Vector2i sourceP,
-        Vector2i destS, Transform2f* tr)
+    final void do_draw(Surface surface, Vector2i destP, Vector2i sourceP,
+        Vector2i destS, Transform2f* tr, Color col = Color(1.0f))
     {
-        set_tex(surface);
-
         //fun fact: writing int[2] bla = [1,2]; allocates memory on the heap
         Vector2f[2] p = void, t = void;
 
@@ -615,23 +616,21 @@ class GLCanvas : Canvas3DHelper {
 
         MyVertex[] verts = begin_verts(surface, GL_QUADS, 4);
 
-        Color c = Color(1.0f);
-
         verts[0].t = Vector2f(t[0].x, t[0].y);
         verts[0].p = Vector2f(p[0].x, p[0].y);
-        verts[0].c = c;
+        verts[0].c = col;
 
         verts[1].t = Vector2f(t[0].x, t[1].y);
         verts[1].p = Vector2f(p[0].x, p[1].y);
-        verts[1].c = c;
+        verts[1].c = col;
 
         verts[2].t = Vector2f(t[1].x, t[1].y);
         verts[2].p = Vector2f(p[1].x, p[1].y);
-        verts[2].c = c;
+        verts[2].c = col;
 
         verts[3].t = Vector2f(t[1].x, t[0].y);
         verts[3].p = Vector2f(p[1].x, p[0].y);
-        verts[3].c = c;
+        verts[3].c = col;
 
         /+ is this better or worse than the code above?
         static const int[4] cX = [0, 0, 1, 1], cY = [0, 1, 1, 0];
@@ -704,9 +703,7 @@ class GLCanvas : Canvas3DHelper {
     override void draw_verts(Primitive primitive, Surface tex,
         Vertex2f[] verts)
     {
-        GLSurface s = tex ? cast(GLSurface)tex.getDriverSurface() : null;
-
-        MyVertex[] verts2 = begin_verts(s, cPrimMap[primitive], verts.length);
+        MyVertex[] verts2 = begin_verts(tex, cPrimMap[primitive], verts.length);
 
         //this is silly, but who cares; better be independent from Vertex2f
         foreach (size_t i, v; verts) {
@@ -736,20 +733,22 @@ class GLCanvas : Canvas3DHelper {
         if (!effect)
             effect = &BitmapEffect.init;
 
-        GLSurface glsurf = cast(GLSurface)source.surface.getDriverSurface();
-
         //create an explicit 2D matrix according to BitmapEffect
         //the version using glTranslate etc. is still in r920 in drawFast()
 
         Transform2f tr = void;
+        if (effect.rotate != 0f || effect.scale != 1.0f) {
+            //2D rotation+scale matrix
+            tr.a11 = math.cos(effect.rotate) * effect.scale;
+            tr.a12 = math.sin(effect.rotate) * effect.scale;
+            tr.a21 = -tr.a12;
+            tr.a22 = tr.a11;
+        } else {
+            tr = Transform2f.init;
+        }
 
         tr.t = toVector2f(destPos);
 
-        //2D rotation+scale matrix
-        tr.a11 = math.cos(effect.rotate) * effect.scale;
-        tr.a12 = math.sin(effect.rotate) * effect.scale;
-        tr.a21 = -tr.a12;
-        tr.a22 = tr.a11;
 
         //substract transformed vector to center
         tr.t.x -= tr.a11 * effect.center.x + tr.a12 * effect.center.y;
@@ -764,31 +763,11 @@ class GLCanvas : Canvas3DHelper {
             tr.a21 = -tr.a21;
         }
 
-        do_draw(glsurf, Vector2i(0), source.origin, source.size, &tr);
+        do_draw(source.surface, Vector2i(0), source.origin, source.size, &tr,
+            effect.color);
     }
 
-    override void drawTiled(Surface source, Vector2i destPos, Vector2i destSize)
-    {
-        GLSurface glsurf = cast(GLSurface)source.getDriverSurface();
-
-        //tiling can be done by OpenGL if texture space is fully used
-        bool glTilex = glsurf.mTexMax.x == 1.0f;
-        bool glTiley = glsurf.mTexMax.y == 1.0f;
-
-        //check if either no tiling is needed, or it can be done entirely by GL
-        bool noTileSpecial = (glTilex || destSize.x <= source.size.x)
-            && (glTiley || destSize.y <= source.size.y);
-
-        if (noTileSpecial) {
-            //pure OpenGL drawing (and tiling)
-            //because we want it super-efficient
-            //I wonder if it really is, I bet OpenGL is not good at clipping
-            //  down very big polygons
-            drawTextureInt(source, destPos, Vector2i(0), destSize);
-        } else {
-            super.drawTiled(source, destPos, destSize);
-        }
-    }
+    //Note: GL-specific tiling code removed with r932
 
     override void draw(Surface source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize)
@@ -810,7 +789,6 @@ class GLCanvas : Canvas3DHelper {
         if (!visibleArea.intersects(destPos, destPos + destSize))
             return;
 
-        GLSurface glsurf = cast(GLSurface)source.getDriverSurface();
-        do_draw(glsurf, destPos, sourcePos, destSize, null);
+        do_draw(source, destPos, sourcePos, destSize, null);
     }
 }

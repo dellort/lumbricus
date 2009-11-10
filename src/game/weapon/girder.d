@@ -117,8 +117,9 @@ class GirderControl : WeaponSelector, Controllable {
         Vector2i pos = mousepos - bmp.size / 2;
         if (c.features & DriverFeatures.transformedQuads) {
             //accelerated driver, blend with red if invalid
-            c.drawColored(bmp, pos,
-                ok ? Color(1, 1, 1, 0.7) : Color(1, 0.5, 0.5, 0.7));
+            BitmapEffect be;
+            be.color = ok ? Color(1, 1, 1, 0.7) : Color(1, 0.5, 0.5, 0.7);
+            c.drawSprite(bmp.fullSubSurface, pos, &be);
             //draw the valid placing range
             //xxx can we rely on the canvas having the same coordinate system
             //    as the engine?

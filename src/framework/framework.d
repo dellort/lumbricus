@@ -378,6 +378,7 @@ ImageLoadDelegate[char[]] gImageFormats;
 class Surface {
     private {
         SurfaceData mData;
+        SubSurface mFullSubSurface;
     }
 
     ///"best" size for a large texture
@@ -398,6 +399,8 @@ class Surface {
 
         gFramework.mSurfaceData[mData] = true; //don't GC-collect data
         gSurfaces.add(this);
+
+        mFullSubSurface = createSubSurface(Rect2i(mData.size));
     }
 
     //hackity hack
@@ -432,6 +435,10 @@ class Surface {
             drs.newSubSurface(ss);
         }
         return ss;
+    }
+
+    final SubSurface fullSubSurface() {
+        return mFullSubSurface;
     }
 
     //call everytime the format in mData is changed

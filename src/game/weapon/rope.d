@@ -239,7 +239,7 @@ class Rope : Shooter {
         if (mShooting) {
             float t = (engine.gameTime.current - mShootStart).secsf;
             auto p2 = mWorm.physics.pos + mShootDir*myclass.shootSpeed*t;
-            updateAnchorAnim(p2, p2 - mWorm.physics.pos);
+            updateAnchorAnim(p2, mShootDir);
             float len = (mWorm.physics.pos-p2).length;
             if (len > myclass.maxLength) {
                 interruptFiring();
@@ -387,6 +387,7 @@ class Rope : Shooter {
         }
 
         mWorm.physics.forceLook(swingdir);
+        mWorm.updateAnimation();
         updateAnchorAnim(ropeSegments[0].start, ropeSegments[0].start
             - ropeSegments[0].end);
 
