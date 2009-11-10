@@ -874,21 +874,16 @@ class SwitchDriver : Task {
     const cDriverTypes = 4;
     char[][cDriverTypes] selects = ["base", "draw", "sound", "font"];
 
-    char[][] configs = ["sdl.enable_conversion", "sdl.mark_alpha", "sdl.rle",
-        "sdl.high_quality",
-        "opengl.steal_data", "opengl.lowquality", "opengl.subsurfaces",
-        "opengl.batch_subtex", "opengl.batch_drawcalls",
-        "directx.vsync",
-        "freetype.font_packer"];
-
     DropDownList[cDriverTypes] mSelects;
     Button[] mChks;
+    BoxContainer mList;
+    ConfigNode mCurrentConfig;  //initialized from framework.conf
 
     this(TaskManager mgr, char[] args = "") {
         super(mgr);
 
-        mChks.length = configs.length;
-        auto list = new BoxContainer(false, false, 5);
+        mCurrentConfig = loadConfig("framework");
+        mList = new BoxContainer(false, false, 5);
 
         foreach (ref dd; mSelects) {
             dd = new DropDownList();
@@ -906,46 +901,78 @@ class SwitchDriver : Task {
         mSelects[3].list.setContents(FontDriverFactory.classes());
         mSelects[3].selection = FontDriverFactory.lookupDynamic(
             gFramework.fontDriver().classinfo);
+
+        refresh();
+
+        auto wnd = gWindowManager.createWindow(this, mList, "Switch driver");
+        wnd.window.zorder = 1;
+    }
+
+    void ddSelect(DropDownList sender) {
+        refresh();
+    }
+
+    //recreate the gui on start or after driver selection changed
+    void refresh() {
+        updateConfig();
+
+        mList.clear;
+        mChks = null;
+
         auto tbl = new TableContainer(2, cDriverTypes, Vector2i(3, 5));
         foreach (int idx, dd; mSelects) {
             //should have selected the current drivers above
             assert(dd.selection.length > 0);
+            dd.onSelect = &ddSelect;
             auto lbl = new Label();
             lbl.text = selects[idx];
             tbl.add(lbl, 0, idx);
-            tbl.add(dd, 1, idx);
-        }
-        list.add(tbl);
+            tbl.add(dd, 1, idx, WidgetLayout.Expand(true));
 
-        for (int n = 0; n < configs.length; n++) {
-            auto b = new Button();
-            b.text = configs[n];
-            b.isCheckbox = true;
-            mChks[n] = b;
-            list.add(b);
+            //for every driver, add all bool values from the config
+            foreach (char[] name, ConfigNode sub;
+                mCurrentConfig.getSubNode(dd.selection))
+            {
+                bool checked;
+                try {
+                    checked = sub.getCurValue!(bool)();
+                } catch {  //xxx stupid hidden exception class
+                    continue;
+                }
+                auto b = new Button();
+                b.text = dd.selection ~ '.' ~ name;
+                b.isCheckbox = true;
+                b.checked = checked;
+                mChks ~= b;
+            }
+        }
+        mList.add(tbl);
+
+        foreach (b; mChks) {
+            mList.add(b);
         }
 
         auto apply = new Button();
         apply.text = "Apply";
         apply.centerX = true;
         apply.onClick = &onApply;
-        list.add(apply);
-
-        auto wnd = gWindowManager.createWindow(this, list, "Switch driver");
-        wnd.window.zorder = 1;
+        mList.add(apply, WidgetLayout.Expand(true));
     }
 
-    void onApply(Button sender) {
-        ConfigNode node = new ConfigNode();
-        auto drvNode = node.getSubNode("drivers");
+    void updateConfig() {
+        auto drvNode = mCurrentConfig.getSubNode("drivers");
         foreach (int idx, drvName; selects) {
             drvNode[drvName] = mSelects[idx].selection;
         }
         foreach (int index, b; mChks) {
-            node.setStringValueByPath(configs[index],
+            mCurrentConfig.setStringValueByPath(b.text,
                 b.checked ? "true" : "false");
         }
-        gFramework.scheduleDriverReload(Framework.DriverReload(node));
+    }
+
+    void onApply(Button sender) {
+        updateConfig();
+        gFramework.scheduleDriverReload(Framework.DriverReload(mCurrentConfig));
     }
 
     override void onFrame() {

@@ -6,6 +6,7 @@ import tango.math.Math : floor, ceil;
 public import utils.color;
 public import utils.rect2;
 public import utils.vector2;
+import utils.transform;
 import utils.misc;
 
 struct Vertex2f {
@@ -26,6 +27,30 @@ struct BitmapEffect {
     //should this be a property of the SubSurface?
     Vector2i center;        //(relative, positive) center of the bitmap/rotation
     Color color = Color(1.0f);
+
+    //fill a transform matrix based on the effect values
+    //  (ref parameters for performance)
+    void getTransform(ref Vector2i sourceSize, ref Vector2i destPos,
+        ref Transform2f tr)
+    {
+        if (rotate != 0f || scale != 1.0f) {
+            tr = Transform2f.RotateScale(rotate, scale);
+        } else {
+            tr = Transform2f.init;
+        }
+
+        tr.t = toVector2f(destPos);
+
+        //substract transformed vector to center
+        tr.translate(-center);
+
+        if (mirrorY) {
+            //move bitmap by width into x direction
+            tr.translateX(sourceSize.x);
+            //and mirror on x axis (this is like glScale(-1,1,1))
+            tr.mirror(true, false);
+        }
+    }
 }
 
 /// For drawing; the driver inherits his own class from this and overrides the

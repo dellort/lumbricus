@@ -11,6 +11,7 @@ import tango.stdc.stringz;
 import str = utils.string;
 import utils.configfile;
 import utils.misc;
+import utils.transform;
 import cstdlib = tango.stdc.stdlib;
 
 //when an OpenGL surface is created, and the framework surface has caching
@@ -19,25 +20,6 @@ import cstdlib = tango.stdc.stdlib;
 //if the framework surface wants to access the pixel memory, it has to call
 //  DriverSurface.getPixelData(), which in turn will read back texture memory
 const bool cStealSurfaceData = true;
-
-//2x2 matrix + translation vector
-//(cheaper and saner than a 3x3 matrix with 3rd row for translation)
-struct Transform2f {
-    //2D matrix
-    //  | a11 a12 |
-    //  | a21 a22 |
-    float a11 = 1.0f, a12 = 0.0f;
-    float a21 = 0.0f, a22 = 1.0f;
-    //translation part
-    Vector2f t;
-
-    Vector2f transform(Vector2f p) {
-        Vector2f r;
-        r.x = a11*p.x + a12*p.y + t.x;
-        r.y = a21*p.x + a22*p.y + t.y;
-        return r;
-    }
-}
 
 
 char[] glErrorToString(GLenum errCode) {
@@ -737,31 +719,7 @@ class GLCanvas : Canvas3DHelper {
         //the version using glTranslate etc. is still in r920 in drawFast()
 
         Transform2f tr = void;
-        if (effect.rotate != 0f || effect.scale != 1.0f) {
-            //2D rotation+scale matrix
-            tr.a11 = math.cos(effect.rotate) * effect.scale;
-            tr.a12 = math.sin(effect.rotate) * effect.scale;
-            tr.a21 = -tr.a12;
-            tr.a22 = tr.a11;
-        } else {
-            tr = Transform2f.init;
-        }
-
-        tr.t = toVector2f(destPos);
-
-
-        //substract transformed vector to center
-        tr.t.x -= tr.a11 * effect.center.x + tr.a12 * effect.center.y;
-        tr.t.y -= tr.a21 * effect.center.x + tr.a22 * effect.center.y;
-
-        if (effect.mirrorY) {
-            //move bitmap by width into x direction
-            tr.t.x += tr.a11 * source.size.x;// + tr.a12 * 0;
-            tr.t.y += tr.a21 * source.size.x;// + tr.a22 * 0;
-            //and mirror on x axis (this is like glScale(-1,1,1))
-            tr.a11 = -tr.a11;
-            tr.a21 = -tr.a21;
-        }
+        effect.getTransform(source.size, destPos, tr);
 
         do_draw(source.surface, Vector2i(0), source.origin, source.size, &tr,
             effect.color);

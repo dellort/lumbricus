@@ -7,6 +7,7 @@ import framework.drawing;
 import tango.sys.win32.Macros;
 import tango.sys.win32.Types;
 import utils.misc;
+import utils.transform;
 
 
 const uint D3DFVF_TLVERTEX = D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1;
@@ -306,22 +307,31 @@ class DXCanvas : Canvas3DHelper {
     override void drawSprite(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null)
     {
-        drawTextureInt(source.surface, destPos, source.origin, source.size,
-            effect ? effect.mirrorY : false);
+        if (!visibleArea.intersects(destPos, destPos + source.size))
+            return;
+
+        if (!effect)
+            effect = &BitmapEffect.init;
+
+        Transform2f tr = void;
+        effect.getTransform(source.size, destPos, tr);
+
+        doDraw(source.surface, Vector2i(0), source.origin, source.size,
+            &tr, effect.color);
     }
 
-    override void draw(Texture source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i sourceSize)
-    {
-        drawTextureInt(source, destPos, sourcePos, sourceSize);
-    }
-
-    private void drawTextureInt(Surface source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i sourceSize, bool mirrorY = false)
+    override void draw(Texture source, Vector2i destPos, Vector2i sourcePos,
+        Vector2i sourceSize)
     {
         if (!visibleArea.intersects(destPos, destPos + sourceSize))
             return;
 
+        doDraw(source, destPos, sourcePos, sourceSize);
+    }
+
+    private void doDraw(Surface source, Vector2i destPos, Vector2i sourcePos,
+        Vector2i sourceSize, Transform2f* tr = null, Color col = Color(1.0f))
+    {
         auto tex = cast(DXSurface)source.getDriverSurface();
         Vector2i p1 = destPos;
         Vector2i p2 = destPos + sourceSize;
@@ -332,17 +342,28 @@ class DXCanvas : Canvas3DHelper {
         t1.y = cast(float)sourcePos.y / tex.mData.size.y;
         t2.x = cast(float)(sourcePos.x+sourceSize.x) / tex.mData.size.x;
         t2.y = cast(float)(sourcePos.y+sourceSize.y) / tex.mData.size.y;
-        if (mirrorY) {
-            swap(t1.x, t2.x);
-        }
 
         //TLVERTEX* buf;
         //mDXVertexBuffer.Lock(0, 0, cast(void**)&buf, D3DLOCK_DISCARD);
         //clockwise rotation, 2nd tri is auto-inverted
-        mVertexBuffer[0] = TLVERTEX(Vector2i(p1.x, p2.y), Vector2f(t1.x, t2.y));
-        mVertexBuffer[1] = TLVERTEX(Vector2i(p1.x, p1.y), Vector2f(t1.x, t1.y));
-        mVertexBuffer[2] = TLVERTEX(Vector2i(p2.x, p2.y), Vector2f(t2.x, t2.y));
-        mVertexBuffer[3] = TLVERTEX(Vector2i(p2.x, p1.y), Vector2f(t2.x, t1.y));
+        mVertexBuffer[0] = TLVERTEX(Vector2i(p1.x, p2.y), col,
+            Vector2f(t1.x, t2.y));
+        mVertexBuffer[1] = TLVERTEX(Vector2i(p1.x, p1.y), col,
+            Vector2f(t1.x, t1.y));
+        mVertexBuffer[2] = TLVERTEX(Vector2i(p2.x, p2.y), col,
+            Vector2f(t2.x, t2.y));
+        mVertexBuffer[3] = TLVERTEX(Vector2i(p2.x, p1.y), col,
+            Vector2f(t2.x, t1.y));
+
+        if (tr) {
+            //you also could construct a 4D matrix out of tr, and do
+            //  glPushMatrix; glMultMatrixf; glPopMatrix
+            //but it would be slower
+            foreach (ref v; mVertexBuffer) {
+                v.p = tr.transform(v.p);
+            }
+        }
+
         //mDXVertexBuffer.Unlock();
 
         d3dDevice.SetTexture(0, tex.mTex);

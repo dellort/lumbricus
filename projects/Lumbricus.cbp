@@ -281,6 +281,7 @@
 		<Unit filename="../src/utils/test.d" />
 		<Unit filename="../src/utils/time.d" />
 		<Unit filename="../src/utils/timer.d" />
+		<Unit filename="../src/utils/transform.d" />
 		<Unit filename="../src/utils/vector2.d" />
 		<Unit filename="../src/utils/weaklist.d" />
 		<Extensions>
