@@ -759,11 +759,11 @@ class GameView : Container {
     override protected void onKeyEvent(KeyInfo ki) {
         if (ki.isDown() || ki.isUp()) {
             char[] bind = findBind(ki);
-            if (!bind.length)
-                return;
             if (auto pcmd = bind in mKeybindToCommand) {
                 bind = processBinding(*pcmd, ki.isUp);
             }
+            if (!bind.length)
+                return;
             //if not processed locally, send
             if (!mCmd.execute(bind, true))
                 executeServerCommand(bind);

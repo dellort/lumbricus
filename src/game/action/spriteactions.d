@@ -134,6 +134,12 @@ class SpriteAction : DelayedObj {
     this (ReflectCtor c) {
         super(c);
     }
+
+    override void simulate(float deltaT) {
+        super.simulate(deltaT);
+        if (mParent.physics.dead)
+            kill();
+    }
 }
 
 class GravityCenterAction : SpriteAction {
