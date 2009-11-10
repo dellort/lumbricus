@@ -462,6 +462,12 @@ class LandscapeBitmap {
         assert(radius >= 0);
         assert(blast_border >= 0);
 
+        //record if there were any changes to the image
+        //if not, don't need to re-upload the texture to the OpenGL driver
+        //xxx: probably doing a checkAt() here and exiting the function if there
+        //  are no pixels (according to the collision result) would be better?
+        int change = 0;
+
         uint col;
         int count;
 
@@ -490,6 +496,7 @@ class LandscapeBitmap {
             }
             count = circle_masked(pos, radius, pixels, pitch, srcpixels,
                 srcpitch, sx, sy, meta_mask, meta_cmp, meta_domask);
+            change += count;
             if (s) {
                 s.unlockPixels(Rect2i.init);
             }
@@ -526,7 +533,7 @@ class LandscapeBitmap {
         Rect2i bb;
         bb.p1 = pos - Vector2i(blast_radius);
         bb.p2 = pos + Vector2i(blast_radius);
-        mImage.unlockPixels(bb);
+        mImage.unlockPixels(change ? bb : Rect2i.init);
 
         return count;
     }

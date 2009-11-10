@@ -817,6 +817,7 @@ class GameView : Container {
         mGame.cengine.draw(c);
 
         //mouse stuff at last?
+        //if (mouseOverState)
         mGame.engine.renderOnMouse(c, mousePos);
 
         //hmpf

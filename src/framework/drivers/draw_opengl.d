@@ -48,15 +48,29 @@ char[] glErrorToString(GLenum errCode) {
     return res;
 }
 
-private bool checkGLError(char[] msg, bool crash = false) {
-    GLenum err = glGetError();
-    if (err == GL_NO_ERROR)
+private bool checkGLError(lazy char[] operation, bool crash = false) {
+    char[][] errors;
+    //an OpenGL driver can have multiple error flags, so you to call glGetError
+    //  multiple times to reset them all
+    for (;;) {
+        GLenum err = glGetError();
+        if (err == GL_NO_ERROR)
+            break;
+        errors ~= glErrorToString(err);
+    }
+    if (!errors.length)
         return false;
+    char[] msg = operation;
     debug Trace.formatln("Warning: GL error at '{}': {}", msg,
-        glErrorToString(err));
+        errors);
     if (crash)
-        assert(false, "not continuing");
+        throw new Exception(myformat("OpenGL error: '{}': {}", msg, errors));
     return true;
+}
+
+private void checkGL(alias Func, Args...)(Args x) {
+    Func(x);
+    checkGLError(myformat("{}({})", Func.stringof, x), true);
 }
 
 class GLDrawDriver : DrawDriver {
@@ -121,9 +135,7 @@ class GLDrawDriver : DrawDriver {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         //standard top-zero coordinates
-        glOrtho(0, mScreenSize.x, 0, mScreenSize.y, 0, 128);
-        glScalef(1, -1, 1);
-        glTranslatef(0, -mScreenSize.y, 0);
+        glOrtho(0, mScreenSize.x, mScreenSize.y, 0, 0, 128);
 
         glMatrixMode(GL_MODELVIEW);
     }
@@ -215,9 +227,14 @@ final class GLSurface : DriverSurface {
         assert(mTexId == GLID_INVALID);
 
         //OpenGL textures need width and heigth to be a power of two
-        //could use GL_ARB_texture_non_power_of_two
-        mTexSize = Vector2i(powerOfTwoRoundUp(mData.size.x),
-            powerOfTwoRoundUp(mData.size.y));
+        //at least with older GL drivers
+        if (!ARBTextureNonPowerOfTwo.isEnabled) {
+            mTexSize = Vector2i(powerOfTwoRoundUp(mData.size.x),
+                powerOfTwoRoundUp(mData.size.y));
+        } else {
+            mTexSize = mData.size;
+        }
+
         if (mTexSize == mData.size) {
             //image width and height are already a power of two
             mTexMax.x = 1.0f;
@@ -231,20 +248,18 @@ final class GLSurface : DriverSurface {
         //generate texture and set parameters
         glGenTextures(1, &mTexId);
         assert(mTexId != GLID_INVALID);
+
         glBindTexture(GL_TEXTURE_2D, mTexId);
-        checkGLError("glBindTexture", true);
+
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        checkGLError("texpar", true);
 
         //since GL 1.1, pixels pointer can be null, which will just
         //reserve uninitialized memory
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mTexSize.x, mTexSize.y, 0,
             GL_RGBA, GL_UNSIGNED_BYTE, null);
-
-        checkGLError("load texture", true);
 
         //check for errors (textures larger than maximum size
         //supported by GL/hardware will fail to load)

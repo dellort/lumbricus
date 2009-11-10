@@ -684,6 +684,10 @@ class Widget {
         }
     }
 
+    final bool mouseOverState() {
+        return mMouseOverState;
+    }
+
     void bindings(KeyBindings bind) {
         mBindings = bind;
     }
