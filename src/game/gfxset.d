@@ -376,7 +376,10 @@ class TeamTheme {
         color = Color.fromString("team_" ~ colorname); //if it fails, it is messed up
 
         Animation loadanim(char[] node) {
-            return resources.get!(Animation)(node ~ "_" ~ name());
+            Animation ani = resources.get!(Animation)(node ~ "_" ~ name(), true);
+            if (!ani)
+                ani = resources.get!(Animation)(node);
+            return ani;
         }
 
         arrow = loadanim("darrow");
