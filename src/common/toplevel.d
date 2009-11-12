@@ -128,6 +128,7 @@ private:
     LoadSaveHandler mLoadSave;
 
     debug int mPrevGCCount;
+    int mOldFixedFramerate;
 
     void onFrameEnd() {
         mFrameTime.stop();
@@ -218,6 +219,7 @@ private:
         framework.onInput = &onInput;
         framework.onVideoInit = &onVideoInit;
         framework.onFrameEnd = &onFrameEnd;
+        framework.onFocusChange = &onFocusChange;
 
         //fugly!
         //framework.clearColor = Color(0,0,1);
@@ -736,6 +738,19 @@ private:
 
         //deliver event to the GUI
         mGui.putInput(event);
+    }
+
+    //app input focus changed
+    private void onFocusChange(bool focused) {
+        //when the app goes out of focus, limit framerate to 10fps to
+        //limit cpu consumption. old fps limit is restored when focused again
+        if (focused) {
+            gFramework.fixedFramerate = mOldFixedFramerate;
+        } else {
+            mOldFixedFramerate = gFramework.fixedFramerate;
+            gFramework.fixedFramerate = 10;
+        }
+        //xxx pause game?
     }
 }
 

@@ -101,8 +101,17 @@ class Parachute : Shooter, Controllable {
     override void simulate(float deltaT) {
         super.simulate(deltaT);
 
+        if (!mWorm.parachuteActivated()) {
+            active = false;
+            finished();
+            return;
+        }
+
         float force = mMoveVector.x * myclass.sideForce;
         mWorm.physics.selfForce = Vector2f(force, 0);
+
+        if (mWorm.physics.isGlued)
+            active = false;
     }
 
     //Controllable implementation -->
@@ -125,35 +134,4 @@ class Parachute : Shooter, Controllable {
     }
 
     //<-- Controllable end
-}
-
-class ParachuteTrigger : WeaponSelector {
-    private {
-        GameEngine mEngine;
-        GObjectSprite mOwner;
-    }
-
-    this(WeaponClass wc, GObjectSprite owner) {
-        super(wc, owner);
-        mOwner = owner;
-        mEngine = mOwner.engine;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-    }
-
-    override void onUnselect() {
-    }
-
-    override void onSelect() {
-    }
-
-    override bool canFire(FireInfo info) {
-        return false;
-    }
-
-    static this() {
-        WeaponSelectorFactory.register!(typeof(this))("parachute_selector");
-    }
 }

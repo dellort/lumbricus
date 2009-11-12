@@ -610,7 +610,7 @@ class WormControl : WormController {
     //--
 
     //xxx not quite kosher
-    private TeamTheme color() {
+    TeamTheme color() {
         return mWorm.teamColor;
     }
 

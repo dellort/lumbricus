@@ -111,7 +111,7 @@ class GirderControl : WeaponSelector, Controllable {
             : mGirders[mGirderAnimSel];
     }
 
-    void mouseRender(Canvas c, Vector2i mousepos) {
+    bool mouseRender(Canvas c, Vector2i mousepos) {
         Surface bmp = girderSurface();
         bool ok = canInsertAt(mousepos);
         Vector2i pos = mousepos - bmp.size / 2;
@@ -130,6 +130,7 @@ class GirderControl : WeaponSelector, Controllable {
             c.draw(bmp, pos);
             c.drawFilledCircle(mousepos, 5, ok ? Color(0,1,0) : Color(1,0,0));
         }
+        return false;
     }
 
     void rotateGirder(int dir) {
@@ -204,7 +205,7 @@ class GirderControl : WeaponSelector, Controllable {
         mEngine.insertIntoLandscape(pos, bmp, Lexel.SolidSoft);
     }
 
-    override bool canFire(FireInfo info) {
+    override bool canFire(ref FireInfo info) {
         return fireCheck(info, false);
     }
 

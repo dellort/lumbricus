@@ -12,6 +12,7 @@ import str = utils.string;
 import utils.configfile;
 import utils.misc;
 import utils.transform;
+import utils.log;
 import cstdlib = tango.stdc.stdlib;
 
 //when an OpenGL surface is created, and the framework surface has caching
@@ -61,9 +62,12 @@ class GLDrawDriver : DrawDriver {
         GLCanvas mCanvas;
         bool mStealData, mLowQuality, mUseSubSurfaces, mBatchSubTex;
         bool mBatchDrawCalls, mNonPowerOfTwo;
+        Log mLog;
     }
 
     this(ConfigNode config) {
+        mLog = registerLog("OpenGL");
+
         DerelictGL.load();
         DerelictGLU.load();
 
@@ -94,7 +98,7 @@ class GLDrawDriver : DrawDriver {
         assert(screen_size.quad_length > 0);
         mScreenSize = screen_size;
         DerelictGL.loadExtensions();
-        debug Trace.formatln("GL supports non-power-of-two: {}",
+        mLog("GL supports non-power-of-two: {}",
             ARBTextureNonPowerOfTwo.isEnabled);
 
         //initialize some static OpenGL context attributes

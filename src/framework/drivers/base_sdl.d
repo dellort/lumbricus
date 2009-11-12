@@ -43,8 +43,8 @@ class SDLDriver : FrameworkDriver {
 
         Vector2i mDesktopRes;
 
-        //SDL window is focused
-        bool mInputFocus = true;
+        //SDL window is focused / visible
+        bool mInputFocus = true, mWindowVisible = true;
 
         SDL_Surface* mSDLScreen;
     }
@@ -324,6 +324,8 @@ class SDLDriver : FrameworkDriver {
     }
 
     void processInput() {
+        bool queuedVideoResize;
+        Vector2i newVideoSize;
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
             switch(event.type) {
@@ -356,15 +358,21 @@ class SDLDriver : FrameworkDriver {
                     }
                     break;
                 case SDL_VIDEORESIZE:
-                    mFramework.setVideoMode(Vector2i(event.resize.w,
-                        event.resize.h));
+                    //SDL_VIDEORESIZE and SDL_ACTIVEEVENT fire at the same time,
+                    //but we want to process SDL_ACTIVEEVENT first, to prevent
+                    //reinitializing video on a minimized window
+                    queuedVideoResize = true;
+                    newVideoSize = Vector2i(event.resize.w, event.resize.h);
                     break;
                 case SDL_ACTIVEEVENT:
                     bool gain = !!event.active.gain;
                     auto state = event.active.state;
                     if (state & SDL_APPINPUTFOCUS) {
-                        mInputFocus = gain;
-                        update_sdl_mouse_state();
+                        if (gain != mInputFocus) {
+                            mInputFocus = gain;
+                            mFramework.driver_doFocusChange(mInputFocus);
+                            update_sdl_mouse_state();
+                        }
                     }
                     if (state & SDL_APPACTIVE) {
                         //gain tells if the window is visible (even if fully
@@ -373,6 +381,10 @@ class SDLDriver : FrameworkDriver {
                         //  desktop
                         //=> should pause the game and stop redrawing
                         //uh, but how (at least event loop will still eat CPU)
+                        if (gain != mWindowVisible) {
+                            mWindowVisible = gain;
+                            mFramework.driver_doVisibilityChange(gain);
+                        }
                     }
                     break;
                 // exit if SDLK or the window close button are pressed
@@ -381,6 +393,13 @@ class SDLDriver : FrameworkDriver {
                     break;
                 default:
             }
+        }
+        if (queuedVideoResize) {
+            queuedVideoResize = false;
+            //xxx this works for graphics, but totally messes up mouse
+            //    input (atleast on Windows)
+            //if (mWindowVisible)
+            mFramework.setVideoMode(newVideoSize);
         }
     }
 

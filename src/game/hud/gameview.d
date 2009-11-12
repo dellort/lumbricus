@@ -445,6 +445,7 @@ class GameView : Container {
         }
 
         MoveLabel[] mMoveLabels;
+        bool mCursorVisible = true;
     } //private
 
     /+void updateGUI() {
@@ -818,10 +819,14 @@ class GameView : Container {
 
         //mouse stuff at last?
         //if (mouseOverState)
-        mGame.engine.renderOnMouse(c, mousePos);
+        mCursorVisible = mGame.engine.renderOnMouse(c, mousePos);
 
         //hmpf
         (cast(GameEngine)mGame.engine).debug_draw(c);
+    }
+
+    override MouseCursor mouseCursor() {
+        return mCursorVisible ? MouseCursor.Standard : MouseCursor.None;
     }
 
     override bool doesCover() {

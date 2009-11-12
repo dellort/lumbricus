@@ -798,6 +798,9 @@ class Framework {
         CacheReleaseDelegate[] mCacheReleasers;
 
         FontDriver mFontDriver;
+        //base drivers can report that the app is hidden, which will stop
+        //  redrawing (no more onFrame events)
+        bool mAppVisible;
     }
 
     this(ConfigNode fwconfig) {
@@ -861,6 +864,7 @@ class Framework {
 
         mDriver.setVideoWindowState(vstate);
         mDriver.setInputState(istate);
+        mAppVisible = true;
 
         mLog("reloaded driver");
     }
@@ -1129,6 +1133,19 @@ class Framework {
         }
     }
 
+    //Note: for the following two events, drivers have to make sure they
+    //      are only called when values actually changed
+
+    void driver_doFocusChange(bool focused) {
+        if (onFocusChange)
+            onFocusChange(focused);
+    }
+
+    //the main app window was hidden or restored
+    void driver_doVisibilityChange(bool visible) {
+        mAppVisible = visible;
+    }
+
     //--- font stuff, sound
 
     /// load a font using the font manager
@@ -1205,6 +1222,14 @@ class Framework {
         }
     }
 
+    int fixedFramerate() {
+        if (mTimePerFrame == Time.Null) {
+            return 0;
+        } else {
+            return 1000000 / mTimePerFrame.musecs;
+        }
+    }
+
     //--- main loop
 
     /// Main-Loop
@@ -1234,15 +1259,18 @@ class Framework {
                 onUpdate();
             }
 
-            Canvas c = mDrawDriver.startScreenRendering();
-            c.clear(Color(0));
-            if (onFrame) {
-                onFrame(c);
+            //no drawing when the window is invisible
+            if (mAppVisible) {
+                Canvas c = mDrawDriver.startScreenRendering();
+                c.clear(Color(0));
+                if (onFrame) {
+                    onFrame(c);
+                }
+                drawSoftCursor(c);
+                mDrawDriver.stopScreenRendering();
+                mDriver.flipScreen();
+                c = null;
             }
-            drawSoftCursor(c);
-            mDrawDriver.stopScreenRendering();
-            mDriver.flipScreen();
-            c = null;
 
             // defered free (GC related, sucky Phobos forces this to us)
             defered_free();
@@ -1443,6 +1471,9 @@ class Framework {
 
     /// Called after all work for a frame is done
     public void delegate() onFrameEnd;
+
+    ///called when the application gets or loses input focus (also on minimize)
+    public void delegate(bool focused) onFocusChange;
 }
 
 alias StaticFactory!("Drivers", FrameworkDriver, Framework,

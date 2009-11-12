@@ -187,7 +187,8 @@ abstract class WeaponSelector {
     }
 
     //check if firing is possible
-    bool canFire(FireInfo info) {
+    //can also modify the FireInfo
+    bool canFire(ref FireInfo info) {
         return true;
     }
 }

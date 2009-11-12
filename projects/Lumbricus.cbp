@@ -172,6 +172,7 @@
 		<Unit filename="../src/game/water.d" />
 		<Unit filename="../src/game/wcontrol.d" />
 		<Unit filename="../src/game/weapon/actionweapon.d" />
+		<Unit filename="../src/game/weapon/airstrike.d" />
 		<Unit filename="../src/game/weapon/drill.d" />
 		<Unit filename="../src/game/weapon/girder.d" />
 		<Unit filename="../src/game/weapon/jetpack.d" />

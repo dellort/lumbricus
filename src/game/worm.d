@@ -964,9 +964,16 @@ class WormSprite : GObjectSprite {
 
         setState(activate ? wsc.st_parachute : wsc.st_stand);
     }
+    private bool hasParachute() {
+        //xxx wow, that's an ugly hack... but who cares
+        return mWeapon && mWeapon.name == "parachute";
+    }
 
     bool isStanding() {
         return currentState is wsc.st_stand;
+    }
+    bool isFlying() {
+        return currentState is wsc.st_fly;
     }
 
     private void setFlyAnim(FlyMode m) {
@@ -1002,6 +1009,9 @@ class WormSprite : GObjectSprite {
             if (mMoveVector.x != 0)
                 physics.addImpulse(normal*wsc.ropeImpulse);
         }
+        if (currentState is wsc.st_parachute) {
+            activateParachute(false);
+        }
     }
 
     override protected void physDamage(float amout, int cause) {
@@ -1026,7 +1036,7 @@ class WormSprite : GObjectSprite {
         if (isDelayedDying)
             return;
 
-        if (!jetpackActivated && !blowtorchActivated) {
+        if (!jetpackActivated && !blowtorchActivated && !parachuteActivated) {
             //update walk animation
             if (physics.isGlued) {
                 bool walkst = currentState is wsc.st_walk;
@@ -1053,6 +1063,16 @@ class WormSprite : GObjectSprite {
                     {
                         setFlyAnim(FlyMode.roll);
                     }
+                //special check for parachute, this is hacky
+                if (physics.velocity.y >= wsc.rollVelocity*0.8f && !mShooterMain
+                    && hasParachute())
+                {
+                    //worm is falling fast enough -> skip all checks and fire
+                    //  parachute
+                    //xxx hasParachute() should have checked the parachute
+                    //    weapon is selected, but this is still ugly
+                    fireWeapon(mShooterMain, 0);
+                }
             }
             if (currentState is wsc.st_jump && physics.velocity.y > 0) {
                 setState(wsc.st_jump_to_fly);

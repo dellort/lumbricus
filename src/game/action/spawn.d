@@ -133,17 +133,32 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
             sprite.setPos(pos);
             about.dir = Vector2f(engine.rnd.nextDouble3()*0.7f, 1).normal;
         } else {
+            //patch for below *g*, direct into gravity direction
+            if (about.dir.isNaN() || about.strength < float.epsilon)
+                about.dir = Vector2f(0, 1);
             //classic airstrike in-a-row positioning, facing down
             float width = params.spawndist * (params.count-1);
             //center around pointed
-            float x = about.pos.x;
+            Vector2f destPos = about.pos;
             if (about.pointto.valid)
-                x = about.pointto.currentPos.x;
-            pos.x = x - width/2 + params.spawndist * n;
+                destPos = about.pointto.currentPos;
+            //y travel distance (spawn -> clicked point)
+            float dy = destPos.y - engine.level.airstrikeY;
+            if (dy > float.epsilon && math.abs(about.dir.x) > float.epsilon
+                && about.strength > float.epsilon)
+            {
+                //correct spawn position, so airstrikes thrown at an angle
+                //will still hit the clicked position
+                float a = engine.physicworld.gravity.y;
+                float v = about.dir.y*about.strength;
+                //elementary physics ;)
+                float t = (-v + math.sqrt(v*v+2.0f*a*dy))/a;  //time for drop
+                float dx = t*about.dir.x*about.strength; //x movement while drop
+                destPos.x -= dx;          //correct for x movement
+            }
+            pos.x = destPos.x - width/2 + params.spawndist * n;
             pos.y = engine.level.airstrikeY;
             sprite.setPos(pos);
-            //patch for below *g*, direct into gravity direction
-            about.dir = Vector2f(0, 1);
         }
     }
 
