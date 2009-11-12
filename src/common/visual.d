@@ -2,7 +2,7 @@ module common.visual;
 
 import framework.framework;
 import framework.font;
-import utils.configfile : ConfigNode;
+import utils.configfile;
 import utils.misc;
 import utils.rect2;
 import utils.vector2;

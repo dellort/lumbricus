@@ -1,6 +1,6 @@
 module utils.color;
 
-import utils.configfile : ConfigNode;
+import utils.configfile;
 import strparser = utils.strparser;
 import utils.mybox;
 import utils.misc;

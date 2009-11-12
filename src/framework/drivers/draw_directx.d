@@ -8,6 +8,7 @@ import tango.sys.win32.Macros;
 import tango.sys.win32.Types;
 import utils.misc;
 import utils.transform;
+import utils.configfile;
 
 
 const uint D3DFVF_TLVERTEX = D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1;
@@ -32,6 +33,12 @@ struct TLVERTEX {
 
 D3DCOLOR D3DCOLOR_FLOAT(Color c) {
     return D3DCOLOR_COLORVALUE(c.tupleof);
+}
+
+void checkDX(HRESULT res, char[] msg) {
+    if (FAILED(res)) {
+        throw new FrameworkException("D3D: "~msg~" failed.");
+    }
 }
 
 class DXDrawDriver : DrawDriver {
@@ -116,10 +123,12 @@ class DXDrawDriver : DrawDriver {
             displayMode.Height, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &tmpSurf,
             null);
         assert(!!tmpSurf);
-        assert(!FAILED(d3dDevice.GetFrontBufferData(0, tmpSurf)));
+        checkDX(d3dDevice.GetFrontBufferData(0, tmpSurf),
+            "d3dDevice.CreateOffscreenPlainSurface");
 
         D3DLOCKED_RECT lrc;
-        assert(!FAILED(tmpSurf.LockRect(&lrc, null, D3DLOCK_READONLY)));
+        checkDX(tmpSurf.LockRect(&lrc, null, D3DLOCK_READONLY),
+            "tmpSurf.LockRect");
         assert(lrc.Pitch == res.size.x*4);
         Color.RGBA32* pSrc = cast(Color.RGBA32*)lrc.pBits;
         for (int i = 0; i < res.size.x*res.size.y; i++) {
@@ -189,7 +198,7 @@ class DXSurface : DriverSurface {
         rc2.right = rc.p2.x;
         rc2.bottom = rc.p2.y;
         D3DLOCKED_RECT lrc;
-        assert(!FAILED(mTex.LockRect(0, &lrc, &rc2, 0)));
+        checkDX(mTex.LockRect(0, &lrc, &rc2, 0), "texture.LockRect");
         for (int y = 0; y < rc.p2.y - rc.p1.y; y++) {
             Color.RGBA32* psrc = &mData.data[(y+rc.p1.y)*mData.pitch + rc.p1.x];
             Color.RGBA32* pdest = cast(Color.RGBA32*)(lrc.pBits + lrc.Pitch * y);

@@ -178,7 +178,8 @@ class SDLDriver : FrameworkDriver {
                 //only if a window was opened
                 SDL_SysWMinfo wminfo;
                 SDL_VERSION(&wminfo.ver);
-                assert(SDL_GetWMInfo(&wminfo) == 1);
+                int r = SDL_GetWMInfo(&wminfo);
+                assert(r == 1);
                 state.window_handle = wminfo.window;
             }
         }
