@@ -399,7 +399,7 @@ class CmdNetServer {
     }
 
     //execute a server frame
-    private void gameTick() {
+    private void gameTick(Time overdue) {
         //Trace.formatln("Tick, {} commands", mPendingCommands.length);
         CmdNetClientConnection[] lagClients;
         foreach (cl; mClients) {

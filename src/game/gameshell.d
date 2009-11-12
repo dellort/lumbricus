@@ -628,13 +628,17 @@ class GameShell {
     void frame() {
         TimeSourceSimple interpol = mInterpolateTime;
 
-        void exec_frame() {
+        void exec_frame(Time overdue) {
             if (!mReplayMode) {
                 //pseudo hash command to insert a hash frame (see execFrame())
                 //always generated, but execEntry() might throw it away
                 addLoggedInput("", "");
             }
 
+            //this is the time it _should_ have been when mGameTime was updated
+            //this way, interpolation can also correct for varying duration of
+            //  the doFrame() call
+            mLastFrameRealTime = timeCurrentTime() - overdue;
             doFrame();
 
             //skip to next frame, if there's some time "left"
@@ -642,7 +646,6 @@ class GameShell {
             if (interpol.current < gt)
                 interpol.update(gt);
 
-            mLastFrameRealTime = timeCurrentTime();
         }
 
         if (mUseExternalTS) {
@@ -685,9 +688,9 @@ class GameShell {
                 if (mGameTime.paused)
                     mGameTime.paused = false;
                 mGameTime.update(
-                    () {
+                    (Time overdue) {
                         assert(mSingleStep > 0);
-                        mSingleStep--; exec_frame();
+                        mSingleStep--; exec_frame(overdue);
                     }, mSingleStep);
                 if (mSingleStep == 0)
                     mGameTime.paused = true;
@@ -697,17 +700,25 @@ class GameShell {
             }
         }
 
-        if (mLastFrameRealTime !is Time.init) {
+        if (mGameTime.paused || mSingleStep) {
+            //interpolation off
+            interpol.reset(mGameTime.current);
+        } else if (mLastFrameRealTime !is Time.init) {
             Time cur = mGameTime.current;
             assert(interpol.current >= cur);
-            Time next = cur + cFrameLength;
-            Time passed = timeCurrentTime() - mLastFrameRealTime;
+            //allow interpolating 2 frames ahead
+            Time next = cur + 2*mGameTime.frameLength();
+            Time passed = (timeCurrentTime() - mLastFrameRealTime)
+                * mGameTime.slowDown;
             assert(passed >= Time.Null);
             Time newt = cur + passed;
-            if (newt > next)
+            if (newt > next) {
                 newt = next; //because time can't go back
+                //debug Trace.formatln("XX, cur={} next={} passed={}",cur,next,
+                //    passed);
+            }
             assert(newt >= cur);
-            interpol.update(newt);
+            interpol.reset(newt);
         }
     }
 

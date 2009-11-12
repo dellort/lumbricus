@@ -14,15 +14,20 @@ class Animator : SceneObjectCentered {
     private {
         Animation mData;
         Time mStarted;
-        debug Time mLastNow;
+        Time mLastNow;
         TimeSourcePublic mTimeSource;
 
         Time now() {
             auto n = mTimeSource.current;
-            debug {
+            //this can happen with interpolation, but maybe the code below
+            //  can't handle it
+            /*debug {
                 assert(n >= mLastNow, "time running backwards lol");
                 mLastNow = n;
-            }
+            }*/
+            if (n < mLastNow)
+                n = mLastNow;
+            mLastNow = n;
             return n;
         }
     }

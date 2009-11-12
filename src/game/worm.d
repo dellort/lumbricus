@@ -374,7 +374,8 @@ class WormSprite : GObjectSprite {
         //xxx there's probably a better place for this
         if (mWeaponSelector)
             mWeaponSelector.isSelected = currentState is wsc.st_weapon
-                || currentState is wsc.st_rope || currentState is wsc.st_jet;
+                || currentState is wsc.st_rope || currentState is wsc.st_jet
+                || currentState is wsc.st_parachute;
     }
 
     //movement for walking/jetpack

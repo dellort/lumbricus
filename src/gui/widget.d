@@ -467,8 +467,15 @@ class Widget {
     ///requires some cooperation from the parent's layoutSizeAllocation()
     final void adjustPosition(Vector2i pos) {
         auto s = mContainedWidgetBounds.size;
+        adjustMousePos(pos);
         mContainedWidgetBounds.p1 = pos;
         mContainedWidgetBounds.p2 = pos + s;
+    }
+    //when mContainedWidgetBounds is changed, update mMousePos accordingly, so
+    //  the scrolled widget still has an up-to-date mouse position
+    private void adjustMousePos(Vector2i newBoundsP1) {
+        Vector2i delta = newBoundsP1 - mContainedWidgetBounds.p1;
+        mMousePos -= delta;
     }
 
     /// Report wished size (or minimal size) to the parent container.
@@ -501,6 +508,7 @@ class Widget {
         mContainerBounds = rect;
         layoutCalculateSubAllocation(rect);
         auto oldsize = mContainedWidgetBounds.size;
+        adjustMousePos(rect.p1);
         mContainedWidgetBounds = rect;
         if (!mLayoutNeedReallocate && oldsize == rect.size) {
             //huh, no need to reallocate, because only the size matters.

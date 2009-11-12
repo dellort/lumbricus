@@ -203,6 +203,13 @@ class TimeSourceFixFramerate : TimeSourcePublic {
         super(c);
     }
 
+    Time frameLength() {
+        return mFrameLength;
+    }
+    Time extFrameLength() {
+        return mFrameLength / mChain.slowDown;
+    }
+
     ///reset the time to the caller's
     ///(after this call, this.current should return parent.current)
     void resetTime() {
@@ -226,7 +233,8 @@ class TimeSourceFixFramerate : TimeSourcePublic {
 
     ///runs n frames in increments of the fixed frame length, and calls
     ///do_update() for each frame; the time is stepped before each do_update()
-    void update(void delegate() do_update, int maxFrames = int.max) {
+    ///  overdue: how long ago the frame should have optimally executed
+    void update(void delegate(Time overdue) do_update, int maxFrames = int.max) {
         mChain.update();
         //xxx: is it ok that mSimTime still can be < mParent.current after this?
         while (mSimTime + mFrameLength <= mChain.current) {
@@ -234,7 +242,7 @@ class TimeSourceFixFramerate : TimeSourcePublic {
                 return;
             mLastSimTime = mSimTime;
             mSimTime += mFrameLength;
-            do_update();
+            do_update(mChain.current - mSimTime);
             mChain.update(); //?
             maxFrames--;
         }

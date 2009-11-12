@@ -63,6 +63,7 @@
 [- 1-frame bug bei würmern]
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
 + Mehr Powerup-Kisten (Niedrige Schwerkraft etc.)
++ Vergiftete Würmer (nach Atomangriff/Sudden death oder Stinktiertreffer)
 *** KI
 *** Scripting
 
@@ -87,13 +88,17 @@
     ...
 
 == Waffen ==
-+ Superwaffen (Teppichangriff, MB-Bombe etc.)
++ Superwaffen (Waage, Briefbomben)
++ Tierwaffen (Maulwurf, Maulwurfsangriff, Stinktier mit vergifteten Würmern)
 + Lokale-Suche-Waffen (Taube, Zauberkugel)
-+ Fallschirm, Bungee
++ Bungee
 + Einfrieren
++ Langbogen (Pfeile werden in die Landschaft eingefügt)
++ Nahkampfwaffen (Drachenball, Firepunch, Kamikaze, Kamikaze-Bomber)
 
 - Napalm verbessern (Ruckeln verhindern, Würmer mehr wegstoßen, vll. etwas "klebriger" machen)
 - Molotov-Cocktail brennt über mehrere Züge
+- Minenverzögerung sollte zufällig sein
 + Anzahl Projektile über Tasten 1-5 einstellen (Rindviecher)
 
 ! Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)
