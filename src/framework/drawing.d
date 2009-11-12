@@ -67,7 +67,7 @@ public class Canvas {
         }
 
         State[MAX_STACK] mStack;
-        uint mStackTop;             //point to next free stack item
+        uint mStackTop;             //point to current stack item
         //Rect2i mParentArea;       //I don't know what this is
         Rect2i mVisibleArea;        //visible area in local canvas coords
     }

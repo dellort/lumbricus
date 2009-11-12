@@ -48,7 +48,6 @@ class GfxSet {
         bool mFinished;
     }
 
-    char[] gfxId;
     //xxx only needed by sky.d
     ConfigNode config;
 
@@ -96,16 +95,19 @@ class GfxSet {
     this(GameConfig cfg) {
         ConfigNode gfx = cfg.gfx;
 
-        gfxId = gfx.getStringValue("config", "wwp");
+        char[] gfxconf = gfx.getStringValue("config", "wwp.conf");
         char[] watername = gfx.getStringValue("waterset", "blue");
 
         //resources = new ResourceSet();
 
-        config = gResources.loadConfigForRes(gfxId ~ ".conf");
-        addGfxSet(config);
+        config = gResources.loadConfigForRes(gfxconf);
+        auto resfile = addGfxSet(config);
 
-        auto waterfile = gResources.loadConfigForRes("water/"
-            ~ watername ~ "/water.conf");
+        //resfile.fixPath for making the water dir relative to the other
+        //  resources
+        auto waterpath = resfile.fixPath(config.getStringValue("water_path"));
+        auto waterfile = gResources.loadConfigForRes(waterpath ~ "/" ~
+            watername ~ "/water.conf");
         load_resources ~= gResources.loadResources(waterfile);
 
         waterColor = waterfile.getValue("color", waterColor);
@@ -113,17 +115,21 @@ class GfxSet {
         //xxx if you want, add code to load crosshair here
         //...
 
-        mSprites = config.getSubNode("sprites");
+        //xxx this file is loaded at two places (gravity in game engine)
+        mSprites = loadConfig("game.conf", true).getSubNode("sprites");
+
         mWeaponSets = cfg.weaponsets;
 
         mCollisionMap = new CollisionMap();
     }
 
-    void addGfxSet(ConfigNode conf) {
+    ResourceFile addGfxSet(ConfigNode conf) {
         //resources
-        load_resources ~= gResources.loadResources(conf);
+        auto file = gResources.loadResources(conf);
+        load_resources ~= file;
         //sequences
         addSequenceNode(conf.getSubNode("sequences"));
+        return file;
     }
 
     //Params: n = the "sequences" node, containing loaders
@@ -189,7 +195,7 @@ class GfxSet {
 
         //load sprites
         foreach (char[] name, char[] value; mSprites) {
-            auto sprite = loadConfig(value);
+            auto sprite = loadConfig(value, true);
             loadSpriteClass(sprite);
         }
 

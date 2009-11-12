@@ -34,6 +34,8 @@ import wwptools.animconv;
 void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     bool nolevelthemes)
 {
+    outputDir = outputDir ~ "/wwp/";
+    trymkdir(outputDir);
     auto wormsDataDir = wormsDir ~ "/data/";
     importDir = importDir ~ "/";
     auto outFolder = new FileFolder(outputDir);
@@ -67,13 +69,15 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     //apply icons mask
     Image icMask = new Image(importDir ~ "iconmask.png");
     iconlo.applyAlphaMask(icMask);
+    /+
     //prepare directory "weapons"
     scope wbasef = outFolder.folder("weapons").create;
     scope wepFolder = outFolder.folder("weapons/default").create;
+    +/
     //extract weapon icons
     //(NOTE: using namefile, so no filename for basename)
-    do_untile(iconlo, "", wepFolder, "icons", "icon_", "",
-        "_icons.conf",iconnames);
+    do_untile(iconlo, "", outFolder, "icons", "icon_", "",
+        "icons.conf",iconnames);
 
     //****** Sounds ******
     ConfigNode sndConf = loadWImportConfig("sounds.txt");

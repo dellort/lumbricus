@@ -225,16 +225,8 @@ class GameLoader {
         foreach (char[] ws; mGameConfig.weaponsets) {
             char[] dir = "weapons/"~ws;
             //load set.conf as gfx set (resources and sequences)
-            auto conf = gResources.loadConfigForRes(dir
-                ~ "/set.conf");
+            auto conf = gResources.loadConfigForRes(dir ~ "/set.conf");
             mGfx.addGfxSet(conf);
-            //load mapping file matching gfx set, if it exists
-            auto mappingsNode = conf.getSubNode("mappings");
-            char[] mappingFile = mappingsNode.getStringValue(mGfx.gfxId);
-            auto mapConf = loadConfig(dir~"/"~mappingFile,true,true);
-            if (mapConf) {
-                mGfx.addSequenceNode(mapConf.getSubNode("sequences"));
-            }
             //load weaponset locale
             localeRoot.addLocaleDir("weapons", dir ~ "/locale");
         }

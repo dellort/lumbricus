@@ -170,9 +170,18 @@ class GameTask : StatefulTask {
             mGameLoader = GameLoader.CreateFromDemo(args);
             doInit();
             return;
-        } else if (args == "") {
-            //sorry for this hack... definitely needs to be cleaned up
-            ConfigNode node = loadConfig("newgame");
+        }
+
+        ConfigNode node = loadConfig("newgame");
+
+        //hack, what else
+        //there should be a proper command line parser (for lumbricus.d too)
+        if (args == "freegraphics") {
+            args = "";
+            node.getSubNode("gfx")["config"] = "freegraphics.conf";
+        }
+
+        if (args == "") {
             initGame(loadGameConfig(node));
             return;
         }
