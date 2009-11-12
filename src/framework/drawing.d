@@ -67,7 +67,7 @@ public class Canvas {
         }
 
         State[MAX_STACK] mStack;
-        uint mStackTop; //point to next free stack item (i.e. 0 on empty stack)
+        uint mStackTop;             //point to next free stack item
         //Rect2i mParentArea;       //I don't know what this is
         Rect2i mVisibleArea;        //visible area in local canvas coords
     }
@@ -77,7 +77,8 @@ public class Canvas {
     protected final void initFrame(Vector2i screen_size) {
         assert(mStackTop == 0);
         mStack[0].clientsize = screen_size;
-        mStack[0].clip.p2 = mStack[0].clientsize;
+        mStack[0].clip = Rect2i.Span(Vector2i(0), mStack[0].clientsize);
+        mStack[0].translate = Vector2i(0);
         mStack[0].scale = Vector2f(1.0f);
         do_update_transform();
         updateAreas();
@@ -263,7 +264,7 @@ public class Canvas {
 
     /// push/pop state as set by most of the functions
     final void pushState() {
-        assert(mStackTop < MAX_STACK, "canvas stack overflow");
+        assert(mStackTop + 1 < MAX_STACK, "canvas stack overflow");
 
         mStack[mStackTop+1] = mStack[mStackTop];
         mStackTop++;
