@@ -1119,3 +1119,80 @@ char[] floatToHex(real f) {
     return buf.dup;
 }
 
+
+//----------------------------------------------------------------------------
+
+//some test for demonstration and to weed out the worst regressions
+
+debug {
+    struct TestS {
+        int a;
+        char[] b = "abc";
+        Test1 link;
+        Test1 link2;
+    }
+
+    class Test1 {
+        int a;
+        TestS b;
+        char[] c;
+
+        this() {
+        }
+        this(ReflectCtor c) {
+        }
+    }
+
+    class Test2 : Test1 {
+        int x;
+        Test1 bla;
+
+        this() {
+            super();
+        }
+        this(ReflectCtor c) {
+            super(c);
+        }
+    }
+
+    unittest {
+        //Trace.formatln("test serialization");
+
+        auto types = new Types();
+        auto ctx = new SerializeContext(types);
+
+        //all serializeable classes must be registered (to generate runtime type
+        //  information at compiletime)
+        types.registerClasses!(Test1, Test2);
+
+        //writing
+        auto ser = new SerializeOutConfig(ctx);
+        Test2 t2 = new Test2();
+        t2.x = 456;
+        t2.bla = new Test1();
+        t2.bla.b.link = t2;
+        t2.c = "defg";
+        TestS a;
+        a.a = 123;
+        a.link = t2;
+        a.link2 = new Test1();
+        a.link2.a = 666;
+        ser.write(a);
+        ser.write(t2);
+        ConfigNode data = ser.finish();
+
+        //Trace.formatln("data:\n{}", data.writeAsString());
+
+        auto unser = new SerializeInConfig(ctx, data);
+        TestS u_a = unser.read!(TestS);
+        Test2 u_t2 = unser.read!(Test2);
+        assert(u_t2.x == t2.x);
+        assert(u_t2.bla.b.link is u_t2);
+        assert(u_t2.c == t2.c);
+        assert(u_a.a == a.a);
+        assert(u_a.link2.a == a.link2.a);
+        //default values
+        assert(u_a.link2.b.b == "abc");
+    }
+}
+

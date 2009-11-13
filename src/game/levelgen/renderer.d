@@ -551,8 +551,8 @@ class LandscapeBitmap {
         assert(radius >= 0);
         //xxx: I "optimized" this, the old version is still in r451
         //     further "optimized" (== obfuscated for no gain) after r635
+        //     made it completely incomprehensible after r940
 
-        auto st = pos;
         int[] acircle = circle ? getCircle(radius) : null;
         int count;
         uint bits;
@@ -560,30 +560,33 @@ class LandscapeBitmap {
 
         //dir and count are initialized with 0
 
-        int ly1 = max(st.y - radius, 0);
-        int ly2 = min(st.y + radius + 1, mHeight);
+        int ly1 = max(pos.y - radius, 0);
+        int ly2 = min(pos.y + radius + 1, mHeight);
         for (int y = ly1; y < ly2; y++) {
             int xoffs = radius;
             if (circle) {
-                xoffs -= acircle[y-st.y+radius];
+                xoffs -= acircle[y-pos.y+radius];
             }
-            int lx1 = max(st.x - xoffs, 0);
-            int lx2 = min(st.x + xoffs + 1, mWidth);
+            int lx1 = max(pos.x - xoffs, 0);
+            int lx2 = min(pos.x + xoffs + 1, mWidth);
             if (!(lx1 < lx2))
                 continue;
             int pl = y*mWidth + lx1;
             Lexel* data = &mLevelData[pl];
-            int o_y = y - pos.y;
-            for (int x = lx1; x < lx2; x++) {
+            int count_y = count;
+            int max_x = lx2 - pos.x;
+            for (int x = lx1 - pos.x; x < max_x; x++) {
                 auto d = *data;
                 if (d != 0) {
                     bits |= d;
-                    d_x += x - pos.x;
-                    d_y += o_y;
+                    d_x += x;
                     count++;
                 }
                 data++;
             }
+            //count_y pixels in this scanline; add them to the vector
+            count_y = count - count_y;
+            d_y += (y - pos.y) * count_y;
         }
 
         out_dir = -Vector2i(d_x, d_y);
