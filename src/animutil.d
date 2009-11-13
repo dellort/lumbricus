@@ -15,7 +15,7 @@ import wwpdata.common;
 import wwpdata.animation;
 
 const cSyntax =
-`Syntax: animutil <sourceImg> [<boxX> = 512] [<boxY> = 512]
+`Syntax: animutil <sourceImg> [<boxX> = 512] [<boxY> = 512] [-repeat]
 
 Source image must be square.`;
 
@@ -27,11 +27,14 @@ int main(char[][] args)
         return 1;
     }
     auto box = Vector2i(512, 512);
+    bool repeat = false;
     try {
         if (args.length > 2)
             box.x = to!(int)(args[2]);
         if (args.length > 3)
             box.y = to!(int)(args[3]);
+        if (args.length > 4)
+            repeat = (args[4] == "-repeat");
     } catch (ConversionException e) {
         Stderr("Invalid arguments").newline;
     }
@@ -56,7 +59,8 @@ int main(char[][] args)
     }
     //fill AniEntry
     animEntry.addFrames(animAni);
-    animEntry.flags = FileAnimationFlags.Repeat;
+    if (repeat)
+        animEntry.flags = FileAnimationFlags.Repeat;
     //save
     animPacker.write("./", true);
     animFile.write("./", true);
