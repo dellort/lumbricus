@@ -218,7 +218,7 @@ class SubAnimation : Animation {
 abstract class AnimationSimple : Animation {
     private {
         SubSurface[] mFrames;
-        bool mRotateHack;
+        bool mRotateHack, mRotateHack2;
     }
 
     this(ConfigNode node) {
@@ -228,6 +228,7 @@ abstract class AnimationSimple : Animation {
         keepLastFrame = node.getBoolValue("keep_last_frame", keepLastFrame);
         mFrameTimeMS = node.getIntValue("frametime", 0);
         mRotateHack = node.getValue!(bool)("rotate_hack", false);
+        mRotateHack2 = node.getValue!(bool)("rotate_hack2", false);
     }
 
     //must call this in your ctor
@@ -257,6 +258,9 @@ abstract class AnimationSimple : Animation {
         if (mRotateHack) {
             float f = 1.0f * relFrameTimeMs(t, lengthMS, true) / lengthMS;
             eff.rotate = f * math.PI * 2;
+        }
+        if (mRotateHack2) {
+            eff.rotate = p.p1 / 180.0f * math.PI;
         }
         c.drawSprite(frame, pos, &eff);
     }

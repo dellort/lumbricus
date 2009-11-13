@@ -26,23 +26,25 @@ Version status for tools and libraries:
     D compiler:
         You need one of those...
         dmd:
+            1.051: works (48, 49, 50 didn't for various reasons)
             1.047: doesn't work; http://d.puremagic.com/issues/show_bug.cgi?id=3301
-            1.046: works
+            1.046: works (probably)
             1.045: apparently doesn't work (struct forward refs)
         ldc: *sigh*, if it works depends from the current moonphase
             (worked with lumbricus r876+1 and ldc 1578:1dee66f6ec0b)
         gdc: forget it
     tango:
-        svn r4931: works
-        release 0.99.8: should work, but untested
+        svn r5088 (trunk): should work
+        release 0.99.8: will not work because not updated to newest dmd
     Derelict:
         http://svn.dsource.org/projects/derelict/trunk/
-        svn r377: works, but...
-        DerelictFT: need this patch: http://www.dsource.org/projects/derelict/ticket/40
+        svn r394: works
+        DerelictFT: ok
         Devil: I really don't know. Also, this library sucks.
             (problem is: svn forces you to use a filesystem layout, that doesn't work
              with the package structure; you need to copy all files from DerelictIL,
              DerelictILU, and DerelictILUT into the same directory.)
+            Lumbricus expects it in derelict/devil or so.
         DerelictGL: ok
         DerelictGLU: ok
         DerelictSDL: ok
