@@ -142,7 +142,7 @@ class GameSky {
                 di.anim.setAnimation(mDebrisAnim, timeMsecs(rngShared.nextRange
                     (0, cast(int)(mDebrisAnim.duration.msecs))));
                 scene.add(di.anim, GameZOrder.BackLayer);
-                di.speedPerc = rngShared.nextDouble()/2.0+0.5;
+                di.speedPerc = rngShared.nextRange(0.4f, 1.5f);
             }
         }
 

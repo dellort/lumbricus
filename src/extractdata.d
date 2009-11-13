@@ -34,11 +34,11 @@ import wwptools.animconv;
 void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     bool nolevelthemes)
 {
-    outputDir = outputDir ~ "/wwp/";
-    trymkdir(outputDir);
+    char[] gfxOutputDir = outputDir ~ "/wwp/";
+    trymkdir(gfxOutputDir);
     auto wormsDataDir = wormsDir ~ "/data/";
     importDir = importDir ~ "/";
-    auto outFolder = new FileFolder(outputDir);
+    auto outFolder = new FileFolder(gfxOutputDir);
 
     void conferr(char[] msg) { Stdout(msg).newline; }
 
@@ -105,18 +105,18 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
 
     //run animconv
     do_extractbnk("mainspr", mainspr, animConf.getSubNode("mainspr"),
-        outputDir~"/");
+        gfxOutputDir~"/");
 
     //extract water sets (uses animconv too)
     //xxx: like level set, enum subdirectories (code duplication?)
     char[] waterpath = wormsDataDir ~ "Water";
-    char[] all_waterout = outputDir~"/water";
+    char[] all_waterout = gfxOutputDir~"/water";
     trymkdir(all_waterout);
     foreach (fi; FilePath(waterpath)) {
         char[] wdir = fi.name;
         char[] wpath = waterpath~"/"~wdir;
         char[] id = str.tolower(wdir);
-        char[] waterout = outputDir~"/water/"~id~"/";
+        char[] waterout = gfxOutputDir~"/water/"~id~"/";
         trymkdir(waterout);
         //lame check if it's a water dir
         FilePath wpath2 = FilePath(wpath);
