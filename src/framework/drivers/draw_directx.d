@@ -316,14 +316,13 @@ class DXCanvas : Canvas3DHelper {
     override void drawSprite(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null)
     {
-        if (!visibleArea.intersects(destPos, destPos + source.size))
+        if (!spriteVisible(source, destPos, effect))
             return;
 
         if (!effect)
             effect = &BitmapEffect.init;
 
-        Transform2f tr = void;
-        effect.getTransform(source.size, destPos, tr);
+        Transform2f tr = effect.getTransform(source.size, destPos);
 
         doDraw(source.surface, Vector2i(0), source.origin, source.size,
             &tr, effect.color);

@@ -29,10 +29,10 @@ struct BitmapEffect {
     Color color = Color(1.0f);
 
     //fill a transform matrix based on the effect values
-    //  (ref parameters for performance)
-    void getTransform(ref Vector2i sourceSize, ref Vector2i destPos,
-        ref Transform2f tr)
-    {
+    //xxx: used to use ref params etc. for performance, but that caused trouble
+    Transform2f getTransform(Vector2i sourceSize, Vector2i destPos) {
+        Transform2f tr = void;
+
         if (rotate != 0f || scale != 1.0f) {
             tr = Transform2f.RotateScale(rotate, scale);
         } else {
@@ -50,6 +50,8 @@ struct BitmapEffect {
             //and mirror on x axis (this is like glScale(-1,1,1))
             tr.mirror(true, false);
         }
+
+        return tr;
     }
 }
 
@@ -119,8 +121,24 @@ public class Canvas {
         return mVisibleArea;
     }
 
-    /// Return true if any part of this rectangle is visible
-    //public abstract bool isVisible(in Vector2i p1, in Vector2i p2);
+    final bool spriteVisible(SubSurface s, Vector2i dest, BitmapEffect* eff) {
+        if (!eff) {
+            return mVisibleArea.intersects(dest, dest + s.size);
+        } else {
+            //maybe it would be better to clip-test the transformed vertices
+            //but at least for very small stuff (particles), this will be faster
+            //xxx: not quite sure if this correct etc
+            //m = conservative estimate of max. distance of a pixel of the
+            //    sprite to the dest pos
+            const cSqrt_2 = 1.42; //rounded up
+            float m = max(s.size.x - eff.center.x, s.size.y - eff.center.y,
+                eff.center.x, eff.center.y) * eff.scale * cSqrt_2;
+            return (dest.x + m >= mVisibleArea.p1.x)
+                && (dest.x - m <= mVisibleArea.p2.x)
+                && (dest.y + m >= mVisibleArea.p1.y)
+                && (dest.y - m <= mVisibleArea.p2.y);
+        }
+    }
 
     public void draw(Texture source, Vector2i destPos) {
         draw(source, destPos, Vector2i(0, 0), source.size);

@@ -2,6 +2,7 @@ module common.restypes.animation;
 
 import common.resfileformats;
 import common.resources;
+import common.resset;
 import common.restypes.frames;
 import framework.drawing;
 import framework.framework;
@@ -10,6 +11,9 @@ import utils.misc;
 import utils.rect2;
 import utils.time;
 import utils.vector2;
+
+import str = utils.string;
+import math = tango.math.Math;
 
 
 //xxx the following two types should be in common.animation
@@ -31,31 +35,44 @@ abstract class Animation {
         int mLengthMS;
         Rect2i mBounds;
         ReversedAnimation mReversed;
+        bool mDidInit;
     }
 
     //read-only lol
-    bool keepLastFrame; //when animation over, the last frame is displayed
-    bool repeat; //animation is repeated (starting again after last frame)
+    bool keepLastFrame;//when animation over, the last frame is displayed
+    bool repeat = true;//animation is repeated (starting again after last frame)
 
     abstract void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
-        int frame);
+        Time t);
 
     private void postInit() {
+        if (mFrameTimeMS == 0)
+            mFrameTimeMS = cDefFrameTimeMS;
         mLengthMS = mFrameTimeMS * mFrameCount;
     }
 
     //must call this
-    protected void doInit(int aframeCount, Rect2i abounds, bool arepeat = true,
-        bool akeeplast = false, int aframeTimeMS = cDefFrameTimeMS)
+    protected void doInit(int aframeCount, Rect2i abounds,
+        int aframeTimeMS = cDefFrameTimeMS)
     {
-        repeat = arepeat;
-        keepLastFrame = akeeplast;
+        assert(!mDidInit);
+
         mFrameCount = aframeCount;
         mBounds = abounds;
         mFrameTimeMS = aframeTimeMS;
-        if (mFrameTimeMS == 0)
-            mFrameTimeMS = cDefFrameTimeMS;
 
+        postInit();
+
+        mDidInit = true;
+        assert(mFrameCount > 0);
+    }
+
+    //copy all animation attributes (except frame count) from other
+    protected void copyAttributes(Animation other) {
+        repeat = other.repeat;
+        keepLastFrame = other.keepLastFrame;
+        mBounds = other.mBounds;
+        mFrameTimeMS = other.mFrameTimeMS;
         postInit();
     }
 
@@ -67,6 +84,10 @@ abstract class Animation {
     //time to play it (ignores repeat)
     Time duration() {
         return timeMsecs(mLengthMS);
+    }
+
+    int lengthMS() {
+        return mLengthMS;
     }
 
     int frameCount() {
@@ -81,28 +102,30 @@ abstract class Animation {
         return timeMsecs(mFrameTimeMS);
     }
 
-    private int relFrameTimeMs(Time t) {
-        assert(mLengthMS != 0);
+    static int relFrameTimeMs(Time t, int length_ms, bool repeat) {
+        assert(length_ms != 0);
         int ms = t.msecs;
         if (ms < 0) {
             //I don't know... at any rate, I don't know what needs this
             //but return value must not lead to negative frame indices
-            ms = realmod(ms, mLengthMS);
+            ms = realmod(ms, length_ms);
             //ms = 0;
         }
-        if (ms >= mLengthMS) {
+        if (ms >= length_ms) {
             //if this has happened, we either need to show a new frame,
             //disappear or just stop it
             if (!repeat) {
-                return mLengthMS;
+                return length_ms;
             }
-            return ms % mLengthMS;
+            return ms % length_ms;
         }
         return ms;
     }
 
     int getFrameIdx(Time t) {
-        int ft = relFrameTimeMs(t);
+        assert(mDidInit);
+
+        int ft = relFrameTimeMs(t, mLengthMS, repeat);
         assert(ft <= mLengthMS);
         if (ft == mLengthMS) {
             assert(!repeat);
@@ -123,10 +146,7 @@ abstract class Animation {
     }
 
     void draw(Canvas c, Vector2i pos, ref AnimationParams p, Time t) {
-        int frame = getFrameIdx(t);
-        if (frame < 0)
-            return;
-        drawFrame(c, pos, p, frame);
+        drawFrame(c, pos, p, t);
     }
 
     bool finished(Time t) {
@@ -153,13 +173,14 @@ class ReversedAnimation : Animation {
 
     this(Animation base) {
         mBase = base;
+        copyAttributes(mBase);
+        doInit(mBase.frameCount, mBase.bounds, mBase.frameTimeMS());
         //keepLastFrame makes no sense here (last frame becomes the first)
-        doInit(mBase.frameCount, mBase.bounds, mBase.repeat,
-            false, mBase.frameTimeMS);
+        keepLastFrame = false;
     }
 
-    void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p, int frame) {
-        mBase.drawFrame(c, pos, p, frameCount() - 1 - frame);
+    void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p, Time t) {
+        mBase.drawFrame(c, pos, p, duration() - t);
     }
 
     //hurhur
@@ -172,7 +193,7 @@ class ReversedAnimation : Animation {
 class SubAnimation : Animation {
     private {
         Animation mBase;
-        int mFrameStart;
+        Time mFrameStart;
     }
 
     this(Animation base, int frame_start, int frame_end) {
@@ -180,62 +201,134 @@ class SubAnimation : Animation {
         assert(frame_start >= 0);
         assert(frame_end <= mBase.frameCount);
         assert(frame_start < frame_end); //also must be at least 1 frame
-        doInit(frame_end - frame_start, mBase.bounds, mBase.repeat,
-            mBase.keepLastFrame, mBase.frameTimeMS);
-        mFrameStart = frame_start;
+        copyAttributes(mBase);
+        doInit(frame_end - frame_start, mBase.bounds, mBase.frameTimeMS());
+        mFrameStart = frame_start * frameTime();
     }
 
     override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
-        int frame)
+        Time t)
     {
-        mBase.drawFrame(c, pos, p, mFrameStart + frame);
+        mBase.drawFrame(c, pos, p, mFrameStart + t);
     }
 }
 
 //--- simple old animations
 
-//supports one animation whose frames are aligned horizontally on one bitmap
-//xxx currently, no optimized mirroring support, as this would need
-//     - FW support for mirrored drawing
-//     - method to query FW if acceleration is available
-//     - (already possible) registering a cache releaser with FW, think
-//       of switching from GL to SDL driver mid-game, which would suddenly
-//       require a cached mirror surface
-//    or put surface mirroring support into FW
-class AnimationStrip : Animation {
+abstract class AnimationSimple : Animation {
     private {
-        Surface mSurface;
         SubSurface[] mFrames;
-        Vector2i mCenterOffset;
+        bool mRotateHack;
     }
 
+    this(ConfigNode node) {
+        //mFrames and mCenterOffset are loaded by subclasses
+        //load generic parameters here (not related to the frame storage method)
+        repeat = node.getBoolValue("repeat", repeat);
+        keepLastFrame = node.getBoolValue("keep_last_frame", keepLastFrame);
+        mFrameTimeMS = node.getIntValue("frametime", 0);
+        mRotateHack = node.getValue!(bool)("rotate_hack", false);
+    }
+
+    //must call this in your ctor
+    protected void init_frames(SubSurface[] frames) {
+        assert(frames.length > 0);
+        mFrames = frames;
+        Vector2i frame_size;
+        foreach (f; mFrames) {
+            frame_size = frame_size.max(f.size);
+        }
+        doInit(mFrames.length, Rect2i(frame_size) - frame_size / 2,
+            frameTimeMS);
+    }
+
+    override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
+        Time t)
+    {
+        //no wrap-around
+        int frameIdx = getFrameIdx(t);
+        if (frameIdx < 0)
+            return;
+        assert(frameIdx < frameCount);
+
+        SubSurface frame = mFrames[frameIdx];
+        BitmapEffect eff;
+        eff.center = frame.size / 2;
+        if (mRotateHack) {
+            float f = 1.0f * relFrameTimeMs(t, lengthMS, true) / lengthMS;
+            eff.rotate = f * math.PI * 2;
+        }
+        c.drawSprite(frame, pos, &eff);
+    }
+}
+
+//supports one animation whose frames are aligned horizontally on one bitmap
+class AnimationStrip : AnimationSimple {
     //frameWidth is the x size (in pixels) of one animation frame,
     //and needs to be a factor of the total image width
     //if frameWidth == -1, frames will be square (height x height)
-    this(char[] filename, int frameWidth) {
-        debug gResources.ls_start("AnimationStrip:loadImage");
-        mSurface = gFramework.loadImage(filename);
-        debug gResources.ls_stop("AnimationStrip:loadImage");
+    this(ConfigNode config, char[] filename) {
+        super(config);
+
+        int frameWidth = config.getIntValue("frame_width", -1);
+        auto surface = gFramework.loadImage(filename);
         if (frameWidth < 0)
-            frameWidth = mSurface.size.y;
-        auto frame_size = Vector2i(frameWidth, mSurface.size.y);
-        auto framecount = mSurface.size.x / frameWidth;
-        mCenterOffset = -frame_size / 2;
-        auto bounds = Rect2i(mCenterOffset, -mCenterOffset);
-        doInit(framecount, bounds);
+            frameWidth = surface.size.y;
+        auto frame_size = Vector2i(frameWidth, surface.size.y);
+        auto framecount = surface.size.x / frameWidth;
+        SubSurface[] frames;
         for (int i = 0; i < framecount; i++) {
-            mFrames ~= mSurface.createSubSurface(Rect2i.Span(
+            frames ~= surface.createSubSurface(Rect2i.Span(
                 Vector2i(frame_size.x*i, 0), frame_size));
         }
+        init_frames(frames);
     }
+}
 
-    //(ignores the params p intentionally)
-    override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
-        int frameIdx)
-    {
-        //no wrap-around
-        assert(frameIdx < frameCount);
-        c.drawSprite(mFrames[frameIdx], pos+mCenterOffset);
+//animation from file list, each file is a frame image
+class AnimationList : AnimationSimple {
+    this(ConfigNode config, char[] pattern) {
+        super(config);
+
+        //dumb crap
+        //shouldn't there be library functions for this?
+        //actually, blame filesystem.d
+        auto res = str.rfind(pattern, "/");
+        char[] path, file;
+        if (res < 0) {
+            file = pattern;
+        } else {
+            path = pattern[0..res];
+            file = pattern[res+1..$];
+        }
+
+        char[][] flist;
+        gFS.listdir(path, file, false,
+            (char[] filename) {
+                //and of course we have to add the path again
+                flist ~= path ~ "/" ~ filename;
+                return true;
+            }
+        );
+
+        if (!flist.length) {
+            throw new LoadException("animation",
+                myformat("no files found: '{}'", pattern));
+        }
+
+        //hopefully does the right thing; but only works if files are e.g.
+        //  file01.png, file02.png, ..., file10.png
+        //and not
+        //  file1.png, file2.png, ..., file10.png
+        flist.sort;
+
+        SubSurface[] frames;
+        foreach (f; flist) {
+            Surface s = gFramework.loadImage(f);
+            SubSurface sub = s.fullSubSurface();
+            frames ~= sub;
+        }
+        init_frames(frames);
     }
 }
 
@@ -285,15 +378,18 @@ class ComplicatedAnimation : Animation {
             }
         }
 
-        doInit(framelen, bb, true, false, frameTimeMS);
+        doInit(framelen, bb, frameTimeMS);
 
         repeat = !!(mFrames.flags & FileAnimationFlags.Repeat);
         keepLastFrame = !!(mFrames.flags & FileAnimationFlags.KeepLastFrame);
     }
 
     override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
-        int frameIdx)
+        Time t)
     {
+        int frameIdx = getFrameIdx(t);
+        if (frameIdx < 0)
+            return;
         assert(frameIdx < frameCount);
 
         static int doParam(int function(int a, int b) dg, int v, int count) {
@@ -343,13 +439,19 @@ class AnimationResource : ResourceItem {
         assert(node !is null);
         char[] type = node.getStringValue("type", "");
         switch (type) {
-            case "strip":
+            case "strip": {
                 char[] fn = mContext.fixPath(node["file"]);
-                int frameWidth = node.getIntValue("frame_width", -1);
-                auto ani = new AnimationStrip(fn, frameWidth);
-                ani.repeat = node.getBoolValue("repeat", ani.repeat);
-                mContents = ani;
+                mContents = new AnimationStrip(node, fn);
                 break;
+            }
+            //single image files, one per frame - born out of necessity
+            //(to avoid dumb conversion steps like packing)
+            case "list": {
+                //pat is like a filename, but with a wildcard ('*') in it
+                char[] pat = mContext.fixPath(node["pattern"]);
+                mContents = new AnimationList(node, pat);
+                break;
+            }
             case "complicated":
                 auto frames = castStrict!(AniFrames)(
                     mContext.find(node["aniframes"]).get());

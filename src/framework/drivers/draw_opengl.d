@@ -712,8 +712,7 @@ class GLCanvas : Canvas3DHelper {
 
         //on my nvidia card, this brings a slight speed up
         //and nvidia is known for having _good_ opengl drivers
-        //NOTE: this clipping is incorrect for scaled/rotated bitmaps
-        if (!visibleArea.intersects(destPos, destPos + source.size))
+        if (!spriteVisible(source, destPos, effect))
             return;
 
         if (!effect)
@@ -722,8 +721,7 @@ class GLCanvas : Canvas3DHelper {
         //create an explicit 2D matrix according to BitmapEffect
         //the version using glTranslate etc. is still in r920 in drawFast()
 
-        Transform2f tr = void;
-        effect.getTransform(source.size, destPos, tr);
+        Transform2f tr = effect.getTransform(source.size, destPos);
 
         do_draw(source.surface, Vector2i(0), source.origin, source.size, &tr,
             effect.color);
