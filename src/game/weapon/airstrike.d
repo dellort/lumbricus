@@ -62,11 +62,11 @@ class AirstrikeControl : WeaponSelector, Controllable {
 
     override void onSelect() {
         mControl.pushControllable(this);
-        mEngine.addRenderOnMouse(&mouseRender);
+        mControl.addRenderOnMouse(&mouseRender);
     }
 
     override void onUnselect() {
-        mEngine.removeRenderOnMouse(&mouseRender);
+        mControl.removeRenderOnMouse(&mouseRender);
         mControl.releaseControllable(this);
     }
 

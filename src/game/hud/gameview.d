@@ -819,7 +819,11 @@ class GameView : Container {
 
         //mouse stuff at last?
         //if (mouseOverState)
-        mCursorVisible = mGame.engine.renderOnMouse(c, mousePos);
+        if (activeWorm)
+            mCursorVisible =
+                activeWorm.member.member.control.renderOnMouse(c, mousePos);
+        else
+            mCursorVisible = true;
 
         //hmpf
         (cast(GameEngine)mGame.engine).debug_draw(c);

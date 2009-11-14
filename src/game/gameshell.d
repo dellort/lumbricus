@@ -622,7 +622,10 @@ class GameShell {
         TimeSourceSimple interpol = mInterpolateTime;
 
         void exec_frame(Time overdue) {
-            if (!mReplayMode) {
+            //xxx this was failing in multiplayer because an empty command
+            //    with TS mTimeStamp was added to the end of the list
+            //    (which is at mTimeStampAvail), thus destroying sort order
+            if (!mReplayMode && !mUseExternalTS) {
                 //pseudo hash command to insert a hash frame (see execFrame())
                 //always generated, but execEntry() might throw it away
                 addLoggedInput("", "");

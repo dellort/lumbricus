@@ -156,7 +156,7 @@ class CmdNetServer {
             cl.close("server shutdown", DiscReason.serverShutdown);
         }
         mHost.serviceAll();
-        delete mAnnounce;
+        mAnnounce.close();
         delete mHost;
         delete mBase;
     }

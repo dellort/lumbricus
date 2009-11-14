@@ -31,7 +31,7 @@ class NetAnnounce {
         }
     }
 
-    ~this() {
+    void close() {
         active = false;
         foreach (a; mAnnouncers) {
             a.close();

@@ -5,6 +5,7 @@
 module game.wcontrol;
 
 import common.animation;
+import framework.framework;
 import game.game;
 import game.gfxset;
 import game.sprite;
@@ -77,6 +78,8 @@ class WormControl : WormController {
         Animator mCurrentTargetInd;
         WeaponTarget mCurrentTarget;
         bool mTargetIsSet;
+
+        bool delegate(Canvas, Vector2i) mMouseRender;
     }
 
     this(GObjectSprite worm) {
@@ -202,6 +205,7 @@ class WormControl : WormController {
             mTargetIsSet = false;
 
             mFireDown = false;
+            mMouseRender = null;
         }
 
         mOnHold = false;
@@ -692,4 +696,29 @@ class WormControl : WormController {
     }
 
     //-- moved from worm.d
+
+    //moved from game.d (was failing in multiplayer mode)
+    //for each frame, the delegate gets called with the mouse position and the
+    //  canvas while the topmost layer of the game is drawn
+    //replace_mouse_pointer: if true, the mouse pointer is invisible in the game
+    void addRenderOnMouse(bool delegate(Canvas, Vector2i) onRender,
+        bool replace_mouse_pointer = false)
+    {
+        mMouseRender = onRender;
+        //mMouseInvisible = replace_mouse_pointer;
+    }
+
+    //undo addRenderOnMouse()
+    void removeRenderOnMouse(bool delegate(Canvas, Vector2i) dg) {
+        if (mMouseRender !is dg)
+            return;
+        mMouseRender = null;
+        //mMouseInvisible = false;
+    }
+
+    bool renderOnMouse(Canvas c, Vector2i mousepos) {
+        if (mMouseRender)
+            return mMouseRender(c, mousepos);
+        return true;
+    }
 }

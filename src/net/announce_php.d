@@ -28,22 +28,23 @@ import str = utils.string;
 private bool http_get(char[] url, out char[] result, char[][char[]] args) {
     //http_log("HTTP GET: url={} args={}", url, args);
 
-    auto client = new HttpClient(HttpClient.Get, url);
-    scope(exit) client.close();
-
-    foreach (char[] k, char[] v; args) {
-        client.getRequestParams().add(k, v);
-    }
-
-    char[] res;
-
-    void getstuff(void[] d) {
-        //xxx: content encoding?
-        //     we always must have utf-8, or at least sanitized to utf-8
-        res ~= cast(char[])d;
-    }
-
     try {
+        //hostname is resolved here (which may fail)
+        auto client = new HttpClient(HttpClient.Get, url);
+        scope(exit) client.close();
+
+        foreach (char[] k, char[] v; args) {
+            client.getRequestParams().add(k, v);
+        }
+
+        char[] res;
+
+        void getstuff(void[] d) {
+            //xxx: content encoding?
+            //     we always must have utf-8, or at least sanitized to utf-8
+            res ~= cast(char[])d;
+        }
+
         client.open();
 
         if (client.isResponseOK) {

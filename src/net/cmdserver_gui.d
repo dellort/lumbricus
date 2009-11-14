@@ -64,6 +64,8 @@ class CmdNetServerTask : Task {
             mServer = new CmdNetServer(mSrvConf);
             Time tlast;
             while (true) {
+                if (gMainTerminated)
+                    break;
                 Time t = timeCurrentTime();
                 synchronized (this) {
                     if (mClose)

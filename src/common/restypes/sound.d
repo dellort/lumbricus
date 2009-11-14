@@ -14,11 +14,14 @@ class SampleResource : ResourceItem {
     protected void load() {
         char[] path = mContext.fixPath(mConfig.value);
         //xxx lol etc.
-        if (mConfig.parent.name == "samples")
-            mContents = gFramework.sound.createSample(path, 0);
-        else
+        if (mConfig.parent.name == "samples") {
+            auto sample = gFramework.sound.createSample(path, 0);
+            sample.preload();
+            mContents = sample;
+        } else {
             //music is streamed
             mContents = gFramework.sound.createSample(path, 1, true);
+        }
     }
 
     static this() {

@@ -271,6 +271,10 @@ public class Sample {
         return mSound;
     }
 
+    void preload() {
+        getDriverSound();
+    }
+
     //destroy driver sound
     //force=even when in use (=> user can hear it)
     bool release(bool force) {
