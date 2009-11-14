@@ -454,3 +454,76 @@ class SliceStream : Stream {
         return mSource;
     }
 }
+
+import tango.core.Thread;
+import tango.io.device.ThreadPipe;
+
+//implements asynchronous writing to an output stream
+//usage: auto tw = new ThreadWriter(fileStream); auto pipe = tw.pipeOut();
+//all writes to pipe will then be asynchronous
+//when done, call pipe.close() to wait for all writes to finish and close
+//  the sink
+//Important: ownership of the sink stream passes over to the ThreadedWriter,
+//           and the stream will be finalized on close().
+//           Do _not_ keep an outside reference to the sink stream
+//By design, no data will be lost, even if the main thread crashes
+class ThreadedWriter {
+    private {
+        Thread mWorker, mParent;
+        ThreadPipe mPipe;
+        PipeIn mPipeWrapper;
+        PipeOut mSink;
+    }
+
+    //ownership of sink passes over to ThreadedWriter (see above)
+    this(Stream sink) {
+        mParent = Thread.getThis();
+        mSink = sink.pipeOut(true);
+        mPipe = new ThreadPipe();
+        //isn't it funny...
+        mPipeWrapper = (new ConduitStream(castStrict!(Conduit)(mPipe))).pipeIn();
+
+        mWorker = new Thread(&run);
+        mWorker.start();
+    }
+
+    private void run() {
+        bool terminated;
+        do {
+            Thread.sleep(0.1);
+            copyAvailable();
+            //exit when the write end is closed, or when the main thread
+            //shuts down
+            terminated = (!mPipe.isAlive() || gMainTerminated);
+        } while (!terminated);
+        copyAvailable();
+        mPipe.stop();
+        mPipe.close();
+        //all writes are done, close the sink stream
+        mSink.close();
+    }
+
+    //copy all data in the ThreadPipe to sink
+    private void copyAvailable() {
+        size_t r;
+        if ((r = mPipe.remaining()) > 0) {
+            mSink.copyFrom(mPipeWrapper, r);
+        }
+    }
+
+    PipeOut pipeOut() {
+        return PipeOut(&write, &close);
+    }
+
+    private void write(ubyte[] data) {
+        assert(mPipe.isAlive());
+        mPipe.write(data);
+    }
+
+    private void close() {
+        //closing the pipe will shut down the thread
+        mPipe.stop();
+        //wait until all writes are completed
+        mWorker.join();
+    }
+}

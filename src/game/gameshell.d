@@ -257,7 +257,8 @@ class GameLoader {
             //why two files? because I want to output stuff in realtime, and
             //  the output should survive even a crash
             auto outstr = gFS.open(filename ~ "dat", File.WriteCreate);
-            mDemoOutput = outstr.pipeOut(true);
+            auto threadstr = new ThreadedWriter(outstr);
+            mDemoOutput = threadstr.pipeOut();
         }
 
         mGfx = new GfxSet(mGameConfig);

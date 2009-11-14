@@ -10,7 +10,7 @@ import utils.output;
 import utils.random;
 import utils.time;
 
-import utils.stream : File; //???
+import utils.stream : File, ThreadedWriter; //???
 
 import tango.io.Stdout;
 
@@ -41,7 +41,7 @@ ConfigNode init(char[][] args, char[] help) {
     const File.Style WriteCreateShared =
         {File.Access.Write, File.Open.Create, File.Share.Read};
     auto logf = gFS.open("/logall.txt", WriteCreateShared);
-    auto logstr = new StreamOutput(logf);
+    auto logstr = new PipeOutput((new ThreadedWriter(logf)).pipeOut());
     //write buffered log
     logstr.writeString(logtmp.text);
     gLogEverything.destination = logstr;

@@ -17,6 +17,7 @@ import common.common : globals;
 import common.config;
 import toplevel = common.toplevel;
 import utils.configfile;
+import utils.misc;
 import tango.io.Stdout;
 
 version = Game;
@@ -118,6 +119,7 @@ version(LogExceptions) {
 }
 
 int main(char[][] args) {
+    scope(exit) gMainTerminated = true;
     version(LogExceptions) {
         //catch all exceptions, write them to logfile and console and exit
         try {

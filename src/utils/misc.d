@@ -157,3 +157,6 @@ template Repeat(int count) { //thx h3
     }
 }
 
+//I hate Tango so much.
+//Threads can use this flag to determine when the main thread is exiting
+bool gMainTerminated = false;
