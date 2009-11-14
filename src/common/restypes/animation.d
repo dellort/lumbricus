@@ -14,6 +14,7 @@ import utils.vector2;
 
 import str = utils.string;
 import math = tango.math.Math;
+import mymath = utils.math;
 
 
 //xxx the following two types should be in common.animation
@@ -226,7 +227,9 @@ class SubAnimation : Animation {
 abstract class AnimationSimple : Animation {
     private {
         SubSurface[] mFrames;
-        bool mRotateHack, mRotateHack2;
+        //about those hacks: should introduce some parameter mapping (similar to
+        //  what ComplicatedAnimation and extractdata do)
+        bool mRotateHack, mRotateHack2, mMirrorYHack;
     }
 
     this(ConfigNode node) {
@@ -237,6 +240,7 @@ abstract class AnimationSimple : Animation {
         mFrameTimeMS = node.getIntValue("frametime", 0);
         mRotateHack = node.getValue!(bool)("rotate_hack", false);
         mRotateHack2 = node.getValue!(bool)("rotate_hack2", false);
+        mMirrorYHack = node.getValue!(bool)("mirror_y_hack", false);
     }
 
     //must call this in your ctor
@@ -265,10 +269,15 @@ abstract class AnimationSimple : Animation {
         eff.center = frame.size / 2;
         if (mRotateHack) {
             float f = 1.0f * relFrameTimeMs(t, lengthMS, true) / lengthMS;
-            eff.rotate = f * math.PI * 2;
+            //the reverse direction ("-") is for blackhole bomb (looks better)
+            //if it is dehacked, it needs a parameter converter
+            eff.rotate = - f * math.PI * 2;
         }
         if (mRotateHack2) {
             eff.rotate = p.p1 / 180.0f * math.PI;
+        }
+        if (mMirrorYHack) {
+            eff.mirrorY = mymath.angleLeftRight(p.p1/180.0f*math.PI, false, true);
         }
         c.drawSprite(frame, pos, &eff);
     }

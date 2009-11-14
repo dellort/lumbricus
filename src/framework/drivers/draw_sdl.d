@@ -411,8 +411,8 @@ final class SDLSurface : DriverSurface {
             //if no effect, the center vector is 0/0 anyway
             if (effect) {
                 float x1 = effect.center.x, x2 = effect.center.y;
-                offset.x += cast(int)(-e.a * x1 - e.b * x2 + e.x);
-                offset.y += cast(int)( e.b * x1 - e.a * x2 + e.y);
+                offset.x += cast(int)(-e.a * x1 + e.b * x2 + e.x);
+                offset.y += cast(int)(-e.b * x1 - e.a * x2 + e.y);
 
                 //code above is equivalent to the following
                 /+
@@ -492,7 +492,7 @@ final class SDLSurface : DriverSurface {
             double zoom = 1.0*k_zoom/cZoomUnitsHalf*cZoomMax + 1.0;
             bool smooth = mDrawDriver.mHighQuality;
             SDL_Surface* nsurf;
-            rotozoomSurface(pixels_from_sdl(surf), rot_deg, zoom, smooth,
+            rotozoomSurface(pixels_from_sdl(surf), -rot_deg, zoom, smooth,
                 (out Pixels dst, int w, int h) {
                     nsurf = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 32,
                         Color.cMaskR, Color.cMaskG, Color.cMaskB, Color.cMaskA);
@@ -511,8 +511,8 @@ final class SDLSurface : DriverSurface {
             entry.a = math.cos(rot_rad) * zoom;
             entry.b = math.sin(rot_rad) * zoom;
             auto s = toVector2f(sub.size);
-            entry.x = ( entry.a*s.x +  entry.b*s.y - surf.w) / 2;
-            entry.y = (-entry.b*s.x +  entry.a*s.y - surf.h) / 2;
+            entry.x = ( entry.a*s.x + -entry.b*s.y - surf.w) / 2;
+            entry.y = ( entry.b*s.x +  entry.a*s.y - surf.h) / 2;
         }
 
         entry.surface = convert_free(surf);

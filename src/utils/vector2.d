@@ -227,9 +227,11 @@ public struct Vector2(T) {
     }
 
     public Vector2 rotated(T angle_rads) {
+        // | 11 12 |
+        // | 21 22 |
         T mat11 = cast(T)math.cos(angle_rads*1.0);
-        T mat12 = cast(T)math.sin(angle_rads*1.0);
-        T mat21 = -mat12;
+        T mat21 = cast(T)math.sin(angle_rads*1.0);
+        T mat12 = -mat21;
         T mat22 = mat11;
 
         return Vector2(mat11*x + mat12*y, mat21*x + mat22*y);

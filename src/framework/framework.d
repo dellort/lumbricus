@@ -684,7 +684,8 @@ class Surface {
             n.fill(n.rect, Color.Transparent);
             dst = lockpixels(n);
         }
-        rotozoom.rotozoomSurface(lockpixels(this), angle/math.PI*180, 1.0,
+        //looks like rotozoom uses a reversed rotation direction
+        rotozoom.rotozoomSurface(lockpixels(this), -angle/math.PI*180, 1.0,
             interpolate, &doalloc);
         unlockPixels(Rect2i.init);
         n.unlockPixels(n.rect);
