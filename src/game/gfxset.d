@@ -83,7 +83,8 @@ class GfxSet {
     }
 
     private void loadParticles() {
-        foreach (ConfigNode node; config.getSubNode("particles")) {
+        auto conf = loadConfig("particles");
+        foreach (ConfigNode node; conf.getSubNode("particles")) {
             ParticleType p = new ParticleType();
             p.read(resources, node);
             resources.addResource(p, node.name);
@@ -165,6 +166,8 @@ class GfxSet {
     //the object isn't catched by the resource system
     void reversedHack() {
         foreach (e; resources.resourceList().dup) {
+            if (e.isAlias())
+                continue;
             if (auto ani = cast(Animation)e.get!(Object)()) {
                 resources.addResource(ani.reversed(), "reversed_" ~ e.name());
             }
@@ -315,6 +318,9 @@ class GfxSet {
         }
 
         foreach (ResourceSet.Entry res; resources.resourceList()) {
+            //(no aliases... externals must be unique)
+            if (res.isAlias())
+                continue;
             Object o = res.get!(Object)();
             ctx.addExternal(o, "res::" ~ res.name());
             //xxx: maybe generalize using an interface or so?

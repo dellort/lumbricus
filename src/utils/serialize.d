@@ -99,7 +99,7 @@ class SerializeContext {
     //register external object
     void addExternal(Object o, char[] id) {
         if (o in mExternals || id in mExternalsReverse)
-            throw new Exception("external not unique");
+            throw new Exception("external not unique: "~id);
         mExternals[o] = id;
         mExternalsReverse[id] = o;
     }

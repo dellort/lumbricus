@@ -23,6 +23,7 @@ class ResourceSet {
         private {
             char[] mName;
             Object mResource;
+            bool mIsAlias;
         }
 
         private this() {
@@ -37,10 +38,24 @@ class ResourceSet {
         T get(T)() {
             return castStrict!(T)(mResource);
         }
+
+        bool isAlias() {
+            return mIsAlias;
+        }
     }
 
     ///add a resource with that name
     void addResource(Object res, char[] name) {
+        doAddResource(res, name, false);
+    }
+
+    ///add an alias new_name to res
+    void addAlias(char[] res, char[] new_name) {
+        Entry r = resourceByName(res);
+        doAddResource(r.mResource, new_name, true);
+    }
+
+    private void doAddResource(Object res, char[] name, bool is_alias) {
         if (mSealed) {
             assert(false, "seal() was already called");
         }
@@ -50,6 +65,7 @@ class ResourceSet {
         auto entry = new Entry();
         entry.mName = name;
         entry.mResource = res;
+        entry.mIsAlias = is_alias;
         mResByName[entry.mName] = entry;
     }
 

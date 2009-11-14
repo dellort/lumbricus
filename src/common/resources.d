@@ -95,10 +95,48 @@ class ResourceItem : ResourceObject {
     }
 }
 
-//huh trivial
+//special resource type for aliases
+//it is a hack and requires special handling: an alias resource won't return the
+//  aliased resource (it returns only a meaningless dummy object); instead
+//  aliases are resolved when the resources are added to the ResourceSet in
+//  addToResourceSet
+private class AliasResource : ResourceItem {
+    char[] alias_name;
+
+    this(ResourceFile context, char[] id, ConfigNode item) {
+        super(context, id, item);
+        alias_name = item.getCurValue!(char[])();
+    }
+
+    protected void load() {
+        //set dummy; not that having null as content breaks
+        mContents = new Object();
+    }
+
+    static this() {
+        Resources.registerResourceType!(typeof(this))("aliases");
+    }
+}
+
 private void addToResourceSet(ResourceSet rs, ResourceItem[] items) {
-    foreach (i; items) {
+    struct Entry {
+        char[] res, new_name;
+    }
+
+    Entry[] aliases;
+
+    foreach (ResourceItem i; items) {
+        if (auto al = cast(AliasResource)i) {
+            aliases ~= Entry(al.alias_name, al.id);
+            continue;
+        }
         rs.addResource(i.get, i.id);
+    }
+
+    //aliases are done after all stuff is added to avoid forward ref issues
+    foreach (e; aliases) {
+        //rs.addResource(rs.get!(Object)(e.res), e.new_name);
+        rs.addAlias(e.res, e.new_name);
     }
 }
 

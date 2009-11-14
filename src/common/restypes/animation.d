@@ -106,10 +106,11 @@ abstract class Animation {
         assert(length_ms != 0);
         int ms = t.msecs;
         if (ms < 0) {
-            //I don't know... at any rate, I don't know what needs this
-            //but return value must not lead to negative frame indices
+            //negative time needed for reversed animations
+            //maybe also needed to set an animation start offset
+            if (!repeat)
+                return 0;
             ms = realmod(ms, length_ms);
-            //ms = 0;
         }
         if (ms >= length_ms) {
             //if this has happened, we either need to show a new frame,
@@ -212,6 +213,13 @@ class SubAnimation : Animation {
         mBase.drawFrame(c, pos, p, mFrameStart + t);
     }
 }
+
+//displaying an animation is about mapping animation parameters (time, rotation,
+//  and other stuff in AnimationParams) to drawing parameters (frame number,
+//  rotation, mirroring)
+//
+//class Animation2 : Animation {
+//}
 
 //--- simple old animations
 
