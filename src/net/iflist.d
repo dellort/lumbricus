@@ -10,7 +10,7 @@ import tango.sys.Common;
 alias IPv4Address.sockaddr_in sockaddr_in;
 
 version (Win32) {
-    private import tango.sys.win32.WsaSock : WSAIoctl, socket, sockaddr;
+    private import tango.sys.win32.WsaSock : WSAIoctl;
 
     uint _IOR(T)(ubyte x, ubyte y) {
         return IOC_OUT | ((cast(uint)(T.sizeof)&IOCPARM_MASK)<<16) | (x<<8) | y;
@@ -20,7 +20,7 @@ version (Win32) {
     const SIO_GET_INTERFACE_LIST = _IOR!(uint)('t', 127);
 
     union sockaddr_gen {
-        sockaddr  Address;
+        ubyte[16]  Address;
         sockaddr_in  AddressIn;
         ubyte[24] AddressIn6;  //we don't need this
     }
@@ -48,14 +48,15 @@ version (Win32) {
     public char[][] getBroadcastInterfaces() {
         //Note: tango.net.device.Berkeley does the WSAStartup() call
         //WSAIoctl needs a socket handle
-        auto s = cast(HANDLE)socket(AddressFamily.INET, SocketType.STREAM,
-            ProtocolType.TCP);
-        assert (s != cast(HANDLE) -1);
+        Berkeley bs;
+        bs.open(AddressFamily.INET, SocketType.STREAM, ProtocolType.TCP);
+        scope(exit) bs.detach();
+        assert (bs.handle != -1);
         INTERFACE_INFO[20] interfaceList;
 
         uint nBytes;
         //request interface list
-        if (WSAIoctl(s, SIO_GET_INTERFACE_LIST, null, 0,
+        if (WSAIoctl(cast(HANDLE)bs.handle, SIO_GET_INTERFACE_LIST, null, 0,
             interfaceList.ptr, 20*INTERFACE_INFO.sizeof, &nBytes, null,
             null) == SOCKET_ERROR)
         {

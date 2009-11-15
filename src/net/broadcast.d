@@ -9,14 +9,6 @@ import tango.net.device.Socket;
 import tango.net.device.Berkeley; //????!!! lol tango
 import net.iflist;
 
-//fix for tango svn... sorry, I have no fucking idea
-version(Win32) {
-    import tango.sys.win32.WsaSock : timeval;
-}
-version(linux) {
-    import tango.stdc.posix.sys.time;
-}
-
 //sorry for that (->no converting the address to string and back just for reply)
 alias IPv4Address BCAddress;
 
@@ -63,8 +55,7 @@ class NetBroadcast {
         scope ssread = new SocketSet();
         ssread.add(mSocket.native);
         //no blocking
-        timeval tv = timeval(0, 0);
-        int sl = SocketSet.select(ssread, null, null, &tv);
+        int sl = SocketSet.select(ssread, null, null, 0);
         if (sl > 0 && ssread.isSet(mSocket.native)) {
             serviceOne();
         }

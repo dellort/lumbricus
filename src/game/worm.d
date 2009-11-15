@@ -737,7 +737,7 @@ class WormSprite : GObjectSprite {
         //update animation, so that fire animation is displayed
         //should only be done if this is the mShooterMain (this is a guess)
         //xxx: this check is a bit dirty, but...
-        if (&sh is &mShooterMain) {
+        if (&sh is &mShooterMain && graphic) {
             //even if the weapon isn't "one shot", this should be fine
             graphic.weapon_fire_oneshot = true;
         }
