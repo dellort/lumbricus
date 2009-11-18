@@ -287,6 +287,9 @@ class PhysicObject : PhysicBase {
     //the object might modify the vector or so on its own (ropes do that)
     final void move(Vector2f delta) {
         mPos += delta;
+        if (mPosp.rotation == RotateMode.distance) {
+            rotation += delta.length/200*2*PI;
+        }
     }
 
     //******************** Rotation and surface normal **********************
@@ -315,23 +318,20 @@ class PhysicObject : PhysicBase {
 
     //set rotation (using velocity)
     public void checkRotation() {
-        if (posp.jetpackLooking) {
-            auto ndir = selfForce.normal();
-            if (!ndir.isNaN()) {
-                //special case: moving straight up/down
-                //jetpack is either left or right, so keep last direction
-                if (ndir.x != 0)
-                    mIntendedLook = ndir;
-            }
-            return;
-        }
-
-        auto len = velocity.length;
-        //xxx insert a well chosen value here
-        //NOTE: this check also prevents NaNs from getting through
-        //intention is that changes must be big enough to change worm direction
-        if (len > 0.001) {
-            rotation = (velocity/len).toAngle();
+        switch (mPosp.rotation) {
+            case RotateMode.velocity:
+                rotation = velocity.toAngle();
+                break;
+            case RotateMode.selfforce:
+                auto ndir = selfForce.normal();
+                if (!ndir.isNaN()) {
+                    //special case: moving straight up/down
+                    //jetpack is either left or right, so keep last direction
+                    if (ndir.x != 0)
+                        mIntendedLook = ndir;
+                }
+                break;
+            default:
         }
     }
 
@@ -368,12 +368,13 @@ class PhysicObject : PhysicBase {
                 return mIntendedLook.toAngle;
         } else {
             //glued but look invalid -> use last rotation
-            if (mIntendedLook.isNaN)
-                return rotation;
+            auto look = mIntendedLook;
+            if (look.isNaN)
+                look = Vector2f(1,0); //default if no look dir ws set yet
             //glued, use left/right from mIntendedLook and
             //combine with surface normal
             auto a = surface_normal.orthogonal;    //parallel to surface
-            auto b = mIntendedLook;                //walking direction
+            auto b = look;                //walking direction
             float sp = a*b;
             if (sp < 0) {
                 a = -a;     //invert for right looking direction

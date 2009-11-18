@@ -35,6 +35,12 @@ enum DamageCause {
     special,
 }
 
+enum RotateMode {
+    velocity,
+    distance,
+    selfforce,  //calc looking-angle as needed for worms with jetpacks
+}
+
 //PhysicalObjectStaticProperties
 //challenge: find a better name
 //contains all values which are considered not-changing physical properties of
@@ -80,7 +86,7 @@ class POSP {
     float walkingClimb = 10; //pixels of height per 1-pixel which worm can climb
     bool walkLimitSlopeSpeed = false;
 
-    bool jetpackLooking; //calc looking-angle as needed for worms with jetpacks
+    RotateMode rotation;
 
     //influence through damage (0 = invincible, 1 = normal)
     float damageable = 0.0f;
@@ -158,7 +164,20 @@ class POSP {
         velocityConstraint = node.getValue("velocity_constraint",
             velocityConstraint);
         speedLimit = node.getFloatValue("speed_limit", speedLimit);
-        jetpackLooking = node.getBoolValue("jetpack_looking", jetpackLooking);
+        char[] rot = node.getStringValue("rotation", "velocity");
+        switch (rot) {
+            case "velocity":
+                rotation = RotateMode.velocity;
+                break;
+            case "distance":
+                rotation = RotateMode.distance;
+                break;
+            case "selfforce":
+                rotation = RotateMode.selfforce;
+                break;
+            default:
+                assert(false);
+        }
         thrust = node.getFloatValue("thrust", thrust);
         friction = node.getFloatValue("friction", friction);
         slideAbsorb = node.getFloatValue("slide_absorb", slideAbsorb);

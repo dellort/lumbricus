@@ -3,7 +3,7 @@
 import cairo
 import math
 
-w = 120.0
+w = 220.0
 h = 8.0
 segcount = 100.0
 
@@ -35,7 +35,7 @@ def draw_stuff(ctx, fa):
     # goes a bit out of the draw area to make the thick line continuous
     for i in range(-5, int(segcount)+5):
         f = i / segcount
-        ctx.line_to(f * w, math.sin((f)*math.pi*2)*math.sin(fa*math.pi*2)*h/2)
+        ctx.line_to(f * w, math.sin(f*math.pi*2)*math.sin(fa*math.pi*2)*h/2 + math.sin(2*f*math.pi*2)*math.sin((fa+0.25)*math.pi*2)*h/2)
     path = ctx.copy_path()
 
     # simulate wwp like gradient (apparently Cairo can't do this natively)

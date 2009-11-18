@@ -19,17 +19,6 @@ mainspr {
             crate3 = "107" //tool box
             crate3_fly = "offset_y:-12; 110"
             esel = "+repeat; 91"
-            banana_fly = "61"
-            holy_fly = "66"
-            grenade_fly = "60"
-            cluster_fly = "63"
-            clustershard = "64"
-            sallyshard = "67"
-            homing_inactive_fly = "69"
-            molotov_fly = "65"
-            sheepstrike_fly = "71"
-            carpet_fly = "72"
-            sheepstrike_burning_fly = "73"
             meteor_fly = "75"
             mbbomb_fly = "80"
             letterbomb1_fly = "81"
@@ -68,6 +57,20 @@ mainspr {
             cloud3 = "628"
             suddendeath_debris = "115"
 
+            {
+                _params = "p1/rot360inv"
+                banana_fly = "61"
+                holy_fly = "66"
+                grenade_fly = "60"
+                cluster_fly = "63"
+                clustershard = "64"
+                sallyshard = "67"
+                homing_inactive_fly = "69"
+                molotov_fly = "65"
+                sheepstrike_fly = "71"
+                carpet_fly = "72"
+                sheepstrike_burning_fly = "73"
+            }
             {
                 _flags = "f:13"
                 expl_foom = "606"
@@ -176,7 +179,7 @@ mainspr {
         }
         //same as above, but now with a 3rd axis for team colors
         {
-            _params = "p1/rot360inv,time,p3/direct"
+            _params = "p1/rot360_90,time,p3/direct"
             _flags = "+repeat"
 
             mine = "50 | 51 | 52 | 53 | 54 | 55 | 56"

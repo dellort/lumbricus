@@ -27,6 +27,7 @@ static this() {
     gAnimationParamConverters["twosided_inv"] = &paramConvertTwosidedInv;
     gAnimationParamConverters["rot360"] = &paramConvertFreeRot;
     gAnimationParamConverters["rot360inv"] = &paramConvertFreeRotInv;
+    gAnimationParamConverters["rot360_90"] = &paramConvertFreeRotPlus90;
     gAnimationParamConverters["rot180"] = &paramConvertFreeRot180;
     gAnimationParamConverters["rot180_2"] = &paramConvertFreeRot180_2;
     gAnimationParamConverters["rot90"] = &paramConvertFreeRot90;
@@ -96,6 +97,11 @@ private int paramConvertFreeRot(int angle, int count) {
 private int paramConvertFreeRotInv(int angle, int count) {
     return map(-(-angle+270), 360.0f, count);
 }
+
+private int paramConvertFreeRotPlus90(int angle, int count) {
+    return map(angle, 360.0f, count);
+}
+
 //180 degrees, -90 (down) to +90 (up)
 //(overflows, used for weapons, it's hardcoded that it can use 180 degrees only)
 private int paramConvertFreeRot180(int angle, int count) {

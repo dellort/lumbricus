@@ -12,6 +12,8 @@
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
     (+ "level editor" töten)
 - weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
+- superschaf: self force statt thrust
+- heilige handgranate: rotationswinkel wird beim kleben geändert
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
