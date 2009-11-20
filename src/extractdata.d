@@ -9,7 +9,7 @@ import tango.io.vfs.ZipFolder : ZipFolder;
 import tango.io.compress.Zip : ZipBlockWriter, ZipEntryInfo, createArchive, Method;
 import tango.io.vfs.FileFolder;
 import tango.io.stream.Text;
-debug import tango.core.stacktrace.TraceExceptions;
+debug import tango.core.tools.TraceExceptions;
 import stream = utils.stream;
 import utils.stream;
 import str = utils.string;

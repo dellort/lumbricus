@@ -1,6 +1,7 @@
 module physics.physobj;
 
 import tango.math.Math : PI, abs, isNaN;
+import tango.math.IEEE : copysign;
 import utils.list2;
 import utils.vector2;
 import utils.misc: min, max, myformat;
@@ -266,11 +267,6 @@ class PhysicObject : PhysicBase {
         return myformat("[{}: {} {}]", toHash(), pos, velocity);
     }
 
-    override void doDie() {
-        //oh oops
-        super.doDie();
-    }
-
     //set new position
     //  correction = true: small fixup of the position (i.e. collision handling)
     //  correction = false: violent reset of the position (i.e. beamers)
@@ -284,11 +280,12 @@ class PhysicObject : PhysicBase {
     }
 
     //move the object by this vector
-    //the object might modify the vector or so on its own (ropes do that)
     final void move(Vector2f delta) {
         mPos += delta;
         if (mPosp.rotation == RotateMode.distance) {
-            rotation += delta.length/200*2*PI;
+            //rotation direction depends from x direction (looks better)
+            auto dist = copysign(delta.length(), delta.x);
+            rotation += dist/200*2*PI;
         }
     }
 

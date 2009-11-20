@@ -20,7 +20,9 @@ function invoke_compiler
 {
     DMD_IS_BROKEN=+full
     # seriously
-    FUCK_D="-L-z -Lmuldefs"
+    #FUCK_D="-L-z -Lmuldefs"
+    # just joking, D is nice (as long as it works)
+    FUCK_D=""
     # libreadline and MDReadline is just for mdcl
     $CMD xfbuild +c$COMPILER $1.d +noop +xtango -unittest -debug -g -L-lz -L-ldl +o$BINDIR$1 +D.deps_$1 +O.objs_$1 $DMD_IS_BROKEN $FUCK_D -version=MDReadline -L-lreadline
 }

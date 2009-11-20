@@ -34,7 +34,7 @@ Version status for tools and libraries:
             (worked with lumbricus r876+1 and ldc 1578:1dee66f6ec0b)
         gdc: forget it
     tango:
-        svn r5088 (trunk): should work
+        svn r5178 (trunk): works
         release 0.99.8: will not work because not updated to newest dmd
     Derelict:
         http://svn.dsource.org/projects/derelict/trunk/

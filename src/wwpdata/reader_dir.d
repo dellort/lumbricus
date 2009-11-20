@@ -10,7 +10,7 @@ import utils.filetools;
 
 import tango.io.Stdout;
 import tango.io.FilePath;
-import tango.util.PathUtil;
+import tango.io.Path;
 
 import tango.io.model.IFile : FileConst;
 const pathsep = FileConst.PathSeparatorChar;

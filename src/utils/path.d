@@ -5,7 +5,7 @@ import tango.io.model.IFile : FileConst;
 import path = tango.io.Path;
 import tfs = tango.io.FileSystem;
 import tango.sys.Environment : Environment;
-import tango.util.PathUtil;
+import tango.io.Path;
 import tango.io.FilePath;
 
 char[] getFilePath(char[] fullname)

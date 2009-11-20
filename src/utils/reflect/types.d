@@ -12,7 +12,7 @@ import utils.misc;
 
 import tango.core.Traits : isAssocArrayType;
 //import memory = tango.core.Memory;
-debug import tango.core.stacktrace.StackTrace : nameOfFunctionAt;
+debug import tango.core.tools.StackTrace : nameOfFunctionAt;
 
 class Types {
     private {

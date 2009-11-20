@@ -78,8 +78,9 @@ class WormSprite : GObjectSprite {
         //cached movement, will be applied in simulate
         Vector2f mMoveVector;
 
-        //selected weapon
-        WeaponClass mWeapon;
+        //selected weapon; not necessarily the displayed one
+        WeaponClass mRequestedWeapon;
+
         //"code" for selected weapon, null for weapons which don't support it
         WeaponSelector mWeaponSelector;
         //active weapons
@@ -105,8 +106,8 @@ class WormSprite : GObjectSprite {
         RenderCrosshair mCrosshair;
 
         //that thing when you e.g. shoot a bazooka to set the fire strength
-        bool mThrowing;
-        Time mThrowingStarted;
+        bool mCharging;
+        Time mChargingStarted;
 
         Time mWeaponTimer;
 
@@ -121,7 +122,7 @@ class WormSprite : GObjectSprite {
     WormController wcontrol;
 
     override bool activity() {
-        return super.activity() || mThrowing
+        return super.activity() || mCharging
             || currentState == wsc.st_jump_start
             || currentState == wsc.st_beaming
             || currentState == wsc.st_reverse_beaming
@@ -137,13 +138,14 @@ class WormSprite : GObjectSprite {
     }
 
     private void updateWeaponAngle(float move) {
-        if (!mWeapon || !canReadjust())
+        WeaponClass wp = actualWeapon();
+        if (!wp || !canReadjust())
             return;
         float old = weaponAngle;
         //xxx why is worm movement a float anyway?
         int moveInt = (move>float.epsilon) ? 1 : (move<-float.epsilon ? -1 : 0);
         mFixedWeaponAngle = float.nan;
-        switch (mWeapon.fireMode.direction) {
+        switch (wp.fireMode.direction) {
             case ThrowDirection.fixed:
                 //no movement
                 mFixedWeaponAngle = 0;
@@ -155,7 +157,7 @@ class WormSprite : GObjectSprite {
                     mWeaponAngle += moveInt * engine.gameTime.difference.secsf
                         * PI/2;
                 }
-                if (mWeapon.fireMode.direction == ThrowDirection.limit90) {
+                if (wp.fireMode.direction == ThrowDirection.limit90) {
                     //limited to 90°
                     mWeaponAngle = clampRangeC(mWeaponAngle,
                         cast(float)-PI/4, cast(float)PI/4);
@@ -355,7 +357,7 @@ class WormSprite : GObjectSprite {
         graphic.selfForce = physics.selfForce;
 
         if (currentState is wsc.st_weapon) {
-            WeaponClass curW = shooting ? mShooterMain.weapon : mWeapon;
+            WeaponClass curW = actualWeapon();
             assert(!!curW);
 
             char[] w = curW.animation;
@@ -364,7 +366,8 @@ class WormSprite : GObjectSprite {
             if (w == "")
                 w = "-";
             graphic.weapon = w;
-            graphic.weapon_firing = shooting;
+            graphic.weapon_firing = firing();
+            //yyy turn into function
             mWeaponAsIcon = !graphic.weapon_ok;
         } else {
             graphic.weapon = "";
@@ -427,7 +430,8 @@ class WormSprite : GObjectSprite {
         //(given abs(weaponMove) == 1)
         updateWeaponAngle(weaponMove);
 
-        if (isStanding() && mWeapon) {
+        //fun fact: I have not the slightest clue what this code is doing
+        if (isStanding() && actualWeapon()) {
             if (mStandTime == Time.Never)
                 mStandTime = engine.gameTime.current;
             //worms are not standing, they are FIGHTING!
@@ -444,7 +448,7 @@ class WormSprite : GObjectSprite {
         }
         //xxx replace comparision by checking against the time, with a small
         //  delay before actually shooting (like wwp does)
-        if (mThrowing && strength == 1.0f)
+        if (mCharging && strength == 1.0f)
             fire(true);
 
         //if shooter dies, undraw weapon
@@ -467,7 +471,7 @@ class WormSprite : GObjectSprite {
     }
 
     private bool wormCanWalkJump() {
-        return currentState.canWalk && !mThrowing
+        return currentState.canWalk && !mCharging
             //no walk while shooting (or charging)
             && (!mShooterMain || !mShooterMain.isFixed);
     }
@@ -483,9 +487,9 @@ class WormSprite : GObjectSprite {
     }
 
     //if worm is firing
-    bool shooting() {
+    final bool firing() {
         //xxx: I'm not sure about the secondary shooter
-        return mShooterMain && mShooterMain.activity;
+        return !!mShooterMain;// && mShooterMain.activity;
     }
 
     //"careful" common code for unselecting a weapon
@@ -494,20 +498,33 @@ class WormSprite : GObjectSprite {
             mWeaponSelector.isSelected = false;
             mWeaponSelector = null;
         }
-        mWeapon = null;
+        mCharging = false;
+        //yyy
+        //mRequestedWeapon = null;
         //I don't know if mWeaponTimer should be changed or what
     }
 
     //xxx: clearify relationship between shooter and so on
     void weapon(WeaponClass w) {
-        if (w && w is mWeapon)
+        if (w && w is mRequestedWeapon)
             return;
-        auto oldweapon = mWeapon;
+        auto oldweapon = actualWeapon();
+        mRequestedWeapon = w;
+        update_actual_weapon(oldweapon);
+    }
+
+    //by definition called when the return value of actualWeapon() will change
+    //oldweapon is the previous value of actualWeapon()
+    private void update_actual_weapon(WeaponClass oldweapon) {
+        WeaponClass w = actualWeapon();
+
+        if (w is oldweapon)
+            return;
+
         weapon_unselect();
-        mWeapon = w;
-        mThrowing = false;
+
         if (w) {
-            mWeaponSelector = mWeapon.createSelector(this);
+            mWeaponSelector = w.createSelector(this);
             if (currentState is wsc.st_stand)
                 setState(wsc.st_weapon);
             if (mWeaponTimer == Time.Null)
@@ -515,30 +532,44 @@ class WormSprite : GObjectSprite {
                 mWeaponTimer = (w.fireMode.timerFrom+w.fireMode.timerTo)/2;
             updateCrosshair();
             //replay the cross-moves-out animation
-            if (mCrosshair && mWeapon !is oldweapon && !shooting) {
+            if (mCrosshair && w !is oldweapon && !firing) {
                 mCrosshair.reset();
             }
         } else {
             mWeaponTimer = Time.Null;
-            if (!shooting) {
+            if (!firing) {
                 if (currentState is wsc.st_weapon)
                     setState(wsc.st_stand);
             }
         }
     }
-    WeaponClass weapon() {
-        return mWeapon;
+
+    //the weapon that is selected or being fired
+    //this is the weapon that is displayed (either with the worm in stand state,
+    //  or firing the weapon; also the weapon returned here doesn't have to be
+    //  visible; e.g. if the worm is walking around or anything else)
+    final WeaponClass actualWeapon() {
+        return firing ? mShooterMain.weapon : mRequestedWeapon;
     }
+
+    //weapon requested by the last select weapon command
+    //example: user fires minigun, and during firing selects another weapon;
+    //  then actualWeapon==minigun, requestedWeapon==otherweapon
+    //  when firing finishes, actualWeapon==requestedWeapon==otherweapon
+    final WeaponClass requestedWeapon() {
+        return mRequestedWeapon;
+    }
+
     //returns the weapon that would activate/refire when pressing space
-    WeaponClass firedWeapon(bool refire = false) {
+    WeaponClass wouldFire(bool refire = false) {
         if (mShooterSec && mShooterSec.activity && refire)
             return mShooterSec.weapon;
         if (allowFireSecondary())
-            return mWeapon;
+            return requestedWeapon;
         if (mShooterMain && mShooterMain.activity && refire)
             return mShooterMain.weapon;
         if (currentState.canFire)
-            return mWeapon;
+            return requestedWeapon;
         return null;
     }
 
@@ -549,9 +580,11 @@ class WormSprite : GObjectSprite {
         return null;
     }
 
-    //fire (or refire) the selected weapon (mWeapon)
+    //fire (or refire) the selected weapon
     //returns if firing could be started
     bool fire(bool keyUp = false, bool selectedOnly = false) {
+        auto wp = requestedWeapon();
+
         //1. Try to refire currently active secondary weapon
         if (mShooterSec && mShooterSec.activity) {
             //think of firing a supersheep on a rope
@@ -564,11 +597,11 @@ class WormSprite : GObjectSprite {
         if (allowFireSecondary()) {
             //secondary fire is possible, so do that instead
             //  (main weapon could only be refired here)
-            if (keyUp || !mWeapon)
+            if (keyUp || !wp)
                 return false;
 
             //no variable strength here, fixed angle
-            return fireWeapon(mShooterSec, mWeapon.fireMode.throwStrengthFrom,
+            return fireWeapon(mShooterSec, wp.fireMode.throwStrengthFrom,
                 true);
         }
 
@@ -577,7 +610,7 @@ class WormSprite : GObjectSprite {
             //this is ONLY for the "selectandfire" command, e.g. it would
             //  be quite annoying to accidentally blow a sally army when
             //  pressing J
-            if (selectedOnly && mWeapon && mShooterMain.weapon !is mWeapon)
+            if (selectedOnly && wp && mShooterMain.weapon !is wp)
                 return true;
             //don't refire jetpack/rope on space (you would accidentally
             //  disable it when running out of ammo)
@@ -590,7 +623,7 @@ class WormSprite : GObjectSprite {
         }
 
         //4. Try to fire selected weapon as main weapon
-        if (!mWeapon)
+        if (!wp)
             return false;
         //check if in wrong state, like flying around
         if (!currentState.canFire)
@@ -601,24 +634,24 @@ class WormSprite : GObjectSprite {
 
         if (!keyUp) {
             //start firing
-            if (mWeapon.fireMode.variableThrowStrength) {
-                //charge strength
-                mThrowing = true;
-                mThrowingStarted = engine.gameTime.current;
+            if (wp.fireMode.variableThrowStrength) {
+                //fire strength
+                mCharging = true;
+                mChargingStarted = engine.gameTime.current;
                 //xxx: not sure how to deal with firing success etc.
                 return true;
             } else {
                 //fire instantly with default strength
                 return fireWeapon(mShooterMain,
-                    mWeapon.fireMode.throwStrengthFrom);
+                    wp.fireMode.throwStrengthFrom);
             }
         } else {
             //fire key released, really fire variable-strength weapon
-            if (!mThrowing)
+            if (!mCharging)
                 return false;
             auto strength = currentFireStrength();
-            mThrowing = false;
-            auto fm = mWeapon.fireMode;
+            mCharging = false;
+            auto fm = wp.fireMode;
             return fireWeapon(mShooterMain, fm.throwStrengthFrom + strength
                 * (fm.throwStrengthTo-fm.throwStrengthFrom));
         }
@@ -647,10 +680,10 @@ class WormSprite : GObjectSprite {
     bool allowFireSecondary() {
         //main shooter is active and shooter's weapon allows secondary weapons
         //also, can't fire a weapon allowing secondary weapons (jetpack) here
-        //note that possibly mShooterMain.weapon != mWeapon
+        //note that possibly mShooterMain.weapon != mRequestedWeapon
         return mShooterMain && mShooterMain.activity()
             && mShooterMain.weapon.allowSecondary
-            && mWeapon && !mWeapon.allowSecondary;
+            && mRequestedWeapon && !mRequestedWeapon.allowSecondary;
     }
 
     void setWeaponTimer(Time t) {
@@ -660,9 +693,9 @@ class WormSprite : GObjectSprite {
 
     //return the fire strength value, always between 0.0 and 1.0
     private float currentFireStrength() {
-        if (!mThrowing) //what??
+        if (!mCharging)
             return 0;
-        auto diff = engine.gameTime.current - mThrowingStarted;
+        auto diff = engine.gameTime.current - mChargingStarted;
         float s = cast(double)diff.msecs / cWeaponLoadTime.msecs;
         return clampRangeC(s, 0.0f, 1.0f);
     }
@@ -683,19 +716,22 @@ class WormSprite : GObjectSprite {
         return true;
     }
 
-    //fire currently selected weapon (mWeapon) as main weapon
+    //fire currently selected weapon (mRequestedWeapon) as main weapon
     //will also create the shooter if necessary
     private bool fireWeapon(ref Shooter sh, float strength,
         bool fixedDir = false)
     {
-        if (!mWeapon)
+        if (!mRequestedWeapon)
             return false;
-        if (!sh || sh.weapon != mWeapon) {
-            sh = mWeapon.createShooter(this, engine);
+        //xxx shooter is removed when the weapon is inactive?
+        if (!sh || sh.weapon != mRequestedWeapon) {
+            auto oldweapon = actualWeapon();
+            sh = mRequestedWeapon.createShooter(this, engine);
             sh.selector = mWeaponSelector;
+            update_actual_weapon(oldweapon);
         }
 
-        log("fire: {}", mWeapon.name);
+        log("fire: {}", mRequestedWeapon.name);
 
         FireInfo info;
         if (fixedDir)
@@ -715,8 +751,8 @@ class WormSprite : GObjectSprite {
                 info.dir = fDir/s;
             }
         }
-        info.timer = clampRangeC(mWeaponTimer, mWeapon.fireMode.timerFrom,
-            mWeapon.fireMode.timerTo);
+        info.timer = clampRangeC(mWeaponTimer, sh.weapon.fireMode.timerFrom,
+            sh.weapon.fireMode.timerTo);
         if (wcontrol)
             info.pointto = wcontrol.getTarget;
         else
@@ -762,15 +798,21 @@ class WormSprite : GObjectSprite {
     }
 
     private void shooterFinish(Shooter sh) {
-        if (!mWeapon) {
+        auto oldweapon = actualWeapon();
+
+        /+ never happens?
+        if (!mRequestedWeapon) {
             //check for delayed state change weapon->stand because
             //main weapon was unset
             //xxx is this case even possible?
             if (!mShooterMain || !mShooterMain.activity) {
-                if (currentState is wsc.st_weapon)
+                if (currentState is wsc.st_weapon) {
                     setState(wsc.st_stand);
+                }
             }
         }
+        +/
+
         if (wcontrol)
             wcontrol.doneFiring(sh);
         if (sh is mShooterMain)
@@ -784,6 +826,8 @@ class WormSprite : GObjectSprite {
         //shooter is done, so check if we need to switch animation
         //---setCurrentAnimation();
         //---updateCrosshair();
+
+        update_actual_weapon(oldweapon);
     }
 
     private void updateCrosshair() {
@@ -793,9 +837,10 @@ class WormSprite : GObjectSprite {
         //create/destroy the target cross
         bool exists = !!mCrosshair;
         bool shouldexist = false;
-        if (currentState.canAim && mWeapon) {
+        WeaponClass wp = actualWeapon();
+        if (currentState.canAim && wp) {
             //xxx special cases not handled, just turns on/off crosshair
-            shouldexist = mWeapon.fireMode.direction != ThrowDirection.fixed &&
+            shouldexist = wp.fireMode.direction != ThrowDirection.fixed &&
                 !allowAlternate();
         }
         if (exists != shouldexist) {
@@ -810,7 +855,7 @@ class WormSprite : GObjectSprite {
     }
 
     bool delayedAction() {
-        bool ac = mThrowing;
+        bool ac = mCharging;
         if (mShooterMain)
             ac |= mShooterMain.delayedAction;
         if (mShooterSec)
@@ -875,7 +920,7 @@ class WormSprite : GObjectSprite {
             physics.setWalking(Vector2f(0));
         }
         if (!currentState.canFire) {
-            mThrowing = false;
+            mCharging = false;
         }
     }
 
@@ -966,8 +1011,9 @@ class WormSprite : GObjectSprite {
         setState(activate ? wsc.st_parachute : wsc.st_stand);
     }
     private bool hasParachute() {
+        WeaponClass wp = actualWeapon();
         //xxx wow, that's an ugly hack... but who cares
-        return mWeapon && mWeapon.name == "parachute";
+        return wp && wp.name == "parachute";
     }
 
     bool isStanding() {

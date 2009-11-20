@@ -333,7 +333,7 @@ class WormControl : WormController {
             if (keyDown) {
                 mWorm.fireAlternate();
             }
-        } else if (mWorm.firedWeapon(false) is wc) {
+        } else if (mWorm.wouldFire(false) is wc) {
             if (keyDown)
                 doFireDown(true);
             else
@@ -356,7 +356,7 @@ class WormControl : WormController {
                 //background weapon if possible (like jetpack)
                 success = mWorm.fireAlternate();
             } else if (checkPointMode()
-                && !mWeaponSet.coolingDown(mWorm.firedWeapon))
+                && !mWeaponSet.coolingDown(mWorm.wouldFire))
             {
                 success = mWorm.fire(false, forceSelected);
             }
@@ -397,7 +397,7 @@ class WormControl : WormController {
             //worms-like: alternate-fire button (return) fires selected
             //weapon if in secondary mode
             if (mWorm.allowFireSecondary() && checkPointMode()
-                && !mWeaponSet.coolingDown(mWorm.firedWeapon))
+                && !mWeaponSet.coolingDown(mWorm.wouldFire))
             {
                 success = mWorm.fire();
             }
@@ -435,7 +435,7 @@ class WormControl : WormController {
     void doneFiring(Shooter sh) {
         if (!sh.weapon.dontEndRound)
             mWeaponUsed = true;
-        if (sh.weapon.deselectAfterFire && mWorm.weapon is sh.weapon)
+        if (sh.weapon.deselectAfterFire && mWorm.requestedWeapon is sh.weapon)
             selectWeapon(null);
     }
 
@@ -521,8 +521,8 @@ class WormControl : WormController {
         if (!mEngaged)
             return;
 
-        if (mWorm.firedWeapon !is mWormLastWeapon) {
-            mWormLastWeapon = mWorm.firedWeapon;
+        if (mWorm.wouldFire !is mWormLastWeapon) {
+            mWormLastWeapon = mWorm.wouldFire;
             if (mWormLastWeapon) {
                 setPointMode(mWormLastWeapon.fireMode.point);
             } else {

@@ -2,7 +2,6 @@ module framework.filesystem;
 
 import str = utils.string;
 import utils.stream;
-import tango.util.PathUtil;
 import tpath = tango.io.Path;
 import tango.core.Exception : IOException;
 import tango.text.Regex;  //for filename cleanup
@@ -173,7 +172,7 @@ private class HandlerDirectory : HandlerInstance {
                 //add trailing '/' for directories
                 char[] fn = vfn.get(false, de.folder);
                 //match search pattern
-                if (patternMatch(fn, pattern)) {
+                if (tpath.patternMatch(fn, pattern)) {
                     if (!callback(fn))
                         return false;
                 }
@@ -298,7 +297,7 @@ private class HandlerTangoVfs : HandlerInstance {
         if (findDir) {
             //direct subfolders
             foreach (subf; fld) {
-                if (patternMatch(subf.name, pattern)) {
+                if (tpath.patternMatch(subf.name, pattern)) {
                     if (!callback(subf.name ~ "/"))
                         return false;
                 }
@@ -377,7 +376,7 @@ private class HandlerTar : HandlerInstance {
                 if (rel.parent.isEmpty) {
                     //entry is a file in the directory
                     char[] filen = rel.get(false);
-                    if (!patternMatch(filen, pattern))
+                    if (!tpath.patternMatch(filen, pattern))
                         continue;
                     if (!callback(filen))
                         return false;
@@ -385,7 +384,7 @@ private class HandlerTar : HandlerInstance {
                     //entry is a file in a direct subdirectory
                     if (findDir) {
                         char[] dirn = rel.parent.get(false);
-                        if (!patternMatch(dirn, pattern))
+                        if (!tpath.patternMatch(dirn, pattern))
                             continue;
                         if (!(dirn in dirCache)) {
                             dirCache[dirn] = true;

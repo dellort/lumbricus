@@ -1,7 +1,7 @@
 module lumbricus;
 
 //enable tango backtracing (on exceptions)
-debug import tango.core.stacktrace.TraceExceptions;
+debug import tango.core.tools.TraceExceptions;
 
 //version = Emerald;
 version(Emerald) {

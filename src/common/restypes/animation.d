@@ -269,9 +269,7 @@ abstract class AnimationSimple : Animation {
         eff.center = frame.size / 2;
         if (mRotateHack) {
             float f = 1.0f * relFrameTimeMs(t, lengthMS, true) / lengthMS;
-            //the reverse direction ("-") is for blackhole bomb (looks better)
-            //if it is dehacked, it needs a parameter converter
-            eff.rotate = - f * math.PI * 2;
+            eff.rotate = f * math.PI * 2;
         }
         if (mRotateHack2) {
             eff.rotate = p.p1 / 180.0f * math.PI;

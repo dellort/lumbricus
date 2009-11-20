@@ -5,7 +5,7 @@ import tango.io.Stdout;
 import tango.util.Convert;
 //xxx dsss bug? linker errors about ConversionException on win32 without
 //    this import (not needed otherwise)
-import tango.util.PathUtil;
+import tango.io.Path;
 
 import aconv.atlaspacker;
 import devil.image;
