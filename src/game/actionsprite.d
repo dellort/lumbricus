@@ -2,10 +2,8 @@ module game.actionsprite;
 
 import framework.framework;
 import game.gobject;
-import game.animation;
 import game.game;
 import game.gfxset;
-import game.gamepublic;
 import game.sequence;
 import game.action.base;
 import game.action.wcontext;

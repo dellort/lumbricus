@@ -7,7 +7,6 @@ module game.action.spriteactions;
 ///(note that it works the other way round)
 
 import framework.framework;
-import game.animation;
 import physics.world;
 import game.action.base;
 import game.action.wcontext;
@@ -18,7 +17,6 @@ import game.gobject;
 import game.sprite;
 import game.sequence;
 import game.wcontrol;
-import game.gamepublic;
 import game.temp;
 import utils.misc;
 import utils.vector2;

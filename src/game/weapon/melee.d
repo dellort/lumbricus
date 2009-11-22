@@ -6,7 +6,6 @@ import physics.world;
 import game.action.base;
 import game.sprite;
 import game.weapon.weapon;
-import game.gamepublic;
 import game.gfxset;
 import game.weapon.actionweapon;
 import tango.math.Math: PI;

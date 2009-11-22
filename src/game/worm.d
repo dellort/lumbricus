@@ -1,17 +1,17 @@
 module game.worm;
 
+import common.animation;
 import framework.framework;
 import game.gobject;
-import game.animation;
 import physics.world;
 import game.game;
 import game.gfxset;
 import game.sequence;
 import game.sprite;
+import game.temp : GameZOrder;
 import game.weapon.types;
 import game.weapon.weapon;
-import game.temp;  //whatever, importing gamepublic doesn't give me JumpMode
-import game.gamepublic;
+import game.temp : JumpMode;
 import game.particles;
 import utils.misc;
 import utils.vector2;

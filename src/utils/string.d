@@ -287,6 +287,17 @@ char[][] ctfe_split(char[] s, char sep) {
     return ps;
 }
 
+char[] ctfe_itoa(int i) {
+    char[] res;
+    bool neg = i < 0;
+    i = neg ? -i : i;
+    do {
+        res = "0123456789"[i % 10] ~ res;
+        i = i/10;
+    } while (i > 0);
+    return (neg ? "-" : "") ~ res;
+}
+
 
 /// Return the index of the character following the character at "index"
 int charNext(char[] s, int index) {

@@ -18,7 +18,7 @@ import utils.factory;
 import str = utils.string;
 
 import tango.core.Traits : ParameterTupleOf;
-import tango.stdc.constants.constSupport : ctfe_i2a;
+
 
 //I see a pattern...
 //NOTE: char[] is a unique name, which is used for serialization only
@@ -244,7 +244,7 @@ class MyActionClass(alias Func, char[] args) : ActionClass {
                 if (is(x == Time))
                     tstr = "RandomValue!(Time)";
             }
-            ret ~= tstr ~ " param" ~ ctfe_i2a(i) ~ ";\n";
+            ret ~= tstr ~ " param" ~ str.ctfe_itoa(i) ~ ";\n";
         }
         return ret;
     }

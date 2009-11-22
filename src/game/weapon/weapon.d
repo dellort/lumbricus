@@ -1,7 +1,6 @@
 module game.weapon.weapon;
 
 import game.gobject;
-import game.animation;
 import framework.framework;
 import common.resset;
 import physics.world;
@@ -20,7 +19,6 @@ import utils.log;
 
 import tango.util.Convert : to;
 
-import game.gamepublic;
 
 alias StaticFactory!("WeaponClasses", WeaponClass, GfxSet, ConfigNode)
     WeaponClassFactory;

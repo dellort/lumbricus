@@ -7,7 +7,7 @@ import framework.framework;
 import framework.i18n;
 import game.gameshell;
 import game.gametask;
-import game.gamepublic;
+import game.glue;
 import game.setup;
 import game.gui.setup_local;
 import game.gui.gamesummary;

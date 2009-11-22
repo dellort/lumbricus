@@ -1,15 +1,14 @@
 module game.crate;
 
 import game.gobject;
-import game.animation;
 import physics.world;
 import game.game;
 import game.gfxset;
-import game.gamepublic;
 import game.controller;
 import game.sequence;
 import game.weapon.weapon;
 import game.sprite;
+import game.text;
 import game.actionsprite;
 import game.action.base;
 import game.weapon.actionweapon;

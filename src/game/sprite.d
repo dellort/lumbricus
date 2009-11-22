@@ -2,10 +2,9 @@ module game.sprite;
 
 import framework.framework;
 import game.gobject;
-import game.animation;
 import game.game;
-import game.gamepublic;
 import game.sequence;
+import game.temp : GameZOrder;
 import game.gfxset;
 import game.particles;
 import net.marshal : Hasher;

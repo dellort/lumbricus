@@ -25,7 +25,6 @@ import game.hud.powerups;
 import game.hud.replaytimer;
 import game.hud.network;
 import game.clientengine;
-import game.gamepublic;
 import game.game;
 import game.weapon.weapon;
 import game.weapon.types;

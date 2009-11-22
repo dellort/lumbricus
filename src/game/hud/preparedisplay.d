@@ -3,7 +3,6 @@ module game.hud.preparedisplay;
 import framework.framework;
 import framework.i18n;
 import game.hud.teaminfo;
-import game.gamepublic;
 import game.gamemodes.turnbased_shared;
 import gui.container;
 import gui.label;

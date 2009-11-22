@@ -105,12 +105,14 @@ public class Translator {
         createdTranslators.add(this);
     }
 
+    /+
     ~this() {
         if (mParent)
             mParent.mChildren.remove(this, true);
         else
             createdTranslators.remove(this, true);
     }
+    +/
 
     private void reinit(char[] localePath = null) {
         ConfigNode node;

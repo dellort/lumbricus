@@ -2,10 +2,9 @@ module game.water;
 
 import framework.framework;
 import game.clientengine;
-import game.gamepublic;
-import game.glevel;
-import game.animation;
+import game.temp : GameZOrder;
 import game.particles;
+import common.animation;
 import common.scene;
 import utils.misc;
 import utils.time;

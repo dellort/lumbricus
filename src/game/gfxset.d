@@ -15,7 +15,7 @@ import utils.serialize;
 import physics.collisionmap;
 import physics.world;
 import game.sequence;
-import game.gamepublic; //:GameConfig
+import game.setup;
 import game.sprite;
 import game.weapon.weapon;
 

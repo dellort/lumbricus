@@ -3,7 +3,6 @@ module game.hud.replaytimer;
 import framework.framework;
 import framework.i18n;
 import game.hud.teaminfo;
-import game.gamepublic;
 import gui.boxcontainer;
 import gui.label;
 import gui.widget;

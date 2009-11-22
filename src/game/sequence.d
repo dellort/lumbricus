@@ -16,9 +16,9 @@ import utils.randval;
 import utils.serialize;
 import utils.vector2;
 
-import game.gamepublic;
 import game.game;
 import game.gfxset;
+import game.text;
 
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;

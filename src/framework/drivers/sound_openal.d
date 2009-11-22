@@ -1,7 +1,6 @@
 module framework.drivers.sound_openal;
 
 import derelict.openal.al;
-import derelict.openal.alut;
 import derelict.sdl.sdl;
 import derelict.sdl.sound;
 import derelict.util.exception;
@@ -18,11 +17,6 @@ import utils.configfile;
 import utils.path;
 import utils.log;
 
-
-private void throwALUTError(char[] msg) {
-    throw new Exception(msg ~ " failed: "~fromStringz(
-        alutGetErrorString(alutGetError())));
-}
 
 private void checkALError(char[] msg) {
     int code = alGetError();
@@ -408,6 +402,8 @@ class ALSoundDriver : SoundDriver {
     package {
         ALSound[] mSounds;
         ALChannel[] mChannels;
+        ALCcontext* mALContext;
+        ALCdevice* mALDevice;
     }
 
     const cDefaultChannelCount = 20;
@@ -419,17 +415,23 @@ class ALSoundDriver : SoundDriver {
         gBase = this;
 
         DerelictAL.load();
-        DerelictALUT.load();
+
+        //xxx could use some better error handling
+
+        //how it is done in freealut-1.1.0
+        mALDevice = alcOpenDevice(null);
+        if (!mALDevice)
+            throw new FrameworkException("could not open OpenAL device");
+        mALContext = alcCreateContext(mALDevice, null);
+        if (!mALContext)
+            throw new FrameworkException("could not create OpenAL context");
+        alcMakeContextCurrent(mALContext);
 
         sdlInit();
         Derelict_SetMissingProcCallback(&missingProcSDLsound);
         DerelictSDLSound.load();
         Derelict_SetMissingProcCallback(null);
         Sound_Init();
-
-        if (alutInit(null, null) == AL_FALSE) {
-            throwALUTError("alutInit");
-        }
 
         mChannels.length = config.getIntValue("channels", cDefaultChannelCount);
         foreach (ref c; mChannels) {
@@ -480,11 +482,14 @@ class ALSoundDriver : SoundDriver {
             c.close();
         }
         gBase = null;
-        alutExit();
         Sound_Quit();
         DerelictSDLSound.unload();
         sdlQuit();
-        DerelictALUT.unload();
+
+        alcMakeContextCurrent(null);
+        alcDestroyContext(mALContext);
+        alcCloseDevice(mALDevice);
+
         DerelictAL.unload();
         gLog("unloaded OpenAL");
     }

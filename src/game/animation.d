@@ -1,17 +1,6 @@
 module game.animation;
 
-import common.scene;
-import common.common;
-import framework.framework;
-import common.resset;
-import common.restypes.bitmap;
-import common.restypes.animation;
-import utils.configfile;
 import utils.misc;
-import utils.array;
-import utils.perf;
-import utils.time;
-import utils.log;
 import utils.math;
 import math = tango.math.Math;
 

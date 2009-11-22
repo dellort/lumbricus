@@ -20,7 +20,7 @@ import utils.reflection;
 import utils.time;
 import utils.vector2;
 
-import game.gamepublic; //for ZOrder
+import game.temp : GameZOrder;
 
 /+
 //feedback WormControl -> WormSprite

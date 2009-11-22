@@ -10,7 +10,7 @@ import framework.timesource;
 import framework.commandline;
 
 import game.controller;
-import game.gamepublic;
+import game.glue;
 import game.game;
 import game.gfxset;
 import game.gobject;
@@ -18,6 +18,7 @@ import game.levelgen.generator;
 import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.renderer;
+import game.setup;
 import game.weapon.weapon;
 import net.marshal;
 

@@ -7,7 +7,6 @@ import common.visual;
 import framework.font;
 import framework.framework;
 import framework.timesource;
-import game.gamepublic;
 import game.gfxset;
 import game.clientengine;
 import game.controller;

@@ -4,7 +4,6 @@ module game.controller_events;
 //  place, so when developing a plugin, you know where to look for available
 //  events, instead of having to browse the whole code for declare() calls
 
-import game.gamepublic;
 import game.controller;
 import game.game;
 import game.gobject;

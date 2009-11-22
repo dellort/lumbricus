@@ -10,7 +10,7 @@ import game.gfxset;
 import game.gobject;
 import game.sprite;
 import game.sequence;
-import game.gamepublic;
+import game.text;
 import game.particles : ParticleType;
 import game.weapon.weapon;
 import tango.math.Math;

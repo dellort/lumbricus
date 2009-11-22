@@ -6,6 +6,9 @@
 
 # will kill this dumb and retarded script with all my might as soon as there's a dsss like frontend for xfbuild
 
+# the +q option for xfbuild needs this dmd patch:
+# http://d.puremagic.com/issues/show_bug.cgi?id=3541
+
 # replace with ldmd if you want to use ldc
 COMPILER=dmd
 #COMPILER=ldmd
@@ -24,7 +27,7 @@ function invoke_compiler
     # just joking, D is nice (as long as it works)
     FUCK_D=""
     # libreadline and MDReadline is just for mdcl
-    $CMD xfbuild +c$COMPILER $1.d +noop +xtango -unittest -debug -g -L-lz -L-ldl +o$BINDIR$1 +D.deps_$1 +O.objs_$1 $DMD_IS_BROKEN $FUCK_D -version=MDReadline -L-lreadline
+    $CMD xfbuild +c$COMPILER $1.d +noop +xtango -unittest -debug -g -L-lz -L-ldl +o$BINDIR$1 +D.deps_$1 +O.objs_$1 $DMD_IS_BROKEN $FUCK_D -version=MDReadline -L-lreadline +q
 }
 
 TARGETS="lumbricus extractdata test mdcl unworms animutil sdlimginfo"

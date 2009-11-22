@@ -34,23 +34,17 @@ Version status for tools and libraries:
             (worked with lumbricus r876+1 and ldc 1578:1dee66f6ec0b)
         gdc: forget it
     tango:
-        svn r5178 (trunk): works
+        svn r5192 (trunk): works
         release 0.99.8: will not work because not updated to newest dmd
     Derelict:
         http://svn.dsource.org/projects/derelict/trunk/
         svn r394: works
-        DerelictFT: ok
+            for DerelictUtil, DerelictFT, DerelictGL, DerelictGLU, DerelictSDL, DerelictAL
         Devil: I really don't know. Also, this library sucks.
             (problem is: svn forces you to use a filesystem layout, that doesn't work
              with the package structure; you need to copy all files from DerelictIL,
              DerelictILU, and DerelictILUT into the same directory.)
             Lumbricus expects it in derelict/devil or so.
-        DerelictGL: ok
-        DerelictGLU: ok
-        DerelictSDL: ok
-        DerelictAL: ok
-            (note that we have our own, unused-but-needed alut headers. what?)
-        DerelictUtil: ok
     NOTE: the corresponding C libs usually are stable, because they're written in C, and not in D (where each new compiler version might break everything, *sigh*)
 
 Building it...

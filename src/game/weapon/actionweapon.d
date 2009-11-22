@@ -1,7 +1,6 @@
 module game.weapon.actionweapon;
 
 import framework.framework;
-import game.animation;
 import physics.world;
 import game.action.base;
 import game.action.wcontext;

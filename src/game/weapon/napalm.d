@@ -1,7 +1,6 @@
 module game.weapon.napalm;
 
 import framework.framework;
-import game.animation;
 import game.actionsprite;
 import game.game;
 import game.gfxset;

@@ -5,11 +5,67 @@ module game.setup;
 
 import common.common;
 import framework.framework;
-import game.gamepublic;
 import game.levelgen.level;
 import game.levelgen.generator;
 import utils.configfile;
 import utils.misc;
+
+///Initial game configuration
+//xxx this sucks etc.
+class GameConfig {
+    Level level;
+    ConfigNode saved_level; //is level.saved
+    char[][] weaponsets;
+    ConfigNode teams;
+    ConfigNode weapons;
+    ConfigNode gamemode;
+    //objects which shall be created and placed into the level at initialization
+    //(doesn't include the worms, ???)
+    ConfigNode levelobjects;
+    //infos for the graphicset, current items:
+    // - config: string with the name of the gfx set, ".conf" will be appended
+    //   to get the config filename ("wwp" becomes "wwp.conf")
+    // - waterset: string with the name of the waterset (like "blue")
+    //probably should be changed etc., so don't blame me
+    ConfigNode gfx;
+    char[] randomSeed;
+    //contains subnode "access_map", which maps tag-names to team-ids
+    //the tag-name is passed as first arg to GameEngine.executeCmd(), see there
+    ConfigNode managment;
+
+    //state that survives multiple rounds, e.g. worm statistics and points
+    ConfigNode gamestate;
+
+    ConfigNode save() {
+        //xxx: not nice. but for now...
+        ConfigNode to = new ConfigNode();
+        to.addNode("level", saved_level.copy);
+        to.addNode("teams", teams.copy);
+        to.addNode("weapons", weapons.copy);
+        to.addNode("gamemode", gamemode.copy);
+        to.addNode("levelobjects", levelobjects.copy);
+        to.addNode("gfx", gfx.copy);
+        to.addNode("gamestate", gamestate.copy);
+        to.setValue!(char[][])("weaponsets", weaponsets);
+        to.setStringValue("random_seed", randomSeed);
+        to.addNode("managment", managment.copy);
+        return to;
+    }
+
+    void load(ConfigNode n) {
+        level = null;
+        saved_level = n.getSubNode("level");
+        teams = n.getSubNode("teams");
+        weapons = n.getSubNode("weapons");
+        gamemode = n.getSubNode("gamemode");
+        levelobjects = n.getSubNode("levelobjects");
+        gfx = n.getSubNode("gfx");
+        gamestate = n.getSubNode("gamestate");
+        weaponsets = n.getValue!(char[][])("weaponsets");
+        randomSeed = n["random_seed"];
+        managment = n.getSubNode("managment");
+    }
+}
 
 //xxx doesn't really belong here
 //not to be called by GameTask; instead, anyone who wants to start a game can

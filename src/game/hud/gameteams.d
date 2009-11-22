@@ -13,7 +13,6 @@ import gui.progress;
 import gui.tablecontainer;
 import gui.widget;
 import game.clientengine;
-import game.gamepublic;
 import game.hud.teaminfo;
 import utils.array;
 import utils.misc;

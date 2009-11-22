@@ -6,7 +6,7 @@ import utils.reflection;
 
 import framework.timesource;
 import game.actionsprite, game.controller, game.crate, game.game,
-    game.gamepublic, game.glevel, game.sprite, game.worm,
+    game.glevel, game.sprite, game.worm, game.text,
     game.weapon.actionweapon, game.weapon.projectile,
     game.weapon.ray, game.weapon.rope, game.weapon.weapon,
     game.weapon.napalm, game.weapon.melee, game.weapon.jetpack,

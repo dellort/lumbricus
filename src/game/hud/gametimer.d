@@ -5,7 +5,6 @@ import framework.font;
 import common.scene;
 import common.visual;
 import game.clientengine;
-import game.gamepublic;
 import game.hud.teaminfo;
 import game.gamemodes.turnbased_shared;
 import gui.container;

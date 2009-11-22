@@ -9,7 +9,6 @@ import game.gfxset;
 import game.sprite;
 import game.weapon.weapon;
 import game.worm;
-import game.gamepublic;
 import game.sequence;
 import physics.world;
 import utils.configfile;

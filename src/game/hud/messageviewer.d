@@ -6,7 +6,6 @@ import framework.i18n;
 import common.scene;
 import common.visual;
 import game.hud.teaminfo;
-import game.gamepublic;
 import game.controller_plugins;
 import gui.widget;
 import gui.label;

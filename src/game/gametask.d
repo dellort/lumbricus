@@ -17,20 +17,9 @@ import game.hud.teaminfo;
 import game.hud.gameview;
 import game.clientengine;
 import game.loader;
-import game.gamepublic;
 import game.gameshell;
-import game.sequence;
 import game.game;
-import game.controller;
-import game.gfxset;
-import game.sprite;
-import game.crate;
-import game.gobject;
 import game.setup;
-import game.levelgen.landscape;
-import game.levelgen.level;
-import game.levelgen.generator;
-import game.levelgen.renderer;
 //--> following 2 imports are not actually needed, but avoid linker errors
 //    on windows with game.gui.leveledit disabled in lumbricus.d
 import game.levelgen.placeobjects;
@@ -69,6 +58,7 @@ import utils.stream;
 import tango.io.device.File : File;
 
 //these imports register classes in a factory on module initialization
+import game.animation;
 import game.action.common;
 import game.action.list;
 import game.action.spawn;
