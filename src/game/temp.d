@@ -25,6 +25,7 @@ enum GameZOrder {
     Landscape,
     LevelWater,  //water before the level, but behind drowning objects
     Objects,
+    FrontObjects,
     Names,       //stuff drawn by gameview.d
     Crosshair,
     Effects, //whatw as that

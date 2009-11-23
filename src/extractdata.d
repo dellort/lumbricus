@@ -1,6 +1,5 @@
 module extractdata;
 
-import devil.image;
 import tango.io.FilePath;
 import tango.io.model.IFile : FileConst;
 import tango.util.Convert;
@@ -30,6 +29,7 @@ import wwptools.levelconverter;
 import wwptools.untile;
 import wwptools.unworms;
 import wwptools.animconv;
+import wwptools.image;
 
 void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     bool nolevelthemes)

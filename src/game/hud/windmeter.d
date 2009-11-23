@@ -4,7 +4,6 @@ import framework.framework;
 import common.common;
 import common.scene;
 import common.visual;
-import common.restypes.bitmap;
 import game.clientengine;
 import game.hud.teaminfo;
 import gui.widget;

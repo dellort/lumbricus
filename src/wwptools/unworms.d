@@ -1,6 +1,6 @@
 module wwptools.unworms;
 
-import devil.image;
+import wwptools.image;
 import utils.stream;
 import tango.io.Stdout;
 import wwpdata.reader;

@@ -3,7 +3,7 @@ module framework.drivers.draw_sdl;
 import derelict.sdl.sdl;
 import framework.framework;
 import framework.drivers.base_sdl;
-import framework.sdl.rotozoom;
+import framework.rotozoom;
 import framework.sdl.sdl;
 import utils.vector2;
 import utils.drawing;
@@ -247,25 +247,15 @@ final class SDLSurface : DriverSurface {
             //  remember about colorkey... maybe that was a bad idea)
             auto ckey = mData.colorkey.toRGBA32();
             ckey.a = 0;
-            uint ckey_val = ckey.uint_val;
 
             assert(!(mSurfaceRGBA32.flags & SDL_RLEACCEL));
             assert(mSurfaceRGBA32.format.BytesPerPixel == 4);
 
             for (int y = rc.p1.y; y < rc.p2.y; y++) {
-                int w = rc.size.x;
                 Color.RGBA32* pix = mData.data.ptr + mData.pitch*y + rc.p1.x;
-                uint* pix_dest = cast(uint*)(mSurfaceRGBA32.pixels +
+                auto pix_dest = cast(Color.RGBA32*)(mSurfaceRGBA32.pixels +
                     mSurfaceRGBA32.pitch*y) + rc.p1.x;
-                for (int x = 0; x < w; x++) {
-                    if (pixelIsTransparent(pix)) {
-                        *pix_dest = ckey_val;
-                    } else {
-                        *pix_dest = pix.uint_val;
-                    }
-                    pix++;
-                    pix_dest++;
-                }
+                SurfaceData.do_raw_copy_cc(ckey, rc.size.x, pix, pix_dest);
             }
         }
 
@@ -685,6 +675,7 @@ class SDLCanvas : Canvas {
             if (from.x > to.x)
                 swap(from.x, to.x);
             to.x++; //because the 2nd border is exclusive in drawFilledRect
+            color.a = 1.0f;
             drawFilledRect(from, to, color);
             return;
         }
@@ -693,6 +684,7 @@ class SDLCanvas : Canvas {
             if (from.y > to.y)
                 swap(from.y, to.y);
             to.y++;
+            color.a = 1.0f;
             drawFilledRect(from, to, color);
             return;
         }
@@ -764,7 +756,12 @@ class SDLCanvas : Canvas {
     public void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
         if (p1.x >= p2.x || p1.y >= p2.y)
             return;
-        int alpha = cast(ubyte)(color.a*255);
+        int alpha = Color.toByte(color.a);
+        if (!mDrawDriver.mHighQuality) {
+            //avoid alpha blending in low-quality
+            //instead, this equals to an alpha-test
+            alpha = alpha < cAlphaTestRef ? 0 : 255;
+        }
         if (alpha == 0)
             return;
         if (alpha != 255) {

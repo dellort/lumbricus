@@ -2,7 +2,7 @@ module wwpdata.common;
 
 import utils.stream;
 import wwpdata.decompression;
-import devil.image : RGBAColor;
+import wwptools.image : RGBAColor;
 
 struct WWPPalette {
     RGBAColor[] palEntries;

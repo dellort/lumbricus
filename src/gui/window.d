@@ -2,8 +2,6 @@ module gui.window;
 
 import common.common;
 import common.visual;
-import common.resources;
-import common.restypes.bitmap;
 import framework.event;
 import framework.framework;
 import gui.boxcontainer;

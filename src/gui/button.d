@@ -1,7 +1,6 @@
 module gui.button;
 
 import common.common;
-import common.restypes.bitmap;
 import framework.event;
 import framework.framework;
 import framework.font;

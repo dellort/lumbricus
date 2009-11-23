@@ -1,7 +1,7 @@
 module wwpdata.animation;
 
-import aconv.atlaspacker;
-import devil.image;
+import wwptools.atlaspacker;
+import wwptools.image;
 import utils.stream;
 import wwpdata.common;
 import utils.boxpacker;

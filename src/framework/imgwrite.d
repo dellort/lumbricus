@@ -2,10 +2,10 @@ module framework.imgwrite;
 
 import framework.framework;
 import utils.misc;
-import utils.gzip : GZWriter;
+import utils.gzip : GZWriter, ZLibCrc32;
 import net.marshal : Marshaller;
 
-import tango.io.digest.Crc32 : Crc32;
+//import tango.io.digest.Crc32 : Crc32;
 
 import utils.stream;
 
@@ -19,7 +19,7 @@ static this() {
 
 //libpng sucks, all is done manually
 private void writePNG(Surface img, Stream stream) {
-    auto chunk_crc = new Crc32();
+    auto chunk_crc = new ZLibCrc32(); //Crc32();
     bool chunk_writing;
     ulong chunk_start;
 
@@ -81,10 +81,10 @@ private void writePNG(Surface img, Stream stream) {
     ihdr.height = img.size.y;
 
     switch (img.transparency) {
-        case Transparency.None:
+        case Transparency.None, Transparency.Colorkey:
             ihdr.colour_type = 2; //"Truecolour"
             break;
-        case Transparency.Alpha, Transparency.Colorkey:
+        case Transparency.Alpha:
             ihdr.colour_type = 6; //"Truecolour with alpha"
             write_alpha = true;
             break;
@@ -94,7 +94,6 @@ private void writePNG(Surface img, Stream stream) {
 
     Marshaller(&marshw).write(ihdr);
 
-/+  xxx removed for simplicity
     if (img.transparency == Transparency.Colorkey) {
         //tRNS chunk defines (in this case) the "transparent colour"
 
@@ -106,7 +105,6 @@ private void writePNG(Surface img, Stream stream) {
         auto cc = img.colorkey().toRGBA32();
         Marshaller(&marshw).write(PNG_tRNS(cc.r, cc.g, cc.b));
     }
-+/
 
     //put in the image data
     startChunk("IDAT");
@@ -134,12 +132,20 @@ private void writePNG(Surface img, Stream stream) {
             }
         } else {
             //write only 3 color components; have to convert scanlines
+            bool conv_cc = img.transparency == Transparency.Colorkey;
             uint sx = img.size.x;
+            Color.RGBA32[] cckey = conv_cc ? new Color.RGBA32[sx] : null;
             ubyte[] converted = new ubyte[sx*3];
             for (uint y = 0; y < img.size.y; y++) {
                 filterType();
                 Color.RGBA32* data2 = data;
-                ubyte* pconv = &converted[0];
+                if (conv_cc) {
+                    //replace transparent by colorkey
+                    data2 = cckey.ptr;
+                    SurfaceData.do_raw_copy_cc(img.colorkey.toRGBA32, sx,
+                        data, data2);
+                }
+                ubyte* pconv = converted.ptr;
                 for (uint x = 0; x < sx; x++) {
                     pconv[0] = data2.r;
                     pconv[1] = data2.g;
@@ -151,6 +157,7 @@ private void writePNG(Surface img, Stream stream) {
                 data += pitch;
             }
             delete converted;
+            delete cckey;
         }
     } finally {
         img.unlockPixels(Rect2i.init);

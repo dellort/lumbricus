@@ -2,8 +2,6 @@ module gui.scrollbar;
 
 import common.common;
 import common.visual;
-import common.restypes.bitmap;
-import common.resources;
 import gui.button;
 import gui.container;
 import gui.widget;

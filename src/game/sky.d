@@ -1,7 +1,6 @@
 module game.sky;
 
 import framework.framework;
-import common.restypes.bitmap;
 import game.clientengine;
 import game.temp : GameZOrder;
 import game.levelgen.level : EnvironmentTheme;

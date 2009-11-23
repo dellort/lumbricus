@@ -30,7 +30,7 @@ import str = utils.string;
 import math = tango.math.Math;
 import cstdlib = tango.stdc.stdlib;
 
-import rotozoom = framework.sdl.rotozoom;
+import rotozoom = framework.rotozoom;
 
 //**** driver stuff
 
@@ -182,8 +182,8 @@ final class SurfaceData {
     //      used as actual colorkey to implement transparency
     //Warning: the actual transparency of a pixel in the pixel data is
     //      determined by the function pixelIsTransparent()
-    //the colorkey is only valid
-    Color colorkey = Color(1,0,1,0);
+    //the colorkey is only valid when transparency == Transparency.Colorkey
+    Color colorkey;
     //at least currently, the data always is in the format Color.RGBA32
     //if the transparency is colorkey, not-transparent pixels may be changed by
     //the backend (xxx: this is horrible)
@@ -323,12 +323,34 @@ final class SurfaceData {
         }
         delete tmp;
     }
+
+    //copy, and while doing this, convert alpha to colorkey
+    //src_ptr[0..w] = convert-transparent-to-colorkey(ckey, dst_ptr[0..w])
+    static void do_raw_copy_cc(Color.RGBA32 ckey, int w, Color.RGBA32* src_ptr,
+        Color.RGBA32* dst_ptr)
+    {
+        uint ckey_val = ckey.uint_val;
+        auto src_end = src_ptr + w;
+        uint* pix_dst = &dst_ptr.uint_val;
+        while (src_ptr < src_end) {
+            if (pixelIsTransparent(src_ptr)) {
+                *pix_dst = ckey_val;
+            } else {
+                *pix_dst = src_ptr.uint_val;
+            }
+            src_ptr++;
+            pix_dst++;
+        }
+    }
 }
+
+const int cAlphaTestRef = 128;
 
 //this function by definition returns if a pixel is considered transparent
 //dear compiler, you should always inline this
 bool pixelIsTransparent(Color.RGBA32* p) {
-    return p.a == 0;
+    //when comparision function is changed, check all code using cAlphaTestRef
+    return p.a < cAlphaTestRef;
 }
 
 //**** the Framework
@@ -339,7 +361,7 @@ package {
     struct SurfaceKillData {
         //this data is held for a while in a region not scanned by the GC
         //(why??? I forgot)
-        //but other references (at least gFramework.mSurfaceData) keep it alive
+        //but other references (at least gSurfaceData) keep it alive
         SurfaceData data;
 
         //this is called from the framework's main loop, so there's not any
@@ -348,13 +370,23 @@ package {
             if (data) {
                 data.kill_driver_surface();
                 data.pixels_free();
-                assert(data in gFramework.mSurfaceData);
-                gFramework.mSurfaceData.remove(data);
+                assert(data in gSurfaceData);
+                gSurfaceData.remove(data);
             }
             data = null;
         }
     }
     WeakList!(Surface, SurfaceKillData) gSurfaces;
+    //this is to prevent SurfaceData from GC'ed
+    bool[SurfaceData] gSurfaceData;
+
+    void init_stuff() {
+        if (gSurfaces)
+            return;
+        gSurfaces = new typeof(gSurfaces);
+        gFonts = new typeof(gFonts);
+        gSounds = new typeof(gSounds);
+    }
 }
 
 //base class for framework errors
@@ -386,7 +418,9 @@ class Surface {
     //actually, it doesn't make sense at all
     const cStdSize = Vector2i(512, 512);
 
-    this(Vector2i size, Transparency transparency, Color colorkey = Color(0)) {
+    this(Vector2i size, Transparency transparency,
+        Color colorkey = Color(1,0,1,0))
+    {
         mData = new SurfaceData();
 
         mData.size = size;
@@ -397,7 +431,8 @@ class Surface {
 
         readSurfaceProperties();
 
-        gFramework.mSurfaceData[mData] = true; //don't GC-collect data
+        init_stuff();
+        gSurfaceData[mData] = true; //don't GC-collect data
         gSurfaces.add(this);
 
         mFullSubSurface = createSubSurface(Rect2i(mData.size));
@@ -467,14 +502,14 @@ class Surface {
         gSurfaces.remove(this, finalizer, k);
     }
 
+    //xxx: Tango now provides an Object.dispose(), which could be useful here
+
     ~this() {
         doFree(true);
     }
 
     /// to avoid memory leaks
-    /// free_data = free even the surface struct and the pixel array
-    ///     (use with care)
-    final void free(bool free_data = false) {
+    final void free() {
         doFree(false);
     }
 
@@ -531,6 +566,13 @@ class Surface {
 
     final Transparency transparency() {
         return mData.transparency;
+    }
+
+    //if t==Transparency.Colorkey, you must also pass the colorkey
+    final void setTransparency(Transparency t, Color k = Color(0)) {
+        passivate();
+        mData.transparency = t;
+        mData.colorkey = k;
     }
 
     static bool isTransparent(void* raw) {
@@ -692,6 +734,16 @@ class Surface {
         return n;
     }
 
+    //mirror around x/y-axis
+    void mirror(bool x, bool y) {
+        Color.RGBA32* dummy1;
+        uint dummy2;
+        lockPixelsRGBA32(dummy1, dummy2);
+        if (x) mData.doMirrorX();
+        if (y) mData.doMirrorY();
+        unlockPixels(rect);
+    }
+
     //fmt is one of the formats registered in gImageFormats
     //import imgwrite.d to register "png", "tga" and "raw"
     void saveImage(Stream stream, char[] fmt = "png") {
@@ -770,8 +822,6 @@ class Framework {
         //holds the DriverSurfaces to prevent them being GC'ed
         //cf. i.e. createDriverSurface()
         bool[DriverSurface] mDriverSurfaces;
-        //and this is something similar
-        bool[SurfaceData] mSurfaceData;
 
         //misc singletons, lol
         FontManager mFontManager;
@@ -812,9 +862,7 @@ class Framework {
         }
         gFramework = this;
 
-        gSurfaces = new typeof(gSurfaces);
-        gFonts = new typeof(gFonts);
-        gSounds = new typeof(gSounds);
+        init_stuff();
 
         mKeyStateMap.length = Keycode.max - Keycode.min + 1;
 
@@ -826,21 +874,25 @@ class Framework {
 
     private void replaceDriver(ConfigNode config) {
         ConfigNode drivers = config.getSubNode("drivers");
-        if (!FrameworkDriverFactory.exists(drivers["base"])) {
+        auto base = drivers.getStringValue("base", "sdl");
+        auto draw = drivers.getStringValue("draw", "sdl");
+        auto font = drivers.getStringValue("font", "freetype");
+        auto sound = drivers.getStringValue("sound", "null");
+        if (!FrameworkDriverFactory.exists(base)) {
             throw new FrameworkException("Base driver doesn't exist: "
-                ~ drivers["base"]);
+                ~ base);
         }
-        if (!DrawDriverFactory.exists(drivers["draw"])) {
+        if (!DrawDriverFactory.exists(draw)) {
             throw new FrameworkException("Draw driver doesn't exist: "
-                ~ drivers["draw"]);
+                ~ draw);
         }
-        if (!FontDriverFactory.exists(drivers["font"])) {
+        if (!FontDriverFactory.exists(font)) {
             throw new FrameworkException("Font driver doesn't exist: "
-                ~ drivers["font"]);
+                ~ font);
         }
-        if (!SoundDriverFactory.exists(drivers["sound"])) {
+        if (!SoundDriverFactory.exists(sound)) {
             throw new FrameworkException("Sound driver doesn't exist: "
-                ~ drivers["sound"]);
+                ~ sound);
         }
         //deinit old driver
         VideoWindowState vstate;
@@ -851,17 +903,17 @@ class Framework {
             killDriver();
         }
         //new driver
-        mDriver = FrameworkDriverFactory.instantiate(drivers["base"], this,
-            config.getSubNode(drivers["base"]));
+        mDriver = FrameworkDriverFactory.instantiate(base, this,
+            config.getSubNode(base));
         //for graphics (pure SDL, OpenGL...)
-        mDrawDriver = DrawDriverFactory.instantiate(drivers["draw"],
-            config.getSubNode(drivers["draw"]));
+        mDrawDriver = DrawDriverFactory.instantiate(draw,
+            config.getSubNode(draw));
         //init font driver
-        mFontDriver = FontDriverFactory.instantiate(drivers["font"], mFontManager,
-            config.getSubNode(drivers["font"]));
+        mFontDriver = FontDriverFactory.instantiate(font, mFontManager,
+            config.getSubNode(font));
         //init sound
-        mSound.reinit(SoundDriverFactory.instantiate(drivers["sound"], mSound,
-            config.getSubNode(drivers["sound"])));
+        mSound.reinit(SoundDriverFactory.instantiate(sound, mSound,
+            config.getSubNode(sound)));
 
         mDriver.setVideoWindowState(vstate);
         mDriver.setInputState(istate);

@@ -1,6 +1,6 @@
 module wwpdata.reader_img;
 
-import devil.image;
+import wwptools.image;
 import utils.stream;
 import wwpdata.common;
 import wwpdata.reader;
@@ -45,8 +45,7 @@ Image readImgFile(Stream st) {
     RGBAColor[] rgbaData = pal.toRGBA(imgData);
 
     auto img = new Image(w, h);
-    //img.blitRGBData(rgbData.ptr, w, h, 0, 0, false);
-    img.blitRGBData(rgbaData, w, h, 0, 0);
+    img.blitRGBData(rgbaData, w, h);
 
     delete rgbaData;
     delete decomp;

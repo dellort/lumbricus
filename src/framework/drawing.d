@@ -298,6 +298,8 @@ public class Canvas {
         do_update_transform();
     }
 
+    //if no 3D engine is available, nothing is drawn
+    //if it is available is indicated by DriverFeatures.transformedQuads
     //NOTE: the quad parameter is already by ref (one of the most stupied Disms)
     public abstract void drawQuad(Surface tex, Vertex2f[4] quad);
 
@@ -379,6 +381,13 @@ public class Canvas {
             //xxx: requires OpenGL to wrap the texture coordinate, and the
             //     texture must have an OpenGL conform size for it to work
             int offset2 = offset + cast(int)(pnext-pos);
+
+            //the offset stuff was for making the textured line "continuous"
+            //  across edge points (that's why the user can pass an offset
+            //  value), but that required GL_REPEAT, and never worked anyway
+            //feel free to bring it back
+            offset = 0;
+            offset2 = s.x;
 
             auto pcur = p1f + ndir*pos;
             auto pcur2 = p1f + ndir*pnext;

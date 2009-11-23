@@ -1,6 +1,6 @@
-module aconv.atlaspacker;
+module wwptools.atlaspacker;
 
-import devil.image;
+import wwptools.image;
 import utils.stream;
 import wwpdata.common;
 import common.resfileformats : FileAtlas, FileAtlasTexture;

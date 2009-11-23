@@ -321,7 +321,7 @@ class ConduitStream : Stream {
         //both calls return the Conduit itself
         mInput = c.input();
         mOutput = c.output();
-        assert(cast(Object)mInput is cast(Object)mOutput);
+        assert(mInput.conduit is c && mOutput.conduit is c);
     }
 
     //comedy
@@ -332,25 +332,38 @@ class ConduitStream : Stream {
         mInput = i;
     }
 
-    //returns Conduit from constructor, or null if created with an InputStream
-    Conduit conduit() {
-        return cast(Conduit)mInput;
+    //more comedy
+    this(OutputStream o) {
+        assert(!!o);
+        mOutput = o;
+    }
+
+    //more and more comedy!
+    private IOStream whatever() {
+        //one of these can be null
+        IOStream a = mInput;
+        IOStream b = mOutput;
+        return a ? a : b;
+    }
+
+    //returns something (changed this after r953, I don't know what this is for)
+    IConduit conduit() {
+        return whatever.conduit;
     }
 
     ulong position() {
-        //???????
-        return mInput.seek(0, Conduit.Anchor.Current);
+        return whatever.seek(0, Conduit.Anchor.Current);
     }
     //I define that the actual position is only checked on read/write accesses
     // => IOException never thrown
     void position(ulong pos) {
-        mInput.seek(pos, Conduit.Anchor.Begin);
+        whatever.seek(pos, Conduit.Anchor.Begin);
     }
 
     ulong size() {
         //??????????????????????
         auto cur = position;
-        auto sz = mInput.seek(0, Conduit.Anchor.End);
+        auto sz = whatever.seek(0, Conduit.Anchor.End);
         position = cur;
         return sz;
     }
@@ -369,6 +382,8 @@ class ConduitStream : Stream {
     }
 
     size_t readPartial(ubyte[] data) {
+        if (!mInput)
+            ioerror("no write access");
         auto res = mInput.read(data);
         //????????
         if (data.length && res == 0)
@@ -380,7 +395,7 @@ class ConduitStream : Stream {
     }
 
     void close() {
-        mInput.close();
+        whatever.close();
         //if mOutput is set, it is the same as mInput (no close needed)
     }
 }

@@ -60,7 +60,7 @@ class GLDrawDriver : DrawDriver {
     private {
         Vector2i mScreenSize;
         GLCanvas mCanvas;
-        bool mStealData, mLowQuality, mUseSubSurfaces, mBatchSubTex;
+        bool mStealData, mLowQuality, mDisableSprites, mBatchSubTex;
         bool mBatchDrawCalls, mNonPowerOfTwo;
         Log mLog;
     }
@@ -72,11 +72,15 @@ class GLDrawDriver : DrawDriver {
         DerelictGLU.load();
 
         mStealData = config.getBoolValue("steal_data", true);
+        //use fastest OpenGL options, avoid alpha blending; will look fugly
+        //(NOTE: it uses alpha test, which may be slower on modern GPUs)
         mLowQuality = config.getBoolValue("lowquality", false);
-        mUseSubSurfaces = config.getValue!(bool)("subsurfaces", true);
         mBatchSubTex = config.getValue!(bool)("batch_subtex", false);
         mBatchDrawCalls = config.getValue!(bool)("batch_drawcalls", true);
+        //some cards can't deal with NPOT textures (even if they "support" it)
         mNonPowerOfTwo = config.getValue!(bool)("non_power_of_two", false);
+        //purely for debugging (can be removed)
+        mDisableSprites = config.getValue!(bool)("disable_sprites", false);
 
         mCanvas = new GLCanvas(this);
     }
@@ -111,10 +115,10 @@ class GLDrawDriver : DrawDriver {
         }
 
         glDisable(GL_DITHER);
-        glDisable(GL_DEPTH_TEST); //??
+        glDisable(GL_DEPTH_TEST);
 
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glAlphaFunc(GL_GREATER, 0.1f);
+        glAlphaFunc(GL_GEQUAL, Color.fromByte(cAlphaTestRef));
 
         //setup viewport (2D, screen coordinates)
         glViewport(0, 0, mScreenSize.x, mScreenSize.y);
@@ -240,8 +244,8 @@ final class GLSurface : DriverSurface {
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 
         //since GL 1.1, pixels pointer can be null, which will just
         //reserve uninitialized memory
@@ -549,24 +553,18 @@ class GLCanvas : Canvas3DHelper {
         flush();
 
         bool want_tex = false;
-        bool want_blend = false;
-        bool want_atest = false;
+        bool want_blend = !mDrawDriver.mLowQuality;
+        bool want_atest = !want_blend;
 
-        if (!tex) {
-            want_blend = true; //blending for lines etc.
-        } else {
+        if (tex) {
             want_tex = true;
             auto gltex = cast(GLSurface)tex.getDriverSurface();
             gltex.bind();
-            switch (gltex.mData.transparency) {
-                case Transparency.Colorkey:
-                    want_atest = true;
-                    break;
-                default:
-                    //blend for non-transparent textures, too (else
-                    //  colored quads don't draw correctly)
-                    want_blend = true;
-                    break;
+            if (mDrawDriver.mLowQuality &&
+                gltex.mData.transparency == Transparency.Alpha)
+            {
+                want_blend = true;
+                want_atest = false;
             }
         }
 
@@ -704,9 +702,9 @@ class GLCanvas : Canvas3DHelper {
     override void drawSprite(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null)
     {
-        if (!mDrawDriver.mUseSubSurfaces) {
+        if (mDrawDriver.mDisableSprites) {
             //disabled; normal code path
-            drawTextureInt(source.surface, destPos, source.origin, source.size);
+            draw(source.surface, destPos, source.origin, source.size);
             return;
         }
 
@@ -732,23 +730,10 @@ class GLCanvas : Canvas3DHelper {
     override void draw(Surface source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize)
     {
-        debug {
-            sourceSize = source.size.min(sourceSize);
-            sourcePos = source.size.min(sourcePos);
-        }
-        drawTextureInt(source, destPos, sourcePos, sourceSize);
-    }
-
-    //this will draw the texture source tiled in the destination area
-    //optimized if no tiling needed or tiling can be done by OpenGL
-    //tiling only works for the above case (i.e. when using the whole texture)
-    private void drawTextureInt(Surface source, Vector2i destPos,
-        Vector2i sourcePos, Vector2i destSize)
-    {
         //clipping, discard anything that would be invisible anyway
-        if (!visibleArea.intersects(destPos, destPos + destSize))
+        if (!visibleArea.intersects(destPos, destPos + sourceSize))
             return;
 
-        do_draw(source, destPos, sourcePos, destSize, null);
+        do_draw(source, destPos, sourcePos, sourceSize, null);
     }
 }

@@ -1,6 +1,6 @@
 module wwptools.animconv;
 
-import aconv.atlaspacker;
+import wwptools.atlaspacker;
 import utils.stream;
 import str = utils.string;
 import utils.configfile;

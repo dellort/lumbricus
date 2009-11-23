@@ -23,22 +23,8 @@ import tango.io.Stdout;
 version = Game;
 version = LogExceptions;  //set to write exceptions into logfile, too
 
-//factory-imports (static ctors register stuff globally)
-import framework.drivers.base_sdl;
-import framework.drivers.sound_openal;
-import framework.drivers.font_freetype;
-import framework.imgwrite;
-import framework.drivers.draw_opengl;
-import framework.drivers.draw_sdl;
-version(Windows) {
-    import framework.drivers.draw_directx;
-}
-
-//--> FMOD is not perfectly GPL compatible, so you may need to comment
-//    this line in some scenarios (this is all it needs to disable FMOD)
-import framework.drivers.sound_fmod;
-//<--
-
+//drivers etc.
+import framework.stuff;
 
 //these imports register classes in a factory on module initialization
 //so be carefull not to remove them accidentally

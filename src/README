@@ -40,11 +40,6 @@ Version status for tools and libraries:
         http://svn.dsource.org/projects/derelict/trunk/
         svn r394: works
             for DerelictUtil, DerelictFT, DerelictGL, DerelictGLU, DerelictSDL, DerelictAL
-        Devil: I really don't know. Also, this library sucks.
-            (problem is: svn forces you to use a filesystem layout, that doesn't work
-             with the package structure; you need to copy all files from DerelictIL,
-             DerelictILU, and DerelictILUT into the same directory.)
-            Lumbricus expects it in derelict/devil or so.
     NOTE: the corresponding C libs usually are stable, because they're written in C, and not in D (where each new compiler version might break everything, *sigh*)
 
 Building it...
@@ -92,7 +87,6 @@ Required libraries:
   - SDL
   - SDL_image
   - Freetype
-  - DevIL (openil.sf.net)
   - ENet (enet.bespin.org)
   - Zlib
 
@@ -103,7 +97,6 @@ Required libraries:
 - Static linked D libraries:
   - Derelict for the 3 SDL libraries
   - Tango (comes not with DMD)
-The WWP data converter ("extractdata") also needs DevIL.
 
 Using the WWP data converter:
   extractdata expects the Worms(TM) directory and an output

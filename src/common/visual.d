@@ -164,7 +164,7 @@ int releaseBoxCache() {
 
     void killtex(Texture t) {
         if (t) {
-            t.free(true);
+            t.free();
             rel++;
         }
     }

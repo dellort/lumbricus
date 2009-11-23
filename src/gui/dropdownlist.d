@@ -3,7 +3,6 @@ module gui.dropdownlist;
 import common.common;
 import common.visual;
 
-import common.restypes.bitmap;
 import framework.font;
 import framework.framework;
 

@@ -29,7 +29,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-module framework.sdl.rotozoom; 
+module framework.rotozoom;
 
 import tango.stdc.stdlib : malloc, free;
 import tango.stdc.string : memset;

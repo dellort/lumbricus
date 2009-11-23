@@ -10,6 +10,7 @@ import game.sprite;
 import game.weapon.weapon;
 import game.worm;
 import game.sequence;
+import game.temp : GameZOrder;
 import physics.world;
 import utils.configfile;
 import utils.factory;
@@ -428,8 +429,7 @@ class RenderRope : SceneObject {
     Rope rope;
     this(Rope r) {
         rope = r;
-        //xxx: zorder is probably a rather random pick
-        zorder = GameZOrder.Effects;
+        zorder = GameZOrder.FrontObjects;
     }
     this(ReflectCtor c) {
     }

@@ -6,7 +6,6 @@ import game.levelgen.level;
 import game.levelgen.renderer;
 import game.levelgen.genrandom;
 import game.levelgen.placeobjects;
-import common.restypes.bitmap;
 import framework.framework;
 import framework.filesystem;
 import common.resources;

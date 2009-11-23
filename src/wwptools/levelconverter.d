@@ -1,6 +1,6 @@
 module wwptools.levelconverter;
 
-import aconv.atlaspacker;
+import wwptools.atlaspacker;
 import str = utils.string;
 import utils.stream;
 import utils.filetools;

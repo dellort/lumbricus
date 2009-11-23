@@ -1,6 +1,6 @@
 module wwpdata.reader_bnk;
 
-import devil.image;
+import wwptools.image;
 import utils.stream;
 import wwpdata.common;
 import wwpdata.reader;

@@ -50,18 +50,20 @@ class GZWriter {
     void delegate() close_fn;
 
     this(void delegate(ubyte[] data) a_onWrite, bool use_gzip = true,
-        int level = 9, size_t buffer_size = 64*1024)
+        int level = czlib.Z_DEFAULT_COMPRESSION, size_t buffer_size = 64*1024)
     {
         assert (!!a_onWrite);
-        assert (level >= 0 && level <= 9);
+        assert ((level >= 0 && level <= 9)
+            || (level == czlib.Z_DEFAULT_COMPRESSION));
         assert (buffer_size > 0);
         onWrite = a_onWrite;
         buffer.length = buffer_size;
         buffer_pos = 0;
         //16: gzip header, 15: window bits
         //9: "memLevel=9 uses maximum memory for optimal speed."
+        //libpng uses memlevel=8 *shrug*
         int res = czlib.deflateInit2(&zs, level, czlib.Z_DEFLATED,
-            (use_gzip ? 16 : 0) + 15, 9, czlib.Z_DEFAULT_STRATEGY);
+            (use_gzip ? 16 : 0) + 15, 8, czlib.Z_DEFAULT_STRATEGY);
         zerror(res);
     }
 
@@ -237,5 +239,44 @@ class GZReader {
 
     PipeIn pipe() {
         return PipeIn(&read, &finish2);
+    }
+}
+
+
+//replacement for Tango's tango.io.digest.Crc32
+//the Tango one is just too slow
+//should be source compatible for our uses
+
+import tango.io.digest.Digest;
+
+final class ZLibCrc32 : Digest {
+    uint crc;
+
+    this() {
+        //reset
+        crc32Digest();
+    }
+    override ZLibCrc32 update(void[] input) {
+        crc = czlib.crc32(crc, cast(ubyte*)input.ptr, input.length);
+        return this; //why, oh god why, Tango team?
+    }
+    override uint digestSize() {
+        return 4;
+    }
+    override ubyte[] binaryDigest(ubyte[] buf = null) {
+        //copy & pasted from Tango
+        if (buf.length < 4)
+            buf.length = 4;
+        uint v = crc32Digest();
+        buf[3] = cast(ubyte) (v >> 24);
+        buf[2] = cast(ubyte) (v >> 16);
+        buf[1] = cast(ubyte) (v >> 8);
+        buf[0] = cast(ubyte) (v);
+        return buf;
+    }
+    uint crc32Digest() {
+        auto res = crc;
+        crc = czlib.crc32(0, null, 0);
+        return res;
     }
 }

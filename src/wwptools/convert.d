@@ -1,6 +1,6 @@
 module wwptools.convert;
 
-import devil.image;
+import wwptools.image;
 
 import tango.io.model.IFile : FileConst;
 const pathsep = FileConst.PathSeparatorChar;
