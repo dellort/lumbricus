@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="luatest" />
+		<Option makefile="makefile" />
+		<Option makefile_is_custom="1" />
+		<Option execution_dir="..\src" />
+		<Option compiler="dmd" />
+		<Build>
+			<Target title="Debug">
+				<Option output="..\bin\luatest" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="..\bin" />
+				<Option object_output="..\bin\obj\" />
+				<Option type="1" />
+				<Option compiler="dmd" />
+				<Option projectResourceIncludeDirsRelation="0" />
+				<MakeCommands>
+					<Build command="dsss build luatest.d --debug" />
+					<CompileFile command="" />
+					<Clean command="dsss clean" />
+					<DistClean command="" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="dsss build luatest.d --debug" />
+				</MakeCommands>
+			</Target>
+			<Target title="Release">
+				<Option output="..\bin\luatest" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="..\bin" />
+				<Option object_output="..\bin\obj\" />
+				<Option type="1" />
+				<Option compiler="dmd" />
+				<Option projectResourceIncludeDirsRelation="0" />
+				<MakeCommands>
+					<Build command="dsss build luatest.d" />
+					<CompileFile command="" />
+					<Clean command="dsss clean" />
+					<DistClean command="" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="dsss build luatest.d" />
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="..\src\derelict\lua\lauxlib.d" />
+		<Unit filename="..\src\derelict\lua\lua.d" />
+		<Unit filename="..\src\derelict\lua\luaconf.d" />
+		<Unit filename="..\src\derelict\lua\lualib.d" />
+		<Unit filename="..\src\luatest.d" />
+		<Unit filename="..\src\utils\misc.d" />
+		<Unit filename="..\src\utils\stream.d" />
+		<Unit filename="..\src\utils\string.d" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

@@ -21,7 +21,7 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 
-module derelict.lua.lualib; 
+module derelict.lua.lualib;
 
 import derelict.util.loader;
 import derelict.lua.lua;
@@ -40,11 +40,11 @@ const char[] LUA_MATHLIBNAME = "math";
 const char[] LUA_DBLIBNAME   = "debug";
 const char[] LUA_LOADLIBNAME = "package";
 
-extern (C) 
+extern (C)
 {
-  typedef int function(lua_State *L) pfOpen; 
+  alias lua_CFunction pfOpen;
 
-  pfOpen luaopen_base; 
+  pfOpen luaopen_base;
   pfOpen luaopen_table;
   pfOpen luaopen_io;
   pfOpen luaopen_os;
