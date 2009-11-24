@@ -30,7 +30,7 @@ function invoke_compiler
     $CMD xfbuild +c$COMPILER $1.d +noop +xtango -unittest -debug -g -L-lz -L-ldl +o$BINDIR$1 +D.deps_$1 +O.objs_$1 $DMD_IS_BROKEN $FUCK_D -version=MDReadline -L-lreadline +q
 }
 
-TARGETS="lumbricus extractdata test mdcl unworms animutil sdlimginfo"
+TARGETS="lumbricus extractdata test mdcl unworms animutil sdlimginfo luatest"
 DEF_TARGET=lumbricus
 
 

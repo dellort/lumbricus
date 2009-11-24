@@ -217,8 +217,8 @@ final class SDLSurface : DriverSurface {
 
         //lol SDL - need to clear any transparency modes first
         //but I don't understand why (maybe because there's an alpha channel)
-        SDL_SetAlpha(mSurfaceRGBA32, 0, 0);
-        //SDL_SetColorKey(mSurfaceRGBA32, 0, 0);
+        SDL_SetAlpha(src, 0, 0);
+        //SDL_SetColorKey(src, 0, 0);
 
         if (force_alpha || mData.transparency == Transparency.Alpha) {
             SDL_SetAlpha(src, SDL_SRCALPHA, SDL_ALPHA_OPAQUE);

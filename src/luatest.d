@@ -11,6 +11,34 @@ import tango.util.Convert : to;
 import utils.misc;
 import utils.stream;
 
+version = Lua_In_D_Memory;
+
+version (Lua_In_D_Memory) {
+
+extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize, size_t nsize) {
+    //make Lua use the D heap
+    //note that this will go horribly wrong if...
+    //- Lua would create a new OS thread (but it doesn't)
+    //- Lua uses malloc() for some stuff (probably doesn't; lua_Alloc would
+    //  be pointless)
+    //- Lua stores state in global variables (I think it doesn't)
+    //  (assuming D GC doesn't scan the C datasegment; probably wrong)
+    //also, we'll assume that Lua always aligns out userdata correctly (if not,
+    //  the D GC won't see it, and heisenbugs will occur)
+    //all this is to make passing D objects as userdata simpler
+    void[] odata = ptr[0..osize];
+    if (nsize == 0) {
+        delete odata;
+        return null;
+    } else {
+        //this is slow (probably slower than C realloc)
+        odata.length = nsize;
+        return odata.ptr;
+    }
+}
+
+} else {
+
 extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize, size_t nsize) {
     if (nsize == 0) {
         cstd.free(ptr);
@@ -19,6 +47,9 @@ extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize, size_t nsize) {
         return cstd.realloc(ptr, nsize);
     }
 }
+
+}
+
 
 //read code from char[]
 struct StringChunk {
@@ -64,17 +95,28 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
     } else static if (isFloatingPointType!(T)) {
         return lua_tonumber(state, stackIdx);
     } else static if (is(T : bool)) {
-        return cast(bool)lua_toboolean(state, stackIdx);
+        return !!lua_toboolean(state, stackIdx);
     } else static if (is(T : char[]) || is(T : wchar[]) || is(T : dchar[])) {
+        //xxx I think it's not worth supporting wchar, dchar, rather I'd prefer
+        // to remove to!() because to!() makes memory managment less clear
         return to!(T)(lua_todstring(state, stackIdx));
     } else static if (is(T == class)) {
-        return cast(T)lua_touserdata(state, stackIdx);
+        //by convention, all light userdatas are casted from Object
+        //which means we can always type check it
+        Object o = cast(Object)lua_touserdata(state, stackIdx);
+        T res = cast(T)o;
+        if (o && !res) {
+            raiseLuaError(state, myformat("expected {}, got {}",
+                T.classinfo.name, o.classinfo.name));
+        }
+        return res;
     } else {
         static assert(false, "add me, you fool");
     }
 }
 
 //returns the number of values pushed (for Vectors maybe, I don't know)
+//xxx: that would be a problem, see luaCall()
 int luaPush(T)(lua_State *state, T value) {
     static if (isIntegerType!(T)) {
         lua_pushinteger(state, stackIdx);
@@ -96,6 +138,7 @@ int luaPush(T)(lua_State *state, T value) {
         lua_pushlightuserdata(state, cast(void*)value);
         return 1;
     } else static if (is(T == void*)) {
+        //???
         assert(value is null);
         lua_pushnil(state);
         return 1;
@@ -145,9 +188,11 @@ class LuaRegistry {
             alias ParameterTupleOf!(typeof(del)) Params;
             int reqArgs = Params.length + baseidx - 1;
             //xxx ignores superfluous arguments, ok?
-            if (numArgs < reqArgs) {
-                error(myformat("Required {} arguments, got {}.", numArgs,
-                    reqArgs));
+            //  is there some Lua convention that encourages this?
+            //  I'd prefer it'd has to match the exact arg count
+            if (numArgs != reqArgs) {
+                error(myformat("Required {} arguments, got {}.", reqArgs,
+                    numArgs));
             }
 
             Params p;
@@ -260,41 +305,74 @@ class LuaState {
         }
     }
 
-    void load(char[] code, char[] name) {
+    //prepended all very-Lua-specific functions with lua
+
+    /+
+    //"generic scripting" load function (yeah, the language of the loaded script
+    //  is still lua)
+    void load(char[] function_name, char[] code) {
+        ...
+    }
+    +/
+
+    void luaLoadAndPush(char[] code, char[] name) {
         StringChunk sc;
         sc.data = code;
         lua_loadChecked(&lua_ReadString, &sc, name);
     }
 
-    void load(Stream input, char[] name) {
+    void luaLoadAndPush(Stream input, char[] name) {
         lua_loadChecked(&lua_ReadStream, cast(void*)input, name);
     }
 
     //Call a function defined in lua
-    void executeFunc(T...)(char[] funcName, T args) {
+    void call(T...)(char[] funcName, T args) {
+        return callR!(void, T)(funcName, args);
+    }
+
+    //like call(), but with return value
+    //better name?
+    //also, it seems dmd can't infer only some parameters, e.g.:
+    //      callR!(int)("test", "abc", "def")
+    //fails.
+    RetType callR(RetType, T...)(char[] funcName, T args) {
+        //xxx should avoid memory allocation (toStringz)
         lua_getglobal(mLua, toStringz(funcName));
         if (!lua_isfunction(mLua, 1)) {
             throw new LuaException(funcName ~ ": not a function.");
         }
-        execute(args);
+        return luaCall!(RetType, T)(args);
     }
 
     //execute the global scope
-    void execute(T...)(T args) {
+    RetType luaCall(RetType, T...)(T args) {
         int argc;
         foreach (int idx, x; args) {
             argc += luaPush(mLua, args[idx]);
         }
-        lua_call(mLua, argc, 0);
+        const bool ret_void = is(RetType == void);
+        lua_call(mLua, argc, ret_void ? 0 : 1);
+        static if (!ret_void) {
+            return luaStackValue!(RetType)(mLua, 1);
+        }
     }
 }
 
 
 
 class Bar {
-    void test() {
-        Trace.formatln("Called Bar.test()");
+    char[] meh;
+
+    void test(char[] msg) {
+        Trace.formatln("Called Bar.test('{}')", msg);
     }
+
+    char[] blurgh() {
+        return meh;
+    }
+}
+
+class Evul {
 }
 
 class Foo {
@@ -302,9 +380,20 @@ class Foo {
         return myformat("hello from D! got: {} {} '{}'", x, y, msg);
     }
 
-    //xxx ref to Bar will be in non-GC'ed memory
+    void passBar(Bar the_bar) {
+        Trace.formatln("received a bar: '{}'", the_bar.classinfo.name);
+        if (the_bar)
+            assert(!!cast(Bar)cast(Object)the_bar);
+    }
+
     Bar createBar() {
-        return new Bar();
+        auto b = new Bar();
+        b.meh = "I'm a bar.";
+        return b;
+    }
+
+    Evul createEvul() {
+        return new Evul();
     }
 }
 
@@ -314,7 +403,10 @@ static this() {
     scripting = new typeof(scripting)();
     scripting.method!(Foo, "test")();
     scripting.method!(Foo, "createBar")();
+    scripting.method!(Foo, "createEvul")();
+    scripting.method!(Foo, "passBar")();
     scripting.method!(Bar, "test")();
+    scripting.method!(Bar, "blurgh")();
 
     //lua.method!(Sprite, "setState")();
     //lua.method!(GameEngine, "explosion")();
@@ -329,16 +421,47 @@ void main(char[][] args) {
     s.register(scripting);
     auto foo = new Foo();
     s.addSingleton(foo);
-    s.load(`
+
+    void loadexec(char[] code) {
+        s.luaLoadAndPush(code, "blub");
+        s.luaCall!(void)();
+    }
+
+    loadexec(`
         print("Hello world")
         print(Foo_test(1, -4.2, "Foobar"))
         b = Foo_createBar()
-        Bar_test(b)
+        Bar_test(b, "hurf")
 
         function test(arg)
-            print(string.format("Called Lua function test(%s)", arg))
+            print(string.format("Called Lua function test('%s')", arg))
+            return "blabla"
         end
-    `, "Blub");
-    s.execute();
-    s.executeFunc("test", "Blubber");
+
+        Foo_passBar(b)
+    `);
+    s.call("test", "Blubber");
+
+    Trace.formatln("got: '{}'", s.callR!(char[], char[])("test", "..."));
+
+    //don't try this without version Lua_In_D_Memory
+
+    //get some garbage, trigger GC and overwriting of free'd data, etc.
+    for (int i = 0; i < 5000000; i++) {
+        new ubyte[1];
+    }
+
+    loadexec(`
+        print(Bar_blurgh(b))
+    `);
+
+    //these are expected to fail (type checks etc.)
+    //I don't know how to fail "gracefully", so all commented out
+
+    //too many args
+    //--loadexec(`Bar_test(b, "a", "b")`);
+    //too few args
+    //--loadexec(`Bar_test()`);
+    //wrong type
+    //--loadexec(`Foo_passBar(Foo_createEvul())`);
 }
