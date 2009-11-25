@@ -81,6 +81,7 @@ static this() {
     scripting.method!(Foo, "makeArray")();
     scripting.method!(Bar, "test")();
     scripting.method!(Bar, "blurgh")();
+    scripting.func!(funcBlub)();
 
     //lua.method!(Sprite, "setState")();
     //lua.method!(GameEngine, "explosion")();
@@ -89,6 +90,10 @@ static this() {
 /*void startgame() {
     lua.addSingleton!(GameEngine)("GameEngine", engine);
 }*/
+
+void funcBlub(char[] arg) {
+    Trace.formatln("Plain old function, yay! Got '{}'", arg);
+}
 
 void main(char[][] args) {
     LuaState s = new LuaState();
@@ -123,6 +128,7 @@ void main(char[][] args) {
         for k,v in ipairs(ar) do
             print(string.format("  %s -> %s", k, v))
         end
+        funcBlub("asdfx");
     `);
     s.call("test", "Blubber");
 

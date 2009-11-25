@@ -228,8 +228,7 @@ class LuaRegistry {
     }
 
     struct Method {
-        ClassInfo ci;
-        char[] name, fname;
+        char[] fname;
         lua_CFunction demarshal;
     }
 
@@ -243,14 +242,71 @@ class LuaRegistry {
         mPrefixes[Class.classinfo] = name;
     }
 
+    //Execute the callable del, taking parameters from the lua stack
+    //  skipCount: skip this many parameters from beginning
+    //  funcName:  used in error messages
+    //stack size must match the requirements of del
+    private static int callFromLua(T)(T del, lua_State* state, int skipCount,
+        char[] funcName)
+    {
+        void error(char[] msg) {
+            throw new LuaException(msg);
+        }
+        int numArgs = lua_gettop(state);
+
+        alias ParameterTupleOf!(typeof(del)) Params;
+        //min/max arguments allowed to be passed from lua (incl. 'this')
+        int maxArgs = Params.length + skipCount;
+        int minArgs = requiredArgCount!(del)() + skipCount;
+        //argument count has to be in accepted range (exact match)
+        if (numArgs < minArgs || numArgs > maxArgs) {
+            if (minArgs == maxArgs) {
+                error(myformat("'{}' requires {} arguments, got {}",
+                    funcName, maxArgs, numArgs));
+            } else {
+                error(myformat("'{}' requires {}-{} arguments, got {}",
+                    funcName, minArgs, maxArgs, numArgs));
+            }
+        }
+        //number of arguments going to the delegate call
+        int numRealArgs = numArgs - skipCount;
+
+        //hack: add dummy type, to avoid code duplication
+        alias Tuple!(Params, int) Params2;
+        Params2 p;
+        foreach (int idx, x; p) {
+            //generate code for all possible parameter counts, and select
+            //the right case at runtime
+            static if (is(typeof(del(p[0..idx])) RetType)) {
+                if (numRealArgs == idx) {
+                    static if (is(RetType == void)) {
+                        del(p[0..idx]);
+                        return 0;
+                    } else {
+                        auto ret = del(p[0..idx]);
+                        return luaPush(state, ret);
+                    }
+                }
+            }
+            assert(idx < Params.length);
+            alias typeof(x) T;
+            try {
+                p[idx] = luaStackValue!(T)(state, skipCount + idx + 1);
+            } catch (LuaException e) {
+                error(myformat("bad argument #{} to '{}' ({})", idx + 1,
+                    funcName, e.msg));
+            }
+        }
+        assert(false);
+    }
+
+    //Register a class method
     void method(Class, char[] name)() {
         extern(C) static int demarshal(lua_State* state) {
-            char[] methodName = Class.stringof ~ '.' ~ name;
+            const methodName = Class.stringof ~ '.' ~ name;
             void error(char[] msg) {
                 raiseLuaError(state, msg);
             }
-
-            int numArgs = lua_gettop(state);
 
             LuaState ustate = cast(LuaState)(lua_touserdata(state,
                 lua_upvalueindex(1)));
@@ -267,71 +323,39 @@ class LuaRegistry {
             }
 
             auto del = mixin("&c."~name);
-            alias ParameterTupleOf!(typeof(del)) Params;
-            //min/max arguments allowed to be passed from lua (incl. 'this')
-            int maxArgs = Params.length + skipCount;
-            int minArgs = requiredArgCount!(del)() + skipCount;
-            //argument count has to be in accepted range (exact match)
-            if (numArgs < minArgs || numArgs > maxArgs) {
-                if (minArgs == maxArgs) {
-                    error(myformat("'{}' requires {} arguments, got {}",
-                        methodName, maxArgs, numArgs));
-                } else {
-                    error(myformat("'{}' requires {}-{} arguments, got {}",
-                        methodName, minArgs, maxArgs, numArgs));
-                }
+            try {
+                return callFromLua(del, state, skipCount, methodName);
+            } catch (LuaException e) {
+                error(e.msg);
             }
-            //number of arguments going to the delegate call
-            int numRealArgs = numArgs - skipCount;
-
-            //0 arguments special case (sorry for code duplication)
-            static if (is(typeof(del()) RetType)) {
-                if (numRealArgs == 0) {
-                    static if (is(RetType == void)) {
-                        del();
-                        return 0;
-                    } else {
-                        auto ret = del();
-                        return luaPush(state, ret);
-                    }
-                }
-            }
-            Params p;
-            foreach (int idx, x; p) {
-                alias typeof(x) T;
-                try {
-                    p[idx] = luaStackValue!(T)(state, skipCount + idx + 1);
-                } catch (LuaException e) {
-                    error(myformat("bad argument #{} to '{}' ({})", idx + 1,
-                        methodName, e.msg));
-                }
-                //generate code for all possible parameter counts, and select
-                //the right case at runtime
-                static if (is(typeof(del(p[0..idx+1])) RetType)) {
-                    if (numRealArgs != idx+1)
-                        continue;
-                    static if (is(RetType == void)) {
-                        del(p[0..idx+1]);
-                        return 0;
-                    } else {
-                        auto ret = del(p[0..idx+1]);
-                        return luaPush(state, ret);
-                    }
-                }
-            }
-            assert(false);
         }
         Method m;
-        m.ci = Class.classinfo;
-        m.name = name;
-        auto cn = m.ci in mPrefixes;
-        char[] clsname = cn ? *cn : m.ci.name;
+        auto ci = Class.classinfo;
+        auto cn = ci in mPrefixes;
+        char[] clsname = cn ? *cn : ci.name;
         //strip package/module path
         int i = str.rfind(clsname, ".");
         if (i >= 0) {
             clsname = clsname[i+1..$];
         }
-        m.fname = clsname ~ "_" ~ m.name;
+        m.fname = clsname ~ "_" ~ name;
+        m.demarshal = &demarshal;
+        mMethods ~= m;
+    }
+
+    //Register a function
+    void func(alias Fn)(char[] rename = null) {
+        //stringof returns "& functionName", strip that
+        const funcName = (&Fn).stringof[2..$];
+        extern(C) static int demarshal(lua_State* state) {
+            try {
+                return callFromLua(&Fn, state, 0, funcName);
+            } catch (LuaException e) {
+                raiseLuaError(state, e.msg);
+            }
+        }
+        Method m;
+        m.fname = rename.length ? rename : funcName;
         m.demarshal = &demarshal;
         mMethods ~= m;
     }
