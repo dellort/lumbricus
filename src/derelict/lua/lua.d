@@ -443,11 +443,6 @@ void lua_setglobal(lua_State *L, char *s) { lua_setfield(L, LUA_GLOBALSINDEX, s)
 void lua_getglobal(lua_State *L, char *s) { lua_getfield(L, LUA_GLOBALSINDEX, s); }
 
 char* lua_tostring(lua_State* L, int i) { return lua_tolstring(L, i, null); }
-char[] lua_todstring(lua_State* L, int i) {
-    size_t len;
-    char* s = lua_tolstring(L, i, &len);
-    return s[0..len];
-}
 
 /*
  ** compatibility macros and functions

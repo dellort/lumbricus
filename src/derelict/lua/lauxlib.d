@@ -196,6 +196,11 @@ long luaL_optlong(lua_State *L, int n, lua_Number d)
   return cast(long)luaL_optnumber(L, n, d);
 }
 
+//#define luaL_typename(L,i)      lua_typename(L, lua_type(L,(i)))
+char* luaL_typename(lua_State *L, int i)
+{
+  return lua_typename(L, lua_type(L, i));
+}
 
 /*
 #define luaL_putchar(B,c) \
