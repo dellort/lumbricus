@@ -5,7 +5,8 @@ import derelict.lua.pluto;
 import derelict.util.exception : SharedLibLoadException;
 import tango.stdc.stringz;
 import tango.core.Traits : ParameterTupleOf, isIntegerType, isFloatingPointType,
-    ElementTypeOfArray, isArrayType, isAssocArrayType, KeyTypeOfAA, ValTypeOfAA;
+    ElementTypeOfArray, isArrayType, isAssocArrayType, KeyTypeOfAA, ValTypeOfAA,
+    ReturnTypeOf;
 import cstd = tango.stdc.stdlib;
 import str = utils.string;
 import net.marshal;
@@ -85,8 +86,8 @@ extern(C) int lua_WriteStream(lua_State* L, void* p, size_t sz, void* ud) {
 
 //panic function: called on unprotected lua error (message is on the stack)
 extern(C) int my_lua_panic(lua_State *L) {
-    char[] err = lua_todstring(L, 1);
-    lua_pop(L, 1);
+    char[] err = lua_todstring(L, -1);
+    lua_pop(L, -1);
     throw new LuaException(err);
 }
 
@@ -187,6 +188,63 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
             lua_pop(state, 1);   //pop value, leave key
         }
         return ret;
+    } else static if (is(T == delegate)) {
+        //the lua function to call is at stackIdx and must be stored for later
+        //  calling. So it is added to the lua registry table with a unique key
+        //  (the Wrapper memory address)
+        //xxx changed Wrapper to class for lua registry cleanup and (possibly)
+        //    serialization; old struct code here: http://codepad.org/s1TnASTV
+        //    (I'm too stupid to see all the consequences)
+        if (lua_isnil(state,stackIdx))
+            return null;
+        if (!lua_isfunction(state, stackIdx))
+            expected("closure");
+        alias ParameterTupleOf!(T) Params;
+        alias ReturnTypeOf!(T) RetType;
+
+        //deja-vu...
+        class Wrapper {
+            lua_State* state;
+            uint key;
+            this(lua_State* st) {
+                state = st;
+            }
+            //making Wrapper serializable (with state external) should just
+            //  do the right thing (lua registry value would be saved by pluto)
+            //just when to register it?
+            /*this(ReflectCtor c) {
+                super(c);
+                Types t = c.types();
+                t.registerMethod(this, &cbfunc, "cbfunc");
+            }*/
+            ~this() {
+                //remove function from registry (if state became invalid, those
+                //  functions will just fail quietly)
+                lua_pushlightuserdata(state, cast(void*)key);
+                lua_pushnil(state);
+                lua_settable(state, LUA_REGISTRYINDEX);
+            }
+            //will return delegate to this function
+            RetType cbfunc(Params args) {
+                //get callee from the registry and call
+                lua_pushlightuserdata(state, cast(void*)key);
+                lua_gettable(state, LUA_REGISTRYINDEX);
+                assert(lua_isfunction(state, -1));
+                //will pop function from the stack
+                return doLuaCall!(RetType, Params)(state, args);
+            }
+        }
+        auto pwrap = new Wrapper(state);
+        //use the hashed memory address as key (hashed because of GC)
+        //bswap, the best and only hash function!!11
+        //xxx not guaranteed to be unique in context of serialization, add check
+        pwrap.key = intr.bswap(cast(uint)cast(void*)pwrap);
+
+        lua_pushlightuserdata(state, cast(void*)pwrap.key);  //unique key
+        lua_pushvalue(state, -2);                    //lua closure
+        lua_settable(state, LUA_REGISTRYINDEX);
+
+        return &pwrap.cbfunc;
     } else {
         static assert(false, "add me, you fool");
     }
@@ -232,6 +290,21 @@ int luaPush(T)(lua_State *state, T value) {
         static assert(false, "add me, you fool");
     }
     return 1;  //default to 1 argument
+}
+
+//call the function on top of the stack
+RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
+    int argc;
+    foreach (int idx, x; args) {
+        argc += luaPush(state, args[idx]);
+    }
+    const bool ret_void = is(RetType == void);
+    lua_call(state, argc, ret_void ? 0 : 1);
+    static if (!ret_void) {
+        RetType res = luaStackValue!(RetType)(state, 1);
+        lua_pop(state, 1);
+        return res;
+    }
 }
 
 bool gPlutoOK; //Pluto could was loaded
@@ -471,7 +544,9 @@ class LuaState {
         //'=' means use the name as-is (else "string " is added)
         int res = lua_load(mLua, reader, d, toStringz('='~chunkname));
         if (res != 0) {
-            throw new LuaException("Parse error: " ~ lua_todstring(mLua, -1));
+            char[] err = lua_todstring(mLua, -1);
+            lua_pop(mLua, -1);  //remove error message
+            throw new LuaException("Parse error: " ~ err);
         }
     }
 
@@ -515,22 +590,12 @@ class LuaState {
         }
         scope(success)
             stack0();
-        return luaCall!(RetType, T)(args);
+        return doLuaCall!(RetType, T)(mLua, args);
     }
 
     //execute the global scope
     RetType luaCall(RetType, T...)(T args) {
-        int argc;
-        foreach (int idx, x; args) {
-            argc += luaPush(mLua, args[idx]);
-        }
-        const bool ret_void = is(RetType == void);
-        lua_call(mLua, argc, ret_void ? 0 : 1);
-        static if (!ret_void) {
-            RetType res = luaStackValue!(RetType)(mLua, 1);
-            lua_pop(mLua, 1);
-            return res;
-        }
+        return doLuaCall!(RetType, T)(mLua, args);
     }
 
     void stack0() {

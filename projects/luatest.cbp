@@ -45,6 +45,7 @@
 		<Unit filename="..\src\derelict\lua\lua.d" />
 		<Unit filename="..\src\derelict\lua\luaconf.d" />
 		<Unit filename="..\src\derelict\lua\lualib.d" />
+		<Unit filename="..\src\derelict\lua\pluto.d" />
 		<Unit filename="..\src\framework\lua.d" />
 		<Unit filename="..\src\luatest.d" />
 		<Unit filename="..\src\utils\misc.d" />

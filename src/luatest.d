@@ -65,6 +65,10 @@ class Foo {
         ret ~= a; ret ~= b; ret ~= c;
         return ret;
     }
+
+    void callCb(void delegate() cb) {
+        cb();
+    }
 }
 
 LuaRegistry scripting;
@@ -77,6 +81,7 @@ static this() {
     scripting.method!(Foo, "array")();
     scripting.method!(Foo, "aarray")();
     scripting.method!(Foo, "makeArray")();
+    scripting.method!(Foo, "callCb")();
     scripting.method!(Bar, "test")();
     scripting.method!(Bar, "blurgh")();
     scripting.func!(funcBlub)();
@@ -130,6 +135,9 @@ void main(char[][] args) {
             print(string.format("  %s -> %s", k, v))
         end
         funcBlub("asdfx");
+        Foo_callCb(function()
+            print("Got callback!")
+        end)
 
         stuff = { some_string = "hello", some_b = b }
         stuff["circle"] = stuff
