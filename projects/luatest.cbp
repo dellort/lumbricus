@@ -45,10 +45,12 @@
 		<Unit filename="..\src\derelict\lua\lua.d" />
 		<Unit filename="..\src\derelict\lua\luaconf.d" />
 		<Unit filename="..\src\derelict\lua\lualib.d" />
+		<Unit filename="..\src\framework\lua.d" />
 		<Unit filename="..\src\luatest.d" />
 		<Unit filename="..\src\utils\misc.d" />
 		<Unit filename="..\src\utils\stream.d" />
 		<Unit filename="..\src\utils\string.d" />
+		<Unit filename="..\src\utils\vector2.d" />
 		<Extensions>
 			<code_completion />
 			<envvars />
