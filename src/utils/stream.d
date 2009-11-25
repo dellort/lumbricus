@@ -383,7 +383,7 @@ class ConduitStream : Stream {
 
     size_t readPartial(ubyte[] data) {
         if (!mInput)
-            ioerror("no write access");
+            ioerror("no read access");
         auto res = mInput.read(data);
         //????????
         if (data.length && res == 0)
@@ -469,6 +469,50 @@ class SliceStream : Stream {
         return mSource;
     }
 }
+
+//needed this for debugging
+
+class MemoryStream : Stream {
+    private {
+        ubyte[] mBloat;
+        size_t mPos;
+    }
+
+    ulong position() {
+        return mPos;
+    }
+
+    void position(ulong pos) {
+        mPos = pos;
+    }
+
+    ulong size() {
+        return mBloat.length;
+    }
+
+    protected size_t writePartial(ubyte[] data) {
+        mBloat.length = position + data.length;
+        mBloat[position .. position + data.length] = data;
+        mPos += data.length;
+        return data.length;
+    }
+
+    protected size_t readPartial(ubyte[] data) {
+        auto max = min(position + data.length, mBloat.length);
+        if (max < position)
+            return 0;
+        size_t len = max - position;
+        data[0..len] = mBloat[position .. max];
+        mPos += len;
+        return len;
+    }
+
+    void close() {
+        mBloat = null;
+    }
+}
+
+
 
 import tango.core.Thread;
 import tango.io.device.ThreadPipe;

@@ -4,6 +4,7 @@ import framework.lua;
 import tango.core.tools.TraceExceptions;
 
 import utils.misc;
+import utils.stream;
 import utils.vector2;
 
 
@@ -70,10 +71,7 @@ LuaRegistry scripting;
 
 static this() {
     scripting = new typeof(scripting)();
-    scripting.method!(Foo, "test")();
-    scripting.method!(Foo, "createBar")();
-    scripting.method!(Foo, "createEvul")();
-    scripting.method!(Foo, "passBar")();
+    scripting.methods!(Foo, "test", "createBar", "createEvul", "passBar");
     scripting.method!(Foo, "vector")();
     scripting.method!(Foo, "makeVector")();
     scripting.method!(Foo, "array")();
@@ -98,12 +96,15 @@ void funcBlub(char[] arg) {
 void main(char[][] args) {
     LuaState s = new LuaState();
     s.register(scripting);
+
     auto foo = new Foo();
     s.addSingleton(foo);
 
     void loadexec(char[] code) {
-        s.luaLoadAndPush(code, "blub");
+        s.stack0();
+        s.luaLoadAndPush("blub", code);
         s.luaCall!(void)();
+        s.stack0();
     }
 
     loadexec(`
@@ -129,7 +130,11 @@ void main(char[][] args) {
             print(string.format("  %s -> %s", k, v))
         end
         funcBlub("asdfx");
+
+        stuff = { some_string = "hello", some_b = b }
+        stuff["circle"] = stuff
     `);
+    s.call("test", "Blubber");
     s.call("test", "Blubber");
 
     Trace.formatln("got: '{}'", s.callR!(char[], char[])("test", "..."));
@@ -143,6 +148,33 @@ void main(char[][] args) {
 
     loadexec(`
         print(Bar_blurgh(b))
+    `);
+
+    char[][Object] exts;
+    Stream outs = //Stream.OpenFile("foo.out", File.ReadWriteCreate);
+    new MemoryStream();//
+    s.serialize("stuff", outs, (Object o) {
+        if (!(o in exts))
+            exts[o] = myformat("#{}", exts.length);
+        return exts[o];
+    });
+
+    outs.position = 0;
+
+    s.deserialize("meep", outs, (char[] s) {
+        foreach (Object o, char[] id; exts) {
+            if (s == id)
+                return o;
+        }
+        //signals error
+        //also, lol pathetic D type "inference" (more like type interference)
+        return cast(Object)null;
+    });
+
+    loadexec(`
+        print(string.format("deserialized: some_string=%s", meep.some_string));
+        -- the printed string was actually not serialized
+        print(string.format("deserialized: some_b=%s", Bar_blurgh(meep.some_b)));
     `);
 
     //these are expected to fail (type checks etc.)

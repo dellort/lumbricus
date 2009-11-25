@@ -1,12 +1,16 @@
 module framework.lua;
 
 import derelict.lua.lua;
+import derelict.lua.pluto;
+import derelict.util.exception : SharedLibLoadException;
 import tango.stdc.stringz;
 import tango.core.Traits : ParameterTupleOf, isIntegerType, isFloatingPointType,
     ElementTypeOfArray, isArrayType, isAssocArrayType, KeyTypeOfAA, ValTypeOfAA;
 import cstd = tango.stdc.stdlib;
 import str = utils.string;
+import net.marshal;
 
+import utils.hashtable;
 import utils.misc;
 import utils.stream;
 
@@ -62,7 +66,7 @@ extern(C) char* lua_ReadString(lua_State *L, void *data, size_t *size) {
     return code.ptr;
 }
 
-//read code from Stream
+//read code (or anything else) from Stream
 extern(C) char* lua_ReadStream(lua_State *L, void *data, size_t *size) {
     const cBufSize = 16*1024;
     auto buf = new ubyte[cBufSize];
@@ -70,6 +74,13 @@ extern(C) char* lua_ReadStream(lua_State *L, void *data, size_t *size) {
     auto res = cast(char[])st.readUntilEof(buf);
     *size = res.length;
     return res.ptr;
+}
+
+//write to stream
+extern(C) int lua_WriteStream(lua_State* L, void* p, size_t sz, void* ud) {
+    auto st = cast(Stream)ud;
+    st.writeExact(cast(ubyte[])p[0..sz]);
+    return 0;
 }
 
 //panic function: called on unprotected lua error (message is on the stack)
@@ -143,6 +154,7 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         T ret;
         foreach (int idx, x; ret.tupleof) {
             //first try named access
+            static assert(ret.tupleof[idx].stringof[0..4] == "ret.");
             luaPush(state, (ret.tupleof[idx].stringof)[4..$]);
             lua_gettable(state, stackIdx);   //replaces key by value
             if (lua_isnil(state, -1)) {
@@ -196,6 +208,7 @@ int luaPush(T)(lua_State *state, T value) {
     } else static if (is(T == struct)) {
         lua_newtable(state);
         foreach (int idx, x; value.tupleof) {
+            static assert(value.tupleof[idx].stringof[0..6] == "value.");
             luaPush(state, (value.tupleof[idx].stringof)[6..$]);
             luaPush(state, value.tupleof[idx]);
             lua_settable(state, -3);
@@ -221,6 +234,8 @@ int luaPush(T)(lua_State *state, T value) {
     return 1;  //default to 1 argument
 }
 
+bool gPlutoOK; //Pluto could was loaded
+
 class LuaRegistry {
     private {
         Method[] mMethods;
@@ -234,6 +249,13 @@ class LuaRegistry {
 
     this() {
         DerelictLua.load();
+        //try loading Pluto, but treat it as optional dependency
+        try {
+            DerelictLua_Pluto.load();
+            gPlutoOK = true;
+        } catch (SharedLibLoadException) {
+        }
+        debug Trace.formatln("pluto available: {}", gPlutoOK);
     }
 
     //e.g. setClassPrefix!(GameEngine)("Game"), to keep scripting names short
@@ -277,6 +299,7 @@ class LuaRegistry {
         foreach (int idx, x; p) {
             //generate code for all possible parameter counts, and select
             //the right case at runtime
+            //....seriously? bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat
             static if (is(typeof(del(p[0..idx])) RetType)) {
                 if (numRealArgs == idx) {
                     static if (is(RetType == void)) {
@@ -329,6 +352,7 @@ class LuaRegistry {
                 error(e.msg);
             }
         }
+
         Method m;
         auto ci = Class.classinfo;
         auto cn = ci in mPrefixes;
@@ -341,6 +365,14 @@ class LuaRegistry {
         m.fname = clsname ~ "_" ~ name;
         m.demarshal = &demarshal;
         mMethods ~= m;
+    }
+
+    //shortcut for registering multiple methods of a class
+    //each item of Names is expected to be a char[] (a method name of Class)
+    void methods(Class, Names...)() {
+        foreach (int idx, _; Names) {
+            method!(Class, Names[idx])();
+        }
     }
 
     //Register a function
@@ -439,7 +471,7 @@ class LuaState {
         //'=' means use the name as-is (else "string " is added)
         int res = lua_load(mLua, reader, d, toStringz('='~chunkname));
         if (res != 0) {
-            throw new LuaException("Parse error: " ~ lua_todstring(mLua, 1));
+            throw new LuaException("Parse error: " ~ lua_todstring(mLua, -1));
         }
     }
 
@@ -453,13 +485,13 @@ class LuaState {
     }
     +/
 
-    void luaLoadAndPush(char[] code, char[] name) {
+    void luaLoadAndPush(char[] name, char[] code) {
         StringChunk sc;
         sc.data = code;
         lua_loadChecked(&lua_ReadString, &sc, name);
     }
 
-    void luaLoadAndPush(Stream input, char[] name) {
+    void luaLoadAndPush(char[] name, Stream input) {
         lua_loadChecked(&lua_ReadStream, cast(void*)input, name);
     }
 
@@ -473,12 +505,16 @@ class LuaState {
     //also, it seems dmd can't infer only some parameters, e.g.:
     //      callR!(int)("test", "abc", "def")
     //fails.
+    //if you get something like "Error: template framework.lua.LuaState.callR(RetType,T...) declaration T is already defined", it means dmd is being retarded, and one of the subseqeuent template instantiatoins copntain semantic errors
     RetType callR(RetType, T...)(char[] funcName, T args) {
         //xxx should avoid memory allocation (toStringz)
+        stack0();
         lua_getglobal(mLua, toStringz(funcName));
         if (!lua_isfunction(mLua, 1)) {
             throw new LuaException(funcName ~ ": not a function.");
         }
+        scope(success)
+            stack0();
         return luaCall!(RetType, T)(args);
     }
 
@@ -491,7 +527,164 @@ class LuaState {
         const bool ret_void = is(RetType == void);
         lua_call(mLua, argc, ret_void ? 0 : 1);
         static if (!ret_void) {
-            return luaStackValue!(RetType)(mLua, 1);
+            RetType res = luaStackValue!(RetType)(mLua, 1);
+            lua_pop(mLua, 1);
+            return res;
         }
+    }
+
+    void stack0() {
+        assert(lua_gettop(mLua) == 0);
+    }
+
+    private const cSerializeNull = "#null";
+    private const cSerializeMagic = "MAGIC";
+
+    //write contents of global variable stuff into Stream st
+    //external_id() is called for D objects residing inside the lua dump; the
+    //  only requirement for the returned IDs is to unique and to be != ""
+    //returning "" from external_id() means "unknown object" and will trigger an
+    //  error
+    void serialize(char[] stuff, Stream st,
+        char[] delegate(Object o) external_id)
+    {
+        assert(gPlutoOK);
+        stack0();
+
+        lua_getfield(mLua, LUA_GLOBALSINDEX, toStringz(stuff));
+
+        //pluto expects us to resolve externals in advance (permanents-table)
+        //traverse Lua's object graph, and find any light user data (= external)
+        //be aware that the Pluto crap will serialize userdata as POINTERS if
+        //  you don't add them to the permanents-table (yes, really)
+        //do this in Lua because that's simply simpler
+        //this helps: http://lua-users.org/wiki/TableSerialization
+        luaLoadAndPush("serialize_find_externals", `
+            -- xxx: metatables, environments, ...?
+            local done = {}
+            local exts = {}
+            local ws = {}
+
+            local function add(x)
+                if type(x) == "table" then
+                    if done[x] == nil then
+                        ws[x] = true
+                    end
+                end
+                if type(x) == "userdata" then
+                    exts[x] = true
+                end
+            end
+
+            --for key, value in pairs(...) do
+            --    add(value)
+            --end
+            add(...)
+
+            while true do
+                -- like a stack.pop()
+                -- look how simple and elegant Lua makes this!
+                local cur = next(ws)
+                if cur == nil then break end
+                ws[cur] = nil
+
+                done[cur] = true
+                for key, value in pairs(cur) do
+                    add(key)
+                    add(value)
+                end
+            end
+
+            return exts
+        `);
+        lua_pushvalue(mLua, -2);
+        lua_call(mLua, 1, 1);
+        lua_pushvalue(mLua, -1);
+        int tidx = lua_gettop(mLua);
+        assert(tidx == 3);
+
+        //build Pluto "permanent table"; external objects as keys, id as values
+        //reuses the returned set of userdata found by the script above
+        char[][] externals;
+        lua_pushnil(mLua);
+        while (lua_next(mLua, tidx)) {
+            Object o = luaStackValue!(Object)(mLua, -2);
+            char[] id = cSerializeNull;
+            if (o) {
+                id = external_id(o);
+                if (id.length == 0) {
+                    assert(false, "can't serialize: " ~ o.classinfo.name);
+                }
+                externals ~= id;
+            }
+            lua_pop(mLua, 1);
+            lua_pushvalue(mLua, -1); //key
+            luaPush(mLua, id);
+            lua_settable(mLua, tidx);
+            //key remains on stack for lua_next
+        }
+        lua_pop(mLua, 1); //table
+
+        assert(lua_gettop(mLua) == 2);
+
+        //Pluto crap requires us to construct the permanents-table before
+        //  deserializing; so we store our own crap in the stream
+        auto marshal = Marshaller((ubyte[] d) { st.writeExact(d); });
+        marshal.write(externals);
+        marshal.write!(char[])(cSerializeMagic);
+
+        //stack contents: 1=stuff, 2=permanent-table
+        //exchange 1 and 2
+        lua_pushvalue(mLua, 1);
+        lua_remove(mLua, 1);
+
+        //pluto is very touchy about this, and non-debug versions don't catch it
+        assert(lua_gettop(mLua) == 2);
+        pluto_persist(mLua, &lua_WriteStream, cast(void*)st);
+
+        assert(lua_gettop(mLua) == 2);
+        lua_pop(mLua, 2);
+    }
+
+    //parameters same as serialize
+    //external_id is the inverse as in serialize(); returning null means error
+    void deserialize(char[] stuff, Stream st,
+        Object delegate(char[]) external_id)
+    {
+        auto unmarshal =
+            Unmarshaller((ubyte[] d) { st.readExact(d); return size_t.max; });
+        auto ext_names = unmarshal.read!(char[][])();
+
+        stack0();
+        lua_newtable(mLua);
+
+        void add_ext(char[] name, Object o) {
+            luaPush(mLua, name);
+            luaPush(mLua, o);
+            lua_settable(mLua, -3);
+        }
+
+        foreach (name; ext_names) {
+            Object o = external_id(name);
+            if (!o) {
+                assert(false, "object not found: "~name);
+            }
+
+            add_ext(name, o);
+        }
+
+        add_ext("#null", null);
+
+        auto m = unmarshal.read!(char[])();
+        assert(m == cSerializeMagic);
+
+        assert(lua_gettop(mLua) == 1); //perm-table
+        pluto_unpersist(mLua, &lua_ReadStream, cast(void*)st);
+
+        //should push the desrrialized objects
+        assert(lua_gettop(mLua) == 2);
+        lua_setfield(mLua, LUA_GLOBALSINDEX, toStringz(stuff));
+        lua_pop(mLua, 1);
+        stack0();
     }
 }
