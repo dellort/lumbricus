@@ -5,6 +5,7 @@ import intr = tango.core.BitManip;
 
 public import tango.stdc.stdarg : va_list;
 public import tango.core.Tuple : Tuple;
+import tango.core.Traits : ParameterTupleOf;
 
 //Tango team = stupid
 public import tango.math.Math : min, max;
@@ -154,6 +155,18 @@ template Repeat(int count) { //thx h3
         alias Tuple!() Repeat;
     } else {
         alias Tuple!(count-1, Repeat!(count-1)) Repeat;
+    }
+}
+
+//returns number of required function arguments, optional arguments excluded
+int requiredArgCount(alias Fn)() {
+    alias ParameterTupleOf!(typeof(Fn)) Params;
+    Params p;
+    static if (is(typeof(Fn())))
+        return 0;
+    foreach (int idx, x; p) {
+        static if (is(typeof(Fn(p[0..idx+1]))))
+            return idx+1;
     }
 }
 

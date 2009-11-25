@@ -23,7 +23,7 @@ class Evul {
 }
 
 class Foo {
-    char[] test(int x, float y, char[] msg) {
+    char[] test(int x, float y = 99.0, char[] msg = "Default") {
         return myformat("hello from D! got: {} {} '{}'", x, y, msg);
     }
 
@@ -104,6 +104,8 @@ void main(char[][] args) {
     loadexec(`
         print("Hello world")
         print(Foo_test(1, -4.2, "Foobar"))
+        print(Foo_test(1, -4.2))
+        print(Foo_test(1))
         b = Foo_createBar()
         Bar_test(b, "hurf")
 
@@ -142,8 +144,10 @@ void main(char[][] args) {
 
     //too many args
     ex(loadexec(`Bar_test(b, "a", "b")`));
+    ex(loadexec(`Foo_test(1, 2, "Bla", "Too much")`));
     //too few args
     ex(loadexec(`Bar_test()`));
+    ex(loadexec(`Foo_test()`));
     //wrong type
     ex(loadexec(`Foo_passBar(Foo_createEvul())`));
     ex(loadexec(`Foo_passBar("err")`));

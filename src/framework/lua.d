@@ -255,10 +255,10 @@ class LuaRegistry {
             LuaState ustate = cast(LuaState)(lua_touserdata(state,
                 lua_upvalueindex(1)));
             Class c = ustate.getSingleton!(Class)();
-            int baseidx = 1;
+            int skipCount = 0;
             if (!c) {
-                Object o = cast(Object)lua_touserdata(state, baseidx);
-                baseidx++;
+                Object o = cast(Object)lua_touserdata(state, 1);
+                skipCount++;
                 c = cast(Class)(o);
                 if (!c) {
                     error(myformat("method call to '{}' requires "
@@ -268,33 +268,58 @@ class LuaRegistry {
 
             auto del = mixin("&c."~name);
             alias ParameterTupleOf!(typeof(del)) Params;
-            int reqArgs = Params.length + baseidx - 1;
-            //xxx ignores superfluous arguments, ok?
-            //  is there some Lua convention that encourages this?
-            //  I'd prefer it'd has to match the exact arg count
-            if (numArgs != reqArgs) {
-                error(myformat("'{}' requires {} arguments, got {}", methodName,
-                    reqArgs, numArgs));
+            //min/max arguments allowed to be passed from lua (incl. 'this')
+            int maxArgs = Params.length + skipCount;
+            int minArgs = requiredArgCount!(del)() + skipCount;
+            //argument count has to be in accepted range (exact match)
+            if (numArgs < minArgs || numArgs > maxArgs) {
+                if (minArgs == maxArgs) {
+                    error(myformat("'{}' requires {} arguments, got {}",
+                        methodName, maxArgs, numArgs));
+                } else {
+                    error(myformat("'{}' requires {}-{} arguments, got {}",
+                        methodName, minArgs, maxArgs, numArgs));
+                }
             }
+            //number of arguments going to the delegate call
+            int numRealArgs = numArgs - skipCount;
 
+            //0 arguments special case (sorry for code duplication)
+            static if (is(typeof(del()) RetType)) {
+                if (numRealArgs == 0) {
+                    static if (is(RetType == void)) {
+                        del();
+                        return 0;
+                    } else {
+                        auto ret = del();
+                        return luaPush(state, ret);
+                    }
+                }
+            }
             Params p;
             foreach (int idx, x; p) {
                 alias typeof(x) T;
                 try {
-                    p[idx] = luaStackValue!(T)(state, baseidx + idx);
+                    p[idx] = luaStackValue!(T)(state, skipCount + idx + 1);
                 } catch (LuaException e) {
                     error(myformat("bad argument #{} to '{}' ({})", idx + 1,
                         methodName, e.msg));
                 }
+                //generate code for all possible parameter counts, and select
+                //the right case at runtime
+                static if (is(typeof(del(p[0..idx+1])) RetType)) {
+                    if (numRealArgs != idx+1)
+                        continue;
+                    static if (is(RetType == void)) {
+                        del(p[0..idx+1]);
+                        return 0;
+                    } else {
+                        auto ret = del(p[0..idx+1]);
+                        return luaPush(state, ret);
+                    }
+                }
             }
-            alias typeof(del(p)) RetType;
-            static if (is(RetType == void)) {
-                del(p);
-                return 0;
-            } else {
-                auto ret = del(p);
-                return luaPush(state, ret);
-            }
+            assert(false);
         }
         Method m;
         m.ci = Class.classinfo;
