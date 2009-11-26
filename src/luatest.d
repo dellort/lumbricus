@@ -6,6 +6,7 @@ import tango.core.tools.TraceExceptions;
 import utils.misc;
 import utils.stream;
 import utils.vector2;
+import utils.time;
 
 
 class Bar {
@@ -69,6 +70,10 @@ class Foo {
     void callCb(void delegate() cb) {
         cb();
     }
+
+    Time makeTime(long msecs) {
+        return timeMsecs(msecs);
+    }
 }
 
 LuaRegistry scripting;
@@ -76,12 +81,8 @@ LuaRegistry scripting;
 static this() {
     scripting = new typeof(scripting)();
     scripting.methods!(Foo, "test", "createBar", "createEvul", "passBar");
-    scripting.method!(Foo, "vector")();
-    scripting.method!(Foo, "makeVector")();
-    scripting.method!(Foo, "array")();
-    scripting.method!(Foo, "aarray")();
-    scripting.method!(Foo, "makeArray")();
-    scripting.method!(Foo, "callCb")();
+    scripting.methods!(Foo, "vector", "makeVector", "array", "aarray",
+        "makeArray", "callCb", "makeTime");
     scripting.method!(Bar, "test")();
     scripting.method!(Bar, "blurgh")();
     scripting.func!(funcBlub)();
@@ -98,6 +99,132 @@ void funcBlub(char[] arg) {
     Trace.formatln("Plain old function, yay! Got '{}'", arg);
 }
 
+const cVectorLib = `
+    Vector2 = {}
+    Vector2.__index = Vector2
+    setmetatable(Vector2, {__call = function(self, x, y)
+        if (y) then
+            return setmetatable({x = x, y = y}, Vector2)
+        else
+            return setmetatable({x = x, y = x}, Vector2)
+        end
+    end})
+
+    function Vector2:__add(v)
+        return Vector2(self.x + v.x, self.y + v.y)
+    end
+
+    function Vector2:__sub(v)
+        return Vector2(self.x - v.x, self.y - v.y)
+    end
+
+    function Vector2:__mul(v)
+        if type(v) == "table" then
+            return self.x * v.x + self.y * v.y;
+        else
+            return Vector2(self.x * v, self.y * v)
+        end
+    end
+
+    function Vector2:__div(v)
+        if type(v) == "table" then
+            return Vector2(self.x / v.x, self.y / v.y)
+        else
+            return Vector2(self.x / v, self.y / v)
+        end
+    end
+
+    function Vector2:__unm()
+        return Vector2(-self.x, -self.y)
+    end
+
+    function Vector2:__len()
+        return math.sqrt(self.x*self.x, self.y*self.y)
+    end
+
+    function Vector2:__eq(v)
+        return self.x == v.x and self.y == v.y
+    end
+
+    function Vector2:quad_length()
+        return self.x*self.x + self.y*self.y
+    end
+
+    function Vector2:toAngle()
+        return math.atan2(self.y, self.x)
+    end
+
+    function Vector2:print()
+        print(string.format("(%d, %d)", self.x, self.y))
+    end
+`;
+
+const cTimeLib = `
+    Time = {}
+    Time.__index = Time
+    setmetatable(Time, {__call = function(self, timeVal)
+        return setmetatable({timeVal = timeVal}, Time)
+    end})
+
+    Time.Null = Time(0)
+
+    function Time:__add(v)
+        return Time(self.timeVal + v.timeVal)
+    end
+    function Time:__sub(v)
+        return Time(self.timeVal - v.timeVal)
+    end
+    function Time:__mul(v)
+        return Time(self.timeVal * v)
+    end
+    function Time:__div(v)
+        return Time(self.timeVal / v)
+    end
+    function Time:__unm()
+        return Time(-self.timeVal)
+    end
+
+    function Time:__eq(v)
+        return self.timeVal == v.timeVal
+    end
+    function Time:__lt(v)
+        return self.timeVal < v.timeVal
+    end
+    function Time:__le(v)
+        return self.timeVal <= v.timeVal
+    end
+
+    function Time:print()
+        print(string.format("%f s", self:secs()))
+    end
+
+    function Time:musecs()
+        return self.timeVal/1000
+    end
+    function Time:msecs()
+        return self.timeVal/1000000
+    end
+    function Time:secs()
+        return self:msecs()/1000
+    end
+    function Time:mins()
+        return self:msecs()/60000
+    end
+
+    function timeMusecs(v)
+        return Time(v*1000)
+    end
+    function timeMsecs(v)
+        return Time(v*1000000)
+    end
+    function timeSecs(v)
+        return timeMsecs(v*1000)
+    end
+    function timeMins(v)
+        return timeMsecs(v*60000)
+    end
+`;
+
 void main(char[][] args) {
     LuaState s = new LuaState();
     s.register(scripting);
@@ -105,35 +232,18 @@ void main(char[][] args) {
     auto foo = new Foo();
     s.addSingleton(foo);
 
-    void loadexec(char[] code) {
+    void loadexec(char[] code, char[] name = "blub") {
         s.stack0();
-        s.luaLoadAndPush("blub", code);
+        s.luaLoadAndPush(name, code);
         s.luaCall!(void)();
         s.stack0();
     }
 
-    loadexec(`
-        Vector2 = {}
-        Vector2.__index = Vector2
-
-        function Vector2:new(x, y)
-            v = { x = x, y = y }; setmetatable(v, Vector2); return v
-        end
-
-        function Vector2:__add(v)
-            return Vector2:new(self.x + v.x, self.y + v.y)
-        end
-
-        function Vector2:__sub(v)
-            return Vector2:new(self.x - v.x, self.y - v.y)
-        end
-
-        function Vector2:print()
-            print(string.format("(%d, %d)", self.x, self.y))
-        end
-    `);
+    loadexec(cVectorLib, "vector2.lua");
     s.addScriptType!(Vector2i)("Vector2");
     s.addScriptType!(Vector2f)("Vector2");
+    loadexec(cTimeLib, "time.lua");
+    s.addScriptType!(Time)("Time");
 
     loadexec(`
         print("Hello world")
@@ -150,12 +260,12 @@ void main(char[][] args) {
 
         Foo_passBar(b)
         v1 = Foo_makeVector(2, 3)
-        v2 = Foo_makeVector(1, 7)
+        v2 = Vector2(5)
         vv = v1 + v2
-        -- for k,v in pairs(v1) do
-        --    print(string.format("  %s -> %s", k, v))
-        -- end
         vv:print()
+        t = Foo_makeTime(500)
+        t:print()
+        timeMins(30):print()
         Foo_vector({4, 5})
         Foo_vector(Foo_makeVector(23, 42))
         Foo_array({1, 2, 3, 4})

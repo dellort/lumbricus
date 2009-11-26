@@ -51,6 +51,7 @@
 		<Unit filename="..\src\utils\misc.d" />
 		<Unit filename="..\src\utils\stream.d" />
 		<Unit filename="..\src\utils\string.d" />
+		<Unit filename="..\src\utils\time.d" />
 		<Unit filename="..\src\utils\vector2.d" />
 		<Extensions>
 			<code_completion />

@@ -115,16 +115,11 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         throw new LuaException(t ~ " expected, got "
             ~ fromStringz(luaL_typename(state, stackIdx)));
     }
-    static if (isIntegerType!(T)) {
-        int ret = lua_tointeger(state, stackIdx);
-        if (ret == 0 && !lua_isnumber(state, stackIdx))
-            expected("integer");
-        return ret;
-    } else static if (isFloatingPointType!(T)) {
-        float ret = lua_tonumber(state, stackIdx);
+    static if (isIntegerType!(T) || isFloatingPointType!(T)) {
+        lua_Number ret = lua_tonumber(state, stackIdx);
         if (ret == 0 && !lua_isnumber(state, stackIdx))
             expected("number");
-        return ret;
+        return cast(T)ret;
     } else static if (is(T : bool)) {
         //accepts everything, true for anything except 'false' and 'nil'
         return !!lua_toboolean(state, stackIdx);
@@ -220,14 +215,14 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
             ~this() {
                 //remove function from registry (if state became invalid, those
                 //  functions will just fail quietly)
-                lua_pushlightuserdata(state, cast(void*)key);
+                lua_pushnumber(state, key);
                 lua_pushnil(state);
                 lua_settable(state, LUA_REGISTRYINDEX);
             }
             //will return delegate to this function
             RetType cbfunc(Params args) {
                 //get callee from the registry and call
-                lua_pushlightuserdata(state, cast(void*)key);
+                lua_pushnumber(state, key);
                 lua_gettable(state, LUA_REGISTRYINDEX);
                 assert(lua_isfunction(state, -1));
                 //will pop function from the stack
@@ -240,7 +235,7 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         //xxx not guaranteed to be unique in context of serialization, add check
         pwrap.key = intr.bswap(cast(uint)cast(void*)pwrap);
 
-        lua_pushlightuserdata(state, cast(void*)pwrap.key);  //unique key
+        lua_pushnumber(state, pwrap.key);  //unique key
         lua_pushvalue(state, -2);                    //lua closure
         lua_settable(state, LUA_REGISTRYINDEX);
 
@@ -253,9 +248,8 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
 //returns the number of values pushed (for Vectors maybe, I don't know)
 //xxx: that would be a problem, see luaCall()
 int luaPush(T)(lua_State *state, T value) {
-    static if (isIntegerType!(T)) {
-        lua_pushinteger(state, value);
-    } else static if (isFloatingPointType!(T)) {
+    static if (isFloatingPointType!(T) || isIntegerType!(T)) {
+        //everything is casted to double internally anyway; avoids overflows
         lua_pushnumber(state, value);
     } else static if (is(T : bool)) {
         lua_pushboolean(state, cast(int)value);
