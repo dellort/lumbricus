@@ -8,11 +8,11 @@ import tango.util.Convert : to, ConversionException;
 
 
 public struct Vector2(T) {
-    T x1 = 0;
-    T x2 = 0;
+    T x = 0;
+    T y = 0;
 
-    alias x1 x;
-    alias x2 y;
+    alias x x1;
+    alias y x2;
 
     //unit vectors (not to confuse with .X and .Y properties)
     const Vector2 cX = {1,0};

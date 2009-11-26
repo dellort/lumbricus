@@ -113,6 +113,29 @@ void main(char[][] args) {
     }
 
     loadexec(`
+        Vector2 = {}
+        Vector2.__index = Vector2
+
+        function Vector2:new(x, y)
+            v = { x = x, y = y }; setmetatable(v, Vector2); return v
+        end
+
+        function Vector2:__add(v)
+            return Vector2:new(self.x + v.x, self.y + v.y)
+        end
+
+        function Vector2:__sub(v)
+            return Vector2:new(self.x - v.x, self.y - v.y)
+        end
+
+        function Vector2:print()
+            print(string.format("(%d, %d)", self.x, self.y))
+        end
+    `);
+    s.addScriptType!(Vector2i)("Vector2");
+    s.addScriptType!(Vector2f)("Vector2");
+
+    loadexec(`
         print("Hello world")
         print(Foo_test(1, -4.2, "Foobar"))
         print(Foo_test(1, -4.2))
@@ -126,6 +149,13 @@ void main(char[][] args) {
         end
 
         Foo_passBar(b)
+        v1 = Foo_makeVector(2, 3)
+        v2 = Foo_makeVector(1, 7)
+        vv = v1 + v2
+        -- for k,v in pairs(v1) do
+        --    print(string.format("  %s -> %s", k, v))
+        -- end
+        vv:print()
         Foo_vector({4, 5})
         Foo_vector(Foo_makeVector(23, 42))
         Foo_array({1, 2, 3, 4})

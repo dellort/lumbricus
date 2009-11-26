@@ -271,6 +271,9 @@ int luaPush(T)(lua_State *state, T value) {
             luaPush(state, value.tupleof[idx]);
             lua_settable(state, -3);
         }
+        const c_mangle = "D_struct_" ~ T.mangleof ~ '\0';
+        lua_getfield(state, LUA_REGISTRYINDEX, c_mangle.ptr);
+        lua_setmetatable(state, -2);
     } else static if (isArrayType!(T) || isAssocArrayType!(T)) {
         lua_newtable(state);
         foreach(k, v; value) {
@@ -751,5 +754,11 @@ class LuaState {
         lua_setfield(mLua, LUA_GLOBALSINDEX, toStringz(stuff));
         lua_pop(mLua, 1);
         stack0();
+    }
+
+    void addScriptType(T)(char[] tableName) {
+        lua_getfield(mLua, LUA_GLOBALSINDEX, toStringz(tableName));
+        const c_mangle = "D_struct_" ~ T.mangleof ~ '\0';
+        lua_setfield(mLua, LUA_REGISTRYINDEX, c_mangle.ptr);
     }
 }
