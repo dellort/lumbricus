@@ -4,17 +4,14 @@ import derelict.lua.lua;
 import derelict.util.loader;
 
 extern (C) {
-    alias int function(lua_State *L, lua_Writer writer, void *ud) pfpluto_persist;
-    alias int function(lua_State *L, lua_Reader reader, void *ud) pfpluto_unpersist;
-
-    pfpluto_persist pluto_persist;
-    pfpluto_unpersist pluto_unpersist;
+    int function(lua_State *L, lua_Writer writer, void *ud) pluto_persist;
+    int function(lua_State *L, lua_Reader reader, void *ud) pluto_unpersist;
 }
 
 private void load(SharedLib lib)
 {
-  bindFunc(pluto_persist)("pluto_persist", lib);
-  bindFunc(pluto_unpersist)("pluto_unpersist", lib);
+  *cast(void**)&pluto_persist = Derelict_GetProc(lib, "pluto_persist");
+  *cast(void**)&pluto_unpersist = Derelict_GetProc(lib, "pluto_unpersist");
 }
 
 GenericLoader DerelictLua_Pluto;

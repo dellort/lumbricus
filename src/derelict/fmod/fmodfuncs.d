@@ -7,7 +7,7 @@ module derelict.fmod.fmodfuncs;
 //How to convert fmod.h functions (POSIX Extended RE):
 //  S: FMOD_RESULT F_API (\w+)\s*\(([^\)]+)\);
 //  R1: FMOD_RESULT function\(\2\) \1;
-//  R2: bindFunc(\1)("\1", lib);
+//  R2: *cast(void**)&\1 = Derelict_GetProc(lib, "\1");
 
 private {
     import derelict.fmod.fmodtypes;
@@ -643,19 +643,19 @@ private void load(SharedLib lib) {
         FMOD global system functions (optional).
     */
 
-    bindFunc(FMOD_Memory_Initialize)("FMOD_Memory_Initialize", lib);
-    bindFunc(FMOD_Memory_GetStats)("FMOD_Memory_GetStats", lib);
-    bindFunc(FMOD_Debug_SetLevel)("FMOD_Debug_SetLevel", lib);
-    bindFunc(FMOD_Debug_GetLevel)("FMOD_Debug_GetLevel", lib);
-    bindFunc(FMOD_File_SetDiskBusy)("FMOD_File_SetDiskBusy", lib);
-    bindFunc(FMOD_File_GetDiskBusy)("FMOD_File_GetDiskBusy", lib);
+    *cast(void**)&FMOD_Memory_Initialize = Derelict_GetProc(lib, "FMOD_Memory_Initialize");
+    *cast(void**)&FMOD_Memory_GetStats = Derelict_GetProc(lib, "FMOD_Memory_GetStats");
+    *cast(void**)&FMOD_Debug_SetLevel = Derelict_GetProc(lib, "FMOD_Debug_SetLevel");
+    *cast(void**)&FMOD_Debug_GetLevel = Derelict_GetProc(lib, "FMOD_Debug_GetLevel");
+    *cast(void**)&FMOD_File_SetDiskBusy = Derelict_GetProc(lib, "FMOD_File_SetDiskBusy");
+    *cast(void**)&FMOD_File_GetDiskBusy = Derelict_GetProc(lib, "FMOD_File_GetDiskBusy");
 
     /*
         FMOD System factory functions.  Use this to create an FMOD System Instance.  below you will see FMOD_System_Init/Close to get started.
     */
 
-    bindFunc(FMOD_System_Create)("FMOD_System_Create", lib);
-    bindFunc(FMOD_System_Release)("FMOD_System_Release", lib);
+    *cast(void**)&FMOD_System_Create = Derelict_GetProc(lib, "FMOD_System_Create");
+    *cast(void**)&FMOD_System_Release = Derelict_GetProc(lib, "FMOD_System_Release");
 
 
     /*
@@ -666,594 +666,594 @@ private void load(SharedLib lib) {
          Pre-init functions.
     */
 
-    bindFunc(FMOD_System_SetOutput)("FMOD_System_SetOutput", lib);
-    bindFunc(FMOD_System_GetOutput)("FMOD_System_GetOutput", lib);
-    bindFunc(FMOD_System_GetNumDrivers)("FMOD_System_GetNumDrivers", lib);
-    bindFunc(FMOD_System_GetDriverInfo)("FMOD_System_GetDriverInfo", lib);
-    bindFunc(FMOD_System_GetDriverCaps)("FMOD_System_GetDriverCaps", lib);
-    bindFunc(FMOD_System_SetDriver)("FMOD_System_SetDriver", lib);
-    bindFunc(FMOD_System_GetDriver)("FMOD_System_GetDriver", lib);
-    bindFunc(FMOD_System_SetHardwareChannels)("FMOD_System_SetHardwareChannels", lib);
-    bindFunc(FMOD_System_SetSoftwareChannels)("FMOD_System_SetSoftwareChannels", lib);
-    bindFunc(FMOD_System_GetSoftwareChannels)("FMOD_System_GetSoftwareChannels", lib);
-    bindFunc(FMOD_System_SetSoftwareFormat)("FMOD_System_SetSoftwareFormat", lib);
-    bindFunc(FMOD_System_GetSoftwareFormat)("FMOD_System_GetSoftwareFormat", lib);
-    bindFunc(FMOD_System_SetDSPBufferSize)("FMOD_System_SetDSPBufferSize", lib);
-    bindFunc(FMOD_System_GetDSPBufferSize)("FMOD_System_GetDSPBufferSize", lib);
-    bindFunc(FMOD_System_SetFileSystem)("FMOD_System_SetFileSystem", lib);
-    bindFunc(FMOD_System_AttachFileSystem)("FMOD_System_AttachFileSystem", lib);
-    bindFunc(FMOD_System_SetAdvancedSettings)("FMOD_System_SetAdvancedSettings", lib);
-    bindFunc(FMOD_System_GetAdvancedSettings)("FMOD_System_GetAdvancedSettings", lib);
-    bindFunc(FMOD_System_SetSpeakerMode)("FMOD_System_SetSpeakerMode", lib);
-    bindFunc(FMOD_System_GetSpeakerMode)("FMOD_System_GetSpeakerMode", lib);
-    bindFunc(FMOD_System_SetCallback)("FMOD_System_SetCallback", lib);
+    *cast(void**)&FMOD_System_SetOutput = Derelict_GetProc(lib, "FMOD_System_SetOutput");
+    *cast(void**)&FMOD_System_GetOutput = Derelict_GetProc(lib, "FMOD_System_GetOutput");
+    *cast(void**)&FMOD_System_GetNumDrivers = Derelict_GetProc(lib, "FMOD_System_GetNumDrivers");
+    *cast(void**)&FMOD_System_GetDriverInfo = Derelict_GetProc(lib, "FMOD_System_GetDriverInfo");
+    *cast(void**)&FMOD_System_GetDriverCaps = Derelict_GetProc(lib, "FMOD_System_GetDriverCaps");
+    *cast(void**)&FMOD_System_SetDriver = Derelict_GetProc(lib, "FMOD_System_SetDriver");
+    *cast(void**)&FMOD_System_GetDriver = Derelict_GetProc(lib, "FMOD_System_GetDriver");
+    *cast(void**)&FMOD_System_SetHardwareChannels = Derelict_GetProc(lib, "FMOD_System_SetHardwareChannels");
+    *cast(void**)&FMOD_System_SetSoftwareChannels = Derelict_GetProc(lib, "FMOD_System_SetSoftwareChannels");
+    *cast(void**)&FMOD_System_GetSoftwareChannels = Derelict_GetProc(lib, "FMOD_System_GetSoftwareChannels");
+    *cast(void**)&FMOD_System_SetSoftwareFormat = Derelict_GetProc(lib, "FMOD_System_SetSoftwareFormat");
+    *cast(void**)&FMOD_System_GetSoftwareFormat = Derelict_GetProc(lib, "FMOD_System_GetSoftwareFormat");
+    *cast(void**)&FMOD_System_SetDSPBufferSize = Derelict_GetProc(lib, "FMOD_System_SetDSPBufferSize");
+    *cast(void**)&FMOD_System_GetDSPBufferSize = Derelict_GetProc(lib, "FMOD_System_GetDSPBufferSize");
+    *cast(void**)&FMOD_System_SetFileSystem = Derelict_GetProc(lib, "FMOD_System_SetFileSystem");
+    *cast(void**)&FMOD_System_AttachFileSystem = Derelict_GetProc(lib, "FMOD_System_AttachFileSystem");
+    *cast(void**)&FMOD_System_SetAdvancedSettings = Derelict_GetProc(lib, "FMOD_System_SetAdvancedSettings");
+    *cast(void**)&FMOD_System_GetAdvancedSettings = Derelict_GetProc(lib, "FMOD_System_GetAdvancedSettings");
+    *cast(void**)&FMOD_System_SetSpeakerMode = Derelict_GetProc(lib, "FMOD_System_SetSpeakerMode");
+    *cast(void**)&FMOD_System_GetSpeakerMode = Derelict_GetProc(lib, "FMOD_System_GetSpeakerMode");
+    *cast(void**)&FMOD_System_SetCallback = Derelict_GetProc(lib, "FMOD_System_SetCallback");
 
     /*
          Plug-in support
     */
 
-    bindFunc(FMOD_System_SetPluginPath)("FMOD_System_SetPluginPath", lib);
-    bindFunc(FMOD_System_LoadPlugin)("FMOD_System_LoadPlugin", lib);
-    bindFunc(FMOD_System_UnloadPlugin)("FMOD_System_UnloadPlugin", lib);
-    bindFunc(FMOD_System_GetNumPlugins)("FMOD_System_GetNumPlugins", lib);
-    bindFunc(FMOD_System_GetPluginHandle)("FMOD_System_GetPluginHandle", lib);
-    bindFunc(FMOD_System_GetPluginInfo)("FMOD_System_GetPluginInfo", lib);
-    bindFunc(FMOD_System_SetOutputByPlugin)("FMOD_System_SetOutputByPlugin", lib);
-    bindFunc(FMOD_System_GetOutputByPlugin)("FMOD_System_GetOutputByPlugin", lib);
-    bindFunc(FMOD_System_CreateDSPByPlugin)("FMOD_System_CreateDSPByPlugin", lib);
-    bindFunc(FMOD_System_CreateCodec)("FMOD_System_CreateCodec", lib);
+    *cast(void**)&FMOD_System_SetPluginPath = Derelict_GetProc(lib, "FMOD_System_SetPluginPath");
+    *cast(void**)&FMOD_System_LoadPlugin = Derelict_GetProc(lib, "FMOD_System_LoadPlugin");
+    *cast(void**)&FMOD_System_UnloadPlugin = Derelict_GetProc(lib, "FMOD_System_UnloadPlugin");
+    *cast(void**)&FMOD_System_GetNumPlugins = Derelict_GetProc(lib, "FMOD_System_GetNumPlugins");
+    *cast(void**)&FMOD_System_GetPluginHandle = Derelict_GetProc(lib, "FMOD_System_GetPluginHandle");
+    *cast(void**)&FMOD_System_GetPluginInfo = Derelict_GetProc(lib, "FMOD_System_GetPluginInfo");
+    *cast(void**)&FMOD_System_SetOutputByPlugin = Derelict_GetProc(lib, "FMOD_System_SetOutputByPlugin");
+    *cast(void**)&FMOD_System_GetOutputByPlugin = Derelict_GetProc(lib, "FMOD_System_GetOutputByPlugin");
+    *cast(void**)&FMOD_System_CreateDSPByPlugin = Derelict_GetProc(lib, "FMOD_System_CreateDSPByPlugin");
+    *cast(void**)&FMOD_System_CreateCodec = Derelict_GetProc(lib, "FMOD_System_CreateCodec");
 
     /*
          Init/Close
     */
 
-    bindFunc(FMOD_System_Init)("FMOD_System_Init", lib);
-    bindFunc(FMOD_System_Close)("FMOD_System_Close", lib);
+    *cast(void**)&FMOD_System_Init = Derelict_GetProc(lib, "FMOD_System_Init");
+    *cast(void**)&FMOD_System_Close = Derelict_GetProc(lib, "FMOD_System_Close");
 
     /*
          General post-init system functions
     */
 
-    bindFunc(FMOD_System_Update)("FMOD_System_Update", lib);
+    *cast(void**)&FMOD_System_Update = Derelict_GetProc(lib, "FMOD_System_Update");
 
-    bindFunc(FMOD_System_Set3DSettings)("FMOD_System_Set3DSettings", lib);
-    bindFunc(FMOD_System_Get3DSettings)("FMOD_System_Get3DSettings", lib);
-    bindFunc(FMOD_System_Set3DNumListeners)("FMOD_System_Set3DNumListeners", lib);
-    bindFunc(FMOD_System_Get3DNumListeners)("FMOD_System_Get3DNumListeners", lib);
-    bindFunc(FMOD_System_Set3DListenerAttributes)("FMOD_System_Set3DListenerAttributes", lib);
-    bindFunc(FMOD_System_Get3DListenerAttributes)("FMOD_System_Get3DListenerAttributes", lib);
-    bindFunc(FMOD_System_Set3DRolloffCallback)("FMOD_System_Set3DRolloffCallback", lib);
-    bindFunc(FMOD_System_Set3DSpeakerPosition)("FMOD_System_Set3DSpeakerPosition", lib);
-    bindFunc(FMOD_System_Get3DSpeakerPosition)("FMOD_System_Get3DSpeakerPosition", lib);
+    *cast(void**)&FMOD_System_Set3DSettings = Derelict_GetProc(lib, "FMOD_System_Set3DSettings");
+    *cast(void**)&FMOD_System_Get3DSettings = Derelict_GetProc(lib, "FMOD_System_Get3DSettings");
+    *cast(void**)&FMOD_System_Set3DNumListeners = Derelict_GetProc(lib, "FMOD_System_Set3DNumListeners");
+    *cast(void**)&FMOD_System_Get3DNumListeners = Derelict_GetProc(lib, "FMOD_System_Get3DNumListeners");
+    *cast(void**)&FMOD_System_Set3DListenerAttributes = Derelict_GetProc(lib, "FMOD_System_Set3DListenerAttributes");
+    *cast(void**)&FMOD_System_Get3DListenerAttributes = Derelict_GetProc(lib, "FMOD_System_Get3DListenerAttributes");
+    *cast(void**)&FMOD_System_Set3DRolloffCallback = Derelict_GetProc(lib, "FMOD_System_Set3DRolloffCallback");
+    *cast(void**)&FMOD_System_Set3DSpeakerPosition = Derelict_GetProc(lib, "FMOD_System_Set3DSpeakerPosition");
+    *cast(void**)&FMOD_System_Get3DSpeakerPosition = Derelict_GetProc(lib, "FMOD_System_Get3DSpeakerPosition");
 
-    bindFunc(FMOD_System_SetStreamBufferSize)("FMOD_System_SetStreamBufferSize", lib);
-    bindFunc(FMOD_System_GetStreamBufferSize)("FMOD_System_GetStreamBufferSize", lib);
+    *cast(void**)&FMOD_System_SetStreamBufferSize = Derelict_GetProc(lib, "FMOD_System_SetStreamBufferSize");
+    *cast(void**)&FMOD_System_GetStreamBufferSize = Derelict_GetProc(lib, "FMOD_System_GetStreamBufferSize");
 
     /*
          System information functions.
     */
 
-    bindFunc(FMOD_System_GetVersion)("FMOD_System_GetVersion", lib);
-    bindFunc(FMOD_System_GetOutputHandle)("FMOD_System_GetOutputHandle", lib);
-    bindFunc(FMOD_System_GetChannelsPlaying)("FMOD_System_GetChannelsPlaying", lib);
-    bindFunc(FMOD_System_GetHardwareChannels)("FMOD_System_GetHardwareChannels", lib);
-    bindFunc(FMOD_System_GetCPUUsage)("FMOD_System_GetCPUUsage", lib);
-    bindFunc(FMOD_System_GetSoundRAM)("FMOD_System_GetSoundRAM", lib);
-    bindFunc(FMOD_System_GetNumCDROMDrives)("FMOD_System_GetNumCDROMDrives", lib);
-    bindFunc(FMOD_System_GetCDROMDriveName)("FMOD_System_GetCDROMDriveName", lib);
-    bindFunc(FMOD_System_GetSpectrum)("FMOD_System_GetSpectrum", lib);
-    bindFunc(FMOD_System_GetWaveData)("FMOD_System_GetWaveData", lib);
+    *cast(void**)&FMOD_System_GetVersion = Derelict_GetProc(lib, "FMOD_System_GetVersion");
+    *cast(void**)&FMOD_System_GetOutputHandle = Derelict_GetProc(lib, "FMOD_System_GetOutputHandle");
+    *cast(void**)&FMOD_System_GetChannelsPlaying = Derelict_GetProc(lib, "FMOD_System_GetChannelsPlaying");
+    *cast(void**)&FMOD_System_GetHardwareChannels = Derelict_GetProc(lib, "FMOD_System_GetHardwareChannels");
+    *cast(void**)&FMOD_System_GetCPUUsage = Derelict_GetProc(lib, "FMOD_System_GetCPUUsage");
+    *cast(void**)&FMOD_System_GetSoundRAM = Derelict_GetProc(lib, "FMOD_System_GetSoundRAM");
+    *cast(void**)&FMOD_System_GetNumCDROMDrives = Derelict_GetProc(lib, "FMOD_System_GetNumCDROMDrives");
+    *cast(void**)&FMOD_System_GetCDROMDriveName = Derelict_GetProc(lib, "FMOD_System_GetCDROMDriveName");
+    *cast(void**)&FMOD_System_GetSpectrum = Derelict_GetProc(lib, "FMOD_System_GetSpectrum");
+    *cast(void**)&FMOD_System_GetWaveData = Derelict_GetProc(lib, "FMOD_System_GetWaveData");
 
     /*
          Sound/DSP/Channel/FX creation and retrieval.
     */
 
-    bindFunc(FMOD_System_CreateSound)("FMOD_System_CreateSound", lib);
-    bindFunc(FMOD_System_CreateStream)("FMOD_System_CreateStream", lib);
-    bindFunc(FMOD_System_CreateDSP)("FMOD_System_CreateDSP", lib);
-    bindFunc(FMOD_System_CreateDSPByType)("FMOD_System_CreateDSPByType", lib);
-    bindFunc(FMOD_System_CreateChannelGroup)("FMOD_System_CreateChannelGroup", lib);
-    bindFunc(FMOD_System_CreateSoundGroup)("FMOD_System_CreateSoundGroup", lib);
-    bindFunc(FMOD_System_CreateReverb)("FMOD_System_CreateReverb", lib);
+    *cast(void**)&FMOD_System_CreateSound = Derelict_GetProc(lib, "FMOD_System_CreateSound");
+    *cast(void**)&FMOD_System_CreateStream = Derelict_GetProc(lib, "FMOD_System_CreateStream");
+    *cast(void**)&FMOD_System_CreateDSP = Derelict_GetProc(lib, "FMOD_System_CreateDSP");
+    *cast(void**)&FMOD_System_CreateDSPByType = Derelict_GetProc(lib, "FMOD_System_CreateDSPByType");
+    *cast(void**)&FMOD_System_CreateChannelGroup = Derelict_GetProc(lib, "FMOD_System_CreateChannelGroup");
+    *cast(void**)&FMOD_System_CreateSoundGroup = Derelict_GetProc(lib, "FMOD_System_CreateSoundGroup");
+    *cast(void**)&FMOD_System_CreateReverb = Derelict_GetProc(lib, "FMOD_System_CreateReverb");
 
-    bindFunc(FMOD_System_PlaySound)("FMOD_System_PlaySound", lib);
-    bindFunc(FMOD_System_PlayDSP)("FMOD_System_PlayDSP", lib);
-    bindFunc(FMOD_System_GetChannel)("FMOD_System_GetChannel", lib);
-    bindFunc(FMOD_System_GetMasterChannelGroup)("FMOD_System_GetMasterChannelGroup", lib);
-    bindFunc(FMOD_System_GetMasterSoundGroup)("FMOD_System_GetMasterSoundGroup", lib);
+    *cast(void**)&FMOD_System_PlaySound = Derelict_GetProc(lib, "FMOD_System_PlaySound");
+    *cast(void**)&FMOD_System_PlayDSP = Derelict_GetProc(lib, "FMOD_System_PlayDSP");
+    *cast(void**)&FMOD_System_GetChannel = Derelict_GetProc(lib, "FMOD_System_GetChannel");
+    *cast(void**)&FMOD_System_GetMasterChannelGroup = Derelict_GetProc(lib, "FMOD_System_GetMasterChannelGroup");
+    *cast(void**)&FMOD_System_GetMasterSoundGroup = Derelict_GetProc(lib, "FMOD_System_GetMasterSoundGroup");
 
     /*
          Reverb API
     */
 
-    bindFunc(FMOD_System_SetReverbProperties)("FMOD_System_SetReverbProperties", lib);
-    bindFunc(FMOD_System_GetReverbProperties)("FMOD_System_GetReverbProperties", lib);
-    bindFunc(FMOD_System_SetReverbAmbientProperties)("FMOD_System_SetReverbAmbientProperties", lib);
-    bindFunc(FMOD_System_GetReverbAmbientProperties)("FMOD_System_GetReverbAmbientProperties", lib);
+    *cast(void**)&FMOD_System_SetReverbProperties = Derelict_GetProc(lib, "FMOD_System_SetReverbProperties");
+    *cast(void**)&FMOD_System_GetReverbProperties = Derelict_GetProc(lib, "FMOD_System_GetReverbProperties");
+    *cast(void**)&FMOD_System_SetReverbAmbientProperties = Derelict_GetProc(lib, "FMOD_System_SetReverbAmbientProperties");
+    *cast(void**)&FMOD_System_GetReverbAmbientProperties = Derelict_GetProc(lib, "FMOD_System_GetReverbAmbientProperties");
 
     /*
          System level DSP access.
     */
 
-    bindFunc(FMOD_System_GetDSPHead)("FMOD_System_GetDSPHead", lib);
-    bindFunc(FMOD_System_AddDSP)("FMOD_System_AddDSP", lib);
-    bindFunc(FMOD_System_LockDSP)("FMOD_System_LockDSP", lib);
-    bindFunc(FMOD_System_UnlockDSP)("FMOD_System_UnlockDSP", lib);
-    bindFunc(FMOD_System_GetDSPClock)("FMOD_System_GetDSPClock", lib);
+    *cast(void**)&FMOD_System_GetDSPHead = Derelict_GetProc(lib, "FMOD_System_GetDSPHead");
+    *cast(void**)&FMOD_System_AddDSP = Derelict_GetProc(lib, "FMOD_System_AddDSP");
+    *cast(void**)&FMOD_System_LockDSP = Derelict_GetProc(lib, "FMOD_System_LockDSP");
+    *cast(void**)&FMOD_System_UnlockDSP = Derelict_GetProc(lib, "FMOD_System_UnlockDSP");
+    *cast(void**)&FMOD_System_GetDSPClock = Derelict_GetProc(lib, "FMOD_System_GetDSPClock");
 
     /*
          Recording API.
     */
 
-    bindFunc(FMOD_System_GetRecordNumDrivers)("FMOD_System_GetRecordNumDrivers", lib);
-    bindFunc(FMOD_System_GetRecordDriverInfo)("FMOD_System_GetRecordDriverInfo", lib);
-    bindFunc(FMOD_System_GetRecordDriverCaps)("FMOD_System_GetRecordDriverCaps", lib);
-    bindFunc(FMOD_System_GetRecordPosition)("FMOD_System_GetRecordPosition", lib);
+    *cast(void**)&FMOD_System_GetRecordNumDrivers = Derelict_GetProc(lib, "FMOD_System_GetRecordNumDrivers");
+    *cast(void**)&FMOD_System_GetRecordDriverInfo = Derelict_GetProc(lib, "FMOD_System_GetRecordDriverInfo");
+    *cast(void**)&FMOD_System_GetRecordDriverCaps = Derelict_GetProc(lib, "FMOD_System_GetRecordDriverCaps");
+    *cast(void**)&FMOD_System_GetRecordPosition = Derelict_GetProc(lib, "FMOD_System_GetRecordPosition");
 
-    bindFunc(FMOD_System_RecordStart)("FMOD_System_RecordStart", lib);
-    bindFunc(FMOD_System_RecordStop)("FMOD_System_RecordStop", lib);
-    bindFunc(FMOD_System_IsRecording)("FMOD_System_IsRecording", lib);
+    *cast(void**)&FMOD_System_RecordStart = Derelict_GetProc(lib, "FMOD_System_RecordStart");
+    *cast(void**)&FMOD_System_RecordStop = Derelict_GetProc(lib, "FMOD_System_RecordStop");
+    *cast(void**)&FMOD_System_IsRecording = Derelict_GetProc(lib, "FMOD_System_IsRecording");
 
     /*
          Geometry API.
     */
 
-    bindFunc(FMOD_System_CreateGeometry)("FMOD_System_CreateGeometry", lib);
-    bindFunc(FMOD_System_SetGeometrySettings)("FMOD_System_SetGeometrySettings", lib);
-    bindFunc(FMOD_System_GetGeometrySettings)("FMOD_System_GetGeometrySettings", lib);
-    bindFunc(FMOD_System_LoadGeometry)("FMOD_System_LoadGeometry", lib);
-    bindFunc(FMOD_System_GetGeometryOcclusion)("FMOD_System_GetGeometryOcclusion", lib);
+    *cast(void**)&FMOD_System_CreateGeometry = Derelict_GetProc(lib, "FMOD_System_CreateGeometry");
+    *cast(void**)&FMOD_System_SetGeometrySettings = Derelict_GetProc(lib, "FMOD_System_SetGeometrySettings");
+    *cast(void**)&FMOD_System_GetGeometrySettings = Derelict_GetProc(lib, "FMOD_System_GetGeometrySettings");
+    *cast(void**)&FMOD_System_LoadGeometry = Derelict_GetProc(lib, "FMOD_System_LoadGeometry");
+    *cast(void**)&FMOD_System_GetGeometryOcclusion = Derelict_GetProc(lib, "FMOD_System_GetGeometryOcclusion");
 
     /*
          Network functions.
     */
 
-    bindFunc(FMOD_System_SetNetworkProxy)("FMOD_System_SetNetworkProxy", lib);
-    bindFunc(FMOD_System_GetNetworkProxy)("FMOD_System_GetNetworkProxy", lib);
-    bindFunc(FMOD_System_SetNetworkTimeout)("FMOD_System_SetNetworkTimeout", lib);
-    bindFunc(FMOD_System_GetNetworkTimeout)("FMOD_System_GetNetworkTimeout", lib);
+    *cast(void**)&FMOD_System_SetNetworkProxy = Derelict_GetProc(lib, "FMOD_System_SetNetworkProxy");
+    *cast(void**)&FMOD_System_GetNetworkProxy = Derelict_GetProc(lib, "FMOD_System_GetNetworkProxy");
+    *cast(void**)&FMOD_System_SetNetworkTimeout = Derelict_GetProc(lib, "FMOD_System_SetNetworkTimeout");
+    *cast(void**)&FMOD_System_GetNetworkTimeout = Derelict_GetProc(lib, "FMOD_System_GetNetworkTimeout");
 
     /*
          Userdata set/get.
     */
 
-    bindFunc(FMOD_System_SetUserData)("FMOD_System_SetUserData", lib);
-    bindFunc(FMOD_System_GetUserData)("FMOD_System_GetUserData", lib);
+    *cast(void**)&FMOD_System_SetUserData = Derelict_GetProc(lib, "FMOD_System_SetUserData");
+    *cast(void**)&FMOD_System_GetUserData = Derelict_GetProc(lib, "FMOD_System_GetUserData");
 
-    bindFunc(FMOD_System_GetMemoryInfo)("FMOD_System_GetMemoryInfo", lib);
+    *cast(void**)&FMOD_System_GetMemoryInfo = Derelict_GetProc(lib, "FMOD_System_GetMemoryInfo");
 
     /*
         'Sound' API
     */
 
-    bindFunc(FMOD_Sound_Release)("FMOD_Sound_Release", lib);
-    bindFunc(FMOD_Sound_GetSystemObject)("FMOD_Sound_GetSystemObject", lib);
+    *cast(void**)&FMOD_Sound_Release = Derelict_GetProc(lib, "FMOD_Sound_Release");
+    *cast(void**)&FMOD_Sound_GetSystemObject = Derelict_GetProc(lib, "FMOD_Sound_GetSystemObject");
 
     /*
          Standard sound manipulation functions.
     */
 
-    bindFunc(FMOD_Sound_Lock)("FMOD_Sound_Lock", lib);
-    bindFunc(FMOD_Sound_Unlock)("FMOD_Sound_Unlock", lib);
-    bindFunc(FMOD_Sound_SetDefaults)("FMOD_Sound_SetDefaults", lib);
-    bindFunc(FMOD_Sound_GetDefaults)("FMOD_Sound_GetDefaults", lib);
-    bindFunc(FMOD_Sound_SetVariations)("FMOD_Sound_SetVariations", lib);
-    bindFunc(FMOD_Sound_GetVariations)("FMOD_Sound_GetVariations", lib);
-    bindFunc(FMOD_Sound_Set3DMinMaxDistance)("FMOD_Sound_Set3DMinMaxDistance", lib);
-    bindFunc(FMOD_Sound_Get3DMinMaxDistance)("FMOD_Sound_Get3DMinMaxDistance", lib);
-    bindFunc(FMOD_Sound_Set3DConeSettings)("FMOD_Sound_Set3DConeSettings", lib);
-    bindFunc(FMOD_Sound_Get3DConeSettings)("FMOD_Sound_Get3DConeSettings", lib);
-    bindFunc(FMOD_Sound_Set3DCustomRolloff)("FMOD_Sound_Set3DCustomRolloff", lib);
-    bindFunc(FMOD_Sound_Get3DCustomRolloff)("FMOD_Sound_Get3DCustomRolloff", lib);
-    bindFunc(FMOD_Sound_SetSubSound)("FMOD_Sound_SetSubSound", lib);
-    bindFunc(FMOD_Sound_GetSubSound)("FMOD_Sound_GetSubSound", lib);
-    bindFunc(FMOD_Sound_SetSubSoundSentence)("FMOD_Sound_SetSubSoundSentence", lib);
-    bindFunc(FMOD_Sound_GetName)("FMOD_Sound_GetName", lib);
-    bindFunc(FMOD_Sound_GetLength)("FMOD_Sound_GetLength", lib);
-    bindFunc(FMOD_Sound_GetFormat)("FMOD_Sound_GetFormat", lib);
-    bindFunc(FMOD_Sound_GetNumSubSounds)("FMOD_Sound_GetNumSubSounds", lib);
-    bindFunc(FMOD_Sound_GetNumTags)("FMOD_Sound_GetNumTags", lib);
-    bindFunc(FMOD_Sound_GetTag)("FMOD_Sound_GetTag", lib);
-    bindFunc(FMOD_Sound_GetOpenState)("FMOD_Sound_GetOpenState", lib);
-    bindFunc(FMOD_Sound_ReadData)("FMOD_Sound_ReadData", lib);
-    bindFunc(FMOD_Sound_SeekData)("FMOD_Sound_SeekData", lib);
+    *cast(void**)&FMOD_Sound_Lock = Derelict_GetProc(lib, "FMOD_Sound_Lock");
+    *cast(void**)&FMOD_Sound_Unlock = Derelict_GetProc(lib, "FMOD_Sound_Unlock");
+    *cast(void**)&FMOD_Sound_SetDefaults = Derelict_GetProc(lib, "FMOD_Sound_SetDefaults");
+    *cast(void**)&FMOD_Sound_GetDefaults = Derelict_GetProc(lib, "FMOD_Sound_GetDefaults");
+    *cast(void**)&FMOD_Sound_SetVariations = Derelict_GetProc(lib, "FMOD_Sound_SetVariations");
+    *cast(void**)&FMOD_Sound_GetVariations = Derelict_GetProc(lib, "FMOD_Sound_GetVariations");
+    *cast(void**)&FMOD_Sound_Set3DMinMaxDistance = Derelict_GetProc(lib, "FMOD_Sound_Set3DMinMaxDistance");
+    *cast(void**)&FMOD_Sound_Get3DMinMaxDistance = Derelict_GetProc(lib, "FMOD_Sound_Get3DMinMaxDistance");
+    *cast(void**)&FMOD_Sound_Set3DConeSettings = Derelict_GetProc(lib, "FMOD_Sound_Set3DConeSettings");
+    *cast(void**)&FMOD_Sound_Get3DConeSettings = Derelict_GetProc(lib, "FMOD_Sound_Get3DConeSettings");
+    *cast(void**)&FMOD_Sound_Set3DCustomRolloff = Derelict_GetProc(lib, "FMOD_Sound_Set3DCustomRolloff");
+    *cast(void**)&FMOD_Sound_Get3DCustomRolloff = Derelict_GetProc(lib, "FMOD_Sound_Get3DCustomRolloff");
+    *cast(void**)&FMOD_Sound_SetSubSound = Derelict_GetProc(lib, "FMOD_Sound_SetSubSound");
+    *cast(void**)&FMOD_Sound_GetSubSound = Derelict_GetProc(lib, "FMOD_Sound_GetSubSound");
+    *cast(void**)&FMOD_Sound_SetSubSoundSentence = Derelict_GetProc(lib, "FMOD_Sound_SetSubSoundSentence");
+    *cast(void**)&FMOD_Sound_GetName = Derelict_GetProc(lib, "FMOD_Sound_GetName");
+    *cast(void**)&FMOD_Sound_GetLength = Derelict_GetProc(lib, "FMOD_Sound_GetLength");
+    *cast(void**)&FMOD_Sound_GetFormat = Derelict_GetProc(lib, "FMOD_Sound_GetFormat");
+    *cast(void**)&FMOD_Sound_GetNumSubSounds = Derelict_GetProc(lib, "FMOD_Sound_GetNumSubSounds");
+    *cast(void**)&FMOD_Sound_GetNumTags = Derelict_GetProc(lib, "FMOD_Sound_GetNumTags");
+    *cast(void**)&FMOD_Sound_GetTag = Derelict_GetProc(lib, "FMOD_Sound_GetTag");
+    *cast(void**)&FMOD_Sound_GetOpenState = Derelict_GetProc(lib, "FMOD_Sound_GetOpenState");
+    *cast(void**)&FMOD_Sound_ReadData = Derelict_GetProc(lib, "FMOD_Sound_ReadData");
+    *cast(void**)&FMOD_Sound_SeekData = Derelict_GetProc(lib, "FMOD_Sound_SeekData");
 
-    bindFunc(FMOD_Sound_SetSoundGroup)("FMOD_Sound_SetSoundGroup", lib);
-    bindFunc(FMOD_Sound_GetSoundGroup)("FMOD_Sound_GetSoundGroup", lib);
+    *cast(void**)&FMOD_Sound_SetSoundGroup = Derelict_GetProc(lib, "FMOD_Sound_SetSoundGroup");
+    *cast(void**)&FMOD_Sound_GetSoundGroup = Derelict_GetProc(lib, "FMOD_Sound_GetSoundGroup");
 
     /*
          Synchronization point API.  These points can come from markers embedded in wav files, and can also generate channel callbacks.
     */
 
-    bindFunc(FMOD_Sound_GetNumSyncPoints)("FMOD_Sound_GetNumSyncPoints", lib);
-    bindFunc(FMOD_Sound_GetSyncPoint)("FMOD_Sound_GetSyncPoint", lib);
-    bindFunc(FMOD_Sound_GetSyncPointInfo)("FMOD_Sound_GetSyncPointInfo", lib);
-    bindFunc(FMOD_Sound_AddSyncPoint)("FMOD_Sound_AddSyncPoint", lib);
-    bindFunc(FMOD_Sound_DeleteSyncPoint)("FMOD_Sound_DeleteSyncPoint", lib);
+    *cast(void**)&FMOD_Sound_GetNumSyncPoints = Derelict_GetProc(lib, "FMOD_Sound_GetNumSyncPoints");
+    *cast(void**)&FMOD_Sound_GetSyncPoint = Derelict_GetProc(lib, "FMOD_Sound_GetSyncPoint");
+    *cast(void**)&FMOD_Sound_GetSyncPointInfo = Derelict_GetProc(lib, "FMOD_Sound_GetSyncPointInfo");
+    *cast(void**)&FMOD_Sound_AddSyncPoint = Derelict_GetProc(lib, "FMOD_Sound_AddSyncPoint");
+    *cast(void**)&FMOD_Sound_DeleteSyncPoint = Derelict_GetProc(lib, "FMOD_Sound_DeleteSyncPoint");
 
     /*
          Functions also in Channel class but here they are the 'default' to save having to change it in Channel all the time.
     */
 
-    bindFunc(FMOD_Sound_SetMode)("FMOD_Sound_SetMode", lib);
-    bindFunc(FMOD_Sound_GetMode)("FMOD_Sound_GetMode", lib);
-    bindFunc(FMOD_Sound_SetLoopCount)("FMOD_Sound_SetLoopCount", lib);
-    bindFunc(FMOD_Sound_GetLoopCount)("FMOD_Sound_GetLoopCount", lib);
-    bindFunc(FMOD_Sound_SetLoopPoints)("FMOD_Sound_SetLoopPoints", lib);
-    bindFunc(FMOD_Sound_GetLoopPoints)("FMOD_Sound_GetLoopPoints", lib);
+    *cast(void**)&FMOD_Sound_SetMode = Derelict_GetProc(lib, "FMOD_Sound_SetMode");
+    *cast(void**)&FMOD_Sound_GetMode = Derelict_GetProc(lib, "FMOD_Sound_GetMode");
+    *cast(void**)&FMOD_Sound_SetLoopCount = Derelict_GetProc(lib, "FMOD_Sound_SetLoopCount");
+    *cast(void**)&FMOD_Sound_GetLoopCount = Derelict_GetProc(lib, "FMOD_Sound_GetLoopCount");
+    *cast(void**)&FMOD_Sound_SetLoopPoints = Derelict_GetProc(lib, "FMOD_Sound_SetLoopPoints");
+    *cast(void**)&FMOD_Sound_GetLoopPoints = Derelict_GetProc(lib, "FMOD_Sound_GetLoopPoints");
 
     /*
          For MOD/S3M/XM/IT/MID sequenced formats only.
     */
 
-    bindFunc(FMOD_Sound_GetMusicNumChannels)("FMOD_Sound_GetMusicNumChannels", lib);
-    bindFunc(FMOD_Sound_SetMusicChannelVolume)("FMOD_Sound_SetMusicChannelVolume", lib);
-    bindFunc(FMOD_Sound_GetMusicChannelVolume)("FMOD_Sound_GetMusicChannelVolume", lib);
+    *cast(void**)&FMOD_Sound_GetMusicNumChannels = Derelict_GetProc(lib, "FMOD_Sound_GetMusicNumChannels");
+    *cast(void**)&FMOD_Sound_SetMusicChannelVolume = Derelict_GetProc(lib, "FMOD_Sound_SetMusicChannelVolume");
+    *cast(void**)&FMOD_Sound_GetMusicChannelVolume = Derelict_GetProc(lib, "FMOD_Sound_GetMusicChannelVolume");
 
     /*
          Userdata set/get.
     */
 
-    bindFunc(FMOD_Sound_SetUserData)("FMOD_Sound_SetUserData", lib);
-    bindFunc(FMOD_Sound_GetUserData)("FMOD_Sound_GetUserData", lib);
+    *cast(void**)&FMOD_Sound_SetUserData = Derelict_GetProc(lib, "FMOD_Sound_SetUserData");
+    *cast(void**)&FMOD_Sound_GetUserData = Derelict_GetProc(lib, "FMOD_Sound_GetUserData");
 
-    bindFunc(FMOD_Sound_GetMemoryInfo)("FMOD_Sound_GetMemoryInfo", lib);
+    *cast(void**)&FMOD_Sound_GetMemoryInfo = Derelict_GetProc(lib, "FMOD_Sound_GetMemoryInfo");
 
     /*
         'Channel' API
     */
 
-    bindFunc(FMOD_Channel_GetSystemObject)("FMOD_Channel_GetSystemObject", lib);
+    *cast(void**)&FMOD_Channel_GetSystemObject = Derelict_GetProc(lib, "FMOD_Channel_GetSystemObject");
 
-    bindFunc(FMOD_Channel_Stop)("FMOD_Channel_Stop", lib);
-    bindFunc(FMOD_Channel_SetPaused)("FMOD_Channel_SetPaused", lib);
-    bindFunc(FMOD_Channel_GetPaused)("FMOD_Channel_GetPaused", lib);
-    bindFunc(FMOD_Channel_SetVolume)("FMOD_Channel_SetVolume", lib);
-    bindFunc(FMOD_Channel_GetVolume)("FMOD_Channel_GetVolume", lib);
-    bindFunc(FMOD_Channel_SetFrequency)("FMOD_Channel_SetFrequency", lib);
-    bindFunc(FMOD_Channel_GetFrequency)("FMOD_Channel_GetFrequency", lib);
-    bindFunc(FMOD_Channel_SetPan)("FMOD_Channel_SetPan", lib);
-    bindFunc(FMOD_Channel_GetPan)("FMOD_Channel_GetPan", lib);
-    bindFunc(FMOD_Channel_SetDelay)("FMOD_Channel_SetDelay", lib);
-    bindFunc(FMOD_Channel_GetDelay)("FMOD_Channel_GetDelay", lib);
-    bindFunc(FMOD_Channel_SetSpeakerMix)("FMOD_Channel_SetSpeakerMix", lib);
-    bindFunc(FMOD_Channel_GetSpeakerMix)("FMOD_Channel_GetSpeakerMix", lib);
-    bindFunc(FMOD_Channel_SetSpeakerLevels)("FMOD_Channel_SetSpeakerLevels", lib);
-    bindFunc(FMOD_Channel_GetSpeakerLevels)("FMOD_Channel_GetSpeakerLevels", lib);
-    bindFunc(FMOD_Channel_SetInputChannelMix)("FMOD_Channel_SetInputChannelMix", lib);
-    bindFunc(FMOD_Channel_GetInputChannelMix)("FMOD_Channel_GetInputChannelMix", lib);
-    bindFunc(FMOD_Channel_SetMute)("FMOD_Channel_SetMute", lib);
-    bindFunc(FMOD_Channel_GetMute)("FMOD_Channel_GetMute", lib);
-    bindFunc(FMOD_Channel_SetPriority)("FMOD_Channel_SetPriority", lib);
-    bindFunc(FMOD_Channel_GetPriority)("FMOD_Channel_GetPriority", lib);
-    bindFunc(FMOD_Channel_SetPosition)("FMOD_Channel_SetPosition", lib);
-    bindFunc(FMOD_Channel_GetPosition)("FMOD_Channel_GetPosition", lib);
-    bindFunc(FMOD_Channel_SetReverbProperties)("FMOD_Channel_SetReverbProperties", lib);
-    bindFunc(FMOD_Channel_GetReverbProperties)("FMOD_Channel_GetReverbProperties", lib);
-    bindFunc(FMOD_Channel_SetLowPassGain)("FMOD_Channel_SetLowPassGain", lib);
-    bindFunc(FMOD_Channel_GetLowPassGain)("FMOD_Channel_GetLowPassGain", lib);
+    *cast(void**)&FMOD_Channel_Stop = Derelict_GetProc(lib, "FMOD_Channel_Stop");
+    *cast(void**)&FMOD_Channel_SetPaused = Derelict_GetProc(lib, "FMOD_Channel_SetPaused");
+    *cast(void**)&FMOD_Channel_GetPaused = Derelict_GetProc(lib, "FMOD_Channel_GetPaused");
+    *cast(void**)&FMOD_Channel_SetVolume = Derelict_GetProc(lib, "FMOD_Channel_SetVolume");
+    *cast(void**)&FMOD_Channel_GetVolume = Derelict_GetProc(lib, "FMOD_Channel_GetVolume");
+    *cast(void**)&FMOD_Channel_SetFrequency = Derelict_GetProc(lib, "FMOD_Channel_SetFrequency");
+    *cast(void**)&FMOD_Channel_GetFrequency = Derelict_GetProc(lib, "FMOD_Channel_GetFrequency");
+    *cast(void**)&FMOD_Channel_SetPan = Derelict_GetProc(lib, "FMOD_Channel_SetPan");
+    *cast(void**)&FMOD_Channel_GetPan = Derelict_GetProc(lib, "FMOD_Channel_GetPan");
+    *cast(void**)&FMOD_Channel_SetDelay = Derelict_GetProc(lib, "FMOD_Channel_SetDelay");
+    *cast(void**)&FMOD_Channel_GetDelay = Derelict_GetProc(lib, "FMOD_Channel_GetDelay");
+    *cast(void**)&FMOD_Channel_SetSpeakerMix = Derelict_GetProc(lib, "FMOD_Channel_SetSpeakerMix");
+    *cast(void**)&FMOD_Channel_GetSpeakerMix = Derelict_GetProc(lib, "FMOD_Channel_GetSpeakerMix");
+    *cast(void**)&FMOD_Channel_SetSpeakerLevels = Derelict_GetProc(lib, "FMOD_Channel_SetSpeakerLevels");
+    *cast(void**)&FMOD_Channel_GetSpeakerLevels = Derelict_GetProc(lib, "FMOD_Channel_GetSpeakerLevels");
+    *cast(void**)&FMOD_Channel_SetInputChannelMix = Derelict_GetProc(lib, "FMOD_Channel_SetInputChannelMix");
+    *cast(void**)&FMOD_Channel_GetInputChannelMix = Derelict_GetProc(lib, "FMOD_Channel_GetInputChannelMix");
+    *cast(void**)&FMOD_Channel_SetMute = Derelict_GetProc(lib, "FMOD_Channel_SetMute");
+    *cast(void**)&FMOD_Channel_GetMute = Derelict_GetProc(lib, "FMOD_Channel_GetMute");
+    *cast(void**)&FMOD_Channel_SetPriority = Derelict_GetProc(lib, "FMOD_Channel_SetPriority");
+    *cast(void**)&FMOD_Channel_GetPriority = Derelict_GetProc(lib, "FMOD_Channel_GetPriority");
+    *cast(void**)&FMOD_Channel_SetPosition = Derelict_GetProc(lib, "FMOD_Channel_SetPosition");
+    *cast(void**)&FMOD_Channel_GetPosition = Derelict_GetProc(lib, "FMOD_Channel_GetPosition");
+    *cast(void**)&FMOD_Channel_SetReverbProperties = Derelict_GetProc(lib, "FMOD_Channel_SetReverbProperties");
+    *cast(void**)&FMOD_Channel_GetReverbProperties = Derelict_GetProc(lib, "FMOD_Channel_GetReverbProperties");
+    *cast(void**)&FMOD_Channel_SetLowPassGain = Derelict_GetProc(lib, "FMOD_Channel_SetLowPassGain");
+    *cast(void**)&FMOD_Channel_GetLowPassGain = Derelict_GetProc(lib, "FMOD_Channel_GetLowPassGain");
 
-    bindFunc(FMOD_Channel_SetChannelGroup)("FMOD_Channel_SetChannelGroup", lib);
-    bindFunc(FMOD_Channel_GetChannelGroup)("FMOD_Channel_GetChannelGroup", lib);
-    bindFunc(FMOD_Channel_SetCallback)("FMOD_Channel_SetCallback", lib);
+    *cast(void**)&FMOD_Channel_SetChannelGroup = Derelict_GetProc(lib, "FMOD_Channel_SetChannelGroup");
+    *cast(void**)&FMOD_Channel_GetChannelGroup = Derelict_GetProc(lib, "FMOD_Channel_GetChannelGroup");
+    *cast(void**)&FMOD_Channel_SetCallback = Derelict_GetProc(lib, "FMOD_Channel_SetCallback");
 
     /*
          3D functionality.
     */
 
-    bindFunc(FMOD_Channel_Set3DAttributes)("FMOD_Channel_Set3DAttributes", lib);
-    bindFunc(FMOD_Channel_Get3DAttributes)("FMOD_Channel_Get3DAttributes", lib);
-    bindFunc(FMOD_Channel_Set3DMinMaxDistance)("FMOD_Channel_Set3DMinMaxDistance", lib);
-    bindFunc(FMOD_Channel_Get3DMinMaxDistance)("FMOD_Channel_Get3DMinMaxDistance", lib);
-    bindFunc(FMOD_Channel_Set3DConeSettings)("FMOD_Channel_Set3DConeSettings", lib);
-    bindFunc(FMOD_Channel_Get3DConeSettings)("FMOD_Channel_Get3DConeSettings", lib);
-    bindFunc(FMOD_Channel_Set3DConeOrientation)("FMOD_Channel_Set3DConeOrientation", lib);
-    bindFunc(FMOD_Channel_Get3DConeOrientation)("FMOD_Channel_Get3DConeOrientation", lib);
-    bindFunc(FMOD_Channel_Set3DCustomRolloff)("FMOD_Channel_Set3DCustomRolloff", lib);
-    bindFunc(FMOD_Channel_Get3DCustomRolloff)("FMOD_Channel_Get3DCustomRolloff", lib);
-    bindFunc(FMOD_Channel_Set3DOcclusion)("FMOD_Channel_Set3DOcclusion", lib);
-    bindFunc(FMOD_Channel_Get3DOcclusion)("FMOD_Channel_Get3DOcclusion", lib);
-    bindFunc(FMOD_Channel_Set3DSpread)("FMOD_Channel_Set3DSpread", lib);
-    bindFunc(FMOD_Channel_Get3DSpread)("FMOD_Channel_Get3DSpread", lib);
-    bindFunc(FMOD_Channel_Set3DPanLevel)("FMOD_Channel_Set3DPanLevel", lib);
-    bindFunc(FMOD_Channel_Get3DPanLevel)("FMOD_Channel_Get3DPanLevel", lib);
-    bindFunc(FMOD_Channel_Set3DDopplerLevel)("FMOD_Channel_Set3DDopplerLevel", lib);
-    bindFunc(FMOD_Channel_Get3DDopplerLevel)("FMOD_Channel_Get3DDopplerLevel", lib);
+    *cast(void**)&FMOD_Channel_Set3DAttributes = Derelict_GetProc(lib, "FMOD_Channel_Set3DAttributes");
+    *cast(void**)&FMOD_Channel_Get3DAttributes = Derelict_GetProc(lib, "FMOD_Channel_Get3DAttributes");
+    *cast(void**)&FMOD_Channel_Set3DMinMaxDistance = Derelict_GetProc(lib, "FMOD_Channel_Set3DMinMaxDistance");
+    *cast(void**)&FMOD_Channel_Get3DMinMaxDistance = Derelict_GetProc(lib, "FMOD_Channel_Get3DMinMaxDistance");
+    *cast(void**)&FMOD_Channel_Set3DConeSettings = Derelict_GetProc(lib, "FMOD_Channel_Set3DConeSettings");
+    *cast(void**)&FMOD_Channel_Get3DConeSettings = Derelict_GetProc(lib, "FMOD_Channel_Get3DConeSettings");
+    *cast(void**)&FMOD_Channel_Set3DConeOrientation = Derelict_GetProc(lib, "FMOD_Channel_Set3DConeOrientation");
+    *cast(void**)&FMOD_Channel_Get3DConeOrientation = Derelict_GetProc(lib, "FMOD_Channel_Get3DConeOrientation");
+    *cast(void**)&FMOD_Channel_Set3DCustomRolloff = Derelict_GetProc(lib, "FMOD_Channel_Set3DCustomRolloff");
+    *cast(void**)&FMOD_Channel_Get3DCustomRolloff = Derelict_GetProc(lib, "FMOD_Channel_Get3DCustomRolloff");
+    *cast(void**)&FMOD_Channel_Set3DOcclusion = Derelict_GetProc(lib, "FMOD_Channel_Set3DOcclusion");
+    *cast(void**)&FMOD_Channel_Get3DOcclusion = Derelict_GetProc(lib, "FMOD_Channel_Get3DOcclusion");
+    *cast(void**)&FMOD_Channel_Set3DSpread = Derelict_GetProc(lib, "FMOD_Channel_Set3DSpread");
+    *cast(void**)&FMOD_Channel_Get3DSpread = Derelict_GetProc(lib, "FMOD_Channel_Get3DSpread");
+    *cast(void**)&FMOD_Channel_Set3DPanLevel = Derelict_GetProc(lib, "FMOD_Channel_Set3DPanLevel");
+    *cast(void**)&FMOD_Channel_Get3DPanLevel = Derelict_GetProc(lib, "FMOD_Channel_Get3DPanLevel");
+    *cast(void**)&FMOD_Channel_Set3DDopplerLevel = Derelict_GetProc(lib, "FMOD_Channel_Set3DDopplerLevel");
+    *cast(void**)&FMOD_Channel_Get3DDopplerLevel = Derelict_GetProc(lib, "FMOD_Channel_Get3DDopplerLevel");
 
     /*
          DSP functionality only for channels playing sounds created with FMOD_SOFTWARE.
     */
 
-    bindFunc(FMOD_Channel_GetDSPHead)("FMOD_Channel_GetDSPHead", lib);
-    bindFunc(FMOD_Channel_AddDSP)("FMOD_Channel_AddDSP", lib);
+    *cast(void**)&FMOD_Channel_GetDSPHead = Derelict_GetProc(lib, "FMOD_Channel_GetDSPHead");
+    *cast(void**)&FMOD_Channel_AddDSP = Derelict_GetProc(lib, "FMOD_Channel_AddDSP");
 
     /*
          Information only functions.
     */
 
-    bindFunc(FMOD_Channel_IsPlaying)("FMOD_Channel_IsPlaying", lib);
-    bindFunc(FMOD_Channel_IsVirtual)("FMOD_Channel_IsVirtual", lib);
-    bindFunc(FMOD_Channel_GetAudibility)("FMOD_Channel_GetAudibility", lib);
-    bindFunc(FMOD_Channel_GetCurrentSound)("FMOD_Channel_GetCurrentSound", lib);
-    bindFunc(FMOD_Channel_GetSpectrum)("FMOD_Channel_GetSpectrum", lib);
-    bindFunc(FMOD_Channel_GetWaveData)("FMOD_Channel_GetWaveData", lib);
-    bindFunc(FMOD_Channel_GetIndex)("FMOD_Channel_GetIndex", lib);
+    *cast(void**)&FMOD_Channel_IsPlaying = Derelict_GetProc(lib, "FMOD_Channel_IsPlaying");
+    *cast(void**)&FMOD_Channel_IsVirtual = Derelict_GetProc(lib, "FMOD_Channel_IsVirtual");
+    *cast(void**)&FMOD_Channel_GetAudibility = Derelict_GetProc(lib, "FMOD_Channel_GetAudibility");
+    *cast(void**)&FMOD_Channel_GetCurrentSound = Derelict_GetProc(lib, "FMOD_Channel_GetCurrentSound");
+    *cast(void**)&FMOD_Channel_GetSpectrum = Derelict_GetProc(lib, "FMOD_Channel_GetSpectrum");
+    *cast(void**)&FMOD_Channel_GetWaveData = Derelict_GetProc(lib, "FMOD_Channel_GetWaveData");
+    *cast(void**)&FMOD_Channel_GetIndex = Derelict_GetProc(lib, "FMOD_Channel_GetIndex");
 
     /*
          Functions also found in Sound class but here they can be set per channel.
     */
 
-    bindFunc(FMOD_Channel_SetMode)("FMOD_Channel_SetMode", lib);
-    bindFunc(FMOD_Channel_GetMode)("FMOD_Channel_GetMode", lib);
-    bindFunc(FMOD_Channel_SetLoopCount)("FMOD_Channel_SetLoopCount", lib);
-    bindFunc(FMOD_Channel_GetLoopCount)("FMOD_Channel_GetLoopCount", lib);
-    bindFunc(FMOD_Channel_SetLoopPoints)("FMOD_Channel_SetLoopPoints", lib);
-    bindFunc(FMOD_Channel_GetLoopPoints)("FMOD_Channel_GetLoopPoints", lib);
+    *cast(void**)&FMOD_Channel_SetMode = Derelict_GetProc(lib, "FMOD_Channel_SetMode");
+    *cast(void**)&FMOD_Channel_GetMode = Derelict_GetProc(lib, "FMOD_Channel_GetMode");
+    *cast(void**)&FMOD_Channel_SetLoopCount = Derelict_GetProc(lib, "FMOD_Channel_SetLoopCount");
+    *cast(void**)&FMOD_Channel_GetLoopCount = Derelict_GetProc(lib, "FMOD_Channel_GetLoopCount");
+    *cast(void**)&FMOD_Channel_SetLoopPoints = Derelict_GetProc(lib, "FMOD_Channel_SetLoopPoints");
+    *cast(void**)&FMOD_Channel_GetLoopPoints = Derelict_GetProc(lib, "FMOD_Channel_GetLoopPoints");
 
     /*
          Userdata set/get.
     */
 
-    bindFunc(FMOD_Channel_SetUserData)("FMOD_Channel_SetUserData", lib);
-    bindFunc(FMOD_Channel_GetUserData)("FMOD_Channel_GetUserData", lib);
+    *cast(void**)&FMOD_Channel_SetUserData = Derelict_GetProc(lib, "FMOD_Channel_SetUserData");
+    *cast(void**)&FMOD_Channel_GetUserData = Derelict_GetProc(lib, "FMOD_Channel_GetUserData");
 
-    bindFunc(FMOD_Channel_GetMemoryInfo)("FMOD_Channel_GetMemoryInfo", lib);
+    *cast(void**)&FMOD_Channel_GetMemoryInfo = Derelict_GetProc(lib, "FMOD_Channel_GetMemoryInfo");
 
     /*
         'ChannelGroup' API
     */
 
-    bindFunc(FMOD_ChannelGroup_Release)("FMOD_ChannelGroup_Release", lib);
-    bindFunc(FMOD_ChannelGroup_GetSystemObject)("FMOD_ChannelGroup_GetSystemObject", lib);
+    *cast(void**)&FMOD_ChannelGroup_Release = Derelict_GetProc(lib, "FMOD_ChannelGroup_Release");
+    *cast(void**)&FMOD_ChannelGroup_GetSystemObject = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetSystemObject");
 
     /*
          Channelgroup scale values.  (changes attributes relative to the channels, doesn't overwrite them)
     */
 
-    bindFunc(FMOD_ChannelGroup_SetVolume)("FMOD_ChannelGroup_SetVolume", lib);
-    bindFunc(FMOD_ChannelGroup_GetVolume)("FMOD_ChannelGroup_GetVolume", lib);
-    bindFunc(FMOD_ChannelGroup_SetPitch)("FMOD_ChannelGroup_SetPitch", lib);
-    bindFunc(FMOD_ChannelGroup_GetPitch)("FMOD_ChannelGroup_GetPitch", lib);
-    bindFunc(FMOD_ChannelGroup_Set3DOcclusion)("FMOD_ChannelGroup_Set3DOcclusion", lib);
-    bindFunc(FMOD_ChannelGroup_Get3DOcclusion)("FMOD_ChannelGroup_Get3DOcclusion", lib);
-    bindFunc(FMOD_ChannelGroup_SetPaused)("FMOD_ChannelGroup_SetPaused", lib);
-    bindFunc(FMOD_ChannelGroup_GetPaused)("FMOD_ChannelGroup_GetPaused", lib);
-    bindFunc(FMOD_ChannelGroup_SetMute)("FMOD_ChannelGroup_SetMute", lib);
-    bindFunc(FMOD_ChannelGroup_GetMute)("FMOD_ChannelGroup_GetMute", lib);
+    *cast(void**)&FMOD_ChannelGroup_SetVolume = Derelict_GetProc(lib, "FMOD_ChannelGroup_SetVolume");
+    *cast(void**)&FMOD_ChannelGroup_GetVolume = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetVolume");
+    *cast(void**)&FMOD_ChannelGroup_SetPitch = Derelict_GetProc(lib, "FMOD_ChannelGroup_SetPitch");
+    *cast(void**)&FMOD_ChannelGroup_GetPitch = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetPitch");
+    *cast(void**)&FMOD_ChannelGroup_Set3DOcclusion = Derelict_GetProc(lib, "FMOD_ChannelGroup_Set3DOcclusion");
+    *cast(void**)&FMOD_ChannelGroup_Get3DOcclusion = Derelict_GetProc(lib, "FMOD_ChannelGroup_Get3DOcclusion");
+    *cast(void**)&FMOD_ChannelGroup_SetPaused = Derelict_GetProc(lib, "FMOD_ChannelGroup_SetPaused");
+    *cast(void**)&FMOD_ChannelGroup_GetPaused = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetPaused");
+    *cast(void**)&FMOD_ChannelGroup_SetMute = Derelict_GetProc(lib, "FMOD_ChannelGroup_SetMute");
+    *cast(void**)&FMOD_ChannelGroup_GetMute = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetMute");
 
     /*
          Channelgroup override values.  (recursively overwrites whatever settings the channels had)
     */
 
-    bindFunc(FMOD_ChannelGroup_Stop)("FMOD_ChannelGroup_Stop", lib);
-    bindFunc(FMOD_ChannelGroup_OverrideVolume)("FMOD_ChannelGroup_OverrideVolume", lib);
-    bindFunc(FMOD_ChannelGroup_OverrideFrequency)("FMOD_ChannelGroup_OverrideFrequency", lib);
-    bindFunc(FMOD_ChannelGroup_OverridePan)("FMOD_ChannelGroup_OverridePan", lib);
-    bindFunc(FMOD_ChannelGroup_OverrideReverbProperties)("FMOD_ChannelGroup_OverrideReverbProperties", lib);
-    bindFunc(FMOD_ChannelGroup_Override3DAttributes)("FMOD_ChannelGroup_Override3DAttributes", lib);
-    bindFunc(FMOD_ChannelGroup_OverrideSpeakerMix)("FMOD_ChannelGroup_OverrideSpeakerMix", lib);
+    *cast(void**)&FMOD_ChannelGroup_Stop = Derelict_GetProc(lib, "FMOD_ChannelGroup_Stop");
+    *cast(void**)&FMOD_ChannelGroup_OverrideVolume = Derelict_GetProc(lib, "FMOD_ChannelGroup_OverrideVolume");
+    *cast(void**)&FMOD_ChannelGroup_OverrideFrequency = Derelict_GetProc(lib, "FMOD_ChannelGroup_OverrideFrequency");
+    *cast(void**)&FMOD_ChannelGroup_OverridePan = Derelict_GetProc(lib, "FMOD_ChannelGroup_OverridePan");
+    *cast(void**)&FMOD_ChannelGroup_OverrideReverbProperties = Derelict_GetProc(lib, "FMOD_ChannelGroup_OverrideReverbProperties");
+    *cast(void**)&FMOD_ChannelGroup_Override3DAttributes = Derelict_GetProc(lib, "FMOD_ChannelGroup_Override3DAttributes");
+    *cast(void**)&FMOD_ChannelGroup_OverrideSpeakerMix = Derelict_GetProc(lib, "FMOD_ChannelGroup_OverrideSpeakerMix");
 
     /*
          Nested channel groups.
     */
 
-    bindFunc(FMOD_ChannelGroup_AddGroup)("FMOD_ChannelGroup_AddGroup", lib);
-    bindFunc(FMOD_ChannelGroup_GetNumGroups)("FMOD_ChannelGroup_GetNumGroups", lib);
-    bindFunc(FMOD_ChannelGroup_GetGroup)("FMOD_ChannelGroup_GetGroup", lib);
-    bindFunc(FMOD_ChannelGroup_GetParentGroup)("FMOD_ChannelGroup_GetParentGroup", lib);
+    *cast(void**)&FMOD_ChannelGroup_AddGroup = Derelict_GetProc(lib, "FMOD_ChannelGroup_AddGroup");
+    *cast(void**)&FMOD_ChannelGroup_GetNumGroups = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetNumGroups");
+    *cast(void**)&FMOD_ChannelGroup_GetGroup = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetGroup");
+    *cast(void**)&FMOD_ChannelGroup_GetParentGroup = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetParentGroup");
 
     /*
          DSP functionality only for channel groups playing sounds created with FMOD_SOFTWARE.
     */
 
-    bindFunc(FMOD_ChannelGroup_GetDSPHead)("FMOD_ChannelGroup_GetDSPHead", lib);
-    bindFunc(FMOD_ChannelGroup_AddDSP)("FMOD_ChannelGroup_AddDSP", lib);
+    *cast(void**)&FMOD_ChannelGroup_GetDSPHead = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetDSPHead");
+    *cast(void**)&FMOD_ChannelGroup_AddDSP = Derelict_GetProc(lib, "FMOD_ChannelGroup_AddDSP");
 
     /*
          Information only functions.
     */
 
-    bindFunc(FMOD_ChannelGroup_GetName)("FMOD_ChannelGroup_GetName", lib);
-    bindFunc(FMOD_ChannelGroup_GetNumChannels)("FMOD_ChannelGroup_GetNumChannels", lib);
-    bindFunc(FMOD_ChannelGroup_GetChannel)("FMOD_ChannelGroup_GetChannel", lib);
-    bindFunc(FMOD_ChannelGroup_GetSpectrum)("FMOD_ChannelGroup_GetSpectrum", lib);
-    bindFunc(FMOD_ChannelGroup_GetWaveData)("FMOD_ChannelGroup_GetWaveData", lib);
+    *cast(void**)&FMOD_ChannelGroup_GetName = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetName");
+    *cast(void**)&FMOD_ChannelGroup_GetNumChannels = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetNumChannels");
+    *cast(void**)&FMOD_ChannelGroup_GetChannel = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetChannel");
+    *cast(void**)&FMOD_ChannelGroup_GetSpectrum = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetSpectrum");
+    *cast(void**)&FMOD_ChannelGroup_GetWaveData = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetWaveData");
 
     /*
          Userdata set/get.
     */
 
-    bindFunc(FMOD_ChannelGroup_SetUserData)("FMOD_ChannelGroup_SetUserData", lib);
-    bindFunc(FMOD_ChannelGroup_GetUserData)("FMOD_ChannelGroup_GetUserData", lib);
+    *cast(void**)&FMOD_ChannelGroup_SetUserData = Derelict_GetProc(lib, "FMOD_ChannelGroup_SetUserData");
+    *cast(void**)&FMOD_ChannelGroup_GetUserData = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetUserData");
 
-    bindFunc(FMOD_ChannelGroup_GetMemoryInfo)("FMOD_ChannelGroup_GetMemoryInfo", lib);
+    *cast(void**)&FMOD_ChannelGroup_GetMemoryInfo = Derelict_GetProc(lib, "FMOD_ChannelGroup_GetMemoryInfo");
 
     /*
         'SoundGroup' API
     */
 
-    bindFunc(FMOD_SoundGroup_Release)("FMOD_SoundGroup_Release", lib);
-    bindFunc(FMOD_SoundGroup_GetSystemObject)("FMOD_SoundGroup_GetSystemObject", lib);
+    *cast(void**)&FMOD_SoundGroup_Release = Derelict_GetProc(lib, "FMOD_SoundGroup_Release");
+    *cast(void**)&FMOD_SoundGroup_GetSystemObject = Derelict_GetProc(lib, "FMOD_SoundGroup_GetSystemObject");
 
     /*
          SoundGroup control functions.
     */
 
-    bindFunc(FMOD_SoundGroup_SetMaxAudible)("FMOD_SoundGroup_SetMaxAudible", lib);
-    bindFunc(FMOD_SoundGroup_GetMaxAudible)("FMOD_SoundGroup_GetMaxAudible", lib);
-    bindFunc(FMOD_SoundGroup_SetMaxAudibleBehavior)("FMOD_SoundGroup_SetMaxAudibleBehavior", lib);
-    bindFunc(FMOD_SoundGroup_GetMaxAudibleBehavior)("FMOD_SoundGroup_GetMaxAudibleBehavior", lib);
-    bindFunc(FMOD_SoundGroup_SetMuteFadeSpeed)("FMOD_SoundGroup_SetMuteFadeSpeed", lib);
-    bindFunc(FMOD_SoundGroup_GetMuteFadeSpeed)("FMOD_SoundGroup_GetMuteFadeSpeed", lib);
-    bindFunc(FMOD_SoundGroup_SetVolume)("FMOD_SoundGroup_SetVolume", lib);
-    bindFunc(FMOD_SoundGroup_GetVolume)("FMOD_SoundGroup_GetVolume", lib);
-    bindFunc(FMOD_SoundGroup_Stop)("FMOD_SoundGroup_Stop", lib);
+    *cast(void**)&FMOD_SoundGroup_SetMaxAudible = Derelict_GetProc(lib, "FMOD_SoundGroup_SetMaxAudible");
+    *cast(void**)&FMOD_SoundGroup_GetMaxAudible = Derelict_GetProc(lib, "FMOD_SoundGroup_GetMaxAudible");
+    *cast(void**)&FMOD_SoundGroup_SetMaxAudibleBehavior = Derelict_GetProc(lib, "FMOD_SoundGroup_SetMaxAudibleBehavior");
+    *cast(void**)&FMOD_SoundGroup_GetMaxAudibleBehavior = Derelict_GetProc(lib, "FMOD_SoundGroup_GetMaxAudibleBehavior");
+    *cast(void**)&FMOD_SoundGroup_SetMuteFadeSpeed = Derelict_GetProc(lib, "FMOD_SoundGroup_SetMuteFadeSpeed");
+    *cast(void**)&FMOD_SoundGroup_GetMuteFadeSpeed = Derelict_GetProc(lib, "FMOD_SoundGroup_GetMuteFadeSpeed");
+    *cast(void**)&FMOD_SoundGroup_SetVolume = Derelict_GetProc(lib, "FMOD_SoundGroup_SetVolume");
+    *cast(void**)&FMOD_SoundGroup_GetVolume = Derelict_GetProc(lib, "FMOD_SoundGroup_GetVolume");
+    *cast(void**)&FMOD_SoundGroup_Stop = Derelict_GetProc(lib, "FMOD_SoundGroup_Stop");
 
     /*
          Information only functions.
     */
 
-    bindFunc(FMOD_SoundGroup_GetName)("FMOD_SoundGroup_GetName", lib);
-    bindFunc(FMOD_SoundGroup_GetNumSounds)("FMOD_SoundGroup_GetNumSounds", lib);
-    bindFunc(FMOD_SoundGroup_GetSound)("FMOD_SoundGroup_GetSound", lib);
-    bindFunc(FMOD_SoundGroup_GetNumPlaying)("FMOD_SoundGroup_GetNumPlaying", lib);
+    *cast(void**)&FMOD_SoundGroup_GetName = Derelict_GetProc(lib, "FMOD_SoundGroup_GetName");
+    *cast(void**)&FMOD_SoundGroup_GetNumSounds = Derelict_GetProc(lib, "FMOD_SoundGroup_GetNumSounds");
+    *cast(void**)&FMOD_SoundGroup_GetSound = Derelict_GetProc(lib, "FMOD_SoundGroup_GetSound");
+    *cast(void**)&FMOD_SoundGroup_GetNumPlaying = Derelict_GetProc(lib, "FMOD_SoundGroup_GetNumPlaying");
 
     /*
          Userdata set/get.
     */
 
-    bindFunc(FMOD_SoundGroup_SetUserData)("FMOD_SoundGroup_SetUserData", lib);
-    bindFunc(FMOD_SoundGroup_GetUserData)("FMOD_SoundGroup_GetUserData", lib);
+    *cast(void**)&FMOD_SoundGroup_SetUserData = Derelict_GetProc(lib, "FMOD_SoundGroup_SetUserData");
+    *cast(void**)&FMOD_SoundGroup_GetUserData = Derelict_GetProc(lib, "FMOD_SoundGroup_GetUserData");
 
-    bindFunc(FMOD_SoundGroup_GetMemoryInfo)("FMOD_SoundGroup_GetMemoryInfo", lib);
+    *cast(void**)&FMOD_SoundGroup_GetMemoryInfo = Derelict_GetProc(lib, "FMOD_SoundGroup_GetMemoryInfo");
 
     /*
         'DSP' API
     */
 
-    bindFunc(FMOD_DSP_Release)("FMOD_DSP_Release", lib);
-    bindFunc(FMOD_DSP_GetSystemObject)("FMOD_DSP_GetSystemObject", lib);
+    *cast(void**)&FMOD_DSP_Release = Derelict_GetProc(lib, "FMOD_DSP_Release");
+    *cast(void**)&FMOD_DSP_GetSystemObject = Derelict_GetProc(lib, "FMOD_DSP_GetSystemObject");
 
     /*
          Connection / disconnection / input and output enumeration.
     */
 
-    bindFunc(FMOD_DSP_AddInput)("FMOD_DSP_AddInput", lib);
-    bindFunc(FMOD_DSP_DisconnectFrom)("FMOD_DSP_DisconnectFrom", lib);
-    bindFunc(FMOD_DSP_DisconnectAll)("FMOD_DSP_DisconnectAll", lib);
-    bindFunc(FMOD_DSP_Remove)("FMOD_DSP_Remove", lib);
-    bindFunc(FMOD_DSP_GetNumInputs)("FMOD_DSP_GetNumInputs", lib);
-    bindFunc(FMOD_DSP_GetNumOutputs)("FMOD_DSP_GetNumOutputs", lib);
-    bindFunc(FMOD_DSP_GetInput)("FMOD_DSP_GetInput", lib);
-    bindFunc(FMOD_DSP_GetOutput)("FMOD_DSP_GetOutput", lib);
+    *cast(void**)&FMOD_DSP_AddInput = Derelict_GetProc(lib, "FMOD_DSP_AddInput");
+    *cast(void**)&FMOD_DSP_DisconnectFrom = Derelict_GetProc(lib, "FMOD_DSP_DisconnectFrom");
+    *cast(void**)&FMOD_DSP_DisconnectAll = Derelict_GetProc(lib, "FMOD_DSP_DisconnectAll");
+    *cast(void**)&FMOD_DSP_Remove = Derelict_GetProc(lib, "FMOD_DSP_Remove");
+    *cast(void**)&FMOD_DSP_GetNumInputs = Derelict_GetProc(lib, "FMOD_DSP_GetNumInputs");
+    *cast(void**)&FMOD_DSP_GetNumOutputs = Derelict_GetProc(lib, "FMOD_DSP_GetNumOutputs");
+    *cast(void**)&FMOD_DSP_GetInput = Derelict_GetProc(lib, "FMOD_DSP_GetInput");
+    *cast(void**)&FMOD_DSP_GetOutput = Derelict_GetProc(lib, "FMOD_DSP_GetOutput");
 
     /*
          DSP unit control.
     */
 
-    bindFunc(FMOD_DSP_SetActive)("FMOD_DSP_SetActive", lib);
-    bindFunc(FMOD_DSP_GetActive)("FMOD_DSP_GetActive", lib);
-    bindFunc(FMOD_DSP_SetBypass)("FMOD_DSP_SetBypass", lib);
-    bindFunc(FMOD_DSP_GetBypass)("FMOD_DSP_GetBypass", lib);
-    bindFunc(FMOD_DSP_SetSpeakerActive)("FMOD_DSP_SetSpeakerActive", lib);
-    bindFunc(FMOD_DSP_GetSpeakerActive)("FMOD_DSP_GetSpeakerActive", lib);
-    bindFunc(FMOD_DSP_Reset)("FMOD_DSP_Reset", lib);
+    *cast(void**)&FMOD_DSP_SetActive = Derelict_GetProc(lib, "FMOD_DSP_SetActive");
+    *cast(void**)&FMOD_DSP_GetActive = Derelict_GetProc(lib, "FMOD_DSP_GetActive");
+    *cast(void**)&FMOD_DSP_SetBypass = Derelict_GetProc(lib, "FMOD_DSP_SetBypass");
+    *cast(void**)&FMOD_DSP_GetBypass = Derelict_GetProc(lib, "FMOD_DSP_GetBypass");
+    *cast(void**)&FMOD_DSP_SetSpeakerActive = Derelict_GetProc(lib, "FMOD_DSP_SetSpeakerActive");
+    *cast(void**)&FMOD_DSP_GetSpeakerActive = Derelict_GetProc(lib, "FMOD_DSP_GetSpeakerActive");
+    *cast(void**)&FMOD_DSP_Reset = Derelict_GetProc(lib, "FMOD_DSP_Reset");
 
     /*
          DSP parameter control.
     */
 
-    bindFunc(FMOD_DSP_SetParameter)("FMOD_DSP_SetParameter", lib);
-    bindFunc(FMOD_DSP_GetParameter)("FMOD_DSP_GetParameter", lib);
-    bindFunc(FMOD_DSP_GetNumParameters)("FMOD_DSP_GetNumParameters", lib);
-    bindFunc(FMOD_DSP_GetParameterInfo)("FMOD_DSP_GetParameterInfo", lib);
-    bindFunc(FMOD_DSP_ShowConfigDialog)("FMOD_DSP_ShowConfigDialog", lib);
+    *cast(void**)&FMOD_DSP_SetParameter = Derelict_GetProc(lib, "FMOD_DSP_SetParameter");
+    *cast(void**)&FMOD_DSP_GetParameter = Derelict_GetProc(lib, "FMOD_DSP_GetParameter");
+    *cast(void**)&FMOD_DSP_GetNumParameters = Derelict_GetProc(lib, "FMOD_DSP_GetNumParameters");
+    *cast(void**)&FMOD_DSP_GetParameterInfo = Derelict_GetProc(lib, "FMOD_DSP_GetParameterInfo");
+    *cast(void**)&FMOD_DSP_ShowConfigDialog = Derelict_GetProc(lib, "FMOD_DSP_ShowConfigDialog");
 
     /*
          DSP attributes.
     */
 
-    bindFunc(FMOD_DSP_GetInfo)("FMOD_DSP_GetInfo", lib);
-    bindFunc(FMOD_DSP_GetType)("FMOD_DSP_GetType", lib);
-    bindFunc(FMOD_DSP_SetDefaults)("FMOD_DSP_SetDefaults", lib);
-    bindFunc(FMOD_DSP_GetDefaults)("FMOD_DSP_GetDefaults", lib);
+    *cast(void**)&FMOD_DSP_GetInfo = Derelict_GetProc(lib, "FMOD_DSP_GetInfo");
+    *cast(void**)&FMOD_DSP_GetType = Derelict_GetProc(lib, "FMOD_DSP_GetType");
+    *cast(void**)&FMOD_DSP_SetDefaults = Derelict_GetProc(lib, "FMOD_DSP_SetDefaults");
+    *cast(void**)&FMOD_DSP_GetDefaults = Derelict_GetProc(lib, "FMOD_DSP_GetDefaults");
 
     /*
          Userdata set/get.
     */
 
-    bindFunc(FMOD_DSP_SetUserData)("FMOD_DSP_SetUserData", lib);
-    bindFunc(FMOD_DSP_GetUserData)("FMOD_DSP_GetUserData", lib);
+    *cast(void**)&FMOD_DSP_SetUserData = Derelict_GetProc(lib, "FMOD_DSP_SetUserData");
+    *cast(void**)&FMOD_DSP_GetUserData = Derelict_GetProc(lib, "FMOD_DSP_GetUserData");
 
-    bindFunc(FMOD_DSP_GetMemoryInfo)("FMOD_DSP_GetMemoryInfo", lib);
+    *cast(void**)&FMOD_DSP_GetMemoryInfo = Derelict_GetProc(lib, "FMOD_DSP_GetMemoryInfo");
 
     /*
         'DSPConnection' API
     */
 
-    bindFunc(FMOD_DSPConnection_GetInput)("FMOD_DSPConnection_GetInput", lib);
-    bindFunc(FMOD_DSPConnection_GetOutput)("FMOD_DSPConnection_GetOutput", lib);
-    bindFunc(FMOD_DSPConnection_SetMix)("FMOD_DSPConnection_SetMix", lib);
-    bindFunc(FMOD_DSPConnection_GetMix)("FMOD_DSPConnection_GetMix", lib);
-    bindFunc(FMOD_DSPConnection_SetLevels)("FMOD_DSPConnection_SetLevels", lib);
-    bindFunc(FMOD_DSPConnection_GetLevels)("FMOD_DSPConnection_GetLevels", lib);
+    *cast(void**)&FMOD_DSPConnection_GetInput = Derelict_GetProc(lib, "FMOD_DSPConnection_GetInput");
+    *cast(void**)&FMOD_DSPConnection_GetOutput = Derelict_GetProc(lib, "FMOD_DSPConnection_GetOutput");
+    *cast(void**)&FMOD_DSPConnection_SetMix = Derelict_GetProc(lib, "FMOD_DSPConnection_SetMix");
+    *cast(void**)&FMOD_DSPConnection_GetMix = Derelict_GetProc(lib, "FMOD_DSPConnection_GetMix");
+    *cast(void**)&FMOD_DSPConnection_SetLevels = Derelict_GetProc(lib, "FMOD_DSPConnection_SetLevels");
+    *cast(void**)&FMOD_DSPConnection_GetLevels = Derelict_GetProc(lib, "FMOD_DSPConnection_GetLevels");
 
     /*
          Userdata set/get.
     */
 
-    bindFunc(FMOD_DSPConnection_SetUserData)("FMOD_DSPConnection_SetUserData", lib);
-    bindFunc(FMOD_DSPConnection_GetUserData)("FMOD_DSPConnection_GetUserData", lib);
+    *cast(void**)&FMOD_DSPConnection_SetUserData = Derelict_GetProc(lib, "FMOD_DSPConnection_SetUserData");
+    *cast(void**)&FMOD_DSPConnection_GetUserData = Derelict_GetProc(lib, "FMOD_DSPConnection_GetUserData");
 
-    bindFunc(FMOD_DSPConnection_GetMemoryInfo)("FMOD_DSPConnection_GetMemoryInfo", lib);
+    *cast(void**)&FMOD_DSPConnection_GetMemoryInfo = Derelict_GetProc(lib, "FMOD_DSPConnection_GetMemoryInfo");
 
     /*
         'Geometry' API
     */
 
-    bindFunc(FMOD_Geometry_Release)("FMOD_Geometry_Release", lib);
+    *cast(void**)&FMOD_Geometry_Release = Derelict_GetProc(lib, "FMOD_Geometry_Release");
 
     /*
          Polygon manipulation.
     */
 
-    bindFunc(FMOD_Geometry_AddPolygon)("FMOD_Geometry_AddPolygon", lib);
-    bindFunc(FMOD_Geometry_GetNumPolygons)("FMOD_Geometry_GetNumPolygons", lib);
-    bindFunc(FMOD_Geometry_GetMaxPolygons)("FMOD_Geometry_GetMaxPolygons", lib);
-    bindFunc(FMOD_Geometry_GetPolygonNumVertices)("FMOD_Geometry_GetPolygonNumVertices", lib);
-    bindFunc(FMOD_Geometry_SetPolygonVertex)("FMOD_Geometry_SetPolygonVertex", lib);
-    bindFunc(FMOD_Geometry_GetPolygonVertex)("FMOD_Geometry_GetPolygonVertex", lib);
-    bindFunc(FMOD_Geometry_SetPolygonAttributes)("FMOD_Geometry_SetPolygonAttributes", lib);
-    bindFunc(FMOD_Geometry_GetPolygonAttributes)("FMOD_Geometry_GetPolygonAttributes", lib);
+    *cast(void**)&FMOD_Geometry_AddPolygon = Derelict_GetProc(lib, "FMOD_Geometry_AddPolygon");
+    *cast(void**)&FMOD_Geometry_GetNumPolygons = Derelict_GetProc(lib, "FMOD_Geometry_GetNumPolygons");
+    *cast(void**)&FMOD_Geometry_GetMaxPolygons = Derelict_GetProc(lib, "FMOD_Geometry_GetMaxPolygons");
+    *cast(void**)&FMOD_Geometry_GetPolygonNumVertices = Derelict_GetProc(lib, "FMOD_Geometry_GetPolygonNumVertices");
+    *cast(void**)&FMOD_Geometry_SetPolygonVertex = Derelict_GetProc(lib, "FMOD_Geometry_SetPolygonVertex");
+    *cast(void**)&FMOD_Geometry_GetPolygonVertex = Derelict_GetProc(lib, "FMOD_Geometry_GetPolygonVertex");
+    *cast(void**)&FMOD_Geometry_SetPolygonAttributes = Derelict_GetProc(lib, "FMOD_Geometry_SetPolygonAttributes");
+    *cast(void**)&FMOD_Geometry_GetPolygonAttributes = Derelict_GetProc(lib, "FMOD_Geometry_GetPolygonAttributes");
 
     /*
          Object manipulation.
     */
 
-    bindFunc(FMOD_Geometry_SetActive)("FMOD_Geometry_SetActive", lib);
-    bindFunc(FMOD_Geometry_GetActive)("FMOD_Geometry_GetActive", lib);
-    bindFunc(FMOD_Geometry_SetRotation)("FMOD_Geometry_SetRotation", lib);
-    bindFunc(FMOD_Geometry_GetRotation)("FMOD_Geometry_GetRotation", lib);
-    bindFunc(FMOD_Geometry_SetPosition)("FMOD_Geometry_SetPosition", lib);
-    bindFunc(FMOD_Geometry_GetPosition)("FMOD_Geometry_GetPosition", lib);
-    bindFunc(FMOD_Geometry_SetScale)("FMOD_Geometry_SetScale", lib);
-    bindFunc(FMOD_Geometry_GetScale)("FMOD_Geometry_GetScale", lib);
-    bindFunc(FMOD_Geometry_Save)("FMOD_Geometry_Save", lib);
+    *cast(void**)&FMOD_Geometry_SetActive = Derelict_GetProc(lib, "FMOD_Geometry_SetActive");
+    *cast(void**)&FMOD_Geometry_GetActive = Derelict_GetProc(lib, "FMOD_Geometry_GetActive");
+    *cast(void**)&FMOD_Geometry_SetRotation = Derelict_GetProc(lib, "FMOD_Geometry_SetRotation");
+    *cast(void**)&FMOD_Geometry_GetRotation = Derelict_GetProc(lib, "FMOD_Geometry_GetRotation");
+    *cast(void**)&FMOD_Geometry_SetPosition = Derelict_GetProc(lib, "FMOD_Geometry_SetPosition");
+    *cast(void**)&FMOD_Geometry_GetPosition = Derelict_GetProc(lib, "FMOD_Geometry_GetPosition");
+    *cast(void**)&FMOD_Geometry_SetScale = Derelict_GetProc(lib, "FMOD_Geometry_SetScale");
+    *cast(void**)&FMOD_Geometry_GetScale = Derelict_GetProc(lib, "FMOD_Geometry_GetScale");
+    *cast(void**)&FMOD_Geometry_Save = Derelict_GetProc(lib, "FMOD_Geometry_Save");
 
     /*
          Userdata set/get.
     */
 
-    bindFunc(FMOD_Geometry_SetUserData)("FMOD_Geometry_SetUserData", lib);
-    bindFunc(FMOD_Geometry_GetUserData)("FMOD_Geometry_GetUserData", lib);
+    *cast(void**)&FMOD_Geometry_SetUserData = Derelict_GetProc(lib, "FMOD_Geometry_SetUserData");
+    *cast(void**)&FMOD_Geometry_GetUserData = Derelict_GetProc(lib, "FMOD_Geometry_GetUserData");
 
-    bindFunc(FMOD_Geometry_GetMemoryInfo)("FMOD_Geometry_GetMemoryInfo", lib);
+    *cast(void**)&FMOD_Geometry_GetMemoryInfo = Derelict_GetProc(lib, "FMOD_Geometry_GetMemoryInfo");
 
     /*
         'Reverb' API
     */
 
-    bindFunc(FMOD_Reverb_Release)("FMOD_Reverb_Release", lib);
+    *cast(void**)&FMOD_Reverb_Release = Derelict_GetProc(lib, "FMOD_Reverb_Release");
 
     /*
          Reverb manipulation.
     */
 
-    bindFunc(FMOD_Reverb_Set3DAttributes)("FMOD_Reverb_Set3DAttributes", lib);
-    bindFunc(FMOD_Reverb_Get3DAttributes)("FMOD_Reverb_Get3DAttributes", lib);
-    bindFunc(FMOD_Reverb_SetProperties)("FMOD_Reverb_SetProperties", lib);
-    bindFunc(FMOD_Reverb_GetProperties)("FMOD_Reverb_GetProperties", lib);
-    bindFunc(FMOD_Reverb_SetActive)("FMOD_Reverb_SetActive", lib);
-    bindFunc(FMOD_Reverb_GetActive)("FMOD_Reverb_GetActive", lib);
+    *cast(void**)&FMOD_Reverb_Set3DAttributes = Derelict_GetProc(lib, "FMOD_Reverb_Set3DAttributes");
+    *cast(void**)&FMOD_Reverb_Get3DAttributes = Derelict_GetProc(lib, "FMOD_Reverb_Get3DAttributes");
+    *cast(void**)&FMOD_Reverb_SetProperties = Derelict_GetProc(lib, "FMOD_Reverb_SetProperties");
+    *cast(void**)&FMOD_Reverb_GetProperties = Derelict_GetProc(lib, "FMOD_Reverb_GetProperties");
+    *cast(void**)&FMOD_Reverb_SetActive = Derelict_GetProc(lib, "FMOD_Reverb_SetActive");
+    *cast(void**)&FMOD_Reverb_GetActive = Derelict_GetProc(lib, "FMOD_Reverb_GetActive");
 
     /*
          Userdata set/get.
     */
 
-    bindFunc(FMOD_Reverb_SetUserData)("FMOD_Reverb_SetUserData", lib);
-    bindFunc(FMOD_Reverb_GetUserData)("FMOD_Reverb_GetUserData", lib);
+    *cast(void**)&FMOD_Reverb_SetUserData = Derelict_GetProc(lib, "FMOD_Reverb_SetUserData");
+    *cast(void**)&FMOD_Reverb_GetUserData = Derelict_GetProc(lib, "FMOD_Reverb_GetUserData");
 
-    bindFunc(FMOD_Reverb_GetMemoryInfo)("FMOD_Reverb_GetMemoryInfo", lib);
+    *cast(void**)&FMOD_Reverb_GetMemoryInfo = Derelict_GetProc(lib, "FMOD_Reverb_GetMemoryInfo");
 }
 
 GenericLoader DerelictFMOD;

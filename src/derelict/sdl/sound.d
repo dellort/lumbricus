@@ -76,21 +76,21 @@ int function(Sound_Sample *sample, uint ms) Sound_Seek;
 extern(D):
 
 private void load(SharedLib lib) {
-    bindFunc(Sound_GetLinkedVersion)("Sound_GetLinkedVersion",lib);
-    bindFunc(Sound_Init)("Sound_Init",lib);
-    bindFunc(Sound_Quit)("Sound_Quit",lib);
-    bindFunc(Sound_AvailableDecoders)("Sound_AvailableDecoders",lib);
-    bindFunc(Sound_GetError)("Sound_GetError",lib);
-    bindFunc(Sound_ClearError)("Sound_ClearError",lib);
-    bindFunc(Sound_NewSample)("Sound_NewSample",lib);
-    bindFunc(Sound_NewSampleFromFile)("Sound_NewSampleFromFile",lib);
-    bindFunc(Sound_GetDuration)("Sound_GetDuration",lib);
-    bindFunc(Sound_FreeSample)("Sound_FreeSample",lib);
-    bindFunc(Sound_SetBufferSize)("Sound_SetBufferSize",lib);
-    bindFunc(Sound_Decode)("Sound_Decode",lib);
-    bindFunc(Sound_DecodeAll)("Sound_DecodeAll",lib);
-    bindFunc(Sound_Rewind)("Sound_Rewind",lib);
-    bindFunc(Sound_Seek)("Sound_Seek",lib);
+    *cast(void**)&Sound_GetLinkedVersion = Derelict_GetProc(lib, "Sound_GetLinkedVersion");
+    *cast(void**)&Sound_Init = Derelict_GetProc(lib, "Sound_Init");
+    *cast(void**)&Sound_Quit = Derelict_GetProc(lib, "Sound_Quit");
+    *cast(void**)&Sound_AvailableDecoders = Derelict_GetProc(lib, "Sound_AvailableDecoders");
+    *cast(void**)&Sound_GetError = Derelict_GetProc(lib, "Sound_GetError");
+    *cast(void**)&Sound_ClearError = Derelict_GetProc(lib, "Sound_ClearError");
+    *cast(void**)&Sound_NewSample = Derelict_GetProc(lib, "Sound_NewSample");
+    *cast(void**)&Sound_NewSampleFromFile = Derelict_GetProc(lib, "Sound_NewSampleFromFile");
+    *cast(void**)&Sound_GetDuration = Derelict_GetProc(lib, "Sound_GetDuration");
+    *cast(void**)&Sound_FreeSample = Derelict_GetProc(lib, "Sound_FreeSample");
+    *cast(void**)&Sound_SetBufferSize = Derelict_GetProc(lib, "Sound_SetBufferSize");
+    *cast(void**)&Sound_Decode = Derelict_GetProc(lib, "Sound_Decode");
+    *cast(void**)&Sound_DecodeAll = Derelict_GetProc(lib, "Sound_DecodeAll");
+    *cast(void**)&Sound_Rewind = Derelict_GetProc(lib, "Sound_Rewind");
+    *cast(void**)&Sound_Seek = Derelict_GetProc(lib, "Sound_Seek");
 }
 
 GenericLoader DerelictSDLSound;

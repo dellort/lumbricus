@@ -58,47 +58,47 @@ void function(ENetPeer*, enet_uint32, enet_uint32, enet_uint32) enet_peer_thrott
 extern(D):
 
 private void load(SharedLib lib) {
-    bindFunc(enet_initialize)("enet_initialize",lib);
-    bindFunc(enet_initialize_with_callbacks)("enet_initialize_with_callbacks",lib);
-    bindFunc(enet_deinitialize)("enet_deinitialize",lib);
+    *cast(void**)&enet_initialize = Derelict_GetProc(lib, "enet_initialize");
+    *cast(void**)&enet_initialize_with_callbacks = Derelict_GetProc(lib, "enet_initialize_with_callbacks");
+    *cast(void**)&enet_deinitialize = Derelict_GetProc(lib, "enet_deinitialize");
 
-    bindFunc(enet_time_get)("enet_time_get",lib);
-    bindFunc(enet_time_set)("enet_time_set",lib);
+    *cast(void**)&enet_time_get = Derelict_GetProc(lib, "enet_time_get");
+    *cast(void**)&enet_time_set = Derelict_GetProc(lib, "enet_time_set");
 
-    bindFunc(enet_socket_create)("enet_socket_create",lib);
-    bindFunc(enet_socket_accept)("enet_socket_accept",lib);
-    bindFunc(enet_socket_connect)("enet_socket_connect",lib);
-    bindFunc(enet_socket_send)("enet_socket_send",lib);
-    bindFunc(enet_socket_receive)("enet_socket_receive",lib);
-    bindFunc(enet_socket_wait)("enet_socket_wait",lib);
-    bindFunc(enet_socket_set_option)("enet_socket_set_option",lib);
-    bindFunc(enet_socket_destroy)("enet_socket_destroy",lib);
+    *cast(void**)&enet_socket_create = Derelict_GetProc(lib, "enet_socket_create");
+    *cast(void**)&enet_socket_accept = Derelict_GetProc(lib, "enet_socket_accept");
+    *cast(void**)&enet_socket_connect = Derelict_GetProc(lib, "enet_socket_connect");
+    *cast(void**)&enet_socket_send = Derelict_GetProc(lib, "enet_socket_send");
+    *cast(void**)&enet_socket_receive = Derelict_GetProc(lib, "enet_socket_receive");
+    *cast(void**)&enet_socket_wait = Derelict_GetProc(lib, "enet_socket_wait");
+    *cast(void**)&enet_socket_set_option = Derelict_GetProc(lib, "enet_socket_set_option");
+    *cast(void**)&enet_socket_destroy = Derelict_GetProc(lib, "enet_socket_destroy");
 
-    bindFunc(enet_address_set_host)("enet_address_set_host",lib);
-    bindFunc(enet_address_get_host_ip)("enet_address_get_host_ip",lib);
-    bindFunc(enet_address_get_host)("enet_address_get_host",lib);
+    *cast(void**)&enet_address_set_host = Derelict_GetProc(lib, "enet_address_set_host");
+    *cast(void**)&enet_address_get_host_ip = Derelict_GetProc(lib, "enet_address_get_host_ip");
+    *cast(void**)&enet_address_get_host = Derelict_GetProc(lib, "enet_address_get_host");
 
-    bindFunc(enet_packet_create)("enet_packet_create",lib);
-    bindFunc(enet_packet_destroy)("enet_packet_destroy",lib);
-    bindFunc(enet_packet_resize)("enet_packet_resize",lib);
+    *cast(void**)&enet_packet_create = Derelict_GetProc(lib, "enet_packet_create");
+    *cast(void**)&enet_packet_destroy = Derelict_GetProc(lib, "enet_packet_destroy");
+    *cast(void**)&enet_packet_resize = Derelict_GetProc(lib, "enet_packet_resize");
 
-    bindFunc(enet_host_create)("enet_host_create",lib);
-    bindFunc(enet_host_destroy)("enet_host_destroy",lib);
-    bindFunc(enet_host_connect)("enet_host_connect",lib);
-    bindFunc(enet_host_check_events)("enet_host_check_events",lib);
-    bindFunc(enet_host_service)("enet_host_service",lib);
-    bindFunc(enet_host_flush)("enet_host_flush",lib);
-    bindFunc(enet_host_broadcast)("enet_host_broadcast",lib);
-    bindFunc(enet_host_bandwidth_limit)("enet_host_bandwidth_limit",lib);
+    *cast(void**)&enet_host_create = Derelict_GetProc(lib, "enet_host_create");
+    *cast(void**)&enet_host_destroy = Derelict_GetProc(lib, "enet_host_destroy");
+    *cast(void**)&enet_host_connect = Derelict_GetProc(lib, "enet_host_connect");
+    *cast(void**)&enet_host_check_events = Derelict_GetProc(lib, "enet_host_check_events");
+    *cast(void**)&enet_host_service = Derelict_GetProc(lib, "enet_host_service");
+    *cast(void**)&enet_host_flush = Derelict_GetProc(lib, "enet_host_flush");
+    *cast(void**)&enet_host_broadcast = Derelict_GetProc(lib, "enet_host_broadcast");
+    *cast(void**)&enet_host_bandwidth_limit = Derelict_GetProc(lib, "enet_host_bandwidth_limit");
 
-    bindFunc(enet_peer_send)("enet_peer_send",lib);
-    bindFunc(enet_peer_receive)("enet_peer_receive",lib);
-    bindFunc(enet_peer_ping)("enet_peer_ping",lib);
-    bindFunc(enet_peer_reset)("enet_peer_reset",lib);
-    bindFunc(enet_peer_disconnect)("enet_peer_disconnect",lib);
-    bindFunc(enet_peer_disconnect_now)("enet_peer_disconnect_now",lib);
-    bindFunc(enet_peer_disconnect_later)("enet_peer_disconnect_later",lib);
-    bindFunc(enet_peer_throttle_configure)("enet_peer_throttle_configure",lib);
+    *cast(void**)&enet_peer_send = Derelict_GetProc(lib, "enet_peer_send");
+    *cast(void**)&enet_peer_receive = Derelict_GetProc(lib, "enet_peer_receive");
+    *cast(void**)&enet_peer_ping = Derelict_GetProc(lib, "enet_peer_ping");
+    *cast(void**)&enet_peer_reset = Derelict_GetProc(lib, "enet_peer_reset");
+    *cast(void**)&enet_peer_disconnect = Derelict_GetProc(lib, "enet_peer_disconnect");
+    *cast(void**)&enet_peer_disconnect_now = Derelict_GetProc(lib, "enet_peer_disconnect_now");
+    *cast(void**)&enet_peer_disconnect_later = Derelict_GetProc(lib, "enet_peer_disconnect_later");
+    *cast(void**)&enet_peer_throttle_configure = Derelict_GetProc(lib, "enet_peer_throttle_configure");
 }
 
 GenericLoader DerelictENet;

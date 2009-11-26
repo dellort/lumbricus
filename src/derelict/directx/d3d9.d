@@ -845,7 +845,7 @@ alias LPDIRECT3DSWAPCHAIN9EX IDirect3DSwapChain9Ex;
 extern(D):
 
 private void load(SharedLib lib) {
-    bindFunc(Direct3DCreate9)("Direct3DCreate9",lib);
+    *cast(void**)&Direct3DCreate9 = Derelict_GetProc(lib, "Direct3DCreate9");
 }
 
 GenericLoader DerelictD3D9;

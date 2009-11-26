@@ -460,150 +460,150 @@ int   lua_getgccount(lua_State *L)  { return lua_gc(L, LUA_GCCOUNT, 0); }
 
 private void load(SharedLib lib)
 {
-  bindFunc(luaL_newstate)("luaL_newstate", lib);
-  bindFunc(lua_newstate)("lua_newstate", lib);
-  bindFunc(lua_close)("lua_close", lib);
-  bindFunc(lua_newthread)("lua_newthread", lib);
-  bindFunc(lua_atpanic)("lua_atpanic", lib);
+  *cast(void**)&luaL_newstate = Derelict_GetProc(lib, "luaL_newstate");
+  *cast(void**)&lua_newstate = Derelict_GetProc(lib, "lua_newstate");
+  *cast(void**)&lua_close = Derelict_GetProc(lib, "lua_close");
+  *cast(void**)&lua_newthread = Derelict_GetProc(lib, "lua_newthread");
+  *cast(void**)&lua_atpanic = Derelict_GetProc(lib, "lua_atpanic");
 
-  bindFunc(lua_gettop)("lua_gettop", lib);
-  bindFunc(lua_settop)("lua_settop", lib);
-  bindFunc(lua_pushvalue)("lua_pushvalue", lib);
-  bindFunc(lua_remove)("lua_remove", lib);
-  bindFunc(lua_insert)("lua_insert", lib);
-  bindFunc(lua_replace)("lua_replace", lib);
-  bindFunc(lua_checkstack)("lua_checkstack", lib);
+  *cast(void**)&lua_gettop = Derelict_GetProc(lib, "lua_gettop");
+  *cast(void**)&lua_settop = Derelict_GetProc(lib, "lua_settop");
+  *cast(void**)&lua_pushvalue = Derelict_GetProc(lib, "lua_pushvalue");
+  *cast(void**)&lua_remove = Derelict_GetProc(lib, "lua_remove");
+  *cast(void**)&lua_insert = Derelict_GetProc(lib, "lua_insert");
+  *cast(void**)&lua_replace = Derelict_GetProc(lib, "lua_replace");
+  *cast(void**)&lua_checkstack = Derelict_GetProc(lib, "lua_checkstack");
 
-  bindFunc(lua_xmove)("lua_xmove", lib);
+  *cast(void**)&lua_xmove = Derelict_GetProc(lib, "lua_xmove");
 
-  bindFunc(lua_isnumber)("lua_isnumber", lib);
-  bindFunc(lua_isstring)("lua_isstring", lib);
-  bindFunc(lua_iscfunction)("lua_iscfunction", lib);
-  bindFunc(lua_isuserdata)("lua_isuserdata", lib);
-  bindFunc(lua_type)("lua_type", lib);
+  *cast(void**)&lua_isnumber = Derelict_GetProc(lib, "lua_isnumber");
+  *cast(void**)&lua_isstring = Derelict_GetProc(lib, "lua_isstring");
+  *cast(void**)&lua_iscfunction = Derelict_GetProc(lib, "lua_iscfunction");
+  *cast(void**)&lua_isuserdata = Derelict_GetProc(lib, "lua_isuserdata");
+  *cast(void**)&lua_type = Derelict_GetProc(lib, "lua_type");
 
-  bindFunc(lua_typename)("lua_typename", lib);
+  *cast(void**)&lua_typename = Derelict_GetProc(lib, "lua_typename");
 
-  bindFunc(lua_equal)("lua_equal", lib);
-  bindFunc(lua_rawequal)("lua_rawequal", lib);
-  bindFunc(lua_lessthan)("lua_lessthan", lib);
+  *cast(void**)&lua_equal = Derelict_GetProc(lib, "lua_equal");
+  *cast(void**)&lua_rawequal = Derelict_GetProc(lib, "lua_rawequal");
+  *cast(void**)&lua_lessthan = Derelict_GetProc(lib, "lua_lessthan");
 
-  bindFunc(lua_tonumber)("lua_tonumber", lib);
-  bindFunc(lua_tointeger)("lua_tointeger", lib);
-  bindFunc(lua_toboolean)("lua_toboolean", lib);
-  bindFunc(lua_tolstring)("lua_tolstring", lib);
-  bindFunc(lua_objlen)("lua_objlen", lib);
-  bindFunc(lua_tocfunction)("lua_tocfunction", lib);
-  bindFunc(lua_touserdata)("lua_touserdata", lib);
-  bindFunc(lua_tothread)("lua_tothread", lib);
-  bindFunc(lua_topointer)("lua_topointer", lib);
+  *cast(void**)&lua_tonumber = Derelict_GetProc(lib, "lua_tonumber");
+  *cast(void**)&lua_tointeger = Derelict_GetProc(lib, "lua_tointeger");
+  *cast(void**)&lua_toboolean = Derelict_GetProc(lib, "lua_toboolean");
+  *cast(void**)&lua_tolstring = Derelict_GetProc(lib, "lua_tolstring");
+  *cast(void**)&lua_objlen = Derelict_GetProc(lib, "lua_objlen");
+  *cast(void**)&lua_tocfunction = Derelict_GetProc(lib, "lua_tocfunction");
+  *cast(void**)&lua_touserdata = Derelict_GetProc(lib, "lua_touserdata");
+  *cast(void**)&lua_tothread = Derelict_GetProc(lib, "lua_tothread");
+  *cast(void**)&lua_topointer = Derelict_GetProc(lib, "lua_topointer");
 
-  bindFunc(lua_pushnil)("lua_pushnil", lib);
-  bindFunc(lua_pushnumber)("lua_pushnumber", lib);
-  bindFunc(lua_pushinteger)("lua_pushinteger", lib);
-  bindFunc(lua_pushlstring)("lua_pushlstring", lib);
-  bindFunc(lua_pushstring)("lua_pushstring", lib);
-  bindFunc(lua_pushvfstring)("lua_pushvfstring", lib);
-  bindFunc(lua_pushfstring)("lua_pushfstring", lib);
-  bindFunc(lua_pushcclosure)("lua_pushcclosure", lib);
-  bindFunc(lua_pushboolean)("lua_pushboolean", lib);
-  bindFunc(lua_pushlightuserdata)("lua_pushlightuserdata", lib);
-  bindFunc(lua_pushthread)("lua_pushthread", lib);
+  *cast(void**)&lua_pushnil = Derelict_GetProc(lib, "lua_pushnil");
+  *cast(void**)&lua_pushnumber = Derelict_GetProc(lib, "lua_pushnumber");
+  *cast(void**)&lua_pushinteger = Derelict_GetProc(lib, "lua_pushinteger");
+  *cast(void**)&lua_pushlstring = Derelict_GetProc(lib, "lua_pushlstring");
+  *cast(void**)&lua_pushstring = Derelict_GetProc(lib, "lua_pushstring");
+  *cast(void**)&lua_pushvfstring = Derelict_GetProc(lib, "lua_pushvfstring");
+  *cast(void**)&lua_pushfstring = Derelict_GetProc(lib, "lua_pushfstring");
+  *cast(void**)&lua_pushcclosure = Derelict_GetProc(lib, "lua_pushcclosure");
+  *cast(void**)&lua_pushboolean = Derelict_GetProc(lib, "lua_pushboolean");
+  *cast(void**)&lua_pushlightuserdata = Derelict_GetProc(lib, "lua_pushlightuserdata");
+  *cast(void**)&lua_pushthread = Derelict_GetProc(lib, "lua_pushthread");
 
-  bindFunc(lua_gettable)("lua_gettable", lib);
-  bindFunc(lua_getfield)("lua_getfield", lib);
-  bindFunc(lua_rawget)("lua_rawget", lib);
-  bindFunc(lua_rawgeti)("lua_rawgeti", lib);
-  bindFunc(lua_createtable)("lua_createtable", lib);
-  bindFunc(lua_newuserdata)("lua_newuserdata", lib);
-  bindFunc(lua_getmetatable)("lua_getmetatable", lib);
-  bindFunc(lua_getfenv)("lua_getfenv", lib);
+  *cast(void**)&lua_gettable = Derelict_GetProc(lib, "lua_gettable");
+  *cast(void**)&lua_getfield = Derelict_GetProc(lib, "lua_getfield");
+  *cast(void**)&lua_rawget = Derelict_GetProc(lib, "lua_rawget");
+  *cast(void**)&lua_rawgeti = Derelict_GetProc(lib, "lua_rawgeti");
+  *cast(void**)&lua_createtable = Derelict_GetProc(lib, "lua_createtable");
+  *cast(void**)&lua_newuserdata = Derelict_GetProc(lib, "lua_newuserdata");
+  *cast(void**)&lua_getmetatable = Derelict_GetProc(lib, "lua_getmetatable");
+  *cast(void**)&lua_getfenv = Derelict_GetProc(lib, "lua_getfenv");
 
-  bindFunc(lua_settable)("lua_settable", lib);
-  bindFunc(lua_setfield)("lua_setfield", lib);
-  bindFunc(lua_rawset)("lua_rawset", lib);
-  bindFunc(lua_rawseti)("lua_rawseti", lib);
-  bindFunc(lua_setmetatable)("lua_setmetatable", lib);
-  bindFunc(lua_setfenv)("lua_setfenv", lib);
+  *cast(void**)&lua_settable = Derelict_GetProc(lib, "lua_settable");
+  *cast(void**)&lua_setfield = Derelict_GetProc(lib, "lua_setfield");
+  *cast(void**)&lua_rawset = Derelict_GetProc(lib, "lua_rawset");
+  *cast(void**)&lua_rawseti = Derelict_GetProc(lib, "lua_rawseti");
+  *cast(void**)&lua_setmetatable = Derelict_GetProc(lib, "lua_setmetatable");
+  *cast(void**)&lua_setfenv = Derelict_GetProc(lib, "lua_setfenv");
 
-  bindFunc(lua_call)("lua_call", lib);
-  bindFunc(lua_pcall)("lua_pcall", lib);
-  bindFunc(lua_cpcall)("lua_cpcall", lib);
-  bindFunc(lua_load)("lua_load", lib);
+  *cast(void**)&lua_call = Derelict_GetProc(lib, "lua_call");
+  *cast(void**)&lua_pcall = Derelict_GetProc(lib, "lua_pcall");
+  *cast(void**)&lua_cpcall = Derelict_GetProc(lib, "lua_cpcall");
+  *cast(void**)&lua_load = Derelict_GetProc(lib, "lua_load");
 
-  bindFunc(lua_dump)("lua_dump", lib);
+  *cast(void**)&lua_dump = Derelict_GetProc(lib, "lua_dump");
 
-  bindFunc(lua_yield)("lua_yield", lib);
-  bindFunc(lua_resume)("lua_resume", lib);
-  bindFunc(lua_status)("lua_status", lib);
+  *cast(void**)&lua_yield = Derelict_GetProc(lib, "lua_yield");
+  *cast(void**)&lua_resume = Derelict_GetProc(lib, "lua_resume");
+  *cast(void**)&lua_status = Derelict_GetProc(lib, "lua_status");
 
-  bindFunc(lua_error)("lua_error", lib);
-  bindFunc(lua_next)("lua_next", lib);
-  bindFunc(lua_concat)("lua_concat", lib);
+  *cast(void**)&lua_error = Derelict_GetProc(lib, "lua_error");
+  *cast(void**)&lua_next = Derelict_GetProc(lib, "lua_next");
+  *cast(void**)&lua_concat = Derelict_GetProc(lib, "lua_concat");
 
-  bindFunc(lua_getallocf)("lua_getallocf", lib);
-  bindFunc(lua_setallocf)("lua_setallocf", lib);
+  *cast(void**)&lua_getallocf = Derelict_GetProc(lib, "lua_getallocf");
+  *cast(void**)&lua_setallocf = Derelict_GetProc(lib, "lua_setallocf");
 
-  bindFunc(lua_getstack)("lua_getstack", lib);
-  bindFunc(lua_getinfo)("lua_getinfo", lib);
-  bindFunc(lua_getlocal)("lua_getlocal", lib);
-  bindFunc(lua_setlocal)("lua_setlocal", lib);
-  bindFunc(lua_getupvalue)("lua_getupvalue", lib);
-  bindFunc(lua_setupvalue)("lua_setupvalue", lib);
+  *cast(void**)&lua_getstack = Derelict_GetProc(lib, "lua_getstack");
+  *cast(void**)&lua_getinfo = Derelict_GetProc(lib, "lua_getinfo");
+  *cast(void**)&lua_getlocal = Derelict_GetProc(lib, "lua_getlocal");
+  *cast(void**)&lua_setlocal = Derelict_GetProc(lib, "lua_setlocal");
+  *cast(void**)&lua_getupvalue = Derelict_GetProc(lib, "lua_getupvalue");
+  *cast(void**)&lua_setupvalue = Derelict_GetProc(lib, "lua_setupvalue");
 
-  bindFunc(lua_sethook)("lua_sethook", lib);
-  bindFunc(lua_gethook)("lua_gethook", lib);
-  bindFunc(lua_gethookmask)("lua_gethookmask", lib);
-  bindFunc(lua_gethookcount)("lua_gethookcount", lib);
+  *cast(void**)&lua_sethook = Derelict_GetProc(lib, "lua_sethook");
+  *cast(void**)&lua_gethook = Derelict_GetProc(lib, "lua_gethook");
+  *cast(void**)&lua_gethookmask = Derelict_GetProc(lib, "lua_gethookmask");
+  *cast(void**)&lua_gethookcount = Derelict_GetProc(lib, "lua_gethookcount");
 
   // lauxlib
 
-  bindFunc(luaL_openlib)("luaL_openlib", lib);
-  bindFunc(luaL_getmetafield)("luaL_getmetafield", lib);
-  bindFunc(luaL_callmeta)("luaL_callmeta", lib);
-  bindFunc(luaL_typerror)("luaL_typerror", lib);
-  bindFunc(luaL_argerror)("luaL_argerror", lib);
-  bindFunc(luaL_checklstring)("luaL_checklstring", lib);
-  bindFunc(luaL_optlstring)("luaL_optlstring", lib);
-  bindFunc(luaL_checknumber)("luaL_checknumber", lib);
-  bindFunc(luaL_optnumber)("luaL_optnumber", lib);
-  bindFunc(luaL_checkinteger)("luaL_checkinteger", lib);
-  bindFunc(luaL_optinteger)("luaL_optinteger", lib);
-  bindFunc(luaL_checkstack)("luaL_checkstack", lib);
-  bindFunc(luaL_checktype)("luaL_checktype", lib);
-  bindFunc(luaL_checkany)("luaL_checkany", lib);
+  *cast(void**)&luaL_openlib = Derelict_GetProc(lib, "luaL_openlib");
+  *cast(void**)&luaL_getmetafield = Derelict_GetProc(lib, "luaL_getmetafield");
+  *cast(void**)&luaL_callmeta = Derelict_GetProc(lib, "luaL_callmeta");
+  *cast(void**)&luaL_typerror = Derelict_GetProc(lib, "luaL_typerror");
+  *cast(void**)&luaL_argerror = Derelict_GetProc(lib, "luaL_argerror");
+  *cast(void**)&luaL_checklstring = Derelict_GetProc(lib, "luaL_checklstring");
+  *cast(void**)&luaL_optlstring = Derelict_GetProc(lib, "luaL_optlstring");
+  *cast(void**)&luaL_checknumber = Derelict_GetProc(lib, "luaL_checknumber");
+  *cast(void**)&luaL_optnumber = Derelict_GetProc(lib, "luaL_optnumber");
+  *cast(void**)&luaL_checkinteger = Derelict_GetProc(lib, "luaL_checkinteger");
+  *cast(void**)&luaL_optinteger = Derelict_GetProc(lib, "luaL_optinteger");
+  *cast(void**)&luaL_checkstack = Derelict_GetProc(lib, "luaL_checkstack");
+  *cast(void**)&luaL_checktype = Derelict_GetProc(lib, "luaL_checktype");
+  *cast(void**)&luaL_checkany = Derelict_GetProc(lib, "luaL_checkany");
 
-  bindFunc(luaL_newmetatable)("luaL_newmetatable", lib);
-  bindFunc(luaL_checkudata)("luaL_checkudata", lib);
-  bindFunc(luaL_where)("luaL_where", lib);
-  bindFunc(luaL_error)("luaL_error", lib);
-  bindFunc(luaL_checkoption)("luaL_checkoption", lib);
-  bindFunc(luaL_ref)("luaL_ref", lib);
-  bindFunc(luaL_unref)("luaL_unref", lib);
-  bindFunc(luaL_loadfile)("luaL_loadfile", lib);
-  bindFunc(luaL_loadbuffer)("luaL_loadbuffer", lib);
-  bindFunc(luaL_loadstring)("luaL_loadstring", lib);
-  bindFunc(luaL_gsub)("luaL_gsub", lib);
-  bindFunc(luaL_findtable)("luaL_findtable", lib);
+  *cast(void**)&luaL_newmetatable = Derelict_GetProc(lib, "luaL_newmetatable");
+  *cast(void**)&luaL_checkudata = Derelict_GetProc(lib, "luaL_checkudata");
+  *cast(void**)&luaL_where = Derelict_GetProc(lib, "luaL_where");
+  *cast(void**)&luaL_error = Derelict_GetProc(lib, "luaL_error");
+  *cast(void**)&luaL_checkoption = Derelict_GetProc(lib, "luaL_checkoption");
+  *cast(void**)&luaL_ref = Derelict_GetProc(lib, "luaL_ref");
+  *cast(void**)&luaL_unref = Derelict_GetProc(lib, "luaL_unref");
+  *cast(void**)&luaL_loadfile = Derelict_GetProc(lib, "luaL_loadfile");
+  *cast(void**)&luaL_loadbuffer = Derelict_GetProc(lib, "luaL_loadbuffer");
+  *cast(void**)&luaL_loadstring = Derelict_GetProc(lib, "luaL_loadstring");
+  *cast(void**)&luaL_gsub = Derelict_GetProc(lib, "luaL_gsub");
+  *cast(void**)&luaL_findtable = Derelict_GetProc(lib, "luaL_findtable");
 
-  bindFunc(luaL_buffinit)("luaL_buffinit", lib);
-  bindFunc(luaL_prepbuffer)("luaL_prepbuffer", lib);
-  bindFunc(luaL_addlstring)("luaL_addlstring", lib);
-  bindFunc(luaL_addstring)("luaL_addstring", lib);
-  bindFunc(luaL_addvalue)("luaL_addvalue", lib);
-  bindFunc(luaL_pushresult)("luaL_pushresult", lib);
+  *cast(void**)&luaL_buffinit = Derelict_GetProc(lib, "luaL_buffinit");
+  *cast(void**)&luaL_prepbuffer = Derelict_GetProc(lib, "luaL_prepbuffer");
+  *cast(void**)&luaL_addlstring = Derelict_GetProc(lib, "luaL_addlstring");
+  *cast(void**)&luaL_addstring = Derelict_GetProc(lib, "luaL_addstring");
+  *cast(void**)&luaL_addvalue = Derelict_GetProc(lib, "luaL_addvalue");
+  *cast(void**)&luaL_pushresult = Derelict_GetProc(lib, "luaL_pushresult");
 
   // lualib
-  bindFunc(luaopen_base)("luaopen_base", lib);
-  bindFunc(luaopen_table)("luaopen_table", lib);
-  bindFunc(luaopen_io)("luaopen_io", lib);
-  bindFunc(luaopen_os)("luaopen_os", lib);
-  bindFunc(luaopen_string)("luaopen_string", lib);
-  bindFunc(luaopen_math)("luaopen_math", lib);
-  bindFunc(luaopen_debug)("luaopen_debug", lib);
-  bindFunc(luaopen_package)("luaopen_package", lib);
+  *cast(void**)&luaopen_base = Derelict_GetProc(lib, "luaopen_base");
+  *cast(void**)&luaopen_table = Derelict_GetProc(lib, "luaopen_table");
+  *cast(void**)&luaopen_io = Derelict_GetProc(lib, "luaopen_io");
+  *cast(void**)&luaopen_os = Derelict_GetProc(lib, "luaopen_os");
+  *cast(void**)&luaopen_string = Derelict_GetProc(lib, "luaopen_string");
+  *cast(void**)&luaopen_math = Derelict_GetProc(lib, "luaopen_math");
+  *cast(void**)&luaopen_debug = Derelict_GetProc(lib, "luaopen_debug");
+  *cast(void**)&luaopen_package = Derelict_GetProc(lib, "luaopen_package");
 
-  bindFunc(luaL_openlibs)("luaL_openlibs", lib);
+  *cast(void**)&luaL_openlibs = Derelict_GetProc(lib, "luaL_openlibs");
 }
 
 GenericLoader DerelictLua;

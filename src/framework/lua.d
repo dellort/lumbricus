@@ -87,7 +87,7 @@ extern(C) int lua_WriteStream(lua_State* L, void* p, size_t sz, void* ud) {
 //panic function: called on unprotected lua error (message is on the stack)
 extern(C) int my_lua_panic(lua_State *L) {
     char[] err = lua_todstring(L, -1);
-    lua_pop(L, -1);
+    lua_pop(L, 1);
     throw new LuaException(err);
 }
 
@@ -545,7 +545,7 @@ class LuaState {
         int res = lua_load(mLua, reader, d, toStringz('='~chunkname));
         if (res != 0) {
             char[] err = lua_todstring(mLua, -1);
-            lua_pop(mLua, -1);  //remove error message
+            lua_pop(mLua, 1);  //remove error message
             throw new LuaException("Parse error: " ~ err);
         }
     }
