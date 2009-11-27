@@ -16,14 +16,19 @@ public import tango.math.Math : min, max;
 //  method is missing too
 //the Tango log API may or may not be OK; but I don't trust it (this is more
 //  robust, and it is 2726 lines shorter)
-struct Trace {
+class Trace {
+    private static Object mutex;
     import cstdio = tango.stdc.stdio;
     static void format(char[] fmt, ...) {
-        doprint(fmt, _arguments, _argptr);
+        synchronized(mutex) {
+            doprint(fmt, _arguments, _argptr);
+        }
     }
     static void formatln(char[] fmt, ...) {
-        doprint(fmt, _arguments, _argptr);
-        cstdio.fprintf(cstdio.stderr, "\n");
+        synchronized(mutex) {
+            doprint(fmt, _arguments, _argptr);
+            cstdio.fprintf(cstdio.stderr, "\n");
+        }
     }
     private static void doprint(char[] fmt, TypeInfo[] arguments, void* argptr)
     {
@@ -35,6 +40,9 @@ struct Trace {
     }
     static void flush() {
         //unlike Tango, C is sane; stderr always flushs itself
+    }
+    static this() {
+        mutex = new Object();
     }
 }
 

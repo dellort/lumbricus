@@ -109,6 +109,7 @@ char[] ObjectToString(Object o) {
 }
 
 void main(char[][] args) {
+    scope(exit) gMainTerminated = true;
     cinit.init(args, "what");
     LuaState s = new LuaState();
     s.register(scripting);

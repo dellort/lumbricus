@@ -62,6 +62,8 @@ struct PipeOut {
 
     void close() {
         if (do_close) do_close();
+        do_write = null;
+        do_close = null;
     }
 
     //sz==ulong.max: special case; copy until eof
@@ -114,6 +116,8 @@ struct PipeIn {
     }
     void close() {
         if (do_close) do_close();
+        do_read = null;
+        do_close = null;
     }
 
     void readExact(ubyte[] d) {
@@ -558,8 +562,6 @@ class ThreadedWriter {
         copyAvailable();
         mPipe.stop();
         mPipe.close();
-        //all writes are done, close the sink stream
-        mSink.close();
     }
 
     //copy all data in the ThreadPipe to sink
@@ -575,8 +577,17 @@ class ThreadedWriter {
     }
 
     private void write(ubyte[] data) {
-        assert(mPipe.isAlive());
-        mPipe.write(data);
+        if (mPipe.isAlive()) {
+            //normal, threaded operation
+            mPipe.write(data);
+        } else if (!mSink.isNull()) {
+            //thread is terminated, but close() was not called
+            //(this can happen e.g. on program exit)
+            //write directly to sink then
+            mSink.write(data);
+        } else {
+            assert(false, "attempted write in closed ThreadedWriter");
+        }
     }
 
     private void close() {
@@ -584,5 +595,7 @@ class ThreadedWriter {
         mPipe.stop();
         //wait until all writes are completed
         mWorker.join();
+        //all writes are done, close the sink stream
+        mSink.close();
     }
 }
