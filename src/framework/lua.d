@@ -3,7 +3,7 @@ module framework.lua;
 import derelict.lua.lua;
 import derelict.lua.pluto;
 import derelict.util.exception : SharedLibLoadException;
-import tango.stdc.stringz;
+import czstr = tango.stdc.stringz;
 import tango.core.Traits : ParameterTupleOf, isIntegerType, isFloatingPointType,
     ElementTypeOfArray, isArrayType, isAssocArrayType, KeyTypeOfAA, ValTypeOfAA,
     ReturnTypeOf;
@@ -104,7 +104,7 @@ class LuaException : Exception { this(char[] msg) { super(msg); } }
 //create an error message if the error is caused by a wrong script
 void raiseLuaError(lua_State *state, char[] msg) {
     luaL_where(state, 1);
-    lua_pushstring(state, toStringz(msg));
+    lua_pushstring(state, czstr.toStringz(msg));
     lua_concat(state, 2);
     lua_error(state);
 }
@@ -113,7 +113,7 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
     //xxx no check if stackIdx is valid (is checked in demarshal() anyway)
     void expected(char[] t) {
         throw new LuaException(t ~ " expected, got "
-            ~ fromStringz(luaL_typename(state, stackIdx)));
+            ~ czstr.fromStringz(luaL_typename(state, stackIdx)));
     }
     static if (isIntegerType!(T) || isFloatingPointType!(T)) {
         lua_Number ret = lua_tonumber(state, stackIdx);
@@ -215,9 +215,13 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
             ~this() {
                 //remove function from registry (if state became invalid, those
                 //  functions will just fail quietly)
-                lua_pushnumber(state, key);
-                lua_pushnil(state);
-                lua_settable(state, LUA_REGISTRYINDEX);
+                //--D GC is completely asynchronous and indeterministic; if this
+                //--    dtor brings anything, then only segfaults on random
+                //--    occasions; don't know how to solve this (maybe do the
+                //--    same crap as with surfaces in the framework)
+                //--lua_pushnumber(state, key);
+                //--lua_pushnil(state);
+                //--lua_settable(state, LUA_REGISTRYINDEX);
             }
             //will return delegate to this function
             RetType cbfunc(Params args) {
@@ -233,7 +237,7 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         //use the hashed memory address as key (hashed because of GC)
         //bswap, the best and only hash function!!11
         //xxx not guaranteed to be unique in context of serialization, add check
-        pwrap.key = intr.bswap(cast(uint)cast(void*)pwrap);
+        pwrap.key = intr.bswap(cast(size_t)cast(void*)pwrap);
 
         lua_pushnumber(state, pwrap.key);  //unique key
         lua_pushvalue(state, -2);                    //lua closure
@@ -369,7 +373,6 @@ class LuaRegistry {
         foreach (int idx, x; p) {
             //generate code for all possible parameter counts, and select
             //the right case at runtime
-            //....seriously? bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat bloat
             static if (is(typeof(del(p[0..idx])) RetType)) {
                 if (numRealArgs == idx) {
                     static if (is(RetType == void)) {
@@ -513,7 +516,7 @@ class LuaState {
         foreach (lib; luaLibs) {
             if (stdlibFlags & lib.flag) {
                 lua_pushcfunction(mLua, *lib.func);
-                lua_pushstring(mLua, toStringz(lib.name));
+                lua_pushstring(mLua, czstr.toStringz(lib.name));
                 lua_call(mLua, 1, 0);
             }
         }
@@ -528,7 +531,7 @@ class LuaState {
         foreach (m; stuff.mMethods) {
             lua_pushlightuserdata(mLua, cast(void*)this);
             lua_pushcclosure(mLua, m.demarshal, 1);
-            lua_setglobal(mLua, toStringz(m.fname));
+            lua_setglobal(mLua, czstr.toStringz(m.fname));
         }
     }
 
@@ -539,7 +542,7 @@ class LuaState {
 
     private void lua_loadChecked(lua_Reader reader, void *d, char[] chunkname) {
         //'=' means use the name as-is (else "string " is added)
-        int res = lua_load(mLua, reader, d, toStringz('='~chunkname));
+        int res = lua_load(mLua, reader, d, czstr.toStringz('='~chunkname));
         if (res != 0) {
             char[] err = lua_todstring(mLua, -1);
             lua_pop(mLua, 1);  //remove error message
@@ -579,9 +582,9 @@ class LuaState {
     //fails.
     //if you get something like "Error: template framework.lua.LuaState.callR(RetType,T...) declaration T is already defined", it means dmd is being retarded, and one of the subseqeuent template instantiatoins copntain semantic errors
     RetType callR(RetType, T...)(char[] funcName, T args) {
-        //xxx should avoid memory allocation (toStringz)
+        //xxx should avoid memory allocation (czstr.toStringz)
         stack0();
-        lua_getglobal(mLua, toStringz(funcName));
+        lua_getglobal(mLua, czstr.toStringz(funcName));
         if (!lua_isfunction(mLua, 1)) {
             throw new LuaException(funcName ~ ": not a function.");
         }
@@ -613,7 +616,7 @@ class LuaState {
         assert(gPlutoOK);
         stack0();
 
-        lua_getfield(mLua, LUA_GLOBALSINDEX, toStringz(stuff));
+        lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(stuff));
 
         //pluto expects us to resolve externals in advance (permanents-table)
         //traverse Lua's object graph, and find any light user data (= external)
@@ -745,13 +748,13 @@ class LuaState {
 
         //should push the desrrialized objects
         assert(lua_gettop(mLua) == 2);
-        lua_setfield(mLua, LUA_GLOBALSINDEX, toStringz(stuff));
+        lua_setfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(stuff));
         lua_pop(mLua, 1);
         stack0();
     }
 
     void addScriptType(T)(char[] tableName) {
-        lua_getfield(mLua, LUA_GLOBALSINDEX, toStringz(tableName));
+        lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(tableName));
         const c_mangle = "D_struct_" ~ T.mangleof ~ '\0';
         lua_setfield(mLua, LUA_REGISTRYINDEX, c_mangle.ptr);
     }

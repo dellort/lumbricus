@@ -2,6 +2,8 @@ module luatest;
 
 import framework.lua;
 import tango.core.tools.TraceExceptions;
+import cinit = common.init;
+import framework.filesystem;
 
 import utils.misc;
 import utils.stream;
@@ -87,6 +89,8 @@ static this() {
     scripting.method!(Bar, "blurgh")();
     scripting.func!(funcBlub)();
 
+    scripting.func!(ObjectToString)();
+
     //lua.method!(Sprite, "setState")();
     //lua.method!(GameEngine, "explosion")();
 }
@@ -99,133 +103,13 @@ void funcBlub(char[] arg) {
     Trace.formatln("Plain old function, yay! Got '{}'", arg);
 }
 
-const cVectorLib = `
-    Vector2 = {}
-    Vector2.__index = Vector2
-    setmetatable(Vector2, {__call = function(self, x, y)
-        if (y) then
-            return setmetatable({x = x, y = y}, Vector2)
-        else
-            return setmetatable({x = x, y = x}, Vector2)
-        end
-    end})
-
-    function Vector2:__add(v)
-        return Vector2(self.x + v.x, self.y + v.y)
-    end
-
-    function Vector2:__sub(v)
-        return Vector2(self.x - v.x, self.y - v.y)
-    end
-
-    function Vector2:__mul(v)
-        if type(v) == "table" then
-            return self.x * v.x + self.y * v.y;
-        else
-            return Vector2(self.x * v, self.y * v)
-        end
-    end
-
-    function Vector2:__div(v)
-        if type(v) == "table" then
-            return Vector2(self.x / v.x, self.y / v.y)
-        else
-            return Vector2(self.x / v, self.y / v)
-        end
-    end
-
-    function Vector2:__unm()
-        return Vector2(-self.x, -self.y)
-    end
-
-    function Vector2:__len()
-        return math.sqrt(self.x*self.x, self.y*self.y)
-    end
-
-    function Vector2:__eq(v)
-        return self.x == v.x and self.y == v.y
-    end
-
-    function Vector2:quad_length()
-        return self.x*self.x + self.y*self.y
-    end
-
-    function Vector2:toAngle()
-        return math.atan2(self.y, self.x)
-    end
-
-    function Vector2:print()
-        print(string.format("(%d, %d)", self.x, self.y))
-    end
-`;
-
-const cTimeLib = `
-    Time = {}
-    Time.__index = Time
-    setmetatable(Time, {__call = function(self, timeVal)
-        return setmetatable({timeVal = timeVal}, Time)
-    end})
-
-    Time.Null = Time(0)
-
-    function Time:__add(v)
-        return Time(self.timeVal + v.timeVal)
-    end
-    function Time:__sub(v)
-        return Time(self.timeVal - v.timeVal)
-    end
-    function Time:__mul(v)
-        return Time(self.timeVal * v)
-    end
-    function Time:__div(v)
-        return Time(self.timeVal / v)
-    end
-    function Time:__unm()
-        return Time(-self.timeVal)
-    end
-
-    function Time:__eq(v)
-        return self.timeVal == v.timeVal
-    end
-    function Time:__lt(v)
-        return self.timeVal < v.timeVal
-    end
-    function Time:__le(v)
-        return self.timeVal <= v.timeVal
-    end
-
-    function Time:print()
-        print(string.format("%f s", self:secs()))
-    end
-
-    function Time:musecs()
-        return self.timeVal/1000
-    end
-    function Time:msecs()
-        return self.timeVal/1000000
-    end
-    function Time:secs()
-        return self:msecs()/1000
-    end
-    function Time:mins()
-        return self:msecs()/60000
-    end
-
-    function timeMusecs(v)
-        return Time(v*1000)
-    end
-    function timeMsecs(v)
-        return Time(v*1000000)
-    end
-    function timeSecs(v)
-        return timeMsecs(v*1000)
-    end
-    function timeMins(v)
-        return timeMsecs(v*60000)
-    end
-`;
+//needed by utils.lua to format userdata
+char[] ObjectToString(Object o) {
+    return o ? o.toString() : "null";
+}
 
 void main(char[][] args) {
+    cinit.init(args, "what");
     LuaState s = new LuaState();
     s.register(scripting);
 
@@ -239,11 +123,20 @@ void main(char[][] args) {
         s.stack0();
     }
 
-    loadexec(cVectorLib, "vector2.lua");
+    void loadscript(char[] filename) {
+        filename = "lua/" ~ filename;
+        auto st = gFS.open(filename);
+        scope(exit) st.close();
+        loadexec(cast(char[])st.readAll(), filename);
+    }
+
+    loadscript("vector2.lua");
     s.addScriptType!(Vector2i)("Vector2");
     s.addScriptType!(Vector2f)("Vector2");
-    loadexec(cTimeLib, "time.lua");
+    loadscript("time.lua");
     s.addScriptType!(Time)("Time");
+
+    loadscript("utils.lua");
 
     loadexec(`
         print("Hello world")
@@ -252,6 +145,16 @@ void main(char[][] args) {
         print(Foo_test(1))
         b = Foo_createBar()
         Bar_test(b, "hurf")
+
+        x = Vector2(1,2)
+        rectable = {"bla"}
+        rectable["blu"] = rectable
+        utils.formatln("number: {} str: {} table: {} arr: {} " ..
+            "table_with_tostring: {} mixed_aa_arr: {} empty_table: {} " ..
+            "rectable: {} userdata: {} nil: {} " ..
+            "noarg: {}",
+            123, "hello", {x="this_is_x", y="this_is_y"}, {1,2,3}, Vector2(1,2),
+            {[{}] = 123, 4, "huh", [6] = 5, meh = 6}, {}, rectable, b, nil);
 
         function test(arg)
             print(string.format("Called Lua function test('%s')", arg))
@@ -282,6 +185,7 @@ void main(char[][] args) {
         stuff = { some_string = "hello", some_b = b }
         stuff["circle"] = stuff
     `);
+
     s.call("test", "Blubber");
     s.call("test", "Blubber");
 
