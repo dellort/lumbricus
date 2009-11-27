@@ -101,7 +101,7 @@ void lmain(char[][] args) {
 
 version(LogExceptions) {
     import utils.log;
-    import tango.util.log.Trace : Trace;
+    //import tango.util.log.Trace : Trace;
 }
 
 int main(char[][] args) {

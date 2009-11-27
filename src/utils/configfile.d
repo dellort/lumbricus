@@ -5,7 +5,7 @@ import str = utils.string;
 import tango.util.Convert : to, ConversionException;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
-import base64 = tango.io.encode.Base64;
+import base64 = tango.util.encode.Base64;
 import utils.output : Output, StringOutput, PipeOutput;
 import utils.misc;
 

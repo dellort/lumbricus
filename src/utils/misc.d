@@ -11,7 +11,32 @@ import tango.core.Traits : ParameterTupleOf;
 public import tango.math.Math : min, max;
 
 //because printf debugging is common and usefull
-public import tango.util.log.Trace : Trace;
+//public import tango.util.log.Trace : Trace;
+//tango.util.log.Trace now redirects to the Tango logging API, and the format()
+//  method is missing too
+//the Tango log API may or may not be OK; but I don't trust it (this is more
+//  robust, and it is 2726 lines shorter)
+struct Trace {
+    import cstdio = tango.stdc.stdio;
+    static void format(char[] fmt, ...) {
+        doprint(fmt, _arguments, _argptr);
+    }
+    static void formatln(char[] fmt, ...) {
+        doprint(fmt, _arguments, _argptr);
+        cstdio.fprintf(cstdio.stderr, "\n");
+    }
+    private static void doprint(char[] fmt, TypeInfo[] arguments, void* argptr)
+    {
+        uint sink(char[] s) {
+            cstdio.fprintf(cstdio.stderr, "%.*s", s.length, s.ptr);
+            return s.length;
+        }
+        layout.Layout!(char).instance().convert(&sink, arguments, argptr, fmt);
+    }
+    static void flush() {
+        //unlike Tango, C is sane; stderr always flushs itself
+    }
+}
 
 
 T realmod(T)(T a, T m) {

@@ -15,8 +15,8 @@ import utils.misc;
 import utils.array : BigArray;
 import drawing = utils.drawing;
 import math = tango.math.Math;
-import digest = tango.io.digest.Digest;
-import md5 = tango.io.digest.Md5;
+import digest = tango.util.digest.Digest;
+import md5 = tango.util.digest.Md5;
 import utils.reflection;
 
 debug import utils.perf;

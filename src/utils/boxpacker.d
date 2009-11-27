@@ -80,7 +80,7 @@ class BoxPacker {
     }
 
 
-    Vector2i            pageSize = {x1: 512, x2: 512};
+    Vector2i            pageSize = {x: 512, y: 512};
     PackerPage[]    pages;
 }
 

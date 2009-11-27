@@ -247,7 +247,7 @@ class GZReader {
 //the Tango one is just too slow
 //should be source compatible for our uses
 
-import tango.io.digest.Digest;
+import tango.util.digest.Digest;
 
 final class ZLibCrc32 : Digest {
     uint crc;

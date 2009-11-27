@@ -8,7 +8,7 @@ import utils.misc;
 import tango.core.Traits;
 import tango.core.ByteSwap;
 import str = utils.string;
-import base64 = tango.io.encode.Base64; //lol
+import base64 = tango.util.encode.Base64; //lol
 
 //data is always written as big endian aka network byteorder
 version (BigEndian) {
