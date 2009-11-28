@@ -230,7 +230,13 @@ void main(char[][] args) {
 
     Trace.formatln("got: '{}'", s.callR!(char[])("test", "..."));
 
-    //don't try this without version Lua_In_D_Memory
+    s.scriptExec(`
+        local cb = ...
+        assert(cb(4, "abc") == 7)
+        print("cb test ok")
+    `, (int a, char[] b) { return a + b.length; });
+
+    //GC test - don't try this without version Lua_In_D_Memory
 
     //get some garbage, trigger GC and overwriting of free'd data, etc.
     for (int i = 0; i < 5000000; i++) {
@@ -240,6 +246,8 @@ void main(char[][] args) {
     loadexec(`
         print(Bar_blurgh(b))
     `);
+
+    //end GC test
 
     char[][Object] exts;
     Stream outs = //Stream.OpenFile("foo.out", File.ReadWriteCreate);

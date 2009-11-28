@@ -92,6 +92,14 @@ public class LogWindow : Widget, Output {
         foreach (char c; s) {
             if (c == '\n') {
                 println();
+            } else if (c == '\t') {
+                //wrap to next tab; fill with space
+                int md = mLineBuffer.length % 8;
+                md = md ? 8 - md : 1;
+                while (md > 0) {
+                    mLineBuffer ~= ' ';
+                    md--;
+                }
             } else {
                 mLineBuffer ~= c;
             }

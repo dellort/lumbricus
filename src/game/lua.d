@@ -49,10 +49,8 @@ static this() {
     gScripting.methods!(GfxSet, "findSpriteClass", "findWeaponClass",
         "weaponList");
     gScripting.methods!(Level, "worldCenter");
-    gScripting.property_ro!(Level, "airstrikeAllow");
-    gScripting.property_ro!(Level, "airstrikeY");
-    gScripting.property_ro!(Level, "worldSize");
-    gScripting.property_ro!(Level, "landBounds");
+    gScripting.properties_ro!(Level, "airstrikeAllow", "airstrikeY",
+        "worldSize", "landBounds");
 
     gScripting.setClassPrefix!(GameController)("Control");
     gScripting.methods!(GameController, "getPlugin", "currentRound",
@@ -87,16 +85,21 @@ static this() {
     gScripting.setClassPrefix!(PhysicWorld)("World");
     //xxx loads of functions with ref/out parameters, need special handling
     //    (maybe use multiple return values, but how?)
+    //might help for ref-param detection:
+    //  http://h3.team0xf.com/Bind.d (template at line 1084)
+    //no way to distinguish ref and out params (except if you parse .stringof
+    //  results or so; which would be incredibly dirty, evil and unethical)
+    //maybe it would be better to create separate functions suited for scripting
+    //  and use introduce marked structs, that expand into tuple returns?
+    //  (e.g. struct Foo { const cTupleReturn = true; int x1; float x2; })
     gScripting.methods!(PhysicWorld, "objectsAtPred");
     gScripting.setClassPrefix!(PhysicObject)("Phys");
     gScripting.methods!(PhysicObject, "isGlued", "pos", "velocity",
         "setInitialVelocity", "addForce", "addImpulse", "onSurface",
         "setPos", "move", "forceLook", "resetLook", "lookey", "applyDamage",
         "setWalking", "isWalkingMode", "isWalking");
-    gScripting.property!(PhysicObject, "selfForce");
-    gScripting.property!(PhysicObject, "acceleration");
-    gScripting.property_ro!(PhysicObject, "surface_normal");
-    gScripting.property_ro!(PhysicObject, "lifepower");
+    gScripting.properties!(PhysicObject, "selfForce", "acceleration");
+    gScripting.properties_ro!(PhysicObject, "surface_normal", "lifepower");
     gScripting.setClassPrefix!(PhysicBase)("Phys");
     gScripting.property_ro!(PhysicBase, "backlink");
 }

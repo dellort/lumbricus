@@ -11,6 +11,7 @@ import framework.framework;
 import framework.filesystem;
 import framework.i18n;
 import framework.timesource;
+import framework.lua;
 import game.gui.loadingscreen;
 import game.hud.gameframe;
 import game.hud.teaminfo;
@@ -25,6 +26,7 @@ import game.setup;
 import game.levelgen.placeobjects;
 import game.levelgen.genrandom;
 //<--
+import gui.console;
 import gui.container;
 import gui.label;
 import gui.tablecontainer;
@@ -486,6 +488,8 @@ class GameTask : StatefulTask {
         mCmds.register(Command("game_res", &cmdGameRes, "show in-game resources"
             " (doesn't include all global resources, but does include some"
             " game-only stuff)", null));
+        mCmds.register(Command("lua", &cmdLua, "open separate window with lua"
+            " interpreter bound to the game engine"));
     }
 
     class ShowCollide : Container {
@@ -595,6 +599,11 @@ class GameTask : StatefulTask {
         if (!mGameShell)
             return;
         new ResViewerTask(manager, mGameShell.serverEngine.gfx.resources);
+    }
+
+    private void cmdLua(MyBox[] args, Output write) {
+        new LuaInterpreter(manager,
+            createScriptingObj(mGameShell.serverEngine));
     }
 
     private void cmdSafeLevelPNG(MyBox[] args, Output write) {
@@ -1059,5 +1068,60 @@ class ShowObject : Container {
         } else {
             return "\"\\lit\0" ~ txt ~ "\0\"";
         }
+    }
+}
+
+class LuaInterpreter : Task {
+    private {
+        CommandLine mCmdLine;
+        LuaState mLua;
+        Output mOut;
+    }
+
+    this(TaskManager mgr, char[] args = "") {
+        this(mgr, new LuaState());
+    }
+
+    this(TaskManager mgr, LuaState state) {
+        super(mgr);
+
+        mLua = state;
+
+        auto w = new GuiConsole();
+        mCmdLine = w.cmdline();
+        mCmdLine.setPrefix("/", "exec");
+        mCmdLine.registerCommand("exec", &cmdExec, "execute a Lua command",
+            ["text...:code"]);
+        mOut = w.output;
+        mOut.writefln("Scripting console using: {}", mLua.cLanguageAndVersion);
+        gWindowManager.createWindow(this, w, "Lua Console", Vector2i(400, 200));
+
+        //this might be a bit dangerous/unwanted
+        //but we need it for this console
+        //alternatively, maybe one could create a sub-environment or whatever,
+        //  that just shadows the default output function, or so
+        mLua.setPrintOutput(&printOutput);
+    }
+
+    private void printOutput(char[] s) {
+        mOut.writef("{}", s);
+    }
+
+    private void cmdExec(MyBox[] args, Output output) {
+        auto code = args[0].unbox!(char[])();
+        //NOTE: this doesn't implement passing several lines as one piece of
+        //  code; the Lua command line interpreter uses a very hacky way to
+        //  detect the end of lines (it parses the parser error message); should
+        //  we also do this?
+        //http://www.lua.org/source/5.1/lua.c.html
+        try {
+            mLua.loadScript("input", code);
+        } catch (ScriptingException e) {
+            mOut.writefln("Lua error: {}", e);
+        }
+    }
+
+    static this() {
+        TaskFactory.register!(typeof(this))("luaconsole");
     }
 }

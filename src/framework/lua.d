@@ -254,6 +254,13 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
     }
 }
 
+//mangle value that's unique for each D type
+//used for metatables for certain D types in Lua
+//must be null-terminated
+template C_Mangle(T) {
+    const C_Mangle = "D_bind_" ~ T.mangleof ~ '\0';
+}
+
 //returns the number of values pushed (for Vectors maybe, I don't know)
 //xxx: that would be a problem, see luaCall()
 int luaPush(T)(lua_State *state, T value) {
@@ -276,13 +283,13 @@ int luaPush(T)(lua_State *state, T value) {
             luaPush(state, value.tupleof[idx]);
             lua_settable(state, -3);
         }
-        const c_mangle = "D_struct_" ~ T.mangleof ~ '\0';
-        lua_getfield(state, LUA_REGISTRYINDEX, c_mangle.ptr);
+        lua_getfield(state, LUA_REGISTRYINDEX, C_Mangle!(T).ptr);
         lua_setmetatable(state, -2);
     } else static if (isArrayType!(T) || isAssocArrayType!(T)) {
+        const bool IsArray = isArrayType!(T);
         lua_newtable(state);
-        foreach(k, v; value) {
-            static if(isIntegerType!(typeof(k)))
+        foreach (k, v; value) {
+            static if (IsArray)
                 lua_pushinteger(state, k+1);
             else
                 luaPush(state, k);
@@ -290,6 +297,8 @@ int luaPush(T)(lua_State *state, T value) {
             luaPush(state, v);
             lua_settable(state, -3);
         }
+    } else static if (is(T == delegate)) {
+        pushDelegate(state, value);
     } else static if (is(T == void*)) {
         //allow pushing 'nil', but no other void*
         assert(value is null);
@@ -298,6 +307,22 @@ int luaPush(T)(lua_State *state, T value) {
         static assert(false, "add me, you fool: " ~ T.stringof);
     }
     return 1;  //default to 1 argument
+}
+
+private void pushDelegate(T)(lua_State* state, T del) {
+    static assert(is(T == delegate));
+
+    extern(C) static int demarshal(lua_State* state) {
+        T del;
+        del.ptr = lua_touserdata(state, lua_upvalueindex(1));
+        del.funcptr = cast(typeof(del.funcptr))
+            lua_touserdata(state, lua_upvalueindex(2));
+        return LuaRegistry.callFromLua(del, state, 0, "some D delegate");
+    }
+
+    lua_pushlightuserdata(state, del.ptr);
+    lua_pushlightuserdata(state, del.funcptr);
+    lua_pushcclosure(state, &demarshal, 2);
 }
 
 //call the function on top of the stack
@@ -353,6 +378,8 @@ class LuaRegistry {
     private static int callFromLua(T)(T del, lua_State* state, int skipCount,
         char[] funcName)
     {
+        //eh static assert(is(T == delegate) || is(T == function));
+
         void error(char[] msg) {
             throw new LuaException(msg);
         }
@@ -522,6 +549,13 @@ class LuaRegistry {
         }
     }
 
+    //also a shortcut
+    void properties_ro(Class, Names...)() {
+        foreach (int idx, _; Names) {
+            property_ro!(Class, Names[idx])();
+        }
+    }
+
     //Register a function
     void func(alias Fn)(char[] rename = null) {
         //stringof returns "& functionName", strip that
@@ -555,20 +589,24 @@ struct DefClass(Class) {
         registry.method!(Class, name)();
     }
 
+    void methods(Names...)() {
+        registry.methods!(Class, Names)();
+    }
+
     void property(char[] name, bool rw = true)() {
         registry.property!(Class, name, rw)();
     }
 
     void properties(Names...)() {
-        registry.properties!(Class, Names);
+        registry.properties!(Class, Names)();
     }
 
     void property_ro(char[] name)() {
         registry.property!(Class, name, false)();
     }
 
-    void methods(Names...)() {
-        registry.methods!(Class, Names);
+    void properties_ro(Names...)() {
+        registry.properties_ro!(Class, Names)();
     }
 }
 
@@ -612,6 +650,8 @@ class LuaState {
         LuaRegistry.Method[] mMethods;
         Object[ClassInfo] mSingletons;
     }
+
+    const cLanguageAndVersion = LUA_VERSION;
 
     this(int stdlibFlags = LuaLib.all) {
         mLua = lua_newstate(&my_lua_alloc, null);
@@ -662,7 +702,7 @@ class LuaState {
     }
 
     //non-templated
-    //xxx actually, this should follow the inhertiance chain, shouldn't it?
+    //xxx actually, this should follow the inheritance chain, shouldn't it?
     //    would be a problem, because not all superclasses would be singleton
     private void doAddSingleton(ClassInfo ci, Object instance) {
         assert(!!instance);
@@ -768,6 +808,27 @@ class LuaState {
     //  line interpreters, or initialization code)
     void scriptExec(Args...)(char[] code, Args a) {
         scriptExecR!(void)(code, a);
+    }
+
+    //this redirects the print() function from stdio to cb(); the string passed
+    //  to cb() should be output literally (the string will contain newlines)
+    void setPrintOutput(void delegate(char[]) cb) {
+        //xxx: actually, it completely replaces the print() function, and it
+        //  might behave a little bit differently; feel free to fix it
+        scriptExec(`
+            local d_out = ...
+            _G["print"] = function(...)
+                local args = {...}
+                for i, s in ipairs(args) do
+                    if i > 1 then
+                        -- Lua uses \t here
+                        d_out("\t")
+                    end
+                    d_out(tostring(s))
+                end
+                d_out("\n")
+            end
+        `, cb);
     }
 
     void stack0() {
@@ -927,7 +988,6 @@ class LuaState {
 
     void addScriptType(T)(char[] tableName) {
         lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(tableName));
-        const c_mangle = "D_struct_" ~ T.mangleof ~ '\0';
-        lua_setfield(mLua, LUA_REGISTRYINDEX, c_mangle.ptr);
+        lua_setfield(mLua, LUA_REGISTRYINDEX, C_Mangle!(T).ptr);
     }
 }
