@@ -890,10 +890,9 @@ class GameEngine {
         char[] cmd = args[0].unbox!(char[]);
         try {
             scope st = createScriptingObj(this);
-            st.luaLoadAndPush("exec", cmd);
-            st.luaCall!(void)();
+            st.scriptExec(cmd);
             write.writefln("OK");
-        } catch (Exception e) {
+        } catch (ScriptingException e) {
             write.writefln(e.msg);
         }
     }

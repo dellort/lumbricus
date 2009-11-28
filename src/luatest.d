@@ -44,6 +44,8 @@ class Evul {
 }
 
 class Foo {
+    char[] bla;
+
     char[] test(int x, float y = 99.0, char[] msg = "Default") {
         return myformat("hello from D! got: {} {} '{}'", x, y, msg);
     }
@@ -102,12 +104,11 @@ static this() {
     scripting.methods!(Foo, "test", "createBar", "createEvul", "passBar");
     scripting.methods!(Foo, "vector", "makeVector", "array", "aarray",
         "makeArray", "callCb", "makeTime");
+    scripting.property!(Foo, "bla");
     auto bar = scripting.defClass!(Bar)();
     bar.properties!("blu", "blo", "something")();
     bar.methods!("test", "blurgh")();
     scripting.func!(funcBlub)();
-
-    scripting.func!(ObjectToString)();
 
     //lua.method!(Sprite, "setState")();
     //lua.method!(GameEngine, "explosion")();
@@ -119,11 +120,6 @@ static this() {
 
 void funcBlub(char[] arg) {
     Trace.formatln("Plain old function, yay! Got '{}'", arg);
-}
-
-//needed by utils.lua to format userdata
-char[] ObjectToString(Object o) {
-    return o ? o.toString() : "null";
 }
 
 void main(char[][] args) {
@@ -162,6 +158,8 @@ void main(char[][] args) {
         print(Foo_test(1, -4.2, "Foobar"))
         print(Foo_test(1, -4.2))
         print(Foo_test(1))
+        Foo_set_bla("durf")
+        print(Foo_get_bla())
         b = Foo_createBar()
         Bar_test(b, "hurf")
 

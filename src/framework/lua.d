@@ -101,6 +101,9 @@ char[] lua_todstring(lua_State* L, int i) {
 
 class LuaException : Exception { this(char[] msg) { super(msg); } }
 
+//this alias is just so that we can pretend out scripting interface is generic
+alias LuaException ScriptingException;
+
 //create an error message if the error is caused by a wrong script
 void raiseLuaError(lua_State *state, char[] msg) {
     luaL_where(state, 1);
@@ -321,6 +324,7 @@ class LuaRegistry {
     }
 
     struct Method {
+        ClassInfo classinfo;
         char[] fname;
         lua_CFunction demarshal;
     }
@@ -413,22 +417,21 @@ class LuaRegistry {
                 raiseLuaError(state, msg);
             }
 
-            LuaState ustate = cast(LuaState)(lua_touserdata(state,
-                lua_upvalueindex(1)));
-            Class c = ustate.getSingleton!(Class)();
-            int skipCount = 0;
+            //--LuaState ustate = cast(LuaState)(lua_touserdata(state,
+            //--    lua_upvalueindex(1)));
+
+            Object o = cast(Object)lua_touserdata(state, 1);
+            Class c = cast(Class)(o);
+
             if (!c) {
-                Object o = cast(Object)lua_touserdata(state, 1);
-                skipCount++;
-                c = cast(Class)(o);
-                if (!c) {
-                    error(myformat("method call to '{}' requires "
-                        "this pointer as first argument", methodName));
-                }
+                error(myformat("method call to '{}' requires "
+                    "non-null this pointer of type {} as first argument, but "
+                    "got: {}", methodName, Class.stringof,
+                    o ? o.classinfo.name : "*null"));
             }
 
             auto del = mixin("&c."~name);
-            return callFromLua(del, state, skipCount, methodName);
+            return callFromLua(del, state, 1, methodName);
         }
 
         registerDMethod(Class.classinfo, name, &demarshal);
@@ -447,6 +450,7 @@ class LuaRegistry {
         }
         m.fname = clsname ~ "_" ~ method;
         m.demarshal = demarshal;
+        m.classinfo = ci;
         mMethods ~= m;
     }
 
@@ -605,6 +609,7 @@ class LuaState {
     private {
         //handle to LUA whatever-thingy
         lua_State* mLua;
+        LuaRegistry.Method[] mMethods;
         Object[ClassInfo] mSingletons;
     }
 
@@ -612,6 +617,16 @@ class LuaState {
         mLua = lua_newstate(&my_lua_alloc, null);
         lua_atpanic(mLua, &my_lua_panic);
         loadStdLibs(stdlibFlags);
+
+        //own std stuff
+        auto reg = new LuaRegistry();
+        reg.func!(ObjectToString)();
+        register(reg);
+    }
+
+    //needed by utils.lua to format userdata
+    private static char[] ObjectToString(Object o) {
+        return o ? o.toString() : "null";
     }
 
     void loadStdLibs(int stdlibFlags) {
@@ -624,22 +639,59 @@ class LuaState {
         }
     }
 
+/+
     T getSingleton(T)() {
         auto i = T.classinfo in mSingletons;
         return i ? cast(T)(*i) : null;
     }
++/
 
     void register(LuaRegistry stuff) {
         foreach (m; stuff.mMethods) {
-            lua_pushlightuserdata(mLua, cast(void*)this);
-            lua_pushcclosure(mLua, m.demarshal, 1);
+            //--lua_pushlightuserdata(mLua, cast(void*)this);
+            //--lua_pushcclosure(mLua, m.demarshal, 1);
+            lua_pushcclosure(mLua, m.demarshal, 0);
             lua_setglobal(mLua, czstr.toStringz(m.fname));
+
+            mMethods ~= m;
         }
     }
 
     void addSingleton(T)(T instance) {
-        assert(!(T.classinfo in mSingletons));
-        mSingletons[T.classinfo] = instance;
+        doAddSingleton(T.classinfo, instance);
+    }
+
+    //non-templated
+    //xxx actually, this should follow the inhertiance chain, shouldn't it?
+    //    would be a problem, because not all superclasses would be singleton
+    private void doAddSingleton(ClassInfo ci, Object instance) {
+        assert(!!instance);
+        assert(!(ci in mSingletons));
+        mSingletons[ci] = instance;
+        //just rewrite the already registered methods
+        //if methods are added after this call, the user is out of luck
+        stack0();
+        foreach (m; mMethods) {
+            if (m.classinfo !is ci)
+                continue;
+            //the method name is the same, just that the singleton is now
+            //  automagically added on a call (not sure if that's a good idea)
+            //auto singleton_name = "singleton_" ~ m.classinfo.name;
+            //luaPush(mLua, instance);
+            //lua_setglobal(mLua, czstr.toStringz(singleton_name));
+            scriptExec(`
+                local fname, ston = ...
+                local orgfunction = _G[fname]
+                --local singleton = _G[sname]
+                local singleton = ston
+                local function dispatch(...)
+                    -- yay closures
+                    return orgfunction(singleton, ...)
+                end
+                _G[fname] = dispatch
+            `, m.fname, instance); //singleton_name);
+        }
+        stack0();
     }
 
     private void lua_loadChecked(lua_Reader reader, void *d, char[] chunkname) {
@@ -706,14 +758,14 @@ class LuaState {
     }
 
     template scriptExecR(RetType) {
-        T scriptExecR(Args...)(char[] code, Args a) {
+        RetType scriptExecR(Args...)(char[] code, Args a) {
             luaLoadAndPush("scriptExec", code);
             return luaCall!(RetType, Args)(a);
         }
     }
 
     //execute a script snippet (should only be used for slow stuff like command
-    //  line interpreters, or serialization code)
+    //  line interpreters, or initialization code)
     void scriptExec(Args...)(char[] code, Args a) {
         scriptExecR!(void)(code, a);
     }

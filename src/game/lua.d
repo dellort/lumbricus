@@ -16,6 +16,8 @@ import utils.rect2;
 import utils.time;
 import str = utils.string;
 
+public import framework.lua : ScriptingException;
+
 LuaRegistry gScripting;
 
 char[] className(Object o) {
