@@ -13,6 +13,22 @@ import utils.time;
 
 class Bar {
     char[] meh;
+    int something = 666;
+
+    void blu(int x) {
+        something = x;
+    }
+    int blu() {
+        return something;
+    }
+
+    //test the same, with reversed setter/getter (think about "&blo")
+    int blo() {
+        return something;
+    }
+    void blo(int s) {
+        something = s;
+    }
 
     void test(char[] msg) {
         Trace.formatln("Called Bar.test('{}')", msg);
@@ -85,6 +101,9 @@ static this() {
     scripting.methods!(Foo, "test", "createBar", "createEvul", "passBar");
     scripting.methods!(Foo, "vector", "makeVector", "array", "aarray",
         "makeArray", "callCb", "makeTime");
+    scripting.accessor!(Bar, "blu");
+    scripting.accessor!(Bar, "blo");
+    scripting.field!(Bar, "something");
     scripting.method!(Bar, "test")();
     scripting.method!(Bar, "blurgh")();
     scripting.func!(funcBlub)();
@@ -185,6 +204,18 @@ void main(char[][] args) {
 
         stuff = { some_string = "hello", some_b = b }
         stuff["circle"] = stuff
+
+        -- accessors
+        assert(Bar_get_blu(b) == 666)
+        Bar_set_blu(b, 123)
+        assert(Bar_get_blu(b) == 123)
+        Bar_set_blo(b, 456)
+        assert(Bar_get_blo(b) == 456)
+        utils.formatln("blo={}", Bar_get_blo(b))
+        -- fields
+        assert(Bar_get_something(b) == 456)
+        Bar_set_something(b, 789)
+        utils.formatln("something={}", Bar_get_something(b))
     `);
 
     s.call("test", "Blubber");

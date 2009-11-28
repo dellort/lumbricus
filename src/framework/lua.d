@@ -352,52 +352,57 @@ class LuaRegistry {
         void error(char[] msg) {
             throw new LuaException(msg);
         }
-        int numArgs = lua_gettop(state);
 
-        alias ParameterTupleOf!(typeof(del)) Params;
-        //min/max arguments allowed to be passed from lua (incl. 'this')
-        int maxArgs = Params.length + skipCount;
-        int minArgs = requiredArgCount!(del)() + skipCount;
-        //argument count has to be in accepted range (exact match)
-        if (numArgs < minArgs || numArgs > maxArgs) {
-            if (minArgs == maxArgs) {
-                error(myformat("'{}' requires {} arguments, got {}",
-                    funcName, maxArgs, numArgs));
-            } else {
-                error(myformat("'{}' requires {}-{} arguments, got {}",
-                    funcName, minArgs, maxArgs, numArgs));
-            }
-        }
-        //number of arguments going to the delegate call
-        int numRealArgs = numArgs - skipCount;
+        try {
+            int numArgs = lua_gettop(state);
 
-        //hack: add dummy type, to avoid code duplication
-        alias Tuple!(Params, int) Params2;
-        Params2 p;
-        foreach (int idx, x; p) {
-            //generate code for all possible parameter counts, and select
-            //the right case at runtime
-            static if (is(typeof(del(p[0..idx])) RetType)) {
-                if (numRealArgs == idx) {
-                    static if (is(RetType == void)) {
-                        del(p[0..idx]);
-                        return 0;
-                    } else {
-                        auto ret = del(p[0..idx]);
-                        return luaPush(state, ret);
-                    }
+            alias ParameterTupleOf!(typeof(del)) Params;
+            //min/max arguments allowed to be passed from lua (incl. 'this')
+            int maxArgs = Params.length + skipCount;
+            int minArgs = requiredArgCount!(del)() + skipCount;
+            //argument count has to be in accepted range (exact match)
+            if (numArgs < minArgs || numArgs > maxArgs) {
+                if (minArgs == maxArgs) {
+                    error(myformat("'{}' requires {} arguments, got {}",
+                        funcName, maxArgs, numArgs));
+                } else {
+                    error(myformat("'{}' requires {}-{} arguments, got {}",
+                        funcName, minArgs, maxArgs, numArgs));
                 }
             }
-            assert(idx < Params.length);
-            alias typeof(x) T;
-            try {
-                p[idx] = luaStackValue!(T)(state, skipCount + idx + 1);
-            } catch (LuaException e) {
-                error(myformat("bad argument #{} to '{}' ({})", idx + 1,
-                    funcName, e.msg));
+            //number of arguments going to the delegate call
+            int numRealArgs = numArgs - skipCount;
+
+            //hack: add dummy type, to avoid code duplication
+            alias Tuple!(Params, int) Params2;
+            Params2 p;
+            foreach (int idx, x; p) {
+                //generate code for all possible parameter counts, and select
+                //the right case at runtime
+                static if (is(typeof(del(p[0..idx])) RetType)) {
+                    if (numRealArgs == idx) {
+                        static if (is(RetType == void)) {
+                            del(p[0..idx]);
+                            return 0;
+                        } else {
+                            auto ret = del(p[0..idx]);
+                            return luaPush(state, ret);
+                        }
+                    }
+                }
+                assert(idx < Params.length);
+                alias typeof(x) T;
+                try {
+                    p[idx] = luaStackValue!(T)(state, skipCount + idx + 1);
+                } catch (LuaException e) {
+                    error(myformat("bad argument #{} to '{}' ({})", idx + 1,
+                        funcName, e.msg));
+                }
             }
+            assert(false);
+        } catch (LuaException e) {
+            raiseLuaError(state, e.msg);
         }
-        assert(false);
     }
 
     //Register a class method
@@ -423,15 +428,16 @@ class LuaRegistry {
             }
 
             auto del = mixin("&c."~name);
-            try {
-                return callFromLua(del, state, skipCount, methodName);
-            } catch (LuaException e) {
-                error(e.msg);
-            }
+            return callFromLua(del, state, skipCount, methodName);
         }
 
+        registerDMethod(Class.classinfo, name, &demarshal);
+    }
+
+    private void registerDMethod(ClassInfo ci, char[] method,
+        lua_CFunction demarshal)
+    {
         Method m;
-        auto ci = Class.classinfo;
         auto cn = ci in mPrefixes;
         char[] clsname = cn ? *cn : ci.name;
         //strip package/module path
@@ -439,9 +445,94 @@ class LuaRegistry {
         if (i >= 0) {
             clsname = clsname[i+1..$];
         }
-        m.fname = clsname ~ "_" ~ name;
-        m.demarshal = &demarshal;
+        m.fname = clsname ~ "_" ~ method;
+        m.demarshal = demarshal;
         mMethods ~= m;
+    }
+
+    //read/write accessor (if rw==false, it's read-only)
+    void accessor(Class, char[] name, bool rw = true)() {
+        //works by introducing "renaming" functions, which just call the
+        //  setters/getters; that's because &Class.name would return only the
+        //  first declared function of that name, and generating the actual
+        //  calling code is the only way of
+
+        //NOTE: could support autodetection of read-only properties via is(),
+        //  but I think that's a bad idea: is() could hide semantic errors, and
+        //  then a property would be read-only unintentionally (then e.g. a
+        //  script could fail unexplainably)
+
+        //get type of the accessor (setter and getter should use the same types)
+        //good that DG literals have return value type inference
+        alias typeof({ Class d; return mixin("d." ~ name)(); }()) Type;
+
+        auto ci = Class.classinfo;
+
+        extern(C) static int demarshal_get(lua_State* state) {
+            static Type get(Class o) {
+                return mixin("o." ~ name)();
+            }
+            return callFromLua(&get, state, 0, "property get " ~ name);
+        }
+
+        registerDMethod(ci, "get_" ~ name, &demarshal_get);
+
+        static if (rw) {
+            //xxx: a bit strange how it does three nested calls for stuff known
+            //     at compile time...
+            extern(C) static int demarshal_set(lua_State* state) {
+                static void set(Class o, Type t) {
+                    //mixin() must be an expression here, not a statement
+                    //but the parser messes it up, we don't get an expression
+                    //make use of the glorious comma operator to make it one
+                    1, mixin("o." ~ name)(t);
+                }
+                return callFromLua(&set, state, 0, "property set " ~ name);
+            }
+
+            registerDMethod(ci, "set_" ~ name, &demarshal_set);
+        }
+    }
+
+    //read-only property
+    void accessor_ro(Class, char[] name)() {
+        accessor!(Class, name, false)();
+    }
+
+    //public field (read/write; read-only if rw==false)
+    void field(Class, char[] name, bool rw = true)() {
+        //simply generate code, similar to above
+        //(could actually unify with accessor() templates, but meh)
+        //(xxx: wait, code duplication is bad, it SHOULD be unified with it)
+        Class d;
+        alias typeof(mixin("d." ~ name)) Type;
+
+        auto ci = Class.classinfo;
+
+        extern(C) static int demarshal_get(lua_State* state) {
+            static Type get(Class o) {
+                return mixin("o." ~ name);
+            }
+            return callFromLua(&get, state, 0, "field get " ~ name);
+        }
+
+        registerDMethod(ci, "get_" ~ name, &demarshal_get);
+
+        static if (rw) {
+            extern(C) static int demarshal_set(lua_State* state) {
+                static void set(Class o, Type t) {
+                    mixin("o." ~ name ~ " = t;");
+                }
+                return callFromLua(&set, state, 0, "field set " ~ name);
+            }
+
+            registerDMethod(ci, "set_" ~ name, &demarshal_set);
+        }
+    }
+
+    //read-only public field (this isn't possible in D)
+    void field_ro(Class, char[] name)() {
+        field!(Class, name, false)();
     }
 
     //shortcut for registering multiple methods of a class
@@ -457,11 +548,7 @@ class LuaRegistry {
         //stringof returns "& functionName", strip that
         const funcName = (&Fn).stringof[2..$];
         extern(C) static int demarshal(lua_State* state) {
-            try {
-                return callFromLua(&Fn, state, 0, funcName);
-            } catch (LuaException e) {
-                raiseLuaError(state, e.msg);
-            }
+            return callFromLua(&Fn, state, 0, funcName);
         }
         Method m;
         m.fname = rename.length ? rename : funcName;

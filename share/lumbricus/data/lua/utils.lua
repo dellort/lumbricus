@@ -126,3 +126,13 @@ function utils.table2string(t, done_set)
     end
     return res .. "}"
 end
+
+-- show list of members of current scope
+-- if t is not nil, list members of t instead
+function dir(t)
+    -- xxx should this recurse somehow into metatables or something?
+    for k, v in pairs(t or _G) do
+        utils.formatln("{} {}", type(v), k)
+    end
+    print("done.")
+end

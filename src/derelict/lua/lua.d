@@ -77,18 +77,18 @@ extern (C)
 {
   //  lua_State is used as an opaque pointer
   struct lua_State { }
-  typedef int   function(lua_State *L) lua_CFunction;
+  alias int   function(lua_State *L) lua_CFunction;
 
   /*
    ** functions that read/write blocks when loading/dumping Lua chunks
    */
-  typedef char* function(lua_State *L, void *ud, size_t *sz) lua_Reader;
-  typedef int   function(lua_State *L, void* p, size_t sz, void* ud) lua_Writer;
+  alias char* function(lua_State *L, void *ud, size_t *sz) lua_Reader;
+  alias int   function(lua_State *L, void* p, size_t sz, void* ud) lua_Writer;
 
   /*
    ** prototype for memory-allocation functions
    */
-  typedef void* function(void *ud, void *ptr, size_t osize, size_t nsize) lua_Alloc;
+  alias void* function(void *ud, void *ptr, size_t osize, size_t nsize) lua_Alloc;
 }
 
 /*
