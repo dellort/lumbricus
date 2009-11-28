@@ -101,9 +101,9 @@ static this() {
     scripting.methods!(Foo, "test", "createBar", "createEvul", "passBar");
     scripting.methods!(Foo, "vector", "makeVector", "array", "aarray",
         "makeArray", "callCb", "makeTime");
-    scripting.accessor!(Bar, "blu");
-    scripting.accessor!(Bar, "blo");
-    scripting.field!(Bar, "something");
+    scripting.property!(Bar, "blu");
+    scripting.property!(Bar, "blo");
+    scripting.property!(Bar, "something");
     scripting.method!(Bar, "test")();
     scripting.method!(Bar, "blurgh")();
     scripting.func!(funcBlub)();

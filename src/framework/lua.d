@@ -451,7 +451,8 @@ class LuaRegistry {
     }
 
     //read/write accessor (if rw==false, it's read-only)
-    void accessor(Class, char[] name, bool rw = true)() {
+    // Class.'name' can be either a setter/getter, or a field
+    void property(Class, char[] name, bool rw = true)() {
         //works by introducing "renaming" functions, which just call the
         //  setters/getters; that's because &Class.name would return only the
         //  first declared function of that name, and generating the actual
@@ -464,13 +465,13 @@ class LuaRegistry {
 
         //get type of the accessor (setter and getter should use the same types)
         //good that DG literals have return value type inference
-        alias typeof({ Class d; return mixin("d." ~ name)(); }()) Type;
+        alias typeof({ Class d; return mixin("d." ~ name); }()) Type;
 
         auto ci = Class.classinfo;
 
         extern(C) static int demarshal_get(lua_State* state) {
             static Type get(Class o) {
-                return mixin("o." ~ name)();
+                return mixin("o." ~ name);
             }
             return callFromLua(&get, state, 0, "property get " ~ name);
         }
@@ -485,7 +486,8 @@ class LuaRegistry {
                     //mixin() must be an expression here, not a statement
                     //but the parser messes it up, we don't get an expression
                     //make use of the glorious comma operator to make it one
-                    1, mixin("o." ~ name)(t);
+                    //"I can't believe this works"
+                    1, mixin("o." ~ name) = t;
                 }
                 return callFromLua(&set, state, 0, "property set " ~ name);
             }
@@ -495,44 +497,8 @@ class LuaRegistry {
     }
 
     //read-only property
-    void accessor_ro(Class, char[] name)() {
-        accessor!(Class, name, false)();
-    }
-
-    //public field (read/write; read-only if rw==false)
-    void field(Class, char[] name, bool rw = true)() {
-        //simply generate code, similar to above
-        //(could actually unify with accessor() templates, but meh)
-        //(xxx: wait, code duplication is bad, it SHOULD be unified with it)
-        Class d;
-        alias typeof(mixin("d." ~ name)) Type;
-
-        auto ci = Class.classinfo;
-
-        extern(C) static int demarshal_get(lua_State* state) {
-            static Type get(Class o) {
-                return mixin("o." ~ name);
-            }
-            return callFromLua(&get, state, 0, "field get " ~ name);
-        }
-
-        registerDMethod(ci, "get_" ~ name, &demarshal_get);
-
-        static if (rw) {
-            extern(C) static int demarshal_set(lua_State* state) {
-                static void set(Class o, Type t) {
-                    mixin("o." ~ name ~ " = t;");
-                }
-                return callFromLua(&set, state, 0, "field set " ~ name);
-            }
-
-            registerDMethod(ci, "set_" ~ name, &demarshal_set);
-        }
-    }
-
-    //read-only public field (this isn't possible in D)
-    void field_ro(Class, char[] name)() {
-        field!(Class, name, false)();
+    void property_ro(Class, char[] name)() {
+        property!(Class, name, false)();
     }
 
     //shortcut for registering multiple methods of a class
