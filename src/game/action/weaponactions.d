@@ -123,10 +123,10 @@ void team(WeaponContext wx, char[] action) {
         return;
     switch (action) {
         case "skipturn":
-            member.serverTeam.skipTurn();
+            member.team.skipTurn();
             break;
         case "surrender":
-            member.serverTeam.surrenderTeam();
+            member.team.surrenderTeam();
             break;
         case "wormselect":
             new WormSelectHelper(wx.engine, member);
@@ -439,7 +439,7 @@ class WormSelectHelper : GameObject {
         //xxx: we just need the 1-frame delay for this because initialStep() is
         //     called from doFire, which will set mMember.mWormAction = true
         //     afterwards and would conflict with the code below
-        mMember.serverTeam.allowSelect = true;
+        mMember.team.allowSelect = true;
         mMember.control.resetActivity();
         kill();
     }

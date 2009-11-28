@@ -78,6 +78,7 @@ import game.gamemodes.turnbased;
 import game.gamemodes.mdebug;
 import game.gamemodes.realtime;
 import game.controller_plugins;
+import game.lua;
 
 
 class Fader : Spacer {

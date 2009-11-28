@@ -51,7 +51,7 @@ class GameInfo {
         serverTime = engine.gameTime;
         interpolateTime = engine.callbacks.interpolateTime;
 
-        foreach (t; engine.logic().getTeams()) {
+        foreach (t; engine.logic().teams()) {
             auto team = new TeamInfo(this, t);
             teams[t] = team;
         }

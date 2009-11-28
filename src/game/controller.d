@@ -226,10 +226,6 @@ class Team {
         return mCurrent;
     }
 
-    bool isActive() {
-        return mActive;
-    }
-
     bool isControllable() {
         return current ? current.control.isControllable : false;
     }
@@ -581,10 +577,6 @@ class TeamMember {
         control.forceAbort();
     }
 
-    Team serverTeam() {
-        return mTeam;
-    }
-
     GameEngine engine() {
         return mEngine;
     }
@@ -677,11 +669,6 @@ class GameController {
     }
 
     //--- start GameLogicPublic
-
-    ///all participating teams (even dead ones)
-    Team[] getTeams() {
-        return mTeams;
-    }
 
     char[] gamemode() {
         return mGamemodeId;
@@ -795,6 +782,7 @@ class GameController {
         return false;
     }
 
+    ///all participating teams (even dead ones)
     Team[] teams() {
         return mTeams;
     }
@@ -1041,11 +1029,11 @@ class GameController {
     private bool doCollectTool(TeamMember collector, CollectableTool tool)
     {
         if (auto t = cast(CollectableToolCrateSpy)tool) {
-            collector.serverTeam.addCrateSpy();
+            collector.team.addCrateSpy();
             return true;
         }
         if (auto t = cast(CollectableToolDoubleDamage)tool) {
-            collector.serverTeam.addDoubleDamage();
+            collector.team.addDoubleDamage();
             return true;
         }
         return false;

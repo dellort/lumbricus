@@ -1088,7 +1088,7 @@ class ClientControl {
     TeamMember getControlledMember() {
         foreach (Team t; getOwnedTeams()) {
             if (t.active) {
-                return t.getActiveMember();
+                return t.current();
             }
         }
         return null;
@@ -1103,7 +1103,7 @@ class ClientControl {
         //  must be invalidated
         if (!mCachedOwnedTeams.length) {
             GameEngine engine = mShell.serverEngine;
-            foreach (Team t; engine.controller.getTeams()) {
+            foreach (Team t; engine.controller.teams()) {
                 if (engine.checkTeamAccess(mAccessTag, t))
                     mCachedOwnedTeams ~= t;
             }

@@ -115,7 +115,9 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         throw new LuaException(t ~ " expected, got "
             ~ czstr.fromStringz(luaL_typename(state, stackIdx)));
     }
-    static if (isIntegerType!(T) || isFloatingPointType!(T)) {
+    static if (isIntegerType!(T) || isFloatingPointType!(T) ||
+        (is(T Base == enum) && isIntegerType!(Base)))
+    {
         lua_Number ret = lua_tonumber(state, stackIdx);
         if (ret == 0 && !lua_isnumber(state, stackIdx))
             expected("number");
@@ -245,14 +247,16 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
 
         return &pwrap.cbfunc;
     } else {
-        static assert(false, "add me, you fool");
+        static assert(false, "add me, you fool: " ~ T.stringof);
     }
 }
 
 //returns the number of values pushed (for Vectors maybe, I don't know)
 //xxx: that would be a problem, see luaCall()
 int luaPush(T)(lua_State *state, T value) {
-    static if (isFloatingPointType!(T) || isIntegerType!(T)) {
+    static if (isFloatingPointType!(T) || isIntegerType!(T) ||
+        (is(T Base == enum) && isIntegerType!(Base)))
+    {
         //everything is casted to double internally anyway; avoids overflows
         lua_pushnumber(state, value);
     } else static if (is(T : bool)) {
@@ -288,7 +292,7 @@ int luaPush(T)(lua_State *state, T value) {
         assert(value is null);
         lua_pushnil(state);
     } else {
-        static assert(false, "add me, you fool");
+        static assert(false, "add me, you fool: " ~ T.stringof);
     }
     return 1;  //default to 1 argument
 }

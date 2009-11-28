@@ -127,8 +127,8 @@ class GameTimer : Container {
         if (st) {
             int state = st.state;
             TeamMember m;
-            foreach (t; mGame.logic.getTeams) {
-                m = t.getActiveMember;
+            foreach (t; mGame.logic.teams) {
+                m = t.current;
                 if (m)
                     break;
             }

@@ -15,6 +15,7 @@ import game.glue;
 import game.sequence;
 import game.setup;
 import game.particles;
+import game.lua;
 import net.marshal : Hasher;
 import utils.list2;
 import utils.time;
@@ -242,9 +243,7 @@ class GameEngine {
     GameController controller() {
         return mController;
     }
-    GameController logic() {
-        return mController;
-    }
+    alias controller logic;
 
     //--- start GameEnginePublic
 
@@ -887,6 +886,18 @@ class GameEngine {
         log("-- {} objects reporting activity",i);
     }
 
+    void scriptExecute(MyBox[] args, Output write) {
+        char[] cmd = args[0].unbox!(char[]);
+        scope st = createScriptingObj(this);
+        try {
+            st.luaLoadAndPush("exec", cmd);
+            st.luaCall!(void)();
+            write.writefln("OK");
+        } catch (Exception e) {
+            write.writefln(e.msg);
+        }
+    }
+
     //calculate a hash value of the game engine state
     //this is a just quick & dirty test to detect diverging client simulation
     //it should always prefer speed over accuracy
@@ -1043,6 +1054,8 @@ class GameEngine {
         addCmd("crate_test", &crateTest);
         addCmd("shake_test", &addEarthQuake);
         addCmd("activity", &activityDebug);
+        mCmds.registerCommand("exec", &scriptExecute, "execute script",
+            ["text...:command"]);
 
         //worm control commands; work like above, but the worm-selection code
         //is factored out
@@ -1051,7 +1064,7 @@ class GameEngine {
         //if they access members of this class, runtime errors will result
 
         addWormCmd("next_member", (TeamMember w) {
-            w.serverTeam.doChooseWorm();
+            w.team.doChooseWorm();
         });
         addWormCmd("jump", (TeamMember w, bool alt) {
             w.control.jump(alt ? JumpMode.straightUp : JumpMode.normal);
@@ -1096,19 +1109,29 @@ class GameEngine {
         mCmds.bind(mCmd);
     }
 
-    //if a worm control command is incoming (like move, shoot, etc.), two things
-    //must be done here:
-    //  1. find out which worm is controlled by GameControl
-    //  2. check if the move is allowed
-    private bool checkWormCommand(void delegate(TeamMember w) pass) {
+    //during command execution, returns the Team that sent the command
+    //xxx mostly a hack for scriptExecute(), has no real other use
+    Team ownedTeam() {
         //we must intersect both sets of team members (= worms):
         // set of active worms (by game controller) and set of worms owned by us
         //xxx: if several worms are active that belong to us, pick the first one
         foreach (Team t; controller.teams()) {
             if (t.active && checkTeamAccess(mTmp_CurrentAccessTag, t)) {
-                pass(t.current);
-                return true;
+                return t;
             }
+        }
+        return null;
+    }
+
+    //if a worm control command is incoming (like move, shoot, etc.), two things
+    //must be done here:
+    //  1. find out which worm is controlled by GameControl
+    //  2. check if the move is allowed
+    private bool checkWormCommand(void delegate(TeamMember w) pass) {
+        Team t = ownedTeam();
+        if (t) {
+            pass(t.current);
+            return true;
         }
         return false;
     }

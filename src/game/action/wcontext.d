@@ -39,7 +39,7 @@ class WeaponContext : SpriteContext {
             return as.doubleDamage;
         }
         if (auto m = engine.controller.memberFromGameObject(createdBy, true)) {
-            return m.serverTeam.hasDoubleDamage();
+            return m.team.hasDoubleDamage();
         }
         return false;
     }
