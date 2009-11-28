@@ -8,6 +8,7 @@ import framework.filesystem;
 import utils.misc;
 import utils.stream;
 import utils.vector2;
+import utils.rect2;
 import utils.time;
 
 
@@ -153,6 +154,9 @@ void main(char[][] args) {
     loadscript("vector2.lua");
     s.addScriptType!(Vector2i)("Vector2");
     s.addScriptType!(Vector2f)("Vector2");
+    loadscript("rect2.lua");
+    s.addScriptType!(Rect2i)("Rect2");
+    s.addScriptType!(Rect2f)("Rect2");
     loadscript("time.lua");
     s.addScriptType!(Time)("Time");
 
@@ -182,15 +186,25 @@ void main(char[][] args) {
         end
 
         Foo_passBar(b)
+
         v1 = Foo_makeVector(2, 3)
         v2 = Vector2(5)
         vv = v1 + v2
         vv:print()
+        Foo_vector({4, 5})
+        Foo_vector(Foo_makeVector(23, 42))
+
         t = Foo_makeTime(500)
         t:print()
         timeMins(30):print()
-        Foo_vector({4, 5})
-        Foo_vector(Foo_makeVector(23, 42))
+
+        r = Rect2(3, 3, 7, 7)
+        r:print()
+        utils.formatln("Size: {}", r:size())
+        r2 = Rect2.Span(Vector2(3), Vector2(5))
+        utils.formatln("Size: {} Center: {}", r2:size(), r2:center())
+
+
         Foo_array({1, 2, 3, 4})
         Foo_aarray({x = 10, y = 20})
         ar = Foo_makeArray("a", "b", "c")

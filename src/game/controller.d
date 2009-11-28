@@ -128,10 +128,6 @@ class Team {
         return mMembers;
     }
 
-    TeamMember getActiveMember() {
-        return current;
-    }
-
     bool allowSelect() {
         if (!mActive || !mCurrent)
             return false;

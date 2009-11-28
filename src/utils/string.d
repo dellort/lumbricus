@@ -298,6 +298,15 @@ char[] ctfe_itoa(int i) {
     return (neg ? "-" : "") ~ res;
 }
 
+char[] ctfe_firstupper(char[] s) {
+    if (s.length == 0)
+        return null;
+    if (s[0] >= 'a' && s[0] <= 'z')
+        return "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[s[0] - 'a'] ~ s[1..$];
+    else
+        return s;
+}
+
 
 /// Return the index of the character following the character at "index"
 int charNext(char[] s, int index) {
@@ -357,5 +366,6 @@ unittest {
     assert(splitPrefixDelimiters("##abc##", ["#"]) == ["#", "#abc", "#", "#"]);
     assert(splitPrefixDelimiters("abc#de,fg,#", ["#", ","])
         == ["abc", "#de", ",fg", ",", "#"]);
+    static assert(ctfe_firstupper("testing") == "Testing");
 }
 

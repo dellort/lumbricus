@@ -888,8 +888,8 @@ class GameEngine {
 
     void scriptExecute(MyBox[] args, Output write) {
         char[] cmd = args[0].unbox!(char[]);
-        scope st = createScriptingObj(this);
         try {
+            scope st = createScriptingObj(this);
             st.luaLoadAndPush("exec", cmd);
             st.luaCall!(void)();
             write.writefln("OK");

@@ -36,7 +36,7 @@ function Time:__le(v)
 end
 
 function Time:__tostring()
-    return string.format("%f s", self:secs())
+    return string.format("%g s", self:secs())
 end
 function Time:print()
     print(tostring(self))

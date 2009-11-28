@@ -59,5 +59,5 @@ function Vector2:print()
 end
 
 function Vector2:__tostring()
-    return string.format("(%d, %d)", self.x, self.y)
+    return string.format("(%g, %g)", self.x, self.y)
 end
