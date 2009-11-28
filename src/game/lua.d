@@ -63,9 +63,7 @@ static this() {
         "nextActive", "teamAction", "isIdle", "checkDyingMembers",
         "youWinNow", "updateHealth", "needUpdateHealth", "addWeapon",
         "skipTurn", "surrenderTeam", "addDoubleDamage", "addCrateSpy");
-    gScripting.property!(Team, "current");
-    gScripting.property!(Team, "allowSelect");
-    gScripting.property!(Team, "globalWins");
+    gScripting.properties!(Team, "current", "allowSelect", "globalWins");
 
     gScripting.setClassPrefix!(GameObject)("Obj");
     gScripting.methods!(GameObject, "activity");
@@ -105,8 +103,7 @@ LuaState createScriptingObj(GameEngine engine) {
         filename = "lua/" ~ filename;
         auto st = gFS.open(filename);
         scope(exit) st.close();
-        state.luaLoadAndPush(filename, cast(char[])st.readAll());
-        state.luaCall!(void)();
+        state.loadScript(filename, cast(char[])st.readAll());
     }
 
     loadscript("vector2.lua");

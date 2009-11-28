@@ -497,6 +497,8 @@ class LuaRegistry {
     }
 
     //read-only property
+    //note that unlike method(), this also works for fields, and works better if
+    //  there's also a property setter (which you want to hide from scripts)
     void property_ro(Class, char[] name)() {
         property!(Class, name, false)();
     }
@@ -506,6 +508,13 @@ class LuaRegistry {
     void methods(Class, Names...)() {
         foreach (int idx, _; Names) {
             method!(Class, Names[idx])();
+        }
+    }
+
+    //also a shortcut; each Names item is a char[]
+    void properties(Class, Names...)() {
+        foreach (int idx, _; Names) {
+            property!(Class, Names[idx])();
         }
     }
 
@@ -520,6 +529,42 @@ class LuaRegistry {
         m.fname = rename.length ? rename : funcName;
         m.demarshal = &demarshal;
         mMethods ~= m;
+    }
+
+    DefClass!(Class) defClass(Class)(char[] prefixname = "") {
+        if (prefixname.length)
+            setClassPrefix!(Class)(prefixname);
+        return DefClass!(Class)(this);
+    }
+}
+
+//for convenience; might be completely useless
+//basically saves you from typing the class name all the time again
+//if it shows not to be useful, it should be removed
+//returned by LuaRegistry.defClass!(T)
+struct DefClass(Class) {
+    LuaRegistry registry;
+
+    //documentation see LuaRegistry
+
+    void method(char[] name)() {
+        registry.method!(Class, name)();
+    }
+
+    void property(char[] name, bool rw = true)() {
+        registry.property!(Class, name, rw)();
+    }
+
+    void properties(Names...)() {
+        registry.properties!(Class, Names);
+    }
+
+    void property_ro(char[] name)() {
+        registry.property!(Class, name, false)();
+    }
+
+    void methods(Names...)() {
+        registry.methods!(Class, Names);
     }
 }
 
@@ -608,14 +653,7 @@ class LuaState {
     }
 
     //prepended all very-Lua-specific functions with lua
-
-    /+
-    //"generic scripting" load function (yeah, the language of the loaded script
-    //  is still lua)
-    void load(char[] function_name, char[] code) {
-        ...
-    }
-    +/
+    //functions starting with lua should be avoided in user code
 
     void luaLoadAndPush(char[] name, char[] code) {
         StringChunk sc;
@@ -623,36 +661,61 @@ class LuaState {
         lua_loadChecked(&lua_ReadString, &sc, name);
     }
 
+/+
     void luaLoadAndPush(char[] name, Stream input) {
         lua_loadChecked(&lua_ReadStream, cast(void*)input, name);
+    }
++/
+
+    //another variation
+    //load script in "code", using "name" for error messages
+    //there's also scriptExec() if you need to pass parameters
+    void loadScript(char[] name, char[] code) {
+        stack0();
+        luaLoadAndPush(name, code);
+        luaCall!(void)();
+        stack0();
     }
 
     //Call a function defined in lua
     void call(T...)(char[] funcName, T args) {
-        return callR!(void, T)(funcName, args);
+        return callR!(void)(funcName, args);
     }
 
     //like call(), but with return value
     //better name?
-    //also, it seems dmd can't infer only some parameters, e.g.:
-    //      callR!(int)("test", "abc", "def")
-    //fails.
-    //if you get something like "Error: template framework.lua.LuaState.callR(RetType,T...) declaration T is already defined", it means dmd is being retarded, and one of the subseqeuent template instantiatoins copntain semantic errors
-    RetType callR(RetType, T...)(char[] funcName, T args) {
-        //xxx should avoid memory allocation (czstr.toStringz)
-        stack0();
-        lua_getglobal(mLua, czstr.toStringz(funcName));
-        if (!lua_isfunction(mLua, 1)) {
-            throw new LuaException(funcName ~ ": not a function.");
-        }
-        scope(success)
+    //this tripple nesting (thx to h3) allows us to use type inference:
+    //  state.callR!(int)("func", 123, "abc", 5.4);
+    template callR(RetType) {
+        RetType callR(T...)(char[] funcName, T args) {
+            //xxx should avoid memory allocation (czstr.toStringz)
             stack0();
-        return doLuaCall!(RetType, T)(mLua, args);
+            lua_getglobal(mLua, czstr.toStringz(funcName));
+            if (!lua_isfunction(mLua, 1)) {
+                throw new LuaException(funcName ~ ": not a function.");
+            }
+            scope(success)
+                stack0();
+            return doLuaCall!(RetType, T)(mLua, args);
+        }
     }
 
     //execute the global scope
-    RetType luaCall(RetType, T...)(T args) {
-        return doLuaCall!(RetType, T)(mLua, args);
+    RetType luaCall(RetType, Args...)(Args args) {
+        return doLuaCall!(RetType, Args)(mLua, args);
+    }
+
+    template scriptExecR(RetType) {
+        T scriptExecR(Args...)(char[] code, Args a) {
+            luaLoadAndPush("scriptExec", code);
+            return luaCall!(RetType, Args)(a);
+        }
+    }
+
+    //execute a script snippet (should only be used for slow stuff like command
+    //  line interpreters, or serialization code)
+    void scriptExec(Args...)(char[] code, Args a) {
+        scriptExecR!(void)(code, a);
     }
 
     void stack0() {

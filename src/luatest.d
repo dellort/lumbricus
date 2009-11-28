@@ -102,11 +102,9 @@ static this() {
     scripting.methods!(Foo, "test", "createBar", "createEvul", "passBar");
     scripting.methods!(Foo, "vector", "makeVector", "array", "aarray",
         "makeArray", "callCb", "makeTime");
-    scripting.property!(Bar, "blu");
-    scripting.property!(Bar, "blo");
-    scripting.property!(Bar, "something");
-    scripting.method!(Bar, "test")();
-    scripting.method!(Bar, "blurgh")();
+    auto bar = scripting.defClass!(Bar)();
+    bar.properties!("blu", "blo", "something")();
+    bar.methods!("test", "blurgh")();
     scripting.func!(funcBlub)();
 
     scripting.func!(ObjectToString)();
@@ -138,17 +136,14 @@ void main(char[][] args) {
     s.addSingleton(foo);
 
     void loadexec(char[] code, char[] name = "blub") {
-        s.stack0();
-        s.luaLoadAndPush(name, code);
-        s.luaCall!(void)();
-        s.stack0();
+        s.loadScript(name, code);
     }
 
     void loadscript(char[] filename) {
         filename = "lua/" ~ filename;
         auto st = gFS.open(filename);
         scope(exit) st.close();
-        loadexec(cast(char[])st.readAll(), filename);
+        s.loadScript(filename, cast(char[])st.readAll());
     }
 
     loadscript("vector2.lua");
@@ -235,7 +230,7 @@ void main(char[][] args) {
     s.call("test", "Blubber");
     s.call("test", "Blubber");
 
-    Trace.formatln("got: '{}'", s.callR!(char[], char[])("test", "..."));
+    Trace.formatln("got: '{}'", s.callR!(char[])("test", "..."));
 
     //don't try this without version Lua_In_D_Memory
 
