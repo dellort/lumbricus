@@ -894,6 +894,8 @@ class GameEngine {
             write.writefln("OK");
         } catch (ScriptingException e) {
             write.writefln(e.msg);
+        } catch (ClassNotRegisteredException e) {
+            write.writefln(e.msg);
         }
     }
 

@@ -159,7 +159,7 @@ void main(char[][] args) {
         print(Foo_test(1, -4.2))
         print(Foo_test(1))
         Foo_set_bla("durf")
-        print(Foo_get_bla())
+        print(Foo_bla())
         b = Foo_createBar()
         Bar_test(b, "hurf")
 
@@ -213,16 +213,16 @@ void main(char[][] args) {
         stuff["circle"] = stuff
 
         -- accessors
-        assert(Bar_get_blu(b) == 666)
+        assert(Bar_blu(b) == 666)
         Bar_set_blu(b, 123)
-        assert(Bar_get_blu(b) == 123)
+        assert(Bar_blu(b) == 123)
         Bar_set_blo(b, 456)
-        assert(Bar_get_blo(b) == 456)
-        utils.formatln("blo={}", Bar_get_blo(b))
+        assert(Bar_blo(b) == 456)
+        utils.formatln("blo={}", Bar_blo(b))
         -- fields
-        assert(Bar_get_something(b) == 456)
+        assert(Bar_something(b) == 456)
         Bar_set_something(b, 789)
-        utils.formatln("something={}", Bar_get_something(b))
+        utils.formatln("something={}", Bar_something(b))
     `);
 
     s.call("test", "Blubber");

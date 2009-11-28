@@ -245,7 +245,7 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         pwrap.key = intr.bswap(cast(size_t)cast(void*)pwrap);
 
         lua_pushnumber(state, pwrap.key);  //unique key
-        lua_pushvalue(state, -2);                    //lua closure
+        lua_pushvalue(state, stackIdx);                    //lua closure
         lua_settable(state, LUA_REGISTRYINDEX);
 
         return &pwrap.cbfunc;
@@ -309,7 +309,7 @@ RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
     const bool ret_void = is(RetType == void);
     lua_call(state, argc, ret_void ? 0 : 1);
     static if (!ret_void) {
-        RetType res = luaStackValue!(RetType)(state, 1);
+        RetType res = luaStackValue!(RetType)(state, -1);
         lua_pop(state, 1);
         return res;
     }
@@ -480,7 +480,7 @@ class LuaRegistry {
             return callFromLua(&get, state, 0, "property get " ~ name);
         }
 
-        registerDMethod(ci, "get_" ~ name, &demarshal_get);
+        registerDMethod(ci, name, &demarshal_get);
 
         static if (rw) {
             //xxx: a bit strange how it does three nested calls for stuff known

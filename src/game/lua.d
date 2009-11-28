@@ -8,12 +8,14 @@ import game.gfxset;
 import game.controller;
 import game.gobject;
 import game.sprite;
+import game.worm;
 import game.levelgen.level;
 import game.weapon.projectile;
 import physics.world;
 import utils.vector2;
 import utils.rect2;
 import utils.time;
+import utils.random;
 import str = utils.string;
 
 public import framework.lua : ScriptingException;
@@ -36,6 +38,7 @@ static this() {
 
     gScripting.setClassPrefix!(TimeSourcePublic)("Time");
     gScripting.methods!(TimeSourcePublic, "current", "difference");
+    gScripting.methods!(Random, "rangei", "rangef");
 
     gScripting.setClassPrefix!(GameEngine)("Game");
     gScripting.methods!(GameEngine, "createSprite", "gameTime", "waterOffset",
@@ -48,6 +51,8 @@ static this() {
     gScripting.methods!(Level, "worldCenter");
     gScripting.property_ro!(Level, "airstrikeAllow");
     gScripting.property_ro!(Level, "airstrikeY");
+    gScripting.property_ro!(Level, "worldSize");
+    gScripting.property_ro!(Level, "landBounds");
 
     gScripting.setClassPrefix!(GameController)("Control");
     gScripting.methods!(GameController, "getPlugin", "currentRound",
@@ -76,6 +81,8 @@ static this() {
     gScripting.property_ro!(GObjectSprite, "physics");
     gScripting.setClassPrefix!(ProjectileSprite)("Projectile");
     gScripting.property!(ProjectileSprite, "detonateTimer");
+    gScripting.setClassPrefix!(WormSprite)("Worm");
+    gScripting.methods!(WormSprite, "beamTo");
 
     gScripting.setClassPrefix!(PhysicWorld)("World");
     //xxx loads of functions with ref/out parameters, need special handling
@@ -90,6 +97,8 @@ static this() {
     gScripting.property!(PhysicObject, "acceleration");
     gScripting.property_ro!(PhysicObject, "surface_normal");
     gScripting.property_ro!(PhysicObject, "lifepower");
+    gScripting.setClassPrefix!(PhysicBase)("Phys");
+    gScripting.property_ro!(PhysicBase, "backlink");
 }
 
 LuaState createScriptingObj(GameEngine engine) {
@@ -100,6 +109,7 @@ LuaState createScriptingObj(GameEngine engine) {
     state.addSingleton(engine.gfx);
     state.addSingleton(engine.physicworld);
     state.addSingleton(engine.level);
+    state.addSingleton(engine.rnd);
 
     void loadscript(char[] filename) {
         filename = "lua/" ~ filename;

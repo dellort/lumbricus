@@ -178,6 +178,8 @@ class Random
             }
         }
     }
+    alias nextRange!(int) rangei;
+    alias nextRange!(double) rangef;
 
     /// Randomly permutate the passed array
     void randomizeArray(T)(ref T[] arr) {

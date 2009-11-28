@@ -6,9 +6,9 @@ end
 
 function spawnSprite(name, pos, velocity)
     s = Game_createSprite(name)
-    Obj_set_createdBy(s, Member_sprite(Team_get_current(Game_ownedTeam())))
+    Obj_set_createdBy(s, Member_sprite(Team_current(Game_ownedTeam())))
     if (velocity) then
-        Phys_setInitialVelocity(Sprite_get_physics(s), velocity)
+        Phys_setInitialVelocity(Sprite_physics(s), velocity)
     end
     Sprite_activate(s, pos)
 end
@@ -29,8 +29,8 @@ function whosYourDaddy()
             if (t == Game_ownedTeam()) then
                 Member_addHealth(m, 500)
             else
-                p = Sprite_get_physics(Member_sprite(m))
-                Phys_applyDamage(p, Phys_get_lifepower(p) - 1, 2)
+                p = Sprite_physics(Member_sprite(m))
+                Phys_applyDamage(p, Phys_lifepower(p) - 1, 2)
             end
         end
     end
@@ -41,4 +41,15 @@ function greedIsGood(amount)
     for k,w in ipairs(Gfx_weaponList()) do
         Team_addWeapon(Game_ownedTeam(), w, amount or 10)
     end
+end
+
+function katastrophe()
+    lb = Level_landBounds()
+    World_objectsAtPred(Level_worldCenter(), 2000, function(obj)
+        -- xxx may beam into landscape, World_freePoint() is not (yet?) available
+        Worm_beamTo(Phys_backlink(obj), Vector2(Random_rangef(lb.p1.x, lb.p2.x), Random_rangef(lb.p1.y, lb.p2.y)))
+        return true
+    end, function(obj)
+        return className(Phys_backlink(obj)) == "WormSprite"
+    end)
 end
