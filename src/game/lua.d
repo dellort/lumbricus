@@ -92,7 +92,16 @@ static this() {
     //maybe it would be better to create separate functions suited for scripting
     //  and use introduce marked structs, that expand into tuple returns?
     //  (e.g. struct Foo { const cTupleReturn = true; int x1; float x2; })
-    gScripting.methods!(PhysicWorld, "objectsAtPred");
+    //xxx ok, I implemented the struct hack above
+    gScripting.methods!(PhysicWorld, "add", "objectsAtPred");
+    gScripting.method!(PhysicWorld, "collideGeometryScript")("collideGeometry");
+    gScripting.method!(PhysicWorld, "collideObjectWithGeometryScript")(
+        "collideObjectWithGeometry");
+    gScripting.method!(PhysicWorld, "shootRayScript")("shootRay");
+    gScripting.method!(PhysicWorld, "thickLineScript")("thickLine");
+    gScripting.method!(PhysicWorld, "thickRayScript")("thickRay");
+    gScripting.method!(PhysicWorld, "freePointScript")("freePoint");
+
     gScripting.setClassPrefix!(PhysicObject)("Phys");
     gScripting.methods!(PhysicObject, "isGlued", "pos", "velocity",
         "setInitialVelocity", "addForce", "addImpulse", "onSurface",

@@ -275,6 +275,30 @@ int luaPush(T)(lua_State *state, T value) {
     } else static if (is(T == class)) {
         lua_pushlightuserdata(state, cast(void*)value);
     } else static if (is(T == struct)) {
+        //This is a hack to allow functions to return multiple values without
+        //exposing internal lua functions. The function returns a struct with
+        //a special "marker constant", and all contained values will be returned
+        //separately. S.numReturnValues can be defined to dynamically change
+        //the number of return values
+        static if (is(typeof(T.cTupleReturn)) && T.cTupleReturn) {
+            int numv = int.max;
+            //special marker to set how many values were returned
+            //(useful e.g. for functions returning a bool success and an outval)
+            static if (is(typeof(value.numReturnValues))) {
+                numv = value.numReturnValues;
+            }
+            int argc = 0;
+            foreach (int idx, x; value.tupleof) {
+                //lol, better way?
+                static if(value.tupleof[idx].stringof == "value.numReturnValues")
+                    continue;
+                if (numv <= 0)
+                    break;
+                argc += luaPush(state, x);
+                numv--;
+            }
+            return argc;
+        }
         lua_newtable(state);
         foreach (int idx, x; value.tupleof) {
             static assert(value.tupleof[idx].stringof[0..6] == "value.");
@@ -436,7 +460,7 @@ class LuaRegistry {
     }
 
     //Register a class method
-    void method(Class, char[] name)() {
+    void method(Class, char[] name)(char[] rename = null) {
         extern(C) static int demarshal(lua_State* state) {
             const methodName = Class.stringof ~ '.' ~ name;
             void error(char[] msg) {
@@ -460,7 +484,8 @@ class LuaRegistry {
             return callFromLua(del, state, 1, methodName);
         }
 
-        registerDMethod(Class.classinfo, name, &demarshal);
+        registerDMethod(Class.classinfo, rename.length ? rename : name,
+            &demarshal);
     }
 
     private void registerDMethod(ClassInfo ci, char[] method,

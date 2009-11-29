@@ -543,4 +543,113 @@ class PhysicWorld {
         mObjectColliders = new typeof(mObjectColliders)();
         mContacts.length = 1024;  //xxx arbitrary number
     }
+
+    //********************************************************************
+    //Below this line are wrappers of the functions above for scripting
+    //(because most script languages have no ref/out parameters)
+    //xxx this looks very messy
+
+    struct CollideGeometryStruct {
+        const cTupleReturn = true;
+        int numReturnValues;
+        GeomContact contact;
+    }
+    CollideGeometryStruct collideGeometryScript(Vector2f pos, float radius) {
+        CollideGeometryStruct ret = void;
+        bool hit = collideGeometry(pos, radius, ret.contact);
+        if (hit) {
+            ret.numReturnValues = 1;
+        } else {
+            ret.numReturnValues = 0;
+        }
+        return ret;
+    }
+    CollideGeometryStruct collideObjectWithGeometryScript(PhysicObject o,
+        bool extendRadius = false)
+    {
+        CollideGeometryStruct ret = void;
+        bool hit = collideObjectWithGeometry(o, ret.contact, extendRadius);
+        if (hit) {
+            ret.numReturnValues = 1;
+        } else {
+            ret.numReturnValues = 0;
+        }
+        return ret;
+    }
+
+    struct ShootRayStruct {
+        const cTupleReturn = true;
+        int numReturnValues;
+        Vector2f hitPoint;  //always returned
+        Vector2f normal;    //only on collision
+        PhysicObject obj;   //only on object collision
+    }
+    ShootRayStruct shootRayScript(Vector2f start, Vector2f dir, float maxLen) {
+        ShootRayStruct ret = void;
+        bool hit = shootRay(start, dir, maxLen, ret.hitPoint, ret.obj,
+            ret.normal);
+        if (hit && ret.obj) {
+            //object collision
+            ret.numReturnValues = 3;
+        } else if (hit) {
+            //geometry collision
+            ret.numReturnValues = 2;
+        } else {
+            //no collision (hitPoint is at maxLen)
+            ret.numReturnValues = 1;
+        }
+        return ret;
+    }
+
+    //xxx renamed thickRay to thickLine (that's what it does)
+    struct ThickLineStruct {
+        const cTupleReturn = true;
+        int numReturnValues;
+        Vector2f hit1, hit2;
+    }
+    ThickLineStruct thickLineScript(Vector2f p1, Vector2f p2, float r) {
+        ThickLineStruct ret = void;
+        bool hit = thickRay(p1, p2, r, ret.hit1, ret.hit2);
+        if (hit) {
+            ret.numReturnValues = 2;
+        } else {
+            ret.numReturnValues = 0;
+        }
+        return ret;
+    }
+
+    struct ThickRayStruct {
+        const cTupleReturn = true;
+        int numReturnValues;
+        Vector2f hit;
+        GeomContact contact;
+    }
+    ThickRayStruct thickRayScript(Vector2f start, Vector2f dir, float maxLen,
+        float r)
+    {
+        ThickRayStruct ret = void;
+        bool hit = thickRay(start, dir, maxLen, r, ret.hit, ret.contact);
+        if (hit) {
+            ret.numReturnValues = 2;
+        } else {
+            ret.numReturnValues = 0;
+        }
+        return ret;
+    }
+
+    struct FreePointStruct {
+        const cTupleReturn = true;
+        int numReturnValues;
+        Vector2f p;
+    }
+    FreePointStruct freePointScript(Vector2f p, float r) {
+        FreePointStruct ret;
+        bool ok = freePoint(p, r);
+        if (ok) {
+            ret.p = p;
+            ret.numReturnValues = 1;
+        }
+        return ret;
+    }
 }
+
