@@ -11,7 +11,6 @@ import cstd = tango.stdc.stdlib;
 import str = utils.string;
 import net.marshal;
 
-import utils.hashtable;
 import utils.misc;
 import utils.stream;
 
@@ -27,7 +26,7 @@ extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize, size_t nsize) {
     //  be pointless)
     //- Lua stores state in global variables (I think it doesn't)
     //  (assuming D GC doesn't scan the C datasegment; probably wrong)
-    //also, we'll assume that Lua always aligns out userdata correctly (if not,
+    //also, we'll assume that Lua always aligns our userdata correctly (if not,
     //  the D GC won't see it, and heisenbugs will occur)
     //all this is to make passing D objects as userdata simpler
     void[] odata = ptr[0..osize];
@@ -101,7 +100,7 @@ char[] lua_todstring(lua_State* L, int i) {
 
 class LuaException : Exception { this(char[] msg) { super(msg); } }
 
-//this alias is just so that we can pretend out scripting interface is generic
+//this alias is just so that we can pretend our scripting interface is generic
 alias LuaException ScriptingException;
 
 //create an error message if the error is caused by a wrong script
@@ -653,7 +652,7 @@ class LuaState {
 
     const cLanguageAndVersion = LUA_VERSION;
 
-    this(int stdlibFlags = LuaLib.all) {
+    this(int stdlibFlags = LuaLib.safe) {
         mLua = lua_newstate(&my_lua_alloc, null);
         lua_atpanic(mLua, &my_lua_panic);
         loadStdLibs(stdlibFlags);
@@ -662,6 +661,26 @@ class LuaState {
         auto reg = new LuaRegistry();
         reg.func!(ObjectToString)();
         register(reg);
+
+        //passing a userdata as light userdata causes a demarshal error
+        //which means utils.formatln() could cause an error by passing userdata
+        //  to ObjectToString(); but there doesn't seem to be a way for Lua
+        //  code to distinguish between userdata and light userdata
+        extern (C) static int d_islightuserdata(lua_State* state) {
+            int light = lua_islightuserdata(state, 1);
+            lua_pop(state, 1);
+            lua_pushboolean(state, light);
+            return 1;
+        }
+        lua_pushcfunction(mLua, &d_islightuserdata);
+        lua_setglobal(mLua, "d_islightuserdata".ptr);
+
+        stack0();
+    }
+
+    void destroy() {
+        //let the GC do the work (for now)
+        mLua = null;
     }
 
     //needed by utils.lua to format userdata
@@ -808,6 +827,23 @@ class LuaState {
     //  line interpreters, or initialization code)
     void scriptExec(Args...)(char[] code, Args a) {
         scriptExecR!(void)(code, a);
+    }
+
+    //store a value as global Lua variable
+    //slightly inefficient (because of toStringz heap activity)
+    void setGlobal(T)(char[] name, T value) {
+        stack0();
+        luaPush(mLua, value);
+        lua_setglobal(mLua, czstr.toStringz(name));
+        stack0();
+    }
+    T getGlobal(T)(char[] name) {
+        stack0();
+        lua_getglobal(mLua, czstr.toStringz(name));
+        T res = luaStackValue!(T)(mLua, 1);
+        lua_pop(mLua, 1);
+        stack0();
+        return res;
     }
 
     //this redirects the print() function from stdio to cb(); the string passed

@@ -5,8 +5,7 @@ import utils.log;
 import utils.misc;
 import utils.array : Appender;
 
-import mdc = minid.compiler;
-import md = minid.api;
+import framework.lua;
 
 debug = DumpStuff;
 
@@ -14,56 +13,42 @@ debug(DumpStuff) {
     import common.config;
 }
 
-//why the fucking hell can't I add delegates to MiniD?
-//if a D function called by MiniD wants additional context, I have to add it as
-//  upval - but I can't add pointers, only D objects. so, I have to allocate a
-//  D object, just to be able to add functions with context? and the function
-//  can't even be a method of that object, I still have to do inconvenient
-//  boiler plate code to access my context?
-//seriously, what the flying fuck?
-private Appender!(char) output;
-private uint emit_text(md.MDThread* thread, uint idontknowwhatthisis) {
-    char[] s = md.getString(thread, 1);
-    //s is in MiniD heap, and can explode into your face - must make a copy
-    output ~= s;
-    //return what?
-    return 0;
-}
 
-//process MiniD scripts embedded in ConfigNodes
-//all nodes with the name "!inline:minid" are assumed to contain MiniD scripts
-//  as string value. the MiniD environment used to execute those scripts makes
-//  a emit_text(string) method available. the text passed ot that function is
-//  concatenated, and at the end of the execution of the MiniD script, the text
+//process Lua scripts embedded in ConfigNodes
+//all nodes with the name "!inline:lua" are assumed to contain Lua scripts
+//  as string value. the Lua environment used to execute those scripts makes
+//  a emit_text(string) function available. the text passed ot that function is
+//  concatenated, and at the end of the execution of the Lua script, the text
 //  is parsed as configfile, and the resulting nodes are inlined into the
-//  ConfigNode that contained the "!inline:minid" script node. Then, the script
+//  ConfigNode that contained the "!inline:lua" script node. Then, the script
 //  node is removed.
-//NOTE: if no script nodes are found, MiniD isn't initialized (and you only pay
+//NOTE: if no script nodes are found, Lua isn't initialized (and you only pay
 //  the cost for searching the ConfigNode for script nodes).
 void process_macros(ConfigNode node) {
-    md.MDVM md_vm;
-    md.MDThread* md_thread;
+    LuaState lua;
 
-    scope(exit) {
-        if (md_thread)
-            md.closeVM(&md_vm);
+    Appender!(char) output;
+
+    void emit_text(char[] s) {
+        Trace.formatln("emit '{}'", s);
+        output ~= s;
     }
 
-    void init_md() {
-        if (md_thread)
+    scope(exit) {
+        if (lua)
+            lua.destroy();
+    }
+
+    void do_init() {
+        if (lua)
             return;
-        md_thread = md.openVM(&md_vm);
-        md.loadStdlibs(md_thread);
-        //make emit_text available to script
-        md.newFunction(md_thread, &emit_text, "emit_text");
-        md.newGlobal(md_thread, "emit_text");
+        lua = new LuaState();
+        lua.setGlobal("emit_text", &emit_text);
     }
 
     char[] execute_script(char[] script, char[] source) {
-        init_md();
-        auto slot = md.loadString(md_thread, script, false, source);
-        md.pushNull(md_thread); //"this" parameter (according to docs)
-        md.rawCall(md_thread, slot, 0);
+        do_init();
+        lua.loadScript(source, script);
         char[] res = output.dup;
         output.length = 0;
         return res;
@@ -76,7 +61,7 @@ void process_macros(ConfigNode node) {
 
         ConfigNode[] add, remove;
         foreach (ConfigNode sub; cur) {
-            if (sub.name != "!inline:minid") {
+            if (sub.name != "!inline:lua") {
                 do_node(sub);
                 continue;
             }
@@ -96,7 +81,8 @@ void process_macros(ConfigNode node) {
 
     do_node(node);
 
-    debug(DumpStuff)
-        if (md_thread)
+    debug(DumpStuff) {
+        if (lua)
             saveConfig(node, "dump2.conf");
+    }
 }

@@ -173,6 +173,8 @@ void main(char[][] args) {
             123, "hello", {x="this_is_x", y="this_is_y"}, {1,2,3}, Vector2(1,2),
             {[{}] = 123, 4, "huh", [6] = 5, meh = 6}, {}, rectable, b, nil);
 
+        utils.formatln("2={2} 1={1} 2={} 1q={1:q}", "a", "b", "c")
+
         function test(arg)
             print(string.format("Called Lua function test('%s')", arg))
             return "blabla"
@@ -229,6 +231,9 @@ void main(char[][] args) {
     s.call("test", "Blubber");
 
     Trace.formatln("got: '{}'", s.callR!(char[])("test", "..."));
+
+    s.setGlobal("d_global", 123);
+    assert(s.getGlobal!(int)("d_global") == 123);
 
     s.scriptExec(`
         local cb = ...

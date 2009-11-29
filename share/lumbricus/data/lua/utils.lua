@@ -2,13 +2,25 @@
 -- maybe this should be done differently; I don't know
 utils = {}
 
+-- searches for "search" and returns text before and after it
+--  utils.split2("abcd", "c") == "ab", "cd"
+--  utils.split2("abcd", "x") == "abcd", ""
+function utils.split2(s, search)
+    local idx = s:find(search, 1, true)
+    if not idx then
+        return s, ""
+    else
+        return s:sub(1, idx - 1), s:sub(idx)
+    end
+end
+
 -- format anything (for convenience)
 -- unlike string.format(), you can format anything, including table
 -- it also uses Tango/C# style {} instead of %s
 -- uses the __tostring function if available, else dumps table contents
 -- allowed inside {}:
 --      - ':q' if param is a string, quote it (other types aren't quoted)
---      - no param indizes yet (should be easy to add if needed)
+--      - index, e.g. '{3}' gets the third parameter
 function utils.sformat(fmt, ...)
     return utils.sformat_r({}, fmt, ...)
 end
@@ -32,20 +44,38 @@ function utils.sformat_r(done, fmt, ...)
         assert(string.sub(f, #f, #f) == "}")
         f = string.sub(f, 2, #f - 1)
         -- do something with f, that contains format specifiers
+        local pindex = nil
+        local sidx, mods = utils.split2(f, ":")
+        if #sidx > 0 then
+            local tmp = tonumber(sidx)
+            if tmp == nil then
+                out("{error: parameter number in format string?}")
+            else
+                idx = tmp
+            end
+        end
         local quote_string = false
-        if f == ":q" then
+        if mods == ":q" then
             quote_string = true
         else
-            if #f > 0 then
-                assert(false, "unknown format specifier: '"..f.."'")
+            if #mods > 0 then
+                assert(false, "unknown format specifier: '"..mods.."'")
             end
         end
         -- format the parameter
         local param = args[idx]
         local ptype = type(param)
         if ptype == "userdata" then
-            -- this function needs to be regged by D code
-            out(ObjectToString(param))
+            -- these functions need to be regged by D code
+            if ObjectToString == nil then
+                out("<userdata>")
+            else
+                if d_islightuserdata(param) then
+                    out(ObjectToString(param))
+                else
+                    out("<unknown userdata>")
+                end
+            end
         elseif ptype == "table" then
             out(utils.table2string(param, done))
         elseif ptype == "string" then
@@ -127,12 +157,25 @@ function utils.table2string(t, done_set)
     return res .. "}"
 end
 
--- show list of members of current scope
+-- global convenience functions (mainly when in interactive interpreter)
+
+-- show list of members in current scope
 -- if t is not nil, list members of t instead
 function dir(t)
     -- xxx should this recurse somehow into metatables or something?
     for k, v in pairs(t or _G) do
         utils.formatln("{} {}", type(v), k)
     end
-    print("done.")
 end
+
+-- just print something, and don't be as inconvenient as print()
+-- but trailing (useless) arguments are ignored, unlike with print()
+function printf(fmt, ...)
+    if type(fmt) == "string" then
+        utils.formatln(fmt, ...)
+    else
+        -- for the dumb and lazy; assume "..." is empty
+        utils.formatln("{}", fmt)
+    end
+end
+

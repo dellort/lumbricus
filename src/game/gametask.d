@@ -1079,7 +1079,20 @@ class LuaInterpreter : Task {
     }
 
     this(TaskManager mgr, char[] args = "") {
-        this(mgr, new LuaState());
+        auto state = new LuaState();
+
+        //copy and paste
+        //don't want to put this in framework.lua (too many weird dependencies)
+        void loadscript(char[] filename) {
+            filename = "lua/" ~ filename;
+            auto st = gFS.open(filename);
+            scope(exit) st.close();
+            state.loadScript(filename, cast(char[])st.readAll());
+        }
+
+        loadscript("utils.lua");
+
+        this(mgr, state);
     }
 
     this(TaskManager mgr, LuaState state) {
@@ -1109,6 +1122,8 @@ class LuaInterpreter : Task {
 
     private void cmdExec(MyBox[] args, Output output) {
         auto code = args[0].unbox!(char[])();
+        //somehow looks less confusing to include the command in the output
+        mOut.writefln("> {}", code);
         //NOTE: this doesn't implement passing several lines as one piece of
         //  code; the Lua command line interpreter uses a very hacky way to
         //  detect the end of lines (it parses the parser error message); should

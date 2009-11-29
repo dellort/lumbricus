@@ -68,7 +68,7 @@ mainspr {
                 homing_inactive_fly = "69"
                 molotov_fly = "65"
                 sheepstrike_fly = "71"
-                carpet_fly = "72"
+                carpetstrike_fly = "72"
                 sheepstrike_burning_fly = "73"
             }
             {
@@ -493,7 +493,7 @@ water_anims {
         clustershard_drown = "33"
         arrow_drown = "35"
         sheep_drown = "36"
-        carpet_drown = "37"
+        carpetstrike_drown = "37"
         sheepstrike_drown = "38"
         sheepstrike_burning_drown = "39"  //lol?!
         mbbomb_drown = "40"

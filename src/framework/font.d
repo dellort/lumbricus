@@ -88,7 +88,6 @@ class Font {
     /// draw UTF8 encoded text (use framework singleton to instantiate it)
     /// returns position beyond last drawn glyph
     Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
-        prepare();
         return drawTextLimited(canvas, pos, int.max, text);
     }
 
@@ -123,6 +122,22 @@ class Font {
     Vector2i textSize(char[] text, bool forceHeight = true) {
         prepare();
         return mFont.textSize(text, forceHeight);
+    }
+
+    ///return length of text that fits into width w (size(text[0..return]) <= w)
+    //added long after findIndex, because findIndex seems to have quadratic
+    //  complexity, and doesn't quite compute what we want
+    uint textFit(char[] text, int w) {
+        int i = 0;
+        while (i < text.length) {
+            int i2 = i + str.stride(text, i);
+            int cw = textSize(text[i..i2]).x;
+            if (cw > w)
+                break;
+            w -= cw;
+            i = i2;
+        }
+        return i;
     }
 
     ///return the utf character index closest to posX
