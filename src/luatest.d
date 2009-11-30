@@ -109,14 +109,7 @@ static this() {
     bar.properties!("blu", "blo", "something")();
     bar.methods!("test", "blurgh")();
     scripting.func!(funcBlub)();
-
-    //lua.method!(Sprite, "setState")();
-    //lua.method!(GameEngine, "explosion")();
 }
-
-/*void startgame() {
-    lua.addSingleton!(GameEngine)("GameEngine", engine);
-}*/
 
 void funcBlub(char[] arg) {
     Trace.formatln("Plain old function, yay! Got '{}'", arg);
@@ -282,35 +275,37 @@ void main(char[][] args) {
     `);
 
     //these are expected to fail (type checks etc.)
-    //I don't know how to fail "gracefully", so all commented out
 
-    //too many args
-    ex(loadexec(`Bar_test(b, "a", "b")`));
-    ex(loadexec(`Foo_test(1, 2, "Bla", "Too much")`));
-    //too few args
-    ex(loadexec(`Bar_test()`));
-    ex(loadexec(`Foo_test()`));
-    //wrong type
-    ex(loadexec(`Foo_passBar(Foo_createEvul())`));
-    ex(loadexec(`Foo_passBar("err")`));
-    ex(loadexec(`Foo_test("wrong", 1.3, "bla")`));
-    ex(loadexec(`Foo_test(1, 1.3, nil)`));
-    ex(loadexec(`local a
-        local b
-        Bar_test("a")`));
-    ex(loadexec(`Bar_test(Foo_createEvul(), "a")`));
-    //script errors
-    ex(loadexec(`invalid code`));
-    ex(loadexec(`error("Thrown from Lua")`));
-    ex(loadexec(`math.cos("Hello")`));
-}
-
-void ex(T)(lazy T v) {
-    try {
-        v();
-    } catch(LuaException e) {
-        Trace.formatln("OK, {}", e.msg);
-        return;
+    void fail(char[] code) {
+        try {
+            loadexec(code);
+        } catch (LuaException e) {
+            Trace.formatln("OK, {}", e.msg);
+            return;
+        }
+        throw new Exception("Should have thrown.");
     }
-    throw new Exception("Should have thrown.");
+
+    //this fails for two reasons: parse error + invalid utf-8
+    //the utf-8 one because (I guess) Lua outputs only one byte of two
+    fail(`ä`);
+    //too many args
+    fail(`Bar_test(b, "a", "b")`);
+    fail(`Foo_test(1, 2, "Bla", "Too much")`);
+    //too few args
+    fail(`Bar_test()`);
+    fail(`Foo_test()`);
+    //wrong type
+    fail(`Foo_passBar(Foo_createEvul())`);
+    fail(`Foo_passBar("err")`);
+    fail(`Foo_test("wrong", 1.3, "bla")`);
+    fail(`Foo_test(1, 1.3, nil)`);
+    fail(`local a
+        local b
+        Bar_test("a")`);
+    fail(`Bar_test(Foo_createEvul(), "a")`);
+    //script errors
+    fail(`invalid code`);
+    fail(`error("Thrown from Lua")`);
+    fail(`math.cos("Hello")`);
 }

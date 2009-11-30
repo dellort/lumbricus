@@ -14,11 +14,26 @@ import net.marshal;
 import utils.misc;
 import utils.stream;
 
-version = Lua_In_D_Memory;
+//--- stuff which might appear as keys in the Lua "Registry"
 
-version (Lua_In_D_Memory) {
+//mangle value that's unique for each D type
+//used for metatables for certain D types in Lua
+//must be null-terminated
+//xxx could use a lightuserdata with the type's TypeInfo as value
+//  (the Lua registry can use lightuserdata as keys)
+//  requires more API calls, but possibly faster than hashing the string...
+private template C_Mangle(T) {
+    const C_Mangle = "D_bind_" ~ T.mangleof ~ '\0';
+}
 
-extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize, size_t nsize) {
+const cLuaDelegateTable = "D_delegates";
+
+//--- Lua "Registry" stuff end
+
+
+private extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize,
+    size_t nsize)
+{
     //make Lua use the D heap
     //note that this will go horribly wrong if...
     //- Lua would create a new OS thread (but it doesn't)
@@ -40,25 +55,11 @@ extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize, size_t nsize) {
     }
 }
 
-} else {
-
-extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize, size_t nsize) {
-    if (nsize == 0) {
-        cstd.free(ptr);
-        return null;
-    } else {
-        return cstd.realloc(ptr, nsize);
-    }
-}
-
-}
-
-
 //read code from char[]
-struct StringChunk {
+private struct StringChunk {
     char[] data;
 }
-extern(C) char* lua_ReadString(lua_State *L, void *data, size_t *size) {
+private extern(C) char* lua_ReadString(lua_State *L, void *data, size_t *size) {
     auto sc = cast(StringChunk*)data;
     *size = sc.data.length;
     auto code = sc.data;
@@ -67,7 +68,7 @@ extern(C) char* lua_ReadString(lua_State *L, void *data, size_t *size) {
 }
 
 //read code (or anything else) from Stream
-extern(C) char* lua_ReadStream(lua_State *L, void *data, size_t *size) {
+private extern(C) char* lua_ReadStream(lua_State *L, void *data, size_t *size) {
     const cBufSize = 16*1024;
     auto buf = new ubyte[cBufSize];
     auto st = cast(Stream)data;
@@ -77,25 +78,50 @@ extern(C) char* lua_ReadStream(lua_State *L, void *data, size_t *size) {
 }
 
 //write to stream
-extern(C) int lua_WriteStream(lua_State* L, void* p, size_t sz, void* ud) {
+private extern(C) int lua_WriteStream(lua_State* L, void* p, size_t sz,
+    void* ud)
+{
     auto st = cast(Stream)ud;
     st.writeExact(cast(ubyte[])p[0..sz]);
     return 0;
 }
 
 //panic function: called on unprotected lua error (message is on the stack)
-extern(C) int my_lua_panic(lua_State *L) {
-    char[] err = lua_todstring(L, -1);
-    lua_pop(L, 1);
+private extern(C) int my_lua_panic(lua_State *L) {
+    scope (exit) lua_pop(L, 1);
+    char[] err = lua_todstring(L, -1).dup;
     throw new LuaException(err);
 }
 
-char[] lua_todstring(lua_State* L, int i) {
+//if the string is going to be used after the Lua value is popped from the
+//  stack, you must .dup it (Lua may GC and reuse the string memory)
+private char[] lua_todstring(lua_State* L, int i) {
     size_t len;
     char* s = lua_tolstring(L, i, &len);
     if (!s)
         throw new LuaException("no string at given stack index");
-    return s[0..len];
+    char[] res = s[0..len];
+    debug {
+        try {
+            str.validate(res);
+        } catch (str.UnicodeException s) {
+            //not sure if it should be this exception
+            throw new LuaException("invalid utf-8 string from Lua");
+        }
+    }
+    return res;
+}
+
+//if index is a relative stack index, convert it to an absolute one
+//  e.g. -2 => 4 (if stack size is 5)
+private int luaRelToAbsIndex(lua_State* state, int index) {
+    if (index < 0) {
+        //the tricky part is dealing with pseudo-indexes (also non-negative)
+        int stacksize = lua_gettop(state);
+        if (index <= -1 && index >= -1 - stacksize)
+            index = stacksize + 1 + index;
+    }
+    return index;
 }
 
 class LuaException : Exception { this(char[] msg) { super(msg); } }
@@ -104,19 +130,26 @@ class LuaException : Exception { this(char[] msg) { super(msg); } }
 alias LuaException ScriptingException;
 
 //create an error message if the error is caused by a wrong script
-void raiseLuaError(lua_State *state, char[] msg) {
+private void raiseLuaError(lua_State *state, char[] msg) {
     luaL_where(state, 1);
     lua_pushstring(state, czstr.toStringz(msg));
     lua_concat(state, 2);
     lua_error(state);
 }
 
-T luaStackValue(T)(lua_State *state, int stackIdx) {
+private void luaExpected(lua_State* state, int stackIdx, char[] expected) {
+    throw new LuaException(expected ~ " expected, got "
+        ~ czstr.fromStringz(luaL_typename(state, stackIdx)));
+}
+private void luaExpected(char[] expected, char[] got) {
+    throw new LuaException(myformat("{} expected, got {}", expected, got));
+}
+
+//if this returns a string, you can use it only until you pop the corresponding
+//  Lua value from the stack (because after this, Lua may garbage collect it)
+private T luaStackValue(T)(lua_State *state, int stackIdx) {
+    void expected(char[] t) { luaExpected(state, stackIdx, t); }
     //xxx no check if stackIdx is valid (is checked in demarshal() anyway)
-    void expected(char[] t) {
-        throw new LuaException(t ~ " expected, got "
-            ~ czstr.fromStringz(luaL_typename(state, stackIdx)));
-    }
     static if (isIntegerType!(T) || isFloatingPointType!(T) ||
         (is(T Base == enum) && isIntegerType!(Base)))
     {
@@ -142,8 +175,7 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         Object o = cast(Object)lua_touserdata(state, stackIdx);
         T res = cast(T)o;
         if (o && !res) {
-            throw new LuaException(myformat("{} expected, got {}",
-                T.classinfo.name, o.classinfo.name));
+            luaExpected(T.classinfo.name, o.classinfo.name);
         }
         return res;
     } else static if (is(T == struct)) {
@@ -174,8 +206,8 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         if (!lua_istable(state, stackIdx))
             expected("array table");
         T ret;
+        int tablepos = luaRelToAbsIndex(state, stackIdx);
         lua_pushnil(state);  //first key
-        int tablepos = stackIdx < 0? stackIdx-1 : stackIdx;
         while (lua_next(state, tablepos) != 0) {
             //lua_next pushes key, then value
             static if(isAssocArrayType!(T)) {
@@ -188,81 +220,15 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         }
         return ret;
     } else static if (is(T == delegate)) {
-        //the lua function to call is at stackIdx and must be stored for later
-        //  calling. So it is added to the lua registry table with a unique key
-        //  (the Wrapper memory address)
-        //xxx changed Wrapper to class for lua registry cleanup and (possibly)
-        //    serialization; old struct code here: http://codepad.org/s1TnASTV
-        //    (I'm too stupid to see all the consequences)
-        if (lua_isnil(state,stackIdx))
-            return null;
-        if (!lua_isfunction(state, stackIdx))
-            expected("closure");
-        alias ParameterTupleOf!(T) Params;
-        alias ReturnTypeOf!(T) RetType;
-
-        //deja-vu...
-        class Wrapper {
-            lua_State* state;
-            uint key;
-            this(lua_State* st) {
-                state = st;
-            }
-            //making Wrapper serializable (with state external) should just
-            //  do the right thing (lua registry value would be saved by pluto)
-            //just when to register it?
-            /*this(ReflectCtor c) {
-                super(c);
-                Types t = c.types();
-                t.registerMethod(this, &cbfunc, "cbfunc");
-            }*/
-            ~this() {
-                //remove function from registry (if state became invalid, those
-                //  functions will just fail quietly)
-                //--D GC is completely asynchronous and indeterministic; if this
-                //--    dtor brings anything, then only segfaults on random
-                //--    occasions; don't know how to solve this (maybe do the
-                //--    same crap as with surfaces in the framework)
-                //--lua_pushnumber(state, key);
-                //--lua_pushnil(state);
-                //--lua_settable(state, LUA_REGISTRYINDEX);
-            }
-            //will return delegate to this function
-            RetType cbfunc(Params args) {
-                //get callee from the registry and call
-                lua_pushnumber(state, key);
-                lua_gettable(state, LUA_REGISTRYINDEX);
-                assert(lua_isfunction(state, -1));
-                //will pop function from the stack
-                return doLuaCall!(RetType, Params)(state, args);
-            }
-        }
-        auto pwrap = new Wrapper(state);
-        //use the hashed memory address as key (hashed because of GC)
-        //bswap, the best and only hash function!!11
-        //xxx not guaranteed to be unique in context of serialization, add check
-        pwrap.key = intr.bswap(cast(size_t)cast(void*)pwrap);
-
-        lua_pushnumber(state, pwrap.key);  //unique key
-        lua_pushvalue(state, stackIdx);                    //lua closure
-        lua_settable(state, LUA_REGISTRYINDEX);
-
-        return &pwrap.cbfunc;
+        return luaStackDelegate!(T)(state, stackIdx);
     } else {
         static assert(false, "add me, you fool: " ~ T.stringof);
     }
 }
 
-//mangle value that's unique for each D type
-//used for metatables for certain D types in Lua
-//must be null-terminated
-template C_Mangle(T) {
-    const C_Mangle = "D_bind_" ~ T.mangleof ~ '\0';
-}
-
 //returns the number of values pushed (for Vectors maybe, I don't know)
 //xxx: that would be a problem, see luaCall()
-int luaPush(T)(lua_State *state, T value) {
+private int luaPush(T)(lua_State *state, T value) {
     static if (isFloatingPointType!(T) || isIntegerType!(T) ||
         (is(T Base == enum) && isIntegerType!(Base)))
     {
@@ -321,7 +287,7 @@ int luaPush(T)(lua_State *state, T value) {
             lua_settable(state, -3);
         }
     } else static if (is(T == delegate)) {
-        pushDelegate(state, value);
+        luaPushDelegate(state, value);
     } else static if (is(T == void*)) {
         //allow pushing 'nil', but no other void*
         assert(value is null);
@@ -332,7 +298,12 @@ int luaPush(T)(lua_State *state, T value) {
     return 1;  //default to 1 argument
 }
 
-private void pushDelegate(T)(lua_State* state, T del) {
+//convert D delegate to a Lua c-closure, and push it on the Lua stack
+//beware that the D delegate never should be from the stack, because Lua code
+//  may call it even if the containing function returned (thus accessing random
+//  data and the stack and causing corruption)
+//to be safe, pass only normal object methods (of GC'ed objects)
+private void luaPushDelegate(T)(lua_State* state, T del) {
     static assert(is(T == delegate));
 
     extern(C) static int demarshal(lua_State* state) {
@@ -340,7 +311,7 @@ private void pushDelegate(T)(lua_State* state, T del) {
         del.ptr = lua_touserdata(state, lua_upvalueindex(1));
         del.funcptr = cast(typeof(del.funcptr))
             lua_touserdata(state, lua_upvalueindex(2));
-        return LuaRegistry.callFromLua(del, state, 0, "some D delegate");
+        return callFromLua(del, state, 0, "some D delegate");
     }
 
     lua_pushlightuserdata(state, del.ptr);
@@ -348,8 +319,117 @@ private void pushDelegate(T)(lua_State* state, T del) {
     lua_pushcclosure(state, &demarshal, 2);
 }
 
+//same as "Wrapper" and same idea from before
+//garbage collection: maybe put all wrapper objects into a weaklist, and do
+//  regular cleanups (e.g. each game frame); the weaklist would return the set
+//  of dead objects free'd since the last query, and the Lua delegate table
+//  entry could be removed without synchronization problems
+//no idea how serialization should work, some bits and pieces:
+//  - can't really find out which D objects are referenced by Lua, or which Lua
+//    objects are ref'ed by D objects (what if a delegate wrapper refers to a
+//    Lua closure, which again refers to a D object, or maybe another Lua one?)
+//    ...until Pluto or utils.serialize traverse the object graph, and do
+//    incorrect stuff as soon as they find an unknown, unserializeable objects
+//    (utils.serialize will crash, Pluto will write pointers as bytes...)
+//  - with the gTypes thing, one can recreate delegates to Lua functions for
+//    deserialization, although it's a bit unnice to have mangled D symbol names
+//    in the data stream (but: won't be able to identify the delegate types
+//    otherwise)
+//  - for utils.serialize, one could use custom serialization (which is there,
+//    but unused, might need to be a bit hacked), so framework.lua doesn't need
+//    to depend on our damn reflection system
+//  - it is possible to get the D wrapper objects from the entries in the Lua
+//    delegate table; just traverse the weaklist (if we need this)
+//  - even if we make serialization of D->Lua delegates work, there might be
+//    unreferenced D->Lua delegates in the serialized data stream, unless we
+//    traverse both the D and Lua object graph to find all live references,
+//    which we can't (ok we could parse the Pluto data output, or fork Pluto xD)
+//  - Pluto muzzles with internals and seems generally a bad idea to use, maybe
+//    we should throw away the whole serialization business
+//PS: and we can forget the replay feature
+private abstract class LuaDelegateWrapper {
+    alias void function(LuaState) Init;
+    //key is a TypeInfo casted to void* (why? bug 3086)
+    static Init[void*] gTypes;
+
+    private {
+        lua_State* mState;
+        int mLuaRef = LUA_NOREF;
+    }
+
+    private this(lua_State* state, int stackIdx) {
+        mState = state;
+
+        //put a "Lua ref" to the closure into the delegate table
+        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaDelegateTable.ptr);
+        lua_pushvalue(mState, stackIdx);
+        mLuaRef = luaL_ref(mState, -2);
+        assert(mLuaRef != LUA_REFNIL);
+    }
+
+    void release() {
+        if (mLuaRef == LUA_NOREF)
+            return;
+        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaDelegateTable.ptr);
+        luaL_unref(mState, -1, mLuaRef);
+        mLuaRef = LUA_NOREF;
+    }
+}
+
+private class LuaDelegateWrapperT(T) : LuaDelegateWrapper {
+    alias ParameterTupleOf!(T) Params;
+    alias ReturnTypeOf!(T) RetType;
+
+    //only to be called from luaStackDelegate()
+    private this(lua_State* state, int stackIdx) {
+        super(state, stackIdx);
+    }
+
+    ~this() {
+        //--D GC is completely asynchronous and indeterministic; if this
+        //--    dtor brings anything, then only segfaults on random
+        //--    occasions; don't know how to solve this (maybe do the
+        //--    same crap as with surfaces in the framework)
+        //--release();
+    }
+
+    //delegate to this is returned by luaStackDelegate/luaStackValue!(T)
+    RetType cbfunc(Params args) {
+        assert(mLuaRef != LUA_NOREF, "call delegate after .release()");
+        //get callee from the registry and call
+        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaDelegateTable.ptr);
+        lua_rawgeti(mState, -1, mLuaRef);
+        assert(lua_isfunction(mState, -1));
+        //will pop function from the stack
+        return doLuaCall!(RetType, Params)(mState, args);
+    }
+
+    //register the wrapper for deserialization
+    private static void doInit(LuaState state) {
+        //... maybe pass a delegate for dynamic creation to state
+    }
+    static this() {
+        gTypes[cast(void*)typeid(typeof(this))] = &doInit;
+    }
+}
+
+//convert a Lua function on that stack index to a D delegate
+private T luaStackDelegate(T)(lua_State* state, int stackIdx) {
+    //the lua function to call is at stackIdx and must be stored for later
+    //  calling.
+    if (lua_isnil(state, stackIdx))
+        return null;
+    if (!lua_isfunction(state, stackIdx))
+        luaExpected(state, stackIdx, "closure");
+
+    //xxx: could cache wrappers (Lua can do the Lua closure => unique int key
+    //  mapping), but D has no such thing as weak hashtables
+    auto pwrap = new LuaDelegateWrapperT!(T)(state, stackIdx);
+    return &pwrap.cbfunc;
+}
+
 //call the function on top of the stack
-RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
+private RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
     int argc;
     foreach (int idx, x; args) {
         argc += luaPush(state, args[idx]);
@@ -363,13 +443,78 @@ RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
     }
 }
 
-bool gPlutoOK; //Pluto could was loaded
+//Execute the callable del, taking parameters from the lua stack
+//  skipCount: skip this many parameters from beginning
+//  funcName:  used in error messages
+//stack size must match the requirements of del
+private static int callFromLua(T)(T del, lua_State* state, int skipCount,
+    char[] funcName)
+{
+    //eh static assert(is(T == delegate) || is(T == function));
+
+    void error(char[] msg) {
+        throw new LuaException(msg);
+    }
+
+    try {
+        int numArgs = lua_gettop(state);
+
+        alias ParameterTupleOf!(typeof(del)) Params;
+        //min/max arguments allowed to be passed from lua (incl. 'this')
+        int maxArgs = Params.length + skipCount;
+        int minArgs = requiredArgCount!(del)() + skipCount;
+        //argument count has to be in accepted range (exact match)
+        if (numArgs < minArgs || numArgs > maxArgs) {
+            if (minArgs == maxArgs) {
+                error(myformat("'{}' requires {} arguments, got {}",
+                    funcName, maxArgs, numArgs));
+            } else {
+                error(myformat("'{}' requires {}-{} arguments, got {}",
+                    funcName, minArgs, maxArgs, numArgs));
+            }
+        }
+        //number of arguments going to the delegate call
+        int numRealArgs = numArgs - skipCount;
+
+        //hack: add dummy type, to avoid code duplication
+        alias Tuple!(Params, int) Params2;
+        Params2 p;
+        foreach (int idx, x; p) {
+            //generate code for all possible parameter counts, and select
+            //the right case at runtime
+            static if (is(typeof(del(p[0..idx])) RetType)) {
+                if (numRealArgs == idx) {
+                    static if (is(RetType == void)) {
+                        del(p[0..idx]);
+                        return 0;
+                    } else {
+                        auto ret = del(p[0..idx]);
+                        return luaPush(state, ret);
+                    }
+                }
+            }
+            assert(idx < Params.length);
+            alias typeof(x) T;
+            try {
+                p[idx] = luaStackValue!(T)(state, skipCount + idx + 1);
+            } catch (LuaException e) {
+                error(myformat("bad argument #{} to '{}' ({})", idx + 1,
+                    funcName, e.msg));
+            }
+        }
+        assert(false);
+    } catch (LuaException e) {
+        raiseLuaError(state, e.msg);
+    }
+}
 
 class LuaRegistry {
     private {
         Method[] mMethods;
         char[][ClassInfo] mPrefixes;
     }
+
+    static bool gPlutoOK; //Pluto could be loaded
 
     struct Method {
         ClassInfo classinfo;
@@ -394,90 +539,24 @@ class LuaRegistry {
         mPrefixes[Class.classinfo] = name;
     }
 
-    //Execute the callable del, taking parameters from the lua stack
-    //  skipCount: skip this many parameters from beginning
-    //  funcName:  used in error messages
-    //stack size must match the requirements of del
-    private static int callFromLua(T)(T del, lua_State* state, int skipCount,
-        char[] funcName)
+    private static void methodThisError(lua_State* state, char[] name,
+        ClassInfo expected, Object got)
     {
-        //eh static assert(is(T == delegate) || is(T == function));
-
-        void error(char[] msg) {
-            throw new LuaException(msg);
-        }
-
-        try {
-            int numArgs = lua_gettop(state);
-
-            alias ParameterTupleOf!(typeof(del)) Params;
-            //min/max arguments allowed to be passed from lua (incl. 'this')
-            int maxArgs = Params.length + skipCount;
-            int minArgs = requiredArgCount!(del)() + skipCount;
-            //argument count has to be in accepted range (exact match)
-            if (numArgs < minArgs || numArgs > maxArgs) {
-                if (minArgs == maxArgs) {
-                    error(myformat("'{}' requires {} arguments, got {}",
-                        funcName, maxArgs, numArgs));
-                } else {
-                    error(myformat("'{}' requires {}-{} arguments, got {}",
-                        funcName, minArgs, maxArgs, numArgs));
-                }
-            }
-            //number of arguments going to the delegate call
-            int numRealArgs = numArgs - skipCount;
-
-            //hack: add dummy type, to avoid code duplication
-            alias Tuple!(Params, int) Params2;
-            Params2 p;
-            foreach (int idx, x; p) {
-                //generate code for all possible parameter counts, and select
-                //the right case at runtime
-                static if (is(typeof(del(p[0..idx])) RetType)) {
-                    if (numRealArgs == idx) {
-                        static if (is(RetType == void)) {
-                            del(p[0..idx]);
-                            return 0;
-                        } else {
-                            auto ret = del(p[0..idx]);
-                            return luaPush(state, ret);
-                        }
-                    }
-                }
-                assert(idx < Params.length);
-                alias typeof(x) T;
-                try {
-                    p[idx] = luaStackValue!(T)(state, skipCount + idx + 1);
-                } catch (LuaException e) {
-                    error(myformat("bad argument #{} to '{}' ({})", idx + 1,
-                        funcName, e.msg));
-                }
-            }
-            assert(false);
-        } catch (LuaException e) {
-            raiseLuaError(state, e.msg);
-        }
+        raiseLuaError(state, myformat("method call to '{}' requires non-null "
+            "this pointer of type {} as first argument, but got: {}", name,
+            expected.name, got ? got.classinfo.name : "*null"));
     }
 
     //Register a class method
     void method(Class, char[] name)(char[] rename = null) {
         extern(C) static int demarshal(lua_State* state) {
             const methodName = Class.stringof ~ '.' ~ name;
-            void error(char[] msg) {
-                raiseLuaError(state, msg);
-            }
-
-            //--LuaState ustate = cast(LuaState)(lua_touserdata(state,
-            //--    lua_upvalueindex(1)));
 
             Object o = cast(Object)lua_touserdata(state, 1);
             Class c = cast(Class)(o);
 
             if (!c) {
-                error(myformat("method call to '{}' requires "
-                    "non-null this pointer of type {} as first argument, but "
-                    "got: {}", methodName, Class.stringof,
-                    o ? o.classinfo.name : "*null"));
+                methodThisError(state, methodName, Class.classinfo, o);
             }
 
             auto del = mixin("&c."~name);
@@ -682,6 +761,13 @@ class LuaState {
         lua_atpanic(mLua, &my_lua_panic);
         loadStdLibs(stdlibFlags);
 
+        //this is security relevant; allow only in debug code
+        debug loadStdLibs(LuaLib.debuglib);
+
+        //list of active delegates
+        lua_newtable(mLua);
+        lua_setfield(mLua, LUA_REGISTRYINDEX, cLuaDelegateTable.ptr);
+
         //own std stuff
         auto reg = new LuaRegistry();
         reg.func!(ObjectToString)();
@@ -699,6 +785,16 @@ class LuaState {
         }
         lua_pushcfunction(mLua, &d_islightuserdata);
         lua_setglobal(mLua, "d_islightuserdata".ptr);
+
+        void kill(char[] global) {
+            lua_pushnil(mLua);
+            lua_setglobal(mLua, czstr.toStringz(global));
+        }
+
+        //dofile and loadfile are unsafe, and even worse, freeze your program
+        //  if called with no argument (because they want to read from stdin)
+        kill("dofile");
+        kill("loadfile");
 
         stack0();
     }
@@ -723,17 +819,8 @@ class LuaState {
         }
     }
 
-/+
-    T getSingleton(T)() {
-        auto i = T.classinfo in mSingletons;
-        return i ? cast(T)(*i) : null;
-    }
-+/
-
     void register(LuaRegistry stuff) {
         foreach (m; stuff.mMethods) {
-            //--lua_pushlightuserdata(mLua, cast(void*)this);
-            //--lua_pushcclosure(mLua, m.demarshal, 1);
             lua_pushcclosure(mLua, m.demarshal, 0);
             lua_setglobal(mLua, czstr.toStringz(m.fname));
 
@@ -760,20 +847,15 @@ class LuaState {
                 continue;
             //the method name is the same, just that the singleton is now
             //  automagically added on a call (not sure if that's a good idea)
-            //auto singleton_name = "singleton_" ~ m.classinfo.name;
-            //luaPush(mLua, instance);
-            //lua_setglobal(mLua, czstr.toStringz(singleton_name));
             scriptExec(`
-                local fname, ston = ...
+                local fname, singleton = ...
                 local orgfunction = _G[fname]
-                --local singleton = _G[sname]
-                local singleton = ston
                 local function dispatch(...)
                     -- yay closures
                     return orgfunction(singleton, ...)
                 end
                 _G[fname] = dispatch
-            `, m.fname, instance); //singleton_name);
+            `, m.fname, instance);
         }
         stack0();
     }
@@ -782,8 +864,8 @@ class LuaState {
         //'=' means use the name as-is (else "string " is added)
         int res = lua_load(mLua, reader, d, czstr.toStringz('='~chunkname));
         if (res != 0) {
+            scope (exit) lua_pop(mLua, 1);  //remove error message
             char[] err = lua_todstring(mLua, -1);
-            lua_pop(mLua, 1);  //remove error message
             throw new LuaException("Parse error: " ~ err);
         }
     }
@@ -797,11 +879,9 @@ class LuaState {
         lua_loadChecked(&lua_ReadString, &sc, name);
     }
 
-/+
     void luaLoadAndPush(char[] name, Stream input) {
         lua_loadChecked(&lua_ReadStream, cast(void*)input, name);
     }
-+/
 
     //another variation
     //load script in "code", using "name" for error messages
@@ -809,6 +889,12 @@ class LuaState {
     void loadScript(char[] name, char[] code) {
         stack0();
         luaLoadAndPush(name, code);
+        luaCall!(void)();
+        stack0();
+    }
+    void loadScript(char[] name, Stream input) {
+        stack0();
+        luaLoadAndPush(name, input);
         luaCall!(void)();
         stack0();
     }
@@ -874,6 +960,7 @@ class LuaState {
     //this redirects the print() function from stdio to cb(); the string passed
     //  to cb() should be output literally (the string will contain newlines)
     void setPrintOutput(void delegate(char[]) cb) {
+        assert(cb !is null);
         //xxx: actually, it completely replaces the print() function, and it
         //  might behave a little bit differently; feel free to fix it
         scriptExec(`
@@ -907,7 +994,7 @@ class LuaState {
     void serialize(char[] stuff, Stream st,
         char[] delegate(Object o) external_id)
     {
-        assert(gPlutoOK);
+        assert(LuaRegistry.gPlutoOK);
         stack0();
 
         lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(stuff));

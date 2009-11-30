@@ -93,6 +93,45 @@ static this() {
     //  and use introduce marked structs, that expand into tuple returns?
     //  (e.g. struct Foo { const cTupleReturn = true; int x1; float x2; })
     //xxx ok, I implemented the struct hack above
+    /+
+    another way would be to use tuples:
+        //this type is not the same as tango.core.Tuple.Tuple (lol.)
+        struct Tuple(T...) {
+            T whatever;
+        }
+        //can define the return type inline; no separate struct
+        Tuple!(int, char[]) bla() {
+            ...
+            return Tuple!(int, char[])(123, "abc");
+        }
+    to support nil returns for Lua, one could introduce this bloaty stuff:
+        struct Nullable(T) {
+            T _value;
+            bool isNull = true;
+            T value() {
+                assert(!isNull);
+                return _value;
+            }
+            const Nullable!(T) Null;
+            typeof(this) opCall(T v) {
+                typeof(this) res;
+                res._value = v;
+                res.isNull = false;
+                return res;
+            }
+        }
+    and then have the marshaller template handle it
+    one could also introduce a multiple choice type to avoid numReturnValues:
+        struct Choice(T...) {
+            bool isChosen!(Choice)() { ... }
+            static typeof(this) Make(Choice)(Choice value) { ... }
+        }
+    then Nullable(T) would be something like:
+        struct Null {} //dummy type to mark null value
+        template(T) {
+            alias Choice!(Null, T) Nullable;
+        }
+    +/
     gScripting.methods!(PhysicWorld, "add", "objectsAtPred");
     gScripting.method!(PhysicWorld, "collideGeometryScript")("collideGeometry");
     gScripting.method!(PhysicWorld, "collideObjectWithGeometryScript")(
@@ -127,7 +166,7 @@ LuaState createScriptingObj(GameEngine engine) {
         filename = "lua/" ~ filename;
         auto st = gFS.open(filename);
         scope(exit) st.close();
-        state.loadScript(filename, cast(char[])st.readAll());
+        state.loadScript(filename, st);
     }
 
     loadscript("vector2.lua");

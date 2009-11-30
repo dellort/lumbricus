@@ -100,10 +100,29 @@ void encode(ref char[] txt, dchar c) {
 //decode one character of the utf-8 string txt, starting at txt[idx]
 //return decoded character, and write index of following character to idx
 dchar decode(char[] txt, ref size_t idx) {
+    /+ maybe this code would be faster; but it's also a bit buggy
+       as of Tango r5245, this didn't throw errors on some invalid utf-8
+       the Tango dev who wrote Utf.d must be an idiot
     //apparently, Tango's decode() always starts from index 0
     uint idx2; //uint instead of size_t: Tango and Phobos are doing it wrong
     dchar res = utf.decode(txt[idx..$], idx2);
     idx += idx2;
+    +/
+    //instead, enjoy this horrible hack
+    //it works because the runtime uses different code for utf-8 parsing (lol.)
+    assert(idx < txt.length);
+    dchar res;
+    bool done;
+    foreach (size_t i, dchar dec; txt[idx..$]) {
+        if (done) {
+            idx = idx + i;
+            return res;
+        }
+        res = dec;
+        done = true;
+    }
+    //no next character; so idx couldn't be set
+    idx = txt.length;
     return res;
 }
 
@@ -132,6 +151,16 @@ unittest {
     encode(x3, 'ö');
     assert(x3 == "äö");
     assert(stride("ä", 0) == 2);
+    char[2] x4;
+    x4[0] = 195;
+    x4[1] = 39;
+    bool exc = false;
+    try {
+        validate(x4);
+    } catch (UnicodeException e) {
+        exc = true;
+    }
+    assert(exc);
 }
 
 //--- my own functions

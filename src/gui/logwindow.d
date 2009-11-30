@@ -74,7 +74,8 @@ public class LogWindow : Widget, Output {
                     uint n = mConsoleFont.textFit(txt, renderWidth);
                     if (n == 0) {
                         //pathologic case, avoid infinite recursion
-                        n = str.stride(txt, 0);
+                        if (txt.length)
+                            n = str.stride(txt, 0);
                     }
                     //output the bottom lines first
                     bla(txt[n..$], frame + 1);
@@ -127,10 +128,6 @@ public class LogWindow : Widget, Output {
                 mLineBuffer ~= c;
             }
         }
-    }
-
-    private void doprint(char[] text) {
-        mLineBuffer ~= text;
     }
 
     private void println() {
