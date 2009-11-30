@@ -239,7 +239,11 @@ private int luaPush(T)(lua_State *state, T value) {
     } else static if (is(T : char[])) {
         lua_pushlstring(state, value.ptr, value.length);
     } else static if (is(T == class)) {
-        lua_pushlightuserdata(state, cast(void*)value);
+        if (value is null) {
+            lua_pushnil(state);
+        } else {
+            lua_pushlightuserdata(state, cast(void*)value);
+        }
     } else static if (is(T == struct)) {
         //This is a hack to allow functions to return multiple values without
         //exposing internal lua functions. The function returns a struct with
@@ -539,12 +543,12 @@ class LuaRegistry {
         mPrefixes[Class.classinfo] = name;
     }
 
-    private static void methodThisError(lua_State* state, char[] name,
-        ClassInfo expected, Object got)
+    private static char[] methodThisError(char[] name, ClassInfo expected,
+        Object got)
     {
-        raiseLuaError(state, myformat("method call to '{}' requires non-null "
+        return myformat("method call to '{}' requires non-null "
             "this pointer of type {} as first argument, but got: {}", name,
-            expected.name, got ? got.classinfo.name : "*null"));
+            expected.name, got ? got.classinfo.name : "*null");
     }
 
     //Register a class method
@@ -556,7 +560,8 @@ class LuaRegistry {
             Class c = cast(Class)(o);
 
             if (!c) {
-                methodThisError(state, methodName, Class.classinfo, o);
+                raiseLuaError(state, methodThisError(methodName,
+                    Class.classinfo, o));
             }
 
             auto del = mixin("&c."~name);
@@ -604,10 +609,15 @@ class LuaRegistry {
         auto ci = Class.classinfo;
 
         extern(C) static int demarshal_get(lua_State* state) {
+            const cDebugName = "property get " ~ name;
             static Type get(Class o) {
+                if (!o) {
+                    throw new LuaException(methodThisError(cDebugName,
+                        Class.classinfo, null));
+                }
                 return mixin("o." ~ name);
             }
-            return callFromLua(&get, state, 0, "property get " ~ name);
+            return callFromLua(&get, state, 0, cDebugName);
         }
 
         registerDMethod(ci, name, &demarshal_get);
@@ -616,14 +626,19 @@ class LuaRegistry {
             //xxx: a bit strange how it does three nested calls for stuff known
             //     at compile time...
             extern(C) static int demarshal_set(lua_State* state) {
+                const cDebugName = "property set " ~ name;
                 static void set(Class o, Type t) {
+                    if (!o) {
+                        throw new LuaException(methodThisError(cDebugName,
+                            Class.classinfo, null));
+                    }
                     //mixin() must be an expression here, not a statement
                     //but the parser messes it up, we don't get an expression
                     //make use of the glorious comma operator to make it one
                     //"I can't believe this works"
                     1, mixin("o." ~ name) = t;
                 }
-                return callFromLua(&set, state, 0, "property set " ~ name);
+                return callFromLua(&set, state, 0, cDebugName);
             }
 
             registerDMethod(ci, "set_" ~ name, &demarshal_set);
