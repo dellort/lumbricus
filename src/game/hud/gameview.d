@@ -22,6 +22,7 @@ import gui.container;
 import gui.label;
 import gui.mousescroller;
 import gui.tablecontainer;
+import physics.world;
 import utils.configfile;
 import utils.rect2;
 import utils.time;
@@ -600,10 +601,62 @@ class GameView : Container {
         mCmds.bind(mCmd);
     }
 
+    private class LevelEndDrawer : SceneObject {
+        Vertex2f[4] mQuad;
+        const cIn = Color.Transparent;
+        const cOut = Color(1.0, 0, 0, 0.5);
+        bool mLeft, mRight;
+
+        this(bool left, bool right) {
+            mLeft = left;
+            mRight = right;
+            //horizontal gradient
+            mQuad[0].c = cOut;
+            mQuad[1].c = cIn;
+            mQuad[2].c = cIn;
+            mQuad[3].c = cOut;
+        }
+        override void draw(Canvas canvas) {
+            if (canvas.features & DriverFeatures.transformedQuads) {
+                if (mLeft) {
+                    //left side
+                    mQuad[0].p = Vector2f(0);
+                    mQuad[1].p = Vector2f(30, 0);
+                    mQuad[2].p = Vector2f(30, canvas.clientSize.y);
+                    mQuad[3].p = Vector2f(0, canvas.clientSize.y);
+                    canvas.drawQuad(null, mQuad);
+                }
+                if (mRight) {
+                    //right side
+                    mQuad[0].p = Vector2f(canvas.clientSize.x, 0);
+                    mQuad[1].p = Vector2f(canvas.clientSize.x - 30, 0);
+                    mQuad[2].p = Vector2f(canvas.clientSize.x - 30,
+                        canvas.clientSize.y);
+                    mQuad[3].p = Vector2f(canvas.clientSize.x, canvas.clientSize.y);
+                    canvas.drawQuad(null, mQuad);
+                }
+            }
+        }
+    }
+
     void readd_graphics() {
         SceneObject labels = new DrawLabels();
         labels.zorder = GameZOrder.Names;
         mGame.cengine.scene.add(labels);
+
+        //xxx what a dirty hack...
+        //check for a geometry collision outside the world area on the left
+        //  and right. if it collides, there is a PlaneGeometry blocking access
+        //  (and the level end warning is not drawn on that side)
+        GeomContact tmp;
+        Vector2i worldSize = mGame.engine.level.worldSize;
+        bool left = !mGame.engine.physicworld.collideGeometry(
+            Vector2f(-100, worldSize.y/2), 1, tmp);
+        bool right = !mGame.engine.physicworld.collideGeometry(
+            Vector2f(worldSize.x + 100, worldSize.y/2), 1, tmp);
+        SceneObject levelend = new LevelEndDrawer(left, right);
+        levelend.zorder = GameZOrder.RangeArrow;
+        mGame.cengine.scene.add(levelend);
     }
 
     private void cmdCategory(MyBox[] args, Output write) {

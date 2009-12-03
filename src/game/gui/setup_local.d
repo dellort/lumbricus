@@ -24,6 +24,7 @@ import gui.boxcontainer;
 import gui.container;
 import utils.configfile;
 import utils.misc;
+import utils.path;
 
 //import std.thread;
 import tango.math.random.Random : rand;
@@ -158,8 +159,10 @@ class LevelWidget : SimpleContainer {
         if (!mSavedLevels.allowEdit)
             return;
         char[] lname = mSavedLevels.edit.text;
-        auto tmpLevel = mCurrentLevel.render(false);
-        saveConfig(tmpLevel.saved, cSavedLevelsPath ~ lname ~ ".conf");
+        auto tmpLevel = mCurrentLevel.render(true);
+        //remove illegal chars
+        auto p = VFSPath(cSavedLevelsPath ~ lname ~ ".conf", true);
+        saveConfig(tmpLevel.saved, p.get());
         delete tmpLevel;
         readSavedLevels();
         mSavedLevels.allowEdit = false;

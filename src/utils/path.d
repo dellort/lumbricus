@@ -71,15 +71,10 @@ struct VFSPath {
     }
 
     ///create VFSPath struct and set path (see set())
-    static VFSPath opCall(char[] p, bool fixIllegal) {
+    static VFSPath opCall(char[] p, bool fixIllegal = false) {
         VFSPath ret;
         ret.set(p, fixIllegal);
         return ret;
-    }
-
-    ///create VFSPath struct and set path (see set())
-    static VFSPath opCall(char[] p) {
-        return opCall(p, false);
     }
 
     ///encapsulate a path into a VFSPath struct
