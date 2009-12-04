@@ -473,16 +473,6 @@ public class ConfigNode {
         }
     }
 
-    private static char[] structProcName(char[] tupleString) {
-        //struct.tupleof is always fully qualified (obj.x), so get the
-        //string after the last .
-        int p = str.rfind(tupleString, '.');
-        assert(p > 0 && p < tupleString.length-1);
-        //xxx maybe do more name processing here, like replacing capitals by
-        //    underscores
-        return tupleString[p+1..$];
-    }
-
     ///Get the value of the current node, parsed as type T
     ///If the value cannot be converted to T (parsing failed), throw ConfigError
     //currently supports:

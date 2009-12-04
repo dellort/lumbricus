@@ -2,7 +2,6 @@
 
 # xfbuild is an alternative to dsss & rebuild (which suck very hard)
 # http://wiki.team0xf.com/index.php?n=Tools.XfBuild
-# note: as of dmd 1.046, you still need to patch the dmd source code, because the Walter (or was it h3) messed up the -deps patch (will most likely be fixed on 1.047)
 
 # will kill this dumb and retarded script with all my might as soon as there's a dsss like frontend for xfbuild
 
@@ -14,6 +13,11 @@ COMPILER=dmd
 #COMPILER=ldmd
 
 BINDIR=../bin/
+TMPDIR=/tmp/build/
+
+if [ ! -d $TMPDIR ]; then
+    mkdir $TMPDIR
+fi
 
 # for simple dry run mode
 CMD=
@@ -27,7 +31,7 @@ function invoke_compiler
     # just joking, D is nice (as long as it works)
     FUCK_D=""
     # libreadline and MDReadline is just for mdcl
-    $CMD xfbuild +c$COMPILER $1.d +noop +xtango -unittest -debug -g -L-lz -L-ldl +o$BINDIR$1 +D.deps_$1 +O.objs_$1 $DMD_IS_BROKEN $FUCK_D -version=MDReadline -L-lreadline +q
+    $CMD xfbuild +c$COMPILER $1.d +noop +xtango -unittest -debug -g -L-lz -L-ldl +o$BINDIR$1 +D$TMPDIR.deps_$1 +O$TMPDIR.objs_$1 $DMD_IS_BROKEN $FUCK_D -version=MDReadline -L-lreadline +q
 }
 
 TARGETS="lumbricus extractdata test mdcl unworms animutil sdlimginfo luatest"

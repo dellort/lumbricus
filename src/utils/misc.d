@@ -203,6 +203,37 @@ int requiredArgCount(alias Fn)() {
     }
 }
 
+//parse the result of stringof to get a struct member name; see unittest below
+//also works with CTFE
+char[] structProcName(char[] tupleString) {
+    //struct.tupleof is always fully qualified (obj.x), so get the
+    //string after the last .
+    //search backwards for '.'
+    int p = -1;
+    for (int n = tupleString.length - 1; n >= 0; n--) {
+        if (tupleString[n] == '.') {
+            p = n;
+            break;
+        }
+    }
+    assert(p > 0 && p < tupleString.length-1);
+    return tupleString[p+1..$];
+}
+
+unittest {
+    struct Foo {
+        int muh;
+        bool fool;
+    }
+    char[][] names;
+    Foo f;
+    foreach (int idx, _; f.tupleof) {
+        const n = structProcName(f.tupleof[idx].stringof);
+        names ~= n;
+    }
+    assert(names == ["muh"[], "fool"]);
+}
+
 //I hate Tango so much.
 //Threads can use this flag to determine when the main thread is exiting
 bool gMainTerminated = false;

@@ -105,41 +105,6 @@ struct GeneratorConfig {
     float front_len_ratio_remove = 0.2f;
     float len_ratio_remove = 1.0f;
     float remove_or_add = 0.5f; //0: only remove, 1: only add
-
-    void loadFrom(ConfigNode node) {
-        //tedious, maybe should replaced by an associative array or so
-        float tmp = node.getFloatValue("pix_epsilon");
-        if (tmp == tmp) {
-            pix_epsilon = tmp;
-        }
-        tmp = node.getFloatValue("pix_filter");
-        if (tmp == tmp)
-            pix_filter = tmp;
-        int tmpint = node.getIntValue("subdivision_steps", -1);
-        if (tmpint >= 0)
-            subdivision_steps = tmpint;
-        tmp = node.getFloatValue("removal_aggresiveness");
-        if (tmp == tmp)
-            removal_aggresiveness = tmp;
-        tmp = node.getFloatValue("min_subdiv_length");
-        if (tmp == tmp)
-            min_subdiv_length = tmp;
-        tmp = node.getFloatValue("front_len_ratio_add");
-        if (tmp == tmp)
-            front_len_ratio_add = tmp;
-        tmp = node.getFloatValue("len_ratio_add");
-        if (tmp == tmp)
-            len_ratio_add = tmp;
-        tmp = node.getFloatValue("front_len_ratio_remove");
-        if (tmp == tmp)
-            front_len_ratio_remove = tmp;
-        tmp = node.getFloatValue("len_ratio_remove");
-        if (tmp == tmp)
-            len_ratio_remove = tmp;
-        tmp = node.getFloatValue("remove_or_add");
-        if (tmp == tmp)
-            remove_or_add = tmp;
-    }
 }
 
 

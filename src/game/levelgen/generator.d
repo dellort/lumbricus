@@ -685,7 +685,7 @@ public class LandscapeTemplate {
     this(ConfigNode from) {
         mGeometry = new LandscapeGeometry();
         mGeometry.loadFrom(from);
-        mConfig.loadFrom(from);
+        mConfig = from.getCurValue!(GeneratorConfig)();
     }
 
     LandscapeGeometry geometry() {
