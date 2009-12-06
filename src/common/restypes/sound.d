@@ -15,12 +15,12 @@ class SampleResource : ResourceItem {
         char[] path = mContext.fixPath(mConfig.value);
         //xxx lol etc.
         if (mConfig.parent.name == "samples") {
-            auto sample = gFramework.sound.createSample(path, 0);
+            auto sample = gSoundManager.createSample(path, SoundType.sfx);
             sample.preload();
             mContents = sample;
         } else {
             //music is streamed
-            mContents = gFramework.sound.createSample(path, 1, true);
+            mContents = gSoundManager.createSample(path, SoundType.music, true);
         }
     }
 

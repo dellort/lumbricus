@@ -1,6 +1,7 @@
 module game.hud.preparedisplay;
 
 import framework.framework;
+import framework.font;
 import framework.i18n;
 import game.hud.teaminfo;
 import game.gamemodes.turnbased_shared;
@@ -20,7 +21,7 @@ class PrepareDisplay : Label {
         mGame = game;
         tr = localeRoot.bindNamespace("gui_prepare");
         styles.id = "preparebox";
-        font = gFramework.fontManager.loadFont("messages");
+        font = gFontManager.loadFont("messages");
         border = Vector2i(7, 5);
 
         //prepare display is only needed for turnbased gamemode

@@ -15,6 +15,7 @@ import framework.framework;
 import common.init;
 import common.common : globals;
 import common.config;
+//import common.settings;
 import toplevel = common.toplevel;
 import utils.configfile;
 import utils.misc;
@@ -83,7 +84,7 @@ void lmain(char[][] args) {
 
     auto fwconf = loadConfig("framework");
     fwconf.mixinNode(cmdargs.getSubNode("fw"), true);
-    auto fw = new Framework(fwconf);
+    auto fw = new Framework();
     fw.setCaption("Lumbricus");
 
     globals.initGUIStuff();

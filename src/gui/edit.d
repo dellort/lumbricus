@@ -35,7 +35,7 @@ class EditLine : Widget {
     void delegate(EditLine sender) onChange;
 
     this() {
-        font = gFramework.getFont("editline");
+        font = gFontManager.loadFont("editline");
         mCursorTimer = new Timer(timeMsecs(500), &onTimer);
     }
 
@@ -270,8 +270,7 @@ class EditLine : Widget {
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
-        auto fnt = gFramework.fontManager.loadFont(
-            node.getStringValue("font"), false);
+        auto fnt = gFontManager.loadFont(node.getStringValue("font"), false);
         if (fnt)
             font = fnt;
 

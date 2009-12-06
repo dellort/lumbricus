@@ -112,7 +112,7 @@ class TestFrame3 : Container {
         auto label = new Label();
         scroll.add(label);
         label.text = "MouseScroller huhuh!";
-        label.font = gFramework.fontManager.loadFont("test");
+        label.font = gFontManager.loadFont("test");
         addChild(wind);
     }
 }
@@ -297,7 +297,7 @@ class TestFrame9 : Container {
         this(int r) {
             auto x = new Label();
             x.text = myformat("{}", r);
-            auto props = gFramework.getFont("normal").properties();
+            auto props = gFontManager.loadFont("normal").properties();
             props.size += r*10; //just to have different request sizes
             x.font = new Font(props);
             addChild(x);
@@ -448,7 +448,7 @@ class TestTask2 : Task {
 
         this() {
             //need clone() here, or the default font will be freed later
-            font = gFramework.fontManager.getStyle("");
+            font = gFontManager.getStyle("");
             updateFont();
         }
 
@@ -549,7 +549,7 @@ class TestTask2 : Task {
 
         for (int n = 0; n < mBars.length; n++) {
             auto la = new Label();
-            la.font = gFramework.getFont("normal");
+            la.font = gFontManager.loadFont("normal");
             la.text = labels[n];
             scr.add(la, 0, n, WidgetLayout.Aligned(-1,0));
 
@@ -691,7 +691,7 @@ class TestTask3 : Task {
 
         for (int n = 0; n < mBars.length; n++) {
             auto la = new Label();
-            la.font = gFramework.getFont("normal");
+            la.font = gFontManager.loadFont("normal");
             la.text = labels[n];
             scr.add(la, 0, n, WidgetLayout.Aligned(-1,0));
 
@@ -711,7 +711,7 @@ class TestTask3 : Task {
         gui.add(scr, WidgetLayout.Expand(true));
 
         mValues = new Label();
-        mValues.font = gFramework.getFont("normal");
+        mValues.font = gFontManager.loadFont("normal");
         gui.add(mValues, WidgetLayout.Aligned(-1, 0));
 
         char[][] files;
@@ -794,7 +794,7 @@ class TestTask4 : Task {
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
-        auto log = new LogWindow(gFramework.getFont("normal"));
+        auto log = new LogWindow(gFontManager.loadFont("normal"));
 
         auto x = new W1();
         x.log = log;

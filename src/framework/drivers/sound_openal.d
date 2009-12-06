@@ -17,7 +17,6 @@ import utils.configfile;
 import utils.path;
 import utils.log;
 
-
 private void checkALError(char[] msg) {
     int code = alGetError();
     if (code != AL_NO_ERROR) {
@@ -396,6 +395,10 @@ class ALSound : DriverSound {
         }
         mALBuffer[] = uint.max;
     }
+
+    override void destroy() {
+        gBase.closeSound(this);
+    }
 }
 
 class ALSoundDriver : SoundDriver {
@@ -408,9 +411,7 @@ class ALSoundDriver : SoundDriver {
 
     const cDefaultChannelCount = 20;
 
-    this(Sound base, ConfigNode config) {
-        assert(base is gFramework.sound()); //lol
-
+    this() {
         assert(!gBase);
         gBase = this;
 
@@ -433,7 +434,8 @@ class ALSoundDriver : SoundDriver {
         Derelict_SetMissingProcCallback(null);
         Sound_Init();
 
-        mChannels.length = config.getIntValue("channels", cDefaultChannelCount);
+        //yyy mChannels.length = config.getIntValue("channels", cDefaultChannelCount);
+        mChannels.length = cDefaultChannelCount;
         foreach (ref c; mChannels) {
             c = new ALChannel();
         }
@@ -495,7 +497,7 @@ class ALSoundDriver : SoundDriver {
     }
 
     static this() {
-        SoundDriverFactory.register!(typeof(this))("openal");
+        registerFrameworkDriver!(typeof(this))("openal");
     }
 }
 

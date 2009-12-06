@@ -10,17 +10,11 @@ import utils.weaklist;
 import utils.stream;
 import str = utils.string;
 
-package {
-    struct FontKillData {
-        DriverFont font;
+//read-only for outside
+FontManager gFontManager;
 
-        void doFree() {
-            if (font) {
-                Font.freeDriverFont(font);
-            }
-        }
-    }
-    WeakList!(Font, FontKillData) gFonts;
+static this() {
+    gFontManager = new FontManager();
 }
 
 
@@ -53,36 +47,28 @@ struct FontProperties {
     }
 }
 
-class Font {
+abstract class DriverFont : DriverResource {
+    //w == int.max for unlimited text
+    //fore, back, border_color: Color.Invalid to use predefined color
+    abstract Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text);
+    abstract Vector2i textSize(char[] text, bool forceHeight);
+}
+
+abstract class FontDriver : Driver {
+    abstract DriverFont createFont(FontProperties props);
+}
+
+final class Font : FrameworkResourceT!(DriverFont) {
     private {
         FontProperties mProps;
-        package DriverFont mFont;
     }
 
     this(FontProperties props) {
         mProps = props;
-        gFonts.add(this);
     }
 
-    package static void freeDriverFont(inout DriverFont f) {
-        gFramework.fontDriver.destroyFont(f);
-    }
-
-    //if DriverFont isn't loaded yet, load it
-    package void prepare() {
-        if (!mFont) {
-            mFont = gFramework.fontDriver.createFont(mProps);
-        }
-    }
-
-    //unload DriverFont
-    //(which still can be loaded again, later)
-    package bool unload() {
-        if (mFont) {
-            freeDriverFont(mFont);
-            return true;
-        }
-        return false;
+    override DriverFont createDriverResource() {
+        return gFontManager.driver.createFont(mProps);
     }
 
     /// draw UTF8 encoded text (use framework singleton to instantiate it)
@@ -96,19 +82,19 @@ class Font {
     Vector2i drawTextLimited(Canvas canvas, Vector2i pos, int width,
         char[] text)
     {
-        prepare();
+        auto font = get();
         if (width == int.max) {
-            return mFont.draw(canvas, pos, width, text);
+            return font.draw(canvas, pos, width, text);
         } else {
             Vector2i s = textSize(text, true);
             if (s.x <= width) {
-                return mFont.draw(canvas, pos, width, text);
+                return font.draw(canvas, pos, width, text);
             } else {
                 char[] dotty = "...";
                 int ds = textSize(dotty, true).x;
                 width -= ds;
-                pos = mFont.draw(canvas, pos, width, text);
-                pos = mFont.draw(canvas, pos, ds, dotty);
+                pos = font.draw(canvas, pos, width, text);
+                pos = font.draw(canvas, pos, ds, dotty);
                 return pos;
             }
         }
@@ -120,8 +106,7 @@ class Font {
     /// forceHeight: if true (default), an empty string will return
     ///              (0, fontHeight) instead of (0,0)
     Vector2i textSize(char[] text, bool forceHeight = true) {
-        prepare();
-        return mFont.textSize(text, forceHeight);
+        return get.textSize(text, forceHeight);
     }
 
     ///return length of text that fits into width w (size(text[0..return]) <= w)
@@ -170,29 +155,14 @@ class Font {
         return mProps;
     }
 
-    private void doFree(bool finalizer) {
-        FontKillData k;
-        k.font = mFont;
-        mFont = null;
-        if (!finalizer) {
-            k.doFree();
-            k = k.init; //reset
-        }
-        gFonts.remove(this, finalizer, k);
-    }
-
-    ~this() {
-        doFree(true);
-    }
-
-    final void free() {
-        doFree(false);
+    void free() {
+        unload();
     }
 }
 
 /// Manages fonts (surprise!)
-/// get with gFramework.fontManager()
-class FontManager {
+/// get with gFontManager
+class FontManager : ResourceManagerT!(FontDriver, Font) {
     private {
         struct FaceStyles {
             //xxx: it'd be better to just keep a file handle to the font file,
@@ -206,6 +176,10 @@ class FontManager {
         Font[char[]] mIDtoFont;
         ConfigNode mNodes;
         FaceStyles[char[]] mFaces;
+    }
+
+    this() {
+        super("font");
     }
 
     /// Read a font definition file. See data/fonts.conf
@@ -316,24 +290,3 @@ class FontManager {
     }
 }
 
-abstract class DriverFont {
-    //w == int.max for unlimited text
-    //fore, back, border_color: Color.Invalid to use predefined color
-    abstract Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text);
-
-    abstract Vector2i textSize(char[] text, bool forceHeight);
-
-    //useful debugging infos lol
-    abstract char[] getInfos();
-}
-
-abstract class FontDriver {
-    abstract DriverFont createFont(FontProperties props);
-    abstract void destroyFont(inout DriverFont handle);
-    //invalidates all fonts
-    abstract int releaseCaches();
-    abstract void destroy();
-}
-
-alias StaticFactory!("FontDrivers", FontDriver, FontManager,
-    ConfigNode) FontDriverFactory;

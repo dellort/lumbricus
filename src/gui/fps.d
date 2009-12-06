@@ -45,7 +45,7 @@ class GuiFps : Widget {
     }
 
     this() {
-        mFont = gFramework.getFont("fpsfont");
+        mFont = gFontManager.loadFont("fpsfont");
     }
 
     override Vector2i layoutSizeRequest() {

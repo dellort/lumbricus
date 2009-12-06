@@ -58,7 +58,7 @@ class FMODSound : DriverSound {
         return mLength;
     }
 
-    private void free() {
+    override void destroy() {
         FMOD_Sound_Release(mSound);
         mSound = null;
         if (mSourceSt) {
@@ -215,9 +215,7 @@ class FMODSoundDriver : SoundDriver {
     //Number of "virtual" FMOD channels to use
     const cVirtualChannelCount = 512;
 
-    this(Sound base, ConfigNode config) {
-        assert(base is gFramework.sound()); //lol
-
+    this() {
         assert(!gBase);
         gBase = this;
 
@@ -275,11 +273,6 @@ class FMODSoundDriver : SoundDriver {
         return new FMODSound(data);
     }
 
-    void closeSound(DriverSound s) {
-        auto fs = castStrict!(FMODSound)(s);
-        fs.free();
-    }
-
     void destroy() {
         foreach (c; mChannels) {
             c.close();
@@ -293,6 +286,6 @@ class FMODSoundDriver : SoundDriver {
     }
 
     static this() {
-        SoundDriverFactory.register!(typeof(this))("fmod");
+        registerFrameworkDriver!(typeof(this))("fmod");
     }
 }

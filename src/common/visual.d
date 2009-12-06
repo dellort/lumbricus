@@ -412,7 +412,7 @@ public class FormattedText {
     }
 
     this() {
-        mRootStyle.font = gFramework.fontManager.loadFont("default");
+        mRootStyle.font = gFontManager.loadFont("default");
         mTranslator = localeRoot();
         mBorder.enabled = false;
     }
@@ -484,7 +484,7 @@ public class FormattedText {
         void error(char[] msg) {
             //hmmm
             Part pmsg;
-            pmsg.style.font = gFramework.fontManager.loadFont("txt_error");
+            pmsg.style.font = gFontManager.loadFont("txt_error");
             pmsg.text = "[" ~ msg ~ "]";
             mParts ~= pmsg;
             stylechange(); //following text has not error style

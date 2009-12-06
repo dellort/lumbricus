@@ -101,7 +101,7 @@ class TeamInfo {
         team = t;
         theme = t.color();
         color = theme.color;
-        auto st = gFramework.fontManager.getStyle("wormfont");
+        auto st = gFontManager.getStyle("wormfont");
         st.fore = color;
         font = new Font(st);
         auto st_flash = st;

@@ -4,6 +4,7 @@ module common.toplevel;
 import framework.font;
 import framework.keysyms;
 import framework.framework;
+import framework.sound;
 import framework.commandline;
 import framework.i18n;
 import framework.timesource;
@@ -12,6 +13,12 @@ import gui.widget;
 import gui.fps;
 import gui.container;
 import gui.console;
+import gui.propedit;
+import gui.boxcontainer;
+import gui.tablecontainer;
+import gui.button;
+import gui.scrollbar;
+import gui.dropdownlist;
 import gui.wm;
 import common.common;
 import common.loadsave;
@@ -330,6 +337,9 @@ private:
             "Switch some debugging stuff in Framework on/off", ["bool:Value"]);
         +/
 
+        globals.cmdLine.registerCommand("fw_settings", &cmdFwSettings,
+            "Framework settings", null);
+
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "-");
         globals.cmdLine.registerCommand("locale", &cmdLocale,
@@ -372,6 +382,12 @@ private:
                 write.writefln("string '{}' not found", s);
             }
         }
+    }
+
+    private void cmdFwSettings(MyBox[] args, Output write) {
+        auto t = new Task(taskManager); //grrr
+        createPropertyEditWindow(t, gFrameworkSettings, false,
+            "Framework settings");
     }
 
     private char[][] complete_fw_info() {
@@ -694,7 +710,7 @@ private:
         mGui.doFrame(timeCurrentTime());
         mGuiFrameTime.stop();
 
-        globals.setCounter("soundchannels", gFramework.sound.activeSources());
+        globals.setCounter("soundchannels", gSoundManager.activeSources());
     }
 
     private void onFrame(Canvas c) {
@@ -810,7 +826,7 @@ class StatsWindow : Task {
                 if (!table.get(0, line)) {
                     la = new Label();
                     lb = new Label();
-                    la.font = gFramework.getFont("normal");
+                    la.font = gFontManager.loadFont("normal");
                     lb.font = la.font;
                     table.add(la, 0, line);
                     table.add(lb, 1, line, WidgetLayout.Aligned(+1, 0));
@@ -872,129 +888,6 @@ class StatsWindow : Task {
 
     static this() {
         TaskFactory.register!(typeof(this))("stats");
-    }
-}
-
-import gui.boxcontainer;
-import gui.tablecontainer;
-import gui.button;
-import gui.scrollbar;
-import gui.dropdownlist;
-
-//small hack
-//should be replaced by sth... better
-//maybe until better configfile and GUI stuff is available
-//(maybe configfile schema, generic handling of datatypes)
-class SwitchDriver : Task {
-    const cDriverTypes = 4;
-    char[][cDriverTypes] selects = ["base", "draw", "sound", "font"];
-
-    DropDownList[cDriverTypes] mSelects;
-    Button[] mChks;
-    BoxContainer mList;
-    ConfigNode mCurrentConfig;  //initialized from framework.conf
-
-    this(TaskManager mgr, char[] args = "") {
-        super(mgr);
-
-        mCurrentConfig = loadConfig("framework");
-        mList = new BoxContainer(false, false, 5);
-
-        foreach (ref dd; mSelects) {
-            dd = new DropDownList();
-        }
-        //sorry for this mess
-        mSelects[0].list.setContents(FrameworkDriverFactory.classes());
-        mSelects[0].selection = FrameworkDriverFactory.lookupDynamic(
-            gFramework.driver().classinfo);
-        mSelects[1].list.setContents(DrawDriverFactory.classes());
-        mSelects[1].selection = DrawDriverFactory.lookupDynamic(
-            gFramework.drawDriver().classinfo);
-        mSelects[2].list.setContents(SoundDriverFactory.classes());
-        mSelects[2].selection = SoundDriverFactory.lookupDynamic(
-            gFramework.sound.driver().classinfo);
-        mSelects[3].list.setContents(FontDriverFactory.classes());
-        mSelects[3].selection = FontDriverFactory.lookupDynamic(
-            gFramework.fontDriver().classinfo);
-
-        refresh();
-
-        auto wnd = gWindowManager.createWindow(this, mList, "Switch driver");
-        wnd.window.zorder = 1;
-    }
-
-    void ddSelect(DropDownList sender) {
-        refresh();
-    }
-
-    //recreate the gui on start or after driver selection changed
-    void refresh() {
-        updateConfig();
-
-        mList.clear;
-        mChks = null;
-
-        auto tbl = new TableContainer(2, cDriverTypes, Vector2i(3, 5));
-        foreach (int idx, dd; mSelects) {
-            //should have selected the current drivers above
-            assert(dd.selection.length > 0);
-            dd.onSelect = &ddSelect;
-            auto lbl = new Label();
-            lbl.text = selects[idx];
-            tbl.add(lbl, 0, idx);
-            tbl.add(dd, 1, idx, WidgetLayout.Expand(true));
-
-            //for every driver, add all bool values from the config
-            foreach (char[] name, ConfigNode sub;
-                mCurrentConfig.getSubNode(dd.selection))
-            {
-                bool checked;
-                try {
-                    checked = sub.getCurValue!(bool)();
-                } catch {  //xxx stupid hidden exception class
-                    continue;
-                }
-                auto b = new Button();
-                b.text = dd.selection ~ '.' ~ name;
-                b.isCheckbox = true;
-                b.checked = checked;
-                mChks ~= b;
-            }
-        }
-        mList.add(tbl);
-
-        foreach (b; mChks) {
-            mList.add(b);
-        }
-
-        auto apply = new Button();
-        apply.text = "Apply";
-        apply.centerX = true;
-        apply.onClick = &onApply;
-        mList.add(apply, WidgetLayout.Expand(true));
-    }
-
-    void updateConfig() {
-        auto drvNode = mCurrentConfig.getSubNode("drivers");
-        foreach (int idx, drvName; selects) {
-            drvNode[drvName] = mSelects[idx].selection;
-        }
-        foreach (int index, b; mChks) {
-            mCurrentConfig.setStringValueByPath(b.text,
-                b.checked ? "true" : "false");
-        }
-    }
-
-    void onApply(Button sender) {
-        updateConfig();
-        gFramework.scheduleDriverReload(Framework.DriverReload(mCurrentConfig));
-    }
-
-    override void onFrame() {
-    }
-
-    static this() {
-        TaskFactory.register!(typeof(this))("switchdriver");
     }
 }
 

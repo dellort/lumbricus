@@ -6,6 +6,7 @@ import common.task;
 
 import framework.font;
 import framework.framework;
+import framework.sound;
 import common.resources;
 import common.resset;
 import common.allres;
@@ -162,7 +163,7 @@ class SampleHandler : ResViewHandler!(Sample) {
     class Viewer : SimpleContainer {
         Label lblstate;
         this() {
-            ch = gFramework.sound.createSource();
+            ch = gSoundManager.createSource();
             ch.sample = resource;
             auto al = WidgetLayout.Aligned(-1, 0);
             auto box = new BoxContainer(false, false, 5);
@@ -207,7 +208,7 @@ class SampleHandler : ResViewHandler!(Sample) {
         override void simulate() {
             ch.info = pos;
             lblstate.text = state()
-                ~ (gFramework.sound.available() ? " a " : " n ")
+                ~ (gSoundManager.available() ? " a " : " n ")
                 ~ ch.position().toString ~ "/" ~ resource.length.toString;
         }
     }
@@ -228,7 +229,7 @@ class SampleHandler : ResViewHandler!(Sample) {
         }
         override void onDraw(Canvas c) {
             if (!f)
-                f = gFramework.getFont("normal");
+                f = gFontManager.loadFont("normal");
             c.drawRect(box, Color(0,0,0));
             c.drawCircle(mousePos(), 5, Color(1,0,0));
             f.drawText(c, Vector2i(0), msg);
@@ -395,7 +396,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
         auto table = new TableContainer(2, 0, Vector2i(10,1), [true, false]);
 
         auto infos = new Label();
-        infos.font = gFramework.getFont("normal");
+        infos.font = gFontManager.loadFont("normal");
         infos.text = "Flags: "
             ~ (resource.keepLastFrame ? "keepLastFrame, " : "")
             ~ (resource.repeat ? "repeat, " : " ")
@@ -406,7 +407,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
 
         void addscr(out ScrollBar scr, out Label lbl) {
             lbl = new Label();
-            lbl.font = gFramework.getFont("normal");
+            lbl.font = gFontManager.loadFont("normal");
             scr = new ScrollBar(true);
             scr.onValueChange = &onScrollbar;
             table.addRow();
@@ -653,7 +654,7 @@ class ResViewerTask : Task {
             props.addColumn();
             props.cellSpacing = Vector2i(7, 1);
             void addLabel(out Label val, char[] name) {
-                Font f = gFramework.getFont("normal");
+                Font f = gFontManager.loadFont("normal");
                 props.addRow();
                 auto lbl = new Label();
                 lbl.text = name ~ ":";

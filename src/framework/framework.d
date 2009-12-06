@@ -1,13 +1,9 @@
 module framework.framework;
 
-//dependency hack
-public import framework.enums;
 
 public import framework.drawing;
 public import framework.event;
 public import framework.keybindings;
-public import framework.sound;
-public import framework.font;
 public import framework.filesystem;
 public import utils.color;
 public import utils.rect2;
@@ -23,6 +19,7 @@ import utils.perf;
 import utils.time;
 import utils.weaklist;
 import utils.gzip;
+import utils.proplist;
 
 import utils.stream;
 
@@ -32,10 +29,99 @@ import cstdlib = tango.stdc.stdlib;
 
 import rotozoom = framework.rotozoom;
 
+
+enum Transparency {
+    None,
+    Colorkey,
+    Alpha,
+    AutoDetect, //special value: get transparency from file when loading
+                //invalid as surface transparency type
+}
+
+PropertyList gFrameworkSettings;
+private {
+    PropertyList gFwDrvList;
+    char[][char[]] gDefaultDrivers;
+}
+
+static this() {
+    gFrameworkSettings = new PropertyList;
+    gFrameworkSettings.name = "framework";
+
+    gFrameworkSettings.addListener((PropertyNode owner, PropertyValue v) {
+        Trace.formatln("CHANGE: {} -> {}", v.path, v.asString);
+    });
+
+    gFwDrvList = gFrameworkSettings.addList("drivers");
+
+    //hack to force some defaults
+    //this is only so that if the conf file with the defaults can not be loaded,
+    //  you still get sensible defaults (and not some random choice)
+    //those with only one drivers select the only existing one as default
+    gDefaultDrivers["draw"] = "opengl";
+    gDefaultDrivers["sound"] = "none";
+
+    //silly hack
+    auto cmd = new PropertyCommand();
+    cmd.name = "driver_reload";
+    cmd.onCommand = { gFramework.scheduleDriverReload(); };
+    gFrameworkSettings.addNode(cmd);
+}
+
+//automatically called by registerFrameworkDriver()
+private void addDriverEntry(char[] type, char[] driver)
+{
+    auto choice = castStrict!(PropertyChoice)(gFwDrvList.find(type));
+    if (!choice) {
+        choice = new PropertyChoice();
+        choice.name = type;
+        gFwDrvList.addNode(choice);
+    }
+    assert(!choice.isValidChoice(driver), "double entry?");
+    choice.add(driver);
+    if (auto p = type in gDefaultDrivers) {
+        if (*p == driver) //at creation time of that driver; can't set otherwise
+            choice.setAsStringDefault(driver);
+    }
+}
+
+//get what's returned
+
+private char[] getSelectedDriver(char[] type) {
+    auto choice = castStrict!(PropertyChoice)(gFwDrvList.find(type));
+    return choice.asString();
+}
+
 //**** driver stuff
 
+abstract class DriverResource {
+    ///deallocate
+    abstract void destroy();
 
-abstract class DrawDriver {
+    //useful debugging infos lol
+    void getInfos(out char[] desc, out uint extra_data) {
+    }
+}
+
+abstract class Driver {
+    //return number of released objects
+    int releaseCaches() {
+        return 0;
+    }
+
+    abstract void destroy();
+
+    //called each frame
+    void tick() {
+    }
+
+    ///for debugging
+    char[] getDriverInfo() {
+        return "";
+    }
+}
+
+abstract class DrawDriver : Driver {
     abstract DriverSurface createSurface(SurfaceData data);
 
     abstract Canvas startScreenRendering();
@@ -46,18 +132,12 @@ abstract class DrawDriver {
     abstract Surface screenshot();
 
     abstract int getFeatures();
-
-    abstract void destroy();
-
-    int releaseCaches() {
-        return 0;
-    }
 }
 
 ///actual surface stored/managed in a driver specific way
 ///i.e. SDL_Surface for SDL, a texture in OpenGL...
 ///manually memory managment by the Framework and the Driver
-abstract class DriverSurface {
+abstract class DriverSurface : DriverResource {
     ///make sure the pixeldata is in SurfaceData.data
     ///(a driver might steal it before)
     ///the OpenGL driver actually does this with version = StealSurfaceData;
@@ -69,12 +149,6 @@ abstract class DriverSurface {
     ///if the driver doesn't care about SubSurface, this can be a no-op
     void newSubSurface(SubSurface ss) {
     }
-
-    ///deallocate
-    abstract void kill();
-
-    //useful debugging infos lol
-    abstract void getInfos(out char[] desc, out uint extra_data);
 }
 
 
@@ -86,7 +160,7 @@ enum DriverFeatures {
     usingOpenGL = 4,
 }
 
-abstract class FrameworkDriver {
+abstract class FrameworkDriver : Driver {
     ///flip screen after drawing
     abstract void flipScreen();
 
@@ -113,12 +187,6 @@ abstract class FrameworkDriver {
 
     ///sleep for a specific time (grr, Phobos doesn't provide this)
     abstract void sleepTime(Time relative);
-
-    ///for debugging
-    abstract char[] getDriverInfo();
-
-    ///deinit driver
-    abstract void destroy();
 }
 
 struct DriverInputState {
@@ -145,6 +213,159 @@ struct VideoWindowState {
         return fullscreen ? fs_size : window_size;
     }
 }
+
+//for FontManager and SoundManager
+class ResourceManager {
+    abstract int releaseCaches(bool force);
+    abstract int deferredFree();
+    abstract void unloadDriver();
+    abstract void loadDriver(char[] driver_name);
+    void tick() {}
+    //name passed to registerDriverType()
+    abstract char[] getDriverType();
+}
+
+//**** driver helpers
+
+//resource manager for a specific driver type
+//this class is a singleton (there'd be no inheritance if it weren't an object)
+//ResourceT is a duck type (=> figure it out yourself until it compiles)
+abstract class ResourceManagerT(DriverT, ResourceT) : ResourceManager {
+    static assert(is(DriverT : Driver));
+    private {
+        DriverT mDriver;
+        typeof(this) gSingleton;
+        char[] mDriverType;
+    }
+
+    this(char[] driver_type_name) {
+        mDriverType = driver_type_name;
+        assert(!gSingleton);
+        gSingleton = this;
+        //assert(!!gFramework);
+        registerDriverType!(DriverT)(mDriverType);
+        Framework.registerManager(this);
+    }
+
+    override char[] getDriverType() {
+        return mDriverType;
+    }
+
+    final DriverT driver() {
+        return mDriver;
+    }
+
+    override void loadDriver(char[] name) {
+        if (mDriver)
+            assert(false, "driver already loaded");
+        mDriver = createDriver!(DriverT)(name);
+    }
+
+    override void unloadDriver() {
+        if (!mDriver)
+            return;
+        releaseCaches(true);
+        mDriver.destroy();
+        mDriver = null;
+    }
+
+    override int releaseCaches(bool force) {
+        int count;
+        count += ResourceT.releaseAll(force);
+        count += mDriver.releaseCaches();
+        return count;
+    }
+
+    override int deferredFree() {
+        return ResourceT.deferredFree();
+    }
+
+    override void tick() {
+        if (driver)
+            driver.tick();
+    }
+}
+
+//wrap a DriverResource, so that it is created on demand and can be GCed
+//DriverResourceT must be something derived from DriverResource
+abstract class FrameworkResourceT(DriverResourceT) {
+    static assert(is(DriverResourceT : DriverResource));
+    private {
+        static WeakList!(ResWrapper) gFinalizers;
+        //need this idiotic indirection just because WeakList can't list the
+        //  tracked references (race conditions prevent safe implementation)
+        //this must not contain any GC references to the enclosing class
+        static class ResWrapper {
+            DriverResourceT res;
+        }
+        ResWrapper mRes;
+        FinalizeBlock mFinalize;
+    }
+
+    //static bool delegate(DriverResourceT) NeedResource;
+
+    static this() {
+        gFinalizers = new typeof(gFinalizers);
+    }
+
+    this() {
+        mRes = new ResWrapper();
+    }
+
+    void preload() {
+        get();
+    }
+
+    //get driver object; possibly create it
+    protected final DriverResourceT get() {
+        if (!mRes.res) {
+            mRes.res = createDriverResource();
+            assert(!!mRes.res);
+            gFinalizers.add(&mFinalize, mRes);
+        }
+        return mRes.res;
+    }
+
+    //destroy driver object; return if there was an object to destroy
+    //(which still can be loaded again, later)
+    protected bool unload() {
+        if (mRes.res) {
+            mRes.res.destroy();
+            mRes.res = null;
+            gFinalizers.remove(&mFinalize, false);
+            return true;
+        }
+        return false;
+    }
+
+    //called on every frame; will free GC'ed driver objects
+    static int deferredFree() {
+        int freed;
+        foreach (ResWrapper w; gFinalizers.popFinalizers()) {
+            if (w.res) {
+                w.res.destroy();
+                w.res = null;
+                freed++;
+            }
+        }
+        return freed;
+    }
+
+    //force=false: don't free a resource if the resource is needed
+    //  (when a sound is playing, the user shouldn't hear it)
+    static int releaseAll(bool force) {
+        //xxx if force=false, use NeedResource to decide if to free an object
+        gFinalizers.removeAll(true);
+        auto res = deferredFree();
+        assert(gFinalizers.list.length == 0);
+        return res;
+    }
+
+    protected abstract DriverResourceT createDriverResource();
+}
+
+
+//**** surfaces
 
 //use C's malloc() for pixel data (D GC can't handle big sizes very well)
 version = UseCMalloc;
@@ -192,11 +413,12 @@ final class SurfaceData {
     Color.RGBA32[] data;
     size_t pitch; //stale, don't use
 
-    //I don't really know why this is here, but having it in Surface is annoying
     DriverSurface driver_surface;
 
     //indexed by SubSurface.index()
     SubSurface[] subsurfaces;
+
+    bool was_freed; //debugging
 
     //alloc/set data
     //size must be set before calling this
@@ -230,8 +452,10 @@ final class SurfaceData {
     }
 
     //free data, but leave everything else intact
-    void pixels_free() {
+    void pixels_free(bool for_steal = false) {
         assert(!data_locked);
+        if (!for_steal) //yyy
+            assert(!driver_surface);
 
         if (data is null)
             return;
@@ -244,6 +468,15 @@ final class SurfaceData {
         }
 
         data = null;
+    }
+
+    void do_free() {
+        assert(!was_freed, "double free"); //yyy remove
+        if (data || driver_surface) {
+            was_freed = true;
+            kill_driver_surface();
+            pixels_free();
+        }
     }
 
     void lock() {
@@ -264,19 +497,20 @@ final class SurfaceData {
     }
 
     void kill_driver_surface() {
-        if (driver_surface)
-            gFramework.killDriverSurface(driver_surface);
+        if (driver_surface) {
+            driver_surface.destroy();
+            driver_surface = null;
+        }
         assert(data !is null);
     }
 
     ///return and possibly create the driver's surface
-    DriverSurface get_driver_surface(bool create = true) {
-        if (!driver_surface && create) {
-            assert(data !is null);
-            driver_surface = gFramework.createDriverSurface(this);
-            assert(!!driver_surface);
-        }
-        return driver_surface;
+    void create_driver_surface() {
+        assert(!was_freed);
+        assert(!driver_surface);
+        assert(data !is null);
+        driver_surface = gFramework.drawDriver.createSurface(this);
+        assert(!!driver_surface);
     }
 
     //functions used by SDL driver, and defined here for unknown reasons
@@ -357,36 +591,10 @@ bool pixelIsTransparent(Color.RGBA32* p) {
 
 Framework gFramework;
 
-package {
-    struct SurfaceKillData {
-        //this data is held for a while in a region not scanned by the GC
-        //(why??? I forgot)
-        //but other references (at least gSurfaceData) keep it alive
-        SurfaceData data;
+private WeakList!(SurfaceData) gSurfaces;
 
-        //this is called from the framework's main loop, so there's not any
-        //  GC/weakpointer weirdness
-        void doFree() {
-            if (data) {
-                data.kill_driver_surface();
-                data.pixels_free();
-                assert(data in gSurfaceData);
-                gSurfaceData.remove(data);
-            }
-            data = null;
-        }
-    }
-    WeakList!(Surface, SurfaceKillData) gSurfaces;
-    //this is to prevent SurfaceData from GC'ed
-    bool[SurfaceData] gSurfaceData;
-
-    void init_stuff() {
-        if (gSurfaces)
-            return;
-        gSurfaces = new typeof(gSurfaces);
-        gFonts = new typeof(gFonts);
-        gSounds = new typeof(gSounds);
-    }
+static this() {
+    gSurfaces = new typeof(gSurfaces);
 }
 
 //base class for framework errors
@@ -411,6 +619,7 @@ class Surface {
     private {
         SurfaceData mData;
         SubSurface mFullSubSurface;
+        FinalizeBlock mFinalize;
     }
 
     ///"best" size for a large texture
@@ -431,10 +640,6 @@ class Surface {
 
         readSurfaceProperties();
 
-        init_stuff();
-        gSurfaceData[mData] = true; //don't GC-collect data
-        gSurfaces.add(this);
-
         mFullSubSurface = createSubSurface(Rect2i(mData.size));
     }
 
@@ -445,12 +650,20 @@ class Surface {
 
     ///kill driver's surface, probably copy data back
     final void passivate() {
-        mData.kill_driver_surface();
+        if (mData.driver_surface) {
+            mData.kill_driver_surface();
+            gSurfaces.remove(&mFinalize, false);
+        }
     }
 
     ///return and possibly create the driver's surface
     final DriverSurface getDriverSurface(bool create = true) {
-        return mData.get_driver_surface(create);
+        assert(!!mData, "this surface was free'd");
+        if (!mData.driver_surface && create) {
+            mData.create_driver_surface();
+            gSurfaces.add(&mFinalize, mData);
+        }
+        return mData.driver_surface;
     }
 
     ///load surface into backend
@@ -489,28 +702,15 @@ class Surface {
         return rc;
     }
 
-    private void doFree(bool finalizer) {
-        SurfaceKillData k;
-        k.data = mData;
-        if (!finalizer) {
-            //if not from finalizer, actually can call C functions
-            //so free it now (and not later, by lazy freeing)
-            k.doFree();
-            k = k.init; //reset
-        }
-        mData = null;
-        gSurfaces.remove(this, finalizer, k);
-    }
-
     //xxx: Tango now provides an Object.dispose(), which could be useful here
-
-    ~this() {
-        doFree(true);
-    }
 
     /// to avoid memory leaks
     final void free() {
-        doFree(false);
+        if (mData) {
+            mData.do_free();
+            gSurfaces.remove(&mFinalize, false);
+        }
+        mData = null;
     }
 
     /// accessing pixels with lockPixelsRGBA32() will be S.L.O.W. (depending
@@ -810,23 +1010,22 @@ enum InfoString {
     ResourceList,
 }
 
+const cDrvBase = "base";
+const cDrvDraw = "draw";
+
 class Framework {
     private {
         FrameworkDriver mDriver;
         DrawDriver mDrawDriver;
-        DriverReload* mDriverReload;
+        bool mDriverReload;
         ConfigNode mLastWorkingDriver;
 
         bool mShouldTerminate;
 
-        //holds the DriverSurfaces to prevent them being GC'ed
-        //cf. i.e. createDriverSurface()
-        bool[DriverSurface] mDriverSurfaces;
-
         //misc singletons, lol
-        FontManager mFontManager;
-        Sound mSound;
         Log mLog;
+        //FontManager, SoundManager
+        static /+yyy hack +/ ResourceManager[] mManagers;
 
         Time mFPSLastTime;
         uint mFPSFrameCount;
@@ -848,13 +1047,12 @@ class Framework {
 
         CacheReleaseDelegate[] mCacheReleasers;
 
-        FontDriver mFontDriver;
         //base drivers can report that the app is hidden, which will stop
         //  redrawing (no more onFrame events)
         bool mAppVisible;
     }
 
-    this(ConfigNode fwconfig) {
+    this() {
         mLog = registerLog("Fw");
 
         if (gFramework !is null) {
@@ -862,58 +1060,38 @@ class Framework {
         }
         gFramework = this;
 
-        init_stuff();
-
         mKeyStateMap.length = Keycode.max - Keycode.min + 1;
 
-        mFontManager = new FontManager();
-        mSound = new Sound(fwconfig.getSubNode("sound"));
-
-        replaceDriver(fwconfig);
+        replaceDriver();
     }
 
-    private void replaceDriver(ConfigNode config) {
-        ConfigNode drivers = config.getSubNode("drivers");
-        auto base = drivers.getStringValue("base", "sdl");
-        auto draw = drivers.getStringValue("draw", "sdl");
-        auto font = drivers.getStringValue("font", "freetype");
-        auto sound = drivers.getStringValue("sound", "null");
-        if (!FrameworkDriverFactory.exists(base)) {
-            throw new FrameworkException("Base driver doesn't exist: "
-                ~ base);
-        }
-        if (!DrawDriverFactory.exists(draw)) {
-            throw new FrameworkException("Draw driver doesn't exist: "
-                ~ draw);
-        }
-        if (!FontDriverFactory.exists(font)) {
-            throw new FrameworkException("Font driver doesn't exist: "
-                ~ font);
-        }
-        if (!SoundDriverFactory.exists(sound)) {
-            throw new FrameworkException("Sound driver doesn't exist: "
-                ~ sound);
-        }
+    static void registerManager(ResourceManager m) {
+        mManagers ~= m;
+    }
+
+    private void replaceDriver() {
+        Trace.formatln("replace:");
+        gFrameworkSettings.dump((char[] s) { Trace.format("{}", s); } );
+
         //deinit old driver
         VideoWindowState vstate;
         DriverInputState istate;
         if (mDriver) {
             vstate = mDriver.getVideoWindowState();
             istate = mDriver.getInputState();
-            killDriver();
         }
+
+        killDriver();
+
         //new driver
-        mDriver = FrameworkDriverFactory.instantiate(base, this,
-            config.getSubNode(base));
+        mDriver = createDriver!(FrameworkDriver)(getSelectedDriver(cDrvBase));
         //for graphics (pure SDL, OpenGL...)
-        mDrawDriver = DrawDriverFactory.instantiate(draw,
-            config.getSubNode(draw));
-        //init font driver
-        mFontDriver = FontDriverFactory.instantiate(font, mFontManager,
-            config.getSubNode(font));
-        //init sound
-        mSound.reinit(SoundDriverFactory.instantiate(sound, mSound,
-            config.getSubNode(sound)));
+        mDrawDriver = createDriver!(DrawDriver)(getSelectedDriver(cDrvDraw));
+
+        //font and sound drivers
+        foreach (m; mManagers) {
+            m.loadDriver(getSelectedDriver(m.getDriverType()));
+        }
 
         mDriver.setVideoWindowState(vstate);
         mDriver.setInputState(istate);
@@ -923,75 +1101,49 @@ class Framework {
     }
 
     struct DriverReload {
-        ConfigNode ndriver;
+        //ConfigNode ndriver;
     }
 
-    void scheduleDriverReload(DriverReload r) {
-        mDriverReload = new DriverReload;
-        *mDriverReload = r;
+    void scheduleDriverReload() {
+        mDriverReload = true;
     }
 
     private void checkDriverReload() {
         if (mDriverReload) {
-            replaceDriver(mDriverReload.ndriver);
-            mDriverReload = null;
+            mDriverReload = false;
+            replaceDriver();
         }
     }
 
     private void killDriver() {
-        //xxx: does this do anything that could not be done
-        //     during cache release?
-        mSound.beforeKill();
         releaseCaches(true);
-        assert(mDriverSurfaces.length == 0);
 
-        mSound.close();
+        foreach (m; mManagers) {
+            m.unloadDriver();
+        }
 
-        mFontDriver.destroy();
-        mFontDriver = null;
+        if (mDrawDriver) {
+            mDrawDriver.destroy();
+            mDrawDriver = null;
+        }
 
-        mDrawDriver.destroy();
-        mDrawDriver = null;
-
-        mDriver.destroy();
-        mDriver = null;
+        if (mDriver) {
+            mDriver.destroy();
+            mDriver = null;
+        }
     }
 
     void deinitialize() {
         killDriver();
-        // .free() all Surfaces and then do defered_free()?
+        // .free() all Surfaces and then do deferred_free()?
     }
 
     public FrameworkDriver driver() {
         return mDriver;
     }
 
-    public FontDriver fontDriver() {
-        return mFontDriver;
-    }
-
     public DrawDriver drawDriver() {
         return mDrawDriver;
-    }
-
-    //--- DriverSurface handling
-
-    package DriverSurface createDriverSurface(SurfaceData data) {
-        DriverSurface res = mDrawDriver.createSurface(data);
-        //expect a new instance
-        assert(!(res in mDriverSurfaces));
-        mDriverSurfaces[res] = true;
-        return res;
-    }
-
-    //objects free'd through this must have been created by createDriverSurface
-    package void killDriverSurface(inout DriverSurface surface) {
-        if (!surface)
-            return;
-        assert(surface in mDriverSurfaces);
-        mDriverSurfaces.remove(surface);
-        surface.kill();
-        surface = null;
     }
 
     //--- Surface handling
@@ -1199,21 +1351,6 @@ class Framework {
         mAppVisible = visible;
     }
 
-    //--- font stuff, sound
-
-    /// load a font using the font manager
-    Font getFont(char[] id) {
-        return fontManager.loadFont(id);
-    }
-
-    FontManager fontManager() {
-        return mFontManager;
-    }
-
-    Sound sound() {
-        return mSound;
-    }
-
     //--- video mode
 
     void setVideoMode(Vector2i size, int bpp, bool fullscreen) {
@@ -1301,8 +1438,9 @@ class Framework {
             //xxx: whereever this should be?
             checkDriverReload();
 
-            //and where should this be???
-            mSound.tick();
+            foreach (m; mManagers) {
+                m.tick();
+            }
 
             //mInputTime.start();
             mDriver.processInput();
@@ -1325,8 +1463,8 @@ class Framework {
                 c = null;
             }
 
-            // defered free (GC related, sucky Phobos forces this to us)
-            defered_free();
+            // deferred free (GC related, sucky Phobos forces this to us)
+            deferred_free();
 
             //wait for fixed framerate?
             Time time = timeCurrentTime();
@@ -1380,48 +1518,23 @@ class Framework {
         return mTimers;
     }
 
-    //kill all driver surfaces
-    private int releaseDriverSurfaces() {
-        int count;
-        foreach (Surface s; gSurfaces.list) {
-            if (s.mData.driver_surface)
-                count++;
-            s.passivate();
-        }
-        return count;
-    }
-
-    private int releaseDriverFonts() {
-        int count;
-        foreach (Font f; gFonts.list) {
-            if (f.unload())
-                count++;
-        }
-        return count;
-    }
-
-    private int releaseDriverSounds(bool force) {
-        int count;
-        foreach (Sample s; gSounds.list) {
-            if (s.release(force))
-                count++;
-        }
-        return count;
-    }
-
     //force: for sounds; if true, sounds are released too, but this leads to
     //a hearable interruption
     int releaseCaches(bool force) {
+        if (!mDriver)
+            return 0;
         int count;
         foreach (r; mCacheReleasers) {
             count += r();
         }
+        foreach (m; mManagers) {
+            m.releaseCaches(force);
+        }
         count += mDriver.releaseCaches();
         count += mDrawDriver.releaseCaches();
-        count += mFontDriver.releaseCaches();
-        count += releaseDriverFonts();
-        count += releaseDriverSurfaces();
-        count += releaseDriverSounds(force);
+        count += gSurfaces.countRefs();
+        gSurfaces.removeAll(true);
+        deferred_free(); //actually free surfaces
         return count;
     }
 
@@ -1429,10 +1542,11 @@ class Framework {
         mCacheReleasers ~= callback;
     }
 
-    void defered_free() {
-        gFonts.cleanup((FontKillData d) { d.doFree(); });
-        gSurfaces.cleanup((SurfaceKillData d) { d.doFree(); });
-        gSounds.cleanup((SoundKillData d) { d.doFree(); });
+    void deferred_free() {
+        foreach (m; mManagers) {
+            m.deferredFree();
+        }
+        gSurfaces.cleanup((SurfaceData d) { d.kill_driver_surface(); });
     }
 
     void driver_doVideoInit() {
@@ -1457,6 +1571,7 @@ class Framework {
     /// Since it can have more than one line, it's always terminated with \n
     char[] getInfoString(InfoString inf) {
         char[] res;
+        /+yyy
         switch (inf) {
             case InfoString.Driver: {
                 res = mDriver.getDriverInfo();
@@ -1492,7 +1607,7 @@ class Framework {
             }
             default:
                 res = "?\n";
-        }
+        }+/
         return res;
     }
 
@@ -1503,7 +1618,7 @@ class Framework {
     }
 
     int weakObjectsCount() {
-        return gSurfaces.countRefs() + gFonts.countRefs();
+        return WeakListGeneric.globalWeakObjectsCount();
     }
 
     //--- events
@@ -1529,7 +1644,88 @@ class Framework {
     public void delegate(bool focused) onFocusChange;
 }
 
-alias StaticFactory!("Drivers", FrameworkDriver, Framework,
-    ConfigNode) FrameworkDriverFactory;
+private {
+    Factory!(Driver)[ClassInfo] gDriverFactories;
+    char[][ClassInfo] gDriverTypeName;
 
-alias StaticFactory!("DrawDrivers", DrawDriver, ConfigNode) DrawDriverFactory;
+    //find the class that derives directly from "Driver"
+    //the simpler solution would need more code, especially because FontDriver
+    //  etc. are not reachable from this module
+    //xxx might break if you use interfaces
+    //also xxx looks like this isn't really needed
+    ClassInfo driverType(ClassInfo t) {
+        auto cur = t;
+        ClassInfo prev;
+        while (cur) {
+            if (cur is Driver.classinfo) {
+                assert(!!prev, "'Driver' passed to driverType()?");
+                return prev;
+            }
+            prev = cur;
+            cur = cur.base;
+        }
+        assert(false, "unknown driver type: "~t.name);
+    }
+
+    Factory!(Driver) driverFactory(ClassInfo t) {
+        ClassInfo type = driverType(t);
+        if (auto p = type in gDriverFactories) {
+            return *p;
+        }
+        auto n = new Factory!(Driver)();
+        gDriverFactories[type] = n;
+        return n;
+    }
+}
+
+//register driver T under name; returns empty PropertyList for driver options
+PropertyList registerFrameworkDriver(T)(char[] name) {
+    static assert(is(T : Driver));
+    auto t = driverType(T.classinfo);
+    driverFactory(t).register!(T)(name);
+    assert(t in gDriverTypeName, "driver type not registered yet: "~t.name);
+    char[] type = gDriverTypeName[t];
+    addDriverEntry(type, name);
+    return addOptionNode(T.classinfo, type, name);
+}
+
+private PropertyList addOptionNode(ClassInfo ci, char[] type, char[] name) {
+    //unique options namespace (at least needed for base_sdl, draw_sdl)
+    //be sure it doesn't clash with the driver choice entries
+    char[] options = type ~ "_" ~ name;
+    auto opts = new PropertyList();
+    opts.name = options;
+    gFwDrvList.addNode(opts);
+    return opts;
+}
+
+//get back what was returned by registerFrameworkDriver()
+//the returned PropertyList is where driver implementation store options
+//inst is only for type inference ("driverOptions(this)")
+PropertyList driverOptions(T)(T inst) {
+    ClassInfo t = driverType(T.classinfo);
+    char[] type = gDriverTypeName[t];
+    char[] name = gDriverFactories[t].lookupDynamic(T.classinfo);
+    char[] options = type ~ "_" ~ name;
+    return gFwDrvList.sublist(options);
+}
+
+T createDriver(T)(char[] name) {
+    auto factory = driverFactory(T.classinfo);
+    if (!factory.exists(name)) {
+        assert(false, myformat("{} doesn't exist for type {}", name,
+            T.stringof));
+    }
+    return castStrict!(T)(factory.instantiate(name));
+}
+
+void registerDriverType(T)(char[] name) {
+    auto t = driverType(T.classinfo);
+    assert(!(t in gDriverTypeName), "double driver type entry");
+    gDriverTypeName[t] = name;
+}
+
+static this() {
+    registerDriverType!(FrameworkDriver)(cDrvBase);
+    registerDriverType!(DrawDriver)(cDrvDraw);
+}

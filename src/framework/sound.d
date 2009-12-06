@@ -1,11 +1,22 @@
 module framework.sound;
 
-import framework.framework, utils.configfile, utils.factory, utils.time,
+import framework.framework, utils.proplist, utils.factory, utils.time,
     utils.vector2, utils.weaklist, utils.stream, utils.misc, utils.list2;
 
 //sound type is only used for mixing (e.g. sfx may be louder than music)
 //  (esp. this should not influence streaming behaviour)
-alias ubyte SoundType;
+//NOTE: used to be alias ubyte SoundType;
+enum SoundType {
+   sfx,
+   music,
+   other
+}
+
+SoundManager gSoundManager;
+
+static this() {
+    gSoundManager = new SoundManager;
+}
 
 public enum PlaybackState {
     stopped,     //playback has not yet started, or has reached the end
@@ -28,20 +39,6 @@ struct SoundSourceInfo {
     //Vector2f speed;
 }
 
-//the (really, really sucky) memory managment hack
-package {
-    struct SoundKillData {
-        DriverSound sound;
-
-        void doFree() {
-            if (sound) {
-                gFramework.sound.killDriverSound(sound);
-            }
-        }
-    }
-    WeakList!(Sample, SoundKillData) gSounds;
-}
-
 ///audio data (or rather, how it can be loaded)
 ///[the stream data is owned by the Sound class; and as long a DriverSound is
 ///allocated with this DriverSoundData, the DriverSound can assume it's the
@@ -56,7 +53,7 @@ struct DriverSoundData {
 ///handle for any sound data (samples and music)
 ///DriverSoundData is used to create this!
 //(unifying smaples and music simplifies memory managment)
-abstract class DriverSound {
+abstract class DriverSound : DriverResource {
     abstract Time length();
 }
 
@@ -87,69 +84,50 @@ abstract class DriverChannel {
     abstract Time position();
 }
 
-abstract class SoundDriver {
+abstract class SoundDriver : Driver {
     //create/get a free channel to play stuff
     //returns null if none available
     //reserve_for: DriverChannel.reserved_for is set to it
     abstract DriverChannel getChannel(Object reserve_for);
-    //call each frame
-    abstract void tick();
     //load/destroy a sound file
     abstract DriverSound loadSound(DriverSoundData data);
-    abstract void closeSound(DriverSound s);
-
-    abstract void destroy();
 }
 
 ///main sound class, loads samples and music and sets volume
 //NOTE: not overloaded by sound driver anymore
-public class Sound {
+class SoundManager : ResourceManagerT!(SoundDriver, Sample) {
     private {
         //Music mCurrentMusic;
-        SoundDriver mDriver;
         //all loaded sound files (music & samples)
-        bool[DriverSound] mDriverSounds;
         ObjectList!(Source, "sNode") mSources;
 
-        float mVolume = 1.0f;
-        float[SoundType.max] mTypeVolume = 1.0f;
+        PropertyValue mVolume;
+        PropertyValue[SoundType.max] mTypeVolume;
     }
 
-    this(ConfigNode cfg) {
+    this() {
+        super("sound");
         mSources = new typeof(mSources);
-        mDriver = new NullSound(this, null);
-        mVolume = cfg.getValue("master_volume", mVolume);
+
+        auto snd = gFrameworkSettings.addList("sound");
+
+        mVolume = snd.add!(float)("master_volume", 1.0f).asValue;
+        mVolume.addListener(&change_volume);
         foreach (int idx, ref tv; mTypeVolume) {
-            tv = cfg.getValue(myformat("volume{}",idx), tv);
+            tv = snd.add!(float)(myformat("volume{}",idx), 1.0f).asValue;
+            tv.addListener(&change_volume);
         }
     }
 
-    //disassociate from current sound driver
-    //all DriverSounds must have been released
-    public void close() {
-        if (!available())
-            return;
-        assert(mDriverSounds.length == 0);
-        //Trace.formatln("destroy");
-        mDriver.destroy();
-        mDriver = new NullSound(this, null);
-    }
-
-    //save audio-state before all DriverSounds are free'd and close()/reinit()
-    //is called
-    public void beforeKill() {
-    }
-
-    //associate with new sound driver
-    public void reinit(SoundDriver driver) {
-        //replace old driver by the dummy driver and overwrite that one
-        close();
-        mDriver = driver;
+    private void change_volume(PropertyValue v) {
+        foreach (s; mSources) {
+            s.updateVolume();
+        }
     }
 
     ///call this in main loop to update the sound system
-    public void tick() {
-        mDriver.tick();
+    override void tick() {
+        super.tick();
         foreach (s; mSources) {
             s.tick();
         }
@@ -176,149 +154,82 @@ public class Sound {
     ///yes, it is silly, and I don't even know when st will definitely be closed
     ///xxx: ok, changed to a filename; class FileSystem is used to open it
     /// this shouldn't have any disadvantages
-    public Sample createSample(char[] filename, SoundType type = 0,
+    public Sample createSample(char[] filename, SoundType type = SoundType.init,
         bool streamed = false)
     {
-        return new Sample(this, filename, type, streamed);
+        return new Sample(filename, type, streamed);
     }
 
     ///set global volume (also see setTypeVolume)
     void volume(float value) {
-        mVolume = clampRangeC(value, 0f, 1f);
-        foreach (s; mSources) {
-            s.updateVolume();
-        }
+        mVolume.setval(value);
     }
     float volume() {
-        return mVolume;
+        return clampRangeC(mVolume.getval!(float)(), 0.0f, 1.0f);
     }
 
     ///set volume for a specific sample type
     ///actual source volume: <global> * <type volume> * <source volume>
     void setTypeVolume(SoundType v, float value) {
-        mTypeVolume[v] = clampRangeC(value, 0f, 1f);
-        foreach (s; mSources) {
-            s.updateVolume();
-        }
+        mTypeVolume[v].setval(value);
     }
     float getTypeVolume(SoundType v) {
-        return mTypeVolume[v];
+        return clampRangeC(mTypeVolume[v].getval!(float)(), 0.0f, 1.0f);
     }
 
     ///if this is a real sound device (false when this is a null-driver)
     public bool available() {
-        assert(!!mDriver);
-        return cast(NullSound)mDriver is null;
+        return driver && !cast(NullSound)driver;
     }
 
     ///context for playing a Sample
     public Source createSource() {
-        return new Source(this);
-    }
-
-    package DriverSound createDriverSound(DriverSoundData d) {
-        DriverSound res = mDriver.loadSound(d);
-        //expect a new instance
-        assert(!(res in mDriverSounds));
-        mDriverSounds[res] = true;
-        return res;
-    }
-
-    package void killDriverSound(inout DriverSound sound) {
-        if (!sound)
-            return;
-        assert(sound in mDriverSounds);
-        mDriverSounds.remove(sound);
-        mDriver.closeSound(sound);
-        sound = null;
-    }
-
-    SoundDriver driver() {
-        return mDriver;
+        return new Source();
     }
 }
 
 ///common class for all sounds
 ///sounds can still be streamed if set in the constructor (a streamed sound may
 ///  only be playing once at a time)
-public class Sample {
+class Sample : FrameworkResourceT!(DriverSound) {
     protected {
-        Sound mParent;
         DriverSoundData mSource;
-        DriverSound mSound;
         SoundType mType;
     }
 
     ///type: only for setting type-specific volume; you can use any value
-    this(Sound parent, char[] filename, SoundType type, bool streamed = false) {
-        assert(!!parent);
-        mParent = parent;
+    this(char[] filename, SoundType type, bool streamed = false) {
         mSource.filename = filename;
         mSource.streamed = streamed;
         mType = type;
-        gSounds.add(this);
     }
 
-    Sound parent() {
-        return mParent;
+    override DriverSound createDriverResource() {
+        return gSoundManager.driver.loadSound(mSource);
     }
 
-    private DriverSound getDriverSound() {
-        if (!mSound) {
-            //xxx error handling?
-            mSound = mParent.createDriverSound(mSource);
+    /+ xxx the place where this should be used: FrameworkResource.releaseAll()
+    static bool needResource(DriverSound obj) {
+        //if sample is used, don't free it
+        //this is optional; without this code, the sample is just restarted
+        //xxx: seeking when the sample/music is restarted would be nicer,
+        //  because then music would be continuous even if driver is changed
+        foreach (Source s; gSoundManager.mSources) {
+            if (s.sample() is obj && s.state != PlaybackState.stopped)
+                return true;
         }
-        return mSound;
+        return false;
     }
-
-    void preload() {
-        getDriverSound();
-    }
-
-    //destroy driver sound
-    //force=even when in use (=> user can hear it)
-    bool release(bool force) {
-        if (!mSound)
-            return false;
-        if (!force) {
-            //if sample is used, don't free it
-            //this is optional; without this code, the sample is just restarted
-            //xxx: seeking when the sample/music is restarted would be nicer,
-            //  because then music would be continuous even if driver is changed
-            foreach (Source s; mParent.mSources) {
-                if (s.sample() is this && s.state != PlaybackState.stopped)
-                    return false;
-            }
-        }
-        mParent.killDriverSound(mSound);
-        mSound = null;
-        return true;
-    }
-
-    private void doFree(bool finalizer) {
-        SoundKillData k;
-        k.sound = mSound;
-        mSound = null;
-        if (!finalizer) {
-            k.doFree();
-            k = k.init;
-        }
-        gSounds.remove(this, finalizer, k);
-    }
-
-    ~this() {
-        Trace.formatln("free!");
-        doFree(true);
-    }
+    +/
 
     ///close the sample/music (and stop if active)
     void dclose() {
-        release(true);
+        unload();
     }
 
     ///get length of this sample/music stream
     Time length() {
-        return getDriverSound().length();
+        return get().length();
     }
 
     ///type for specific volume level
@@ -328,7 +239,7 @@ public class Sample {
 
     ///Create a source with this sample assigned to it
     Source createSource() {
-        Source s = parent().createSource();
+        Source s = gSoundManager.createSource();
         s.sample = this;
         return s;
     }
@@ -362,7 +273,6 @@ class Source {
         FadeType mFading;
         Time mFadeStart, mFadeLength;
 
-        Sound mParent;
         Sample mSample;
         bool mLooping;
         float mVolume = 1.0f;
@@ -373,16 +283,14 @@ class Source {
 
     SoundSourceInfo info;
 
-    this(Sound base) {
-        assert(!!base);
-        mParent = base;
-        mParent.mSources.add(this);
+    this() {
+        gSoundManager.mSources.add(this);
     }
 
     ///stop playing and release this Source
     void close() {
         stop();
-        mParent.mSources.remove(this);
+        gSoundManager.mSources.remove(this);
     }
 
     ///assigned Sample (even valid if playback has finished)
@@ -446,7 +354,7 @@ class Source {
             }
             dc.looping = mLooping;
 
-            dc.play(mSample.getDriverSound(), start);
+            dc.play(mSample.get(), start);
             mState = PlaybackState.playing;
         }
     }
@@ -513,17 +421,20 @@ class Source {
 
     private bool dcValid() {
         return mDC && mDC.reserved_for is this
-            && mDC.owner is mParent.mDriver;
+            && mDC.owner && mDC.owner is gSoundManager.driver;
     }
 
     //must be called to get the DriverChannel instead of using mDC
     //can still return null, if channel shortage or dummy sound driver
     private DriverChannel createDC(bool recreate = true) {
         if (!dcValid()) {
-            mDC = recreate ? mParent.mDriver.getChannel(this) : null;
-            if (mDC)
-                assert(dcValid());
+            mDC = null;
+            auto drv = gSoundManager.driver;
+            if (recreate)
+                mDC = drv ? drv.getChannel(this) : null;
         }
+        if (mDC)
+            assert(dcValid());
         return mDC;
     }
 
@@ -556,8 +467,8 @@ class Source {
 
         //The volume level without fading:
         //  <global volume> * <sound-type specific volume> * <Source volume>
-        float baseVol = mParent.mVolume * mParent.mTypeVolume[mSample.type]
-            * mVolume;
+        float baseVol = gSoundManager.volume
+            * gSoundManager.getTypeVolume(mSample.type) * mVolume;
         float fadeVol = 1.0f;
 
         if (mFading == FadeType.fadeIn) {
@@ -585,35 +496,28 @@ class Source {
 
 ///sound driver which does nothing
 class NullSound : SoundDriver {
-    this(Sound base, ConfigNode config) {
+    this() {
     }
 
     DriverChannel getChannel(Object reserve_for) {
         return null;
     }
 
-    void tick() {
-    }
-
     class NullSoundSound : DriverSound {
         Time length() {
             return Time.Null;
         }
+        override void destroy() {}
     }
 
     DriverSound loadSound(DriverSoundData data) {
         return new NullSoundSound();
     }
 
-    void closeSound(DriverSound s) {
-    }
-
     void destroy() {
     }
+
     static this() {
-        SoundDriverFactory.register!(typeof(this))("null");
+        registerFrameworkDriver!(typeof(this))("null");
     }
 }
-
-alias StaticFactory!("SoundDrivers", SoundDriver, Sound, ConfigNode)
-    SoundDriverFactory;

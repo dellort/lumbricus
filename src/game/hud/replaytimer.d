@@ -1,6 +1,7 @@
 module game.hud.replaytimer;
 
 import framework.framework;
+import framework.font;
 import framework.i18n;
 import game.hud.teaminfo;
 import gui.boxcontainer;
@@ -22,11 +23,11 @@ class ReplayTimer : BoxContainer {
         mReplayImg = new Label();
         //mReplayImg.image = globals.guiResources.get!(Surface)("replay_r");
         mReplayImg.text = "R";
-        mReplayImg.font = gFramework.fontManager.loadFont("replay_r");
+        mReplayImg.font = gFontManager.loadFont("replay_r");
         mReplayImg.visible = false;
         mReplayTimer = new Label();
         mReplayTimer.visible = false;
-        mReplayTimer.font = gFramework.fontManager.loadFont("replaytime");
+        mReplayTimer.font = gFontManager.loadFont("replaytime");
         add(mReplayImg);
         add(mReplayTimer, WidgetLayout.Aligned(0, 0));
     }

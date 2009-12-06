@@ -55,14 +55,13 @@ class FTGlyphCache {
 
     this(FTFontDriver driver, FontProperties props) {
         mDriver = driver;
-        if (!mDriver.fontManager.faceExists(props.face, props.getFaceStyle))
+        if (!gFontManager.faceExists(props.face, props.getFaceStyle))
         {
             mDoBold = props.bold;
             mDoItalic = props.italic;
         }
         //will fall back to default style if specified was not found
-        mFontStream = gFramework.fontManager.findFace(props.face,
-            props.getFaceStyle);
+        mFontStream = gFontManager.findFace(props.face, props.getFaceStyle);
         if (!mFontStream.length) {
             throw new Exception("Failed to load font '" ~ props.face
                 ~ "': Face file not found.");
@@ -115,8 +114,8 @@ class FTGlyphCache {
                 g.tex.surface.free();
                 rel++;
             }
-            mFrags = null;
         }
+        mFrags = null;
         return rel;
     }
 
@@ -362,6 +361,10 @@ class FTFont : DriverFont {
         return myformat("glyphs={}, pages={}", mCache.cachedGlyphs,
             mCache.mPacker ? mCache.mPacker.pages : -1);
     }
+
+    override void destroy() {
+        mCache.mDriver.destroyFont(this);
+    }
 }
 
 class FTFontDriver : FontDriver {
@@ -370,13 +373,11 @@ class FTFontDriver : FontDriver {
         FTFont[FontProperties] mFonts;
         FTGlyphCache[FontProperties] mGlyphCaches;
         TexturePack mPacker;
-        FontManager fontManager;
     }
     bool useFontPacker;
 
-    this(FontManager mgr, ConfigNode config) {
-        fontManager = mgr;
-        useFontPacker = config.getBoolValue("font_packer", true);
+    this() {
+        useFontPacker = driverOptions(this).getT!(bool)("font_packer");
         Derelict_SetMissingProcCallback(&missingProcCb);
         DerelictFT.load();
         Derelict_SetMissingProcCallback(null);
@@ -406,6 +407,19 @@ class FTFontDriver : FontDriver {
         return f;
     }
 
+    package void destroyFont(DriverFont a_handle) {
+        auto handle = cast(FTFont)a_handle;
+        assert(!!handle);
+        auto p = handle.mProps;
+        assert(handle is mFonts[p]);
+        handle.refcount--;
+        if (handle.refcount < 1) {
+            assert(handle.refcount == 0);
+            mFonts.remove(p);
+            derefCache(handle.mCache);
+        }
+    }
+
     private FTGlyphCache getCache(FontProperties props) {
         FontProperties gc_props = props;
         gc_props.underline = false; //rendered by us, is not in glyph bitmaps
@@ -423,20 +437,6 @@ class FTFontDriver : FontDriver {
         return gc;
     }
 
-    void destroyFont(inout DriverFont a_handle) {
-        auto handle = cast(FTFont)a_handle;
-        assert(!!handle);
-        auto p = handle.mProps;
-        assert(handle is mFonts[p]);
-        handle.refcount--;
-        if (handle.refcount < 1) {
-            assert(handle.refcount == 0);
-            mFonts.remove(p);
-            derefCache(handle.mCache);
-        }
-        a_handle = null;
-    }
-
     private void derefCache(FTGlyphCache cache) {
         assert(cache.refcount > 0);
         cache.refcount--;
@@ -447,7 +447,7 @@ class FTFontDriver : FontDriver {
         }
     }
 
-    int releaseCaches() {
+    override int releaseCaches() {
         int count;
         foreach (FTFont fh; mFonts) {
             count += fh.mCache.releaseCache();
@@ -465,7 +465,8 @@ class FTFontDriver : FontDriver {
     }
 
     static this() {
-        FontDriverFactory.register!(typeof(this))("freetype");
+        auto options = registerFrameworkDriver!(typeof(this))("freetype");
+        options.add!(bool)("font_packer", true);
     }
 }
 

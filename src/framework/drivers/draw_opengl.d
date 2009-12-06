@@ -12,16 +12,27 @@ import str = utils.string;
 import utils.configfile;
 import utils.misc;
 import utils.transform;
+import utils.proplist;
 import utils.log;
 import cstdlib = tango.stdc.stdlib;
 
-//when an OpenGL surface is created, and the framework surface has caching
-//  enabled, the framework surface's pixel memory is free'd and stored in the
-//  OpenGL texture instead
-//if the framework surface wants to access the pixel memory, it has to call
-//  DriverSurface.getPixelData(), which in turn will read back texture memory
-const bool cStealSurfaceData = true;
-
+private struct Options {
+    //when an OpenGL surface is created, and the framework surface has caching
+    //  enabled, the framework surface's pixel memory is free'd and stored in the
+    //  OpenGL texture instead
+    //if the framework surface wants to access the pixel memory, it has to call
+    //  DriverSurface.getPixelData(), which in turn will read back texture memory
+    bool steal_data = true;
+    //use fastest OpenGL options, avoid alpha blending; will look fugly
+    //(NOTE: it uses alpha test, which may be slower on modern GPUs)
+    bool low_quality = false;
+    bool batch_sub_tex = false;
+    bool batch_draw_calls = true;
+    //some cards can't deal with NPOT textures (even if they "support" it)
+    bool non_power_of_two = false;
+    //purely for debugging (can be removed)
+    bool disable_sprites = false;
+}
 
 char[] glErrorToString(GLenum errCode) {
     char[] res = fromStringz(cast(char*)gluErrorString(errCode));
@@ -51,36 +62,21 @@ private bool checkGLError(lazy char[] operation, bool crash = false) {
     return true;
 }
 
-private void checkGL(alias Func, Args...)(Args x) {
-    Func(x);
-    checkGLError(myformat("{}({})", Func.stringof, x), true);
-}
-
 class GLDrawDriver : DrawDriver {
     private {
         Vector2i mScreenSize;
         GLCanvas mCanvas;
-        bool mStealData, mLowQuality, mDisableSprites, mBatchSubTex;
-        bool mBatchDrawCalls, mNonPowerOfTwo;
         Log mLog;
+        Options opts;
     }
 
-    this(ConfigNode config) {
+    this() {
         mLog = registerLog("OpenGL");
 
         DerelictGL.load();
         DerelictGLU.load();
 
-        mStealData = config.getBoolValue("steal_data", true);
-        //use fastest OpenGL options, avoid alpha blending; will look fugly
-        //(NOTE: it uses alpha test, which may be slower on modern GPUs)
-        mLowQuality = config.getBoolValue("lowquality", false);
-        mBatchSubTex = config.getValue!(bool)("batch_subtex", false);
-        mBatchDrawCalls = config.getValue!(bool)("batch_drawcalls", true);
-        //some cards can't deal with NPOT textures (even if they "support" it)
-        mNonPowerOfTwo = config.getValue!(bool)("non_power_of_two", false);
-        //purely for debugging (can be removed)
-        mDisableSprites = config.getValue!(bool)("disable_sprites", false);
+        opts = driverOptions(this).getval!(Options);
 
         mCanvas = new GLCanvas(this);
     }
@@ -106,7 +102,7 @@ class GLDrawDriver : DrawDriver {
             ARBTextureNonPowerOfTwo.isEnabled);
 
         //initialize some static OpenGL context attributes
-        if (!mLowQuality) {
+        if (!opts.low_quality) {
             glEnable(GL_LINE_SMOOTH);
         } else {
             glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
@@ -158,7 +154,8 @@ class GLDrawDriver : DrawDriver {
     }
 
     static this() {
-        DrawDriverFactory.register!(typeof(this))("opengl");
+        auto opts = registerFrameworkDriver!(typeof(this))("opengl");
+        opts.addMembers!(Options)();
     }
 }
 
@@ -184,7 +181,7 @@ final class GLSurface : DriverSurface {
     Vector2i mTexSize;
     bool mError;
 
-    //for mBatchSubTex; region that needs to be updated
+    //for batch_sub_tex; region that needs to be updated
     bool mIsDirty;
     Rect2i mDirtyRect;
 
@@ -208,7 +205,7 @@ final class GLSurface : DriverSurface {
         }
     }
 
-    override void kill() {
+    override void destroy() {
         releaseSurface();
         mData = null;
     }
@@ -219,7 +216,9 @@ final class GLSurface : DriverSurface {
 
         //OpenGL textures need width and height to be a power of two
         //at least with older GL drivers
-        if (!ARBTextureNonPowerOfTwo.isEnabled || !mDrawDriver.mNonPowerOfTwo) {
+        if (!ARBTextureNonPowerOfTwo.isEnabled
+            || !mDrawDriver.opts.non_power_of_two)
+        {
             mTexSize = Vector2i(powerOfTwoRoundUp(mData.size.x),
                 powerOfTwoRoundUp(mData.size.y));
         } else {
@@ -312,7 +311,7 @@ final class GLSurface : DriverSurface {
         if (rc.size.x <= 0 || rc.size.y <= 0)
             return;
 
-        if (mDrawDriver.mBatchSubTex) {
+        if (mDrawDriver.opts.batch_sub_tex) {
             //defer update to later when it's needed (on drawing)
             if (!mIsDirty) {
                 mIsDirty = true;
@@ -337,7 +336,7 @@ final class GLSurface : DriverSurface {
 
         assert(mTexId != GLID_INVALID);
 
-        if (!(cStealSurfaceData && mDrawDriver.mStealData))
+        if (!mDrawDriver.opts.steal_data)
             return;
 
         if (mData.data !is null && mData.canSteal()) {
@@ -345,7 +344,7 @@ final class GLSurface : DriverSurface {
             //there's no glGetTexSubImage, only glGetTexImage
             // => only works for textures with exact size
             if (mTexSize == mData.size) {
-                mData.pixels_free();
+                mData.pixels_free(true);
             }
         }
     }
@@ -357,8 +356,9 @@ final class GLSurface : DriverSurface {
         assert(mTexId != GLID_INVALID);
 
         if (mData.data is null) {
-            assert(cStealSurfaceData); //can only happen in this mode
-            assert (mTexSize == mData.size);
+            //can only happen in this mode
+            assert(mDrawDriver.opts.steal_data);
+            assert(mTexSize == mData.size);
 
             //copy pixels OpenGL surface => mData.data
             mData.pixels_alloc();
@@ -534,7 +534,7 @@ class GLCanvas : Canvas3DHelper {
         }
 
         //may help with state bugs etc.
-        if (!mDrawDriver.mBatchDrawCalls) {
+        if (!mDrawDriver.opts.batch_draw_calls) {
             assert(mVertexCount == verts.length);
             flush();
         }
@@ -553,14 +553,14 @@ class GLCanvas : Canvas3DHelper {
         flush();
 
         bool want_tex = false;
-        bool want_blend = !mDrawDriver.mLowQuality;
+        bool want_blend = !mDrawDriver.opts.low_quality;
         bool want_atest = !want_blend;
 
         if (tex) {
             want_tex = true;
             auto gltex = cast(GLSurface)tex.getDriverSurface();
             gltex.bind();
-            if (mDrawDriver.mLowQuality &&
+            if (mDrawDriver.opts.low_quality &&
                 gltex.mData.transparency == Transparency.Alpha)
             {
                 want_blend = true;
@@ -702,7 +702,7 @@ class GLCanvas : Canvas3DHelper {
     override void drawSprite(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null)
     {
-        if (mDrawDriver.mDisableSprites) {
+        if (mDrawDriver.opts.disable_sprites) {
             //disabled; normal code path
             draw(source.surface, destPos, source.origin, source.size);
             return;

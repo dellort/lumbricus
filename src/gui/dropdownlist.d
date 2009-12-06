@@ -275,7 +275,7 @@ class DropDownList : Container {
 
     void loadFrom(GuiLoader loader) {
         auto node = loader.node;
-        auto fnt = gFramework.fontManager.loadFont(
+        auto fnt = gFontManager.loadFont(
             node.getStringValue("label_font"), false);
         if (fnt)
             mClient.font = fnt;

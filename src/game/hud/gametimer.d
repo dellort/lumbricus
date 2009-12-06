@@ -38,11 +38,11 @@ class GameTimer : Container {
         mLabelBox = new BoxContainer();
         mLabelBox.styles.addClass("gametimer");
 
-        mFont[0] = gFramework.fontManager.loadFont("time");
-        mFont[1] = gFramework.fontManager.loadFont("time_red");
-        mFont[2] = gFramework.fontManager.loadFont("time_grey");
-        mFont[3] = gFramework.fontManager.loadFont("time_small");
-        mFont[4] = gFramework.fontManager.loadFont("time_small_grey");
+        auto list = ["time"[], "time_red", "time_grey", "time_small",
+            "time_small_grey"];
+        foreach (int idx, name; list) {
+            mFont[idx] = gFontManager.loadFont(name);
+        }
 
         mTurnTime = new Label();
         mTurnTime.styles.id = "roundtime";

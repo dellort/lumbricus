@@ -4,6 +4,7 @@ import common.common;
 import common.task;
 import framework.framework;
 import framework.i18n;
+import framework.font;
 import game.gfxset;
 import gui.loader;
 import gui.wm;
@@ -79,8 +80,7 @@ class GameSummary : Task {
                 //game ended draw
                 mGameWinLabel.textMarkup = `\t(game_draw)`;
             }
-            mGameWinLabel.font = gFramework.fontManager.loadFont("game_win",
-                false);
+            mGameWinLabel.font = gFontManager.loadFont("game_win", false);
         } else {
             //game will continue
             mGameOver = false;
@@ -88,7 +88,7 @@ class GameSummary : Task {
                 _("gamesummary.caption_noend", persist["round_counter"]);
             mCloseButton.textMarkup = `\t(continue)`;
             mGameWinLabel.text = "";
-            mGameWinLabel.font = gFramework.fontManager.loadFont("tiny", false);
+            mGameWinLabel.font = gFontManager.loadFont("tiny", false);
         }
         if (persist["round_winner"].length > 0) {
             //xxx code duplication
@@ -117,12 +117,12 @@ class GameSummary : Task {
         foreach (ConfigNode tn; teamsNode) {
             auto nameLbl = new Label();
             nameLbl.textMarkup = `\c(team_` ~ tn["color"] ~ ")" ~ tn["name"];
-            nameLbl.font = gFramework.fontManager.loadFont("scores", false);
+            nameLbl.font = gFontManager.loadFont("scores", false);
             mScoreTable.add(nameLbl, 0, i);
 
             auto scoreLbl = new Label();
             scoreLbl.text = tn["global_wins"];
-            scoreLbl.font = gFramework.fontManager.loadFont("scores", false);
+            scoreLbl.font = gFontManager.loadFont("scores", false);
             mScoreTable.add(scoreLbl, 1, i);
             i++;
         }

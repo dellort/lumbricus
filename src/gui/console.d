@@ -2,6 +2,7 @@ module gui.console;
 
 import framework.commandline;
 import framework.framework;
+import framework.font;
 import framework.event;
 import common.common;
 import gui.boxcontainer;
@@ -100,8 +101,7 @@ class GuiConsole : Container {
     this(bool standalone = true, CommandLine cmdline = null) {
         mBackColor = Color(0.5,0.5,0.5,0.5); //freaking alpha transparency!!!
 
-        auto font = gFramework.getFont(standalone
-            ? "sconsole" : "console");
+        auto font = gFontManager.loadFont(standalone ? "sconsole" : "console");
 
         mHeightDiv = standalone ? 1 : 2;
 

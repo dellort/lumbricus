@@ -2,6 +2,7 @@ module game.text;
 
 import common.visual;
 import framework.framework;
+import framework.font;
 import game.game;
 import game.controller;
 import utils.color;
@@ -74,7 +75,7 @@ class RenderText {
     private void update() {
         if (!mT.renderer) {
             mT.renderer = new FormattedText();
-            mT.renderer.font = gFramework.fontManager.loadFont("wormfont");
+            mT.renderer.font = gFontManager.loadFont("wormfont");
         }
         mT.renderer.setBorder(mBorder);
         mT.renderer.setMarkup(mMarkupText);
@@ -82,7 +83,7 @@ class RenderText {
         auto p2 = p;
         p2.fore = mFontColor;
         if (p2 != p) {
-            mT.renderer.font = gFramework.fontManager.create(p2);
+            mT.renderer.font = gFontManager.create(p2);
         }
     }
 

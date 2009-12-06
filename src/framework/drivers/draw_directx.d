@@ -8,7 +8,6 @@ import tango.sys.win32.Macros;
 import tango.sys.win32.Types;
 import utils.misc;
 import utils.transform;
-import utils.configfile;
 
 
 const uint D3DFVF_TLVERTEX = D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1;
@@ -52,8 +51,8 @@ class DXDrawDriver : DrawDriver {
     IDirect3D9 d3dObj;
     IDirect3DDevice9 d3dDevice;
 
-    this(ConfigNode config) {
-        mVsync = config.getValue("vsync", false);
+    this() {
+        mVsync = false;
 
         DerelictD3D9.load();
         DerelictD3DX9.load();
@@ -163,7 +162,7 @@ class DXDrawDriver : DrawDriver {
     }
 
     static this() {
-        DrawDriverFactory.register!(typeof(this))("directx");
+        registerFrameworkDriver!(typeof(this))("directx");
     }
 }
 
@@ -217,7 +216,7 @@ class DXSurface : DriverSurface {
         mTex.UnlockRect(0);
     }
 
-    override void kill() {
+    override void destroy() {
         if (mTex)
             mTex.Release();
         mTex = null;

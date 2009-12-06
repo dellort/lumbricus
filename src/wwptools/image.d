@@ -17,8 +17,7 @@ private void doinit() {
         return;
     //need to init a framework driver to be able to load images
     //which is stupid, but extractdata needs to load at least an icon mask
-    auto config = new ConfigNode();
-    new Framework(config);
+    new Framework();
     assert(!!gFramework);
 }
 

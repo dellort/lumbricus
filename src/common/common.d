@@ -5,6 +5,7 @@ import common.resources;
 import common.resset;
 import framework.filesystem;
 import framework.framework;
+import framework.font;
 import framework.commandline;
 import framework.timesource;
 import framework.i18n;
@@ -103,8 +104,7 @@ class Common {
         //GUI resources, this is a bit off here
         guiResources = resources.loadResSet("guires.conf");
 
-        gFramework.fontManager.readFontDefinitions(
-            loadConfig("fonts"));
+        gFontManager.readFontDefinitions(loadConfig("fonts"));
 
     }
 

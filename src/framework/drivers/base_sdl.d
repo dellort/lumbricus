@@ -28,8 +28,6 @@ package {
 
 class SDLDriver : FrameworkDriver {
     private {
-        Framework mFramework;
-        ConfigNode mConfig;
         VideoWindowState mCurVideoState;
         DriverInputState mInputState;
 
@@ -49,12 +47,9 @@ class SDLDriver : FrameworkDriver {
         SDL_Surface* mSDLScreen;
     }
 
-    this(Framework fw, ConfigNode config) {
-        mFramework = fw;
-        mConfig = config;
-
+    this() {
         //default (empty) means use OS default
-        char[] wndPos = config.getStringValue("window_pos");
+        char[] wndPos; //yyy = config.getStringValue("window_pos");
         //CENTERED doesn't work - somehow resizing the window enters an endless
         //loop on IceWM... anyway, it makes me want to beat up the SDL devs
         //it also could be our or IceWM's fault
@@ -125,7 +120,7 @@ class SDLDriver : FrameworkDriver {
             state.bitdepth = 0;
 
         //i.e. reload textures, get rid of stuff in too low resolution...
-        mFramework.releaseCaches(false);
+        gFramework.releaseCaches(false);
 
         Vector2i size = state.actualSize();
 
@@ -187,7 +182,7 @@ class SDLDriver : FrameworkDriver {
         mCurVideoState = state;
         mCurVideoState.video_active = !!mSDLScreen;
         if (mCurVideoState.video_active)
-            mFramework.driver_doVideoInit();
+            gFramework.driver_doVideoInit();
         return mCurVideoState.video_active;
     }
 
@@ -262,7 +257,7 @@ class SDLDriver : FrameworkDriver {
         KeyInfo infos;
         infos.code = sdlToKeycode(sdl.keysym.sym);
         infos.unicode = sdl.keysym.unicode;
-        infos.mods = mFramework.getModifierSet();
+        infos.mods = gFramework.getModifierSet();
         return infos;
     }
 
@@ -321,7 +316,7 @@ class SDLDriver : FrameworkDriver {
             mMouseCorr = (pos-mLockedMousePos);
         }
 
-        mFramework.driver_doUpdateMousePos(npos, nrel);
+        gFramework.driver_doUpdateMousePos(npos, nrel);
     }
 
     void processInput() {
@@ -332,12 +327,12 @@ class SDLDriver : FrameworkDriver {
             switch(event.type) {
                 case SDL_KEYDOWN:
                     KeyInfo infos = keyInfosFromSDL(event.key);
-                    mFramework.driver_doKeyDown(infos);
+                    gFramework.driver_doKeyDown(infos);
                     break;
                 case SDL_KEYUP:
                     //xxx TODO: SDL provides no unicode translation for KEYUP
                     KeyInfo infos = keyInfosFromSDL(event.key);
-                    mFramework.driver_doKeyUp(infos);
+                    gFramework.driver_doKeyUp(infos);
                     break;
                 case SDL_MOUSEMOTION:
                     //update mouse pos after button state
@@ -348,14 +343,14 @@ class SDLDriver : FrameworkDriver {
                     if (mInputFocus) {
                         KeyInfo infos = mouseInfosFromSDL(event.button);
                         updateMousePos(Vector2i(event.button.x, event.button.y));
-                        mFramework.driver_doKeyUp(infos);
+                        gFramework.driver_doKeyUp(infos);
                     }
                     break;
                 case SDL_MOUSEBUTTONDOWN:
                     if (mInputFocus) {
                         KeyInfo infos = mouseInfosFromSDL(event.button);
                         updateMousePos(Vector2i(event.button.x, event.button.y));
-                        mFramework.driver_doKeyDown(infos);
+                        gFramework.driver_doKeyDown(infos);
                     }
                     break;
                 case SDL_VIDEORESIZE:
@@ -371,7 +366,7 @@ class SDLDriver : FrameworkDriver {
                     if (state & SDL_APPINPUTFOCUS) {
                         if (gain != mInputFocus) {
                             mInputFocus = gain;
-                            mFramework.driver_doFocusChange(mInputFocus);
+                            gFramework.driver_doFocusChange(mInputFocus);
                             update_sdl_mouse_state();
                         }
                     }
@@ -384,13 +379,13 @@ class SDLDriver : FrameworkDriver {
                         //uh, but how (at least event loop will still eat CPU)
                         if (gain != mWindowVisible) {
                             mWindowVisible = gain;
-                            mFramework.driver_doVisibilityChange(gain);
+                            gFramework.driver_doVisibilityChange(gain);
                         }
                     }
                     break;
                 // exit if SDLK or the window close button are pressed
                 case SDL_QUIT:
-                    mFramework.driver_doTerminate();
+                    gFramework.driver_doTerminate();
                     break;
                 default:
             }
@@ -400,7 +395,7 @@ class SDLDriver : FrameworkDriver {
             //xxx this works for graphics, but totally messes up mouse
             //    input (atleast on Windows)
             //if (mWindowVisible)
-            mFramework.setVideoMode(newVideoSize);
+            gFramework.setVideoMode(newVideoSize);
         }
     }
 
@@ -484,5 +479,5 @@ class SDLDriver : FrameworkDriver {
 }
 
 static this() {
-    FrameworkDriverFactory.register!(SDLDriver)("sdl");
+    registerFrameworkDriver!(SDLDriver)("sdl");
 }

@@ -50,7 +50,7 @@ class MessageViewer : Label {
         mLocaleMsg = localeRoot.bindNamespace("game_msg");
 
         styles.id = "preparebox";
-        font = gFramework.fontManager.loadFont("messages");
+        font = gFontManager.loadFont("messages");
         mStdFont = font;
         border = Vector2i(5, 1);
 

@@ -5,7 +5,7 @@ import utils.configfile;
 import utils.log;
 import utils.misc;
 import utils.md;
-import utils.weaklist;
+//import utils.weaklist;
 import str = utils.string;
 import tango.util.Convert;
 
@@ -34,7 +34,10 @@ public MDelegate!() gOnChangeLocale;
 
 private Log log;
 
-private WeakList!(Translator) createdTranslators;
+//xxx: should use WeakList, but it has issues, etc.
+//or just keep them forever, and don'r recreate Translators if they already
+//  exist (so that memory usage won't grow anymore at some point)
+private Translator[] createdTranslators;
 
 ///root translator for config file used with initI18N
 public Translator localeRoot() {
@@ -66,7 +69,8 @@ public class Translator {
         char[] mSubNs;
         char[] mLocalePath;
         //we don't want to keep all Translators ever created from being gc'ed
-        WeakList!(Translator) mChildren;
+        //xxx: should use WeakList (but WeakList has issues)
+        Translator[] mChildren;
 
         struct LocaleDir {
             char[] targetId;
@@ -76,7 +80,6 @@ public class Translator {
     }
 
     private this() {
-        mChildren = new typeof(mChildren);
     }
 
     ///create translator from i18n subnode
@@ -91,7 +94,7 @@ public class Translator {
             mParent = gLocaleRoot;
         assert(!!mParent);
         mSubNs = namespace;
-        mParent.mChildren.add(this);
+        mParent.mChildren ~= this;
         reinit();
     }
 
@@ -102,7 +105,7 @@ public class Translator {
         assert(gFallbackLanguage.length > 0, "Call initI18N() before");
         reinit(localePath);
         //save reference, so the instance can be found when updating locale
-        createdTranslators.add(this);
+        createdTranslators ~= this;
     }
 
     /+
@@ -140,7 +143,7 @@ public class Translator {
         }
 
         //reassign subnodes of children
-        foreach (tr; mChildren.list) {
+        foreach (tr; mChildren) {
             tr.reinit();
         }
     }
@@ -345,10 +348,9 @@ public void initI18N(char[] localePath, char[] lang, char[] fallbackLang,
     gCurrentLanguage = lang;
     gFallbackLanguage = fallbackLang;
     if (!gLocaleRoot) {
-        createdTranslators = new typeof(createdTranslators);
         gLocaleRoot = new Translator(localePath);
     } else {
-        foreach (tr; createdTranslators.list) {
+        foreach (tr; createdTranslators) {
             tr.reinit();
         }
         gOnChangeLocale();

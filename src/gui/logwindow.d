@@ -34,7 +34,7 @@ public class LogWindow : Widget, Output {
 
     ///initialize console, consoleFont will be used for rendering text
     public this(Font consoleFont = null) {
-        font = consoleFont ? consoleFont : gFramework.getFont("console");
+        font = consoleFont ? consoleFont : gFontManager.loadFont("console");
         mBackLogIdx = 0;
         mBackLogLen = 0;
         mScrollPos = 0;
@@ -176,8 +176,7 @@ public class LogWindow : Widget, Output {
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
-        auto fnt = gFramework.fontManager.loadFont(
-            node.getStringValue("font"), false);
+        auto fnt = gFontManager.loadFont(node.getStringValue("font"), false);
         if (fnt)
             font = fnt;
 

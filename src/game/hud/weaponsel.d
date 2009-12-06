@@ -315,7 +315,7 @@ class WeaponSelWindow : Container {
         }
 
         mWeaponTranslate = localeRoot.bindNamespace("weapons");
-        mDFG = gFramework.getFont("weaponsel_side");
+        mDFG = gFontManager.loadFont("weaponsel_side");
         mWeaponFooTranslate = localeRoot.bindNamespace("weaponsfoo");
         mWeaponPostfixes = mWeaponFooTranslate.names();
 
@@ -325,10 +325,10 @@ class WeaponSelWindow : Container {
         mGridContainer = new SimpleContainer();
         all.add(mGridContainer);
         mWeaponName = new Label();
-        mWeaponName.font = gFramework.getFont("weaponsel_down");
+        mWeaponName.font = gFontManager.loadFont("weaponsel_down");
         mWeaponName.shrink = true;
         mWeaponQuantity = new Label();
-        mWeaponQuantity.font = gFramework.getFont("weaponsel_down_bold");
+        mWeaponQuantity.font = gFontManager.loadFont("weaponsel_down_bold");
         auto hbox = new BoxContainer(true, false, 10);
         hbox.add(mWeaponName, WidgetLayout.Expand(true));
         hbox.add(mWeaponQuantity, WidgetLayout.Noexpand);

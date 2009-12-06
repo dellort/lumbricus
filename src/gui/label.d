@@ -32,7 +32,7 @@ class Label : Widget {
     this() {
         styleRegisterString("text-font");
         mText = new FormattedText();
-        mText.font = gFramework.getFont("label_default");
+        mText.font = gFontManager.loadFont("label_default");
         mBorder = Vector2i(0,0);
     }
 
@@ -168,7 +168,7 @@ class Label : Widget {
         super.check_style_changes();
         if (!mFontOverride) {
             char[] fontId = styles.getValue!(char[])("text-font");
-            font = gFramework.getFont(fontId);
+            font = gFontManager.loadFont(fontId);
             mFontOverride = false;
         }
     }

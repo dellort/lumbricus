@@ -8,33 +8,35 @@ import framework.sdl.sdl;
 import utils.vector2;
 import utils.drawing;
 import utils.misc;
-import utils.configfile;
+import utils.proplist;
 
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
 
 import str = utils.string;
 
+private struct Options {
+    bool RLE = true;
+    bool enable_conversion = true;
+    //more alpha blending; more rotation precission and smoothing
+    bool high_quality = false;
+    //debugging
+    bool mark_alpha = false;
+}
 
 class SDLDrawDriver : DrawDriver {
     private {
+        Options opts;
         SDLCanvas mCanvas;
         Vector2i mScreenSize;
         //the screen
         SDL_Surface* mSDLScreen;
-        //convert stuff to display format if it isn't already
-        //+ mark all alpha surfaces drawn on the screen
-        bool mRLE, mMarkAlpha, mEnableConversion, mHighQuality;
         //cache for being able to draw alpha blended filled rects without OpenGL
         Surface[uint] mInsanityCache;
     }
 
-    this(ConfigNode config) {
-        mRLE = config.getBoolValue("rle", true);
-        mMarkAlpha = config.getBoolValue("mark_alpha", false);
-        mEnableConversion = config.getBoolValue("enable_conversion", true);
-        //more rotation precission and smoothing
-        mHighQuality = config.getBoolValue("high_quality", false);
+    this() {
+        opts = driverOptions(this).getval!(Options)();
 
         get_screen();
 
@@ -115,7 +117,8 @@ class SDLDrawDriver : DrawDriver {
     }
 
     static this() {
-        DrawDriverFactory.register!(typeof(this))("sdl");
+        auto opts = registerFrameworkDriver!(typeof(this))("sdl");
+        opts.addMembers!(Options)();
     }
 }
 
@@ -152,7 +155,7 @@ final class SDLSurface : DriverSurface {
     }
 
     //release data from driver surface
-    override void kill() {
+    override void destroy() {
         assert(!!mData, "double kill()?");
         releaseSurface();
         mData = null;
@@ -276,7 +279,7 @@ final class SDLSurface : DriverSurface {
     }
 
     private bool allow_conversion() {
-        return mData.enable_cache && mDrawDriver.mEnableConversion;
+        return mData.enable_cache && mDrawDriver.opts.enable_conversion;
     }
 
     //create a sub-surface; mostly needed because rotozoom and
@@ -308,7 +311,7 @@ final class SDLSurface : DriverSurface {
         if (!allow_conversion())
             return null;
 
-        bool rle = mDrawDriver.mRLE;
+        bool rle = mDrawDriver.opts.RLE;
 
         SDL_Surface* nsurf;
         bool colorkey;
@@ -430,7 +433,7 @@ final class SDLSurface : DriverSurface {
         int cRotUnits = 16;
         int cZoomUnitsHalf = 16; //scale subdivisions
         const float cZoomMax = 4; //scale is clamped to [0, cZoomMax]
-        if (mDrawDriver.mHighQuality) {
+        if (mDrawDriver.opts.high_quality) {
             cRotUnits *= 4;
             cZoomUnitsHalf *= 4;
         }
@@ -480,7 +483,7 @@ final class SDLSurface : DriverSurface {
             double rot_deg = 1.0*k_rotate/cRotUnits*360.0;
             double rot_rad = rot_deg/180.0*math.PI;
             double zoom = 1.0*k_zoom/cZoomUnitsHalf*cZoomMax + 1.0;
-            bool smooth = mDrawDriver.mHighQuality;
+            bool smooth = mDrawDriver.opts.high_quality;
             SDL_Surface* nsurf;
             rotozoomSurface(pixels_from_sdl(surf), -rot_deg, zoom, smooth,
                 (out Pixels dst, int w, int h) {
@@ -604,7 +607,7 @@ class SDLCanvas : Canvas {
 
         SDL_BlitSurface(src, &rc, mSurface, &destrc);
 
-        if (mDrawDriver.mMarkAlpha && sdlIsAlpha(src)) {
+        if (mDrawDriver.opts.mark_alpha && sdlIsAlpha(src)) {
             auto c = Color(0,1,0);
             auto dp1 = at - mTrans;
             auto dp2 = dp1 + Vector2i(rc.w, rc.h);
@@ -757,7 +760,7 @@ class SDLCanvas : Canvas {
         if (p1.x >= p2.x || p1.y >= p2.y)
             return;
         int alpha = Color.toByte(color.a);
-        if (!mDrawDriver.mHighQuality) {
+        if (!mDrawDriver.opts.high_quality) {
             //avoid alpha blending in low-quality
             //instead, this equals to an alpha-test
             alpha = alpha < cAlphaTestRef ? 0 : 255;

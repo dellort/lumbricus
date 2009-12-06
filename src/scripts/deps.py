@@ -9,13 +9,16 @@ from optparse import OptionParser
 import sys
 import re
 
-std_ignore = ["object", "tango.", "std."]
+std_ignore = ["object", "tango.", "std.", "core."]
 
 def print_help(option, opt, value, parser, do_exit=True):
     parser.print_help()
     print ""
     print "Generate the dependency file with:"
-    print "    dmd -o- rootfile.d -deps=depfile"
+    print "    dmd -o- -deps=depfile rootfile.d"
+    print ""
+    print "Example to generate a graph with circular dependencies only:"
+    print "    %s -c -C depfile graph.out" % parser.get_prog_name()
     print ""
     print "Render graph.out with:"
     print "    dot -T svg graph.out -o graph.svg"
@@ -30,10 +33,10 @@ parser.add_option("-h", "--help",
 parser.add_option("-c", "--cycles-only",
     action="store_true", dest="cycles_only", default=False,
     help="show only nodes, that are parts of a cycle")
-parser.add_option("-e", "--cycle-edges-only",
+parser.add_option("-C", "--cycle-edges-only",
     action="store_true", dest="cycle_edges_only", default=False,
     help="show only edges, that are part of a cycle")
-parser.add_option("-i", "--ignore",
+parser.add_option("-e", "--exclude",
     action="append", dest="ignore", default=[],
     help="ignore module (or if it ends with a '.', ignore all packages starting with this)")
 parser.add_option("-p", "--package-mode",
@@ -42,6 +45,12 @@ parser.add_option("-p", "--package-mode",
 parser.add_option("--no-std-ignore",
     action="store_true", dest="no_std_ignore", default=False,
     help=("don't ignore standard modules (%s)" % std_ignore))
+parser.add_option("--imports",
+    action="append", dest="imports", default=[],
+    help="include only modules which import this module (transitively)")
+parser.add_option("--include",
+    action="append", dest="include", default=[],
+    help="include only this module/package (similar to --exclude)")
 
 # options contains all "dest" arg names as normal members
 # args are all left non-option arguments as sequence
@@ -56,21 +65,31 @@ if len(args) != 2:
     print "2 arguments expected (depfile, outfile), but received %s." % args
     sys.exit(1)
 
+# nodes[Node.name] = Node
 nodes = {}
 
+# one node per module (or package in package mode)
 class Node:
     def __init__(self, name, id):
         self.name = name
         self.id = id
+        # modules this module imports
         self.adj = []
         # number of cluster with cyclic dependencies
         # first cycle is 0, -1 means not part of a cycle
         self.cycle = -1
 
+def compare_module_name(name, pattern):
+    if name == pattern: return True
+    if pattern.endswith(".") and name.startswith(pattern): return True
+    return False
+
 def is_ignored(name):
     for i in options.ignore:
-        if i == name: return True
-        if i.endswith(".") and name.startswith(i): return True
+        if compare_module_name(name, i): return True
+    if len(options.include) > 0:
+        for i in options.include:
+            if not compare_module_name(name, i): return True
     return False
 
 def getnode(name):
@@ -104,6 +123,30 @@ for line in deps:
         if mod == imp:
             continue
     append_unique(getnode(mod).adj, getnode(imp))
+
+# optional feature for looking at specific modules
+if options.imports:
+    marked = {}
+    for i in options.imports:
+        marked[getnode(i)] = True
+    # this is like a reverse GC xD
+    # mark all nodes which refer to at least one marked node
+    while True:
+        nmark = {}
+        for x in nodes.itervalues():
+            if x not in marked:
+                for a in x.adj:
+                    if a in marked:
+                        nmark[x] = True
+        if len(nmark) == 0:
+            break
+        for x in nmark.iterkeys():
+            marked[x] = True
+    # remove all unmarked nodes
+    nodes = {}
+    for x in marked.iterkeys():
+        nodes[x.name] = x
+        x.adj = [i for i in x.adj if (i in marked)]
 
 # tarjan algorithm to find cycles
 # code borrowed from http://www.logarithmic.net/pfh/blog/01208083168

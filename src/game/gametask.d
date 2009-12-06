@@ -9,6 +9,7 @@ import common.resview;
 import framework.commandline;
 import framework.framework;
 import framework.filesystem;
+import framework.font;
 import framework.i18n;
 import framework.timesource;
 import framework.lua;
@@ -513,7 +514,7 @@ class GameTask : StatefulTask {
                 Cell c = new Cell();
                 c.bla = (y>0) && (x > y);
                 c.blu = (y>0) && (x==y);
-                l.font = gFramework.getFont("normal");
+                l.font = gFontManager.loadFont("normal");
                 c.add(l, WidgetLayout.Aligned(0, 0, Vector2i(1)));
                 table.add(c, x, y);
             }
