@@ -1,6 +1,6 @@
 module common.resources;
 
-import common.config;
+import framework.config;
 import framework.filesystem;
 import utils.configfile;
 import utils.log;
@@ -191,6 +191,10 @@ class ResourceFile {
 //lol, another global singleton
 Resources gResources;
 
+static this() {
+    gResources = new Resources();
+}
+
 ///the resource manager
 ///this centrally manages all loaded resources; for accessing resources, use
 ///ResourceSet from module common.resset
@@ -202,8 +206,6 @@ public class Resources {
         char[], ConfigNode) ResFactory;
 
     this() {
-        assert(!gResources, "Resource manager is singleton");
-        gResources = this;
         log = registerLog("Res");
     }
 

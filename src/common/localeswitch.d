@@ -51,29 +51,21 @@ class LocaleSwitch : Task {
         if (curId.length == 0)
             curId = gFallbackLanguage;
         //list locale directory and add all files to the dropdownlist
-        gFS.listdir("/locale/", "*.conf", false, (char[] filename) {
-            if (filename.length < 6)
-                return true;
-            auto node = loadConfig("/locale/" ~ filename, true, true);
-            if (node) {
-                //e.g. German (Deutsch)
-                locList ~= node["langname_en"] ~ " ("
-                    ~ node["langname_local"] ~ ")";
-                char[] id = filename[0..$-5];
-                if (id == curId) {
-                    //this file is the current language, select it
-                    mLocaleList.selection = locList[$-1];
-                    mSelLanguage = id;
-                }
-                mLocaleIds ~= id;
+        scanLocales((char[] id, char[] name_en, char[] name) {
+            //e.g. German (Deutsch)
+            locList ~= name_en ~ " (" ~ name ~ ")";
+            if (id == curId) {
+                //this file is the current language, select it
+                mLocaleList.selection = locList[$-1];
+                mSelLanguage = id;
             }
-            return true;
+            mLocaleIds ~= id;
         });
         mLocaleList.list.setContents(locList);
 
         mDialog = loader.lookup("locale_root");
         mWindow = gWindowManager.createWindow(this, mDialog,
-            _("localeswitch.caption"));
+            translate("localeswitch.caption"));
     }
 
     private void cancelClick(Button sender) {

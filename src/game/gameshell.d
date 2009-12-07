@@ -229,7 +229,7 @@ class GameLoader {
             auto conf = gResources.loadConfigForRes(dir ~ "/set.conf");
             mGfx.addGfxSet(conf);
             //load weaponset locale
-            localeRoot.addLocaleDir("weapons", dir ~ "/locale");
+            addLocaleDir("weapons", dir ~ "/locale");
         }
     }
 

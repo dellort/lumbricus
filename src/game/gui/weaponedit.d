@@ -37,7 +37,7 @@ class WeaponEditorTask : Task {
 
         mEditor = loader.lookup("weaponedit_root");
         mWindow = gWindowManager.createWindow(this, mEditor,
-            _("weaponeditor.caption"));
+            translate("weaponeditor.caption"));
     }
 
     private void cancelClick(Button sender) {

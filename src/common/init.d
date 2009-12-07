@@ -1,8 +1,9 @@
 module common.init;
 
+import framework.config;
 import framework.filesystem;
 import common = common.common;
-import common.config;
+import settings = common.settings;
 
 import utils.configfile;
 import utils.log;
@@ -20,18 +21,10 @@ const char[] APP_ID = "lumbricus";
 ///args = arguments to main()
 ///help = output for help command
 ///returns = parsed command line arguments (parseCmdLine())
-ConfigNode init(char[][] args, char[] help) {
+void init(char[][] args) {
     //buffer log, until FileSystem is initialized
     auto logtmp = new StringOutput();
     gLogEverything.destination = logtmp;
-
-    ConfigNode cmdargs = parseCmdLine(args[1..$]);
-    //cmdargs.writeFile(StdioOutput.output);
-
-    if (cmdargs.getBoolValue("help")) {
-        Stdout.formatln(help);
-        return null; //xxx exit
-    }
 
     //init filesystem
     auto fs = new FileSystem(args[0], APP_ID);
@@ -46,15 +39,16 @@ ConfigNode init(char[][] args, char[] help) {
     logstr.writeString(logtmp.text);
     gLogEverything.destination = logstr;
 
+    //yyy
     //commandline switch: --data=some/dir/to/data
-    char[] extradata = cmdargs["data"];
-    if (extradata.length) {
-        fs.mount(MountPath.absolute, extradata, "/", false, -1);
-    }
+    //char[] extradata = cmdargs["data"];
+    //if (extradata.length) {
+    //    fs.mount(MountPath.absolute, extradata, "/", false, -1);
+    //}
 
-    new common.Common(cmdargs);
+    settings.loadSettings();
 
-    return cmdargs;
+    common.globals.do_init();
 }
 
 

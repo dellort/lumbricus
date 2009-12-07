@@ -1,9 +1,9 @@
 module common.restypes.frames;
 
-import common.config;
 import common.resfileformats;
 import common.resources;
 import common.restypes.atlas;
+import framework.config;
 import framework.drawing;
 import framework.framework;
 import utils.configfile;

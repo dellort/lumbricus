@@ -1,9 +1,9 @@
 module game.gfxset;
 
 import common.animation;
+import framework.config;
 import framework.framework;
 import game.particles : ParticleType;
-import common.config;
 import common.resset;
 import common.resources : gResources, ResourceFile;
 //import common.macroconfig;

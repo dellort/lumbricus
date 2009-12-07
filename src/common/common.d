@@ -1,8 +1,9 @@
 module common.common;
 
-public import common.config;
+public import framework.config;
 import common.resources;
 import common.resset;
+import common.settings;
 import framework.filesystem;
 import framework.framework;
 import framework.font;
@@ -23,15 +24,18 @@ public Common globals;
 //don't know where to put your stuff? just dump it here!
 //mainly supposed to manage all the singletons...
 
+static this() {
+    //singletons are cool
+    globals = new Common();
+}
+
 //the big singleton...
 //also contains some important initialization code
 class Common {
     LogStruct!("common") log;
     Output defaultOut;
     CommandLine cmdLine;
-    ConfigNode programArgs; //command line for the lumbricus executable
 
-    Resources resources;
     //oh sorry, didn't know where to put that!
     //is for guires.conf
     ResourceSet guiResources;
@@ -41,51 +45,40 @@ class Common {
     PerfTimer[char[]] timers;
     long[char[]] counters;
 
-    //another hack, see addFrameCallback()
     private {
+        //another hack, see addFrameCallback()
         bool delegate()[] mFrameCallbacks;
-        MountId mLocaleMount = MountId.max;
     }
 
     //moved to here from TopLevel
     //xxx move this to where-ever
     Translator localizedKeynames;
 
-    private const cLocalePath = "/locale";
-    private const cDefLang = "en";
+    //PropertyValue currentLocaleID;
 
-    this(ConfigNode args) {
-        assert(!globals, "Common is a singelton!");
-        globals = this;
-        programArgs = args;
+    private this() {
+        //currentLocaleID = gSettings.add!(char[])("locale_id", cDefLang);
+    }
 
+    void do_init() {
         readLogconf();
 
+        /+yyy
         if (args.getBoolValue("logconsole")) {
             defaultOut = StdioOutput.output;
         }
+        +/
 
         loadColors(loadConfig("colors"));
 
-        //will set global gResources
-        resources = new Resources();
-
-        char[] langId = programArgs["language_id"];
-        if (!langId.length) {
-            ConfigNode langconf = loadConfigDef("language");
-            langId = langconf.getStringValue("language_id", "");
-        }
+        ConfigNode langconf = loadConfigDef("language");
+        auto langId = langconf.getStringValue("language_id", "");
         initLocale(langId);
 
         localizedKeynames = localeRoot.bindNamespace("keynames");
     }
 
     void initGUIStuff() {
-        //????????????
-        //copy the stupid timers
-        foreach (char[] name, PerfTimer cnt; gFramework.timers) {
-            timers[name] = cnt;
-        }
 
         setVideoFromConf();
         if (!gFramework.videoActive) {
@@ -102,7 +95,7 @@ class Common {
         //in pure SDL mode, there's a similar error (SDL_DisplayFormat() fails)
 
         //GUI resources, this is a bit off here
-        guiResources = resources.loadResSet("guires.conf");
+        guiResources = gResources.loadResSet("guires.conf");
 
         gFontManager.readFontDefinitions(loadConfig("fonts"));
 
@@ -165,15 +158,7 @@ class Common {
     }
 
     void initLocale(char[] langId) {
-        initI18N(cLocalePath, langId, cDefLang, &loadConfig);
-        try {
-            //link locale-specific files into root
-            gFS.unmount(mLocaleMount);
-            mLocaleMount = gFS.link(cLocalePath ~ '/' ~ langId,"/",false,1);
-        } catch (FilesystemException e) {
-            //don't crash if current locale has no locale-specific files
-            gDefaultLog("catched {}", e);
-        }
+        initI18N(langId);
     }
 
     //translate into translated user-readable string

@@ -68,12 +68,12 @@ class GameSummary : Task {
             //game is over
             mGameOver = true;
             props.windowTitle =
-                _("gamesummary.caption_end", persist["round_counter"]);
+                translate("gamesummary.caption_end", persist["round_counter"]);
             mCloseButton.textMarkup = `\t(.gui.close)`;
             if (persist["winner"].length > 0) {
                 //we have a game winner
                 auto tnode = teamsNode.getSubNode(persist["winner"]);
-                mGameWinLabel.textMarkup = _("gamesummary.game_winner",
+                mGameWinLabel.textMarkup = translate("gamesummary.game_winner",
                     tnode["name"], "team_" ~ tnode["color"]);
                 bgCol = tnode["color"];
             } else {
@@ -85,7 +85,7 @@ class GameSummary : Task {
             //game will continue
             mGameOver = false;
             props.windowTitle =
-                _("gamesummary.caption_noend", persist["round_counter"]);
+                translate("gamesummary.caption_noend", persist["round_counter"]);
             mCloseButton.textMarkup = `\t(continue)`;
             mGameWinLabel.text = "";
             mGameWinLabel.font = gFontManager.loadFont("tiny", false);
@@ -93,7 +93,7 @@ class GameSummary : Task {
         if (persist["round_winner"].length > 0) {
             //xxx code duplication
             auto tnode = teamsNode.getSubNode(persist["round_winner"]);
-            mRoundWinLabel.textMarkup = _("gamesummary.round_winner",
+            mRoundWinLabel.textMarkup = translate("gamesummary.round_winner",
                 tnode["name"], "team_" ~ tnode["color"]);
             if (bgCol.length == 0 && !mGameOver)
                 bgCol = tnode["color"];
@@ -127,8 +127,8 @@ class GameSummary : Task {
             i++;
         }
 
-        mVictoryLabel.text = _("gamesummary.victory_condition",
-            _("gamesummary.victory." ~ persist["victory_type"],
+        mVictoryLabel.text = translate("gamesummary.victory_condition",
+            translate("gamesummary.victory." ~ persist["victory_type"],
             persist["victory_count"]));
 
         mWindow.window.position = gFramework.screenSize/2

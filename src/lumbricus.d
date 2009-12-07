@@ -12,9 +12,9 @@ version(Emerald) {
 }
 
 import framework.framework;
+import framework.config;
 import common.init;
 import common.common : globals;
-import common.config;
 //import common.settings;
 import toplevel = common.toplevel;
 import utils.configfile;
@@ -50,40 +50,11 @@ import common.resview; //debugging
 import common.localeswitch;
 
 
-//of course it would be nicer to automatically generate the following thing, but
-//OTOH, it isn't really worth the fuzz
-const cCommandLineHelp =
-`Partial documentation of commandline switches:
-    --help
-        Output this and exit.
-    --language_id=ID
-        Set language ID (de, en)
-    --fw.prop=val
-        Set property 'prop' of the fwconfig stuff passed to the Framework to
-        'val', e.g. to disable use of OpenGL:
-        --fw.sdl.open_gl=false
-    --exec.=cmd
-        Execute 'cmd' on the commandline, e.g. this starts task1 and task2:
-        --exec.="spawn task1" --exec.="spawn task2"
-        (the dot "." turns exec into a list, and a list is expected for exec)
-        The "autoexec" list in anything.conf isn't executed if an --exec. is
-        given on the commandline.
-        xxx: executing more than one cmd is broken because of ConfigNode lol
-    --data=path
-        Mount 'path' as extra data directory (with highest priority, i.e. it
-        overrides the standard paths).
-    --logconsole
-        Output all log output on stdio.`;
 //Also see parseCmdLine() for how parsing works.
 
 void lmain(char[][] args) {
-    ConfigNode cmdargs = init(args, cCommandLineHelp);
+    init(args);
 
-    if (!cmdargs)
-        return;
-
-    auto fwconf = loadConfig("framework");
-    fwconf.mixinNode(cmdargs.getSubNode("fw"), true);
     auto fw = new Framework();
     fw.setCaption("Lumbricus");
 

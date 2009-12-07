@@ -1,6 +1,6 @@
 module net.cmdserver;
 
-import common.config;
+import framework.config;
 import framework.commandline;
 import framework.timesource;
 public import net.cmdprotocol;

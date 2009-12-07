@@ -1,4 +1,4 @@
-module common.config;
+module framework.config;
 
 ///Various utility functions for configfile loading
 ///(user-friendly shortcuts, error reporting, compression etc.)

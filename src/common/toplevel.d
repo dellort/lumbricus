@@ -22,6 +22,7 @@ import gui.dropdownlist;
 import gui.wm;
 import common.common;
 import common.loadsave;
+import common.settings;
 //import all restypes because of the factories (more for debugging...)
 import common.allres;
 import common.task;
@@ -238,9 +239,9 @@ private:
         keybindings.loadFrom(loadConfig("binds").getSubNode("binds"));
 
         ConfigNode autoexec = loadConfig("autoexec");
-        if (globals.programArgs.findNode("exec")) {
-            autoexec = globals.programArgs.getSubNode("exec");
-        }
+        //if (globals.programArgs.findNode("exec")) {
+        //    autoexec = globals.programArgs.getSubNode("exec");
+        //}
         foreach (char[] name, char[] value; autoexec) {
             globals.cmdLine.execute(value);
         }
@@ -386,7 +387,7 @@ private:
 
     private void cmdFwSettings(MyBox[] args, Output write) {
         auto t = new Task(taskManager); //grrr
-        createPropertyEditWindow(t, gFrameworkSettings, false,
+        createPropertyEditWindow(t, gSettings, false,
             "Framework settings");
     }
 

@@ -63,7 +63,7 @@ class LevelWidget : SimpleContainer {
 
         mSavedLevels = loader.lookup!(DropDownList)("dd_level");
         readSavedLevels();
-        mSavedLevels.selection = _("gamesetup.lastplayed");
+        mSavedLevels.selection = translate("gamesetup.lastplayed");
         mSavedLevels.onSelect = &levelSelect;
         mSavedLevels.onEditStart = &levelEditStart;
         mSavedLevels.onEditEnd = &levelEditEnd;
@@ -92,7 +92,7 @@ class LevelWidget : SimpleContainer {
 
     private void readSavedLevels() {
         char[][] storedlevels;
-        storedlevels ~= _("gamesetup.lastplayed");
+        storedlevels ~= translate("gamesetup.lastplayed");
         gFS.listdir(cSavedLevelsPath, "*.conf", false, (char[] fn) {
             storedlevels ~= fn[0..$-5];
             return true;
@@ -176,7 +176,7 @@ class LevelWidget : SimpleContainer {
         }
         mSelector.loadLevel(mCurrentLevel);
         mLevelWindow = gWindowManager.createWindow(mOwner, mSelector,
-            _("levelselect.caption"));
+            translate("levelselect.caption"));
         mLevelWindow.onClose = &levelWindowClose;
         if (onSetBusy)
             onSetBusy(true);
@@ -292,7 +292,7 @@ class LocalGameSetupTask : Task {
         mSetup = loader.lookup("gamesetup_root");
         mWaiting = loader.lookup("waiting_root");
         mWindow = gWindowManager.createWindow(this, mSetup,
-            _("gamesetup.caption_local"));
+            translate("gamesetup.caption_local"));
 
         loadTeams();
     }

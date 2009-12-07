@@ -288,7 +288,7 @@ abstract class Stream {
     //read from position .. size
     ubyte[] readAll() {
         ubyte[] res;
-        assert(position < size);
+        assert(position <= size);
         res.length = size - position;
         readExact(res);
         return res;

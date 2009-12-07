@@ -48,10 +48,6 @@ static this() {
     gFrameworkSettings = new PropertyList;
     gFrameworkSettings.name = "framework";
 
-    gFrameworkSettings.addListener((PropertyNode owner, PropertyValue v) {
-        Trace.formatln("CHANGE: {} -> {}", v.path, v.asString);
-    });
-
     gFwDrvList = gFrameworkSettings.addList("drivers");
 
     //hack to force some defaults
@@ -80,8 +76,11 @@ private void addDriverEntry(char[] type, char[] driver)
     assert(!choice.isValidChoice(driver), "double entry?");
     choice.add(driver);
     if (auto p = type in gDefaultDrivers) {
-        if (*p == driver) //at creation time of that driver; can't set otherwise
+        //at creation time of that driver; can't set otherwise
+        if (*p == driver) {
             choice.setAsStringDefault(driver);
+            choice.wasSet = false;
+        }
     }
 }
 
@@ -468,6 +467,15 @@ final class SurfaceData {
         }
 
         data = null;
+    }
+
+    //this is so stupid
+    //will fix as soon as Tango makes weak pointers possible
+    ~this() {
+        assert(!driver_surface);
+        version (UseCMalloc) {
+            pixels_free();
+        }
     }
 
     void do_free() {
@@ -1042,9 +1050,6 @@ class Framework {
         MouseCursor mMouseCursor;
         bool mDisableMouseMoveEvent;
 
-        //worthless statistics!
-        PerfTimer[char[]] mTimers;
-
         CacheReleaseDelegate[] mCacheReleasers;
 
         //base drivers can report that the app is hidden, which will stop
@@ -1070,8 +1075,8 @@ class Framework {
     }
 
     private void replaceDriver() {
-        Trace.formatln("replace:");
-        gFrameworkSettings.dump((char[] s) { Trace.format("{}", s); } );
+        //Trace.formatln("replace:");
+        //gFrameworkSettings.dump((char[] s) { Trace.format("{}", s); } );
 
         //deinit old driver
         VideoWindowState vstate;
@@ -1512,10 +1517,6 @@ class Framework {
         VideoWindowState state = mDriver.getVideoWindowState();
         state.window_caption = caption;
         mDriver.setVideoWindowState(state);
-    }
-
-    PerfTimer[char[]] timers() {
-        return mTimers;
     }
 
     //force: for sounds; if true, sounds are released too, but this leads to

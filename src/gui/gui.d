@@ -1,6 +1,6 @@
 module gui.gui;
 
-import common.config;
+import framework.config;
 import framework.framework;
 public import framework.event;
 import framework.i18n;

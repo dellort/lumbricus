@@ -1,5 +1,6 @@
 module framework.i18n;
 
+import framework.config;
 import framework.filesystem;
 import utils.configfile;
 import utils.log;
@@ -19,11 +20,7 @@ import tango.util.Convert;
 
 //translator for root locale file (read-only, use accessor method below)
 
-alias ConfigNode function(char[] section, bool asfilename = false,
-    bool allowFail = false) ConfigLoaderDg;
-
 private Translator gLocaleRoot;
-private ConfigLoaderDg gConfigLoader;
 //two-character locale id
 public char[] gCurrentLanguage;
 //fallback locale, in case the main locale file is not found
@@ -32,7 +29,10 @@ public char[] gFallbackLanguage;
 //called when the language is changed
 public MDelegate!() gOnChangeLocale;
 
-private Log log;
+private {
+    Log log;
+    MountId gLocaleMount = MountId.max;
+}
 
 //xxx: should use WeakList, but it has issues, etc.
 //or just keep them forever, and don'r recreate Translators if they already
@@ -86,7 +86,7 @@ public class Translator {
     ///note that the node may be null, in which case only error strings
     ///will be returned
     ///bindNamespace() is a shortcut for this
-    this(char[] namespace, Translator parent) {
+    private this(char[] namespace, Translator parent) {
         this();
         assert(gFallbackLanguage.length > 0, "Call initI18N() before");
         mParent = parent;
@@ -100,7 +100,7 @@ public class Translator {
 
     ///load a language file from a language/locale directory
     ///initI18N() must have been called before
-    this(char[] localePath) {
+    private this(char[] localePath) {
         this();
         assert(gFallbackLanguage.length > 0, "Call initI18N() before");
         reinit(localePath);
@@ -154,7 +154,7 @@ public class Translator {
         return new Translator(namespace, this);
     }
 
-    void addLocaleDir(char[] targetId, char[] localePath) {
+    private void addLocaleDir(char[] targetId, char[] localePath) {
         auto dir = LocaleDir(targetId, localePath);
         foreach (ref d; mAdditionalDirs) {
             if (d.targetId == targetId) {
@@ -176,10 +176,10 @@ public class Translator {
     private ConfigNode localeNodeFromPath(char[] localePath) {
         char[] localeFile = localePath ~ '/' ~ gCurrentLanguage;
         char[] fallbackFile = localePath ~ '/' ~ gFallbackLanguage;
-        ConfigNode node = gConfigLoader(localeFile, false, true);
+        ConfigNode node = loadConfig(localeFile, false, true);
         if (!node)
             //try fallback
-            node = gConfigLoader(fallbackFile, false, true);
+            node = loadConfig(fallbackFile, false, true);
         if (!node)
             log("WARNING: Failed to load any locale file from " ~ localePath
                 ~ " with language '" ~ gCurrentLanguage ~ "', fallback '"
@@ -214,7 +214,7 @@ public class Translator {
         mFullIdOnError = f;
     }
 
-    ///Translate a text, similar to the _() function.
+    ///Translate a text, similar to the translate() function.
     ///Warning: doesn't do namespace resolution.
     char[] opCall(char[] id, ...) {
         return translatefx(id, _arguments, _argptr);
@@ -328,9 +328,31 @@ public class Translator {
     }
 }
 
-///Init translations.
+private const cDefLang = "en";
+
 ///localePath: Path in VFS where locale files are stored (<langId>.conf)
 ///locale-specific files in <localePath>/<langId> will be mounted to root
+private const cLocalePath = "/locale";
+
+//search locale directory for translation files (<lang>.conf)
+//  e.g. cb("de", "German", "Deutsch")
+void scanLocales(void delegate(char[] id, char[] name_en, char[] name) cb) {
+    gFS.listdir("/locale/", "*.conf", false, (char[] filename) {
+        const trail = ".conf";
+        if (filename.length <= trail.length || !str.endsWith(filename, trail))
+            return true;
+        auto node = loadConfig(cLocalePath ~ '/' ~ filename, true, true);
+        if (node) {
+            char[] name_en = node["langname_en"];
+            char[] name = node["langname_local"];
+            char[] id = filename[0..$-trail.length];
+            cb(id, name_en, name);
+        }
+        return true;
+    });
+}
+
+///Init translations.
 ///A locale file is a ConfigFile with the following format:
 ///     id1 = "Text {1} with arguments {2}"
 ///     ...
@@ -339,26 +361,38 @@ public class Translator {
 ///     }
 ///     ...
 ///lang: Language identifier.
-public void initI18N(char[] localePath, char[] lang, char[] fallbackLang,
-    ConfigLoaderDg configLoader)
-{
-    assert(fallbackLang.length > 0);
+///um, and I guess it tries to load /locale/<lang>.conf
+public void initI18N(char[] lang) {
     log = registerLog("i18n");
-    gConfigLoader = configLoader;
     gCurrentLanguage = lang;
-    gFallbackLanguage = fallbackLang;
+    gFallbackLanguage = cDefLang;
+
+    //xxx do we need this?
+    try {
+        //link locale-specific files into root
+        gFS.unmount(gLocaleMount);
+        gLocaleMount = gFS.link(cLocalePath ~ '/' ~ lang,"/",false,1);
+    } catch (FilesystemException e) {
+        //don't crash if current locale has no locale-specific files
+        log("catched {}", e);
+    }
+
     if (!gLocaleRoot) {
-        gLocaleRoot = new Translator(localePath);
+        gLocaleRoot = new Translator(cLocalePath);
     } else {
         foreach (tr; createdTranslators) {
             tr.reinit();
         }
-        gOnChangeLocale();
     }
+    gOnChangeLocale();
+}
+
+void addLocaleDir(char[] targetId, char[] localePath) {
+    localeRoot.addLocaleDir(targetId, localePath);
 }
 
 ///Translate an ID into text in the selected language.
 ///Unlike GNU Gettext, this only takes an ID, not an english text.
-public char[] _(char[] id, ...) {
+public char[] translate(char[] id, ...) {
     return gLocaleRoot.translatefx(id, _arguments, _argptr);
 }

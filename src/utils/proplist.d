@@ -373,28 +373,23 @@ class PropertyNode {
 
 //represent an "atomic" value (== not a PropertyList)
 abstract class PropertyValue : PropertyNode {
-    private {
-        bool mWasSet;
-    }
-
     //return if the property was written by the user
+    //setting the value will set this to true; reset() will set it to false
     //NOTE: the actual value of the property can be the same as its default
     //  value even if wasSet returns true (in this case, the user set it
     //  manually to the default value); only reset() will clear the flag
-    final bool wasSet() {
-        return mWasSet;
-    }
+    bool wasSet;
 
     final override void reset() {
         doReset();
-        mWasSet = false;
+        wasSet = false;
         notifyChange(false);
     }
 
     //notification for value changes
     protected void notifyChange(bool set = true) {
         if (set)
-            mWasSet = true;
+            wasSet = true;
         changed();
     }
 
@@ -406,13 +401,14 @@ abstract class PropertyValue : PropertyNode {
         if (v.classinfo !is this.classinfo)
             throw new PropertyException(this, "copyFrom(): incompatible types");
         //do as copyFrom() defines to handle overwriting
-        if (!copy_unset && !v.wasSet())
+        if (!copy_unset && !v.wasSet)
             return;
-        if (!overwrite_set && this.wasSet())
+        if (!overwrite_set && this.wasSet)
             return;
         //copy
-        mWasSet = v.mWasSet;
+        wasSet = v.wasSet;
         doCopyFrom(v);
+        changed();
     }
 
     //user readable (and even editable) representation of the value
@@ -436,12 +432,13 @@ class PropertyString : PropertyValue {
 
     override char[] asString() { return mValue; }
     override char[] asStringDefault() { return mDefaultValue; }
-    override void setAsString(char[] s) { mValue = s; }
+    override void setAsString(char[] s) { mValue = s; notifyChange(); }
     override void doReset() { mValue = mDefaultValue; }
 
     //meh
     void setDefault(char[] s) {
         mDefaultValue = s;
+        notifyChange(false);
     }
 
     override void doCopyFrom(PropertyValue source) {
@@ -497,6 +494,7 @@ private class PropertyValueT_hurf(T) : PropertyValueT!(T) {
     }
 
     void set(T v) {
+        wasSet = true;
         if (v == mValue)
             return;
         mValue = v;
@@ -597,9 +595,10 @@ class PropertyChoice : PropertyValue {
         if (find(newchoice, false) >= 0)
             invalidValue(); //double entry
         mValues ~= Choice(newchoice, int_value);
+        int pre = cur;
         if (mDefault < 0)
             mDefault = 0;
-        notifyChange();
+        notifyChange(cur != pre);
     }
 
     private int find(char[] s, bool force_valid) {
@@ -642,7 +641,7 @@ class PropertyChoice : PropertyValue {
 
     void setAsStringDefault(char[] s) {
         mDefault = find(s, true);
-        notifyChange();
+        notifyChange(false);
     }
 
     override void doReset() {
@@ -841,6 +840,7 @@ final class PropertyList : PropertyNode {
     }
 }
 
+version(none)
 unittest {
     auto list = new PropertyList();
     list.name = "root";

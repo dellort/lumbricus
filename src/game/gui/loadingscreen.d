@@ -38,7 +38,7 @@ class LoadingScreen : Container {
             auto label = new Label();
             mChunkLabels ~= label;
             label.styles.addClass("loadingscreen-label");
-            label.text = _("loading.load", chunk);
+            label.text = translate("loading.load", chunk);
             mLabelList.add(label);
         }
 

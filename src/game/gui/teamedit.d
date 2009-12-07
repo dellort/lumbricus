@@ -57,14 +57,14 @@ class TeamEditorTask : Task {
         mColorButton.onClick = &colorClick;
         mControlDropdown = loader.lookup!(DropDownList)("dd_control");
         mControlDropdown.onSelect = &controlSelect;
-        mControlDropdown.list.setContents([_("teameditor.control_def"),
-            _("teameditor.control_wwp")]);
+        mControlDropdown.list.setContents([translate("teameditor.control_def"),
+            translate("teameditor.control_wwp")]);
 
         updateTeams();
 
         mEditor = loader.lookup("teamedit_root");
         mWindow = gWindowManager.createWindow(this, mEditor,
-            _("teameditor.caption"));
+            translate("teameditor.caption"));
     }
 
     //update list of teams in dropdown, and choose the first if none selected
@@ -75,7 +75,7 @@ class TeamEditorTask : Task {
             teams ~= t.name;
         }
         teams.sort;
-        teams ~= _("teameditor.newteam");
+        teams ~= translate("teameditor.newteam");
         mTeamsDropdown.list.setContents(teams);
         if (!mEditedTeam && mTeams.count > 0)
             mEditedTeam = mTeams.findNode(teams[0]);
@@ -125,7 +125,7 @@ class TeamEditorTask : Task {
             //create new team
             //find a unique name first
             int i = 0;
-            char[] unnamed = _("teameditor.defaultteam");
+            char[] unnamed = translate("teameditor.defaultteam");
             char[] newName = unnamed;
             if (name.length > 0)
                 newName = name;

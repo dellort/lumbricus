@@ -56,7 +56,7 @@ class WelcomeTask : Task {
         auto foo = new Foo();
         foo.add(mWelcome);
         mWindow = gWindowManager.createWindow(this, foo,
-            _("welcomescreen.caption"));
+            translate("welcomescreen.caption"));
         foo.claimFocus();
 
         //this property is false by default
@@ -117,7 +117,7 @@ class LoadGameTask : Task {
             //select the first entry
             mLoadList.selectedIndex = 0;
             mLoadWindow = gWindowManager.createWindow(this, mLoadGame,
-                _("loadgamescreen.caption"));
+                translate("loadgamescreen.caption"));
         } else {
             //xxx no savegames, error message?
             kill();

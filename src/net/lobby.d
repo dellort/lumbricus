@@ -106,7 +106,7 @@ class CmdNetClientTask : Task {
         mTabs.onActiveChange = &tabActivate;
 
         mConnectWnd = gWindowManager.createWindow(this, mConnectDlg,
-            _("connect.caption"));
+            translate("connect.caption"));
     }
 
     private void onConnect(CmdNetClient sender) {
@@ -125,8 +125,8 @@ class CmdNetClientTask : Task {
         if (code == 0)
             mLblError.text = "";
         else
-            mLblError.text = _("connect.error", reasonToString[code]);
-        mConnectButton.text = _("connect.connect");
+            mLblError.text = translate("connect.error", reasonToString[code]);
+        mConnectButton.text = translate("connect.connect");
         mConnectButton.enabled = true;
         log("Lost connection to {}: {}", sender.serverAddress,
             reasonToString[code]);
@@ -134,7 +134,7 @@ class CmdNetClientTask : Task {
 
     private void onError(CmdNetClient sender, char[] msg, char[][] args) {
         //connection error
-        mLblError.text = _("connect.error", msg);
+        mLblError.text = translate("connect.error", msg);
         log("Error from {}: {}", sender.serverAddress, msg);
     }
 
@@ -148,7 +148,7 @@ class CmdNetClientTask : Task {
         }
         log("Trying to connect to {}", NetAddress(addr));
         mClient.connect(NetAddress(addr), mNickname.text);
-        sender.text = _("connect.connecting");
+        sender.text = translate("connect.connecting");
         sender.enabled = false;
     }
 
@@ -214,9 +214,9 @@ class CmdNetClientTask : Task {
                 //     "still searching" or "no servers there"
                 if (contents.length == 0) {
                     if (mAnnounce[mMode].announce.active)
-                        contents ~= _("connect.noservers");
+                        contents ~= translate("connect.noservers");
                     else
-                        contents ~= _("connect.announceerror");
+                        contents ~= translate("connect.announceerror");
                 }
                 mAnnounce[mMode].list.setContents(contents);
                 mLastTime = t;
@@ -407,7 +407,7 @@ class CmdNetLobbyTask : Task {
 
         //xxx values should be read from configfile
         mLobbyWnd = gWindowManager.createWindow(this, mLobbyDlg,
-            _("lobby.caption", mClient.playerName), Vector2i(550, 500));
+            translate("lobby.caption", mClient.playerName), Vector2i(550, 500));
 
         //--------------------------------------------------------------
 
@@ -430,7 +430,7 @@ class CmdNetLobbyTask : Task {
         mHostButton.enabled = false;
         mReadyButton.enabled = false;
         //show error message in console
-        mConsole.writefln(_("lobby.c_disconnect",
+        mConsole.writefln(translate("lobby.c_disconnect",
             reasonToString[code]));
         mConsoleWidget.enabled = false;
     }
@@ -460,7 +460,7 @@ class CmdNetLobbyTask : Task {
                 mCreateDlg.reset();
                 if (!mCreateWnd) {
                     mCreateWnd = gWindowManager.createWindow(this, mCreateDlg,
-                        _("gamesetup.caption_net"));
+                        translate("gamesetup.caption_net"));
                     mCreateWnd.onClose = &createClose;
                 }
                 mCreateWnd.visible = true;
@@ -472,9 +472,9 @@ class CmdNetLobbyTask : Task {
             char[] name;
             mClient.idToPlayerName(playerId, name);
             if (granted)
-                mConsole.writefln(_("lobby.hostinprogress", name));
+                mConsole.writefln(translate("lobby.hostinprogress", name));
             else
-                mConsole.writefln(_("lobby.hostaborted", name));
+                mConsole.writefln(translate("lobby.hostaborted", name));
         }
     }
 
@@ -540,7 +540,7 @@ class CmdNetLobbyTask : Task {
             mGameSummary.kill();
             mGameSummary = null;
         }
-        //mConsole.writefln(_("lobby.gamestarting"));
+        //mConsole.writefln(translate("lobby.gamestarting"));
         mGame = new GameTask(manager, loader, mClient);
         mGame.registerOnDeath(&onGameKill);
     }
@@ -560,7 +560,7 @@ class CmdNetLobbyTask : Task {
 
     private void onError(CmdNetClient sender, char[] msg, char[][] args) {
         //lobby error
-        mConsole.writefln(_("lobby.c_serror", msg));
+        mConsole.writefln(translate("lobby.c_serror", msg));
     }
 
     private void onMessage(CmdNetClient sender, char[][] text) {

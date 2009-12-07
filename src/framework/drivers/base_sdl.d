@@ -12,7 +12,8 @@ import utils.time;
 import utils.perf;
 import utils.drawing;
 import utils.misc;
-import utils.configfile;
+import utils.proplist;
+import utils.strparser;
 
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
@@ -49,22 +50,25 @@ class SDLDriver : FrameworkDriver {
 
     this() {
         //default (empty) means use OS default
-        char[] wndPos; //yyy = config.getStringValue("window_pos");
-        //CENTERED doesn't work - somehow resizing the window enters an endless
-        //loop on IceWM... anyway, it makes me want to beat up the SDL devs
-        //it also could be our or IceWM's fault
-        version(Windows) {
-            if (wndPos == "center") {
+        char[] wndPos = driverOptions(this).getT!(char[])("window_pos");
+
+        if (wndPos == "center") {
+            //CENTERED doesn't work - somehow resizing the window enters an endless
+            //loop on IceWM... anyway, it makes me want to beat up the SDL devs
+            //wait, I guess this is why they wrote in the docs:
+            //  "Using these variables isn't recommened"
+            //it also could be our or IceWM's fault
+            version(Windows) {
                 Environment.set("SDL_VIDEO_CENTERED", "center");
-            } else {
-                try {
-                    //empty (or invalid) value will throw and not set the var
-                    Vector2i pos = fromStr!(Vector2i)(wndPos);
-                    Environment.set("SDL_VIDEO_WINDOW_POS", myformat("{},{}",
-                        pos.x, pos.y));
-                } catch (ConversionException e) {
-                    //ignore
-                }
+            }
+        } else {
+            try {
+                //empty (or invalid) value will throw and not set the var
+                Vector2i pos = fromStr!(Vector2i)(wndPos);
+                Environment.set("SDL_VIDEO_WINDOW_POS", myformat("{},{}",
+                    pos.x, pos.y));
+            } catch (ConversionException e) {
+                //ignore
             }
         }
 
@@ -479,5 +483,6 @@ class SDLDriver : FrameworkDriver {
 }
 
 static this() {
-    registerFrameworkDriver!(SDLDriver)("sdl");
+    PropertyList s = registerFrameworkDriver!(SDLDriver)("sdl");
+    s.add!(char[])("window_pos", "center");
 }

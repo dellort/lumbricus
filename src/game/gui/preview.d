@@ -54,7 +54,7 @@ class LevelSelector : SimpleContainer {
 
         //"generating level" label, invisible for now
         mLblWait = new Label();
-        mLblWait.text = _("levelselect.waiting");
+        mLblWait.text = translate("levelselect.waiting");
 
 
         auto conf = loadConfig("dialogs/levelpreview_gui");
@@ -70,7 +70,7 @@ class LevelSelector : SimpleContainer {
 
         mDdGfx = loader.lookup!(DropDownList)("dd_gfx");
         mDdGfx.onSelect = &gfxSelect;
-        char[][] themes = ([_("levelselect.randomgfx")]
+        char[][] themes = ([translate("levelselect.randomgfx")]
             ~ mGenerator.themes.names());
         themes.sort;
         mDdGfx.list.setContents(themes);

@@ -1,6 +1,5 @@
 module game.controller_plugins;
 
-import common.config;
 import framework.i18n;
 import game.controller_events;
 import game.controller;

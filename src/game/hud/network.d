@@ -40,17 +40,17 @@ class NetworkHud : SimpleContainer {
         auto p = mLagLabel.font.properties;
         p.fore = Color(0.8);
         mLagLabel.font = new Font(p);
-        mLagLabel.text = _("nethud.waitingforserver");
+        mLagLabel.text = translate("nethud.waitingforserver");
         mErrorFrame.add(mLagLabel, WidgetLayout.Aligned(0, 0));
 
         //centered box with disconnected message and close button
         mCloseBox = new BoxContainer(false, false, 10);
         mCloseBox.styles.id = "netclosebox";
         auto cl = new Label();
-        cl.text = _("nethud.connectionlost");
+        cl.text = translate("nethud.connectionlost");
         mCloseBox.add(cl, WidgetLayout.Aligned(0, 0));
         auto cbtn = new Button();
-        cbtn.text = _("nethud.exitgame");
+        cbtn.text = translate("nethud.exitgame");
         cbtn.onClick = &closeClick;
         auto lay = WidgetLayout.Aligned(0, 0);
         lay.pad = 5;
