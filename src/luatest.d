@@ -74,6 +74,10 @@ class Foo {
         return Vector2i(x, y);
     }
 
+    void vectors(Vector2i[] v) {
+        Trace.formatln("vectors: {}", v);
+    }
+
     void array(int[] a) {
         Trace.formatln("{}", a);
     }
@@ -102,7 +106,7 @@ LuaRegistry scripting;
 static this() {
     scripting = new typeof(scripting)();
     scripting.methods!(Foo, "test", "createBar", "createEvul", "passBar");
-    scripting.methods!(Foo, "vector", "makeVector", "array", "aarray",
+    scripting.methods!(Foo, "vector", "makeVector", "vectors", "array", "aarray",
         "makeArray", "callCb", "makeTime");
     scripting.property!(Foo, "bla");
     auto bar = scripting.defClass!(Bar)();
@@ -117,7 +121,7 @@ void funcBlub(char[] arg) {
 
 void main(char[][] args) {
     scope(exit) gMainTerminated = true;
-    cinit.init(args, "what");
+    cinit.init(args);
     LuaState s = new LuaState();
     s.register(scripting);
 
@@ -218,6 +222,8 @@ void main(char[][] args) {
         assert(Bar_something(b) == 456)
         Bar_set_something(b, 789)
         utils.formatln("something={}", Bar_something(b))
+
+        Foo_vectors({Vector2(1,0), Vector2(5,7)})
     `);
 
     s.call("test", "Blubber");
@@ -247,6 +253,7 @@ void main(char[][] args) {
 
     //end GC test
 
+/+
     char[][Object] exts;
     Stream outs = //Stream.OpenFile("foo.out", File.ReadWriteCreate);
     new MemoryStream();//
@@ -273,6 +280,7 @@ void main(char[][] args) {
         -- the printed string was actually not serialized
         print(string.format("deserialized: some_b=%s", Bar_blurgh(meep.some_b)));
     `);
++/
 
     //these are expected to fail (type checks etc.)
 

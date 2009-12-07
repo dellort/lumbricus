@@ -184,16 +184,17 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
         if (!lua_istable(state, stackIdx))
             expected("struct table");
         T ret;
+        int tablepos = luaRelToAbsIndex(state, stackIdx);
         foreach (int idx, x; ret.tupleof) {
             //first try named access
             static assert(ret.tupleof[idx].stringof[0..4] == "ret.");
             luaPush(state, (ret.tupleof[idx].stringof)[4..$]);
-            lua_gettable(state, stackIdx);   //replaces key by value
+            lua_gettable(state, tablepos);   //replaces key by value
             if (lua_isnil(state, -1)) {
                 //named access failed, try indexed
                 lua_pop(state, 1);
                 luaPush(state, idx+1);
-                lua_gettable(state, stackIdx);
+                lua_gettable(state, tablepos);
             }
             if (!lua_isnil(state, -1)) {
                 ret.tupleof[idx] = luaStackValue!(typeof(ret.tupleof[idx]))(
