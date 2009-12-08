@@ -10,6 +10,7 @@ import game.gobject;
 import game.sprite;
 import game.worm;
 import game.levelgen.level;
+import game.levelgen.renderer;
 import game.weapon.projectile;
 import physics.world;
 import utils.vector2;
@@ -43,11 +44,16 @@ static this() {
     gScripting.setClassPrefix!(GameEngine)("Game");
     gScripting.methods!(GameEngine, "createSprite", "gameTime", "waterOffset",
         "windSpeed", "setWindSpeed", "randomizeWind", "gravity", "raiseWater",
-        "addEarthQuake", "explosionAt", "damageLandscape",
+        "addEarthQuake", "explosionAt", "damageLandscape", "landscapeBitmaps",
         "insertIntoLandscape", "countSprites", "ownedTeam");
+
+    gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder", "size");
+
     gScripting.setClassPrefix!(GfxSet)("Gfx");
     gScripting.methods!(GfxSet, "findSpriteClass", "findWeaponClass",
         "weaponList");
+    gScripting.method!(GfxSet, "scriptGetRes")("resource");
+
     gScripting.methods!(Level, "worldCenter");
     gScripting.properties_ro!(Level, "airstrikeAllow", "airstrikeY",
         "worldSize", "landBounds");

@@ -158,6 +158,8 @@ function utils.table2string(t, done_set)
 end
 
 -- global convenience functions (mainly when in interactive interpreter)
+-- I consider them Lua language deficiencies *g*
+-- to fix Lua, they just have to be global
 
 -- show list of members in current scope
 -- if t is not nil, list members of t instead
@@ -179,3 +181,52 @@ function printf(fmt, ...)
     end
 end
 
+-- ??
+function min(a,b)
+    if a <= b then
+        return a
+    else
+        return b
+    end
+end
+function max(a,b)
+    if a >= b then
+        return a
+    else
+        return b
+    end
+end
+
+-- lua sure is a nice programming language
+-- according to #lua, you have to concat array manually
+-- table.concat and .. only work for strings or arrays of numbers (?!?!?!)
+function concat(...)
+    local res = {}
+    for k, v in ipairs({...}) do
+        for k2, v2 in ipairs(v) do
+            res[#res + 1] = v2
+        end
+    end
+    return res
+end
+
+-- similar to cond?a:b, but a and b get always evaluated
+function iif(cond, a, b)
+    if cond then
+        return a
+    else
+        return b
+    end
+end
+
+-- return c if nil, or a
+-- useful instead of "c or a", when c can be false
+-- e.g. foo(x) where x is a default argument, but you should also be able to
+--  pass false: function foo(x) x = ifnil(x, true)  use(x) end
+function ifnil(c, a)
+    if c == nil then
+        return a
+    else
+        return c
+    end
+end

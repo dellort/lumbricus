@@ -60,3 +60,50 @@ function katastrophe()
         return className(Phys_backlink(obj)) == "WormSprite"
     end)
 end
+
+Lexel_free = 0
+Lexel_soft = 1
+Lexel_hard = 2
+
+function snowflake(depth, interpolate)
+    depth = depth or 1000
+    interpolate = ifnil(interpolate, false)
+
+    local function get_h(from, to)
+        return from + (to-from)/2 + (to-from):orthogonal()*math.sqrt(3)/2
+    end
+    local function koch(from, to, l)
+        l = ifnil(l, depth) - 1
+        local dir = to-from
+        if (dir:length() < 2) or (l <= 0) then
+            return {from} -- {from, to}
+        end
+        local s1 = from + dir/3
+        local s2 = to - dir/3
+        local p_h = get_h(s1, s2)
+        return concat(
+            koch(from, s1, l), koch(s1, p_h, l),
+            koch(p_h, s2, l), koch(s2, to, l))
+    end
+
+    local fill = Gfx_resource("border_segment") -- just some random bitmap for now
+    local border = Gfx_resource("rope_segment")
+    local ls = Game_landscapeBitmaps()[1]
+    local s = LandscapeBitmap_size(ls)
+    local len = min(s.x, s.y)/3
+    local c = s/2
+    -- I don't know where the center of a koch snowflake is *shrug*
+    local p1 = c+Vector2(-len, len)
+    local p3 = c+Vector2(len, len)
+    local p2 = get_h(p1, p3)
+    local arr = concat(koch(p1, p2), koch(p2, p3), koch(p3, p1))
+
+    -- first clear the landscape before rendering the snowflake
+    LandscapeBitmap_addPolygon(ls,
+        {Vector2(0,0), Vector2(s.x,0), s, Vector2(0,s.y)}, Vector2(0,0), nil,
+        Lexel_free)
+
+    LandscapeBitmap_addPolygon(ls, arr, Vector2(0,0), fill, Lexel_soft,
+        interpolate)
+    LandscapeBitmap_drawBorder(ls, Lexel_soft, Lexel_free, border, border)
+end

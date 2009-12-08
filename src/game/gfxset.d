@@ -124,6 +124,13 @@ class GfxSet {
         mCollisionMap = new CollisionMap();
     }
 
+    //this also means that a bogus/changed resource file could cause scripting
+    //  type errors, when it receives the wrong object type; maybe add some way
+    //  to enforce a specific type?
+    Object scriptGetRes(char[] name) {
+        return resources.get!(Object)(name);
+    }
+
     ResourceFile addGfxSet(ConfigNode conf) {
         //resources
         auto file = gResources.loadResources(conf);

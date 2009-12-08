@@ -38,7 +38,9 @@ function Vector2:__unm()
     return Vector2(-self.x, -self.y)
 end
 
-function Vector2:__len()
+-- __len doesn't work, table __len takes precedence
+--function Vector2:__len()
+function Vector2:length()
     return math.sqrt(self.x*self.x, self.y*self.y)
 end
 
@@ -48,6 +50,14 @@ end
 
 function Vector2:quad_length()
     return self.x*self.x + self.y*self.y
+end
+
+function Vector2:normal()
+    return self/self:length()
+end
+
+function Vector2:orthogonal()
+    return Vector2(self.y, -self.x)
 end
 
 function Vector2:toAngle()

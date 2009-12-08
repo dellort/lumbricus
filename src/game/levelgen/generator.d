@@ -1064,8 +1064,10 @@ LandscapeBitmap landscapeRenderGeometry(LandscapeGeometry geometry,
             texoffset.x = cast(int)(p.texoffset.x * surface.size.x);
             texoffset.y = cast(int)(p.texoffset.y * surface.size.y);
         }
-        renderer.addPolygon(p.points, p.visible, texoffset, surface,
-            p.marker, p.changeable, p.nochange, 5, 0.25f);
+        if (p.visible) {
+            renderer.addPolygon(p.points, texoffset, surface,
+                p.marker, p.changeable, p.nochange);
+        }
     }
 
     debug {
@@ -1077,8 +1079,9 @@ LandscapeBitmap landscapeRenderGeometry(LandscapeGeometry geometry,
 
     //borders, must come after geometry
     foreach (b; gfx.borders) {
-        renderer.drawBorder(b.markers[0], b.markers[1], b.action[0],
-            b.action[1], b.textures[0], b.textures[1]);
+        renderer.drawBorder(b.markers[0], b.markers[1],
+            b.action[0] ? b.textures[0] : null,
+            b.action[1] ? b.textures[1] : null);
     }
 
     debug {
@@ -1104,8 +1107,9 @@ LandscapeBitmap landscapeRenderPregenerated(LandscapeLexels lexelData,
 
     //borders, must come after geometry
     foreach (b; gfx.borders) {
-        renderer.drawBorder(b.markers[0], b.markers[1], b.action[0],
-            b.action[1], b.textures[0], b.textures[1]);
+        renderer.drawBorder(b.markers[0], b.markers[1],
+            b.action[0] ? b.textures[0] : null,
+            b.action[1] ? b.textures[1] : null);
     }
     return renderer;
 }
@@ -1140,8 +1144,8 @@ Surface landscapeRenderPreview(T)(T land, Vector2i size,
 
         //draw background (not drawn when it's not a cave!)
         //(actually, a FillRect would be enough, but...)
-        renderer.addPolygon([Vector2i(), size.X, size, size.Y], true,
-            Vector2i(), markers[Lexel.Null], Lexel.Null, false, null, 0, 0);
+        renderer.addPolygon([Vector2i(), size.X, size, size.Y],
+            Vector2i(), markers[Lexel.Null], Lexel.Null, false);
 
         foreach (LandscapeGeometry.Polygon p; land.polygons) {
             //scale down the points first
@@ -1150,8 +1154,10 @@ Surface landscapeRenderPreview(T)(T land, Vector2i size,
                 point = toVector2i(toVector2f(point).mulEntries(scale));
             }
             auto color = (p.marker <= Lexel.Max) ? markers[p.marker] : nocolor;
-            renderer.addPolygon(npts, p.visible, Vector2i(0, 0),
-                color, p.marker, p.changeable, p.nochange, 1, 0.25f);
+            if (p.visible) {
+                renderer.addPolygon(npts, Vector2i(0, 0),
+                    color, p.marker, p.changeable, p.nochange);
+            }
         }
     } else static if (is(T: LandscapeLexels)) {
         //scale down to preview size
@@ -1219,8 +1225,8 @@ LandscapeLexels landscapeRenderData(LandscapeGeometry geo, Vector2i size) {
 
     //draw background (not drawn when it's not a cave!)
     //(actually, a FillRect would be enough, but...)
-    renderer.addPolygon([Vector2i(), size.X, size, size.Y], true,
-        Vector2i(), null, Lexel.Null, false, null, 0, 0);
+    renderer.addPolygon([Vector2i(), size.X, size, size.Y],
+        Vector2i(), null, Lexel.Null, false);
 
     foreach (LandscapeGeometry.Polygon p; geo.polygons) {
         //scale down the points first
@@ -1228,8 +1234,10 @@ LandscapeLexels landscapeRenderData(LandscapeGeometry geo, Vector2i size) {
         foreach (inout Vector2i point; npts) {
             point = toVector2i(toVector2f(point).mulEntries(scale));
         }
-        renderer.addPolygon(npts, p.visible, Vector2i(0, 0),
-            null, p.marker, p.changeable, p.nochange, 5, 0.25f);
+        if (p.visible) {
+            renderer.addPolygon(npts, Vector2i(0, 0),
+                null, p.marker, p.changeable, p.nochange);
+        }
     }
 
     ret.levelData = renderer.levelData();

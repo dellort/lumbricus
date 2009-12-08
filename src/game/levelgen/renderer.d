@@ -87,7 +87,7 @@ class LandscapeBitmap {
 
     //steps = number of subdivisions
     //start = start of the subdivision
-    private static void cornercut(VertexList verts, int steps, float start) {
+    private static void cornercut(VertexList verts, float start) {
         for (int i = 0; i < 5; i++) {
             if (!verts.hasAtLeast(3))
                 return;
@@ -122,12 +122,10 @@ class LandscapeBitmap {
     //"texture" is used to fill the new polygon, if it is null, make all pixels
     //  covered by the polygon transparent
     //historical note: points was changed from Vector2f
-    public void addPolygon(Vector2i[] points, bool visible,
-        Vector2i texture_offset, Surface texture, Lexel marker,
-        bool subdiv, uint[] nosubdiv, int subdivSteps, float subdivStart)
+    void addPolygon(Vector2i[] points, Vector2i texture_offset, Surface texture,
+        Lexel marker, bool subdiv = false, uint[] nosubdiv = null,
+        float subdivStart = 0.25f)
     {
-        if (!visible)
-            return;
         //if no image available, just set the mLevelData[]
         bool textured = !!mImage;
 
@@ -152,7 +150,7 @@ class LandscapeBitmap {
                 counter.start();
             }
 
-            cornercut(vertices, subdivSteps, subdivStart);
+            cornercut(vertices, subdivStart);
 
             debug {
                 counter.stop();
@@ -181,7 +179,7 @@ class LandscapeBitmap {
             assert(x1 >= 0 && x1 <= mWidth);
             assert(x2 >= 0 && x2 <= mWidth);
             assert(x1 < x2);
-            if (visible && textured) {
+            if (textured) {
                 uint ty = (y + tex.offs.y) % tex.h;
                 Color.RGBA32* dst = dstptr +  y*dstpitch + x1;
                 Color.RGBA32* texptr = tex.data + ty*tex.pitch;
@@ -278,13 +276,10 @@ class LandscapeBitmap {
 
     //it's a strange design decision to do it _that_ way. sorry for that.
     //draw a border in "a", using that texture, where "a" forms a border to "b"
-    //draws top and bottom borders with different textures (if do_xx is set,
-    //tex_xx must be valid)
-    //  "do_up":   draw bottom border with texture "tex_up"
-    //  "do_down": draw top border with texture "tex_down"
-    public void drawBorder(Lexel a, Lexel b, bool do_up, bool do_down,
-        Surface tex_up, Surface tex_down)
-    {
+    //draws top and bottom borders with different textures
+    //  tex_up !is null:   draw bottom border with texture "tex_up"
+    //  tex_down !is null: draw top border with texture "tex_down"
+    void drawBorder(Lexel a, Lexel b, Surface tex_up, Surface tex_down) {
         assert(!!mImage, "No border drawing for data-only renderer");
         ubyte[] apline;
 
@@ -381,9 +376,9 @@ class LandscapeBitmap {
         scope apline_array = new BigArray!(ubyte)(mWidth);
         apline = apline_array[];
 
-        if (do_down)
+        if (tex_down)
             drawBorderInt(a, b, false, tex_down, tmp);
-        if (do_up)
+        if (tex_up)
             drawBorderInt(a, b, true, tex_up, tmp);
 
         debug {
