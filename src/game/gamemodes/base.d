@@ -4,6 +4,7 @@ import framework.framework;
 import framework.timesource;
 import game.game;
 import game.controller;
+import game.controller_events;
 
 import utils.factory;
 import utils.reflection;
@@ -42,7 +43,7 @@ class Gamemode {
 
     ///Start a new game, called before first simulate call
     void startGame() {
-        logic.events.onGameStart(this);
+        OnGameStart.raise(engine.globalEvents);
         modeTime.resetTime();
     }
 

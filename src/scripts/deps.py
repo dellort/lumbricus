@@ -36,6 +36,9 @@ parser.add_option("-c", "--cycles-only",
 parser.add_option("-C", "--cycle-edges-only",
     action="store_true", dest="cycle_edges_only", default=False,
     help="show only edges, that are part of a cycle")
+#parser.add_option("-t", "--remove-transitive-deps",
+#    action="store_true", dest="remove_transitive_deps", default=False,
+#    help="if A->B->C and A->C, don't add edge for A->C")
 parser.add_option("-e", "--exclude",
     action="append", dest="ignore", default=[],
     help="ignore module (or if it ends with a '.', ignore all packages starting with this)")

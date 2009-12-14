@@ -4,6 +4,7 @@ import framework.framework;
 import framework.timesource;
 import game.game;
 import game.controller;
+import game.controller_events;
 import game.gamemodes.base;
 import game.gamemodes.turnbased_shared;
 import game.crate;
@@ -228,7 +229,7 @@ class ModeTurnbased : Gamemode {
                             assert(!!firstAlive);
                             firstAlive.youWinNow();
                         }
-                        logic.events.onVictory(firstAlive);
+                        OnVictory.raise(engine.globalEvents, firstAlive);
                         if (aliveTeams == 0) {
                             return TurnState.end;
                         } else {

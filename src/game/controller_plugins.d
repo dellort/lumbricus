@@ -20,6 +20,9 @@ import utils.md;
 
 import tango.util.Convert : to;
 
+static this() {
+}
+
 ///let the client display a message (like it's done on round's end etc.)
 ///this is a bit complicated because message shall be translated on the
 ///client (i.e. one client might prefer Klingon, while the other is used
@@ -38,7 +41,7 @@ struct GameMessage {
 //the idea was that the whole game state should be observable (including
 //events), so you can move displaying all messages into a separate piece of
 //code, instead of creating messages directly
-class ControllerMsgs : GamePluginAutoReg {
+class ControllerMsgs : GamePlugin {
     private {
         const cMessageTime = timeSecs(1.5f);
         Time mLastMsgTime;
@@ -52,24 +55,25 @@ class ControllerMsgs : GamePluginAutoReg {
 
     this(GameEngine c) {
         super(c);
+        OnGameStart.handler(engine.events, "root", &onGameStart);
+        OnGameEnd.handler(engine.events, "root", &onGameEnd);
+        OnSuddenDeath.handler(engine.events, "root", &onSuddenDeath);
+        OnWormEvent.handler(engine.events, "root", &onWormEvent);
+        OnTeamEvent.handler(engine.events, "root", &onTeamEvent);
+        OnCrateDrop.handler(engine.events, "root", &onCrateDrop);
+        OnCrateCollect.handler(engine.events, "root", &onCrateCollect);
+        OnVictory.handler(engine.events, "root", &onVictory);
     }
     this(ReflectCtor c) {
         super(c);
         c.transient(this, &showMessage);
     }
 
-    mixin(genRegFunc(["onGameStart", "onWormEvent",
-        "onTeamEvent", "onCrateDrop", "onCrateCollect", "onSuddenDeath",
-        "onVictory", "onGameEnded"]));
-
-    private void onGameStart(Gamemode mode) {
+    private void onGameStart(GameObject dummy) {
         messageAdd("msggamestart", null);
-        if (cast(ModeDebug)mode) {
-            messageAdd("msgdebuground");
-        }
     }
 
-    private void onWormEvent(WormEvent id, TeamMember m) {
+    private void onWormEvent(GameObject dummy, WormEvent id, TeamMember m) {
         switch (id) {
             case WormEvent.wormActivate:
                 messageAdd("msgwormstartmove", [m.name], m.team,
@@ -88,7 +92,7 @@ class ControllerMsgs : GamePluginAutoReg {
         }
     }
 
-    private void onTeamEvent(TeamEvent id, Team t) {
+    private void onTeamEvent(GameObject dummy, TeamEvent id, Team t) {
         switch (id) {
             case TeamEvent.skipTurn:
                 messageAdd("msgskipturn", [t.name()], t);
@@ -100,8 +104,8 @@ class ControllerMsgs : GamePluginAutoReg {
         }
     }
 
-    private void onCrateDrop(CrateType type) {
-        switch (type) {
+    private void onCrateDrop(CrateSprite sprite) {
+        switch (sprite.crateType()) {
             case CrateType.med:
                 messageAdd("msgcrate_medkit");
                 break;
@@ -113,10 +117,9 @@ class ControllerMsgs : GamePluginAutoReg {
         }
     }
 
-    private void onCrateCollect(TeamMember member,
-        Collectable[] stuffies)
+    private void onCrateCollect(CrateSprite crate, TeamMember member)
     {
-        foreach (item; stuffies) {
+        foreach (item; crate.stuffies) {
             if (auto weapon = cast(CollectableWeapon)item) {
                 //weapon
                 messageAdd("collect_item", [member.name(),
@@ -138,11 +141,11 @@ class ControllerMsgs : GamePluginAutoReg {
         }
     }
 
-    private void onSuddenDeath() {
+    private void onSuddenDeath(GameObject dummy) {
         messageAdd("msgsuddendeath");
     }
 
-    private void onVictory(Team winner) {
+    private void onVictory(GameObject dummy, Team winner) {
         if (winner) {
             if (controller.gamemode == "turnbased" && mLastMember
                 && mLastMember.team !is winner)
@@ -157,7 +160,7 @@ class ControllerMsgs : GamePluginAutoReg {
         }
     }
 
-    private void onGameEnded() {
+    private void onGameEnd(GameObject dummy) {
         //xxx is this really useful? I would prefer showing the
         //  "team xxx won" message longer
         messageAdd("msggameend");
@@ -208,7 +211,7 @@ class ControllerMsgs : GamePluginAutoReg {
 //  - Proper output/sending to clients
 //  - timecoded events, with graph drawing?
 //  - gamemode dependency?
-class ControllerStats : GamePluginAutoReg {
+class ControllerStats : GamePlugin {
     private {
         static LogStruct!("gameevents") log;
 
@@ -256,18 +259,21 @@ class ControllerStats : GamePluginAutoReg {
 
     this(GameEngine c) {
         super(c);
+        OnGameEnd.handler(engine.events, "root", &onGameEnd);
+        OnDamage.handler(engine.events, "root", &onDamage);
+        OnDemolish.handler(engine.events, "root", &onDemolish);
+        OnWormEvent.handler(engine.events, "root", &onWormEvent);
+        OnCrateCollect.handler(engine.events, "root", &onCrateCollect);
+        OnFireWeapon.handler(engine.events, "root", &onFireWeapon);
     }
     this(ReflectCtor c) {
         super(c);
     }
 
-    mixin(genRegFunc(["onDamage", "onDemolition", "onFireWeapon",
-        "onWormEvent", "onCrateCollect", "onGameEnded"]));
-
-    private void onDamage(GameObject cause, GObjectSprite victim, float damage,
-        WeaponClass wclass)
+    private void onDamage(GObjectSprite victim, GameObject cause, float damage)
     {
         char[] wname = "unknown_weapon";
+        WeaponClass wclass = controller.weaponFromGameObject(cause);
         if (wclass)
             wname = wclass.name;
         auto m1 = controller.memberFromGameObject(cause, true);
@@ -302,12 +308,14 @@ class ControllerStats : GamePluginAutoReg {
         }
     }
 
-    private void onDemolition(int pixelCount, GameObject cause) {
+    private void onDemolish(GameObject cause, int pixelCount) {
         mStats.pixelsDestroyed += pixelCount;
         //log("blasted {} pixels of land", pixelCount);
     }
 
-    private void onFireWeapon(WeaponClass wclass, bool refire = false) {
+    private void onFireWeapon(GObjectSprite sender, WeaponClass wclass,
+        bool refire)
+    {
         char[] wname = "unknown_weapon";
         if (wclass)
             wname = wclass.name;
@@ -321,7 +329,7 @@ class ControllerStats : GamePluginAutoReg {
         }
     }
 
-    private void onWormEvent(WormEvent id, TeamMember m) {
+    private void onWormEvent(GameObject dummy, WormEvent id, TeamMember m) {
         switch (id) {
             case WormEvent.wormActivate:
                 log("Worm activate: {}", m);
@@ -344,12 +352,12 @@ class ControllerStats : GamePluginAutoReg {
         }
     }
 
-    private void onCrateCollect(TeamMember m, Collectable[] stuffies) {
-        log("{} collects crate: {}", m, stuffies);
+    private void onCrateCollect(CrateSprite crate, TeamMember m) {
+        log("{} collects crate: {}", m, crate.stuffies);
         mStats.crateCount++;
     }
 
-    private void onGameEnded() {
+    private void onGameEnd(GameObject dummy) {
         debug mStats.output();
         engine.persistentState.setValue("stats", mStats);
     }
@@ -361,7 +369,7 @@ class ControllerStats : GamePluginAutoReg {
 
 //this plugin adds persistence functionality for teams (wins / weapons)
 //  (overengineering ftw)
-class ControllerPersistence : GamePluginAutoReg {
+class ControllerPersistence : GamePlugin {
     private {
         const cKeepWeaponsDef = false;
         const cGiveWeaponsDef = int.max;   //default: always give
@@ -371,20 +379,21 @@ class ControllerPersistence : GamePluginAutoReg {
 
     this(GameEngine c) {
         super(c);
+        OnGameStart.handler(engine.events, "root", &onGameStart);
+        OnGameEnd.handler(engine.events, "root", &onGameEnd);
+        OnVictory.handler(engine.events, "root", &onVictory);
     }
     this(ReflectCtor c) {
         super(c);
     }
 
-    mixin(genRegFunc(["onGameStart", "onGameEnded", "onVictory"]));
-
-    private void onGameStart(Gamemode mode) {
+    private void onGameStart(GameObject dummy) {
         foreach (t; controller.teams) {
             load(t);
         }
     }
 
-    private void onGameEnded() {
+    private void onGameEnd(GameObject dummy) {
         foreach (t; controller.teams) {
             save(t);
         }
@@ -415,7 +424,7 @@ class ControllerPersistence : GamePluginAutoReg {
         }
     }
 
-    private void onVictory(Team winner) {
+    private void onVictory(GameObject dummy, Team winner) {
         //store winner of current round
         if (winner) {
             engine.persistentState.setStringValue("round_winner",

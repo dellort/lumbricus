@@ -240,7 +240,7 @@ abstract class Shooter : GameObject {
     WeaponSelector selector;
 
     protected this(WeaponClass base, GObjectSprite a_owner, GameEngine engine) {
-        super(engine, false);
+        super(engine, "shooter");
         assert(base !is null);
         mClass = base;
         owner = a_owner;

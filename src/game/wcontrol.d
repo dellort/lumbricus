@@ -6,6 +6,7 @@ module game.wcontrol;
 
 import common.animation;
 import framework.framework;
+import game.controller_events : OnFireWeapon;
 import game.game;
 import game.gfxset;
 import game.sprite;
@@ -429,7 +430,7 @@ class WormControl : WormController {
         assert(!!sh);
         //for cooldown
         mWeaponSet.firedWeapon(sh.weapon);
-//xxx        mTeam.parent.events.onFireWeapon(sh.weapon, refire);
+        OnFireWeapon.raise(sprite, sh.weapon, refire);
     }
 
     void doneFiring(Shooter sh) {

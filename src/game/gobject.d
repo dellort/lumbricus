@@ -2,14 +2,14 @@ module game.gobject;
 
 import framework.drawing : Canvas;
 import game.game;
+import game.events;
 import utils.list2;
 import utils.reflection;
 import utils.time;
 
 import net.marshal : Hasher;
 
-//not really abstract, but should not be created
-abstract class GameObject {
+abstract class GameObject : EventTarget {
     private bool mActive;
     private GameEngine mEngine;
 
@@ -19,8 +19,23 @@ abstract class GameObject {
     //for GameEngine
     ObjListNode!(typeof(this)) node;
 
-    GameEngine engine() {
+    this(GameEngine aengine, char[] event_target_type) {
+        assert(aengine !is null);
+        super(event_target_type);
+        mEngine = aengine;
+        active = false;
+    }
+
+    this (ReflectCtor c) {
+        super("");
+    }
+
+    final GameEngine engine() {
         return mEngine;
+    }
+
+    final override Events eventsBase() {
+        return mEngine.events;
     }
 
     protected final void active(bool set) {
@@ -52,15 +67,6 @@ abstract class GameObject {
     //return true if its active in the sense of a game-round
     abstract bool activity();
 
-    this(GameEngine aengine, bool start_active = true) {
-        assert(aengine !is null);
-        mEngine = aengine;
-        active = start_active;
-    }
-
-    this (ReflectCtor c) {
-    }
-
     //deltaT = seconds since last frame (game time)
     void simulate(float deltaT) {
         //override this if you need game time
@@ -76,7 +82,7 @@ abstract class GameObject {
 
     //can be used to draw for debugging
     //why not use it for normal game rendering, instead of using that crap in
-    //  gamepublic.d? I have no fucking clue...
+    //  gamepublic.d? I have no ducking clue...
     void debug_draw(Canvas c) {
     }
 }

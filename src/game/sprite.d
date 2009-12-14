@@ -365,7 +365,7 @@ class GObjectSprite : GameObject {
     }
 
     protected this(GameEngine engine, GOSpriteClass type) {
-        super(engine, false);
+        super(engine, type.name);
 
         assert(type !is null);
         mType = type;
@@ -541,7 +541,8 @@ class GOSpriteClass {
         this.gfx = gfx;
         name = regname;
 
-        gfx.registerSpriteClass(regname, this);
+        gfx.registerSpriteClass(name, this);
+        gfx.event_inherit("sprite", name);
 
         //create a default state to have at least one state at all
         auto ssi = createStateInfo("defaultstate");

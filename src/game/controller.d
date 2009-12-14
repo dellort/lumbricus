@@ -368,12 +368,12 @@ class Team {
     void skipTurn() {
         if (!mCurrent || !mActive)
             return;
-        parent.events.onTeamEvent(TeamEvent.skipTurn, this);
+        OnTeamEvent.raise(parent.engine.globalEvents, TeamEvent.skipTurn, this);
         current = null;
     }
 
     void surrenderTeam() {
-        parent.events.onTeamEvent(TeamEvent.surrender, this);
+        OnTeamEvent.raise(parent.engine.globalEvents, TeamEvent.surrender, this);
         current = null;
         //xxx: set worms to "white flag" animation first
         foreach (m; mMembers) {
@@ -431,7 +431,8 @@ class TeamMember {
         bool r = control.checkDying();
         if (r && !mDeathAnnounced) {
             mDeathAnnounced = true;
-            mTeam.parent.events.onWormEvent(WormEvent.wormStartDie, this);
+            OnWormEvent.raise(mTeam.parent.engine.globalEvents,
+                WormEvent.wormStartDie, this);
         }
         return r;
     }
@@ -532,7 +533,7 @@ class TeamMember {
         }
         WormEvent event = mActive ? WormEvent.wormActivate
             : WormEvent.wormDeactivate;
-        mTeam.parent.events.onWormEvent(event, this);
+        OnWormEvent.raise(mTeam.parent.engine.globalEvents, event, this);
     }
 
     void simulate() {
@@ -549,7 +550,7 @@ class TeamMember {
             //xxx maybe rather have a onWormDie with a deathcause parameter?
             WormEvent deathcause = worm.hasDrowned()
                 ? WormEvent.wormDrown : WormEvent.wormDie;
-            mTeam.parent.events.onWormEvent(deathcause, this);
+            OnWormEvent.raise(mTeam.parent.engine.globalEvents, deathcause, this);
             if (deathcause == WormEvent.wormDrown) {
                 //now it'd be nice if the clientengine could simply catch those
                 //  events, but instead I do this hack (also: need pos and lost)
@@ -615,8 +616,6 @@ class GameController {
         //xxx this should be configurable
         const char[][] cLoadPlugins = ["messages", "statistics", "persistence"];
     }
-
-    ControllerEvents events;
 
     //when a worm collects a tool from a crate
     ChainDelegate!(TeamMember, CollectableTool) collectTool;
@@ -733,7 +732,7 @@ class GameController {
             if (mGamemode.ended() && !mGameEnded) {
                 mGameEnded = true;
 
-                events.onGameEnded();
+                OnGameEnd.raise(engine.globalEvents);
 
                 //increase total round count
                 engine.persistentState.setValue("round_counter",
@@ -958,13 +957,12 @@ class GameController {
 
     void reportViolence(GameObject cause, GObjectSprite victim, float damage) {
         assert(!!cause && !!victim);
-        auto wclass = weaponFromGameObject(cause);
-        events.onDamage(cause, victim, damage, wclass);
+        OnDamage.raise(victim, cause, damage);
     }
 
     void reportDemolition(int pixelCount, GameObject cause) {
         assert(!!cause);
-        events.onDemolition(pixelCount, cause);
+        OnDemolish.raise(cause, pixelCount);
     }
 
     Collectable[] fillCrate() {
@@ -1011,7 +1009,8 @@ class GameController {
         crate.activate(from);
         mLastCrate = crate;
         if (!silent) {
-            events.onCrateDrop(crate.crateType);
+            //xxx move into CrateSprite.activate()
+            OnCrateDrop.raise(crate);
         }
         log("drop {} -> {}", from, to);
         return true;
@@ -1040,6 +1039,6 @@ class GameController {
     void startSuddenDeath() {
         engine.addEarthQuake(500, timeSecs(4.5f), true);
         engine.callbacks.nukeSplatEffect();
-        events.onSuddenDeath();
+        OnSuddenDeath.raise(engine.globalEvents);
     }
 }

@@ -14,6 +14,7 @@ import utils.serialize;
 
 import physics.collisionmap;
 import physics.world;
+import game.events;
 import game.sequence;
 import game.setup;
 import game.sprite;
@@ -44,6 +45,11 @@ class GfxSet {
         Object[char[]] mActionClasses;
 
         CollisionMap mCollisionMap;
+
+        struct Inherit {
+            char[] sup, sub;
+        }
+        Inherit[] mEventInheritance;
 
         bool mFinished;
     }
@@ -361,6 +367,28 @@ class GfxSet {
         foreach (CollisionType t; collision_map.collisionTypes()) {
             ctx.addExternal(t, "collision_type::" ~ t.name);
         }
+    }
+
+    //--- stupid events stuff (hack until we figure out what we want)
+
+    //make known that all event handlers for "sup" receive all events for "sub"
+    //this just calls Events.inherit()
+    void event_inherit(char[] sup, char[] sub) {
+        mEventInheritance ~= Inherit(sup, sub);
+    }
+
+    //event_inherit is delayed until here, because:
+    //- sprites are loaded before GameEngine is created
+    //- Events is created with the GameEngine
+    void initEvents(Events events) {
+        foreach (e; mEventInheritance) {
+            events.inherit(e.sup, e.sub);
+        }
+
+        //xxx didn't know where to put these
+        events.inherit("root", "landscape"); //GameLandscape
+        events.inherit("root", "shooter"); //weapon.d
+        events.inherit("root", "sprite");
     }
 }
 

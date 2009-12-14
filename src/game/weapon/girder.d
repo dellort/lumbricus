@@ -247,6 +247,8 @@ class GirderControl : WeaponSelector, Controllable {
 
 void putgirder(WeaponContext wx) {
     WeaponSelector sel = wx.shooter.selector;
+    if (!sel)
+        return; //???
     auto gsel = castStrict!(GirderControl)(sel);
     //(should never return false for failure if weapon code is correct)
     gsel.fireCheck(wx.fireInfo.info, true);

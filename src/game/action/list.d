@@ -135,7 +135,8 @@ class ActionListRunner : GameObject {
         int repeat)
     {
         assert(!!ctx);
-        super(ctx.engine);
+        super(ctx.engine, "actionlist");
+        active = true;
         myclass = owner;
         mContext = ctx;
         mScopeIdx = scopeIdx;

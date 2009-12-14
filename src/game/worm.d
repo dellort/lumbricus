@@ -367,7 +367,6 @@ class WormSprite : GObjectSprite {
                 w = "-";
             graphic.weapon = w;
             graphic.weapon_firing = firing();
-            //yyy turn into function
             mWeaponAsIcon = !graphic.weapon_ok;
         } else {
             graphic.weapon = "";
@@ -499,7 +498,7 @@ class WormSprite : GObjectSprite {
             mWeaponSelector = null;
         }
         mCharging = false;
-        //yyy
+        //xxx
         //mRequestedWeapon = null;
         //I don't know if mWeaponTimer should be changed or what
     }

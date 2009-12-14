@@ -146,7 +146,7 @@ class GameLandscape : GameObject {
 
     this(GameEngine aengine, LevelLandscape land) {
         assert(land && land.landscape);
-        super(aengine, true);
+        this(aengine);
 
         mOriginal = land;
         mSize = land.landscape.size;
@@ -160,7 +160,7 @@ class GameLandscape : GameObject {
     }
 
     this(GameEngine aengine, Rect2i rc) {
-        super(aengine, true);
+        this(aengine);
 
         mSize = rc.size;
         mOffset = rc.p1;
@@ -168,6 +168,11 @@ class GameLandscape : GameObject {
         mLandscape = new LandscapeBitmap(mSize);
 
         init();
+    }
+
+    private this(GameEngine aengine) {
+        super(aengine, "landscape");
+        active = true;
     }
 
     this (ReflectCtor c) {

@@ -4,6 +4,7 @@ import framework.framework;
 import framework.timesource;
 import game.game;
 import game.controller;
+import game.controller_events;
 import game.gamemodes.base;
 import game.gamemodes.turnbased_shared;
 
@@ -108,7 +109,7 @@ class ModeRealtime : Gamemode {
                 assert(!!lastteam);
                 lastteam.youWinNow();
             }
-            logic.events.onVictory(lastteam);
+            OnVictory.raise(engine.globalEvents, lastteam);
             return;
         }
 

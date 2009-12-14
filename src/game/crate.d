@@ -5,6 +5,7 @@ import physics.world;
 import game.game;
 import game.gfxset;
 import game.controller;
+import game.controller_events;
 import game.sequence;
 import game.weapon.weapon;
 import game.sprite;
@@ -242,6 +243,9 @@ class CrateSprite : ActionSprite {
     }
 
     void collectCrate(GameObject finder) {
+        //xxx: the whole code should be moved into controller
+        //  the controller would register an event handler for it
+
         //for some weapons like animal-weapons, transitive should be true
         //and normally a non-collecting weapon should just explode here??
         auto member = engine.controller.memberFromGameObject(finder, true);
@@ -252,7 +256,7 @@ class CrateSprite : ActionSprite {
         //only collect crates when it's your turn
         if (!member.active)
             return;
-        engine.controller.events.onCrateCollect(member, stuffies);
+        OnCrateCollect.raise(this, member);
         //transfer stuffies
         foreach (Collectable c; stuffies) {
             c.collect(this, member);

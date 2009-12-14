@@ -159,7 +159,8 @@ void kill_everyone_but_me(WeaponContext wx) {
 class BeamHandler : GameObject {
     WormSprite worm;
     this(GameEngine eng, WormSprite w) {
-        super(eng);
+        super(eng, "beamhandler");
+        active = true;
         worm = w;
     }
     this(ReflectCtor c) {
@@ -198,7 +199,8 @@ class HomingAction : GameObject {
     }
 
     this(GameEngine eng, ProjectileSprite parent, float forceA, float forceT) {
-        super(eng);
+        super(eng, "homingaction");
+        active = true;
         this.forceA = forceA;
         this.forceT = forceT;
         mParent = parent;
@@ -421,7 +423,8 @@ class WormSelectHelper : GameObject {
     }
 
     this(GameEngine eng, TeamMember member) {
-        super(eng);
+        super(eng, "wormselecthelper");
+        active = true;
         mMember = member;
         assert(!!mMember);
     }

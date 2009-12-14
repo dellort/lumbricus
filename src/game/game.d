@@ -11,6 +11,7 @@ import common.common;
 import common.scene;
 import game.controller;
 import game.weapon.weapon;
+import game.events;
 import game.glue;
 import game.sequence;
 import game.setup;
@@ -38,6 +39,12 @@ import tango.core.Traits : ParameterTupleOf;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 
+//dummy object *sigh*
+class GlobalEvents : GameObject {
+    this(GameEngine aengine) { super(aengine, "root"); }
+    this (ReflectCtor c) { super(c); }
+    override bool activity() { return false; }
+}
 
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
@@ -50,6 +57,8 @@ class GameEngine {
 
     GameConfig gameConfig;
     ConfigNode persistentState;
+    Events events;
+    GlobalEvents globalEvents;
 
     private {
         static LogStruct!("game.game") log;
@@ -119,6 +128,9 @@ class GameEngine {
         mGameTime = a_gameTime;
         createCmd();
         mCallbacks = new GameEngineCallback();
+        events = new Events();
+        mGfx.initEvents(events);
+        globalEvents = new GlobalEvents(this);
 
         persistentState = config.gamestate.copy();
 

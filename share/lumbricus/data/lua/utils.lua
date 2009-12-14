@@ -176,8 +176,11 @@ function printf(fmt, ...)
     if type(fmt) == "string" then
         utils.formatln(fmt, ...)
     else
-        -- for the dumb and lazy; assume "..." is empty
+        -- for the dumb and lazy
         utils.formatln("{}", fmt)
+        if #{...} > 0 then
+            printf(...)
+        end
     end
 end
 

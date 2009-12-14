@@ -14,6 +14,7 @@
 - weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
 - superschaf: self force statt thrust
 - heilige handgranate: rotationswinkel wird beim kleben geändert
+- jetpack aktivieren, girder auswählen => girder "selektor" wird nicht erzeugt
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
@@ -26,8 +27,7 @@
 - wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt (lösung: z.B. könnte die spiellogik pollen, wann Sequence.weapon_fire_oneshot zurückgesetzt wird)
 - feuer animation kann verfrüht durch selektion anderer waffe abgebrochen werden (z.B. axt)
 - axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchron
-- superrope: wenn das seil verankert wird und der wurm ins am-seil-hängen übergeht, wird für einen frame eine animation mit völlig falschem wurm-winkel angezeigt (one-frame-step ist zum debugging nützlich)
-  außerdem: seil fängt in er mitte des wurmes an => passt nicht zur wurm-graphik
+- superrope: seil fängt in er mitte des wurmes an => passt nicht zur wurm-graphik
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)

@@ -20,7 +20,8 @@ class DelayedObj : GameObject {
     }
 
     this(GameEngine eng, Time duration) {
-        super(eng);
+        super(eng, "delayaction");
+        active = true;
         mWaitDone = engine.gameTime.current + duration;
     }
     this(ReflectCtor c) {
