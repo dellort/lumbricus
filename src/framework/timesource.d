@@ -164,13 +164,17 @@ final class TimeSource : TimeSourcePublic {
 
             //because of floating point precission issues; I guess this would
             //solve it... or so
+            /+
             if (diff > timeSecs(3)) {
                 internalFixTime();
                 diff = Time.Null;
             }
+            +/
 
             mSimTime = mFixDelta + diff * mSlowDown;
 
+            //can fail if diff*mSlowDown is not monotonely increasing
+            //e.g. happened when DirectX set the FPU to single precision
             assert(mSimTime >= mLastSimTime);
         }
     }

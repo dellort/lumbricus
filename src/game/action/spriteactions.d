@@ -42,8 +42,8 @@ static this() {
         ~ "jumps_per_sec = 1")("random_jump");
     regAction!(stuckTrigger, "duration, trigger_delay = 250ms, treshold = 5,"
         ~ "multiple, event = ontrigger")("stucktrigger");
-    regAction!(controlRotate, "duration, init_direction, rotate_speed = 3.1415")
-        ("control_rotate");
+    regAction!(controlRotate, "duration, init_direction, rotate_speed = 3.1415,"
+        ~ "thrust = 0")("control_rotate");
 }
 
 void state(WeaponContext wx, char[] state) {
@@ -106,13 +106,13 @@ void stuckTrigger(WeaponContext wx, Time duration, Time triggerDelay,
 }
 
 void controlRotate(WeaponContext wx, Time duration, float initDirection,
-    float rotateSpeed)
+    float rotateSpeed, float thrust)
 {
     auto as = cast(ActionSprite)wx.ownerSprite;
     if (!as)
         return;
     wx.putObj(new ControlRotateAction(as, duration, initDirection,
-        rotateSpeed));
+        rotateSpeed, thrust));
 }
 
 
@@ -350,11 +350,11 @@ class ControlRotateAction : SpriteAction, Controllable {
     private {
         WormControl mMember;
         Vector2f mMoveVector;
-        float mDirection, mRotateSpeed;
+        float mDirection, mRotateSpeed, mThrust;
     }
 
     this(ActionSprite parent, Time duration, float initDirection,
-        float rotateSpeed)
+        float rotateSpeed, float thrust)
     {
         super(parent, duration);
         mMember = engine.controller.controlFromGameObject(mParent, true);
@@ -364,7 +364,9 @@ class ControlRotateAction : SpriteAction, Controllable {
             mDirection = initDirection;
         else
             mDirection = mParent.physics.velocity.toAngle();
+        assert(mDirection == mDirection);
         mRotateSpeed = rotateSpeed;
+        mThrust = thrust;
     }
 
     this (ReflectCtor c) {
@@ -380,7 +382,8 @@ class ControlRotateAction : SpriteAction, Controllable {
 
     override void simulate(float deltaT) {
         mDirection += mMoveVector.x * mRotateSpeed * deltaT;
-        mParent.physics.forceLook(Vector2f.fromPolar(1.0f, mDirection));
+        mParent.physics.selfForce = Vector2f.fromPolar(1.0f, mDirection)
+            * mThrust;
         super.simulate(deltaT);
     }
 

@@ -221,11 +221,8 @@ class PhysicObject : PhysicBase {
         mOnSurface = false;
 
         //Update velocity
-        Vector2f thrustForce;
-        if (!mIntendedLook.isNaN)
-            thrustForce = mIntendedLook * mPosp.thrust;
         Vector2f a = acceleration
-            + (mForceAccum + selfForce + thrustForce) * mPosp.inverseMass;
+            + (mForceAccum + selfForce) * mPosp.inverseMass;
         if (!mPosp.zeroGrav)
             a += gravity;
         velocity_int += a * deltaT;
@@ -356,7 +353,7 @@ class PhysicObject : PhysicBase {
 
     //angle where the worm looks to, or is forced to look to (i.e. when sitting)
     float lookey() {
-        if (!isGlued) {
+        if (!isGlued || !mPosp.gluedForceLook) {
             if (mIntendedLook.isNaN)
                 //no forced looking direction available
                 return rotation;

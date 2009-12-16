@@ -87,6 +87,7 @@ class POSP {
     bool walkLimitSlopeSpeed = false;
 
     RotateMode rotation;
+    bool gluedForceLook = false;
 
     //influence through damage (0 = invincible, 1 = normal)
     float damageable = 0.0f;
@@ -104,8 +105,6 @@ class POSP {
     float stokesModifier = 1.0f;
 
     float airResistance = 0.0f;
-
-    float thrust = 0.0f;
 
     float friction = 0.05f;
     float bounceAbsorb = 0.0f;
@@ -178,7 +177,7 @@ class POSP {
             default:
                 assert(false);
         }
-        thrust = node.getFloatValue("thrust", thrust);
+        gluedForceLook = node.getValue("glued_forcelook", gluedForceLook);
         friction = node.getFloatValue("friction", friction);
         slideAbsorb = node.getFloatValue("slide_absorb", slideAbsorb);
         bounceAbsorb = node.getFloatValue("bounce_absorb", bounceAbsorb);

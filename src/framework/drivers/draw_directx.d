@@ -93,8 +93,8 @@ class DXDrawDriver : DrawDriver {
             mVsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
 
         if (FAILED(d3dObj.CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL,
-           vstate.window_handle, D3DCREATE_SOFTWARE_VERTEXPROCESSING,
-           &mPresentParams, &d3dDevice)))
+           vstate.window_handle, D3DCREATE_SOFTWARE_VERTEXPROCESSING
+           | D3DCREATE_FPU_PRESERVE, &mPresentParams, &d3dDevice)))
         {
             throw new FrameworkException("Could not create Direct3D Device");
         }

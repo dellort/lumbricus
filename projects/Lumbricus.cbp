@@ -44,7 +44,6 @@
 		<Unit filename="..\src\common\allres.d" />
 		<Unit filename="..\src\common\animation.d" />
 		<Unit filename="..\src\common\common.d" />
-		<Unit filename="..\src\common\config.d" />
 		<Unit filename="..\src\common\init.d" />
 		<Unit filename="..\src\common\loadsave.d" />
 		<Unit filename="..\src\common\localeswitch.d" />
@@ -70,8 +69,6 @@
 		<Unit filename="..\src\derelict\enet\enet.d" />
 		<Unit filename="..\src\derelict\enet\enetfuncs.d" />
 		<Unit filename="..\src\derelict\enet\enettypes.d" />
-		<Unit filename="..\src\derelict\ffmpeg\av.d" />
-		<Unit filename="..\src\derelict\ffmpeg\avtypes.d" />
 		<Unit filename="..\src\derelict\fmod\fmod.d" />
 		<Unit filename="..\src\derelict\fmod\fmodcodec.d" />
 		<Unit filename="..\src\derelict\fmod\fmoddsp.d" />
@@ -94,9 +91,7 @@
 		<Unit filename="..\src\framework\drivers\font_freetype.d" />
 		<Unit filename="..\src\framework\drivers\sound_fmod.d" />
 		<Unit filename="..\src\framework\drivers\sound_openal.d" />
-		<Unit filename="..\src\framework\enums.d" />
 		<Unit filename="..\src\framework\event.d" />
-		<Unit filename="..\src\framework\ffaudiodecode.d" />
 		<Unit filename="..\src\framework\filesystem.d" />
 		<Unit filename="..\src\framework\font.d" />
 		<Unit filename="..\src\framework\framework.d" />
@@ -126,6 +121,7 @@
 		<Unit filename="..\src\game\controller_events.d" />
 		<Unit filename="..\src\game\controller_plugins.d" />
 		<Unit filename="..\src\game\crate.d" />
+		<Unit filename="..\src\game\events.d" />
 		<Unit filename="..\src\game\game.d" />
 		<Unit filename="..\src\game\gamemodes\base.d" />
 		<Unit filename="..\src\game\gamemodes\mdebug.d" />

@@ -12,7 +12,6 @@
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
     (+ "level editor" töten)
 - weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
-- superschaf: self force statt thrust
 - heilige handgranate: rotationswinkel wird beim kleben geändert
 - jetpack aktivieren, girder auswählen => girder "selektor" wird nicht erzeugt
 
