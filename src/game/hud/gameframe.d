@@ -1,6 +1,7 @@
 module game.hud.gameframe;
 
 import common.common;
+import common.toplevel;
 import common.scene;
 import common.visual;
 import framework.framework;
@@ -253,7 +254,8 @@ class GameFrame : SimpleContainer {
     private bool hudNeedMouseInput() {
         //currently just the weapon window; maybe others will be added later
         //  (e.g. pause window)
-        return isWeaponWindowVisible() || gameView.scrollOverride;
+        return isWeaponWindowVisible() || gameView.scrollOverride
+            || gTopLevel.consoleVisible();
     }
 
     this(GameInfo g) {

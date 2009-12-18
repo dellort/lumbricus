@@ -649,6 +649,9 @@ private:
     private void showConsole(MyBox[], Output) {
         mGuiConsole.toggle();
     }
+    public bool consoleVisible() {
+        return mGuiConsole.consoleVisible();
+    }
 
     private void killShortcut(MyBox[], Output) {
         gFramework.terminate();
