@@ -111,10 +111,11 @@ class SoundManager : ResourceManagerT!(SoundDriver, Sample) {
 
         auto snd = gFrameworkSettings.addList("sound");
 
-        mVolume = snd.add!(float)("master_volume", 1.0f).asValue;
+        mVolume = snd.add!(PropertyPercent)("master_volume", 1.0f).asValue;
         mVolume.addListener(&change_volume);
         foreach (int idx, ref tv; mTypeVolume) {
-            tv = snd.add!(float)(myformat("volume{}",idx), 1.0f).asValue;
+            tv = snd.add!(PropertyPercent)(myformat("volume{}",idx),
+                1.0f).asValue;
             tv.addListener(&change_volume);
         }
     }

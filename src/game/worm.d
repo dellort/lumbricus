@@ -488,7 +488,7 @@ class WormSprite : GObjectSprite {
     //if worm is firing
     final bool firing() {
         //xxx: I'm not sure about the secondary shooter
-        return !!mShooterMain;// && mShooterMain.activity;
+        return !!mShooterMain && !allowAlternate();
     }
 
     //"careful" common code for unselecting a weapon

@@ -202,6 +202,7 @@
 		<Unit filename="..\src\gui\logwindow.d" />
 		<Unit filename="..\src\gui\mousescroller.d" />
 		<Unit filename="..\src\gui\progress.d" />
+		<Unit filename="..\src\gui\propedit.d" />
 		<Unit filename="..\src\gui\scrollbar.d" />
 		<Unit filename="..\src\gui\scrollwindow.d" />
 		<Unit filename="..\src\gui\splitter.d" />
@@ -251,6 +252,7 @@
 		<Unit filename="..\src\utils\factory.d" />
 		<Unit filename="..\src\utils\filetools.d" />
 		<Unit filename="..\src\utils\gzip.d" />
+		<Unit filename="..\src\utils\hashtable.d" />
 		<Unit filename="..\src\utils\interpolate.d" />
 		<Unit filename="..\src\utils\list2.d" />
 		<Unit filename="..\src\utils\log.d" />
@@ -261,6 +263,7 @@
 		<Unit filename="..\src\utils\output.d" />
 		<Unit filename="..\src\utils\path.d" />
 		<Unit filename="..\src\utils\perf.d" />
+		<Unit filename="..\src\utils\proplist.d" />
 		<Unit filename="..\src\utils\queue.d" />
 		<Unit filename="..\src\utils\random.d" />
 		<Unit filename="..\src\utils\randval.d" />

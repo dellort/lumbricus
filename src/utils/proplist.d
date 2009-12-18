@@ -466,6 +466,14 @@ abstract:
     T getDefault();
 }
 
+template ValueTypeOf(T : PropertyValue) {
+    static if (is(T == PropertyString)) {
+        alias char[] ValueTypeOf;
+    } else {
+        alias typeof((cast(T)null).get()) ValueTypeOf;
+    }
+}
+
 //wrapper for values of various data types
 //some sort of low-rate Variant (didn't use Variant because equality tests at
 //  runtime are iffy, e.g. an int Variant with value 1 != long Variant with
@@ -553,6 +561,7 @@ template ReduceType(T) {
 alias PropertyValueT_hurf!(Integer) PropertyInt;
 alias PropertyValueT_hurf!(Float) PropertyFloat;
 alias PropertyValueT_hurf!(bool) PropertyBool;
+class PropertyPercent : PropertyFloat {};  //0.0 to 1.0
 
 //for PropertyList.add(T)
 template CreateProperty(T) {
@@ -710,9 +719,17 @@ final class PropertyList : PropertyNode {
             auto h = new CreateProperty!(T)();
             h.setDefault(defvalue);
         }
-        h.help = help;
-        h.name = name;
-        addNode(h);
+        addNode(h, name, help);
+        return h;
+    }
+
+    //like above, but specify the PropertyValue type to use
+    PropertyNode add(T : PropertyValue)(char[] name,
+        ValueTypeOf!(T) defvalue = ValueTypeOf!(T).init, char[] help = null)
+    {
+        auto h = new T();
+        h.setDefault(defvalue);
+        addNode(h, name, help);
         return h;
     }
 
@@ -722,6 +739,12 @@ final class PropertyList : PropertyNode {
         foreach (int idx, t; defaults.tupleof) {
             add(structProcName(defaults.tupleof[idx].stringof), t);
         }
+    }
+
+    private void addNode(PropertyNode node, char[] name, char[] help) {
+        node.help = help;
+        node.name = name;
+        addNode(node);
     }
 
     void addNode(PropertyNode node) {

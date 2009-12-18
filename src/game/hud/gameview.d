@@ -695,17 +695,15 @@ class GameView : Container {
     }
 
     private void cmdToggleWeaponWnd(MyBox[] args, Output write) {
+        scrollOverride = false;
         if (onToggleWeaponWindow)
             onToggleWeaponWindow();
     }
 
+    //xxx for debugging, so you can force to show the cursor
+    bool scrollOverride;
     private void cmdToggleScroll(MyBox[] args, Output write) {
-        //hacky: when in mouse-follow mode, right-click shows the weapon window
-        //  (which will end mouse-follow mode)
-        if (mCamera.control.mouseFollow())
-            onToggleWeaponWindow();
-        else
-            mCamera.control.mouseScrollToggle();
+        scrollOverride = !scrollOverride;
     }
 
     //should be moved elsewhere etc.

@@ -119,6 +119,28 @@ class EditBool : EditProperty {
     }
 }
 
+class EditPercent : EditProperty {
+//private:
+    PropertyPercent mPercent;
+    ScrollBar mSlider;
+    public this(PropertyValue v) {
+        super(v);
+        mPercent = castStrict!(PropertyPercent)(v);
+        mSlider = new ScrollBar(true);
+        mSlider.onValueChange = &onclick;
+        mSlider.maxValue = 100;
+        mSlider.smallChange = 5;
+        mSlider.largeChange = 10;
+        widget = mSlider;
+    }
+    override void onchange() {
+        mSlider.curValue = cast(int)(mPercent.get * 100.0);
+    }
+    void onclick(ScrollBar sender) {
+        set({mPercent.set(cast(float)(mSlider.curValue / 100.0));});
+    }
+}
+
 class EditChoice : EditProperty {
 //private:
     PropertyChoice mChoice;
@@ -189,6 +211,7 @@ static this() {
     gPropertyEditors = new typeof(gPropertyEditors);
     alias registerPropertyEditor reg;
     reg!(PropertyBool, EditBool)();
+    reg!(PropertyPercent, EditPercent)();
     reg!(PropertyChoice, EditChoice)();
     reg!(PropertyCommand, EditCommand)();
 }

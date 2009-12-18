@@ -74,17 +74,15 @@ class GameFrame : SimpleContainer {
     private void teamChanged() {
         TeamMember t = game.control.getControlledMember();
         mWeaponSel.update(t ? t.team.weapons : null);
-        if (!t == isWeaponWindowVisible())
+        if (!t && isWeaponWindowVisible())
             mWeaponInterp.revert();
     }
 
     private void selectWeapon(WeaponClass c) {
         //xxx not really correct, the "weapon" call could fail in the engine
         //    better: callback onWeaponSelect
-        if (c.fireMode.point != PointMode.none) {
-            //when a point weapon is selected, hide the weapon window
-            mWeaponInterp.setParams(0, 1.0f);
-        }
+        //when a point weapon is selected, hide the weapon window
+        mWeaponInterp.setParams(0, 1.0f);
         game.control.executeCommand("weapon "~c.name);
     }
 
@@ -154,22 +152,36 @@ class GameFrame : SimpleContainer {
 
         mScroller.scale = Vector2f(gameView.zoomLevel, gameView.zoomLevel);
 
-        if (auto am = game.control.getControlledMember()) {
-            //mouse follow when the weapon requires clicking, and
-            //the weapon window is hidden
-            bool shouldFollow = am.control.pointMode != PointMode.none
-                && !isWeaponWindowVisible();
-            //mouse follow and mouse scrolling are exclusive
-            if (shouldFollow && !mScroller.mouseFollow
-                && !mScroller.mouseScrolling)
-            {
-                mScroller.startMouseFollow(Vector2i(150));
-            } else if (!shouldFollow && mScroller.mouseFollow) {
-                mScroller.stopMouseFollow();
+        int mode = 0;
+        if (!hudNeedMouseInput()) {
+            mode = 1;
+            if (auto am = game.control.getControlledMember()) {
+                //mouse follow when the weapon requires clicking, and
+                //the weapon window is hidden
+                bool shouldFollow = am.control.pointMode != PointMode.none
+                    && !isWeaponWindowVisible();
+                if (shouldFollow) {
+                    mode = 2;
+                }
             }
-        } else {
-            if (mScroller.mouseFollow)
-                mScroller.stopMouseFollow();
+        }
+        switch (mode) {
+            case 1:
+                //direct scrolling
+                mScroller.mouseScrolling = true;
+                break;
+            case 2:
+                //mouse follow (i.e. pushing the borders)
+                if (!mScroller.mouseFollow) {
+                    mScroller.startMouseFollow(Vector2i(150));
+                }
+                break;
+            default:
+                //no scrolling, normal mouse cursor
+                mScroller.mouseScrolling = false;
+                if (mScroller.mouseFollow) {
+                    mScroller.stopMouseFollow();
+                }
         }
 
         int wsel_edge = mWeaponSel.findParentBorderDistance(1, 0, false);
@@ -236,6 +248,12 @@ class GameFrame : SimpleContainer {
     }
     private bool isWeaponWindowVisible() {
         return mWeaponInterp.target == 0;
+    }
+    //return true if any hud element (other than the game) requires clicking
+    private bool hudNeedMouseInput() {
+        //currently just the weapon window; maybe others will be added later
+        //  (e.g. pause window)
+        return isWeaponWindowVisible() || gameView.scrollOverride;
     }
 
     this(GameInfo g) {
