@@ -113,15 +113,16 @@ class ProjectileSprite : ActionSprite {
             }
         }
         //show timer label when about to blow in <5s
-        //lol, lots of conditions
-        if (detDelta < timeSecs(5) && active && currentState.showTimer
-            && enableEvents && currentState.minimumGluedTime == Time.Null)
+        //conditions: 1s-5s, enabled in conf file and not using glue check
+        if (detDelta < timeSecs(5) && detDelta > Time.Null && active
+            && currentState.showTimer && enableEvents
+            && currentState.minimumGluedTime == Time.Null)
         {
             if (!mTimeLabel) {
                 mTimeLabel = new RenderText(engine);
                 graphic.attachText = mTimeLabel;
             }
-            int remain = cast(int)(detDelta.secsf + 1.0f);
+            int remain = cast(int)(detDelta.secsf + 0.99f);
             if (remain <= 2)
                 mTimeLabel.setFormatted("\\c(team_red){}", remain);
             else

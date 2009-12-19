@@ -95,8 +95,6 @@ class WormSprite : GObjectSprite {
 
         int mGravestone;
 
-        bool mWeaponAsIcon;
-
         FlyMode mLastFlyMode;
         Time mLastFlyChange, mLastDmg;
 
@@ -356,10 +354,8 @@ class WormSprite : GObjectSprite {
         //for jetpack
         graphic.selfForce = physics.selfForce;
 
-        if (currentState is wsc.st_weapon) {
-            WeaponClass curW = actualWeapon();
-            assert(!!curW);
-
+        WeaponClass curW = actualWeapon();
+        if (currentState is wsc.st_weapon || allowFireSecondary() && curW) {
             char[] w = curW.animation;
             //right now, an empty string means "no weapon", but we mean
             //  "unknown weapon" (so a default animation is selected, not none)
@@ -367,10 +363,8 @@ class WormSprite : GObjectSprite {
                 w = "-";
             graphic.weapon = w;
             graphic.weapon_firing = firing();
-            mWeaponAsIcon = !graphic.weapon_ok;
         } else {
             graphic.weapon = "";
-            mWeaponAsIcon = false;
         }
 
         //xxx there's probably a better place for this
@@ -473,16 +467,6 @@ class WormSprite : GObjectSprite {
         return currentState.canWalk && !mCharging
             //no walk while shooting (or charging)
             && (!mShooterMain || !mShooterMain.isFixed);
-    }
-
-    //if weapon needs to be displayed outside the worm
-    bool displayWeaponIcon() {
-        //two cases here: a) we are in weapon state, but have no animation
-        bool show = currentState is wsc.st_weapon && mWeaponAsIcon;
-        //b) main weapon is busy, but secondary is ready
-        //   (meaning worm animation is showing primary weapon)
-        show |= allowFireSecondary();
-        return show;
     }
 
     //if worm is firing

@@ -252,19 +252,28 @@ private class ViewMember {
 
             //that weapon label
             auto amember = owner.mGame.control.getControlledMember();
+            //show a weapon icon when the worm graphic wants to show a weapon,
+            //  but fails to select an animation; happens when:
+            //   a) we are in weapon state, but have no animation
+            //   b) main weapon is busy, but secondary is ready
+            //      (meaning worm animation is showing primary weapon)
             bool weapon_visible = (amember is member.member)
-                && amember.control.displayWeaponIcon();
+                && graphic.weapon.length && !graphic.weapon_ok;
 
             setWVisible(weaponIcon, weapon_visible);
             setArrowAnim(member.member.team.allowSelect());
 
-            if (weapon_visible) {
+            if (weapon_visible && amember.control.currentWeapon) {
                 //NOTE: wwp animates the appearance/disappearance of
                 // the weapon label; when it disappears, it shrinks and
                 // moves towards the worm; we don't do that (yet?)
                 //for now, only animate the left/right change of the
                 //worm
 
+                //xxx why use indirect way over amember.control instead of
+                //    graphic.weapon?
+                //    -> Because Sequence uses a char[] weapon id, and I don't
+                //       dare changing it
                 weaponIcon.image = amember.control.currentWeapon.icon;
 
                 //possibly fix the animation

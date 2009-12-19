@@ -195,7 +195,6 @@
 		<Unit filename="..\src\gui\dropdownlist.d" />
 		<Unit filename="..\src\gui\edit.d" />
 		<Unit filename="..\src\gui\fps.d" />
-		<Unit filename="..\src\gui\gui.d" />
 		<Unit filename="..\src\gui\label.d" />
 		<Unit filename="..\src\gui\list.d" />
 		<Unit filename="..\src\gui\loader.d" />

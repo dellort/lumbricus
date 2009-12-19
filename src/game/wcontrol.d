@@ -258,17 +258,6 @@ class WormControl : WormController {
         return mCurrentWeapon;
     }
 
-    //return true if the current selected weapon can't be rendered:
-    //  1. because there's no animation (like jetpack before it's activated)
-    //  2. because worm is in jetpack or rope modus
-    bool displayWeaponIcon() {
-        //this is probably still bogus, what about other possible stuff like
-        //ropes etc. that could be added later?
-        //suggestion: define when exactly a worm can throw a weapon and attempt
-        //to display the weapon icon in these situations
-        return mCurrentWeapon && mWorm.displayWeaponIcon;
-    }
-
     bool canUseWeapon(WeaponClass c) {
         return c && mWeaponSet.find(c).quantity > 0 && c.canUse(engine);
     }

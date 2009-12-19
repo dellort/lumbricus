@@ -367,6 +367,7 @@ class ControlRotateAction : SpriteAction, Controllable {
         assert(mDirection == mDirection);
         mRotateSpeed = rotateSpeed;
         mThrust = thrust;
+        setForce();
     }
 
     this (ReflectCtor c) {
@@ -382,9 +383,13 @@ class ControlRotateAction : SpriteAction, Controllable {
 
     override void simulate(float deltaT) {
         mDirection += mMoveVector.x * mRotateSpeed * deltaT;
+        setForce();
+        super.simulate(deltaT);
+    }
+
+    private void setForce() {
         mParent.physics.selfForce = Vector2f.fromPolar(1.0f, mDirection)
             * mThrust;
-        super.simulate(deltaT);
     }
 
     //-- Controllable implementation
