@@ -207,6 +207,9 @@ public class WTris : Task {
 
     //the main field, and also eat events
     private class GameView : Widget {
+        this() {
+            focusable = true;
+        }
 
         override protected void onDraw(Canvas c) {
             //draw the complete background; could be quite expensive
@@ -242,9 +245,6 @@ public class WTris : Task {
                 field[0].length*PIECE_DRAW_H) + border*2;
         }
 
-        bool canHaveFocus() {
-            return true;
-        }
         bool greedyFocus() {
             return true;
         }

@@ -198,14 +198,17 @@ class GameFrame : SimpleContainer {
         return gameView.doesCover();
     }
 
+/+yyy
     override bool childCanHaveInput(Widget w) {
         if (!mModalDialog)
             return true;
         return w is mModalDialog;
     }
++/
 
     private class ModalNotice : SimpleContainer {
         this(Widget client) {
+            focusable = true;
             client.setLayout(WidgetLayout.Noexpand());
             addChild(client);
         }
@@ -214,13 +217,6 @@ class GameFrame : SimpleContainer {
             claimFocus();
             //xxx: should somehow pause game while dialog is active
             //     (but so that stuff doesn't break when you press "pause")
-        }
-
-        override bool canHaveFocus() {
-            return true;
-        }
-        override bool onTestMouse(Vector2i pos) {
-            return true;
         }
 
         override void onKeyEvent(KeyInfo info) {

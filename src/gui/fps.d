@@ -45,6 +45,7 @@ class GuiFps : Widget {
     }
 
     this() {
+        focusable = false;
         mFont = gFontManager.loadFont("fpsfont");
     }
 

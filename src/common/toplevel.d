@@ -8,7 +8,6 @@ import framework.sound;
 import framework.commandline;
 import framework.i18n;
 import framework.timesource;
-import gui.gui;
 import gui.widget;
 import gui.fps;
 import gui.container;
@@ -112,7 +111,7 @@ class TopLevel {
 private:
     KeyBindings keybindings;
 
-    GuiMain mGui;
+    GUI mGui;
     GuiConsole mGuiConsole;
     GuiFps mFPS;
 
@@ -203,7 +202,7 @@ private:
         mGuiFrameTime = globals.newTimer("gui_frame");
         mFrameTime = globals.newTimer("frame_time");
 
-        mGui = new GuiMain(framework.screenSize);
+        mGui = new GUI();
 
         mFPS = new GuiFps();
         mFPS.zorder = GUIZOrder.FPS;
@@ -403,13 +402,10 @@ private:
             maxdepth = depth > maxdepth ? depth : maxdepth;
             count++;
             char[] pad; pad.length = depth*2; pad[] = ' ';
-            Container cw = cast(Container)w;
-            write.writefln("{}{}{}", pad, w, cw ? " [container]" : "");
-            if (cw) {
-                cw.enumChildren((Widget child) {
-                    showWidget(child, depth + 1);
-                });
-            }
+            write.writefln("{}{}", pad, w);
+            w.enumChildren((Widget child) {
+                showWidget(child, depth + 1);
+            });
         }
 
         write.writefln("Widget tree:");
@@ -711,7 +707,7 @@ private:
         globals.callFrameCallBacks();
 
         mGuiFrameTime.start();
-        mGui.doFrame(timeCurrentTime());
+        mGui.frame();
         mGuiFrameTime.stop();
 
         globals.setCounter("soundchannels", gSoundManager.activeSources());

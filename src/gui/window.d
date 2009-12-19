@@ -35,7 +35,7 @@ struct WindowProperties {
 }
 
 /// A window with proper window decorations and behaviour
-class WindowWidget : Container {
+class WindowWidget : Widget {
     private {
         Widget mClient; //what's shown inside the window
         Label mTitleBar;
@@ -155,6 +155,7 @@ class WindowWidget : Container {
             }
 
             this(int a_x, int a_y) {
+                focusable = false;
                 x = a_x; y = a_y;
                 //sizers fill the whole border on the sides
                 WidgetLayout lay;
@@ -220,7 +221,7 @@ class WindowWidget : Container {
     }
 
     this() {
-        setVirtualFrame(false);
+        focusable = true;
 
         //add decorations etc.
         auto all = new TableContainer(3, 3);
@@ -464,16 +465,26 @@ class WindowWidget : Container {
     }
 
     void activate() {
-        //will also set it to front
         claimFocus();
+        //strangely needed, but this is normally called in onFocusChange(), and
+        //  if a window delegates focus to a sub-widget, it's not called
+        //toFront();
     }
 
-    override protected void onFocusChange() {
-        super.onFocusChange();
-        //bleh, styles system is too retarded, see comments in styles conffile
-        mWindowDecoration.styles.setState("hack-focused", focused);
+    override void simulate() {
+        super.simulate();
+        pollFocus();
+    }
 
-        if (!focused && onFocusLost)
+    override bool doesDelegateFocusToChildren() {
+        return true;
+    }
+
+    private void pollFocus() {
+        //bleh, styles system is too retarded, see comments in styles conffile
+        mWindowDecoration.styles.setState("hack-focused", subFocused);
+
+        if (!subFocused && onFocusLost)
             onFocusLost(this);
     }
 
@@ -481,25 +492,33 @@ class WindowWidget : Container {
         return true;
     }
 
+/+ yyy tab shouldn't leave window
     override void nextFocus(bool invertDir = false) {
         //cycle when last widget was reached
         if (!containerNextFocus(invertDir))
             containerNextFocus(invertDir);
         //never leave the window with <tab>, so nop here
     }
++/
 
     void doAction(char[] s) {
         if (onKeyBinding)
             onKeyBinding(this, s);
     }
 
-    override bool allowInputForChild(Widget child, InputEvent event) {
+    override bool handleChildInput(InputEvent event) {
         //dirty hack to focus windows if you click into them
         if (event.isKeyEvent && event.keyEvent.isMouseButton())
             activate();
         //dragging/catching key shortcuts
-        return !mDraging
-            && !(event.isKeyEvent && findBind(event.keyEvent) != "");
+        if (mDraging
+            || (event.isKeyEvent && findBind(event.keyEvent) != ""))
+        {
+            deliverDirectEvent(event);
+            //mask events from children
+            return true;
+        }
+        return super.handleChildInput(event);
     }
 
     //treat all events as handled (?)
@@ -517,7 +536,6 @@ class WindowWidget : Container {
             if (key.isMouseButton && !key.isPress && !key.isDown) {
                 mDraging = false;
             }
-            //mask events from children while dragging
             return;
         }
 
@@ -635,6 +653,7 @@ class WindowFrame : Container {
 
             void addTo(WindowWidget w) {
                 auto b = new Button();
+                b.allowFocus = false;
                 b.image = img;
                 b.styles.addClass("window-button");
                 b.setLayout(WidgetLayout.Noexpand());
@@ -682,6 +701,10 @@ class WindowFrame : Container {
         }
     }
 
+    override bool doesDelegateFocusToChildren() {
+        return true;
+    }
+
     void addDefaultDecorations(WindowWidget wnd) {
         foreach (DefPart p; mPartFactory) {
             if (p.by_default)
@@ -719,17 +742,11 @@ class WindowFrame : Container {
     }
 
     WindowWidget focusWindow() {
-        //code duplication with Container.findLastFocused
-        WindowWidget winner;
-        foreach (c; children()) {
-            auto cur = cast(WindowWidget)c;
-            if (cur && (!winner
-                || getChildFocusAge(cur) > getChildFocusAge(winner)))
-            {
-                winner = cur;
-            }
+        foreach (w; mWindows) {
+            if (w.subFocused())
+                return w;
         }
-        return winner;
+        return null;
     }
 
     void setWindowPosition(WindowWidget wnd, Vector2i pos) {
@@ -765,12 +782,14 @@ class WindowFrame : Container {
         return gFramework.getModifierSetState(mSelectMods);
     }
 
-    override bool allowInputForChild(Widget child, InputEvent event) {
-        if (mWindowSelecting)
-            return false;
-        if (event.isKeyEvent && mKeysWM.findBinding(event.keyEvent))
-            return false;
-        return true;
+    override bool handleChildInput(InputEvent event) {
+        if (mWindowSelecting
+            || (event.isKeyEvent && mKeysWM.findBinding(event.keyEvent)))
+        {
+            deliverDirectEvent(event);
+            return true;
+        }
+        return super.handleChildInput(event);
     }
 
     protected override void onKeyEvent(KeyInfo info) {

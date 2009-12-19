@@ -37,7 +37,10 @@ class EditLine : Widget {
     this() {
         font = gFontManager.loadFont("editline");
         mCursorTimer = new Timer(timeMsecs(500), &onTimer);
+        focusable = true;
     }
+
+    override bool greedyFocus() { return true; } //yyy
 
     protected bool handleKeyPress(KeyInfo infos) {
         bool ctrl = modifierIsSet(infos.mods, Modifier.Control);
@@ -184,10 +187,6 @@ class EditLine : Widget {
         return mFont.textSize("hallo");
     }
 
-    override bool canHaveFocus() {
-        return true;
-    }
-
     override void onDraw(Canvas c) {
         auto pos = mFont.drawText(c, Vector2i(0), mPrompt);
         auto promptsize = pos.x;
@@ -211,6 +210,10 @@ class EditLine : Widget {
             mCursorVisible = true;
             mCursorTimer.enabled = false;
         }
+    }
+
+    override void onDrawFocus(Canvas c) {
+        //don't draw anything; there's the blinkign cursor to show focus
     }
 
     private void onTimer(Timer sender) {

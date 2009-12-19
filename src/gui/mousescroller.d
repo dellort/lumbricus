@@ -17,6 +17,10 @@ class MouseScroller : ScrollArea {
         Vector2i mFollowBorder;
     }
 
+    //if mouse scrolling is enabled, do not deliver mouse click events to child
+    //  widgets (mouse move events are always filtered)
+    bool filterClicks = false;
+
     ///return last time the area was scrolled using the mouse
     ///more a hack to make it work with game/gui/camera.d
     public Time lastMouseScroll() {
@@ -35,8 +39,8 @@ class MouseScroller : ScrollArea {
     private bool checkReleaseLock() {
         if (mMouseScrolling && isLinked())
             return true;
-        captureSet(false);
-        //gFramework.grabInput = false;
+        GUI.getLog()("disable mouse scrolling");
+        captureRelease();
         gFramework.mouseLocked = false;
         return false;
     }
@@ -48,41 +52,44 @@ class MouseScroller : ScrollArea {
         if (enable == mMouseScrolling)
             return;
         if (enable) {
+            GUI.getLog()("enable mouse scrolling");
             if (mMouseFollow)
                 stopMouseFollow();
-            //shitty hack:
-            //- first mouse move event will recheck the mouse cursor shape
-            //- the actual mouse cursor is set to the middle of the screen (by
-            //  the framework's mouseLocked stuff)
-            //- but at that time, the cursor is still visible; only the
-            //  following event will set the mouseWidget (which sets the cursor)
-            //- so, just set it manually, right here
-            //NOTE: somtimes, I still can see the cursor at the wrong position
-            //  for a very short time
-            if (auto m = getTopLevel()) {
-                m.mouseWidget = this;
-            }
-            if (gFramework.mouseLocked() /+ || gFramework.grabInput()+/)
+            if (gFramework.mouseLocked())
                 return;
             //[setting the capture seems to get rid of some strange corner case
             // situations (test: while mouse scrolling is active, resize the
             // window so that the mouse-lock position is outside the window; can
             // be easily done with fullscreen -> windowed mode switching)]
-            if (!captureSet(true)) {
-                return; //refuse
-            }
-            //removed the grab; if the SDL driver needs it to grab for some
-            //strange reasons, it can do that by itself anyway
-            //gFramework.grabInput = true;
-            gFramework.mouseLocked = true;
+            //yyy doesn't work anymore
+            if (!captureEnable(true, false, false))
+                return;
+            //here's a bunch of hacks...
+            //- enabling capture will not yet set the new mouse cursor, because
+            //  the mouse cursor will only be set with the next mouse move event
+            //- so create an artifical mouse move event in (d) to fix this
+            //- (b) will move the cursor, which is why we hide it in (a) to
+            //  avoid having a visible cursor in the wrong position
+            //- to have (d) working, must do (c); the event triggered by (d)
+            //  will check mMouseScrolling
+            //- the cursor should be hidden before moving, so (a) is needed
+            //  even though there's (d)
+            //- the actual cursor is set "later" by the GUI code, so we need (a)
+            //  even if (c)+(d) was done before (b)
+            //this all is to avoid only briefly visible visual ugliness
+            gFramework.mouseCursor = MouseCursor.None; //(a)
+            gFramework.mouseLocked = true; //(b)
+            mMouseScrolling = true; //(c)
+            if (gui)
+                gui.fixMouse(); //(d)
             //use that silly callback in the case when this widget was removed
             //from the GUI while mouse scrolling was enabled
             globals.addFrameCallback(&checkReleaseLock);
             stopSmoothScrolling();
         } else {
+            mMouseScrolling = false;
             checkReleaseLock();
         }
-        mMouseScrolling = enable;
     }
     public void mouseScrollToggle() {
         mouseScrolling(!mMouseScrolling);
@@ -103,20 +110,10 @@ class MouseScroller : ScrollArea {
         return mMouseFollow;
     }
 
-    override void onMouseMove(MouseInfo mi) {
-        if (mMouseScrolling) {
-            scrollDeltaSmooth(mi.rel);
-            noticeAction();
-        }
-    }
-
-    protected override bool allowInputForChild(Widget child, InputEvent event) {
-        //catch only mouse movement events (no clicks, or we would take focus)
-        if (mMouseScrolling)
-            return !event.isMouseEvent;
-        if (mMouseFollow && event.isMouseEvent) {
+    override bool handleChildInput(InputEvent event) {
+        if (event.isMouseEvent && mMouseFollow) {
             //another dirty hack: don't eat movement events
-            auto mousePos = event.mouseEvent.pos;
+            auto mousePos = event.mousePos;
             //when the mouse would go outside the visible area,
             //scroll to correct (-> "pushing" the borders)
             auto visible = Rect2i(size);
@@ -134,7 +131,22 @@ class MouseScroller : ScrollArea {
                 noticeAction();
             }
         }
-        return true;
+        //apparently mMouseScrolling shouldn't eat events...? so be it.
+        bool take;
+        take |= event.isMouseEvent && mMouseScrolling;
+        take |= event.isMouseRelated && filterClicks && mMouseScrolling;
+        if (take) {
+            deliverDirectEvent(event);
+            return true;
+        }
+        return super.handleChildInput(event);
+    }
+
+    override void onMouseMove(MouseInfo mouse) {
+        if (mMouseScrolling) {
+            scrollDeltaSmooth(mouse.rel);
+            noticeAction();
+        }
     }
 
     override void loadFrom(GuiLoader loader) {

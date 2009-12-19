@@ -450,6 +450,14 @@ class GLCanvas : Canvas3DHelper {
         disable_vertex_array();
     }
 
+    //convience function for glEnable/gdDisable
+    private void setGLEnable(int state, bool enable) {
+        if (enable)
+            glEnable(state);
+        else
+            glDisable(state);
+    }
+
     //set vertex pointer + define the vertex format (basically)
     //NOTE: the stuff I used before (GL_T2F_V3F) is just legacy crap
     private void set_vertex_array(MyVertex* ptr) {
@@ -569,12 +577,10 @@ class GLCanvas : Canvas3DHelper {
         }
 
         void state(bool want_enable, ref bool cur_state, int glstate) {
-            if (want_enable && !cur_state) {
-                glEnable(glstate);
-            } else if (!want_enable && cur_state) {
-                glDisable(glstate);
+            if (want_enable != cur_state) {
+                setGLEnable(glstate, want_enable);
+                cur_state = want_enable;
             }
-            cur_state = want_enable;
         }
 
         state(want_blend, state_blend, GL_BLEND);
@@ -643,6 +649,14 @@ class GLCanvas : Canvas3DHelper {
         flush();
 
         glLineWidth(width);
+    }
+
+    override void lineStipple(bool enable) {
+        flush();
+
+        setGLEnable(GL_LINE_STIPPLE, enable);
+        //first parameter is essential the length of each bit in pixels
+        glLineStipple(3, 0b1010_1010_1010_1010);
     }
 
     override void updateTransform(Vector2i trans, Vector2f scale) {

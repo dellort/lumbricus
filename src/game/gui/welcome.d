@@ -70,15 +70,13 @@ class WelcomeTask : Task {
 
     class Foo : SimpleContainer {
         //xxx this hack steals all enter key presses from all children
-        override bool allowInputForChild(Widget child, InputEvent event) {
-            if (event.isKeyEvent && event.keyEvent.code == Keycode.RETURN)
-                return false;
-            return super.allowInputForChild(child, event);
-        }
-
-        override void onKeyEvent(KeyInfo info) {
-            if (info.isPress() && info.code == Keycode.RETURN)
-                executeDefault();
+        override bool handleChildInput(InputEvent event) {
+            if (event.isKeyEvent && event.keyEvent.code == Keycode.RETURN) {
+                if (event.keyEvent.isPress())
+                    executeDefault();
+                return true;
+            }
+            return super.handleChildInput(event);
         }
     }
 

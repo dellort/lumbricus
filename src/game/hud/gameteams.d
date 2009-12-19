@@ -23,7 +23,7 @@ import tango.math.Math : PI;
 import array = tango.core.Array;
 
 //the team-bars on the bottom of the screen
-class TeamWindow : Container {
+class TeamWindow : Widget {
     const Time cSwapLinesDuration = timeMsecs(500);
     const Time cRemoveLinesDuration = timeMsecs(500);
     const Time cDropLineDuration = timeMsecs(150);
@@ -60,6 +60,8 @@ class TeamWindow : Container {
     }
 
     this(GameInfo game) {
+        setVirtualFrame(false);
+
         /+
         if (mTable) {
             mTable.remove();

@@ -9,7 +9,6 @@ import common.common;
 import common.task;
 import framework.commandline;
 import gui.container;
-import gui.gui;
 import gui.widget;
 import gui.window;
 import utils.array;
@@ -307,7 +306,7 @@ Window findWindowForWidget(Widget w) {
 class WindowManager {
     private {
         PerTask[Task] mTaskList;
-        GuiMain mGuiMain;
+        GUI mGuiMain;
         WindowFrame mFrame;
         CommandBucket mCmds;
         WindowSwitcher mSwitcher; //null or current instance
@@ -316,7 +315,7 @@ class WindowManager {
 
     //WindowManager is supposed to take over control completely
     //this also means WindowManager is a singleton (?)
-    this(GuiMain gui) {
+    this(GUI gui) {
         mGuiMain = gui;
         mFrame = new WindowFrame;
         gui.mainFrame.add(mFrame);
@@ -511,7 +510,7 @@ class WindowManager {
                 write.writefln("        pos: ", w.mWindow.windowBounds);
                 write.writefln("        fullscreen: ", w.mWindow.fullScreen);
                 write.writefln("        focused: ", w.mWindow.focused);
-                write.writefln("        focus age: ", w.mWindow.mFocusAge);
+                //write.writefln("        focus age: ", w.mWindow.mFocusAge);
             }
         }
     }

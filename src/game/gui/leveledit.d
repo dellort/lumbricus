@@ -509,6 +509,7 @@ public class LevelEditor : Task {
     class RenderEditor : Widget {
         LevelEditor editor;
         this (LevelEditor e) {
+            focusable = true;
             editor = e;
         }
         protected void onDraw(Canvas c) {
@@ -525,9 +526,6 @@ public class LevelEditor : Task {
             }
         }
 
-        override bool canHaveFocus() {
-            return true;
-        }
         override bool greedyFocus() {
             return true;
         }

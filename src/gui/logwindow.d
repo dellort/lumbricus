@@ -34,6 +34,7 @@ public class LogWindow : Widget, Output {
 
     ///initialize console, consoleFont will be used for rendering text
     public this(Font consoleFont = null) {
+        focusable = false;
         font = consoleFont ? consoleFont : gFontManager.loadFont("console");
         mBackLogIdx = 0;
         mBackLogLen = 0;

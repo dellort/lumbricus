@@ -297,6 +297,7 @@ private:
 
     class IO : Widget {
         this() {
+            focusable = true;
             //setLayout(WidgetLayout.Aligned(0,0));
         }
 
@@ -413,9 +414,6 @@ private:
             }
         }
 
-        bool canHaveFocus() {
-            return true;
-        }
         bool greedyFocus() {
             return true;
         }

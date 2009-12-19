@@ -33,6 +33,7 @@ class AbstractListWidget : Widget {
 
     this() {
         styles.addClass("w-list");
+        focusable = true;
     }
 
     int count() {
@@ -107,10 +108,6 @@ class AbstractListWidget : Widget {
                 mHoverIndex>cUnselected?index==mHoverIndex:index==mSelected);
             index++;
         }
-    }
-
-    override bool canHaveFocus() {
-        return true;
     }
 
     override protected void onKeyEvent(KeyInfo key) {

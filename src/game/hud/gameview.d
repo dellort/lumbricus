@@ -41,6 +41,7 @@ class GuiAnimator : Widget {
     }
 
     this(TimeSourcePublic ts) {
+        setVirtualFrame(false);
         mAnimator = new Animator(ts);
         setLayout(WidgetLayout.Aligned(-1, -1));
     }
@@ -379,7 +380,7 @@ private class ViewMember {
 //GameView is everything which is scrolled
 //it displays the game directly and also handles input directly
 //also draws worm labels
-class GameView : Container {
+class GameView : Widget {
     //these are all evil hacks and should go away
     void delegate() onTeamChange;
     void delegate() onKeyHelp;
@@ -538,9 +539,6 @@ class GameView : Container {
         showDrown(mGame.allMembers[member], lost, at);
     }
 
-    override bool canHaveFocus() {
-        return true;
-    }
     override bool greedyFocus() {
         return true;
     }
@@ -831,9 +829,8 @@ class GameView : Container {
         mGame.control.executeCommand(cmd);
     }
 
-    //grrr
     override bool onTestMouse(Vector2i pos) {
-        return true;
+        return true; //actually this is the default
     }
 
     float zoomLevel() {
@@ -854,18 +851,26 @@ class GameView : Container {
     //      (stupid) hack to fix the zorder of the labels
     private class DrawLabels : SceneObject {
         override void draw(Canvas canvas) {
-            this.outer.doDraw(canvas);
+            this.outer.drawChildren(canvas);
         }
     }
 
-    private void doDraw(Canvas c) {
-        //call onDraw of the super class, not ours (wow this works)
-        //this means all labels are drawn, but not the ClientEngine
-        super.onDraw(c);
+    override void onDrawChildren(Canvas c) {
+        //overriding this disables the default child widget drawing code
+        //instead, this is done by DrawLabels.draw / drawChildren
+    }
+
+    private void drawChildren(Canvas c) {
+        //xxx destroys zorder
+        //could do:  super.onDrawChildren(c)
+        //this would call the _super_ implementation, not the overridden one
+        //but dmd breaks with this (bug 3500), and it's strange, so: no.
+        foreach (sub; children) {
+            sub.doDraw(c);
+        }
     }
 
     override void onDraw(Canvas c) {
-        //no super.onDraw(c);, it's called through DrawLabels
         mGame.cengine.draw(c);
 
         //mouse stuff at last?
@@ -876,8 +881,11 @@ class GameView : Container {
         else
             mCursorVisible = true;
 
-        //hmpf
-        (cast(GameEngine)mGame.engine).debug_draw(c);
+        mGame.engine.debug_draw(c);
+    }
+
+    //don't draw the default Widget focus marker if the game is focused
+    override void onDrawFocus(Canvas c) {
     }
 
     override MouseCursor mouseCursor() {

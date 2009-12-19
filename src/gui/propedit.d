@@ -6,6 +6,7 @@ import gui.boxcontainer;
 import gui.button;
 import gui.container;
 import gui.dropdownlist;
+import gui.edit;
 import gui.label;
 import gui.scrollbar;
 import gui.tablecontainer;
@@ -141,6 +142,23 @@ class EditPercent : EditProperty {
     }
 }
 
+class EditString : EditProperty {
+//private:
+    EditLine mText;
+    public this(PropertyValue v) {
+        super(v);
+        mText = new EditLine;
+        mText.onChange = &oneditchange;
+        widget = mText;
+    }
+    override void onchange() {
+        mText.text = value.asString();
+    }
+    void oneditchange(EditLine sender) {
+        set({value.setAsString(mText.text);});
+    }
+}
+
 class EditChoice : EditProperty {
 //private:
     PropertyChoice mChoice;
@@ -211,6 +229,7 @@ static this() {
     gPropertyEditors = new typeof(gPropertyEditors);
     alias registerPropertyEditor reg;
     reg!(PropertyBool, EditBool)();
+    reg!(PropertyString, EditString)();
     reg!(PropertyPercent, EditPercent)();
     reg!(PropertyChoice, EditChoice)();
     reg!(PropertyCommand, EditCommand)();

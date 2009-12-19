@@ -51,6 +51,7 @@ class WeaponSelWindow : Container {
             }
 
             this(WeaponClass c) {
+                allowFocus = false;
                 weapon = c;
 
                 active = weapon.icon;

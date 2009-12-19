@@ -23,6 +23,7 @@ class Foobar : Widget {
     }
 
     this() {
+        setVirtualFrame();
     }
 
     Vector2i layoutSizeRequest() {

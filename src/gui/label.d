@@ -30,6 +30,7 @@ class Label : Widget {
     }
 
     this() {
+        focusable = false;
         styleRegisterString("text-font");
         mText = new FormattedText();
         mText.font = gFontManager.loadFont("label_default");

@@ -55,7 +55,7 @@ class ScrollArea : SimpleContainer {
     }
 
     this() {
-        setBinContainer(true);
+        focusable = false;
     }
 
     override protected void onAddChild(Widget c) {
@@ -483,11 +483,14 @@ class ScrollWindow : Container {
 
     //xxx: makes it impossible to scroll in further nested ScrollWindows using
     //     the mousehweel
-    override bool allowInputForChild(Widget child, InputEvent event) {
-        if (!event.isKeyEvent)
-            return true;
-        Keycode c = event.keyEvent.code;
-        return !(c == Keycode.MOUSE_WHEELUP || c == Keycode.MOUSE_WHEELDOWN);
+    override bool handleChildInput(InputEvent event) {
+        if (event.isKeyEvent) {
+            Keycode c = event.keyEvent.code;
+            if (c == Keycode.MOUSE_WHEELUP || c == Keycode.MOUSE_WHEELDOWN) {
+                return false;
+            }
+        }
+        return super.handleChildInput(event);
     }
 
     override void onKeyEvent(KeyInfo info) {

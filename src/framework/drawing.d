@@ -179,6 +179,11 @@ public class Canvas {
         drawRect(rc.p1, rc.p2, color);
     }
 
+    /// like drawRect(), but stippled lines
+    void drawStippledRect(Rect2i rc, Color color) {
+        drawRect(rc.p1, rc.p2, color); //default to regular line drawing
+    }
+
     /// like with drawRect, bottom/right border is exclusive
     /// use Surface.fill() when the alpha channel should be copied to the
     /// destination surface (without doing alpha blending)
@@ -472,6 +477,9 @@ class Canvas3DHelper : Canvas {
     protected void lineWidth(int width) {
     }
 
+    protected void lineStipple(bool enable) {
+    }
+
     private int getSlices(int radius) {
         //one vertex every 30 pixels on the circumcircle
         //xxx I don't know if this makes much sense
@@ -589,6 +597,12 @@ class Canvas3DHelper : Canvas {
             vertex(p2.x+c, p2.y+c);
             vertex(p2.x+c, p1.y+c);
         end();
+    }
+
+    override void drawStippledRect(Rect2i rc, Color color) {
+        lineStipple(true);
+        drawRect(rc.p1, rc.p2, color);
+        lineStipple(false);
     }
 
     override void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {

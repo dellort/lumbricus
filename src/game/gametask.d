@@ -558,17 +558,16 @@ class GameTask : StatefulTask {
     class WindowContainer : SimpleContainer {
         bool do_capture;
 
-        override bool allowInputForChild(Widget child, InputEvent event) {
+        override bool handleChildInput(InputEvent event) {
             if (!do_capture)
-                return true;
+                return super.handleChildInput(event);
             if (event.isKeyEvent && event.keyEvent.code == Keycode.MOUSE_LEFT) {
-                captureSet(false);
                 do_capture = false;
                 auto p = mousePos;
                 mGameFrame.gameView.translateCoords(this, p);
                 show_obj(p);
             }
-            return false;
+            return true;
         }
 
         //only used when capturing
@@ -583,7 +582,6 @@ class GameTask : StatefulTask {
 
     private void cmdShowObj(MyBox[] args, Output write) {
         mWindow.do_capture = true;
-        mWindow.captureSet(true);
     }
 
     private void show_obj(Vector2i pos) {

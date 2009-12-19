@@ -73,12 +73,17 @@ class Button : Label {
     void delegate(Button sender, bool over) onMouseOver;
 
     this() {
-        super();
+        focusable = true;
         mAutoRepeatTimer = new Timer(autoRepeatDelay, &autoRepOnTimer);
         //check time since last click; if framerate is too low, click rate also
         //drops (which is good since simulate() will not be called if the Widget
         //is made invisible temporarly...)
         mAutoRepeatTimer.mode = TimerMode.fixedDelay;
+    }
+
+    //can be used to disable keyboard focus
+    void allowFocus(bool f) {
+        focusable = f;
     }
 
     //undo what was set in label.d
@@ -130,7 +135,7 @@ class Button : Label {
 
     //state = if button is up (false) or down (true)
     //so normally, going from true -> false generates a click event
-    private void buttonSetState(bool state) {
+    private void buttonSetState(bool state, bool bykeyboard = false) {
         if (state == mButtonState)
             return;
 
@@ -145,7 +150,7 @@ class Button : Label {
             }
         } else {
             mAutoRepeatTimer.enabled = false;
-            if (!autoRepeat && mMouseInside) {
+            if (!autoRepeat && (mMouseInside || bykeyboard)) {
                 doClick();
             }
         }
@@ -163,13 +168,14 @@ class Button : Label {
     }
 
     override protected void onKeyEvent(KeyInfo key) {
-        if (key.code == Keycode.MOUSE_LEFT) {
+        if (key.code == Keycode.MOUSE_LEFT || key.code == Keycode.SPACE) {
+            bool kb = !key.isMouseButton;
             if (key.isDown) {
                 mMouseDown = true;
-                buttonSetState(true);
+                buttonSetState(true, kb);
             } else if (key.isUp) {
                 mMouseDown = false;
-                buttonSetState(false);
+                buttonSetState(false, kb);
             }
             return;
         }

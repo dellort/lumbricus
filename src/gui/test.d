@@ -226,6 +226,7 @@ class TestFrame7 : Container {
         addChild(tc);
         Label p = new Label();
         p.text = "Hi! I'm a popup or so!";
+        p.styles.addClass("worm-label"); //something with border
         mPopup = p;
     }
 
@@ -738,8 +739,8 @@ class TestTask4 : Task {
     template ReportEvents() {
         Output log;
 
-        override bool canHaveFocus() {
-            return true;
+        this() {
+            focusable = true;
         }
 
         override bool greedyFocus() {
@@ -770,8 +771,8 @@ class TestTask4 : Task {
         }
 
         override void onFocusChange() {
-            log.writefln("{}: focus change, local={} global={}", this,
-                localFocused(), focused());
+            log.writefln("{}: focus change: global={} focus={}", this,
+                gui?gui.focused():null, focused());
             super.onFocusChange();
         }
 

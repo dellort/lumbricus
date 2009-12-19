@@ -13,7 +13,7 @@ import utils.log;
 import utils.misc;
 import utils.time;
 
-class ScrollBar : Container {
+class ScrollBar : Widget {
     private {
         int mDir; //0=in x direction, 1=y
         Button mSub, mAdd;
@@ -96,6 +96,12 @@ class ScrollBar : Container {
         addChild(mSub);
         mBar = new Bar();
         addChild(mBar);
+    }
+
+    //the buttons etc. can't be focused
+    //the ScrollBar widget itself is focusable
+    override bool allowSubFocus() {
+        return false;
     }
 
     private void onAddSub(Button sender) {

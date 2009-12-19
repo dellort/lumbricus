@@ -70,6 +70,7 @@ class PainterWidget : Widget {
     void delegate(PainterWidget sender) onChange;
 
     this() {
+        focusable = true;
         setColors(cDefLexelToColor);
         setData(null, mLevelSize);
     }
@@ -78,9 +79,6 @@ class PainterWidget : Widget {
         setData(level.levelData.dup, level.size);
     }
 
-    override bool canHaveFocus() {
-        return true;
-    }
     override bool greedyFocus() {
         return true;
     }

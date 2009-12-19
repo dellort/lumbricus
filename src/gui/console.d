@@ -13,6 +13,8 @@ import gui.widget;
 import utils.output;
 import utils.time;
 
+//xxx the "global console" code (== standalone is false) should be moved out
+//    into a separate widget
 class GuiConsole : Container {
     private {
         CommandLine mRealCmdline;
@@ -25,6 +27,7 @@ class GuiConsole : Container {
         //background color, if enabled
         Color mBackColor;
 
+        bool mStandalone;
         int mHeightDiv;
 
         //currently showing (1) or hiding (-1)
@@ -87,18 +90,12 @@ class GuiConsole : Container {
         return mRealCmdline;
     }
 
-    override bool canHaveFocus() {
-        return consoleVisible;
-    }
-    override bool greedyFocus() {
-        return true;
-    }
-
     private const cBorder = 4;
 
     //standalone: if false: hack to keep "old" behaviour of the system console
     //cmdline: use that cmdline, if null create a new one
     this(bool standalone = true, CommandLine cmdline = null) {
+        mStandalone = standalone;
         mBackColor = Color(0.5,0.5,0.5,0.5); //freaking alpha transparency!!!
 
         auto font = gFontManager.loadFont(standalone ? "sconsole" : "console");
@@ -168,6 +165,12 @@ class GuiConsole : Container {
 
         mLastTime = timeCurrentTime();
 
+        //make a global console go away if unfocused
+        if (!mStandalone) {
+            if (!subFocused() && consoleVisible())
+                toggle(); //consoleVisible = false;
+        }
+
         super.simulate();
     }
 
@@ -205,14 +208,17 @@ class GuiConsole : Container {
 
     ///force toggle/visibility state
     void consoleVisible(bool set) {
-        if (set) {
-            mShowFlag = 1;
-            mOffset = 0;
-        } else {
-            mShowFlag = -1;
-            mOffset = mHeight;
-        }
+        auto nShowFlag = set ? 1 : -1;
+        if (mShowFlag == nShowFlag)
+            return;
+        mShowFlag = nShowFlag;
+        mOffset = set ? 0 : mHeight;
         changeHeight();
+        focusable = set;
+    }
+
+    override bool onTestMouse(Vector2i p) {
+        return mShowFlag > 0 && p.y < mHeight;
     }
 
     override void onDraw(Canvas c) {

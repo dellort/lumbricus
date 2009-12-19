@@ -15,7 +15,7 @@ import utils.time;
 import utils.misc;
 import utils.vector2;
 
-class GameTimer : Container {
+class GameTimer : Widget {
     private {
         GameInfo mGame;
         BoxContainer mLabelBox;
@@ -31,6 +31,7 @@ class GameTimer : Container {
     }
 
     this(GameInfo game) {
+        setVirtualFrame(false);
         mGame = game;
 
         //styles.addClass("gametimer");

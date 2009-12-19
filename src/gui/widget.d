@@ -1,11 +1,10 @@
 module gui.widget;
 
 import common.visual;
+import framework.config;
 import framework.framework;
 import framework.event;
 import framework.i18n;
-import gui.container;
-import gui.gui;
 import gui.styles;
 import utils.configfile;
 import utils.factory;
@@ -15,11 +14,23 @@ import utils.rect2;
 import utils.output;
 import utils.log;
 import str = utils.string;
+import array = tango.core.Array;
+import marray = utils.array;
 
 //debugging (draw a red frame for the widget's bounds)
 //version = WidgetDebug;
 //for what this is, see where it's used
 //version = ResizeDebug;
+
+private {
+    Log log;
+    static this() { log = registerLog("GUI"); }
+
+    //only grows, must not overflow
+    static int gNextFocusAge;
+    //also grows only; used to do "soft" zorder
+    static int gNextZOrder2;
+}
 
 //layout parameters for dealing with e.g. size overallocation
 //you can define borders and what happens, if a widget gets more space than it
@@ -99,25 +110,29 @@ struct WidgetLayout {
 //Widgets are simulated with absolute time, and can
 //accept events by key bindings
 class Widget {
-    package {
-        Container mParent;
+    private {
+        Widget mParent;
         int mZOrder; //any value, higher means more on top
         int mZOrder2; //what was last clicked, argh
-        int mFocusAge;
-    }
-    private {
+
+        //hold global GUI state; null if Widget isn't part of the GUI
+        GUI mGUI;
+
+        //sub widgets
+        Widget[] mWidgets;
+        Widget[] mZWidgets; //sorted by z-orders
+
         //last known mousepos (client coords)
         Vector2i mMousePos;
 
-        //capture status; if true, mouse is grabbed inside this object
-        //bool mMouseCaptured;
-
-        //if globally focused (for local focus: (this == parent.localFocused))
-        bool mHasFocus;
+        //value set by focusable()
+        bool mFocusable = true;
         //used only to raise onFocusChange()
         bool mOldFocus;
+        //used to find out globally which widget was last focused
+        int mFocusAge;
 
-        bool mMouseOverState;
+        bool mMouseIsInside;
 
         //(optional) set of key bindings for the onKey*() handlers
         //if not set, bind parameter will be empty
@@ -165,10 +180,16 @@ class Widget {
     ///clip graphics to the inside
     bool doClipping = true;
 
+    ///return value for the default onTestMouse()
+    protected bool isClickable = true;
+
     ///text to display as tooltip
     ///note that there are no popup tooltips (and there'll never be one)
     ///instead, you need something else to display them
     char[] tooltip;
+
+    ///use Widget.doesCover
+    protected bool checkCover = false;
 
     //-------
 
@@ -205,64 +226,188 @@ class Widget {
         return mStyles;
     }
 
-    package static Log log() {
-        Log l = registerLog("GUI");
-        return l;
+    /// Add sub GUI element
+    protected void addChild(Widget o) {
+        if (o.parent !is null) {
+            assert(false, "already added");
+        }
+        assert(marray.arraySearch(mWidgets, o) < 0);
+
+        o.mParent = this;
+        mWidgets ~= o;
+        mZWidgets ~= o;
+        updateZOrder(o);
+        o.styles.parent = styles;
+
+        o.do_add();
+
+        log("on child add {} {}", this, o);
+        onAddChild(o);
+
+        fix_focus_on_add(o);
+
+        //just to be sure
+        o.needRelayout();
+
+        //styles depend from parent
+        o.do_style_check();
     }
 
-    final Container parent() {
+    /// Undo addChild()
+    protected void removeChild(Widget o) {
+        if (o.parent !is this) {
+            assert(false, "was not child of this");
+        }
+
+        bool had_focus = o.focused();
+
+        o.do_remove();
+
+        //copy... when a function is iterating through these arrays and calls
+        //this function (through event handling), and we modify the array, and
+        //then return to that function, it gets fucked up
+        //but if these functions use foreach (copies the array descriptor), and
+        //we copy the array memory, we're relatively safe *SIGH!*
+        mWidgets = mWidgets.dup;
+        mZWidgets = mZWidgets.dup;
+        marray.arrayRemove(mWidgets, o);
+        marray.arrayRemove(mZWidgets, o);
+        o.mParent = null;
+        o.styles.parent = null;
+
+        log("on child remove {} {}", this, o);
+        onRemoveChild(o);
+
+        if (had_focus) {
+            //that's just kind and friendly?
+            o.pollFocusState();
+            //find a replacement widget for focus
+            if (gui)
+                assert(gui.mFocus is null);
+            focusSomething();
+        }
+
+        needRelayout();
+    }
+
+    //most important initializations & cleanups, which must be done recursively
+    //called right after/before the actual insert/remove code
+    //they must not trigger any further events or user-code
+    private void do_add() {
+        assert(!!mParent);
+        mGUI = mParent.mGUI;
+        foreach (c; mWidgets) {
+            c.do_add();
+        }
+    }
+    private void do_remove() {
+        assert(!!mParent);
+        if (mGUI) {
+            mGUI.do_remove(this);
+        }
+        mGUI = null;
+        foreach (c; mWidgets) {
+            c.do_remove();
+        }
+        //reset some more transient state
+        mMouseIsInside = false;
+    }
+
+    //called after child has been added/removed, and before relayouting etc.
+    //  is done -- might be very fragile
+    protected void onAddChild(Widget c) {
+    }
+    protected void onRemoveChild(Widget c) {
+    }
+
+    private void updateZOrder(Widget child) {
+        assert(child.parent is this);
+        child.mZOrder2 = ++gNextZOrder2;
+        //avoid unneeded work (note that mZOrder2 still must be set)
+        if (mZWidgets[$-1] is child)
+            return;
+        mZWidgets = mZWidgets.dup;
+        array.sort(mZWidgets,
+            (Widget a, Widget b) {
+                if (a.mZOrder == b.mZOrder) {
+                    return a.mZOrder2 < b.mZOrder2;
+                }
+                return a.mZOrder < b.mZOrder;
+            }
+        );
+    }
+
+    protected void setChildLayout(Widget child, WidgetLayout layout) {
+        child.setLayout(layout);
+        needRelayout();
+    }
+
+    //just do what the code says
+    //"virtual frame" meaning the widget itself is unfocusable/no mouse clicks
+    protected final void setVirtualFrame(bool click = false) {
+        focusable = false;
+        isClickable = click;
+    }
+
+    final Widget parent() {
         return mParent;
     }
 
     /// remove this from its parent
     final void remove() {
         if (mParent) {
-            mParent.doRemoveChild(this);
+            mParent.removeChild(this);
         }
     }
 
     ///return true is this is the root window
-    bool isTopLevel() {
-        return false;
+    final bool isTopLevel() {
+        return mGUI && !mParent;
     }
 
-    //recursively searches the tree until toplevel-widget is found
+    //return global GUI state
     //returns null if the Widget-tree is unlinked from the GUI
-    package MainFrame getTopLevel() {
-        Widget w = this;
-        while (w) {
-            if (auto m = cast(MainFrame)w)
-                return m;
-            w = w.parent;
-        }
-        return null;
+    final GUI gui() {
+        return mGUI;
     }
 
     ///return if the Widget is linked into the GUI hierarchy, which means it
     ///can be visible, receive events, do layouting etc...
     ///simply having a parent is not enough for this for various silly reasons
     final bool isLinked() {
-        //it's ok if it's reachable
-        return !!getTopLevel();
+        return !!gui();
     }
 
     ///return true if other is a direct or indirect parent of this
-    /// also returns true for a.isTransitiveChildOf(a)
-    final bool isTransitiveChildOf(Widget other) {
-        auto cur = this;
-        while (cur) {
-            if (cur is other)
-                return true;
-            cur = cur.parent;
+    /// also returns true for a.isTransitiveChild(a)
+    final bool isTransitiveChild(Widget other) {
+        return other is this || findDirectChildFor(other);
+    }
+
+    ///blergh
+    ///if w is a transitive child of this, return the direct child of this,
+    /// that's on the path to w; else return null
+    ///a.findDirectChildFor(a) == null
+    final Widget findDirectChildFor(Widget other) {
+        while (other) {
+            if (other.parent is this)
+                return other;
+            other = other.parent;
         }
-        return false;
+        return null;
     }
 
     ///within the parent frame, set this object on the highest zorder
+    final void toFrontLocal() {
+        if (parent)
+            parent.updateZOrder(this);
+    }
+
+    ///globally set highest zorder (like toFrontLocal(), "soft" zorder only)
     final void toFront() {
-        if (parent) {
-            parent.doSetChildToFront(this);
-        }
+        toFrontLocal();
+        if (parent)
+            parent.toFront();
     }
 
     final int zorder() {
@@ -271,8 +416,8 @@ class Widget {
     ///set the "strict" zorder, will also set the "soft" zorder to top
     final void zorder(int z) {
         mZOrder = z;
-        if (mParent) {
-            mParent.doSetChildToFront(this);
+        if (parent) {
+            parent.updateZOrder(this);
         }
     }
 
@@ -296,6 +441,7 @@ class Widget {
     ///Only affects drawing and events, has no influence on layout
     void visible(bool set) {
         mVisible = set;
+        pollFocusState();
     }
     bool visible() {
         return mVisible;
@@ -306,6 +452,7 @@ class Widget {
     ///and all children
     void enabled(bool set) {
         mEnabled = set;
+        pollFocusState();
         styles.setState("disabled", !mEnabled);
     }
     bool enabled() {
@@ -451,6 +598,16 @@ class Widget {
         return (gFramework.drawDriver.getFeatures & DriverFeatures.canvasScaling) > 0;
     }
 
+    protected Widget getBinChild() {
+        assert(mWidgets.length <= 1);
+        return mWidgets.length ? mWidgets[0] : null;
+    }
+
+    ///treat the return value as const
+    protected Widget[] children() {
+        return mWidgets;
+    }
+
     // --- layouting stuff
 
     WidgetLayout layout() {
@@ -483,7 +640,12 @@ class Widget {
     /// current size).
     /// Widgets should override this; by default returns always (0,0).
     protected Vector2i layoutSizeRequest() {
-        return Vector2i(0);
+        //report the biggest
+        Vector2i biggest = Vector2i(0);
+        foreach (w; children) {
+            biggest = biggest.max(w.layoutCachedContainerSizeRequest());
+        }
+        return biggest;
     }
 
     /// Return what layoutContainerSizeRequest() would return, but possibly
@@ -526,6 +688,10 @@ class Widget {
     /// Override this to actually do Widget-internal layouting.
     /// default implementation: empty (and isn't required to be invoked)
     protected void layoutSizeAllocation() {
+        Rect2i b = widgetBounds();
+        foreach (w; children) {
+            w.layoutContainerAllocate(b);
+        }
     }
 
     ///called by a Widget itself when it wants to report a changed
@@ -563,13 +729,19 @@ class Widget {
     //internal to needRelayout() and needResize()
     private void requestRelayout() {
         if (parent) {
-            parent.doRequestedRelayout(this);
+            parent.requestedRelayout(this);
         } else if (isTopLevel) {
             layoutContainerAllocate(mContainerBounds);
         } else {
             //hm.... Widget without parent wants relayout
             //do nothing (and don't relayout it)
         }
+    }
+
+    protected void requestedRelayout(Widget child) {
+        assert(child.parent is this);
+        //propagate upwards, indirectly
+        needRelayout();
     }
 
     /// Size including the not-really-client-area.
@@ -632,10 +804,13 @@ class Widget {
     // --- input handling
 
     ///check if the mouse "hits" this gui object
-    ///by default all what the bounding box can get, but for the sake of
+    ///by default return isClickable, but for the sake of
     ///overengineering, anything is possible
+    ///NOTE: doesn't need to account for child widgets (onTestMouse() can't
+    ///      "shadow" them)
+    ///      the area outside widgetBounds is automatically excluded
     protected bool onTestMouse(Vector2i pos) {
-        return true;
+        return isClickable;
     }
 
     ///Check where the Widget should receive mouse events
@@ -650,14 +825,19 @@ class Widget {
             && onTestMouse(pos);
     }
 
+    ///if the widget could receive input if it had focus
+    ///considers parent widget state as well
+    final bool canTakeInput() {
+        if (!isLinked())
+            return false;
+        if (mParent && !mParent.canTakeInput())
+            return false;
+        return mVisible && mEnabled;
+    }
+
     //event handler which can be overridden by the user
     //the default implementation is always empty and doesn't need to be called
     protected void onKeyEvent(KeyInfo info) {
-    }
-
-    //just because of protection shit, I hate D etc.
-    package void doOnKeyEvent(KeyInfo info) {
-        onKeyEvent(info);
     }
 
     //handler for mouse move events
@@ -672,28 +852,20 @@ class Widget {
     protected void onChildMouseEnterLeave(Widget child, bool mouseIsInside) {
     }
 
-    //calls onMouseEnterLeave(), but avoid unnecessary recursion (cf. Container)
-    //(and also is "package" to deal with the stupid D protection attributes)
-    void doMouseEnterLeave(bool mii) {
-        if (mMouseOverState != mii) {
-            mMouseOverState = mii;
+    //calls onMouseEnterLeave(), but avoid unnecessary recursion
+    //mii = mouseIsInside (too much typing hurts my old knuckle joints)
+    private void doMouseEnterLeave(bool mii) {
+        if (mMouseIsInside != mii) {
+            mMouseIsInside = mii;
             styles.setState("hover", mii);
             onMouseEnterLeave(mii);
-            doChildMouseEnterLeave(this, mii);
         }
     }
 
-    private void doChildMouseEnterLeave(Widget child, bool mouseIsInside) {
-        if (child !is this) {
-            onChildMouseEnterLeave(child, mouseIsInside);
-        }
-        if (parent) {
-            parent.doChildMouseEnterLeave(child, mouseIsInside);
-        }
-    }
-
-    final bool mouseOverState() {
-        return mMouseOverState;
+    ///return true if the mouse pointer currently is inside the widget
+    ///considers canTakeInput() and testMouse()
+    final bool mouseIsInside() {
+        return mMouseIsInside;
     }
 
     void bindings(KeyBindings bind) {
@@ -717,82 +889,141 @@ class Widget {
         return bind;
     }
 
-    //called by the owning Container only
-    package void updateMousePos(Vector2i pos) {
-        mMousePos = pos;
-    }
+    //dispatch either to this widget or children widgets
+    //return true if the event was handled
+    private bool handleInput(InputEvent event) {
+        if (!gui)
+            return false;
 
-    //return if any mouse button is down; this should be ok even "during"
-    //dispatching input, because the Framework's getKeyState() is synchronous to
-    //the events it pushes into the GUI
-    static bool anyMouseButtonPressed() {
-        return gFramework.anyButtonPressed(false, true);
-    }
+        //handleChildInput checks this
+        //can only fail if MainFrame is set to disabled/invisible or so
+        assert(canTakeInput());
 
-    //called whenever an input event passes through this
-    final void doDispatchInputEvent(InputEvent event) {
-        if (!mVisible || !mEnabled)
-            return;
-        if (event.isMouseRelated) {
-            updateMousePos(event.mousePos);
-            doMouseEnterLeave(true);
+        auto focus = gui.mFocus;
+
+        if (handleChildInput(event))
+            return true;
+
+        //again the two dispatch methods - final event test
+        if (event.isMouseRelated()) {
+            if (!testMouse(event.mousePos))
+                return false;
+        } else {
+            if (this !is focus)
+                return false;
         }
-        dispatchInputEvent(event);
+
+        gui.deliverDirectEvent(this, event);
+
+        return true;
     }
 
-    protected void dispatchInputEvent(InputEvent event) {
-        //when this is called it means this Widget definitely gets the event
-        auto m = getTopLevel();
-        log()("dispatch event to {}: {}", this, event);
-        if (event.isMouseRelated() && m) {
-            //usually used for the mouse cursor
-            //NOTE: not for mouse click events... this is a hack to prevent the
-            //  mouse cursor from appearing for a brief moment, if you right
-            //  click into a MouseScroller (which is what the game uses)
-            if (event.isMouseEvent) {
-                log()("set mouse cursor widget: {} -> {}", m.mouseWidget, this);
-                m.mouseWidget = this;
-            }
-            //care about capturing - if we get the event and a mouse button
-            //is hold, we should receive all other mouse events until no
-            //mouse button is down anymore (see MainFrame)
-            if (!m.captureMouse && anyMouseButtonPressed()) {
-                log()("capture: {} -> {}", m.captureMouse, this);
-                m.captureMouse = this;
-            }
+    //this function is called to deliver events to child widgets
+    //this function is just overrideable to be able to "bend the rules"; for
+    //  proper input handling use onKeyEvent etc.
+    //this also determines if the input is sent to this widget:
+    //  return false => event may be delivered to this (or not at all if that
+    //      fails; there's still a final event test)
+    //  return true => event is considered to be handled by the function
+    //if you override this and never call the super function, children never
+    //  receive input
+    //even if you override this and return "false", it doesn't mean this Widget
+    //  will receive the event, because handleInput() may decide that the event
+    //  is not for this widget (e.g. Widget not focused)
+    protected bool handleChildInput(InputEvent event) {
+        if (event.isMouseRelated()) {
+            return childDispatchByMouse(event);
+        } else {
+            return childDispatchByFocus(event);
         }
-        // Trace.formatln("disp: {} {}", this, event);
-        if (event.isKeyEvent) {
-            //check for <tab> key
-            if (event.keyEvent.isDown && event.keyEvent.code == Keycode.TAB
-                && findBind(event.keyEvent) == "" && !usesTabKey)
+    }
+
+    private bool childDispatchByMouse(InputEvent event) {
+        //objects towards the end of the array are later drawn => _reverse
+        //(in ambiguous cases, mouse should pick what's visible first)
+        foreach_reverse (child; mZWidgets) {
+            auto cevent = translateEvent(child, event);
+
+            //child.parent !is this: not sure if this happens; probably when an
+            //i nput event handler called by us removes a widget which has a
+            //  lower zorder
+            //also, we test the widget bounds instead of using testMouse(),
+            //  because testMouse() doesn't check for sub-widgets
+            if (child.parent is this
+                && child.widgetBounds.isInside(cevent.mousePos)
+                && child.canTakeInput()
+                && child.handleInput(cevent))
             {
-                if (modifierIsExact(event.keyEvent.mods, Modifier.Shift)) {
-                    nextFocus(true);
-                    return;
-                } else if (event.keyEvent.mods == 0) {
-                    nextFocus();
-                    return;
-                }
+                return true;
             }
-            //set focus on key event, especially on mouse clicks
-            //xxx: mouse wheel will set focus too, is that ok?
-            claimFocus();
-            //keyboard capture, so that artificial key-release events are always
-            //generated (e.g. on focus change while key is pressed)
-            if (m) {
-                m.keyboardCaptureStuff(this, event.keyEvent);
-            }
-            onKeyEvent(event.keyEvent);
-        } else if (event.isMouseEvent) {
-            onMouseMove(event.mouseEvent);
         }
+        return false;
     }
 
-    //only useful for Container
-    //normal Widgets can only return this, or null to refuse the input
-    Widget findInputDispatchChild(InputEvent event) {
-        return this;
+    private bool childDispatchByFocus(InputEvent event) {
+        //could send event directly to gui.mFocus
+        //but let it "tingle" down, so that widgets overriding
+        //  handleChildInput() can do their evil stuff etc.
+
+        if (!gui || !gui.mFocus)
+            return false;
+
+        auto child = findDirectChildFor(gui.mFocus);
+
+        if (!child || !child.canTakeInput())
+            return false;
+
+        auto cevent = translateEvent(child, event);
+        return child.handleInput(cevent);
+    }
+
+    //directly deliver an event to this widget (without considering children or
+    //  proper event routing)
+    protected final void deliverDirectEvent(InputEvent event) {
+        if (!gui)
+            return;
+        gui.deliverDirectEvent(this, event);
+    }
+
+    //return true if tab-handling steals the event
+    private bool checkTabKey(InputEvent event) {
+        if (!event.isKeyEvent)
+            return false;
+
+        if (event.keyEvent.code == Keycode.TAB
+            && findBind(event.keyEvent) == "" && !usesTabKey)
+        {
+            //xxx why is this stuff different anyway
+            bool p = event.keyEvent.isPress;
+            bool d = event.keyEvent.isDown;
+
+            if (d && modifierIsExact(event.keyEvent.mods, Modifier.Shift)) {
+                nextFocus(true);
+                return true;
+            } else if (p && event.keyEvent.mods == 0) {
+                nextFocus();
+                return true;
+            }
+
+            //always eat all tab key events
+            return true;
+        }
+
+        return false;
+    }
+
+    //return an event changed so that the child can handle it; currently
+    //translates the mouse positions to the child's coordinate system
+    //child must be a direct child of this
+    InputEvent translateEvent(Widget child, InputEvent event) {
+        assert(child.parent is this);
+        debug if (event.isMouseEvent)
+            assert(event.mousePos == event.mouseEvent.pos);
+        event.mousePos = child.coordsFromParent(event.mousePos);
+        if (event.isMouseEvent) {
+            event.mouseEvent.pos = event.mousePos;
+        }
+        return event;
     }
 
     //load a set of key bindings for this control (used only for own events)
@@ -805,6 +1036,326 @@ class Widget {
     //(keybindings can always override, no need to use this)
     protected bool usesTabKey() {
         return false;
+    }
+
+    // --- focus handling
+
+    /// The user can set whether the widget is supposed to be focusable.
+    /// If it really can be focused depends from visible/enabled state (see
+    /// canTakeInput()).
+    /// If a container has focusable==false, child widgets still can be focused.
+    protected final void focusable(bool s) {
+        mFocusable = s;
+        pollFocusState();
+    }
+    protected final bool focusable() {
+        return mFocusable;
+    }
+
+    /// if this returns false, sub widgets aren't allowed to take focus
+    /// must call pollFocusState() if the return value changed
+    //xxx really need to decide if those options should be (protected)
+    //    properties or just virtual functions
+    protected bool allowSubFocus() {
+        return true;
+    }
+
+    private bool checkSubFocus() {
+        if (!parent)
+            return true;
+        return parent.allowSubFocus() && parent.checkSubFocus();
+    }
+
+    /// If a widget could actually take focus under the current conditions.
+    final bool canFocus() {
+        return focusable() && canTakeInput() && checkSubFocus();
+    }
+
+    /// Return true if focus should set to this element when it becomes active.
+    /// Only used if focusable() is true.
+    bool greedyFocus() {
+        return false;
+    }
+
+    ///if true, try to focus child widgets instead of this widget; accept focus
+    /// only if this isn't possible
+    ///needed e.g. for Windows
+    ///only matters if canFocus() is true and there are child widgets
+    protected bool doesDelegateFocusToChildren() {
+        return false;
+    }
+
+    /// claim global focus (try to make this.focused() == true)
+    /// return success
+    final bool claimFocus() {
+        //do this before exiting-on-failure, because next time the widget is
+        //  visible, the focus claim can be executed
+        //(not sure if this is a good idea)
+        mFocusAge = ++gNextFocusAge;
+
+        if (focused)
+            return true;
+        if (!gui || !canFocus())
+            return false;
+
+        if (doesDelegateFocusToChildren()) {
+            //try to focus any child
+            if (subFocused())
+                return true;
+            if (focusSomething(false))
+                return true;
+        }
+
+        //actual change
+        auto old = gui.mFocus;
+        gui.mFocus = this;
+        if (old)
+            old.pollFocusState();
+        pollFocusState();
+        return true;
+    }
+
+    //focus in reaction to a mouse click
+    //this one tries to focus parent widgets (claimFocus() mustn't do this)
+    final bool focusOnInput() {
+        if (!checkSubFocus()) {
+            //sub-focus stuff makes focusOnInput recursively claim focus
+            if (parent)
+                return parent.focusOnInput();
+        }
+        return claimFocus();
+    }
+
+    /// if globally focused
+    final bool focused() {
+        return gui ? gui.mFocus is this : false;
+    }
+
+    /// if this widget contains a focused widget
+    /// if w.focused() => w.subFocused() == true
+    final bool subFocused() {
+        if (!gui)
+            return false;
+        auto focus = gui.mFocus;
+        return isTransitiveChild(focus);
+    }
+
+    //fix up focus state; call when...
+    //- focus was explicitly changed
+    //- focusable(), canFocus(), canTakeInput() return values changed
+    //does nothing if nothing has actually changed
+    final void pollFocusState() {
+        if (focused() && !canFocus()) {
+            //break old focus
+            assert(!!gui());
+            if (gui.mFocus is this) {
+                //defocus
+                gui.mFocus = null;
+                pollFocusState();
+                //switch focus to something else
+                focusSomething();
+            }
+        }
+
+        if (mOldFocus != focused()) {
+            mOldFocus = focused();
+            log("focus={} for {}", mOldFocus, this);
+            onFocusChange();
+        }
+    }
+
+    /// called when focused() changes
+    /// default implementation: set Widget zorder to front
+    protected void onFocusChange() {
+        //log("focus change for {}: {}", this, focused());
+        //also adjust zorder, else it looks strange
+        if (focused)
+            toFront();
+        styles.setState("focused", focused);
+    }
+
+    //focus something when the focused widget was removed from the GUI tree
+    //if global==false, the widget must be a direct or indirect child of this
+    //  widget, and if nothing is found do nothing; never focus "this"
+    final bool focusSomething(bool global = true) {
+        Widget best = focus_find_something(global);
+
+        log("focus something {} {} {}", global, this, best);
+
+        if (!best)
+            return false;
+        return best.claimFocus();
+    }
+
+    //find a focusable widget (see focusSomething)
+    //also used to find out if something is focusable
+    private Widget focus_find_something(bool global) {
+        if (!gui)
+            return null;
+
+        //special case if not global: never focus "this" (claimFocus needs it)
+        Widget exclude = global ? null : this;
+
+        //search the whole gui for a focusable widget with the highest "age"
+        Widget best;
+        void find(Widget w) {
+            if (!w)
+                return;
+            if (w.canFocus() && w !is exclude) {
+                if (!best || w.mFocusAge > best.mFocusAge)
+                    best = w;
+            }
+            foreach (c; w.mZWidgets) {
+                find(c);
+            }
+        }
+        find(global ? gui.mRoot : this);
+        return best;
+    }
+
+    private void fix_focus_on_add(Widget child) {
+        if (!gui)
+            return;
+        //have to do this with all children of child
+        //because any child may be the focusable one
+        void rec(Widget w) {
+            fix_focus_up(w);
+            foreach (s; w.mWidgets) {
+                rec(s);
+            }
+        }
+        rec(child);
+    }
+
+    private void fix_focus_up(Widget child) {
+        if (child.parent is this) {
+            if (child.greedyFocus())
+                child.claimFocus();
+        }
+
+        if (focused() && child.canFocus() && doesDelegateFocusToChildren()) {
+            //delegate the focus to the child
+            child.claimFocus();
+        }
+
+        if (parent)
+            parent.fix_focus_up(child);
+    }
+
+    //rel=-1 for previous sibling, rel=+1 for next
+    protected Widget directSibling(int rel) {
+        if (!parent)
+            return null;
+        int idx = marray.arraySearch(parent.mWidgets, this);
+        assert(idx >= 0);
+        idx += rel;
+        return (idx >= 0 && idx < parent.mWidgets.length)
+            ? parent.mWidgets[idx] : null;
+    }
+    //like directSibling(), but walk the tree to get siblings
+    //the tree is always traversed in preorder (parent comes first)
+    //it's circular and thus never returns null
+    protected Widget anySibling(int rel) {
+        assert(rel == -1 || rel == +1);
+        if (rel > 0) {
+            if (mWidgets.length)
+                return mWidgets[0];
+            Widget cur = this;
+            for (;;) {
+                if (auto n = cur.directSibling(1))
+                    return n;
+                if (!cur.parent)
+                    break;
+                cur = cur.parent;
+            }
+            return cur;
+        } else {
+            auto pre = (!parent) ? this : directSibling(-1);
+            if (!pre)
+                return parent;
+            for (;;) {
+                if (!pre.mWidgets.length)
+                    return pre;
+                pre = pre.mWidgets[$-1];
+            }
+        }
+    }
+
+    /// focus the next element inside (containers) or after this widget
+    /// used to focus the next element using <tab>
+    /// normal Widgets call their parent to focus the next widget
+    /// Containers try to focus the next child and call their parent
+    ///    if that fails
+    /// set invertDir = true to go to the previous element
+    void nextFocus(bool invertDir = false) {
+        if (!gui)
+            return;
+        Widget cur = gui.mFocus;
+        if (!cur)
+            cur = this; //what
+
+        //find the next focusable widget after "cur"
+        //or before "cur" if invertDir==true
+        int dir = invertDir ? -1 : +1;
+        Widget start = cur;
+
+        for (;;) {
+            cur = cur.anySibling(dir);
+            if (cur is start)
+                break;
+            if (cur.canFocus()) {
+                //never focus a widget which would delegate its focus to another
+                //  widget (this breaks tabbing through the widget list)
+                if (cur.doesDelegateFocusToChildren()
+                    && cur.focus_find_something(false))
+                    continue;
+                break;
+            }
+        }
+
+        log("nextFocus({}): start={} found={}", invertDir, start, cur);
+
+        cur.claimFocus();
+    }
+
+    // --- captures
+    //there are mouse and key captures; both disable the global
+    //event dispatch mechanism (mouse events are normally dispatched by zorder
+    //and testMouse, key events by focus) and pass all events to the grabbing
+    //Widget
+    //be aware that this really blocks all global events, which may be nasty
+    //(mouse and key captures can be easily separated if needed, see Container)
+
+    //events are delivered even to non-focusable Widgets when captured
+    //removing a widget breaks the capture
+
+    //mouse = capture applies to mouse events (mouse move, mouse button clicks)
+    //key = capture applies to keyboard events
+    //direct = true: directly send to this widget (handleChildEvents not called)
+    //direct = false: send to this widget and then use normal event routing
+    //return = success (can fail if not linked to GUI or capture is already set
+    //         for a different widget)
+    final bool captureEnable(bool mouse, bool key, bool direct) {
+        if (!gui)
+            return false;
+        if (gui.captureUser && gui.captureUser !is this)
+            return false;
+        gui.captureUser = this;
+        gui.captureUser_key = key;
+        gui.captureUser_mouse = mouse;
+        gui.captureUser_direct = direct;
+        return true;
+    }
+
+    //return = if the capture was set to this widget
+    //if false is released, the capture state isn't changed
+    final bool captureRelease() {
+        if (!gui)
+            return false;
+        if (gui.captureUser !is this)
+            return false;
+        gui.captureUser = null;
+        return true;
     }
 
     // --- simulation and drawing
@@ -821,13 +1372,15 @@ class Widget {
     BoxProperties mOldBorderStyle;
     bool mOldDrawBorder;
 
-    //this is actually, package, but retarded D does not allow to override
-    //  package functions (which is plain utterly disgusting)
-    void do_style_check() {
+    //check all child widgets when this widget is added
+    package void do_style_check() {
         //styles are obviously not available if widget not in main hierarchy
-        if (!getTopLevel())
+        if (!isLinked())
             return;
         check_style_changes();
+        foreach (w; children.dup) {
+            w.do_style_check();
+        }
     }
 
     protected void check_style_changes() {
@@ -862,13 +1415,16 @@ class Widget {
     //overridden by Container
     void internalSimulate() {
         check_style_changes();
+        foreach (obj; mWidgets) {
+            obj.internalSimulate();
+        }
         simulate();
     }
 
     void simulate() {
     }
 
-    void doDraw(Canvas c) {
+    final void doDraw(Canvas c) {
         if (!mVisible)
             return;
 
@@ -902,6 +1458,11 @@ class Widget {
 
         //user's draw routine
         onDraw(c);
+
+        if (focused())
+            onDrawFocus(c);
+
+        onDrawChildren(c);
 
         //Trace.formatln("end {}", this.classinfo.name);
 
@@ -938,6 +1499,45 @@ class Widget {
     protected void onDraw(Canvas c) {
     }
 
+    protected void onDrawChildren(Canvas c) {
+        if (!checkCover) {
+            //normal case
+            foreach (obj; mZWidgets) {
+                obj.doDraw(c);
+            }
+        } else {
+            //special hack-like thing to speed up drawing *shrug*
+            //if a widget fully covers other widgets, don't draw the other ones
+            Widget last_cover;
+            foreach (obj; mZWidgets) {
+                if (obj.doesCover)
+                    last_cover = obj;
+            }
+            bool draw = !last_cover;
+            foreach (obj; mZWidgets) {
+                draw |= obj is last_cover;
+                if (draw)
+                    obj.doDraw(c);
+            }
+        }
+    }
+
+    ///default focus drawing
+    ///this is specially called here, because the user may just override onDraw,
+    /// and forget about the focus stuff; if the drawing is bogus, the stupid
+    /// implementer will notice it and will have to do something about it, like
+    /// adding proper drawing code by overriding this method (which is why
+    /// there's no simpler method of disabling this code)
+    protected void onDrawFocus(Canvas c) {
+        auto rc = widgetBounds();
+        const border = 3;
+        auto s = rc.size;
+        if (border*2 < min(s.x, s.y)) {
+            rc.extendBorder(Vector2i(-border));
+        }
+        c.drawStippledRect(rc, Color(0.5));
+    }
+
     ///when drawing, add an additional offset to the Widget for the purpose of
     ///animation - it has no influence on anything else like input handling, the
     ///reported Widget position, or Widget layouting
@@ -948,122 +1548,10 @@ class Widget {
         return mAddToPos;
     }
 
-
-    // --- focus handling
-
-    /// Return true if this can have a focus (used for treatment of <tab>).
-    /// default implementation: return false
-    /// use Container.childCanHaveFocus() to know the real value, because
-    /// Containers might disable their children for stupid reasons SIGH
-    bool canHaveFocus() {
-        return false;
-    }
-
-    /// Return true if focus should set to this element when it becomes active.
-    /// Only used if canHaveFocus() is true.
-    /// default implementation: return false
-    bool greedyFocus() {
-        return false;
-    }
-
-    /// call if canHaveFocus() could have changed, although object was not added
-    /// or removed to the GUI *sigh*
-    final void recheckFocus() {
-        if (parent)
-            parent.doRecheckChildFocus(this);
-    }
-
-    /// claim global focus (try to make this.focused() == true)
-    /// return success
-    final bool claimFocus() {
-        //in some cases, this might even safe you from infinite loops
-        if (focused)
-            return true;
-        //set focus: recursively claim focus on parents
-        if (parent) {
-            parent.localFocus = this; //local
-            if (!localFocused())
-                return false;
-            return parent.claimFocus();      //global (recurse upwards)
+    protected void clear() {
+        while (children.length > 0) {
+            removeChild(children[$-1]);
         }
-        return isTopLevel();
-    }
-
-    /// if globally focused
-    final bool focused() {
-        return mHasFocus;
-    }
-
-    /// if locally focused
-    final bool localFocused() {
-        return parent ? parent.localFocus is this : isTopLevel;
-    }
-
-    /// focus the next element inside (containers) or after this widget
-    /// used to focus the next element using <tab>
-    /// normal Widgets call their parent to focus the next widget
-    /// Containers try to focus the next child and call their parent
-    ///    if that fails
-    /// set invertDir = true to go to the previous element
-    void nextFocus(bool invertDir = false) {
-        if (mParent)
-            mParent.nextFocus(invertDir);
-    }
-
-    /// called when focused() changes
-    /// default implementation: set Widget zorder to front
-    protected void onFocusChange() {
-        log()("global focus change for {}: {}", this, mHasFocus);
-        //also adjust zorder, else it looks strange
-        if (focused)
-            toFront();
-        styles.setState("focused", focused);
-    }
-
-    //cf. Container
-    protected Widget findLastFocused() {
-        return this;
-    }
-
-    /// possibly update focus state
-    final void pollFocusState() {
-        if (parent) {
-            //recheck focus
-            mHasFocus = (parent.localFocus is this) && parent.focused;
-        } else {
-            mHasFocus = isTopLevel;
-        }
-
-        if (mOldFocus != focused()) {
-            mOldFocus = focused();
-            onFocusChange();
-        }
-    }
-
-    // --- captures
-    //there are mouse and key captures; both disable the normal per-Container
-    //event dispatch mechanism (mouse events are normally dispatched by zorder
-    //and testMouse, key events by focus) and pass all events to the grabbing
-    //Widget
-    //but you still can't capture all _global_ events with this, only the events
-    //the Containers pass to their children
-    //(mouse and key captures can be easily separated if needed, see Container)
-
-    //keyboard events are delivered even to non-focusable Widgets when captured
-
-    //return value: if operation was successful (a capture can only be canceled/
-    //replaced by the Widget which did set it)
-    final bool captureSet(bool set) {
-        auto m = getTopLevel();
-        if (!m)
-            return !set;
-        if (m.captureUser && m.captureUser !is this)
-            return false;
-        if ((m.captureUser is this) == set)
-            return true;
-        //really set/unset
-        m.captureUser = set ? this : null;
-        return true;
     }
 
     // --- blabla rest
@@ -1106,7 +1594,332 @@ class Widget {
         needRelayout();
     }
 
-    /+protected+/ void onLocaleChange() {
+    void onLocaleChange() {
+        foreach (w; children.dup) {
+            w.onLocaleChange();
+        }
+    }
+
+    //only intended for debugging; not to subvert any protection
+    //rather use this.children() (which is protected)
+    void enumChildren(void delegate(Widget w) callback) {
+        foreach (w; children.dup) {
+            callback(w);
+        }
+    }
+}
+
+//top-level-widget, only one instance of this is allowed per GUI
+//also provides methods to add Widgets
+final class MainFrame : Widget {
+    private this(GUI top) {
+        super();
+        mGUI = top;
+        styles.parent = mGUI.mStyleRoot;
+
+        doMouseEnterLeave(true); //mous always in, initial event
+        pollFocusState();
+
+        gOnChangeLocale ~= &onLocaleChange;
+    }
+
+    /// Add an element to the GUI, which gets automatically cleaned up later.
+    void add(Widget obj) {
+        addChild(obj);
+    }
+
+    /// Add and set layout.
+    void add(Widget obj, WidgetLayout layout) {
+        setChildLayout(obj, layout);
+        addChild(obj);
+    }
+
+    override bool doesDelegateFocusToChildren() {
+        return true;
+    }
+}
+
+//global GUI information
+//if I were sane, this would be just a bunch of global variables
+final class GUI {
+    private {
+        //where the last mouse-event did go to - used for the mousecursor
+        //this widget will also be the one with mouse over = true
+        //this may change on every input event
+        Widget mMouseWidget;
+
+        //Widget which currently unconditionally gets all mouse input events
+        //  because a mouse button was pressed down (releasing all mouse buttons
+        //  undoes it)
+        Widget mCaptureMouse;
+        //same for key-events; this makes sure the Widget receiving the key-down
+        //  event also receive the according key-up event
+        Widget mCaptureKey;
+
+        //user-requested mouse/keyboard capture, which works the same as above
+        //used at least by the mouse scroller
+        Widget captureUser;
+        //which event types captureUser should catch
+        bool captureUser_key, captureUser_mouse;
+        //if false, events to captureUser are sent using the proper event
+        //  dispatching mechanism - just that event dispatching starts at
+        //  captureUser
+        //(mCaptureKey and mCaptureMouse always use true for this option)
+        bool captureUser_direct;
+
+        MouseCursor mMouseCursor = MouseCursor.Standard;
+        Styles mStyleRoot;
+        MainFrame mRoot; //container with all further widgets
+        Vector2i mSize;
+        Widget mFocus;
+
+        //only for mCaptureKey stuff (idiotically, framework also contains a
+        //keystate array, can be queried with Framework.getKeyState())
+        //this keeps track which key-down events were sent to mCaptureKey widget
+        bool[Keycode.max+1] mCaptureKeyState;
+    }
+
+    this() {
+        //first parent, this is used to provide default values for all
+        //properties; the actual GUI styling should be somewhere else
+        mStyleRoot = new Styles();
+        mStyleRoot.addRules(loadConfig("gui_style_root")
+            .getSubNode("root"));
+
+        //load the theme (it's the theme because this is the top-most widget)
+        //styles.addRules(loadConfig("gui_theme").getSubNode("styles"));
+
+        mRoot = new MainFrame(this);
+    }
+
+    MainFrame mainFrame() {
+        return mRoot;
+    }
+
+    void size(Vector2i size) {
+        mSize = size;
+        mRoot.layoutContainerAllocate(Rect2i(Vector2i(0), size));
+    }
+
+    Vector2i size() {
+        return mSize;
+    }
+
+    //return the widget with the current focus
+    Widget focused() {
+        return mFocus;
+    }
+
+    //return if any mouse button is down; this should be ok even "during"
+    //dispatching input, because the Framework's getKeyState() is synchronous to
+    //the events it pushes into the GUI
+    static bool anyMouseButtonPressed() {
+        return gFramework.anyButtonPressed(false, true);
+    }
+
+    private struct InputInfo {
+        Widget widget;
+        bool direct;
+    }
+
+    //which widget is going to get the input, and how
+    private InputInfo getInputTarget(InputEvent event) {
+        bool bymouse = event.isMouseRelated;
+
+        if (bymouse && mCaptureMouse)
+            return InputInfo(mCaptureMouse, true);
+
+        if (captureUser
+            && (captureUser_key != bymouse || captureUser_mouse == bymouse))
+            return InputInfo(captureUser, captureUser_direct);
+
+        return InputInfo(mRoot, false);
+    }
+
+    //translate the event (i.e. adjust mouse coordinates) until widget "to"
+    private InputEvent translateEventUntil(Widget to, InputEvent event) {
+        assert(!!to);
+        if (to.parent) {
+            event = translateEventUntil(to.parent, event);
+            event = to.parent.translateEvent(to, event);
+        }
+        return event;
+    }
+
+    void putInput(InputEvent event) {
+        auto oldmouse = mMouseWidget;
+
+        //captures always take all events globally
+        //old code used to make captures local to containing widgets
+        auto dest = getInputTarget(event);
+
+        event = translateEventUntil(dest.widget, event);
+
+        if (!dest.direct) {
+            //send using the usual event routing (mouse pos, keyboard focus)
+            bool handled = dest.widget.handleInput(event);
+            if (!handled)
+                log("unhandled event: {}", event);
+        } else {
+            //send event directly to receiver (== don't route the event using
+            //  focus, mouse position etc.); also don't try to send events to
+            //  children of that widget (intended)
+            deliverDirectEvent(dest.widget, event);
+        }
+
+        //when a mouse button is released, generate an artifical mouse move
+        //  event to deal with the mouse enter/leave-events and the mouse cursor
+        if (mCaptureMouse && !anyMouseButtonPressed()) {
+            mCaptureMouse = null;
+            log("mouse capture release");
+            fixMouse();
+        }
+
+        //for simplification, the mouse over state works only on the mouse event
+        //  receiving widget, instead of all widgets (containers...) in the
+        //  tree; maybe this is bad, e.g. what if a button was composed of a
+        //  frame widget and a label sub-widget?
+        if (oldmouse !is mMouseWidget) {
+            if (oldmouse) oldmouse.doMouseEnterLeave(false);
+            if (mMouseWidget) mMouseWidget.doMouseEnterLeave(true);
+        }
+    }
+
+    //generate artificial mouse move to fix up mouse related state
+    //e.g. mouse over state and mouse cursor icon
+    void fixMouse() {
+        //sadly, the generated mouse move events are often redundant hrmm
+        InputEvent ie;
+        ie.isMouseEvent = true;
+        ie.mousePos = gFramework.mousePos();
+        ie.mouseEvent.pos = ie.mousePos;
+        ie.mouseEvent.rel = Vector2i(0); //what would be the right thing?
+        mRoot.handleInput(ie);
+    }
+
+    //always called when a Widget definitely receives a keyboard event
+    //this code takes care of sending artificial key-release events for all
+    //keys that were pressed, if mCaptureKey changes
+    private void updateKeyCapture(Widget w, KeyInfo event) {
+        if (!event.isDown() && !event.isUp())
+            return;
+
+        assert(!!w);
+
+        if (mCaptureKey !is w) {
+            log("capture key {} -> {}", mCaptureKey, w);
+            //input widget changed; send release events to old widget
+            auto old = mCaptureKey;
+            foreach (int i, ref bool state; mCaptureKeyState) {
+                if (!state)
+                    continue;
+                //if this happens, it means mCaptureKey and mCaptureKeyState can
+                //somehow change when calling the event handlers; so should the
+                //assertion fail, you should at least ensure no bogus events are
+                //sent
+                assert(old is mCaptureKey);
+                state = false;
+                if (old) {
+                    //slightly evil: call user event handler directly?
+                    KeyInfo e;
+                    e.type = KeyEventType.Up;
+                    e.code = cast(Keycode)i;
+                    //e.unicode = oops
+                    //e.mods = huh
+                    old.onKeyEvent(e);
+                }
+            }
+            mCaptureKey = null;
+        }
+
+        mCaptureKey = w;
+        mCaptureKeyState[event.code] = event.isDown();
+
+        //if we get the event and a mouse button is hold, we should receive all
+        //  other mouse events until no mouse button is down anymore
+        if (!mCaptureMouse && event.isMouseButton) {
+            log("mouse capture: {}", w);
+            mCaptureMouse = w;
+        }
+    }
+
+    //called by Widget (xxx idiotic code structure, move to Widget)
+    private void deliverDirectEvent(Widget receiver, InputEvent event) {
+        log("deliver event to {}: {}", receiver, event);
+
+        if (receiver.checkTabKey(event)) {
+            log("tab stuff eats event");
+            return;
+        }
+
+        if (event.isMouseRelated) {
+            receiver.mMousePos = event.mousePos;
+        }
+
+        //set focus on mouse down clicks
+        //xxx: mouse wheel will set focus too, is that ok?
+        if (event.isKeyEvent && event.isMouseRelated && event.keyEvent.isDown)
+            receiver.focusOnInput();
+
+        if (event.isKeyEvent) {
+            //keyboard capture, so that artificial key-release events are always
+            //generated (e.g. on focus change while key is pressed)
+            updateKeyCapture(receiver, event.keyEvent);
+
+            receiver.onKeyEvent(event.keyEvent);
+        } else if (event.isMouseEvent) {
+            //usually used for the mouse cursor
+            //NOTE: not for mouse click events... this is a hack to prevent the
+            //  mouse cursor from appearing for a brief moment, if you right
+            //  click into a MouseScroller (which is what the game uses)
+            if (mMouseWidget !is receiver) {
+                log("set mouse cursor widget: {} -> {}", mMouseWidget,
+                    receiver);
+                mMouseWidget = receiver;
+            }
+
+            receiver.onMouseMove(event.mouseEvent);
+        }
+    }
+
+    //w goes from isLinked==true to isLinked==false
+    //xxx what about disabling input focus/events in various ways
+    private void do_remove(Widget w) {
+        void checkrm(ref Widget r) {
+            if (r is w)
+                r = null;
+        }
+        checkrm(mMouseWidget);
+        checkrm(mCaptureKey);
+        checkrm(mCaptureMouse);
+        checkrm(captureUser);
+        checkrm(mFocus);
+    }
+
+    //execute per-frame updates (it is unknown why this isn't done on drawing)
+    //also adjusts mouse cursor icon
+    void frame() {
+        //when a widget gets removed, the focused widget may be unlinked, and
+        //  the focus is left unclaimed
+        if (!mFocus) {
+            log("fix focus");
+            mRoot.focusSomething();
+        }
+
+        mRoot.internalSimulate();
+
+        mMouseCursor = mMouseWidget ? mMouseWidget.mouseCursor()
+            : MouseCursor.Standard;
+
+        gFramework.mouseCursor = mMouseCursor;
+    }
+
+    void draw(Canvas c) {
+        mRoot.doDraw(c);
+    }
+
+    static Log getLog() {
+        return log;
     }
 }
 
@@ -1125,6 +1938,10 @@ interface GuiLoader {
 class Spacer : Widget {
     Color color = {1.0f,0,0};
     bool drawBackground = true;
+
+    this() {
+        focusable = false;
+    }
 
     override protected void onDraw(Canvas c) {
         if (drawBackground) {
@@ -1148,6 +1965,3 @@ class Spacer : Widget {
 /// Used by module gui.layout to create Widgets from names.
 alias StaticFactory!("Widgets", Widget) WidgetFactory;
 
-static this() {
-    WidgetFactory.register!(SimpleContainer)("simplecontainer");
-}

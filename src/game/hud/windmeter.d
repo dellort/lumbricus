@@ -28,6 +28,7 @@ class WindMeter : Widget {
     }
 
     this(GameInfo game) {
+        setVirtualFrame(false);
         mGame = game;
 
         ConfigNode wmNode = loadConfig("windmeter");
