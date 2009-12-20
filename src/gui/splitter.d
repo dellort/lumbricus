@@ -1,8 +1,8 @@
 module gui.splitter;
 
-import common.common;
 import framework.framework;
 import gui.container;
+import gui.global;
 import gui.widget;
 import utils.misc;
 import utils.rect2;
@@ -56,8 +56,7 @@ class Splitter : Container {
 
             override MouseCursor mouseCursor() {
                 MouseCursor res;
-                res.graphic =
-                    globals.guiResources.get!(Surface)(cCursorId[mDir]);
+                res.graphic = gGuiResources.get!(Surface)(cCursorId[mDir]);
                 res.graphic_spot = res.graphic.size/2;
                 return res;
             }

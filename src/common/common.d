@@ -10,6 +10,7 @@ import framework.font;
 import framework.commandline;
 import framework.timesource;
 import framework.i18n;
+import gui.global;
 import utils.array;
 import utils.time;
 import utils.configfile;
@@ -35,10 +36,6 @@ class Common {
     LogStruct!("common") log;
     Output defaultOut;
     CommandLine cmdLine;
-
-    //oh sorry, didn't know where to put that!
-    //is for guires.conf
-    ResourceSet guiResources;
 
     //high resolution timers which are updated each frame, or so
     //toplevel.d will reset them all!
@@ -95,7 +92,7 @@ class Common {
         //in pure SDL mode, there's a similar error (SDL_DisplayFormat() fails)
 
         //GUI resources, this is a bit off here
-        guiResources = gResources.loadResSet("guires.conf");
+        gGuiResources = gResources.loadResSet("guires.conf");
 
         gFontManager.readFontDefinitions(loadConfig("fonts"));
 

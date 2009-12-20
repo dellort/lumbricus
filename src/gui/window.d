@@ -1,12 +1,13 @@
 module gui.window;
 
-import common.common;
 import common.visual;
+import framework.config;
 import framework.event;
 import framework.framework;
 import gui.boxcontainer;
 import gui.button;
 import gui.container;
+import gui.global;
 import gui.label;
 import gui.styles;
 import gui.tablecontainer;
@@ -159,7 +160,7 @@ class WindowWidget : Widget {
                     resid = "size_nesw";
                 else
                     resid = "size_nwse";
-                res.graphic = globals.guiResources.get!(Surface)(resid);
+                res.graphic = gGuiResources.get!(Surface)(resid);
                 res.graphic_spot = res.graphic.size/2;
                 return res;
             }
@@ -640,7 +641,7 @@ class WindowFrame : Container {
             char[] action;
             this(char[] name, ConfigNode node) {
                 super(name, node);
-                img = globals.guiResources.get!(Surface)(node["image"]);
+                img = gGuiResources.get!(Surface)(node["image"]);
                 action = node.getStringValue("action");
             }
 

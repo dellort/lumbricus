@@ -1,6 +1,8 @@
 module gui.mousescroller;
 
+//xxx I like the idea of gui being independent from common
 import common.common;
+
 import gui.scrollwindow;
 import gui.widget;
 import framework.event;

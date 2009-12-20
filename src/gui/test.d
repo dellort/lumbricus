@@ -1,6 +1,8 @@
 module gui.test;
+
 import gui.container;
 import gui.console;
+import gui.global;
 import gui.wm;
 import gui.widget;
 import gui.button;
@@ -460,7 +462,7 @@ class TestTask2 : Task {
         //non-sensical test for custom mouse cursors
         override MouseCursor mouseCursor() {
             MouseCursor res;
-            res.graphic = globals.guiResources.get!(Surface)("window_maximize");
+            res.graphic = gGuiResources.get!(Surface)("window_maximize");
             res.graphic_spot = res.graphic.size/2;
             return res;
         }

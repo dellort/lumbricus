@@ -6,6 +6,7 @@ import framework.filesystem;
 import framework.framework;
 import framework.event;
 import framework.i18n;
+import gui.global;
 import gui.styles;
 import utils.configfile;
 import utils.factory;
@@ -176,6 +177,9 @@ class Widget {
         bool mVisible = true;
         //disabled widgets are drawn in gray and don't accept events
         bool mEnabled = true;
+
+        //tentative useless feature
+        Surface mBmpBackground;
     }
 
     ///clip graphics to the inside
@@ -208,6 +212,8 @@ class Widget {
         styleRegisterBool("border-bevel-enable");
         styleRegisterBool("border-not-rounded");
         styleRegisterColor("widget-background");
+        styleRegisterString("bitmap-background-res");
+        styleRegisterBool("bitmap-background-tile");
 
         //register with _actual_ classes of the object
         //(that's how D ctors work... this wouldn't work in C++)
@@ -1392,6 +1398,7 @@ class Widget {
     bool mFirstCheck = true;
     BoxProperties mOldBorderStyle;
     bool mOldDrawBorder;
+    char[] mOldBmpBackground;
 
     //check all child widgets when this widget is added
     package void do_style_check() {
@@ -1414,6 +1421,14 @@ class Widget {
         mBorderStyle.borderWidth = styles.getValue!(int)("border-width");
         mBorderStyle.cornerRadius =
             styles.getValue!(int)("border-corner-radius");
+
+        //doesn't need to trigger a resize, because size is independent from it
+        char[] back = styles.getValue!(char[])("bitmap-background-res");
+        if (back != mOldBmpBackground) {
+            mBmpBackground = back == "" ? null
+                : gGuiResources.get!(Surface)(back);
+            mOldBmpBackground = back;
+        }
 
         //draw-border is a misnomer, because it has influence on layout (size)?
         mDrawBorder = styles.getValue!(bool)("border-enable");
@@ -1451,6 +1466,15 @@ class Widget {
     protected void onDrawBackground(Canvas c, Rect2i area) {
         if (drawBorder) {
             drawBox(c, area, mBorderStyle);
+        }
+
+        if (mBmpBackground) {
+            if (styles.getValue!(bool)("bitmap-background-tile")) {
+                c.drawTiled(mBmpBackground, area.p1, area.size);
+            } else {
+                c.draw(mBmpBackground, area.p1 + area.size/2
+                    - mBmpBackground.size/2);
+            }
         }
     }
 

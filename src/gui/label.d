@@ -1,9 +1,8 @@
 module gui.label;
 
-import gui.widget;
+import gui.global;
 import gui.styles;
-import common.common;
-import common.scene;
+import gui.widget;
 import common.visual;
 import framework.framework;
 import framework.font;
@@ -194,7 +193,7 @@ class Label : Widget {
 
         char[] img = node.getStringValue("image");
         if (img.length > 0) {
-            image = globals.guiResources.get!(Surface)(img);
+            image = gGuiResources.get!(Surface)(img);
         }
 
         super.loadFrom(loader);

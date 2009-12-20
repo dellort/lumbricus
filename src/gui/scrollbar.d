@@ -1,9 +1,9 @@
 module gui.scrollbar;
 
-import common.common;
 import common.visual;
 import gui.button;
 import gui.container;
+import gui.global;
 import gui.widget;
 import framework.framework;
 import framework.event;
@@ -80,23 +80,30 @@ class ScrollBar : Widget {
 
     void delegate(ScrollBar sender) onValueChange;
 
+    this() {
+        //eh
+        this(false);
+    }
+
     ///horizontal if horiz = true, else vertical
     this(bool horiz) {
-        styles.addClass("scrollbar-button");
         mDir = horiz ? 0 : 1;
         //xxx: let the button be load completely by the styles system (huh)
         mAdd = new Button();
-        mAdd.image = globals.guiResources.get!(Surface)(cAddImg[mDir]);
+        mAdd.image = gGuiResources.get!(Surface)(cAddImg[mDir]);
         mAdd.onClick = &onAddSub;
         mAdd.autoRepeat = true;
         addChild(mAdd);
         mSub = new Button();
-        mSub.image = globals.guiResources.get!(Surface)(cSubImg[mDir]);
+        mSub.image = gGuiResources.get!(Surface)(cSubImg[mDir]);
         mSub.onClick = &onAddSub;
         mSub.autoRepeat = true;
         addChild(mSub);
         mBar = new Bar();
         addChild(mBar);
+
+        foreach (w; [mAdd, mSub])
+            w.styles.addClass("scrollbar-button");
     }
 
     //the buttons etc. can't be focused
@@ -285,5 +292,9 @@ class ScrollBar : Widget {
         if (mPageSize > 0)
             largeChange = mPageSize;
         adjustBar();
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("scrollbar");
     }
 }

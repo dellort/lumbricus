@@ -1,6 +1,5 @@
 module gui.dropdownlist;
 
-import common.common;
 import common.visual;
 
 import framework.font;
@@ -9,6 +8,7 @@ import framework.framework;
 import gui.button;
 import gui.boxcontainer;
 import gui.container;
+import gui.global;
 import gui.label;
 import gui.list;
 import gui.scrollwindow;
@@ -42,7 +42,7 @@ class DropDownControl : Container {
         styles.addClass("drop-down-control");
         mDropDown = new Button();
         //use that down-arrow...
-        mDropDown.image = globals.guiResources.get!(Surface)("scroll_down");
+        mDropDown.image = gGuiResources.get!(Surface)("scroll_down");
         mDropDown.border = Vector2i(2, 0);
         mDropDown.onClick = &clickDrownDown;
         mDropDown.setLayout(WidgetLayout.Expand(false));

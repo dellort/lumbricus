@@ -4,7 +4,6 @@ import framework.commandline;
 import framework.framework;
 import framework.font;
 import framework.event;
-import common.common;
 import gui.boxcontainer;
 import gui.container;
 import gui.edit;

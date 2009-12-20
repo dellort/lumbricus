@@ -5,7 +5,9 @@
 ///uses gui.window to actually draw them (but that's hidden from the user)
 module gui.wm;
 
+//xxx make this go away
 import common.common;
+
 import common.task;
 import framework.commandline;
 import gui.container;

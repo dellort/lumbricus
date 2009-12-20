@@ -916,6 +916,10 @@ class Surface {
     }
 
     Surface rotated(float angle, bool interpolate) {
+        return rotoscaled(angle, 1.0f, interpolate);
+    }
+
+    Surface rotoscaled(float angle, float scale, bool interpolate = true) {
         static rotozoom.Pixels lockpixels(Surface s) {
             rotozoom.Pixels r;
             r.w = s.size.x;
@@ -935,7 +939,7 @@ class Surface {
             dst = lockpixels(n);
         }
         //looks like rotozoom uses a reversed rotation direction
-        rotozoom.rotozoomSurface(lockpixels(this), -angle/math.PI*180, 1.0,
+        rotozoom.rotozoomSurface(lockpixels(this), -angle/math.PI*180, scale,
             interpolate, &doalloc);
         unlockPixels(Rect2i.init);
         n.unlockPixels(n.rect);

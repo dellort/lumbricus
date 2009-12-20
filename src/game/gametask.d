@@ -29,6 +29,7 @@ import game.levelgen.genrandom;
 //<--
 import gui.console;
 import gui.container;
+import gui.global;
 import gui.label;
 import gui.tablecontainer;
 import gui.widget;
@@ -536,7 +537,7 @@ class GameTask : StatefulTask {
                 foreach (t2; types) {
                     Label lbl = new Label();
                     if (ph.collide.canCollide(t, t2)) {
-                        lbl.image = globals.guiResources.get!(Surface)
+                        lbl.image = gGuiResources.get!(Surface)
                             ("window_close"); //that icon is good enough
                     }
                     addc(x, y, lbl);
@@ -577,7 +578,7 @@ class GameTask : StatefulTask {
         override MouseCursor mouseCursor() {
             MouseCursor c;
             //cross like, good enough
-            c.graphic = globals.guiResources.get!(Surface)("red_x");
+            c.graphic = gGuiResources.get!(Surface)("red_x");
             c.graphic_spot = c.graphic.size/2;
             return c;
         }

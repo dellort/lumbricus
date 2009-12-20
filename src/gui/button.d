@@ -1,11 +1,11 @@
 module gui.button;
 
-import common.common;
 import framework.event;
 import framework.framework;
 import framework.font;
-import gui.widget;
+import gui.global;
 import gui.label;
+import gui.widget;
 import utils.time;
 import utils.timer;
 
@@ -119,7 +119,7 @@ class Button : Label {
             return;
         if (useCheckBoxImages) {
             auto imgname = mChecked ? "checkbox_on" : "checkbox_off";
-            image = globals.guiResources.get!(Surface)(imgname);
+            image = gGuiResources.get!(Surface)(imgname);
         }
     }
 

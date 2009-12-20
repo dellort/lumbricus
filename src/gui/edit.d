@@ -1,8 +1,8 @@
 module gui.edit;
 
-import common.common;
 import framework.font;
 import framework.framework;
+import gui.global;
 import gui.widget;
 import utils.array;
 import utils.misc: swap, min, max;
@@ -264,8 +264,7 @@ class EditLine : Widget {
 
     override MouseCursor mouseCursor() {
         MouseCursor res;
-        res.graphic =
-            globals.guiResources.get!(Surface)("text_cursor");
+        res.graphic = gGuiResources.get!(Surface)("text_cursor");
         res.graphic_spot = res.graphic.size/2;
         return res;
     }
