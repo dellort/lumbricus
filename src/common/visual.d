@@ -43,8 +43,16 @@ void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props) {
     int m = min(s.x, s.y) / 2;
     props.borderWidth = min(max(0, props.borderWidth), m);
     props.cornerRadius = min(max(0, props.cornerRadius), m);
-    if (props.cornerRadius == 0)
+
+    if (props.noRoundedCorners) {
+        drawSimpleBox(c, Rect2i.Span(p, s), props);
         return;
+    }
+
+    if (props.cornerRadius == 0) {
+        c.drawFilledRect(Rect2i.Span(p, s), props.back);
+        return;
+    }
 
     BoxTex tex = getBox(props);
 
@@ -93,6 +101,17 @@ void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props) {
     c.drawFilledRect(p + q, p + s - q, props.back);
 }
 
+//no rounded corners + doesn't need a cache
+void drawSimpleBox(Canvas c, Rect2i rc, BoxProperties props) {
+    if (props.back.a > 0) {
+        c.drawFilledRect(rc, props.back);
+    }
+    //the border is just drawn over the background; that's fine and fast
+    if (props.borderWidth > 0 && props.border.a > 0) {
+        c.drawRect(rc, props.border, props.borderWidth);
+    }
+}
+
 ///draw a circle with its center at the specified position
 ///props.cornerRadius is the radius of the circle to be drawn
 void drawCircle(Canvas c, Vector2i pos, BoxProperties props) {
@@ -109,6 +128,7 @@ struct BoxProperties {
     int borderWidth = 1, cornerRadius = 5;
     Color border, back = {1,1,1}, bevel = {0.5,0.5,0.5};
     bool drawBevel = false; //bevel = other color for left/top sides
+    bool noRoundedCorners = false; //use normal line drawing => no cache needed
     //if false, disable drawing - possibly makes user code simpler
     bool enabled = true;
 

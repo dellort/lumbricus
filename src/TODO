@@ -7,11 +7,12 @@
 
 
 == Sonstiges/Minor ==
-! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge; vielleicht einfach serialiaiserungscode wiederverwenden)
-- configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden? libconfig verwenden?
+! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge)
+- configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden?
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
     (+ "level editor" töten)
 - weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
+! capture-zustand vom mousescroller kommt immer durcheinander, z.b. im spiel während maus gefangen ist, konsole öffnen und game_res starten => ärgs; ausserdem: hilfefenster ("h") und mouse scroller wollen beide capture => was tun? (wenn halt GameFrame.simulate() nicht jeden frame den mouse scroll modus setzen würde...)
 
 == bekannte, lösbare Bugs ==
 - wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
@@ -38,7 +39,6 @@
 == GUI (allgemeine Features) ==
 + richtige GUI listen
 + key bindings editor
-*** andere GUI verwenden
 *** GUI enthässlichen
 
 == GUI spielspezifisch (Dialoge) ==
@@ -58,7 +58,6 @@
   (zusätzliche ideen: bewegende platformen, jump pads, wurmlöcher)
 [- kein Force objekt für explosionen erzeugen]
 - statt aktive Teams aktive TeamMembers
-[- 1-frame bug bei würmern]
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
 + Mehr Powerup-Kisten (Niedrige Schwerkraft etc.)
 + Vergiftete Würmer (nach Atomangriff/Sudden death oder Stinktiertreffer)
@@ -74,7 +73,6 @@
 * sounds
 * "stub" gpl daten (strichmännchen)
 *** gpl daten (vollständig)
-*** Sequence neuschreiben
 + Kamera:
     - grundzustand: den aktiven, kontrollierten wurm fokusieren (kermacode durchsucht team-liste)
     - kameracode setzt einen callback, der jedesmal aufgerufen wird, wenn ein neues sprite erzeugt wird (man kann herausfinden, welches team das sprite "abgeschossen" hat)

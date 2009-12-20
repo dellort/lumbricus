@@ -180,8 +180,10 @@ class Window {
         assert(!!relative);
 
         //first set size, so the window can deal with its minimum size etc.
-        mWindow.windowBounds = Rect2i(Vector2i(0),
-            mInitialPlacement.defaultSize);
+        //xxx this doesn't account for borders, so the resulting window client
+        //    area size may be slightly smaller than defaultSize
+        //    not that it matters, because there's the window decoration
+        mWindow.initSize(mInitialPlacement.defaultSize);
 
         //nrc is in coordinates of the widget "relative"
         Rect2i nrc = Rect2i(Vector2i(0), mWindow.size);
@@ -214,9 +216,10 @@ class Window {
 
         if (mInitialPlacement.clipToScreen) {
             nrc.fitInside(mManager.mFrame.widgetBounds);
+            mWindow.initSize(nrc.size);
         }
 
-        mWindow.windowBounds = nrc;
+        mWindow.position = nrc.p1;
     }
 
     bool visible() {
@@ -484,6 +487,7 @@ class WindowManager {
             mSwitcher.zorder = WindowZOrder.Murks;
             mFrame.addWidget(mSwitcher);
             mSwitcher.selection = activeWindow();
+            mSwitcher.switchNext();
         } else if (sel_end && mSwitcher) {
             Window winner = mSwitcher.selection;
             mSwitcher.remove();
@@ -506,11 +510,10 @@ class WindowManager {
             write.writefln("{} ({}):", pt.mTask.taskID, pt.mTask);
             foreach (Window w; pt.mWindows) {
                 write.writefln("    window, client = '{}'", w.client);
-                write.writefln("        title: ", w.properties.windowTitle);
-                write.writefln("        pos: ", w.mWindow.windowBounds);
-                write.writefln("        fullscreen: ", w.mWindow.fullScreen);
-                write.writefln("        focused: ", w.mWindow.focused);
-                //write.writefln("        focus age: ", w.mWindow.mFocusAge);
+                write.writefln("        title: {}", w.properties.windowTitle);
+                write.writefln("        pos: {}", w.mWindow.position);
+                write.writefln("        size: {}", w.mWindow.size);
+                write.writefln("        fullscreen: {}", w.mWindow.fullScreen);
             }
         }
     }
@@ -547,7 +550,7 @@ private:
             table.setSize(table.width, y + w.windows.length + 1);
             auto sp1 = new Spacer();
             sp1.minSize = Vector2i(0, 2);
-            sp1.color = Color(0);
+            //sp1.color = Color(0);
             table.add(sp1, 0, y, 2, 1);
             auto tasktitle = new Label();
             tasktitle.styles.addClass("wm-label");

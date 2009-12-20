@@ -33,6 +33,7 @@ class Splitter : Container {
 
             this() {
                 minSize = Vector2i(5);
+                styles.addClass("w-splitbar");
             }
 
             override void onKeyEvent(KeyInfo info) {

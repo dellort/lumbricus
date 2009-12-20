@@ -33,6 +33,7 @@ import utils.output;
 import utils.misc;
 import utils.mybox;
 import utils.perf;
+import utils.proplist;
 import memory = tango.core.Memory;
 import utils.stream;
 import tango.core.Variant;
@@ -204,6 +205,9 @@ private:
 
         mGui = new GUI();
 
+        gGuiTheme.addListener(&onChangeGuiTheme);
+        onChangeGuiTheme(gGuiTheme);
+
         mFPS = new GuiFps();
         mFPS.zorder = GUIZOrder.FPS;
         mFPS.visible = false;
@@ -254,6 +258,10 @@ private:
     public void deinitialize() {
         //this gets important when tasks start running threads...
         taskManager.killAll();
+    }
+
+    private void onChangeGuiTheme(PropertyValue v) {
+        mGui.loadTheme(gGuiTheme.asString());
     }
 
     private void initConsole() {

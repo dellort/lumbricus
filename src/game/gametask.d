@@ -84,26 +84,29 @@ import game.controller_plugins;
 import game.lua;
 
 
-class Fader : Spacer {
+class Fader : Widget {
     private {
         Time mFadeStartTime;
         int mFadeDur;
         Color mStartCol = {0,0,0,0};
         Color mEndCol = {0,0,0,1};
+        Color mColor;
     }
 
     bool done;
 
     this(Time fadeTime, bool fadeIn) {
+        focusable = false;
+        isClickable = false;
         if (fadeIn)
             swap(mStartCol, mEndCol);
-        color = mStartCol;
+        mColor = mStartCol;
         mFadeStartTime = timeCurrentTime;
         mFadeDur = fadeTime.msecs;
     }
 
-    override bool onTestMouse(Vector2i pos) {
-        return false;
+    override void onDraw(Canvas c) {
+        c.drawFilledRect(widgetBounds, mColor);
     }
 
     override void simulate() {
@@ -114,7 +117,7 @@ class Fader : Spacer {
             done = true;
         } else {
             float scale = 1.0f*mstime/mFadeDur;
-            color = mStartCol + (mEndCol - mStartCol) * scale;
+            mColor = mStartCol + (mEndCol - mStartCol) * scale;
         }
     }
 }
@@ -902,7 +905,7 @@ class ShowObject : Container {
                 return;
             auto line = new Spacer();
             line.minSize = Vector2i(1,0);
-            line.color = side_color;
+            //line.color = side_color;
             WidgetLayout lay;
             lay.expand[] = [false, true];
             lay.padA.y = 2;
@@ -918,7 +921,7 @@ class ShowObject : Container {
             close_side(r);
             auto spacer = new Spacer();
             spacer.minSize = Vector2i(0,1);
-            spacer.color = line_color;
+            //spacer.color = line_color;
             WidgetLayout lay;
             lay.expand[] = [true, false];
             spacer.setLayout(lay);

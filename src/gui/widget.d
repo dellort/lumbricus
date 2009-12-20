@@ -2,6 +2,7 @@ module gui.widget;
 
 import common.visual;
 import framework.config;
+import framework.filesystem;
 import framework.framework;
 import framework.event;
 import framework.i18n;
@@ -205,6 +206,7 @@ class Widget {
         styleRegisterInt("border-width");
         styleRegisterBool("border-enable");
         styleRegisterBool("border-bevel-enable");
+        styleRegisterBool("border-not-rounded");
         styleRegisterColor("widget-background");
 
         //register with _actual_ classes of the object
@@ -485,6 +487,7 @@ class Widget {
     ///rectangle the Widget takes up in parent container
     ///basically containerBounds() without borders, padding, unoccupied space
     ///(as returned by last call of layoutCalculateSubAllocation())
+    ///result.p1 is the container's corrdinate where the client's (0,0) is
     final Rect2i containedBounds() {
         return mContainedWidgetBounds;
     }
@@ -494,7 +497,20 @@ class Widget {
         return mContainerBounds;
     }
 
-    ///widget size
+    ///position of the widget inside container
+    ///note that this is not equal to the client's (0,0) position, because there
+    /// may be borders and unused space between those points
+    final Vector2i containerPosition() {
+        return mContainerBounds.p1;
+    }
+
+    final void containerPosition(Vector2i pos) {
+        auto rc = mContainerBounds;
+        rc += -rc.p1 + pos;
+        layoutContainerAllocate(rc); //shouldn't normally trigger relayout
+    }
+
+    ///widget client size
     final Vector2i size() {
         if (canScale)
             return doScalei(mContainedWidgetBounds.size);
@@ -502,7 +518,8 @@ class Widget {
             return mContainedWidgetBounds.size;
     }
 
-    ///rectangle of the Widget in its own coordinates (.p1 is always (0,0))
+    ///client rectangle of the Widget in its own coordinates
+    ///(.p1 is always (0,0))
     final Rect2i widgetBounds() {
         return Rect2i(Vector2i(0), size);
     }
@@ -619,15 +636,6 @@ class Widget {
         needRelayout();
     }
 
-    ///only for Containers which kick around their children in quite nasty ways
-    ///i.e. scrolling containers
-    ///requires some cooperation from the parent's layoutSizeAllocation()
-    final void adjustPosition(Vector2i pos) {
-        auto s = mContainedWidgetBounds.size;
-        adjustMousePos(pos);
-        mContainedWidgetBounds.p1 = pos;
-        mContainedWidgetBounds.p2 = pos + s;
-    }
     //when mContainedWidgetBounds is changed, update mMousePos accordingly, so
     //  the scrolled widget still has an up-to-date mouse position
     private void adjustMousePos(Vector2i newBoundsP1) {
@@ -677,10 +685,7 @@ class Widget {
             //(reallocation can be expensive; so avoid it)
         } else {
             mLayoutNeedReallocate = false;
-            /+auto diff = size - layoutCachedContainerSizeRequest();
-            if (diff.x < 0 || diff.y < 0) {
-                Trace.formatln("warning: diff={} for {}",diff,this);
-            }+/
+            //log("realloc {} {}/{}", this, mContainerBounds, rect);
             layoutSizeAllocation();
         }
     }
@@ -736,9 +741,10 @@ class Widget {
             //hm.... Widget without parent wants relayout
             //do nothing (and don't relayout it)
         }
+//        layoutContainerAllocate(mContainerBounds); yyy
     }
 
-    protected void requestedRelayout(Widget child) {
+    private void requestedRelayout(Widget child) {
         assert(child.parent is this);
         //propagate upwards, indirectly
         needRelayout();
@@ -993,20 +999,15 @@ class Widget {
         if (event.keyEvent.code == Keycode.TAB
             && findBind(event.keyEvent) == "" && !usesTabKey)
         {
-            //xxx why is this stuff different anyway
-            bool p = event.keyEvent.isPress;
-            bool d = event.keyEvent.isDown;
+            bool shift = modifierIsExact(event.keyEvent.mods, Modifier.Shift);
+            bool none = event.keyEvent.mods == 0;
 
-            if (d && modifierIsExact(event.keyEvent.mods, Modifier.Shift)) {
-                nextFocus(true);
-                return true;
-            } else if (p && event.keyEvent.mods == 0) {
-                nextFocus();
+            if (none || shift) {
+                if (event.keyEvent.isPress)
+                    nextFocus(shift);
+                //always eat all tab key events (down, up events)
                 return true;
             }
-
-            //always eat all tab key events
-            return true;
         }
 
         return false;
@@ -1255,7 +1256,7 @@ class Widget {
     //like directSibling(), but walk the tree to get siblings
     //the tree is always traversed in preorder (parent comes first)
     //it's circular and thus never returns null
-    protected Widget anySibling(int rel) {
+    protected Widget neighborWidget(int rel) {
         assert(rel == -1 || rel == +1);
         if (rel > 0) {
             if (mWidgets.length)
@@ -1294,28 +1295,44 @@ class Widget {
         if (!cur)
             cur = this; //what
 
+        Widget window = cur;
+        while (window) {
+            if (!window.allowLeaveFocusByTab())
+                break;
+            window = window.parent;
+        }
+
         //find the next focusable widget after "cur"
         //or before "cur" if invertDir==true
         int dir = invertDir ? -1 : +1;
         Widget start = cur;
 
         for (;;) {
-            cur = cur.anySibling(dir);
+            cur = cur.neighborWidget(dir);
             if (cur is start)
                 break;
-            if (cur.canFocus()) {
-                //never focus a widget which would delegate its focus to another
-                //  widget (this breaks tabbing through the widget list)
-                if (cur.doesDelegateFocusToChildren()
-                    && cur.focus_find_something(false))
-                    continue;
-                break;
-            }
+            if (!cur.canFocus())
+                continue;
+            if (window && !window.isTransitiveChild(cur))
+                continue;
+            //never focus a widget which would delegate its focus to another
+            //  widget (this breaks tabbing through the widget list)
+            if (cur.doesDelegateFocusToChildren()
+                && cur.focus_find_something(false))
+                continue;
+            //all ok
+            break;
         }
 
         log("nextFocus({}): start={} found={}", invertDir, start, cur);
 
         cur.claimFocus();
+    }
+
+    //another special case for windows
+    //if true, focus by tab must be any (transitive) child
+    protected bool allowLeaveFocusByTab() {
+        return true;
     }
 
     // --- captures
@@ -1358,6 +1375,10 @@ class Widget {
         return true;
     }
 
+    //called whenever captureUser is set from this widget to something else
+    //protected void onCaptureLost() {
+    //}
+
     // --- simulation and drawing
 
     //what cursor should be displayed when the mouse is over this Widget
@@ -1388,6 +1409,8 @@ class Widget {
         mBorderStyle.back = styles.getValue!(Color)("border-back-color");
         mBorderStyle.bevel = styles.getValue!(Color)("border-bevel-color");
         mBorderStyle.drawBevel = styles.getValue!(bool)("border-bevel-enable");
+        mBorderStyle.noRoundedCorners =
+            styles.getValue!(bool)("border-not-rounded");
         mBorderStyle.borderWidth = styles.getValue!(int)("border-width");
         mBorderStyle.cornerRadius =
             styles.getValue!(int)("border-corner-radius");
@@ -1424,6 +1447,13 @@ class Widget {
     void simulate() {
     }
 
+    //small hack for window.d (would be much more complicated without)
+    protected void onDrawBackground(Canvas c, Rect2i area) {
+        if (drawBorder) {
+            drawBox(c, area, mBorderStyle);
+        }
+    }
+
     final void doDraw(Canvas c) {
         if (!mVisible)
             return;
@@ -1433,9 +1463,7 @@ class Widget {
             return;
 
         c.pushState();
-        if (drawBorder) {
-            drawBox(c, mBorderArea+mAddToPos, mBorderStyle);
-        }
+        onDrawBackground(c, mBorderArea+mAddToPos);
         if (doClipping) {
             //map (0,0) to the position of the widget and clip by widget-size
             c.setWindow(mContainedWidgetBounds.p1+mAddToPos,
@@ -1454,8 +1482,6 @@ class Widget {
             c.drawFilledRect(Vector2i(0), size, background);
         }
 
-        //Trace.formatln("start {}", this.classinfo.name);
-
         //user's draw routine
         onDraw(c);
 
@@ -1463,8 +1489,6 @@ class Widget {
             onDrawFocus(c);
 
         onDrawChildren(c);
-
-        //Trace.formatln("end {}", this.classinfo.name);
 
         version (WidgetDebug) {
             c.drawRect(widgetBounds, Color(1,focused ? 1 : 0,0));
@@ -1487,7 +1511,7 @@ class Widget {
         }
     }
 
-    //can be used with Container.checkCover (used if that is true)
+    //can be used with Widget.checkCover (used if that is true)
     //a return value of true means it covers the _container's_ area completely
     //the container then doesn't draw all widgets with lower zorder
     //use with care
@@ -1623,12 +1647,10 @@ final class MainFrame : Widget {
         gOnChangeLocale ~= &onLocaleChange;
     }
 
-    /// Add an element to the GUI, which gets automatically cleaned up later.
     void add(Widget obj) {
         addChild(obj);
     }
 
-    /// Add and set layout.
     void add(Widget obj, WidgetLayout layout) {
         setChildLayout(obj, layout);
         addChild(obj);
@@ -1636,6 +1658,10 @@ final class MainFrame : Widget {
 
     override bool doesDelegateFocusToChildren() {
         return true;
+    }
+
+    override Vector2i layoutSizeRequest() {
+        return Vector2i(0);
     }
 }
 
@@ -1683,11 +1709,10 @@ final class GUI {
         //first parent, this is used to provide default values for all
         //properties; the actual GUI styling should be somewhere else
         mStyleRoot = new Styles();
-        mStyleRoot.addRules(loadConfig("gui_style_root")
-            .getSubNode("root"));
 
         //load the theme (it's the theme because this is the top-most widget)
-        //styles.addRules(loadConfig("gui_theme").getSubNode("styles"));
+        auto themes = listThemes();
+        loadTheme(themes.length ? themes[0] : "");
 
         mRoot = new MainFrame(this);
     }
@@ -1918,6 +1943,37 @@ final class GUI {
         mRoot.doDraw(c);
     }
 
+    //xxx not very happy about having filesystem code and dependencies in the
+    //    GUI core
+    const cThemeFolder = "/gui_themes/";
+    const cThemeNone = "<none>";
+
+    //theme = relative filename of the theme, can be cThemeNone for no theme
+    void loadTheme(char[] theme) {
+        log("load theme '{}'", theme);
+        mStyleRoot.clearRules();
+        loadRules(loadConfig("gui_style_root"));
+        if (theme != cThemeNone)
+            loadRules(loadConfig(cThemeFolder ~ theme, true));
+    }
+
+    void loadRules(ConfigNode from) {
+        mStyleRoot.addRules(from.getSubNode("styles"));
+    }
+
+    static char[][] listThemes() {
+        //xxx in i18n we have something similar, the code in i18n looks reboster
+        char[][] list;
+        gFS.listdir(cThemeFolder, "*.conf", false, (char[] filename) {
+            list ~= filename;
+            return true;
+        });
+        //sorting prevents random order
+        list.sort;
+        list ~= cThemeNone;
+        return list;
+    }
+
     static Log getLog() {
         return log;
     }
@@ -1936,24 +1992,8 @@ interface GuiLoader {
 
 //just a trivial Widget: have a minimum size and draw a color on its background
 class Spacer : Widget {
-    Color color = {1.0f,0,0};
-    bool drawBackground = true;
-
     this() {
         focusable = false;
-    }
-
-    override protected void onDraw(Canvas c) {
-        if (drawBackground) {
-            c.drawFilledRect(widgetBounds, color);
-        }
-    }
-
-    override void loadFrom(GuiLoader loader) {
-        auto node = loader.node;
-        color = node.getValue("color", color);
-        drawBackground = node.getBoolValue("draw_background", drawBackground);
-        super.loadFrom(loader);
     }
 
     static this() {

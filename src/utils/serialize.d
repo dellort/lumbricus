@@ -1124,6 +1124,7 @@ char[] floatToHex(real f) {
 
 //some test for demonstration and to weed out the worst regressions
 
+version(none) //disabled because of annoying unittest output
 debug {
     struct TestS {
         int a;

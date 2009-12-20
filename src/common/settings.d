@@ -2,11 +2,14 @@ module common.settings;
 
 import framework.config;
 import framework.framework;
+import gui.widget : GUI;
 import utils.configfile;
 import utils.proplist;
 import utils.misc;
 
 PropertyList gSettings;
+
+PropertyChoice gGuiTheme;
 
 static this() {
     gSettings = new PropertyList;
@@ -18,6 +21,17 @@ static this() {
     cmd.name = "save";
     cmd.onCommand = toDelegate(&saveSettings);
     gSettings.addNode(cmd);
+
+    auto guisettings = gSettings.addList("gui");
+    gGuiTheme = new PropertyChoice;
+    gGuiTheme.name = "theme";
+    guisettings.addNode(gGuiTheme);
+}
+
+void prepareSettings() {
+    foreach (c; GUI.listThemes()) {
+        gGuiTheme.add(c);
+    }
 }
 
 void loadSettings() {

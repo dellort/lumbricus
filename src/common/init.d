@@ -46,7 +46,11 @@ void init(char[][] args) {
     //    fs.mount(MountPath.absolute, extradata, "/", false, -1);
     //}
 
+    settings.prepareSettings();
+
     settings.loadSettings();
+
+    //xxx load settings from command line
 
     common.globals.do_init();
 }

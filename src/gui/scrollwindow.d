@@ -14,16 +14,6 @@ import utils.log;
 import utils.misc;
 import utils.time;
 
-/// The child for ScrollArea can implement this; then scrolling can be owner
-/// defined; else the ScrollArea will scroll it as Widget.
-interface ScrollClient {
-    //Get the maximal scroll value
-    Vector2i getScrollSize();
-    //Set the scroll position (i.e. actually scroll)
-    //guaranteed to be between 0..getScrollSize for each component
-    void setScrollPositions(Vector2i pos);
-}
-
 /// This frame always sizes its child to its requested size, and enables
 /// scrolling within it.
 class ScrollArea : SimpleContainer {
@@ -49,7 +39,6 @@ class ScrollArea : SimpleContainer {
     void delegate(ScrollArea sender) onPositionChange;
 
     protected {
-        ScrollClient mScroller; //maybe null, even if child available
         //[x, y], true if allow scrolling if it's "required"
         bool[2] mEnableScroll = [true, true];
     }
@@ -58,25 +47,12 @@ class ScrollArea : SimpleContainer {
         focusable = false;
     }
 
-    override protected void onAddChild(Widget c) {
-        //optional ScrollClient interface
-        mScroller = cast(ScrollClient)c;
-    }
-    override protected void onRemoveChild(Widget c) {
-        mScroller = null;
-    }
-
     void setEnableScroll(bool[2] enable) {
         mEnableScroll[] = enable;
         needRelayout();
     }
     void getEnableScroll(bool[2] enable) {
         enable[] = mEnableScroll;
-    }
-
-    void setScroller(ScrollClient c) {
-        mScroller = c;
-        updateScrollSize();
     }
 
     final Vector2i getScrollSize() {
@@ -91,7 +67,6 @@ class ScrollArea : SimpleContainer {
     //unlike .offset, the rectangle coords usually are positive
     //offs = scroll offset (like .offset() or .scrollDestination())
     final Rect2i visibleArea(Vector2i offs) {
-        assert(!mScroller, "what was this thing about again???");
         //xxx incorrect when child is smaller than scroll window
         return Rect2i.Span(-offs, size());
     }
@@ -104,13 +79,9 @@ class ScrollArea : SimpleContainer {
             r = child.layoutCachedContainerSizeRequest();
         }
 
-        if (mScroller) {
-            //hm, just leave it as it is
-        } else {
-            //expand to child's size if it doesn't want to scroll
-            r.x = mEnableScroll[0] ? 0 : r.x;
-            r.y = mEnableScroll[1] ? 0 : r.y;
-        }
+        //expand to child's size if it doesn't want to scroll
+        r.x = mEnableScroll[0] ? 0 : r.x;
+        r.y = mEnableScroll[1] ? 0 : r.y;
 
         return r;
     }
@@ -119,27 +90,22 @@ class ScrollArea : SimpleContainer {
         if (child) {
             Vector2i csize = child.layoutCachedContainerSizeRequest;
             Vector2i offs = Vector2i(0);
-            if (!mScroller) {
-                //similar to layoutSizeRequest()
-                void doaxis(int axis) {
-                    if (!mEnableScroll[axis]) {
-                        //exactly as in layoutSizeRequest()
-                        csize[axis] = size[axis];
-                    } else {
-                        //csize okay, but if appropriate:
-                        if (csize[axis] < size[axis]) {
-                            //center
-                            //offs[axis] = size[axis]/2 - csize[axis]/2;
-                            //no, didn't work ^
-                            //overallocate it
-                            //hm maybe use expand layout-property to decide
-                            csize[axis] = size[axis];
-                        }
+
+            //similar to layoutSizeRequest()
+            for (int n = 0; n < 2; n++) {
+                if (!mEnableScroll[n]) {
+                    //exactly as in layoutSizeRequest()
+                    csize[n] = size[n];
+                } else {
+                    //csize okay, but if appropriate:
+                    if (csize[n] < size[n]) {
+                        //overallocate it
+                        //hm maybe use expand layout-property to decide
+                        csize[n] = size[n];
                     }
                 }
-                doaxis(0);
-                doaxis(1);
             }
+
             child.layoutContainerAllocate(Rect2i(offs, offs + csize));
         }
         updateScrollSize();
@@ -151,9 +117,7 @@ class ScrollArea : SimpleContainer {
 
         Vector2i ssize;
 
-        if (mScroller) {
-            ssize = mScroller.getScrollSize();
-        } else if (child) {
+        if (child) {
             mClientSize = child.layoutCachedContainerSizeRequest();
             auto msize = size;
             if (mLastUpdateSize != msize) {
@@ -198,11 +162,8 @@ class ScrollArea : SimpleContainer {
     }
     void offset(Vector2i offs) {
         mOffset = clipOffset(offs);
-        auto child = getBinChild();
-        if (mScroller) {
-            mScroller.setScrollPositions(mOffset);
-        } else if (child) {
-            child.adjustPosition(mOffset);
+        if (auto child = getBinChild()) {
+            child.containerPosition = mOffset;
         }
         if (onPositionChange)
             onPositionChange(this);
@@ -211,7 +172,6 @@ class ScrollArea : SimpleContainer {
     ///calculate the offset that would center pos in the middle of this Widget
     ///(pos in the child's coordinates)
     Vector2i centeredOffset(Vector2i pos) {
-        //xxx don't know if this is correct when using mScroller or so
         //aim: mOffset + pos == size/2
         return size/2 - pos;
     }
@@ -487,7 +447,8 @@ class ScrollWindow : Container {
         if (event.isKeyEvent) {
             Keycode c = event.keyEvent.code;
             if (c == Keycode.MOUSE_WHEELUP || c == Keycode.MOUSE_WHEELDOWN) {
-                return false;
+                deliverDirectEvent(event);
+                return true;
             }
         }
         return super.handleChildInput(event);

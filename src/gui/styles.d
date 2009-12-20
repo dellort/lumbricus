@@ -389,7 +389,7 @@ class Styles {
     void clearRules(bool normal_rules = true, bool custom_rules = false) {
         mSortedRules = arr.arrayFilter(mSortedRules,
             (Rule r) {
-                return r.selector.custom ? custom_rules : normal_rules;
+                return r.selector.custom ? !custom_rules : !normal_rules;
             }
         );
         finish_rules();

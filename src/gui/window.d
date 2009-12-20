@@ -8,6 +8,7 @@ import gui.boxcontainer;
 import gui.button;
 import gui.container;
 import gui.label;
+import gui.styles;
 import gui.tablecontainer;
 import gui.widget;
 import utils.array;
@@ -40,7 +41,7 @@ class WindowWidget : Widget {
         Widget mClient; //what's shown inside the window
         Label mTitleBar;
 
-        BoxContainer mClientWidget;
+        WindowClient mClientWidget;
         BoxContainer mForClient; //where client is, non-fullscreen mode
         //window frame etc. in non-fullscreen mode
         SimpleContainer mWindowDecoration;
@@ -102,28 +103,37 @@ class WindowWidget : Widget {
 
             override protected void onMouseMove(MouseInfo mouse) {
                 if (drag_active && mCanResize) {
+                    WindowWidget wnd = this.outer;
+                    assert(parent && wnd.parent);
+
                     //get position within the window's parent
-                    assert(parent && this.outer.parent);
-                    auto pos = this.outer.coordsToParent(
-                        coordsToParent(mouse.pos));
+                    auto pos = mouse.pos;
+                    wnd.parent.translateCoords(this, pos);
 
                     //new window rect
-                    auto bounds = this.outer.windowBounds;
-                    auto spare = bounds.size - mLastMinSize;
-                    int[] s = [x, y];
+                    //there's one problem: there may be borders around the
+                    //  window, so you have to fix up the coordinates
+                    auto bounds = wnd.containerBounds;
+                    auto subbnds = wnd.containedBounds;
+                    auto b1 = subbnds.p1 - bounds.p1; //top/left NC border
+                    auto b2 = bounds.p2 - subbnds.p2; //bottom/right
+                    auto b = b1 + b2; //summed width/height of all borders
+                    auto minsize = mLastMinSize + b;
+                    int[2] s = [x, y];
                     for (int n = 0; n < 2; n++) {
                         if (s[n] < 0) {
                             auto npos = pos[n] - drag_start[n];
                             //clip so that window doesn't move if it becomes
                             //too small (when sizing on the left/top borders)
-                            bounds.p1[n] =
-                                min(npos, bounds.p2[n] - mLastMinSize[n]);
+                            bounds.p1[n] = min(npos, bounds.p2[n] - minsize[n]);
                         } else if (s[n] > 0) {
                             //no "clipping" required
                             bounds.p2[n] = pos[n] + (size[n] - drag_start[n]);
                         }
                     }
-                    this.outer.windowBounds = bounds;
+                    mUserSize = bounds.size - b;
+                    wnd.needResize(true);
+                    wnd.position = bounds.p1;
                 }
             }
 
@@ -163,10 +173,6 @@ class WindowWidget : Widget {
                 lay.expand[1] = (a_y == 0);
                 setLayout(lay);
             }
-
-            /+override protected void onDraw(Canvas c) {
-                c.drawFilledRect(Vector2i(0),size,Color(1,0,0));
-            }+/
         }
     }
 
@@ -185,43 +191,10 @@ class WindowWidget : Widget {
     ///expensive way to highlight the whole window (i.e. for window selection)
     bool highlight;
 
-    Rect2i windowBounds() {
-        return containedBounds;
-    }
-    void windowBounds(Rect2i b) {
-        mUserSize = b.size;
-        needResize(true);
-        position = b.p1;
-    }
-
-    ///usersize to current minsize (in case usersize is smaller)
-    void acceptSize(bool ignore_if_fullscreen = true) {
-        if (ignore_if_fullscreen && mFullScreen)
-            return;
-        mUserSize = mUserSize.max(mLastMinSize);
-        //actually not needed, make spotting errors easier
-        needResize(true);
-    }
-
-    override Vector2i layoutSizeRequest() {
-        mLastMinSize = super.layoutSizeRequest();
-        //mUserSize is the window size as requested by the user
-        //but don't make it smaller than the GUI code wants it
-        return mLastMinSize.max(mUserSize);
-    }
-
-    override protected void layoutSizeAllocation() {
-        super.layoutSizeAllocation();
-        if (alwaysAcceptSize)
-            acceptSize(true);
-    }
-
-    WindowFrame manager() {
-        return mManager;
-    }
-
     this() {
         focusable = true;
+
+        styleRegisterColor("window-fullscreen-color");
 
         //add decorations etc.
         auto all = new TableContainer(3, 3);
@@ -246,19 +219,16 @@ class WindowWidget : Widget {
         sizer(+1,  0);
         sizer(+1, +1);
 
-        auto vbox = new BoxContainer(false, false, 5);
+        mForClient = new BoxContainer(false, false, 5);
 
         mTitleContainer = new BoxContainer(true);
-        auto tmp = new SimpleContainer();
-        tmp.styles.addClass("window-tmp");
-        tmp.add(mTitleContainer, WidgetLayout.Border(Vector2i(1, 0)));
-        vbox.add(tmp, WidgetLayout.Expand(true));
+        mTitleContainer.styles.addClass("window-title-bar");
+        mTitleContainer.setLayout(WidgetLayout.Expand(true));
+        mForClient.add(mTitleContainer);
 
-        mForClient = vbox;
+        all.add(mForClient, 1, 1);
 
-        all.add(vbox, 1, 1);
-
-        mClientWidget = new BoxContainer(false);
+        mClientWidget = new WindowClient();
 
         mTitleBar = new Label();
         mTitleBar.styles.addClass("window-title");
@@ -286,23 +256,8 @@ class WindowWidget : Widget {
     }
 
     private void recreateGui() {
-        if (mClient) {
-            mClient.remove(); //just to be safe
-        }
-
         mClientWidget.remove();
-        //whatever there was... kill it
-        mClientWidget.clear();
-
-        if (mClient) {
-            mClient.remove();
-            mClientWidget.add(mClient);
-        }
-
-        if (mShowTooltipLabel) {
-            mTooltipLabel.remove();
-            mClientWidget.add(mTooltipLabel);
-        }
+        mClientWidget.readdClient();
 
         if (mFullScreen || !mHasDecorations) {
             clear();
@@ -315,15 +270,48 @@ class WindowWidget : Widget {
                 addChild(mWindowDecoration);
             }
         }
+
+        mClientWidget.styles.setState("full-screen", mFullScreen);
     }
 
     void position(Vector2i pos) {
-        if (mManager) {
-            mManager.setWindowPosition(this, pos);
-        }
+        containerPosition = pos;
     }
     Vector2i position() {
-        return containedBounds.p1;
+        return containerPosition;
+    }
+
+    ///set initial size
+    void initSize(Vector2i s) {
+        mUserSize = s;
+        needResize(true);
+    }
+
+    ///usersize to current minsize (in case usersize is smaller)
+    void acceptSize(bool ignore_if_fullscreen = true) {
+        if (ignore_if_fullscreen && mFullScreen)
+            return;
+        mUserSize = mUserSize.max(mLastMinSize);
+        //actually not needed, make spotting errors easier
+        //or maybe it's actually needed
+        needResize(true);
+    }
+
+    override Vector2i layoutSizeRequest() {
+        mLastMinSize = super.layoutSizeRequest();
+        //mUserSize is the window size as requested by the user
+        //but don't make it smaller than the GUI code wants it
+        return mLastMinSize.max(mUserSize);
+    }
+
+    override protected void layoutSizeAllocation() {
+        super.layoutSizeAllocation();
+        if (alwaysAcceptSize)
+            acceptSize(true);
+    }
+
+    WindowFrame manager() {
+        return mManager;
     }
 
     bool fullScreen() {
@@ -401,15 +389,6 @@ class WindowWidget : Widget {
         mCanResize = props.canResize;
         mCanMove = props.canMove;
         zorder = props.zorder;
-
-        auto bgs = mWindowDecoration.styles;
-        const sel = "/window-decoration";
-        const rule = "border-back-color";
-        if (mBgOverride.valid()) {
-            bgs.replaceRule(sel, rule, mBgOverride.fromStringRev());
-        } else {
-            bgs.removeCustomRule(sel, rule);
-        }
     }
 
     /// add a button or anything to the titlebar
@@ -466,9 +445,6 @@ class WindowWidget : Widget {
 
     void activate() {
         claimFocus();
-        //strangely needed, but this is normally called in onFocusChange(), and
-        //  if a window delegates focus to a sub-widget, it's not called
-        //toFront();
     }
 
     override void simulate() {
@@ -481,8 +457,7 @@ class WindowWidget : Widget {
     }
 
     private void pollFocus() {
-        //bleh, styles system is too retarded, see comments in styles conffile
-        mWindowDecoration.styles.setState("hack-focused", subFocused);
+        mWindowDecoration.styles.setState("active", subFocused);
 
         if (!subFocused && onFocusLost)
             onFocusLost(this);
@@ -492,14 +467,10 @@ class WindowWidget : Widget {
         return true;
     }
 
-/+ yyy tab shouldn't leave window
-    override void nextFocus(bool invertDir = false) {
-        //cycle when last widget was reached
-        if (!containerNextFocus(invertDir))
-            containerNextFocus(invertDir);
-        //never leave the window with <tab>, so nop here
+    //tab shouldn't leave window
+    override bool allowLeaveFocusByTab() {
+        return false;
     }
-+/
 
     void doAction(char[] s) {
         if (onKeyBinding)
@@ -549,7 +520,7 @@ class WindowWidget : Widget {
     protected void onMouseMove(MouseInfo mouse) {
         if (mDraging) {
             if (mCanMove && !mFullScreen && mManager) {
-                mManager.setWindowPosition(this, containedBounds.p1+mouse.rel);
+                position = position + mouse.rel;
             }
         } else {
             super.onMouseMove(mouse);
@@ -565,18 +536,8 @@ class WindowWidget : Widget {
         }
     }
 
-    override protected void onDraw(Canvas c) {
-        //if fullscreen, the parent clears with this.background
-        if (mFullScreen) {
-            //xxx: possibly unnecessary clearing when it really covers the whole
-            //  screen; it should use getFramework.clearColor then, maybe
-            Color bg = borderStyle.back;
-            if (mBgOverride.valid)
-                bg = mBgOverride;
-            if (!mClient || !mClient.doesCover)
-                c.drawFilledRect(Vector2i(0), size, bg);
-        }
-        super.onDraw(c);
+    override void onDrawChildren(Canvas c) {
+        super.onDrawChildren(c);
 
         //only for the shitty window-manager thing
         if (highlight) {
@@ -584,8 +545,47 @@ class WindowWidget : Widget {
         }
     }
 
+    override void onDrawBackground(Canvas c, Rect2i area) {
+        //on full screen, leave it to WindowClient
+        if (mFullScreen)
+            return;
+        super.onDrawBackground(c, area);
+    }
+
     override bool doesCover() {
-        return mHasDecorations && mFullScreen;
+        return mHasDecorations && mFullScreen && !mShowTooltipLabel;
+    }
+
+    protected Color fsClearColor() {
+        return styles.getValue!(Color)("window-fullscreen-color");
+    }
+
+    class WindowClient : BoxContainer {
+        this() {
+            super(true);
+        }
+        void readdClient() {
+            clear();
+            if (mClient) {
+                mClient.remove();
+                add(mClient);
+            }
+            if (mShowTooltipLabel) {
+                mTooltipLabel.remove();
+                add(mTooltipLabel);
+            }
+        }
+        //draw the background override
+        //on fullscreen, this is always called; if there's no background
+        //  override, use fsClearColor() (it's simpler this way)
+        override void onDrawBackground(Canvas c, Rect2i area) {
+            if (!mBgOverride.valid && !mFullScreen)
+                return;
+            if (mClient && mClient.doesCover && !mShowTooltipLabel)
+                return;
+            Color back = mBgOverride.valid ? mBgOverride : fsClearColor();
+            c.drawFilledRect(area, back);
+        }
     }
 
     //called by WindowFrame only
@@ -749,10 +749,6 @@ class WindowFrame : Container {
         return null;
     }
 
-    void setWindowPosition(WindowWidget wnd, Vector2i pos) {
-        wnd.layoutContainerAllocate(Rect2i(pos, pos + wnd.size));
-    }
-
     protected override Vector2i layoutSizeRequest() {
         //wtf should I do here? better stay consistent
         return Vector2i(0);
@@ -767,7 +763,7 @@ class WindowFrame : Container {
                     alloc = widgetBounds();
                 } else {
                     auto s = w.layoutCachedContainerSizeRequest();
-                    auto p = w.containedBounds.p1;
+                    auto p = w.containerBounds.p1;
                     alloc = Rect2i(p, p + s);
                 }
                 w.layoutContainerAllocate(alloc);

@@ -65,6 +65,7 @@ class ScrollBar : Widget {
 
                     curValue = cast(int)((pos[mDir] - mBarArea.p1[mDir]
                         + 0.5*mScaleFactor) / mScaleFactor) + mMinValue;
+                    raiseValueChange();
                 }
             }
 
@@ -110,6 +111,7 @@ class ScrollBar : Widget {
         } else if (sender is mSub) {
             curValue = curValue-mSmallChange;
         }
+        raiseValueChange();
     }
 
     override protected void onKeyEvent(KeyInfo ki) {
@@ -125,13 +127,9 @@ class ScrollBar : Widget {
                 int dir = (at[mDir] > ((bar.p1 + bar.p2)/2)[mDir]) ? +1 : -1;
                 //multiply dir with the per-click increment (fixed to 1 now)
                 curValue = curValue + dir*mLargeChange;
+                raiseValueChange();
             }
         }
-    }
-
-    //prevent Container from returning false if no child is hit
-    override bool onTestMouse(Vector2i pos) {
-        return true;
     }
 
     override protected Vector2i layoutSizeRequest() {
@@ -168,6 +166,11 @@ class ScrollBar : Widget {
         assert(mBarArea.size[mDir] >= mBar.requestSize[mDir]);
 
         adjustBar();
+    }
+
+    void raiseValueChange() {
+        if (onValueChange)
+            onValueChange(this);
     }
 
     //reset position of mBar according to mCurValue/mMaxValue
@@ -219,8 +222,6 @@ class ScrollBar : Widget {
             max(mMinValue, mMaxValue - mPageSize + (mPageSize?1:0)));
         if (v != mCurValue) {
             mCurValue = v;
-            if (onValueChange)
-                onValueChange(this);
             adjustBar();
         }
     }

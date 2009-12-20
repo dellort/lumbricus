@@ -109,7 +109,7 @@ class TestFrame3 : Container {
         auto wind = new ScrollWindow();
         auto scroll = new MouseScroller();
         wind.setScrollArea(scroll);
-        auto label = new Label();
+        auto label = new Button();
         scroll.add(label);
         label.text = "MouseScroller huhuh!";
         label.font = gFontManager.loadFont("test");
@@ -502,7 +502,7 @@ class TestTask2 : Task {
     FontTest mFont;
     BoxTest mBox;
     ScrollBar[5] mBars;
-    Button mBevel;
+    Button mBevel, mNotRounded;
 
     void onScrollbar(ScrollBar sender) {
         float getcolor(int n) {
@@ -528,6 +528,10 @@ class TestTask2 : Task {
 
     void onBevelClick(Button sender) {
         mBox.box.drawBevel = sender.checked();
+    }
+
+    void onNotRoundedClick(Button sender) {
+        mBox.box.noRoundedCorners = sender.checked();
     }
 
     this(TaskManager tm, char[] args = "") {
@@ -564,7 +568,7 @@ class TestTask2 : Task {
 
         auto sp = new Spacer();
         sp.minSize = Vector2i(0,2);
-        sp.color = Color(0);
+        //sp.color = Color(0);
         gui.add(sp, WidgetLayout.Expand(true));
 
         gui.add(scr, WidgetLayout.Expand(true));
@@ -574,6 +578,12 @@ class TestTask2 : Task {
         mBevel.onClick = &onBevelClick;
         mBevel.text = "Bevel";
         gui.add(mBevel, WidgetLayout.Expand(true));
+
+        mNotRounded = new Button();
+        mNotRounded.isCheckbox = true;
+        mNotRounded.onClick = &onNotRoundedClick;
+        mNotRounded.text = "No rounded corners";
+        gui.add(mNotRounded, WidgetLayout.Expand(true));
 
         onScrollbar(null); //update
 
@@ -706,7 +716,7 @@ class TestTask3 : Task {
 
         auto sp = new Spacer();
         sp.minSize = Vector2i(0,2);
-        sp.color = Color(0);
+        //sp.color = Color(0);
         gui.add(sp, WidgetLayout.Expand(true));
 
         gui.add(scr, WidgetLayout.Expand(true));

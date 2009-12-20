@@ -93,7 +93,10 @@ class LoadingScreen : Container {
             mSecondary.minSize = Vector2i(0, 25); //height of the bar
             mSecondaryFrame.add(mSecondary);
             auto background = new Spacer();
-            background.color = Color(0.5);
+            //huh what?
+            //if color really needed, add a styles sub-class or an id
+            //then set it in the theme
+            //background.color = Color(0.5);
             mSecondaryFrame.add(background);
             WidgetLayout lay;
             lay.fill[0] = 0.7;

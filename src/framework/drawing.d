@@ -164,9 +164,13 @@ public class Canvas {
     /// the right/bottom border of the passed rectangle (Rect2i(p1, p2) for the
     /// first method) is exclusive!
     /// drivers may override this
-    void drawRect(Vector2i p1, Vector2i p2, Color color) {
-        if (p1.x >= p2.x || p1.y >= p2.y)
+    void drawRect(Vector2i p1, Vector2i p2, Color color, int width = 1) {
+        if (p1.x >= p2.x || p1.y >= p2.y || width < 1)
             return;
+        if (width > 1) {
+            drawUnfilledRect(p1, p2, color, width);
+            return;
+        }
         p2.x -= 1; //border exclusive
         p2.y -= 1;
         drawLine(p1, Vector2i(p1.x, p2.y), color);
@@ -175,8 +179,16 @@ public class Canvas {
         drawLine(p1, Vector2i(p2.x, p1.y), color);
     }
 
-    final void drawRect(Rect2i rc, Color color) {
-        drawRect(rc.p1, rc.p2, color);
+    private void drawUnfilledRect(Vector2i p1, Vector2i p2, Color c, int w) {
+        //oh damn, why is this so complicated?
+        drawFilledRect(p1, Vector2i(p2.x, p1.y+w), c); //top
+        drawFilledRect(Vector2i(p1.x, p2.y-w), p2, c); //bottom
+        drawFilledRect(Rect2i(p1.x, p1.y+w, p1.x+w, p2.y-w), c); //left
+        drawFilledRect(Rect2i(p2.x-w, p1.y+w, p2.x, p2.y-w), c); //right
+    }
+
+    final void drawRect(Rect2i rc, Color color, int width = 1) {
+        drawRect(rc.p1, rc.p2, color, width);
     }
 
     /// like drawRect(), but stippled lines
@@ -467,6 +479,8 @@ class Canvas3DHelper : Canvas {
 
     private void end() {
         assert(mPrimitive != Primitive.INVALID);
+        //xxx not flushing the buffer when the same primitive type is used (and
+        //    the primitives are combineable) would probably be faster
         draw_verts(mPrimitive, mTexture, mBuffer[0..mBufferIndex]);
         mPrimitive = Primitive.INVALID;
         mTexture = null;
@@ -580,9 +594,14 @@ class Canvas3DHelper : Canvas {
         end();
     }
 
-    override void drawRect(Vector2i p1, Vector2i p2, Color color) {
+    override void drawRect(Vector2i p1, Vector2i p2, Color color, int width) {
         if (p1.x >= p2.x || p1.y >= p2.y)
             return;
+        if (width != 1) {
+            super.drawRect(p1, p2, color, width);
+            return;
+        }
+
         p2.x -= 1; //border exclusive
         p2.y -= 1;
 
@@ -601,7 +620,7 @@ class Canvas3DHelper : Canvas {
 
     override void drawStippledRect(Rect2i rc, Color color) {
         lineStipple(true);
-        drawRect(rc.p1, rc.p2, color);
+        drawRect(rc.p1, rc.p2, color, 1);
         lineStipple(false);
     }
 

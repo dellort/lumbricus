@@ -328,7 +328,7 @@ class ViewAniFrames : Container {
             if (idx_c > 0) {
                 auto spacer = new Spacer();
                 spacer.minSize = Vector2i(2,3);
-                spacer.color = Color(1,0,0);
+                //spacer.color = Color(1,0,0);
                 WidgetLayout lay;
                 lay.expand[] = [true, false];
                 spacer.setLayout(lay);
@@ -628,6 +628,7 @@ class ResViewerTask : Task {
 
             auto spacer = new Spacer();
             spacer.minSize = Vector2i(0, 2);
+            spacer.visible = false;
             spacer.setLayout(noexp);
             side.add(spacer);
 

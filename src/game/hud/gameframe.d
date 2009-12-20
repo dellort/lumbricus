@@ -198,23 +198,20 @@ class GameFrame : SimpleContainer {
         return gameView.doesCover();
     }
 
-/+yyy
-    override bool childCanHaveInput(Widget w) {
-        if (!mModalDialog)
-            return true;
-        return w is mModalDialog;
-    }
-+/
-
     private class ModalNotice : SimpleContainer {
         this(Widget client) {
             focusable = true;
+            isClickable = true;
             client.setLayout(WidgetLayout.Noexpand());
             addChild(client);
         }
 
         void lock() {
             claimFocus();
+            if (!captureEnable(true, true, false)) {
+                remove();
+                return;
+            }
             //xxx: should somehow pause game while dialog is active
             //     (but so that stuff doesn't break when you press "pause")
         }
@@ -223,10 +220,8 @@ class GameFrame : SimpleContainer {
             //filter against releasing 'h'
             if (info.isUp() || info.isPress())
                 return;
-            remove();
             this.outer.mModalDialog = null;
-            //whatever, this all sucks hard
-            this.outer.gameView.claimFocus();
+            remove();
         }
     }
 
@@ -235,7 +230,7 @@ class GameFrame : SimpleContainer {
         auto dlg = new ModalNotice(gameView.createKeybindingsHelp());
         add(dlg);
         mModalDialog = dlg;
-        mScroller.mouseScrolling = false; //protect against random fuckup
+        //mScroller.mouseScrolling = false; //protect against random fuckup
         dlg.lock();
     }
 
