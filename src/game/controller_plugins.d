@@ -147,7 +147,7 @@ class ControllerMsgs : GamePlugin {
 
     private void onVictory(GameObject dummy, Team winner) {
         if (winner) {
-            if (controller.gamemode == "turnbased" && mLastMember
+            if (controller.gamemodeId == "turnbased" && mLastMember
                 && mLastMember.team !is winner)
             {
                 messageAdd("msgwinstolen", [winner.name, mLastMember.team.name],

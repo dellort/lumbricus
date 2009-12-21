@@ -6,7 +6,7 @@ import game.game;
 import game.controller;
 import game.controller_events;
 import game.gamemodes.base;
-import game.gamemodes.turnbased_shared;
+import game.gamemodes.shared;
 
 import utils.array;
 import utils.configfile;
@@ -46,17 +46,23 @@ class ModeRealtime : Gamemode {
         //how long you can still move before control is taken on victory
         const cWinRetreatTime = timeSecs(10);
         Time[Team] mTeamDeactivateTime;
-        RealtimeStatus mStatus;
+        TimeStatus mStatus;
+        bool mSuddenDeath;
     }
 
     this(GameController parent, ConfigNode config) {
         super(parent, config);
-        mStatus = new RealtimeStatus();
+        mStatus = new TimeStatus();
+        mStatus.showGameTime = true;
         this.config = config.getCurValue!(ModeConfig)();
     }
 
     this(ReflectCtor c) {
         super(c);
+    }
+
+    override HudRequests getHudRequests() {
+        return ["timer": mStatus];
     }
 
     override void initialize() {
@@ -87,17 +93,19 @@ class ModeRealtime : Gamemode {
         if (aliveCount < 2) {
             //"Controlled shutdown": deactivate teams, wait for silence,
             //  blow up worms, end game
-            mStatus.gameEnding = true;
+            mStatus.showGameTime = false;
+            mStatus.showTurnTime = true;
             modeTime.paused = true;
             bool engAct = engine.checkForActivity;
             if (lastteam && lastteam.active) {
                 //the winner is still trying to get to safety
-                mStatus.retreatRemaining = waitRemain(cWinRetreatTime,2,false);
-                if (engAct && mStatus.retreatRemaining > Time.Null)
+                mStatus.turnRemaining = waitRemain(cWinRetreatTime,2,false);
+                if (engAct && mStatus.turnRemaining > Time.Null)
                     return;
                 logic.deactivateAll();
             }
-            mStatus.retreatRemaining = Time.Null;
+            mStatus.turnRemaining = Time.Null;
+            mStatus.showTurnTime = false;
             if (engAct)
                 return;
             logic.updateHealth();
@@ -115,11 +123,11 @@ class ModeRealtime : Gamemode {
 
         //----------------- Sudden death ----------------
 
-        if (mStatus.gameRemaining <= Time.Null && !mStatus.suddenDeath) {
-            mStatus.suddenDeath = true;
+        if (mStatus.gameRemaining <= Time.Null && !mSuddenDeath) {
+            mSuddenDeath = true;
             logic.startSuddenDeath();
         }
-        if (mStatus.suddenDeath && wait(config.water_interval, 1)) {
+        if (mSuddenDeath && wait(config.water_interval, 1)) {
             engine.raiseWater(config.water_raise);
         }
 
@@ -170,10 +178,6 @@ class ModeRealtime : Gamemode {
 
     bool ended() {
         return mGameEnded;
-    }
-
-    Object getStatus() {
-        return mStatus;
     }
 
     static this() {

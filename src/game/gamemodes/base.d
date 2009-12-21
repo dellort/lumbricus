@@ -22,6 +22,7 @@ class Gamemode {
     GameController logic;
     private Time[5] mWaitStart, mWaitStartLocal;
     protected TimeSource modeTime;
+    alias Object[char[]] HudRequests;
 
     this(GameController parent, ConfigNode config) {
         //static initialization doesn't work
@@ -33,6 +34,12 @@ class Gamemode {
     }
 
     this(ReflectCtor c) {
+    }
+
+    ///Return ids and status objects of HUD elements you want to show
+    ///Called once when the game GUI is created
+    HudRequests getHudRequests() {
+        return null;
     }
 
     ///Initialize gamemode (check requirements or whatever)
@@ -56,16 +63,6 @@ class Gamemode {
     ///Return true if the game is over
     ///It is the Gamemode's task to make a team win before
     abstract bool ended();
-
-    ///get mode-specific status information
-    ///clients have to know about the mode implementation to use it
-    ///xxx: it'd probably be better if the Gamemode implementation could create
-    ///     a specific GUI (aka HUD) element explicitly
-    ///     then this function wouldn't be needed and it'd be more flexible
-    ///     overall
-    ///xxx2: actually, we almost have this, it's just that everything is put
-    ///     into a single object (the object returned by this function)
-    abstract Object getStatus();
 
     //Returns the number of teams with alive members
     //If there are any, firstAlive is set to the first one found

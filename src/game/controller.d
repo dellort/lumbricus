@@ -665,7 +665,7 @@ class GameController {
 
     //--- start GameLogicPublic
 
-    char[] gamemode() {
+    char[] gamemodeId() {
         return mGamemodeId;
     }
 
@@ -675,8 +675,8 @@ class GameController {
     }
 
     ///Status of selected gamemode (may contain timing, scores or whatever)
-    Object gamemodeStatus() {
-        return mGamemode.getStatus;
+    Gamemode gamemode() {
+        return mGamemode;
     }
 
     ///Request interface to a plugin; returns null if the plugin is not loaded

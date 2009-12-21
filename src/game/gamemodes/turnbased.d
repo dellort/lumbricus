@@ -6,7 +6,7 @@ import game.game;
 import game.controller;
 import game.controller_events;
 import game.gamemodes.base;
-import game.gamemodes.turnbased_shared;
+import game.gamemodes.shared;
 import game.crate;
 
 import utils.array;
@@ -15,6 +15,18 @@ import utils.reflection;
 import utils.time;
 import utils.misc;
 import utils.log;
+
+enum TurnState : int {
+    prepare,    //player ready
+    playing,    //turn running
+    inTurnCleanup,
+    retreat,    //still moving after firing a weapon
+    waitForSilence, //before entering cleaningUp: wait for no-activity
+    cleaningUp, //worms losing hp etc, may occur during turn
+    nextOnHold, //next turn about to start (drop crates, ...)
+    winning,    //short state to show the happy survivors
+    end = -1,        //everything ended!
+}
 
 class ModeTurnbased : Gamemode {
     private {
@@ -46,7 +58,9 @@ class ModeTurnbased : Gamemode {
         Team mCurrentTeam;
         Team mLastTeam;
 
-        TurnbasedStatus mStatus;
+        TimeStatus mTimeSt;
+        PrepareStatus mPrepareSt;
+        bool mSuddenDeath;
         int mTurnCrateCounter = 0;
         int mInTurnActivity = cInTurnActCheckC;
         int mCleanupCtr = 1;
@@ -63,7 +77,8 @@ class ModeTurnbased : Gamemode {
 
     this(GameController parent, ConfigNode config) {
         super(parent, config);
-        mStatus = new TurnbasedStatus();
+        mTimeSt = new TimeStatus();
+        mPrepareSt = new PrepareStatus();
         this.config = config.getCurValue!(ModeConfig)();
 
         parent.collectTool ~= &doCollectTool;
@@ -73,6 +88,10 @@ class ModeTurnbased : Gamemode {
         super(c);
         Types t = c.types();
         t.registerMethod(this, &doCollectTool, "doCollectTool");
+    }
+
+    override HudRequests getHudRequests() {
+        return ["timer"[]: cast(Object)mTimeSt, "prepare": mPrepareSt];
     }
 
     override void initialize() {
@@ -99,7 +118,7 @@ class ModeTurnbased : Gamemode {
 
     void simulate() {
         super.simulate();
-        mStatus.gameRemaining = max(config.gametime - modeTime.current(),
+        mTimeSt.gameRemaining = max(config.gametime - modeTime.current(),
             Time.Null);
         //this ensures that after each transition(), doState() is also run
         //in the same frame
@@ -107,6 +126,7 @@ class ModeTurnbased : Gamemode {
         while ((next = doState()) != mCurrentTurnState) {
             transition(next);
         }
+        mTimeSt.timePaused = modeTime.paused;
     }
 
     //utility functions to get/set active team (and ensure only one is active)
@@ -125,20 +145,20 @@ class ModeTurnbased : Gamemode {
     private TurnState doState() {
         switch (mCurrentTurnState) {
             case TurnState.prepare:
-                mStatus.prepareRemaining = waitRemain(config.hotseattime, 1,
+                mPrepareSt.prepareRemaining = waitRemain(config.hotseattime, 1,
                     false);
                 if (mCurrentTeam.teamAction())
                     //worm moved -> exit prepare phase
                     return TurnState.playing;
-                if (mStatus.prepareRemaining <= Time.Null)
+                if (mPrepareSt.prepareRemaining <= Time.Null)
                     return TurnState.playing;
                 break;
             case TurnState.playing:
-                mStatus.turnRemaining = waitRemain!(true)(config.turntime, 1,
+                mTimeSt.turnRemaining = waitRemain!(true)(config.turntime, 1,
                     false);
                 if (!mCurrentTeam.current)
                     return TurnState.waitForSilence;
-                if (mStatus.turnRemaining <= Time.Null)   //timeout
+                if (mTimeSt.turnRemaining <= Time.Null)   //timeout
                 {
                     //check if we need to wait because worm is performing
                     //a non-abortable action
@@ -212,7 +232,7 @@ class ModeTurnbased : Gamemode {
                 }
                 break;
             case TurnState.cleaningUp:
-                mStatus.turnRemaining = Time.Null;
+                mTimeSt.turnRemaining = Time.Null;
                 //if there are more to blow up, go back to waiting
                 if (logic.checkDyingWorms())
                     return TurnState.waitForSilence;
@@ -237,16 +257,16 @@ class ModeTurnbased : Gamemode {
                         }
                     }
 
-                    if (mStatus.gameRemaining <= Time.Null
-                        && !mStatus.suddenDeath)
+                    if (mTimeSt.gameRemaining <= Time.Null
+                        && !mSuddenDeath)
                     {
-                        mStatus.suddenDeath = true;
+                        mSuddenDeath = true;
                         logic.startSuddenDeath();
                     }
 
                     if (mCleanupCtr > 1) {
                         mCleanupCtr--;
-                        if (mStatus.suddenDeath) {
+                        if (mSuddenDeath) {
                             engine.raiseWater(config.water_raise);
                             return TurnState.waitForSilence;
                         }
@@ -285,10 +305,14 @@ class ModeTurnbased : Gamemode {
         log("state transition {} -> {}", cast(int)mCurrentTurnState,
             cast(int)st);
         mCurrentTurnState = st;
+        mPrepareSt.visible = (st == TurnState.prepare);
+        mTimeSt.showGameTime = mTimeSt.showTurnTime =
+            ((st == TurnState.prepare || st == TurnState.playing
+                || st == TurnState.inTurnCleanup));
         switch (st) {
             case TurnState.prepare:
                 modeTime.paused = true;
-                mStatus.turnRemaining = config.turntime;
+                mTimeSt.turnRemaining = config.turntime;
                 waitReset(1);
                 waitReset!(true)(1);
                 mCleanupCtr = 2;
@@ -328,7 +352,7 @@ class ModeTurnbased : Gamemode {
                 assert(mCurrentTeam);
                 modeTime.paused = false;
                 mCurrentTeam.setOnHold(false);
-                mStatus.prepareRemaining = Time.Null;
+                mPrepareSt.prepareRemaining = Time.Null;
                 break;
             case TurnState.inTurnCleanup:
                 assert(mCurrentTeam);
@@ -361,7 +385,7 @@ class ModeTurnbased : Gamemode {
                 currentTeam = null;
                 engine.randomizeWind();
                 //logic.messageAdd("msgnextround");
-                mStatus.turnRemaining = Time.Null;
+                mTimeSt.turnRemaining = Time.Null;
                 break;
             case TurnState.winning:
                 modeTime.paused = true;
@@ -377,19 +401,11 @@ class ModeTurnbased : Gamemode {
         return mCurrentTurnState == TurnState.end;
     }
 
-    Object getStatus() {
-        //xxx: this is bogus, someone else could read the fields at any time
-        //     because an object reference is returned (not a struct anymore)
-        mStatus.state = mCurrentTurnState;
-        mStatus.timePaused = modeTime.paused;
-        return mStatus;
-    }
-
     private bool doCollectTool(TeamMember member,
         CollectableTool tool)
     {
         if (auto t = cast(CollectableToolDoubleTime)tool) {
-            waitAddTimeLocal(1, mStatus.turnRemaining);
+            waitAddTimeLocal(1, mTimeSt.turnRemaining);
             return true;
         }
         return false;

@@ -513,7 +513,7 @@ class WindowWidget : Widget {
 
         //if a mouse click wasn't handled, start draging the window around
         //xxx mostly inactive (filtered out by allowInputForChild())
-        if (key.isMouseButton && !key.isPress && key.isDown) {
+        if (key.code == Keycode.MOUSE_LEFT && !key.isPress && key.isDown) {
             mDraging = true;
         }
     }

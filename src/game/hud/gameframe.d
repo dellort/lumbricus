@@ -25,6 +25,7 @@ import game.hud.messageviewer;
 import game.hud.powerups;
 import game.hud.replaytimer;
 import game.hud.network;
+import game.hud.register;
 import game.clientengine;
 import game.game;
 import game.weapon.weapon;
@@ -262,16 +263,18 @@ class GameFrame : SimpleContainer {
         //xxx ehrm, lol... config file?
         mGui.add(new WindMeter(game),
             WidgetLayout.Aligned(1, 1, Vector2i(5, 5)));
-        mGui.add(new GameTimer(game),
-            WidgetLayout.Aligned(-1, 1, Vector2i(5, 5)));
-        mGui.add(new PrepareDisplay(game),
-            WidgetLayout.Aligned(0, -1, Vector2i(0, 40)));
         mGui.add(new PowerupDisplay(game),
             WidgetLayout.Aligned(1, -1, Vector2i(5, 20)));
         mGui.add(new MessageViewer(game),
             WidgetLayout.Aligned(0, -1, Vector2i(0, 5)));
         mGui.add(new ReplayTimer(game),
             WidgetLayout.Aligned(-1, -1, Vector2i(10, 0)));
+        //hud elements requested by gamemode
+        //[id : StatusObject]
+        auto hudReqs = game.logic.gamemode.getHudRequests();
+        foreach (id, link; hudReqs) {
+            HudFactory.instantiate(id, mGui, game, link);
+        }
 
         mTeamWindow = new TeamWindow(game);
         mGui.add(mTeamWindow);

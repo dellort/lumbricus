@@ -126,8 +126,8 @@
 		<Unit filename="..\src\game\gamemodes\base.d" />
 		<Unit filename="..\src\game\gamemodes\mdebug.d" />
 		<Unit filename="..\src\game\gamemodes\realtime.d" />
+		<Unit filename="..\src\game\gamemodes\shared.d" />
 		<Unit filename="..\src\game\gamemodes\turnbased.d" />
-		<Unit filename="..\src\game\gamemodes\turnbased_shared.d" />
 		<Unit filename="..\src\game\gameshell.d" />
 		<Unit filename="..\src\game\gametask.d" />
 		<Unit filename="..\src\game\gfxset.d" />
@@ -152,6 +152,7 @@
 		<Unit filename="..\src\game\hud\network.d" />
 		<Unit filename="..\src\game\hud\powerups.d" />
 		<Unit filename="..\src\game\hud\preparedisplay.d" />
+		<Unit filename="..\src\game\hud\register.d" />
 		<Unit filename="..\src\game\hud\replaytimer.d" />
 		<Unit filename="..\src\game\hud\teaminfo.d" />
 		<Unit filename="..\src\game\hud\weaponsel.d" />
@@ -171,6 +172,7 @@
 		<Unit filename="..\src\game\sky.d" />
 		<Unit filename="..\src\game\sprite.d" />
 		<Unit filename="..\src\game\temp.d" />
+		<Unit filename="..\src\game\text.d" />
 		<Unit filename="..\src\game\water.d" />
 		<Unit filename="..\src\game\wcontrol.d" />
 		<Unit filename="..\src\game\weapon\actionweapon.d" />

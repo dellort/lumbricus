@@ -5,8 +5,9 @@ import framework.font;
 import common.scene;
 import common.visual;
 import game.clientengine;
+import game.hud.register;
 import game.hud.teaminfo;
-import game.gamemodes.turnbased_shared;
+import game.gamemodes.shared;
 import gui.container;
 import gui.boxcontainer;
 import gui.label;
@@ -15,29 +16,26 @@ import utils.time;
 import utils.misc;
 import utils.vector2;
 
-class GameTimer : Widget {
+class GameTimer : BoxContainer {
     private {
         GameInfo mGame;
-        BoxContainer mLabelBox;
         Label mTurnTime, mGameTime;
-        bool mActive, mEnabled;
+        bool mActive;
         Time mLastTime;
         Vector2i mMinSize;
         Font[5] mFont;
         //xxx load this from somewhere
-        bool mShowGameTime = true;
+        bool mShowGameTime, mShowTurnTime;
         Color mOldBordercolor;
-        bool mGameEndingCache;
+        TimeStatus mStatus;
     }
 
-    this(GameInfo game) {
+    this(SimpleContainer hudBase, GameInfo game, Object link) {
         setVirtualFrame(false);
         mGame = game;
+        mStatus = castStrict!(TimeStatus)(link);
 
-        //styles.addClass("gametimer");
-
-        mLabelBox = new BoxContainer();
-        mLabelBox.styles.addClass("gametimer");
+        styles.addClass("gametimer");
 
         auto list = ["time"[], "time_red", "time_grey", "time_small",
             "time_small_grey"];
@@ -57,34 +55,25 @@ class GameTimer : Widget {
         mGameTime.border = Vector2i(7, 0);
         mGameTime.centerX = true;
 
-        mMinSize = toVector2i(toVector2f(mTurnTime.font.textSize("99"))*1.7f);
+        mMinSize = toVector2i(toVector2f(mTurnTime.font.textSize("99"))*1.5f);
         //mMinSize.y = 100; //cast(int)(mMinSize.x*0.9f);
 
-        setGameTimeMode(mShowGameTime || !!statusRT(), !statusRT());
-
         mLastTime = timeCurrentTime();
+        visible = false;
 
-        //???
-        mEnabled = !!status() || !!statusRT();
+        hudBase.add(this, WidgetLayout.Aligned(-1, 1, Vector2i(5, 5)));
     }
 
-    //returns info-object, or null if no turn based stuff is going on
-    //slight code duplication with preparedisplay.d
-    private TurnbasedStatus status() {
-        return cast(TurnbasedStatus)mGame.logic.gamemodeStatus();
-    }
-
-    private RealtimeStatus statusRT() {
-        return cast(RealtimeStatus)mGame.logic.gamemodeStatus();
-    }
-
-    void setGameTimeMode(bool showGT, bool showRT = true) {
+    void setGameTimeMode(bool showGT, bool showTT = true) {
+        if ((showGT == mShowGameTime) && (showTT == mShowTurnTime))
+            return;
         mShowGameTime = showGT;
-        mLabelBox.clear();
-        if (showRT)
-            mLabelBox.add(mTurnTime);
+        mShowTurnTime = showTT;
+        clear();
+        if (showTT)
+            add(mTurnTime);
         if (showGT)
-            mLabelBox.add(mGameTime);
+            add(mGameTime);
         needRelayout();
     }
 
@@ -116,65 +105,32 @@ class GameTimer : Widget {
     }
 
     override void simulate() {
-        if (!mEnabled)
-            return;
+        Color bordercolor = Color(0.7f);
 
-        auto st = status();
-        auto stRT = statusRT();
+        setGameTimeMode(mStatus.showGameTime, mStatus.showTurnTime);
+        bool active = mStatus.showGameTime || mStatus.showTurnTime;
 
-        Color bordercolor = Color.Invalid;
-
-        bool active;
-        if (st) {
-            int state = st.state;
-            TeamMember m;
-            foreach (t; mGame.logic.teams) {
-                m = t.current;
-                if (m)
-                    break;
-            }
-            if ((state == TurnState.prepare || state == TurnState.playing
-                || state == TurnState.inTurnCleanup) && m)
-            {
-                active = true;
-                bordercolor = mGame.allMembers[m].owner.color;
-                mLabelBox.styles.setState("active",
-                    m is mGame.control.getControlledMember);
-                setTurnTime(st.turnRemaining, st.timePaused);
-                setGameTime(st.gameRemaining);
-            } else {
-                active = false;
-            }
-        } else if (stRT) {
-            auto m = mGame.control.getControlledMember;
+        auto m = mGame.control.getControlledMember;
+        foreach (t; mGame.logic.teams) {
             if (m)
-                bordercolor = mGame.allMembers[m].owner.color;
-            else
-                bordercolor = Color(0.7f);
-            mLabelBox.styles.setState("active", !!m);
-            //game running, and not in "happy jumping worms" phase
-            active = !mGame.logic.gameEnded() && (!stRT.gameEnding || m);
-            if (stRT.gameEnding) {
-                //game is over, just the winner is still retreating
-                setTurnTime(stRT.retreatRemaining);
-                if (stRT.gameEnding != mGameEndingCache) {
-                    mGameEndingCache = stRT.gameEnding;
-                    //hide total time, show turn time
-                    setGameTimeMode(false, true);
-                }
-            } else {
-                setGameTime(stRT.gameRemaining);
-            }
+                break;
+            m = t.current;
         }
+        if (m) {
+            bordercolor = mGame.allMembers[m].owner.color;
+        }
+        if (mStatus.showGameTime) {
+            setGameTime(mStatus.gameRemaining);
+        }
+        if (mStatus.showTurnTime) {
+            setTurnTime(mStatus.turnRemaining, mStatus.timePaused);
+        }
+        styles.setState("active",
+            m && (m is mGame.control.getControlledMember));
 
         if (active != mActive) {
             mActive = active;
-            if (mActive) {
-                addChild(mLabelBox);
-                setChildLayout(mLabelBox, WidgetLayout());
-            } else {
-                removeChild(mLabelBox);
-            }
+            visible = mActive;
         }
 
         assert(Color.Invalid == Color.Invalid);
@@ -183,11 +139,11 @@ class GameTimer : Widget {
             mOldBordercolor = bordercolor;
             if (bordercolor.valid()) {
                 //LOL
-                mLabelBox.styles.replaceRule("/gametimer", "border-color",
+                styles.replaceRule("/gametimer", "border-color",
                     bordercolor.fromStringRev());
             } else {
                 //even more LOL
-                mLabelBox.styles.removeCustomRule("/gametimer", "border-color");
+                styles.removeCustomRule("/gametimer", "border-color");
             }
         }
     }
@@ -198,5 +154,9 @@ class GameTimer : Widget {
         Vector2i l = super.layoutSizeRequest();
         ret.y = max(ret.y, l.y);
         return ret;
+    }
+
+    static this() {
+        HudFactory.register!(typeof(this))("timer");
     }
 }
