@@ -399,7 +399,8 @@ class GfxSet {
         //init to what we had in the GUI in r865
         BoxProperties border;
         border.border = Color(0.7);
-        border.back = Color(0);
+        border.back = Color(0,0,0,0.7);
+        border.borderWidth = 1;
         border.cornerRadius = 3;
         return border;
     }

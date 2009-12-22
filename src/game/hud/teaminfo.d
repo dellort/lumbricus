@@ -12,6 +12,7 @@ import game.controller;
 import game.gameshell;
 import game.weapon.weapon;
 import game.game;
+import gui.rendertext;
 import gui.label;
 import gui.widget;
 import utils.rect2;
@@ -77,12 +78,12 @@ class TeamInfo {
 
     //create a Label in this worm's style
     //it's initialized with the team's name
-    Label createLabel() {
-        auto res = new Label();
-        res.styles.addClasses(["worm-label"]);
-        res.font = font;
-        res.text = team.name();
-        res.setLayout(WidgetLayout.Aligned(-1, -1));
+    FormattedText createLabel() {
+        //auto res = theme.textCreate();
+        auto res = new FormattedText();
+        GfxSet.textApplyWormStyle(res);
+        res.font = theme.font;
+        res.setLiteral(team.name());
         return res;
     }
 

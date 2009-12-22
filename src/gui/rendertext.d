@@ -107,6 +107,8 @@ public class FormattedText {
 
     void font(Font f) {
         assert(!!f);
+        if (mRootStyle.font is f)
+            return;
         mRootStyle.font = f;
         update();
     }
@@ -363,6 +365,27 @@ public class FormattedText {
         }
     }
 
+    //like setText(), but build the string with format()
+    void setTextFmt(bool as_markup, char[] fmt, ...) {
+        setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
+    }
+
+    void setTextFmt_fx(bool as_markup, char[] fmt,
+        TypeInfo[] arguments, va_list argptr)
+    {
+        //tries not to change anything if the text to be set is the same
+
+        char[80] buffer = void;
+        char[] res = formatfx_s(buffer, fmt, arguments, argptr);
+        if (mTextIsFormatted == as_markup && mText == res)
+            return;
+        //formatfx_s allocates on the heap if buffer isn't big enough
+        //so .dup is only needed if res still points to that static buffer
+        if (res.ptr is buffer.ptr)
+            res = res.dup;
+        setText(res, as_markup);
+    }
+
     void translator(Translator t) {
         assert(!!t);
         mTranslator = t;
@@ -462,9 +485,9 @@ public class FormattedText {
         return mBorder;
     }
     void setBorder(BoxProperties b) {
-        if (mBorder != b) {
-            mBorder = b;
-            update();
-        }
+        if (mBorder == b)
+            return;
+        mBorder = b;
+        update();
     }
 }

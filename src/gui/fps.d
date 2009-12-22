@@ -46,14 +46,7 @@ class GuiFps : Widget {
 
     this() {
         focusable = false;
+        isClickable = false;
         mFont = gFontManager.loadFont("fpsfont");
-    }
-
-    override Vector2i layoutSizeRequest() {
-        return Vector2i(0);
-    }
-
-    override bool onTestMouse(Vector2i pos) {
-        return false;
     }
 }

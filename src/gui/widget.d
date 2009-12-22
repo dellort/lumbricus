@@ -245,7 +245,7 @@ class Widget {
         o.mParent = this;
         mWidgets ~= o;
         mZWidgets ~= o;
-        updateZOrder(o);
+        updateZOrder(o, true);
         o.styles.parent = styles;
 
         o.do_add();
@@ -329,13 +329,12 @@ class Widget {
     protected void onRemoveChild(Widget c) {
     }
 
-    private void updateZOrder(Widget child) {
+    private void updateZOrder(Widget child, bool hard) {
         assert(child.parent is this);
         child.mZOrder2 = ++gNextZOrder2;
         //avoid unneeded work (note that mZOrder2 still must be set)
-        if (mZWidgets[$-1] is child)
+        if (!hard && mZWidgets[$-1] is child)
             return;
-        mZWidgets = mZWidgets.dup;
         array.sort(mZWidgets,
             (Widget a, Widget b) {
                 if (a.mZOrder == b.mZOrder) {
@@ -409,7 +408,7 @@ class Widget {
     ///within the parent frame, set this object on the highest zorder
     final void toFrontLocal() {
         if (parent)
-            parent.updateZOrder(this);
+            parent.updateZOrder(this, false);
     }
 
     ///globally set highest zorder (like toFrontLocal(), "soft" zorder only)
@@ -426,7 +425,7 @@ class Widget {
     final void zorder(int z) {
         mZOrder = z;
         if (parent) {
-            parent.updateZOrder(this);
+            parent.updateZOrder(this, true);
         }
     }
 
@@ -760,12 +759,13 @@ class Widget {
     /// Size including the not-really-client-area.
     protected Vector2i layoutContainerSizeRequest() {
         auto msize = layoutSizeRequest();
+        msize = msize.max(mMinSize);
         //just padding
         msize.x += mLayout.pad*2; //both borders for each component
         msize.y += mLayout.pad*2;
         msize += mLayout.padA + mLayout.padB;
         msize += bordersize*2;
-        return msize.max(mMinSize);
+        return msize;
     }
 
     /// according to WidgetLayout, adjust area such that the Widget feels warm

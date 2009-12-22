@@ -17,6 +17,8 @@ import game.hud.camera;
 import game.weapon.weapon;
 import game.hud.teaminfo;
 import game.gfxset;
+import gui.renderbox;
+import gui.rendertext;
 import gui.widget;
 import gui.container;
 import gui.label;
@@ -33,39 +35,6 @@ import utils.interpolate;
 
 import str = utils.string;
 import math = tango.math.Math;
-
-//arrrrgh
-class GuiAnimator : Widget {
-    private {
-        Animator mAnimator;
-    }
-
-    this(TimeSourcePublic ts) {
-        setVirtualFrame(false);
-        mAnimator = new Animator(ts);
-        setLayout(WidgetLayout.Aligned(-1, -1));
-    }
-
-    override protected void onDraw(Canvas c) {
-        mAnimator.pos = size/2;
-        mAnimator.draw(c);
-    }
-
-    override Vector2i layoutSizeRequest() {
-        return mAnimator.bounds.size;
-    }
-
-    void animation(Animation ani) {
-        if (ani !is mAnimator.animation) {
-            mAnimator.setAnimation(ani);
-            needResize(true);
-        }
-    }
-
-    void setPositionCentered(Vector2i newPos) {
-        setAddToPos(newPos - mAnimator.bounds.size/2);
-    }
-}
 
 const Time cArrowDelta = timeSecs(5);
 //time and length (in pixels) the health damage indicator will move upwards
@@ -86,41 +55,45 @@ const Time cZoomTime = timeMsecs(500);
 const float cZoomMin = 0.6f;
 const float cZoomMax = 1.0f;
 
+//just for the weapon image
+class BorderImage : SceneObjectCentered {
+    Surface image;
+    BoxProperties border;
+
+    override void draw(Canvas c) {
+        auto s = image.size/2;
+        auto b = Vector2i(border.borderWidth);
+        drawBox(c, pos-s-b, image.size+b*2, border);
+        c.draw(image, pos-s);
+    }
+
+    Vector2i size() {
+        return image.size + Vector2i(border.borderWidth)*2;
+    }
+}
+
 //per-member class
-private class ViewMember {
+private class ViewMember : SceneObject {
     GameView owner;
     TeamMemberInfo member; //from the "engine"
 
-    //you might wonder why these labels aren't just drawn directly
-    //instead we use the GUI... well but there's no reason
-    //it's just plain stupid :D
-    Label wormTeam;
-    Label wormName;
-    Label wormPoints; //oh, it used to be named "points"
-    //for the alternative weapon display
-    Label weaponIcon;
+    FormattedText wormTeam, wormName, wormPoints;
 
     InterpolateExp2!(float, 4.0f) moveWeaponIcon;
-
-    //arrow which points on currently active worm (goes away when he moves)
-    //(there's only one per GUI, but keeping it here is simpler)
-    GuiAnimator arrow;
 
     InterpolateLinear!(int) moveLabels;
     //bool beingActive; //last active state to detect state change
 
     //label which displays how much health was lost
     //starts from real health label, moves up, and disappears
-    Label healthHint;
+    FormattedText healthHint;
+
+    BorderImage weaponIcon;
 
     InterpolateLinear!(int) moveHealth;
 
     int health_cur = int.max;
     int lastHealthHintTarget = int.max;
-
-    private {
-        bool mArrowState;
-    }
 
     this(GameView a_owner, TeamMemberInfo m) {
         owner = a_owner;
@@ -131,260 +104,274 @@ private class ViewMember {
         member = m;
         wormTeam = m.owner.createLabel();
         wormName = m.owner.createLabel();
-        wormName.text = m.member.name();
+        wormName.setLiteral(m.member.name());
         wormPoints = m.owner.createLabel();
         healthHint = m.owner.createLabel();
-        weaponIcon = m.owner.createLabel();
-        weaponIcon.text = "";
-        arrow = new GuiAnimator(ts);
+        weaponIcon = new BorderImage;
+        weaponIcon.border = GfxSet.textWormBorderStyle();
+
+        owner.mLabels.add(this);
     }
 
-    void setArrowAnim(bool canChangeWorm) {
-        auto theme = member.owner.theme;
-        arrow.animation = canChangeWorm ? theme.change : theme.arrow;
-        mArrowState = canChangeWorm;
-    }
+    override void draw(Canvas canvas) {
+        auto sprite = member.member.control.sprite; //lololol
 
-    void removeGUI() {
-        wormTeam.remove();
-        wormName.remove();
-        wormPoints.remove();
-        healthHint.remove();
-        arrow.remove();
-        weaponIcon.remove();
-    }
+        if (sprite.isUnderWater()) //no labels when underwater
+            return;
 
-    //use these with the label stuff
-    void setWPos(Widget w, Vector2i pos) {
-        w.setAddToPos(pos);
-    }
-    void setWVisible(Widget w, bool visible) {
-        if (!visible) {
-            //ensure invisibility
-            w.remove();
+        Sequence graphic = sprite.graphic;
+
+        if (!graphic) {
+            removeThis();
             return;
         }
-        //ensure visibility
-        if (!w.parent()) {
-            owner.addChild(w);
+
+        //ughh, needs correct bounding box
+        const d = 30;
+        Rect2i bounds = Rect2i(-d, -d, d, d);
+        bounds += graphic.interpolated_position();
+
+        if (health_cur != member.currentHealth) {
+            health_cur = member.currentHealth;
+            wormPoints.setTextFmt(false, "{}", health_cur);
+        }
+
+        //labels are positioned above pos
+        Vector2i pos = bounds.center;
+        pos.y -= bounds.size.y/2;
+
+        //add rectangle under pos variable, return the rect's position
+        //center_pos = centered drawing (animations)
+        Vector2i addThing(Vector2i size, bool center_pos = false) {
+            pos.y -= size.y;
+            //pos.y -= 1; //some spacing, but it looks ugly
+            auto p = pos;
+            if (!center_pos) {
+                p.x -= size.x/2;
+            } else {
+                p.y += size.y/2;
+            }
+            return p;
+        }
+
+        void addLabel(FormattedText txt) {
+            txt.draw(canvas, addThing(txt.size));
+        }
+        void addSurface(Surface s) {
+            canvas.draw(s, addThing(s.size));
+        }
+        void addAnimation(Animation ani) {
+            AnimationParams p;
+            Time t = owner.mGame.clientTime.current;
+            ani.draw(canvas, addThing(ani.bounds.size, true), p, t);
+        }
+
+
+        bool isActiveWorm = this is owner.activeWorm;
+
+        //whether labels should move up or down
+        //initiate movement into this direction if not yet
+        bool doMoveDown = true;
+
+        if (isActiveWorm) {
+            auto currentTime = owner.mGame.serverTime.current;
+            bool didmove = (currentTime - owner.mGame.control.
+                getControlledMember.control.lastAction()) < cArrowDelta;
+            doMoveDown = !didmove;
+        }
+
+        //if the moving direction isn't correct, reverse it
+        if (doMoveDown != (moveLabels.target <= moveLabels.start)) {
+            if (doMoveDown) {
+                //make labels visible & move down
+                moveLabels.setParams(cLabelsMoveTimeDown,
+                    cLabelsMoveDistance, 0);
+            } else {
+                //move up
+                moveLabels.setParams(cLabelsMoveTimeUp,
+                    0, cLabelsMoveDistance);
+            }
+        }
+
+        //(.value() isn't necessarily changing all the time)
+        pos.y -= moveLabels.value();
+
+        auto health_hint_pos = pos;
+
+        bool showLabels = true;
+
+        if (!moveLabels.inProgress() && !doMoveDown) {
+            showLabels = !isActiveWorm;
+        }
+
+        //that weapon label
+        auto amember = owner.mGame.control.getControlledMember();
+        //show a weapon icon when the worm graphic wants to show a weapon,
+        //  but fails to select an animation; happens when:
+        //   a) we are in weapon state, but have no animation
+        //   b) main weapon is busy, but secondary is ready
+        //      (meaning worm animation is showing primary weapon)
+        bool weapon_icon_visible = (amember is member.member)
+            && graphic.weapon.length && !graphic.weapon_ok
+            && amember.control.currentWeapon;
+
+        if (weapon_icon_visible) {
+            //NOTE: wwp animates the appearance/disappearance of
+            // the weapon label; when it disappears, it shrinks and
+            // moves towards the worm; we don't do that (yet?)
+            //for now, only animate the left/right change of the
+            //worm
+
+            //possibly fix the animation
+            //get where worm looks too
+            bool faceLeft = angleLeftRight(graphic.rotation_angle, true, false);
+            if (!moveWeaponIcon.initialized) {
+                //rather a cheap trick to distinguish initialization
+                //from not-animating state
+                moveWeaponIcon.init(Time.Null, faceLeft ? 1 : 0,
+                    faceLeft ? 0 : 1);
+            }
+            bool rtol = moveWeaponIcon.start
+                > moveWeaponIcon.target;
+            if (rtol != faceLeft) {
+                if (moveWeaponIcon.inProgress()) {
+                    //change direction (works because
+                    //interpolation function is symmetric)
+                    moveWeaponIcon.setParams(moveWeaponIcon.target,
+                        moveWeaponIcon.start);
+                } else {
+                    moveWeaponIcon.init(cWeaponIconMoveTime,
+                        faceLeft ? 1 : 0, faceLeft ? 0 : 1);
+                }
+            }
+
+            Surface icon = amember.control.currentWeapon.icon;
+            assert(!!icon);
+            float wip = moveWeaponIcon.value();
+            auto npos = placeRelative(Rect2i(icon.size()),
+                bounds, Vector2i(0, -1), wip, 0.5f);
+            npos += bounds.p1;
+            //lolwut? I know I wrote this code, but *shrug*
+            weaponIcon.image = icon;
+            weaponIcon.pos = npos + weaponIcon.size/2;
+            weaponIcon.draw(canvas);
+            //so that the arrow animation is at the right place
+            addThing(weaponIcon.size);
+        } else {
+            moveWeaponIcon.reset();
+        }
+
+        auto tlv = showLabels && !weapon_icon_visible;
+        if (tlv) {
+            //flash label color to white for active worm
+            bool flash_on = (isActiveWorm
+                && cast(int)(owner.mGame.clientTime.current.secsf*2)%2 == 0);
+            Font f = flash_on ? member.owner.font_flash : member.owner.font;
+            wormName.font = f;
+            wormTeam.font = f;
+            wormPoints.font = f;
+
+            if (owner.mTeamGUISettings.showPoints)
+                addLabel(wormPoints);
+            if (owner.mTeamGUISettings.showName)
+                addLabel(wormName);
+            if (owner.mTeamGUISettings.showTeam)
+                addLabel(wormTeam);
+        }
+
+        if (showLabels && isActiveWorm) {
+            auto theme = member.owner.theme;
+            auto ani = member.member.team.allowSelect()
+                ? theme.change : theme.arrow;
+            addAnimation(ani);
+        }
+
+        //for healthHint
+        //I simply trigger it when the health value changes, and
+        //when currently no label is displayed
+        //the label is only removed as soon as the health value is
+        //constant again
+        //slight duplication of the logic in gameframes
+        if (moveHealth.currentTime >= moveHealth.endTime
+            + cHealthHintWait)
+        {
+            //probably start a new animation
+            auto target = member.currentHealth;
+            auto diff =  member.member.currentHealth() - target;
+            //compare target and realHealth to see if health is
+            //really changing (diff can still be != 0 if not)
+            if (diff < 0 && target != lastHealthHintTarget
+                && target != member.realHealth())
+            {
+                //start (only for damages, not upgrades => "< 0")
+                moveHealth.init(cHealthHintTime, 0,
+                    cHealthHintDistance);
+                healthHint.setTextFmt(false, "{}", -diff);
+                //this is to avoid restarting the label animation
+                //several times when counting down takes longer than
+                //to display the fill health damage hint animation
+                lastHealthHintTarget = target;
+            }
+        }
+        if (moveHealth.inProgress()) {
+            pos = health_hint_pos;
+            pos.y -= moveHealth.value();
+            addLabel(healthHint);
         }
     }
-
-    void simulate() {
-        auto sprite = member.member.control.sprite; //lololol
-        Sequence graphic = sprite.graphic;
-        bool guiIsActive = !!graphic;
-        if (sprite.isUnderWater()) //no labels when underwater
-            guiIsActive = false;
-        if (!guiIsActive) {
-            removeGUI();
-        } else if (guiIsActive) {
-            assert(graphic !is null);
-            //xxx hurf hurf
-            Sequence ag = graphic;
-            assert (!!ag, "not attached to a worm?");
-            Sequence su = ag;
-            assert(!!su);
-            //Animation ani = ag.animation;
-            Rect2i bounds;
-            /+
-            //assert (!!ani, "should be there because it is active");
-            if (!ani) { //???
-                bounds.p1 = Vector2i(0,0);
-                bounds.p2 = Vector2i(1,1);
-            }
-            +/
-            //ughh
-            const d = 30;
-            bounds = Rect2i(-d, -d, d, d);
-            bounds += ag.interpolated_position();
-
-            if (health_cur != member.currentHealth) {
-                health_cur = member.currentHealth;
-                wormPoints.text = myformat("{}", health_cur);
-            }
-
-            //labels are positioned above pos
-            auto pos = bounds.center;
-            pos.y -= bounds.size.y/2;
-
-            bool isActiveWorm = this is owner.activeWorm;
-
-            //whether labels should move up or down
-            //initiate movement into this direction if not yet
-            bool doMoveDown;
-
-            if (isActiveWorm) {
-                auto currentTime = owner.mGame.serverTime.current;
-                bool didmove = (currentTime - owner.mGame.control.
-                    getControlledMember.control.lastAction()) < cArrowDelta;
-                doMoveDown = !didmove;
-            } else {
-                //move labels down, but arrow is invisible
-                doMoveDown = true;
-            }
-
-            //if the moving direction isn't correct, reverse it
-            if (doMoveDown != (moveLabels.target <= moveLabels.start)) {
-                if (doMoveDown) {
-                    //make labels visible & move down
-                    moveLabels.setParams(cLabelsMoveTimeDown,
-                        cLabelsMoveDistance, 0);
-                } else {
-                    //move up
-                    moveLabels.setParams(cLabelsMoveTimeUp,
-                        0, cLabelsMoveDistance);
-                }
-            }
-
-            bool showLabels = true;
-
-            if (!moveLabels.inProgress() && !doMoveDown) {
-                showLabels = !isActiveWorm;
-            }
-
-            if (member.member.control.isDrowning()) {
-                showLabels = false;
-            }
-
-            //(.value() isn't necessarily changing all the time)
-            pos.y -= moveLabels.value();
-
-            //that weapon label
-            auto amember = owner.mGame.control.getControlledMember();
-            //show a weapon icon when the worm graphic wants to show a weapon,
-            //  but fails to select an animation; happens when:
-            //   a) we are in weapon state, but have no animation
-            //   b) main weapon is busy, but secondary is ready
-            //      (meaning worm animation is showing primary weapon)
-            bool weapon_visible = (amember is member.member)
-                && graphic.weapon.length && !graphic.weapon_ok;
-
-            setWVisible(weaponIcon, weapon_visible);
-            setArrowAnim(member.member.team.allowSelect());
-
-            if (weapon_visible && amember.control.currentWeapon) {
-                //NOTE: wwp animates the appearance/disappearance of
-                // the weapon label; when it disappears, it shrinks and
-                // moves towards the worm; we don't do that (yet?)
-                //for now, only animate the left/right change of the
-                //worm
-
-                //xxx why use indirect way over amember.control instead of
-                //    graphic.weapon?
-                //    -> Because Sequence uses a char[] weapon id, and I don't
-                //       dare changing it
-                weaponIcon.image = amember.control.currentWeapon.icon;
-
-                //possibly fix the animation
-                //get where worm looks too
-                bool faceLeft;
-                if (su) {
-                    faceLeft = angleLeftRight(su.rotation_angle, true,
-                        false);
-                }
-                if (!moveWeaponIcon.initialized) {
-                    //rather a cheap trick to distinguish initialization
-                    //from not-animating state
-                    moveWeaponIcon.init(Time.Null, faceLeft ? 1 : 0,
-                        faceLeft ? 0 : 1);
-                }
-                bool rtol = moveWeaponIcon.start
-                    > moveWeaponIcon.target;
-                if (rtol != faceLeft) {
-                    if (moveWeaponIcon.inProgress()) {
-                        //change direction (works because
-                        //interpolation function is symmetric)
-                        moveWeaponIcon.setParams(moveWeaponIcon.target,
-                            moveWeaponIcon.start);
-                    } else {
-                        moveWeaponIcon.init(cWeaponIconMoveTime,
-                            faceLeft ? 1 : 0, faceLeft ? 0 : 1);
-                    }
-                }
-
-                //set the position
-                float wip = moveWeaponIcon.value();
-                auto npos = placeRelative(Rect2i(weaponIcon.size()),
-                    bounds, Vector2i(0, -1), wip, 0.5f);
-                npos += bounds.p1;
-                setWPos(weaponIcon, npos);
-            } else {
-                moveWeaponIcon.reset();
-            }
-
-            //add rectangle under pos variable, return the rect's position
-            Vector2i addThing(Vector2i size) {
-                pos.y -= size.y;
-                //pos.y -= 1; //some spacing, but it looks ugly
-                auto p = pos;
-                p.x -= size.x/2; //center
-                return p;
-            }
-
-            void mooh(bool vis, Widget w) {
-                setWVisible(w, vis);
-                if (vis)
-                    setWPos(w, addThing(w.requestSize));
-            }
-            auto tlv = showLabels && !weapon_visible;
-            mooh(tlv && owner.mTeamGUISettings.showPoints, wormPoints);
-            mooh(tlv && owner.mTeamGUISettings.showName, wormName);
-            mooh(tlv && owner.mTeamGUISettings.showTeam, wormTeam);
-            //label already placed, but adjust position for arrow
-            if (weapon_visible) {
-                pos.y -= weaponIcon.size.y;
-            }
-            mooh(showLabels && isActiveWorm, arrow);
-
-            //flash label color to white for active worm
-            void flash(bool on) {
-                Font f = on ? member.owner.font_flash : member.owner.font;
-                wormName.font = f;
-                wormTeam.font = f;
-                wormPoints.font = f;
-            }
-            flash(tlv && isActiveWorm
-                && cast(int)(owner.mGame.clientTime.current.secsf*2)%2 == 0);
-
-            //for healthHint
-            //I simply trigger it when the health value changes, and
-            //when currently no label is displayed
-            //the label is only removed as soon as the health value is
-            //constant again
-            //slight duplication of the logic in gameframes
-            if (moveHealth.currentTime >= moveHealth.endTime
-                + cHealthHintWait)
-            {
-                //ensure it's removed
-                healthHint.remove();
-                //probably start a new animation
-                auto target = member.currentHealth;
-                auto diff =  member.member.currentHealth() - target;
-                //compare target and realHealth to see if health is
-                //really changing (diff can still be != 0 if not)
-                if (diff < 0 && target != lastHealthHintTarget
-                    && target != member.realHealth())
-                {
-                    //start (only for damages, not upgrades => "< 0")
-                    moveHealth.init(cHealthHintTime, 0,
-                        cHealthHintDistance);
-                    healthHint.text = myformat("{}", -diff);
-                    owner.addChild(healthHint);
-                    //this is to avoid restarting the label animation
-                    //several times when counting down takes longer than
-                    //to display the fill health damage hint animation
-                    lastHealthHintTarget = target;
-                }
-            }
-            if (healthHint.parent()) {
-                //pos is leftover from above, move and center it
-                pos.y -= moveHealth.value();
-                setWPos(healthHint, pos-healthHint.size.X/2);
-            }
-        }
-    } // simulate
 } //ViewMember
+
+enum MoveLabelEffect {
+    move,   //straight
+    bubble, //like in water
+}
+
+class DrownLabel : SceneObject {
+    private {
+        GameInfo mGame;
+        MoveLabelEffect mEffect;
+        FormattedText mTxt;
+        Time mStart;
+        float mSpeed; //pixels/second
+        Vector2i mFrom, mTo;
+    }
+
+    //member inf drowned at pos (pos is on the ground)
+    this(TeamMemberInfo inf, int lost, Vector2i pos) {
+        mGame = inf.owner.owner;
+        mTxt = inf.owner.createLabel();
+        mTxt.setTextFmt(false, "{}", lost);
+        mFrom = pos;
+        mTo = Vector2i(pos.x, mGame.engine.waterOffset);
+        mStart = mGame.clientTime.current;
+        mEffect = MoveLabelEffect.bubble;
+        mSpeed = cDrownLabelSpeed;
+    }
+
+    override void draw(Canvas c) {
+        auto now = mGame.clientTime.current;
+
+        auto dir = toVector2f(mTo) - toVector2f(mFrom);
+        auto px = (now-mStart).secsf * mSpeed;
+        auto move = px * dir.normal;
+
+        if (move.length >= dir.length) {
+            removeThis();
+            return;
+        }
+
+        if (mEffect == MoveLabelEffect.bubble) {
+            const cPxArc = 50; //so many sinus curves over a pixel distance
+            const cArcAmp = 10; //amplitude of sinus curve
+            auto idx = px / cPxArc * math.PI * 2;
+            move.x += math.sin(idx) * cArcAmp;
+        }
+
+        auto curpos = mFrom + toVector2i(move);
+
+        mTxt.draw(c, curpos);
+    }
+}
 
 //GameView is everything which is scrolled
 //it displays the game directly and also handles input directly
@@ -406,6 +393,8 @@ class GameView : Widget {
     private {
         GameInfo mGame;
         Container mGuiFrame;
+
+        Scene mLabels;
 
         Camera mCamera;
         int mCurCamPriority;
@@ -442,32 +431,11 @@ class GameView : Widget {
         ViewMember activeWorm;
         ViewMember lastActiveWorm;
 
-        enum MoveLabelEffect {
-            move,   //straight
-            bubble, //like in water
-        }
-
-        struct MoveLabel {
-            MoveLabelEffect effect;
-            Widget label;
-            Time start;
-            float speed; //pixels/second
-            Vector2i from, to;
-        }
-
-        MoveLabel[] mMoveLabels;
         bool mCursorVisible = true;
     } //private
 
-    /+void updateGUI() {
-        foreach (m; mAllMembers) {
-            m.updateGUI();
-        }
-    }+/
-
     void setGUITeamMemberSettings(GUITeamMemberSettings s) {
         mTeamGUISettings = s;
-        //updateGUI();
     }
 
     int nameLabelLevel() {
@@ -481,21 +449,6 @@ class GameView : Widget {
         s.showName = t >= 2;
         s.showTeam = t >= 3;
         setGUITeamMemberSettings(s);
-    }
-
-    //member inf drowned at pos (pos is on the ground)
-    private void showDrown(TeamMemberInfo inf, int lost, Vector2i pos) {
-        MoveLabel ml;
-        auto lbl = inf.owner.createLabel();
-        lbl.text = myformat("{}", lost);
-        addChild(lbl);
-        ml.label = lbl;
-        ml.from = pos;
-        ml.to = Vector2i(pos.x, mGame.engine.waterOffset);
-        ml.start = mGame.clientTime.current;
-        ml.effect = MoveLabelEffect.bubble;
-        ml.speed = cDrownLabelSpeed;
-        mMoveLabels ~= ml;
     }
 
     private void doSim() {
@@ -512,40 +465,10 @@ class GameView : Widget {
             if (onTeamChange)
                 onTeamChange();
         }
-
-        foreach (m; mAllMembers) {
-            m.simulate();
-        }
-
-        int i = 0;
-        while (i < mMoveLabels.length) {
-            MoveLabel cur = mMoveLabels[i];
-            auto now = mGame.clientTime.current;
-
-            auto dir = toVector2f(cur.to) - toVector2f(cur.from);
-            auto px = (now-cur.start).secsf * cur.speed;
-            auto move = px * dir.normal;
-
-            if (move.length >= dir.length) {
-                cur.label.remove();
-                mMoveLabels = mMoveLabels[0..i] ~ mMoveLabels[i+1..$];
-                continue;
-            }
-            i++;
-
-            if (cur.effect == MoveLabelEffect.bubble) {
-                const cPxArc = 50; //so many sinus curves over a pixel distance
-                const cArcAmp = 10; //amplitude of sinus curve
-                auto idx = px / cPxArc * math.PI * 2;
-                move.x += math.sin(idx) * cArcAmp;
-            }
-
-            cur.label.setAddToPos(cur.from + toVector2i(move));
-        }
     }
 
     private void doMemberDrown(TeamMember member, int lost, Vector2i at) {
-        showDrown(mGame.allMembers[member], lost, at);
+        mLabels.add(new DrownLabel(mGame.allMembers[member], lost, at));
     }
 
     override bool greedyFocus() {
@@ -554,6 +477,8 @@ class GameView : Widget {
 
     this(GameInfo game) {
         mGame = game;
+        mLabels = new Scene();
+        mLabels.zorder = GameZOrder.Names;
 
         readd_graphics();
 
@@ -647,9 +572,7 @@ class GameView : Widget {
     }
 
     void readd_graphics() {
-        SceneObject labels = new DrawLabels();
-        labels.zorder = GameZOrder.Names;
-        mGame.cengine.scene.add(labels);
+        mGame.cengine.scene.add(mLabels);
 
         //xxx what a dirty hack...
         //check for a geometry collision outside the world area on the left
@@ -853,30 +776,6 @@ class GameView : Widget {
         super.simulate();
         sim_camera();
         doSim();
-    }
-
-    //NOTE: there's the following problem: labels (stupidly) are GUI elements
-    //      and thus are drawn separately from the game engine, so here's this
-    //      (stupid) hack to fix the zorder of the labels
-    private class DrawLabels : SceneObject {
-        override void draw(Canvas canvas) {
-            this.outer.drawChildren(canvas);
-        }
-    }
-
-    override void onDrawChildren(Canvas c) {
-        //overriding this disables the default child widget drawing code
-        //instead, this is done by DrawLabels.draw / drawChildren
-    }
-
-    private void drawChildren(Canvas c) {
-        //xxx destroys zorder
-        //could do:  super.onDrawChildren(c)
-        //this would call the _super_ implementation, not the overridden one
-        //but dmd breaks with this (bug 3500), and it's strange, so: no.
-        foreach (sub; children) {
-            sub.doDraw(c);
-        }
     }
 
     override void onDraw(Canvas c) {

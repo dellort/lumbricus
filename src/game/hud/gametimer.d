@@ -21,7 +21,6 @@ class GameTimer : BoxContainer {
         Label mTurnTime, mGameTime;
         bool mActive;
         Time mLastTime;
-        Vector2i mMinSize;
         Font[5] mFont;
         //xxx load this from somewhere
         bool mShowGameTime, mShowTurnTime;
@@ -30,7 +29,6 @@ class GameTimer : BoxContainer {
     }
 
     this(SimpleContainer hudBase, GameInfo game, Object link) {
-        setVirtualFrame(false);
         mGame = game;
         mStatus = castStrict!(TimeStatus)(link);
 
@@ -54,8 +52,7 @@ class GameTimer : BoxContainer {
         mGameTime.border = Vector2i(7, 0);
         mGameTime.centerX = true;
 
-        mMinSize = toVector2i(toVector2f(mTurnTime.font.textSize("99"))*1.5f);
-        //mMinSize.y = 100; //cast(int)(mMinSize.x*0.9f);
+        minSize = toVector2i(toVector2f(mTurnTime.font.textSize("99"))*1.5f);
 
         mLastTime = timeCurrentTime();
         visible = false;
@@ -77,7 +74,7 @@ class GameTimer : BoxContainer {
     }
 
     private void setTurnTime(Time tRemain, bool paused = false) {
-        static char[20] turnTBuffer;
+        char[20] turnTBuffer = void;
         //little hack to show correct time
         Time rt = tRemain - timeMsecs(1);
         float rt_sec = rt.secs >= -1 ? rt.secsf+1 : 0f;
@@ -96,7 +93,7 @@ class GameTimer : BoxContainer {
     }
 
     private void setGameTime(Time tRemain) {
-        static char[20] gameTBuffer;
+        char[20] gameTBuffer = void;
         Time gt = tRemain - timeMsecs(1);
         int gt_sec = gt > Time.Null ? gt.secs+1 : 0;
         mGameTime.text = myformat_s(gameTBuffer, "{:d2}:{:d2}",
@@ -145,14 +142,6 @@ class GameTimer : BoxContainer {
                 styles.removeCustomRule("/gametimer", "border-color");
             }
         }
-    }
-
-    Vector2i layoutSizeRequest() {
-        //idea: avoid resizing, give a larger area to have moar border
-        Vector2i ret = mMinSize;
-        Vector2i l = super.layoutSizeRequest();
-        ret.y = max(ret.y, l.y);
-        return ret;
     }
 
     static this() {

@@ -9,6 +9,7 @@ import framework.timesource;
 import gui.container;
 import gui.label;
 import gui.progress;
+import gui.rendertext;
 import gui.tablecontainer;
 import gui.widget;
 import game.clientengine;
@@ -21,6 +22,29 @@ import utils.vector2;
 
 import tango.math.Math : PI;
 import array = tango.core.Array;
+
+class WormLabel : Widget {
+    TeamInfo team;
+    FormattedText txt;
+
+    this(TeamInfo team) {
+        focusable = false;
+        isClickable = false;
+        txt = team.createLabel();
+    }
+
+    override Vector2i layoutSizeRequest() {
+        return txt.size();
+    }
+
+    void update() {
+        needResize(true);
+    }
+
+    override void onDraw(Canvas c) {
+        txt.draw(c, Vector2i(0));
+    }
+}
 
 //the team-bars on the bottom of the screen
 class TeamWindow : Widget {
@@ -45,7 +69,7 @@ class TeamWindow : Widget {
 
         class PerTeam {
             Foobar bar;
-            Label global_wins;
+            WormLabel global_wins;
             int last_global_wins = -1; //-1: force lazy initialization
         }
     }
@@ -91,12 +115,12 @@ class TeamWindow : Widget {
         foreach (t; teams) {
             table.addRow();
 
-            table.add(t.createLabel(), 0, table.height() - 1,
+            table.add(new WormLabel(t), 0, table.height() - 1,
                 WidgetLayout.Aligned(1, 0));
 
             PerTeam ti = new PerTeam();
 
-            ti.global_wins = t.createLabel();
+            ti.global_wins = new WormLabel(t);
             table.add(ti.global_wins, 1, table.height() -1,
                 WidgetLayout.Noexpand());
 
@@ -150,7 +174,8 @@ class TeamWindow : Widget {
             //also does the first time initialization
             auto curwin = team.team.globalWins();
             if (ti.last_global_wins != curwin) {
-                ti.global_wins.text = myformat("{}", curwin);
+                ti.global_wins.txt.setTextFmt(false, "{}", curwin);
+                ti.global_wins.update();
                 ti.last_global_wins = curwin;
             }
         }
