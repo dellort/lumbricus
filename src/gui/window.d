@@ -1,6 +1,5 @@
 module gui.window;
 
-import common.visual;
 import framework.config;
 import framework.event;
 import framework.framework;

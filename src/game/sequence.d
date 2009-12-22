@@ -460,6 +460,12 @@ class AniStateDisplay : StateDisplay {
                 //arrows used to have zorder GameZOrder.RangeArrow
                 //now they have the zorder of the object; I think it's ok
                 arrow.draw(c, apos, aparams, itime - mStart);
+
+                //text
+                //don't even think about making it team colored
+                posrect.extendBorder(Vector2i(-20));
+                apos = posrect.clip(apos);
+                owner.engine.drawTextFmt(c, apos, "{}", (ipos-apos).length);
             }
         }
     }

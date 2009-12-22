@@ -119,7 +119,7 @@ class ProjectileSprite : ActionSprite {
             && currentState.minimumGluedTime == Time.Null)
         {
             if (!mTimeLabel) {
-                mTimeLabel = new RenderText(engine);
+                mTimeLabel = engine.gfx.textCreate();
                 graphic.attachText = mTimeLabel;
             }
             int remain = cast(int)(detDelta.secsf + 0.99f);

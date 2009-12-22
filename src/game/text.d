@@ -1,41 +1,40 @@
 module game.text;
 
-import common.visual;
 import framework.framework;
 import framework.font;
-import game.game;
-import game.controller;
+import gui.renderbox;
+import gui.rendertext;
 import utils.color;
 import utils.misc;
 import utils.reflection;
 import utils.vector2;
 
 //text display within the game
-//does onbly the annoying and disgusting job of wrapping unserializable
+//does only the annoying and disgusting job of wrapping unserializable
 //  FormattedText in a serializable class; if our design was a bit cleaner, we
 //  wouldn't need this
+//you must call saveStyle() to ensure the default font and borders are saved
+//  (after you change it in the renderer directly)
+//you must set the text with RenderText methods to be sure it is saved
 class RenderText {
     private {
-        GameEngine mEngine;
         struct Transient {
             FormattedText renderer;
         }
         Transient mT;
         char[] mMarkupText;
         BoxProperties mBorder;
-        Color mFontColor;
+        FontProperties mFont;
     }
 
     //if non-null, this is visible only if true is returned
-    bool delegate(TeamMember t) visibility;
+    //remember that the delegate is called in a non-deterministic way
+    bool delegate(RenderText) visibility;
 
-    this(GameEngine a_engine) {
-        mEngine = a_engine;
-        //init to what we had in the GUI in r865
-        mBorder.border = Color(0.7);
-        mBorder.back = Color(0);
-        mBorder.cornerRadius = 3;
-        mFontColor = Color(0.9);
+    this() {
+        //create on instantiation
+        //not called on deserialization, but then it's handled on demand
+        renderer();
     }
     this(ReflectCtor c) {
         c.transient(this, &mT);
@@ -48,15 +47,7 @@ class RenderText {
         if (mMarkupText == txt)
             return;
         mMarkupText = txt.dup; //copy for more safety
-        update();
-    }
-
-    Color color() {
-        return mFontColor;
-    }
-    void color(Color c) {
-        if (c == mFontColor)
-            return;
+        renderer.setMarkup(mMarkupText);
     }
 
     //do:
@@ -70,27 +61,21 @@ class RenderText {
         markupText = formatfx_s(buffer, fmt, _arguments, _argptr);
     }
 
-    //--- non-determinstic functions following here
-
-    private void update() {
-        if (!mT.renderer) {
-            mT.renderer = new FormattedText();
-            mT.renderer.font = gFontManager.loadFont("wormfont");
-        }
-        mT.renderer.setBorder(mBorder);
-        mT.renderer.setMarkup(mMarkupText);
-        FontProperties p = mT.renderer.font.properties;
-        auto p2 = p;
-        p2.fore = mFontColor;
-        if (p2 != p) {
-            mT.renderer.font = gFontManager.create(p2);
-        }
+    void saveStyle() {
+        if (!mT.renderer)
+            return;
+        mBorder = renderer.border;
+        mFont = renderer.font.properties;
     }
+
+    //--- non-determinstic functions following here
 
     FormattedText renderer() {
         if (!mT.renderer) {
-            update();
-            assert(!!mT.renderer);
+            mT.renderer = new FormattedText();
+            mT.renderer.setBorder(mBorder);
+            mT.renderer.font = gFontManager.create(mFont);
+            mT.renderer.setMarkup(mMarkupText);
         }
         return mT.renderer;
     }
@@ -107,10 +92,7 @@ class RenderText {
     bool visible() {
         if (!visibility)
             return true;
-        auto getcontrolled = mEngine.callbacks.getControlledTeamMember;
-        if (!getcontrolled)
-            return true;
-        return visibility(getcontrolled());
+        return visibility(this);
     }
 }
 

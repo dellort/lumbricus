@@ -3,7 +3,10 @@ module game.gfxset;
 import common.animation;
 import framework.config;
 import framework.framework;
+import framework.font;
 import game.particles : ParticleType;
+import gui.rendertext;
+import gui.renderbox;
 import common.resset;
 import common.resources : gResources, ResourceFile;
 //import common.macroconfig;
@@ -18,6 +21,7 @@ import game.events;
 import game.sequence;
 import game.setup;
 import game.sprite;
+import game.text;
 import game.weapon.weapon;
 
 class ClassNotRegisteredException : Exception {
@@ -390,6 +394,30 @@ class GfxSet {
         events.inherit("root", "shooter"); //weapon.d
         events.inherit("root", "sprite");
     }
+
+    static BoxProperties textWormBorderStyle() {
+        //init to what we had in the GUI in r865
+        BoxProperties border;
+        border.border = Color(0.7);
+        border.back = Color(0);
+        border.cornerRadius = 3;
+        return border;
+    }
+
+    //and some more hacky hacks
+    static void textApplyWormStyle(FormattedText txt) {
+        txt.setBorder(textWormBorderStyle());
+        txt.font = gFontManager.loadFont("wormfont");
+    }
+
+    //remember that RenderText is just an idiotic wrapper around FormattedText
+    //  for serialization
+    static RenderText textCreate() {
+        auto txt = new RenderText;
+        textApplyWormStyle(txt.renderer);
+        txt.saveStyle();
+        return txt;
+    }
 }
 
 //per-team themeing used by the game engine, by the GUI etc.
@@ -397,6 +425,7 @@ class GfxSet {
 class TeamTheme {
     Color color;
     int colorIndex; //index into cTeamColors
+    Font font;
 
     //wwp hardcodes these colors (there are separate bitmaps for each)
     //the indices are also hardcoded to wwp (0 must be red etc.)
@@ -435,6 +464,19 @@ class TeamTheme {
         cursor = loadanim("point");
         click = loadanim("click");
         aim = loadanim("aim");
+
+        font = gFontManager.loadFont("wormfont");
+        //set color; Font is immutable
+        auto style = font.properties;
+        style.fore = color;
+        font = new Font(style);
+    }
+
+    RenderText textCreate() {
+        auto txt = GfxSet.textCreate();
+        txt.renderer.font = font;
+        txt.saveStyle();
+        return txt;
     }
 }
 

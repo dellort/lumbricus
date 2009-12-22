@@ -1,6 +1,5 @@
 module gui.container;
 
-static import common.visual;
 import framework.framework : Canvas;
 import framework.event;
 import gui.widget;

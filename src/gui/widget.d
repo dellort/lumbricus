@@ -1,12 +1,13 @@
 module gui.widget;
 
-import common.visual;
 import framework.config;
 import framework.filesystem;
 import framework.framework;
 import framework.event;
 import framework.i18n;
 import gui.global;
+import gui.renderbox;
+import gui.rendertext;
 import gui.styles;
 import utils.configfile;
 import utils.factory;

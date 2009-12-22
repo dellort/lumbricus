@@ -133,7 +133,7 @@ class MouseScroller : ScrollArea {
                 noticeAction();
             }
         }
-        //apparently mMouseScrolling shouldn't eat events...? so be it.
+        //apparently mMouseFollow shouldn't eat events...? so be it.
         bool take;
         take |= event.isMouseEvent && mMouseScrolling;
         take |= event.isMouseRelated && filterClicks && mMouseScrolling;

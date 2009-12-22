@@ -4,7 +4,6 @@ import framework.framework;
 import framework.i18n;
 import common.task;
 import common.common;
-import common.visual;
 import game.gfxset;
 import gui.widget;
 import gui.edit;

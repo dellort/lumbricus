@@ -3,7 +3,6 @@ module game.hud.gameteams;
 
 import common.common;
 import common.scene;
-import common.visual;
 import framework.font;
 import framework.framework;
 import framework.timesource;
@@ -13,6 +12,7 @@ import gui.progress;
 import gui.tablecontainer;
 import gui.widget;
 import game.clientengine;
+import game.gfxset;
 import game.hud.teaminfo;
 import utils.array;
 import utils.misc;
@@ -101,12 +101,7 @@ class TeamWindow : Widget {
                 WidgetLayout.Noexpand());
 
             ti.bar = new Foobar();
-            //xxx: no idea how to get the actual properties
-            BoxProperties box;
-            box.border = Color(0.7);
-            box.back = Color(0);
-            box.cornerRadius = 3;
-            ti.bar.border = box;
+            ti.bar.border = GfxSet.textWormBorderStyle();
             ti.bar.fill = t.color;
             WidgetLayout lay; //expand in y, but left-align in x
             lay.alignment[0] = 0;

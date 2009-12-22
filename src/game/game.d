@@ -17,6 +17,7 @@ import game.sequence;
 import game.setup;
 import game.particles;
 import game.lua;
+import gui.rendertext; //oops, the core shouldn't really depend from the GUI
 import net.marshal : Hasher;
 import utils.list2;
 import utils.time;
@@ -91,6 +92,8 @@ class GameEngine {
 
 
         GObjectSprite[] mPlaceQueue;
+
+        FormattedText mTempText;
 
         AccessEntry[] mAccessMapping;
         struct AccessEntry {
@@ -234,6 +237,7 @@ class GameEngine {
         c.transient(this, &mCallbacks);
         c.transient(this, &mCmd);
         c.transient(this, &mCmds);
+        c.transient(this, &mTempText);
         auto t = c.types();
         t.registerClass!(typeof(mObjects));
         if (c.recreateTransient) {
@@ -649,6 +653,32 @@ class GameEngine {
             sprite.activate(npos);
         }
         mPlaceQueue = null;
+    }
+
+    //draw some text with a border around it, in the usual worms label style
+    //this uses a style
+    //the bad:
+    //- slow, may trigger memory allocations (at the very least it will use
+    //  slow array appends, even if no new memory is really allocated)
+    //- does a lot more work than just draw text and a box
+    //- slow because it formats text on each frame
+    //- it sucks, maybe I'll replace it by something else
+    //  use FormattedText or RenderText instead with GfxSet.textCreate()
+    //the good:
+    //- uses the same drawing code as other _game_ labels
+    //- for very transient labels, this probably performs better than allocating
+    //  a RenderText and keeping it around
+    //- no need to be deterministic
+    void drawTextFmt(Canvas c, Vector2i pos, char[] fmt, ...) {
+        if (!mTempText) {
+            mTempText = new FormattedText();
+            GfxSet.textApplyWormStyle(mTempText);
+        }
+        char[20] buffer = void;
+        char[] s = formatfx_s(buffer, fmt, _arguments, _argptr);
+        mTempText.setMarkup(s);
+        mTempText.draw(c, pos);
+        mTempText.clear();
     }
 
 

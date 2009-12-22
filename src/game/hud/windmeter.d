@@ -3,7 +3,6 @@ module game.hud.windmeter;
 import framework.framework;
 import common.common;
 import common.scene;
-import common.visual;
 import game.clientengine;
 import game.hud.teaminfo;
 import gui.widget;
@@ -19,7 +18,6 @@ class WindMeter : Widget {
         //Texture mBackgroundTex;
         Texture mWindLeft, mWindRight;
         Vector2i mPosCenter;
-        BoxProperties mBoxStyle;
 
         //pixels/sec
         float mAnimSpeed;
@@ -42,8 +40,6 @@ class WindMeter : Widget {
         mTexStep = wmNode.getIntValue("textureStep", 8);
         mAnimSpeed = wmNode.getFloatValue("animSpeed", 40.0f);
 
-        mBoxStyle.loadFrom(wmNode.getSubNode("box"));
-
         mMaxWidth = mWindLeft.size.x - mTexStep;
         mSize = Vector2i(2*mMaxWidth + 2*borderdist + 3/*center*/
             + 2/*round corners*/, mWindLeft.size.y + 2*borderdist);
@@ -56,7 +52,6 @@ class WindMeter : Widget {
         auto time = timeCurrentTime;
         if (mGame.cengine) {
             //canvas.draw(mBackgroundTex, pos);
-            drawBox(canvas, pos, mSize, mBoxStyle);
             float wspeed = mGame.engine.windSpeed;
             int anisize = clampRangeC(cast(int)(wspeed*mMaxWidth),
                 -mMaxWidth,mMaxWidth);

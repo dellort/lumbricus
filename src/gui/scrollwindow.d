@@ -1,6 +1,5 @@
 module gui.scrollwindow;
 
-import common.visual;
 import gui.button;
 import gui.container;
 import gui.scrollbar;

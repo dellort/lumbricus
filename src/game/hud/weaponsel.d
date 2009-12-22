@@ -2,7 +2,6 @@ module game.hud.weaponsel;
 
 import common.common;
 import common.scene;
-import common.visual;
 import framework.framework;
 import framework.font;
 import framework.i18n;

@@ -300,7 +300,7 @@ class CrateSprite : ActionSprite {
         if (active) {
             //xxx needs a better way to get the contents of the crate
             if (stuffies.length > 0 && mCrateType != CrateType.med) {
-                mSpy = new RenderText(engine);
+                mSpy = engine.gfx.textCreate();
                 char[] msg = "\\t(" ~ stuffies[0].id() ~ ")";
                 if (bomb)
                     msg = "\\c(team_red)" ~ msg;
@@ -351,11 +351,11 @@ class CrateSprite : ActionSprite {
 
     //for TextGraphic.visibleDg : returns true if spy is shown (m is the
     //  client's controlled member)
-    private bool spyVisible(TeamMember m) {
-        if (m)
-            return m.team.hasCrateSpy()
-                && (currentState !is myclass.st_drowning);
-        return false;
+    private bool spyVisible(RenderText s) {
+        auto m = engine.callbacks.getControlledTeamMember();
+        if (!m)
+            return false;
+        return m.team.hasCrateSpy() && (currentState !is myclass.st_drowning);
     }
 }
 

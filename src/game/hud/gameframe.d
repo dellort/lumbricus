@@ -3,7 +3,6 @@ module game.hud.gameframe;
 import common.common;
 import common.toplevel;
 import common.scene;
-import common.visual;
 import framework.framework;
 import framework.event;
 import framework.i18n;

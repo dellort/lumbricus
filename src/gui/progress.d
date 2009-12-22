@@ -1,9 +1,9 @@
 module gui.progress;
 
-import common.visual;
 import framework.framework;
 import gui.container;
 import gui.label;
+import gui.renderbox;
 import gui.tablecontainer;
 import gui.widget;
 import utils.time;

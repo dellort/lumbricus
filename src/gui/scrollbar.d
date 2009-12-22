@@ -1,6 +1,5 @@
 module gui.scrollbar;
 
-import common.visual;
 import gui.button;
 import gui.container;
 import gui.global;
@@ -43,7 +42,6 @@ class ScrollBar : Widget {
         //that thing which sits between the two buttons
         //xxx: drag and drop code partially copied from window.d
         class Bar : Widget {
-            BoxProperties mBorder;
             bool drag_active;
             Vector2i drag_start;
 

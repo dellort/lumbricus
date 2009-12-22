@@ -1,6 +1,5 @@
 module gui.dropdownlist;
 
-import common.visual;
 
 import framework.font;
 import framework.framework;

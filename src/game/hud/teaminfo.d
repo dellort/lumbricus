@@ -3,7 +3,6 @@
 //at least the file-/module-name is completely wrong
 module game.hud.teaminfo;
 
-import common.visual;
 import framework.font;
 import framework.framework;
 import framework.timesource;
