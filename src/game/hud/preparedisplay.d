@@ -25,12 +25,13 @@ class PrepareDisplay : Label {
         tr = localeRoot.bindNamespace("gui_prepare");
         styles.id = "preparebox";
         font = gFontManager.loadFont("messages");
-        border = Vector2i(7, 5);
 
         //hide initially
         visible = false;
 
-        hudBase.add(this, WidgetLayout.Aligned(0, -1, Vector2i(0, 40)));
+        auto lay = WidgetLayout.Aligned(0, -1, Vector2i(0, 40));
+        lay.border = Vector2i(7, 5);
+        hudBase.add(this, lay);
     }
 
     override void simulate() {
@@ -43,9 +44,8 @@ class PrepareDisplay : Label {
             //little hack to show correct time
             Time pt = mStatus.prepareRemaining - timeMsecs(1);
             float pt_secs = pt.secs >= 0 ? pt.secsf+1 : 0;
-            auto t = mGame.teams[curTeam];
             font = (cast(int)(pt_secs*2)%2 == 0)
-                ? t.font_flash : t.font;
+                ? curTeam.color.font_flash : curTeam.color.font;
 
             char[] teamName = curTeam.name;
             text = tr("teamgetready", teamName, cast(int)pt_secs);

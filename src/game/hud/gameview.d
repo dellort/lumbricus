@@ -75,14 +75,13 @@ class BorderImage : SceneObjectCentered {
 //per-member class
 private class ViewMember : SceneObject {
     GameView owner;
-    TeamMemberInfo member; //from the "engine"
+    TeamMember member; //from the "engine"
 
     FormattedText wormTeam, wormName, wormPoints;
 
     InterpolateExp2!(float, 4.0f) moveWeaponIcon;
 
     InterpolateLinear!(int) moveLabels;
-    //bool beingActive; //last active state to detect state change
 
     //label which displays how much health was lost
     //starts from real health label, moves up, and disappears
@@ -92,33 +91,39 @@ private class ViewMember : SceneObject {
 
     InterpolateLinear!(int) moveHealth;
 
-    int health_cur = int.max;
     int lastHealthHintTarget = int.max;
 
-    this(GameView a_owner, TeamMemberInfo m) {
+    this(GameView a_owner, TeamMember m) {
         owner = a_owner;
         auto ts = owner.mGame.clientTime;
         moveLabels.currentTimeDg = &ts.current;
         moveHealth.currentTimeDg = &ts.current;
         moveWeaponIcon.currentTimeDg = &ts.current;
         member = m;
-        wormTeam = m.owner.createLabel();
-        wormName = m.owner.createLabel();
-        wormName.setLiteral(m.member.name());
-        wormPoints = m.owner.createLabel();
-        healthHint = m.owner.createLabel();
+        TeamTheme theme = team.color;
+        wormTeam = theme.textCreate2();
+        wormTeam.setLiteral(team.name());
+        wormName = theme.textCreate2();
+        wormName.setLiteral(member.name());
+        wormPoints = theme.textCreate2();
+        healthHint = theme.textCreate2();
         weaponIcon = new BorderImage;
         weaponIcon.border = GfxSet.textWormBorderStyle();
 
         owner.mLabels.add(this);
     }
 
+    Team team() {
+        return member.team;
+    }
+
+    bool isControlled() {
+        TeamMember controlled = owner.mGame.control.getControlledMember();
+        return controlled is member;
+    }
+
     override void draw(Canvas canvas) {
-        auto sprite = member.member.control.sprite; //lololol
-
-        if (sprite.isUnderWater()) //no labels when underwater
-            return;
-
+        auto sprite = member.control.sprite; //lololol
         Sequence graphic = sprite.graphic;
 
         if (!graphic) {
@@ -126,15 +131,15 @@ private class ViewMember : SceneObject {
             return;
         }
 
+        if (sprite.isUnderWater()) //no labels when underwater
+            return;
+
         //ughh, needs correct bounding box
         const d = 30;
         Rect2i bounds = Rect2i(-d, -d, d, d);
         bounds += graphic.interpolated_position();
 
-        if (health_cur != member.currentHealth) {
-            health_cur = member.currentHealth;
-            wormPoints.setTextFmt(false, "{}", health_cur);
-        }
+        wormPoints.setTextFmt(false, "{}", member.currentHealth);
 
         //labels are positioned above pos
         Vector2i pos = bounds.center;
@@ -156,9 +161,6 @@ private class ViewMember : SceneObject {
 
         void addLabel(FormattedText txt) {
             txt.draw(canvas, addThing(txt.size));
-        }
-        void addSurface(Surface s) {
-            canvas.draw(s, addThing(s.size));
         }
         void addAnimation(Animation ani) {
             AnimationParams p;
@@ -204,16 +206,14 @@ private class ViewMember : SceneObject {
             showLabels = !isActiveWorm;
         }
 
-        //that weapon label
-        auto amember = owner.mGame.control.getControlledMember();
         //show a weapon icon when the worm graphic wants to show a weapon,
         //  but fails to select an animation; happens when:
         //   a) we are in weapon state, but have no animation
         //   b) main weapon is busy, but secondary is ready
         //      (meaning worm animation is showing primary weapon)
-        bool weapon_icon_visible = (amember is member.member)
+        bool weapon_icon_visible = isControlled()
             && graphic.weapon.length && !graphic.weapon_ok
-            && amember.control.currentWeapon;
+            && member.control.currentWeapon;
 
         if (weapon_icon_visible) {
             //NOTE: wwp animates the appearance/disappearance of
@@ -245,7 +245,7 @@ private class ViewMember : SceneObject {
                 }
             }
 
-            Surface icon = amember.control.currentWeapon.icon;
+            Surface icon = member.control.currentWeapon.icon;
             assert(!!icon);
             float wip = moveWeaponIcon.value();
             auto npos = placeRelative(Rect2i(icon.size()),
@@ -266,7 +266,7 @@ private class ViewMember : SceneObject {
             //flash label color to white for active worm
             bool flash_on = (isActiveWorm
                 && cast(int)(owner.mGame.clientTime.current.secsf*2)%2 == 0);
-            Font f = flash_on ? member.owner.font_flash : member.owner.font;
+            Font f = flash_on ? team.color.font_flash : team.color.font;
             wormName.font = f;
             wormTeam.font = f;
             wormPoints.font = f;
@@ -280,9 +280,8 @@ private class ViewMember : SceneObject {
         }
 
         if (showLabels && isActiveWorm) {
-            auto theme = member.owner.theme;
-            auto ani = member.member.team.allowSelect()
-                ? theme.change : theme.arrow;
+            auto theme = team.color;
+            auto ani = team.allowSelect() ? theme.change : theme.arrow;
             addAnimation(ani);
         }
 
@@ -296,20 +295,18 @@ private class ViewMember : SceneObject {
             + cHealthHintWait)
         {
             //probably start a new animation
-            auto target = member.currentHealth;
-            auto diff =  member.member.currentHealth() - target;
+            auto target = member.currentHealth();
+            auto diff = member.healthTarget() - target;
             //compare target and realHealth to see if health is
             //really changing (diff can still be != 0 if not)
-            if (diff < 0 && target != lastHealthHintTarget
-                && target != member.realHealth())
-            {
+            if (diff < 0 && target != lastHealthHintTarget) {
                 //start (only for damages, not upgrades => "< 0")
                 moveHealth.init(cHealthHintTime, 0,
                     cHealthHintDistance);
                 healthHint.setTextFmt(false, "{}", -diff);
-                //this is to avoid restarting the label animation
-                //several times when counting down takes longer than
-                //to display the fill health damage hint animation
+                //this is to avoid restarting the label animation several times
+                //  when counting down takes longer than to display the full
+                //  health damage hint animation
                 lastHealthHintTarget = target;
             }
         }
@@ -337,9 +334,9 @@ class DrownLabel : SceneObject {
     }
 
     //member inf drowned at pos (pos is on the ground)
-    this(TeamMemberInfo inf, int lost, Vector2i pos) {
-        mGame = inf.owner.owner;
-        mTxt = inf.owner.createLabel();
+    this(GameInfo a_game, TeamMember m, int lost, Vector2i pos) {
+        mGame = a_game;
+        mTxt = m.team.color.textCreate2();
         mTxt.setTextFmt(false, "{}", lost);
         mFrom = pos;
         mTo = Vector2i(pos.x, mGame.engine.waterOffset);
@@ -419,7 +416,6 @@ class GameView : Widget {
         ConfigNode mCommandMap;
 
         //for worm-name drawing
-        ViewMember[] mAllMembers;
         ViewMember[TeamMember] mEngineMemberToOurs;
 
         GUITeamMemberSettings mTeamGUISettings;
@@ -468,7 +464,7 @@ class GameView : Widget {
     }
 
     private void doMemberDrown(TeamMember member, int lost, Vector2i at) {
-        mLabels.add(new DrownLabel(mGame.allMembers[member], lost, at));
+        mLabels.add(new DrownLabel(mGame, member, lost, at));
     }
 
     override bool greedyFocus() {
@@ -487,11 +483,10 @@ class GameView : Widget {
         mCamera = new Camera(mGame.clientTime);
 
         //load the teams and also the members
-        foreach (TeamInfo t; game.teams) {
-            foreach (TeamMemberInfo m; t.members) {
+        foreach (Team t; game.engine.controller.teams) {
+            foreach (TeamMember m; t.getMembers) {
                 ViewMember vt = new ViewMember(this, m);
-                mAllMembers ~= vt;
-                mEngineMemberToOurs[m.member] = vt;
+                mEngineMemberToOurs[m] = vt;
             }
         }
 
@@ -785,7 +780,7 @@ class GameView : Widget {
         //if (mouseOverState)
         if (activeWorm)
             mCursorVisible =
-                activeWorm.member.member.control.renderOnMouse(c, mousePos);
+                activeWorm.member.control.renderOnMouse(c, mousePos);
         else
             mCursorVisible = true;
 

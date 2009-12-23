@@ -40,17 +40,20 @@ class GameTimer : BoxContainer {
             mFont[idx] = gFontManager.loadFont(name);
         }
 
+        auto lay = WidgetLayout.init;
+        lay.border = Vector2i(7, 0);
+
         mTurnTime = new Label();
         mTurnTime.styles.id = "roundtime";
         mTurnTime.font = mFont[0];
-        mTurnTime.border = Vector2i(7, 0);
         mTurnTime.centerX = true;
+        mTurnTime.setLayout(lay);
 
         mGameTime = new Label();
-        mTurnTime.styles.id = "gametime";
+        mGameTime.styles.id = "gametime";
         mGameTime.font = mFont[3];
-        mGameTime.border = Vector2i(7, 0);
         mGameTime.centerX = true;
+        mGameTime.setLayout(lay);
 
         minSize = toVector2i(toVector2f(mTurnTime.font.textSize("99"))*1.5f);
 
@@ -113,7 +116,7 @@ class GameTimer : BoxContainer {
             m = t.current;
         }
         if (m) {
-            bordercolor = mGame.allMembers[m].owner.color;
+            bordercolor = m.team.color.color;
         }
         if (mStatus.showGameTime) {
             setGameTime(mStatus.gameRemaining);

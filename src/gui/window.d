@@ -349,7 +349,6 @@ class WindowWidget : Widget {
         recreateGui();
     }
 
-    //xxx: code duplication with hasDecorations(), but what to do?
     ///set if the tooltip label on the bottom is visible
     bool showTooltipLabel() {
         return mShowTooltipLabel;
@@ -562,7 +561,7 @@ class WindowWidget : Widget {
 
     class WindowClient : BoxContainer {
         this() {
-            super(true);
+            super(false);
         }
         void readdClient() {
             clear();

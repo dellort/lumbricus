@@ -38,8 +38,6 @@ import utils.log;
 
 import tango.math.Math;
 
-//time for which it takes to add/remove 1 health point in the animation
-const Time cTimePerHealthTick = timeMsecs(4);
 
 class GameFrame : SimpleContainer {
     GameInfo game;
@@ -56,7 +54,7 @@ class GameFrame : SimpleContainer {
 
         TeamWindow mTeamWindow;
 
-        Time mLastFrameTime, mRestTime;
+        Time mLastFrameTime;
         bool mFirstFrame = true;
         Vector2i mScrollToAtStart;
 
@@ -110,14 +108,6 @@ class GameFrame : SimpleContainer {
         return mScroller.uncenteredOffset(mScroller.offset);
     }
 
-    //if you have an event, which shall occur all duration times, return the
-    //number of events which fit in t and return the rest time in t (divmod)
-    static int removeNTimes(ref Time t, Time duration) {
-        int r = t/duration;
-        t -= duration*r;
-        return r;
-    }
-
     override void internalSimulate() {
         //some hack (needs to be executed before GameView's simulate() call)
         if (mFirstFrame) {
@@ -135,17 +125,11 @@ class GameFrame : SimpleContainer {
         auto delta = curtime - mLastFrameTime;
         mLastFrameTime = curtime;
 
-        //take care of counting down the health value
-        mRestTime += delta;
-        int change = removeNTimes(mRestTime, cTimePerHealthTick);
-        assert(change >= 0);
         bool finished = true;
-        foreach (TeamMemberInfo tmi; game.allMembers) {
-            int diff = tmi.realHealth() - tmi.currentHealth;
-            if (diff != 0) {
-                finished = false;
-                int c = min(abs(diff), change);
-                tmi.currentHealth += (diff < 0) ? -c : c;
+        foreach (Team t; game.engine.controller.teams) {
+            foreach (TeamMember tm; t.getMembers) {
+                if (tm.currentHealth != tm.healthTarget())
+                    finished = false;
             }
         }
         //only do the rest (like animated sorting) when all was counted down
@@ -264,8 +248,9 @@ class GameFrame : SimpleContainer {
             WidgetLayout.Aligned(1, 1, Vector2i(5, 5)));
         mGui.add(new PowerupDisplay(game),
             WidgetLayout.Aligned(1, -1, Vector2i(5, 20)));
-        mGui.add(new MessageViewer(game),
-            WidgetLayout.Aligned(0, -1, Vector2i(0, 5)));
+        auto lay = WidgetLayout.Aligned(0, -1, Vector2i(0, 5));
+        lay.border = Vector2i(5, 1);
+        mGui.add(new MessageViewer(game), lay);
         mGui.add(new ReplayTimer(game),
             WidgetLayout.Aligned(-1, -1, Vector2i(10, 0)));
         //hud elements requested by gamemode

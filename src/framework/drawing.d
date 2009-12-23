@@ -192,7 +192,8 @@ public class Canvas {
     }
 
     /// like drawRect(), but stippled lines
-    void drawStippledRect(Rect2i rc, Color color) {
+    /// length = length of on/off segments in pixels (if supported)
+    void drawStippledRect(Rect2i rc, Color color, int length = 1) {
         drawRect(rc.p1, rc.p2, color); //default to regular line drawing
     }
 
@@ -491,7 +492,8 @@ class Canvas3DHelper : Canvas {
     protected void lineWidth(int width) {
     }
 
-    protected void lineStipple(bool enable) {
+    //for the length parameter see Canvas.drawStippledRect
+    protected void lineStipple(int length) {
     }
 
     private int getSlices(int radius) {
@@ -618,10 +620,10 @@ class Canvas3DHelper : Canvas {
         end();
     }
 
-    override void drawStippledRect(Rect2i rc, Color color) {
-        lineStipple(true);
+    override void drawStippledRect(Rect2i rc, Color color, int length) {
+        lineStipple(length);
         drawRect(rc.p1, rc.p2, color, 1);
-        lineStipple(false);
+        lineStipple(0);
     }
 
     override void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {

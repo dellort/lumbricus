@@ -32,6 +32,8 @@ import utils.reflection;
 import math = tango.math.Math;
 import tango.util.Convert : to;
 
+//time for which it takes to add/remove 1 health point in the animation
+const Time cTimePerHealthTick = timeMsecs(4);
 
 
 class Team {
@@ -120,6 +122,14 @@ class Team {
             //(it's sad - but the other team member don't care about the
             // wounded! it's a cruel game.)
             h += t.health < 0 ? 0 : t.health;
+        }
+        return h;
+    }
+
+    int totalCurrentHealth() {
+        int h;
+        foreach (t; mMembers) {
+            h += t.currentHealth();
         }
         return h;
     }
@@ -401,8 +411,10 @@ class TeamMember {
         GameEngine mEngine;
         int mLastKnownLifepower;
         int mCurrentHealth; //health value reported to client
+        int mHealthTarget;
         bool mDidGoodbye; //show drown death msg only once
         bool mDeathAnnounced; //show normal death msg only once
+        Time mHealthChangeTime;
     }
 
     this(char[] a_name, Team a_team) {
@@ -418,15 +430,6 @@ class TeamMember {
         return mWormControl;
     }
 
-    //send new health value to client
-    void updateHealth() {
-        mCurrentHealth = health();
-    }
-
-    bool needUpdateHealth() {
-        return mCurrentHealth != health();
-    }
-
     bool checkDying() {
         bool r = control.checkDying();
         if (r && !mDeathAnnounced) {
@@ -436,8 +439,6 @@ class TeamMember {
         }
         return r;
     }
-
-    // --- start TeamMember
 
     char[] name() {
         return mName;
@@ -456,17 +457,55 @@ class TeamMember {
         return control.isAlive();
     }
 
+    //send new health value to client
+    void updateHealth() {
+        mHealthTarget = max(0, health());
+    }
+
+    bool needUpdateHealth() {
+        return mCurrentHealth != mHealthTarget;
+    }
+
+    //the displayed health value; this is only updated at special points in the
+    //  game (by calling updateHealth()), and then the health value is counted
+    //  down/up over time (like an animation)
+    //always capped to 0
     int currentHealth() {
         return mCurrentHealth;
     }
 
-    // --- end TeamMember
+    //what currentHealth will become (during animating)
+    int healthTarget() {
+        return mHealthTarget;
+    }
 
+    //take care of counting down (or up) the health value
+    private void healthAnimation() {
+        //if you have an event, which shall occur all duration times, return the
+        //number of events which fit in t and return the rest time in t (divmod)
+        static int removeNTimes(ref Time t, Time duration) {
+            int r = t/duration;
+            t -= duration*r;
+            return r;
+        }
+
+        mHealthChangeTime += engine.gameTime.difference;
+        int change = removeNTimes(mHealthChangeTime, cTimePerHealthTick);
+        assert(change >= 0);
+        int diff = mHealthTarget - mCurrentHealth;
+        if (diff != 0) {
+            int c = min(abs(diff), change);
+            mCurrentHealth += (diff < 0) ? -c : c;
+        }
+    }
+
+    //(unlike currentHealth() the _actual_ current health value)
     int health(bool realHp = false) {
         //hack to display negative values
         //the thing is that a worm can be dead even if the physics report a
         //positive value - OTOH, we do want these negative values... HACK GO!
         //mLastKnownPhysicHealth is there because mWorm could disappear
+        //yyy check stuff
         auto h = mWormControl.sprite.physics.lifepowerInt;
         if (mWormControl.isAlive() || realHp) {
             return h;
@@ -489,6 +528,7 @@ class TeamMember {
         mWormControl.setDelayedDeath();
         mTeam.parent.addMemberGameObject(this, worm);
         mLastKnownLifepower = health;
+        mCurrentHealth = mHealthTarget = health;
         updateHealth();
         //take control over dying, so we can let them die on end of turn
         xworm.gravestone = mTeam.gravestone;
@@ -559,6 +599,8 @@ class TeamMember {
                 mEngine.callbacks.memberDrown(this, lost, pos);
             }
         }
+
+        healthAnimation();
     }
 
     void youWinNow() {

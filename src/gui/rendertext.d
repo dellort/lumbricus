@@ -366,6 +366,9 @@ public class FormattedText {
     }
 
     //like setText(), but build the string with format()
+    //if the resulting string is the same as the last string set, no further
+    //  work is done (and if the string is small and the format string doesn't
+    //  trigger any toString()s, no memory is allocated)
     void setTextFmt(bool as_markup, char[] fmt, ...) {
         setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
     }

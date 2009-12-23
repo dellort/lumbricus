@@ -58,6 +58,9 @@ struct WidgetLayout {
     Vector2i padA;  //additional left/top border padding
     Vector2i padB;  //additional right/bottom border padding
 
+    //border padding; adds to border area
+    Vector2i border;
+
     //not expanded and aligned, with optional border
     //x: -1 = left, 0 = center, 1 = right
     //y: similar
@@ -448,6 +451,8 @@ class Widget {
     ///Show or hide the widget
     ///Only affects drawing and events, has no influence on layout
     void visible(bool set) {
+        if (set == mVisible)
+            return;
         mVisible = set;
         pollFocusState();
     }
@@ -459,6 +464,8 @@ class Widget {
     ///disabling a widget will gray it out and disable events for this widget
     ///and all children
     void enabled(bool set) {
+        if (set == mEnabled)
+            return;
         mEnabled = set;
         pollFocusState();
         styles.setState("disabled", !mEnabled);
@@ -467,11 +474,12 @@ class Widget {
         return mEnabled;
     }
 
-    Vector2i bordersize() {
+    final Vector2i bordersize() {
+        auto b = mLayout.border;
         if (mDrawBorder)
-            return Vector2i(mBorderStyle.borderWidth
+            b += Vector2i(mBorderStyle.borderWidth
                 + mBorderStyle.cornerRadius/3);
-        return Vector2i(0);
+        return b;
     }
 
     ///translate parent's coordinates (i.e. containedBounds()) to the Widget's
@@ -496,6 +504,26 @@ class Widget {
     ///result.p1 is the container's corrdinate where the client's (0,0) is
     final Rect2i containedBounds() {
         return mContainedWidgetBounds;
+    }
+
+    ///like containedBounds() with borders, but without padding and unoccupied
+    /// space (e.g. a button that doesn't expand and is allocated inside a
+    /// larger area: most of the space outside the button is unallocated, a
+    /// space around the button is for the border, and the space inside the
+    /// button is used up by the text)
+    ///the area between containedBounds() and containedBorderBounds() is used
+    /// for the border, and the top-left part of the border area has begative
+    /// client coordinates
+    ///the border is exactly bordersize() thick (on all 4 sides)
+    final Rect2i containedBorderBounds() {
+        /+ I don't know why it's stored as mBorderArea; not my fault
+        auto res = mContainedWidgetBounds;
+        res.p1 -= bordersize();
+        res.p2 += bordersize();
+        assert(res == mBorderArea);
+        return res;
+        +/
+        return mBorderArea;
     }
 
     ///value passed to last call of layoutContainerAllocate()
@@ -642,13 +670,6 @@ class Widget {
         needRelayout();
     }
 
-    //when mContainedWidgetBounds is changed, update mMousePos accordingly, so
-    //  the scrolled widget still has an up-to-date mouse position
-    private void adjustMousePos(Vector2i newBoundsP1) {
-        Vector2i delta = newBoundsP1 - mContainedWidgetBounds.p1;
-        mMousePos -= delta;
-    }
-
     /// Report wished size (or minimal size) to the parent container.
     /// Can also be used to precalculate the layout (must independent of the
     /// current size).
@@ -684,7 +705,6 @@ class Widget {
         mContainerBounds = rect;
         layoutCalculateSubAllocation(rect);
         auto oldsize = mContainedWidgetBounds.size;
-        adjustMousePos(rect.p1);
         mContainedWidgetBounds = rect;
         if (!mLayoutNeedReallocate && oldsize == rect.size) {
             //huh, no need to reallocate, because only the size matters.
@@ -872,6 +892,11 @@ class Widget {
             mMouseIsInside = mii;
             styles.setState("hover", mii);
             onMouseEnterLeave(mii);
+            auto cur = parent;
+            while (cur) {
+                cur.onChildMouseEnterLeave(this, mii);
+                cur = cur.parent;
+            }
         }
     }
 
@@ -1510,8 +1535,7 @@ class Widget {
         //user's draw routine
         onDraw(c);
 
-        if (focused())
-            onDrawFocus(c);
+        onDrawFocus(c);
 
         onDrawChildren(c);
 
@@ -1578,13 +1602,16 @@ class Widget {
     /// adding proper drawing code by overriding this method (which is why
     /// there's no simpler method of disabling this code)
     protected void onDrawFocus(Canvas c) {
+        if (!focused())
+            return;
+
         auto rc = widgetBounds();
         const border = 3;
         auto s = rc.size;
         if (border*2 < min(s.x, s.y)) {
             rc.extendBorder(Vector2i(-border));
         }
-        c.drawStippledRect(rc, Color(0.5));
+        c.drawStippledRect(rc, Color(0.5), 2);
     }
 
     ///when drawing, add an additional offset to the Widget for the purpose of

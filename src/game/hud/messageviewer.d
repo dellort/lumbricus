@@ -51,7 +51,6 @@ class MessageViewer : Label {
         styles.id = "preparebox";
         font = gFontManager.loadFont("messages");
         mStdFont = font;
-        border = Vector2i(5, 1);
 
         //make sure it's hidden initially
         mInterp.init(timeSecs(0), -200, 0);
@@ -114,10 +113,10 @@ class MessageViewer : Label {
             } else {
                 font = mStdFont;
             }
-            //xxx additional -2 for border size
             mInterp.init(timeSecs(1.5f),
-                -containedBounds.p1.y - size.y - 2, 0);
+                -containedBorderBounds.p1.y - containedBorderBounds.size.y, 0);
         }
+        visible = working;
         setAddToPos(Vector2i(0, mInterp.value()));
     }
 }

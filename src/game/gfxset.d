@@ -56,6 +56,7 @@ class GfxSet {
         Inherit[] mEventInheritance;
 
         bool mFinished;
+        Font mFlashFont;
     }
 
     //xxx only needed by sky.d
@@ -105,6 +106,8 @@ class GfxSet {
     //finishLoading() too; in between, you can preload the resources
     this(GameConfig cfg) {
         ConfigNode gfx = cfg.gfx;
+
+        mFlashFont = gFontManager.loadFont("wormfont_flash");
 
         char[] gfxconf = gfx.getStringValue("config", "wwp.conf");
         char[] watername = gfx.getStringValue("waterset", "blue");
@@ -419,6 +422,10 @@ class GfxSet {
         txt.saveStyle();
         return txt;
     }
+
+    Font textFlashFont() {
+        return mFlashFont;
+    }
 }
 
 //per-team themeing used by the game engine, by the GUI etc.
@@ -426,7 +433,7 @@ class GfxSet {
 class TeamTheme {
     Color color;
     int colorIndex; //index into cTeamColors
-    Font font;
+    Font font, font_flash;
 
     //wwp hardcodes these colors (there are separate bitmaps for each)
     //the indices are also hardcoded to wwp (0 must be red etc.)
@@ -471,12 +478,21 @@ class TeamTheme {
         auto style = font.properties;
         style.fore = color;
         font = new Font(style);
+
+        font_flash = gFontManager.loadFont("wormfont_flash");
     }
 
     RenderText textCreate() {
         auto txt = GfxSet.textCreate();
         txt.renderer.font = font;
         txt.saveStyle();
+        return txt;
+    }
+    //sigh... god this sucks! what actually sucks is RenderText
+    FormattedText textCreate2() {
+        auto txt = new FormattedText();
+        GfxSet.textApplyWormStyle(txt);
+        txt.font = font;
         return txt;
     }
 }

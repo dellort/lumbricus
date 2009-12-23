@@ -29,8 +29,6 @@ class GameInfo {
     GameController logic;
     ClientControl control;
     SimpleNetConnection connection;
-    TeamInfo[Team] teams;
-    TeamMemberInfo[TeamMember] allMembers;
     Time replayRemain;
 
     //clientTime is something linear, that stops with pause, but is arbitrary
@@ -51,11 +49,6 @@ class GameInfo {
         serverTime = engine.gameTime;
         interpolateTime = engine.callbacks.interpolateTime;
 
-        foreach (t; engine.logic().teams()) {
-            auto team = new TeamInfo(this, t);
-            teams[t] = team;
-        }
-
         //doesn't necessarily belong here
         engine.callbacks.getControlledTeamMember = &controlled;
     }
@@ -65,75 +58,3 @@ class GameInfo {
     }
 }
 
-class TeamInfo {
-    GameInfo owner;
-    Team team;
-    Color color;
-    Font font;
-    Font font_flash; //when worm label is highlighted for blinking
-    TeamTheme theme; //game theme, partially used by the GUI
-    //NOTE: in the game, foreign objects could appear, with are member of a team
-    // (like the supersheep), these are not in this list
-    TeamMemberInfo[] members;
-
-    //create a Label in this worm's style
-    //it's initialized with the team's name
-    FormattedText createLabel() {
-        //auto res = theme.textCreate();
-        auto res = new FormattedText();
-        GfxSet.textApplyWormStyle(res);
-        res.font = theme.font;
-        res.setLiteral(team.name());
-        return res;
-    }
-
-    //sum of all team member's TeamMemberInfo.currentHealth()
-    int currentHealth() {
-        int sum = 0;
-        foreach (m; members) {
-            sum += m.currentHealth;
-        }
-        return sum;
-    }
-
-    this(GameInfo a_owner, Team t) {
-        owner = a_owner;
-        team = t;
-        theme = t.color();
-        color = theme.color;
-        auto st = gFontManager.getStyle("wormfont");
-        st.fore = color;
-        font = new Font(st);
-        auto st_flash = st;
-        st_flash.fore = Color(1);
-        font_flash = new Font(st_flash);
-
-        foreach (m; t.getMembers()) {
-            auto member = new TeamMemberInfo(this, m);
-            members ~= member;
-            owner.allMembers[m] = member;
-        }
-    }
-}
-
-class TeamMemberInfo {
-    TeamInfo owner;
-    TeamMember member;
-
-    //the "animated" health value, which is counted up/down to the real value
-    //get the (not really) real value through realHealth()
-    //(both this and realHealth are clipped to 0)
-    //value changed in gameframe.d
-    int currentHealth;
-
-    //similar to member.currentHealth(), but clipped to 0
-    int realHealth() {
-        return max(member.currentHealth(), 0);
-    }
-
-    this(TeamInfo a_owner, TeamMember m) {
-        owner = a_owner;
-        member = m;
-        currentHealth = realHealth();
-    }
-}

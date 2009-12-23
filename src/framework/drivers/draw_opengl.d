@@ -651,12 +651,14 @@ class GLCanvas : Canvas3DHelper {
         glLineWidth(width);
     }
 
-    override void lineStipple(bool enable) {
+    override void lineStipple(int length) {
         flush();
 
-        setGLEnable(GL_LINE_STIPPLE, enable);
-        //first parameter is essential the length of each bit in pixels
-        glLineStipple(3, 0b1010_1010_1010_1010);
+        setGLEnable(GL_LINE_STIPPLE, length > 0);
+        if (length > 0) {
+            //first parameter is essentially the length of each bit in pixels
+            glLineStipple(length, 0b1010_1010_1010_1010);
+        }
     }
 
     override void updateTransform(Vector2i trans, Vector2f scale) {

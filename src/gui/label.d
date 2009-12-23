@@ -14,7 +14,6 @@ import utils.misc;
 class Label : Widget {
     private {
         FormattedText mText;
-        Vector2i mBorder;
         bool mShrink, mCenterX;
         Texture mImage;
         //calculated by layoutSizeRequest
@@ -34,7 +33,6 @@ class Label : Widget {
         styleRegisterString("text-font");
         mText = new FormattedText();
         mText.font = gFontManager.loadFont("label_default");
-        mBorder = Vector2i(0,0);
     }
 
     //no mouse events
@@ -67,7 +65,7 @@ class Label : Widget {
             csize.x += mImage.size.x + (mText.size.x ? cSpacing : 0);
             csize.y = max(csize.y, mImage.size.y);
         }
-        return csize + border*2;
+        return csize;
     }
 
     void text(char[] txt) {
@@ -97,21 +95,13 @@ class Label : Widget {
         if (font is mText.font || font.properties == mText.font.properties)
             return;
         //xxx I don't know... styles stuff kinda sucks
+        //    ^ "make it better"
         mFontOverride = true;
         mText.font = font;
         needResize(true);
     }
     Font font() {
         return mText.font;
-    }
-
-    //(invisible!) border around text (additional to the box)
-    void border(Vector2i b) {
-        mBorder = b;
-        needResize(true);
-    }
-    Vector2i border() {
-        return mBorder;
     }
 
     //if true, report size as 0 and then draw in a special way (see .draw())
@@ -136,26 +126,22 @@ class Label : Widget {
     }
 
     override void onDraw(Canvas canvas) {
-        auto b = border;
         //xxx replace manual centering code etc. by sth. automatic
-        auto diff = size - b*2;
-        int x = b.x;
+        int x = 0;
         if (mImage) {
-            auto s = size - b*2;
+            auto s = size;
             //(mText.size.x was text.length)
             if (mText.size.x)
                 s.x = mImage.size.x;
-            auto ipos = b + s/2 - mImage.size/2;
+            auto ipos = s/2 - mImage.size/2;
             canvas.draw(mImage, ipos);
             x = ipos.x + mImage.size.x + cSpacing;
         }
-        //if (!text.length)
-          //  return;
-        Vector2i p = Vector2i(x, b.y);
-        if (mCenterX && mTextSize.x <= diff.x)
-            p = p + diff/2 - mTextSize/2;
+        Vector2i p = Vector2i(x, 0);
+        if (mCenterX && mTextSize.x <= size.x)
+            p = p + size/2 - mTextSize/2;
         else
-            p.y = p.y + diff.y/2 - mTextSize.y/2;
+            p.y = p.y + size.y/2 - mTextSize.y/2;
         //xxx need replacement for drawTextLimited
         //    FormattedText should do this all by itself
         //if (!mShrink) {
@@ -188,7 +174,6 @@ class Label : Widget {
         mText.setMarkup(r"\t(" ~ node.getStringValue("text") ~ ")");
         mText.update();
 
-        mBorder = node.getValue("border", mBorder);
         mShrink = node.getBoolValue("shrink", mShrink);
         mCenterX = node.getBoolValue("center_x", mCenterX);
 

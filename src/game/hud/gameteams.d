@@ -24,13 +24,14 @@ import tango.math.Math : PI;
 import array = tango.core.Array;
 
 class WormLabel : Widget {
-    TeamInfo team;
+    Team team;
     FormattedText txt;
 
-    this(TeamInfo team) {
+    this(Team team) {
         focusable = false;
         isClickable = false;
-        txt = team.createLabel();
+        txt = team.color.textCreate2();
+        txt.setLiteral(team.name);
     }
 
     override Vector2i layoutSizeRequest() {
@@ -55,8 +56,8 @@ class TeamWindow : Widget {
         //for memory managment reasons, make larger if too small
         const cWidgetsPerRow = 3;
         TableContainer mTable;
-        PerTeam[TeamInfo] mTeamInfo;
-        TeamInfo[] mLines; //keep track to which team a table line maps
+        PerTeam[Team] mTeam;
+        Team[] mLines; //keep track to which team a table line maps
         //if >= 0, the first line when swapping them
         int currentSwapLine = -1; //this and this+1 are the lines being swapped
         Time currentSwapStart;
@@ -75,12 +76,12 @@ class TeamWindow : Widget {
     }
 
     //return if a is superior or equal to b
-    bool compareTeam(TeamInfo a, TeamInfo b) {
-        int c = a.currentHealth() - b.currentHealth();
+    bool compareTeam(Team a, Team b) {
+        int c = a.totalCurrentHealth() - b.totalCurrentHealth();
         if (c == 0)
-            c = a.team.globalWins() - b.team.globalWins();
+            c = a.globalWins() - b.globalWins();
         //sort by name if health is equal (Tango crashes without that)
-        return c == 0 ? a.team.name() <= b.team.name() : c > 0;
+        return c == 0 ? a.name() <= b.name() : c > 0;
     }
 
     this(GameInfo game) {
@@ -108,7 +109,7 @@ class TeamWindow : Widget {
         table.setHomogeneousGroup(0, 0, 1);
         table.setHomogeneousGroup(0, 2, 1);
 
-        TeamInfo[] teams = game.teams.values;
+        Team[] teams = game.engine.controller.teams().dup;
 
         array.sort(teams, &compareTeam);
 
@@ -126,13 +127,13 @@ class TeamWindow : Widget {
 
             ti.bar = new Foobar();
             ti.bar.border = GfxSet.textWormBorderStyle();
-            ti.bar.fill = t.color;
+            ti.bar.fill = t.color.color;
             WidgetLayout lay; //expand in y, but left-align in x
             lay.alignment[0] = 0;
             lay.expand[0] = false;
             table.add(ti.bar, 2, table.height() - 1, lay);
 
-            mTeamInfo[t] = ti;
+            mTeam[t] = ti;
             mLines ~= t;
 
             //mMaxHealth = max(mMaxHealth, teams[n].totalHealth);
@@ -166,13 +167,13 @@ class TeamWindow : Widget {
     gameframe.d; during that update(false) is called to update the bar widths
     +/
     void update(bool doanimation) {
-        foreach (TeamInfo team, PerTeam ti; mTeamInfo) {
+        foreach (Team team, PerTeam ti; mTeam) {
             //bar.percent = mMaxHealth ? 1.0f*team.totalHealth/mMaxHealth : 0;
             //this makes 10 life points exactly a pixel on the screen
-            ti.bar.minSize = Vector2i(team.currentHealth / 10, 0);
+            ti.bar.minSize = Vector2i(team.totalCurrentHealth / 10, 0);
 
             //also does the first time initialization
-            auto curwin = team.team.globalWins();
+            auto curwin = team.globalWins();
             if (ti.last_global_wins != curwin) {
                 ti.global_wins.txt.setTextFmt(false, "{}", curwin);
                 ti.global_wins.update();
@@ -203,7 +204,7 @@ class TeamWindow : Widget {
     bool checkMoveOut() {
         int lines_to_remove = 0;
         for (int n = mLines.length-1; n >= 0; n--) {
-            if (mLines[n].currentHealth > 0)
+            if (mLines[n].totalCurrentHealth > 0)
                 break;
             lines_to_remove++;
         }

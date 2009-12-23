@@ -42,9 +42,10 @@ class DropDownControl : Container {
         mDropDown = new Button();
         //use that down-arrow...
         mDropDown.image = gGuiResources.get!(Surface)("scroll_down");
-        mDropDown.border = Vector2i(2, 0);
         mDropDown.onClick = &clickDrownDown;
-        mDropDown.setLayout(WidgetLayout.Expand(false));
+        auto lay = WidgetLayout.Expand(false);
+        lay.border = Vector2i(2, 0);
+        mDropDown.setLayout(lay);
     }
 
     ///widget in the normally visible area, besides the drop down button
