@@ -10,6 +10,9 @@ import game.particles;
 import net.marshal : Hasher;
 import physics.world;
 
+//temporary?
+import game.controller_events;
+
 import utils.vector2;
 import utils.rect2;
 import utils.configfile;
@@ -23,17 +26,17 @@ import utils.mybox;
 import utils.reflection;
 
 //factory to instantiate sprite classes, this is a small wtf
-alias StaticFactory!("Sprites", GOSpriteClass, GfxSet, char[])
+alias StaticFactory!("Sprites", SpriteClass, GfxSet, char[])
     SpriteClassFactory;
 
 //version = RotateDebug;
 
 //object which represents a PhysicObject and an animation on the screen
 //also provides loading from ConfigFiles and state managment
-class GObjectSprite : GameObject {
+class Sprite : GameObject {
     protected static LogStruct!("game.sprite") log;
 
-    protected GOSpriteClass mType;
+    protected SpriteClass mType;
 
     PhysicObject physics;
     //attention: can be null if object inactive
@@ -63,14 +66,14 @@ class GObjectSprite : GameObject {
             return;
         mWasActivated = true;
         setPos(pos);
-        active = true;
+        internal_active = true;
     }
 
     bool activity() {
-        return active && !physics.isGlued;
+        return internal_active && !physics.isGlued;
     }
 
-    GOSpriteClass type() {
+    SpriteClass type() {
         return mType;
     }
 
@@ -131,7 +134,7 @@ class GObjectSprite : GameObject {
     }
 
     private void updateParticles() {
-        mParticleEmitter.active = active();
+        mParticleEmitter.active = internal_active();
         mParticleEmitter.current = currentState.particle;
         mParticleEmitter.pos = physics.pos;
         mParticleEmitter.velocity = physics.velocity;
@@ -151,7 +154,7 @@ class GObjectSprite : GameObject {
 
     protected void physDie() {
         //assume that's what we want
-        if (!active)
+        if (!internal_active)
             return;
         die();
     }
@@ -168,9 +171,12 @@ class GObjectSprite : GameObject {
     //called when object should die
     //this implementation kills it immediately
     protected void die() {
-        active = false;
-        physics.dead = true;
-        log("really die: {}", type.name);
+        internal_active = false;
+        if (!physics.dead) {
+            physics.dead = true;
+            log("really die: {}", type.name);
+            OnSpriteDie.raise(this);
+        }
     }
 
     //hmm... I'm sure there's a reason die() is protected
@@ -281,13 +287,13 @@ class GObjectSprite : GameObject {
         return type.findState(name);
     }
 
-    override protected void updateActive() {
+    override protected void updateInternalActive() {
         //xxx: doesn't deal with physics!
         if (graphic) {
             graphic.remove();
             graphic = null;
         }
-        if (active) {
+        if (internal_active) {
             auto member = engine.controller ?
                 engine.controller.memberFromGameObject(this, true) : null;
             auto owner = member ? member.team : null;
@@ -364,7 +370,7 @@ class GObjectSprite : GameObject {
         }
     }
 
-    protected this(GameEngine engine, GOSpriteClass type) {
+    protected this(GameEngine engine, SpriteClass type) {
         super(engine, type.name);
 
         assert(type !is null);
@@ -433,7 +439,7 @@ class StaticStateInfo {
         return mName;
     }
 
-    void loadFromConfig(ConfigNode sc, ConfigNode physNode, GOSpriteClass owner)
+    void loadFromConfig(ConfigNode sc, ConfigNode physNode, SpriteClass owner)
     {
         //physic stuff, already loaded physic-types are not cached
         //NOTE: if no "physic" value given, use state-name for physics
@@ -482,7 +488,7 @@ class StaticStateInfo {
         }
     }
 
-    void fixup(GOSpriteClass owner) {
+    void fixup(SpriteClass owner) {
         if (onEndTmp.length > 0) {
             onAnimationEnd = owner.findState(onEndTmp, true);
             onEndTmp = null;
@@ -501,7 +507,7 @@ class StaticStateInfo {
 //loads the required animation file
 //loads static physic properties (in a POSP struct)
 //load static parts of the "states"-nodes
-class GOSpriteClass {
+class SpriteClass {
     GfxSet gfx;
     char[] name;
 
@@ -533,8 +539,8 @@ class GOSpriteClass {
             return null;
     }
 
-    GObjectSprite createSprite(GameEngine engine) {
-        return new GObjectSprite(engine, this);
+    Sprite createSprite(GameEngine engine) {
+        return new Sprite(engine, this);
     }
 
     this (GfxSet gfx, char[] regname) {

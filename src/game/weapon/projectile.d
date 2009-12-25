@@ -54,10 +54,11 @@ class ProjectileSprite : ActionSprite {
     }
 
     override bool activity() {
-        //most weapons are always "active", so the exceptions have to
+        //most weapons are always "internal_active", so the exceptions have to
         //explicitely specify when they're actually "inactive"
         //this includes non-exploding mines
-        return active && !(physics.isGlued && currentState.inactiveWhenGlued);
+        return internal_active && !(physics.isGlued
+            && currentState.inactiveWhenGlued);
     }
 
     override ProjectileStateInfo currentState() {
@@ -114,7 +115,7 @@ class ProjectileSprite : ActionSprite {
         }
         //show timer label when about to blow in <5s
         //conditions: 1s-5s, enabled in conf file and not using glue check
-        if (detDelta < timeSecs(5) && detDelta > Time.Null && active
+        if (detDelta < timeSecs(5) && detDelta > Time.Null && internal_active
             && currentState.showTimer && enableEvents
             && currentState.minimumGluedTime == Time.Null)
         {
@@ -137,9 +138,9 @@ class ProjectileSprite : ActionSprite {
         }
     }
 
-    override protected void updateActive() {
-        super.updateActive();
-        if (!active && mTimeLabel) {
+    override protected void updateInternalActive() {
+        super.updateInternalActive();
+        if (!internal_active && mTimeLabel) {
             mTimeLabel = null;
         }
     }
@@ -200,7 +201,7 @@ class ProjectileStateInfo : ActionStateInfo {
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
-        GOSpriteClass owner)
+        SpriteClass owner)
     {
         super.loadFromConfig(sc, physNode, owner);
 

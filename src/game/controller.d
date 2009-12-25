@@ -36,7 +36,7 @@ import tango.util.Convert : to;
 const Time cTimePerHealthTick = timeMsecs(4);
 
 
-class Team {
+class Team : GameObject {
     char[] mName = "unnamed team";
     TeamTheme teamColor;
     int gravestone;
@@ -63,11 +63,12 @@ class Team {
 
     //node = the node describing a single team
     this(ConfigNode node, GameController parent) {
+        super(parent.engine, "team");
         this.parent = parent;
         mName = node.name;
         //xxx: error handling (when team-theme not found)
         char[] colorId = parent.checkTeamColor(node["color"]);
-        teamColor = parent.engine.gfx.teamThemes[colorId];
+        teamColor = engine.gfx.teamThemes[colorId];
         initialPoints = node.getIntValue("power", 100);
         //graveStone = node.getIntValue("grave", 0);
         //the worms currently aren't loaded by theirselves...
@@ -83,9 +84,11 @@ class Team {
         mAlternateControl = node.getStringValue("control") != "worms";
         mTeamId = node["id"];
         mTeamNetId = node["net_id"];
+        internal_active = true;
     }
 
     this (ReflectCtor c) {
+        super(c);
     }
 
     // --- start Team
@@ -113,6 +116,10 @@ class Team {
 
     bool active() {
         return mActive;
+    }
+
+    override bool activity() {
+        return active;
     }
 
     int totalHealth() {
@@ -327,11 +334,10 @@ class Team {
         return true;
     }
 
-    void simulate() {
+    override void simulate(float deltaT) {
         bool has_active_worm;
 
         foreach (m; mMembers) {
-            m.simulate();
             has_active_worm |= m.active;
         }
 
@@ -378,12 +384,12 @@ class Team {
     void skipTurn() {
         if (!mCurrent || !mActive)
             return;
-        OnTeamEvent.raise(parent.engine.globalEvents, TeamEvent.skipTurn, this);
+        OnTeamSkipTurn.raise(this);
         current = null;
     }
 
     void surrenderTeam() {
-        OnTeamEvent.raise(parent.engine.globalEvents, TeamEvent.surrender, this);
+        OnTeamSurrender.raise(this);
         current = null;
         //xxx: set worms to "white flag" animation first
         foreach (m; mMembers) {
@@ -401,14 +407,13 @@ class Team {
 }
 
 //member of a team, currently (and maybe always) capsulates a WormSprite object
-class TeamMember {
+class TeamMember : GameObject {
     private {
         Team mTeam;
         char[] mName = "unnamed worm";
         bool mActive;
-        //GObjectSprite mWorm;
+        //Sprite mWorm;
         WormControl mWormControl;
-        GameEngine mEngine;
         int mLastKnownLifepower;
         int mCurrentHealth; //health value reported to client
         int mHealthTarget;
@@ -418,12 +423,14 @@ class TeamMember {
     }
 
     this(char[] a_name, Team a_team) {
+        super(a_team.engine, "team_member");
         this.mName = a_name;
         this.mTeam = a_team;
-        mEngine = mTeam.parent.engine;
+        internal_active = true;
     }
 
     this (ReflectCtor c) {
+        super(c);
     }
 
     final WormControl control() {
@@ -434,8 +441,7 @@ class TeamMember {
         bool r = control.checkDying();
         if (r && !mDeathAnnounced) {
             mDeathAnnounced = true;
-            OnWormEvent.raise(mTeam.parent.engine.globalEvents,
-                WormEvent.wormStartDie, this);
+            OnTeamMemberStartDie.raise(this);
         }
         return r;
     }
@@ -450,6 +456,10 @@ class TeamMember {
 
     bool active() {
         return mActive;
+    }
+
+    override bool activity() {
+        return active;
     }
 
     bool alive() {
@@ -518,7 +528,7 @@ class TeamMember {
         assert (!mWormControl);
         //create and place into the landscape
         //habemus lumbricus
-        GObjectSprite worm = mEngine.createSprite("worm");
+        Sprite worm = engine.createSprite("worm");
         WormSprite xworm = castStrict!(WormSprite)(worm); //xxx no WormSprite
         assert(worm !is null);
         worm.physics.lifepower = mTeam.initialPoints;
@@ -534,10 +544,10 @@ class TeamMember {
         xworm.gravestone = mTeam.gravestone;
         xworm.teamColor = mTeam.color;
         //let Controller place the worm
-        mEngine.queuePlaceOnLandscape(worm);
+        engine.queuePlaceOnLandscape(worm);
     }
 
-    GObjectSprite sprite() {
+    Sprite sprite() {
         return mWormControl.sprite;
     }
 
@@ -569,14 +579,15 @@ class TeamMember {
             mLastKnownLifepower = health;
             //xxx: just another hack, yay
             //make the hud show the current weapons
-            mEngine.callbacks.weaponsChanged(mTeam.weapons);
+            engine.callbacks.weaponsChanged(mTeam.weapons);
+
+            OnTeamMemberActivate.raise(this);
+        } else {
+            OnTeamMemberDeactivate.raise(this);
         }
-        WormEvent event = mActive ? WormEvent.wormActivate
-            : WormEvent.wormDeactivate;
-        OnWormEvent.raise(mTeam.parent.engine.globalEvents, event, this);
     }
 
-    void simulate() {
+    override void simulate(float deltaT) {
         mWormControl.simulate();
 
         //mWormControl deactivates itself if the worm was e.g. injured
@@ -587,16 +598,12 @@ class TeamMember {
         WormSprite worm = castStrict!(WormSprite)(mWormControl.sprite);
         if (worm.physics.dead && !mDidGoodbye) {
             mDidGoodbye = true;
-            //xxx maybe rather have a onWormDie with a deathcause parameter?
-            WormEvent deathcause = worm.hasDrowned()
-                ? WormEvent.wormDrown : WormEvent.wormDie;
-            OnWormEvent.raise(mTeam.parent.engine.globalEvents, deathcause, this);
-            if (deathcause == WormEvent.wormDrown) {
+            if (worm.hasDrowned()) {
                 //now it'd be nice if the clientengine could simply catch those
                 //  events, but instead I do this hack (also: need pos and lost)
                 Vector2i pos = toVector2i(worm.physics.pos);
                 int lost = mCurrentHealth - health();
-                mEngine.callbacks.memberDrown(this, lost, pos);
+                engine.callbacks.memberDrown(this, lost, pos);
             }
         }
 
@@ -614,10 +621,6 @@ class TeamMember {
     void forceAbort() {
         //forced stop of all action (like when being damaged)
         control.forceAbort();
-    }
-
-    GameEngine engine() {
-        return mEngine;
     }
 }
 
@@ -762,9 +765,6 @@ class GameController {
         if (!mIsAnythingGoingOn) {
             startGame();
         } else {
-            foreach (t; mTeams)
-                t.simulate();
-
             mGamemode.simulate();
 
             if (mLastCrate) {
@@ -997,7 +997,7 @@ class GameController {
         return m ? m.control : null;
     }
 
-    void reportViolence(GameObject cause, GObjectSprite victim, float damage) {
+    void reportViolence(GameObject cause, Sprite victim, float damage) {
         assert(!!cause && !!victim);
         OnDamage.raise(victim, cause, damage);
     }
@@ -1042,7 +1042,7 @@ class GameController {
             return false;
         }
 
-        GObjectSprite s = engine.createSprite("crate");
+        Sprite s = engine.createSprite("crate");
         CrateSprite crate = cast(CrateSprite)s;
         assert(!!crate);
         //put stuffies into it

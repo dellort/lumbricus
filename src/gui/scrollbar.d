@@ -38,40 +38,39 @@ class ScrollBar : Widget {
 
         const char[][] cAddImg = ["scroll_right","scroll_down"];
         const char[][] cSubImg = ["scroll_left","scroll_up"];
+    }
 
-        //that thing which sits between the two buttons
-        //xxx: drag and drop code partially copied from window.d
-        class Bar : Widget {
-            bool drag_active;
-            Vector2i drag_start;
+    //that thing which sits between the two buttons
+    private class Bar : Widget {
+        bool drag_active;
+        Vector2i drag_start, drag_displace;
 
-            this() {
-                super();
-                styles.addClass("w-scrollbar-floater");
+        this() {
+            super();
+            styles.addClass("w-scrollbar-floater");
+        }
+
+        override protected Vector2i layoutSizeRequest() {
+            return Vector2i(0);
+        }
+
+        override protected void onMouseMove(MouseInfo mouse) {
+            if (drag_active) {
+                auto rel = coordsToParent(mouse.pos) - drag_displace;
+                auto pos = drag_start + rel;
+
+                //xxx is this even correct?
+                curValue = cast(int)((pos[mDir] - mBarArea.p1[mDir]
+                    + 0.5*mScaleFactor) / mScaleFactor) + mMinValue;
+                raiseValueChange();
             }
+        }
 
-            override protected Vector2i layoutSizeRequest() {
-                return Vector2i(0);
-            }
-
-            override protected void onMouseMove(MouseInfo mouse) {
-                if (drag_active) {
-                    //get position within the container
-                    assert(parent && this.outer.parent);
-                    auto pos = coordsToParent(mouse.pos);
-                    pos -= drag_start; //click offset
-
-                    curValue = cast(int)((pos[mDir] - mBarArea.p1[mDir]
-                        + 0.5*mScaleFactor) / mScaleFactor) + mMinValue;
-                    raiseValueChange();
-                }
-            }
-
-            override protected void onKeyEvent(KeyInfo key) {
-                if (!key.isPress && key.code == Keycode.MOUSE_LEFT) {
-                    drag_active = key.isDown;
-                    drag_start = mousePos;
-                }
+        override protected void onKeyEvent(KeyInfo key) {
+            if (!key.isPress && key.code == Keycode.MOUSE_LEFT) {
+                drag_active = key.isDown;
+                drag_start = containerPosition();
+                drag_displace = coordsToParent(mousePos);
             }
         }
     }

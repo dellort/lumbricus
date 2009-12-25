@@ -66,6 +66,9 @@ class ModeTurnbased : Gamemode {
         int mCleanupCtr = 1;
         int[] mTeamPerm;
 
+        //incremented on beginning of each round
+        int mRoundCounter;
+
         const cSilenceWait = timeMsecs(400);
         const cNextRoundWait = timeMsecs(750);
         //how long winning animation is shown
@@ -73,6 +76,8 @@ class ModeTurnbased : Gamemode {
         //delay for crate rain
         const cTurnCrateDelay = timeSecs(5);
         const cInTurnActCheckC = 3;
+        //don't drop crate on start of the game
+        const cNoCrateOnStart = true;
     }
 
     this(GameController parent, ConfigNode config) {
@@ -275,7 +280,8 @@ class ModeTurnbased : Gamemode {
                     if (mCleanupCtr > 0) {
                         mCleanupCtr--;
                         if (engine.rnd.nextDouble2 < config.crateprob
-                            && engine.countSprites("crate") < config.maxcrates)
+                            && engine.countSprites("crate") < config.maxcrates
+                            && !(mRoundCounter == 0 && cNoCrateOnStart))
                         {
                             if (logic.dropCrate()) {
                                 return TurnState.waitForSilence;
@@ -350,6 +356,7 @@ class ModeTurnbased : Gamemode {
                 break;
             case TurnState.playing:
                 assert(mCurrentTeam);
+                mRoundCounter++;
                 modeTime.paused = false;
                 mCurrentTeam.setOnHold(false);
                 mPrepareSt.prepareRemaining = Time.Null;

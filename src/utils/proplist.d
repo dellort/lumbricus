@@ -353,60 +353,37 @@ class PropertyNode {
         foreach (k, v; mHints) {
             r.mHints[k] = v;
         }
-        r.copyFrom(this, true, true);
+        r.copyFrom(this);
         return r;
     }
 
     //copy the contents from the given node to "this"; the types (and existence)
     //  of all nodes must be the same (all nodes in "from" must exist in "this",
     //  but "this" can have nodes that are not in "from")
-    //definition of "set": see PropertyValue.wasSet()
-    //copy_unset: if false, a value is only copied if it was set in "from" ();
-    //overwrite_set: if false, a value is only copied if wasn't set in "this"
-    abstract void copyFrom(PropertyNode from, bool copy_unset = false,
-        bool overwrite_set = true);
+    abstract void copyFrom(PropertyNode from);
 
     //revert to default values
-    //will set wasSet to false (for PropertyValues)
     abstract void reset();
 }
 
 //represent an "atomic" value (== not a PropertyList)
 abstract class PropertyValue : PropertyNode {
-    //return if the property was written by the user
-    //setting the value will set this to true; reset() will set it to false
-    //NOTE: the actual value of the property can be the same as its default
-    //  value even if wasSet returns true (in this case, the user set it
-    //  manually to the default value); only reset() will clear the flag
-    bool wasSet;
 
     final override void reset() {
         doReset();
-        wasSet = false;
         notifyChange(false);
     }
 
     //notification for value changes
     protected void notifyChange(bool set = true) {
-        if (set)
-            wasSet = true;
         changed();
     }
 
-    override void copyFrom(PropertyNode from, bool copy_unset = false,
-        bool overwrite_set = true)
-    {
+    override void copyFrom(PropertyNode from) {
         PropertyValue v = from.asValue();
         //xxx not quite kosher
         if (v.classinfo !is this.classinfo)
             throw new PropertyException(this, "copyFrom(): incompatible types");
-        //do as copyFrom() defines to handle overwriting
-        if (!copy_unset && !v.wasSet)
-            return;
-        if (!overwrite_set && this.wasSet)
-            return;
-        //copy
-        wasSet = v.wasSet;
         doCopyFrom(v);
         changed();
     }
@@ -502,7 +479,6 @@ private class PropertyValueT_hurf(T) : PropertyValueT!(T) {
     }
 
     void set(T v) {
-        wasSet = true;
         if (v == mValue)
             return;
         mValue = v;
@@ -831,9 +807,7 @@ final class PropertyList : PropertyNode {
         return 0;
     }
 
-    override void copyFrom(PropertyNode from, bool copy_unset = false,
-        bool overwrite_set = true)
-    {
+    override void copyFrom(PropertyNode from) {
         changesStart();
         scope(exit) changesEnd();
         PropertyList list = from.asList();
@@ -842,7 +816,7 @@ final class PropertyList : PropertyNode {
             if (!other) {
                 addNode(sub.dup());
             } else {
-                other.copyFrom(sub, copy_unset, overwrite_set);
+                other.copyFrom(sub);
             }
         }
     }

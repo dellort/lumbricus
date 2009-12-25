@@ -79,7 +79,6 @@ private void addDriverEntry(char[] type, char[] driver)
         //at creation time of that driver; can't set otherwise
         if (*p == driver) {
             choice.setAsStringDefault(driver);
-            choice.wasSet = false;
         }
     }
 }
@@ -1058,7 +1057,7 @@ class Framework {
 
         //base drivers can report that the app is hidden, which will stop
         //  redrawing (no more onFrame events)
-        bool mAppVisible;
+        bool mAppVisible, mAppFocused;
     }
 
     this() {
@@ -1105,6 +1104,7 @@ class Framework {
         mDriver.setVideoWindowState(vstate);
         mDriver.setInputState(istate);
         mAppVisible = true;
+        mAppFocused = true;
 
         mLog("reloaded driver");
     }
@@ -1351,6 +1351,7 @@ class Framework {
     //      are only called when values actually changed
 
     void driver_doFocusChange(bool focused) {
+        mAppFocused = focused;
         if (onFocusChange)
             onFocusChange(focused);
     }
@@ -1521,6 +1522,14 @@ class Framework {
         VideoWindowState state = mDriver.getVideoWindowState();
         state.window_caption = caption;
         mDriver.setVideoWindowState(state);
+    }
+
+    bool appFocused() {
+        return mAppFocused;
+    }
+
+    bool appVisible() {
+        return mAppVisible;
     }
 
     //force: for sounds; if true, sounds are released too, but this leads to

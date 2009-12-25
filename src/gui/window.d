@@ -231,6 +231,7 @@ class WindowWidget : Widget {
         mClientWidget = new WindowClient();
 
         mTitleBar = new Label();
+        mTitleBar.shrink = true;
         mTitleBar.styles.addClass("window-title");
 
         mTooltipLabel = new Label();

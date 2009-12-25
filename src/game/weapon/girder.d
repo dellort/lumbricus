@@ -45,7 +45,7 @@ Surface[] create_girders(Surface girder, int steps) {
 class GirderControl : WeaponSelector, Controllable {
     private {
         GameEngine mEngine;
-        GObjectSprite mOwner;
+        Sprite mOwner;
         WormControl mControl;
         Surface[] mGirders, mGirdersLong;
         int mGirderSel, mGirderAnimSel;
@@ -59,7 +59,7 @@ class GirderControl : WeaponSelector, Controllable {
 
     mixin Methods!("mouseRender");
 
-    this(WeaponClass wc, GObjectSprite a_owner) {
+    this(WeaponClass wc, Sprite a_owner) {
         super(wc, a_owner);
         mOwner = a_owner;
         mEngine = mOwner.engine;
@@ -235,7 +235,7 @@ class GirderControl : WeaponSelector, Controllable {
         }
         return true;
     }
-    GObjectSprite getSprite() {
+    Sprite getSprite() {
         return null;
     }
     //--- /Controllable

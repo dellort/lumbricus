@@ -20,7 +20,7 @@ import utils.factory;
 import utils.time;
 import utils.reflection;
 
-class ActionSprite : GObjectSprite {
+class ActionSprite : Sprite {
     protected Vector2f mLastImpactNormal = {0, -1};
     protected WrapFireInfo mFireInfo;
     bool doubleDamage;
@@ -103,9 +103,9 @@ class ActionSprite : GObjectSprite {
         return cast(ActionStateInfo)super.findState(name);
     }
 
-    override protected void updateActive() {
-        super.updateActive();
-        if (active) {
+    override protected void updateInternalActive() {
+        super.updateInternalActive();
+        if (internal_active) {
             //"oncreate" is the sprite or state initialize event
             doEvent("oncreate");
         } else {
@@ -140,7 +140,7 @@ class ActionSprite : GObjectSprite {
     ///runs a sprite-specific event defined in the config file
     //xxx should be private, but is used by some actions
     void doEvent(char[] id, bool stateonly = false) {
-        if (!mEnableEvents || !active)
+        if (!mEnableEvents || !internal_active)
             return;
         //logging: this is slow (esp. napalm)
         //engine.mLog("Projectile: Execute event "~id);
@@ -193,7 +193,7 @@ class ActionSprite : GObjectSprite {
         return mEnableEvents;
     }
 
-    protected this(GameEngine engine, GOSpriteClass type) {
+    protected this(GameEngine engine, SpriteClass type) {
         super(engine, type);
         mFireInfo = new WrapFireInfo();
     }
@@ -228,7 +228,7 @@ class ActionStateInfo : StaticStateInfo {
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
-        GOSpriteClass owner)
+        SpriteClass owner)
     {
         super.loadFromConfig(sc, physNode, owner);
 
@@ -253,7 +253,7 @@ class ActionStateInfo : StaticStateInfo {
         }
     }
 
-    override void fixup(GOSpriteClass owner) {
+    override void fixup(SpriteClass owner) {
         super.fixup(owner);
         if (actionsTmp.length > 0) {
             auto st = cast(ActionSpriteClass)owner.findState(actionsTmp, true);
@@ -264,7 +264,7 @@ class ActionStateInfo : StaticStateInfo {
     }
 }
 
-class ActionSpriteClass : GOSpriteClass {
+class ActionSpriteClass : SpriteClass {
     ActionContainer actions;
     bool canRefire = false;
 

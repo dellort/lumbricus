@@ -512,7 +512,7 @@ class Widget {
     /// space around the button is for the border, and the space inside the
     /// button is used up by the text)
     ///the area between containedBounds() and containedBorderBounds() is used
-    /// for the border, and the top-left part of the border area has begative
+    /// for the border, and the top-left part of the border area has negative
     /// client coordinates
     ///the border is exactly bordersize() thick (on all 4 sides)
     final Rect2i containedBorderBounds() {
@@ -850,12 +850,14 @@ class Widget {
     /// pos = mouse position in local coordinates
     ///(like onTestMouse; this wrapper function is here to enforce the
     ///restriction to widget bounds)
+    ///actually, checks border area now, which means widget can receive negative
+    /// or too big mouse coordinates
     final bool testMouse(Vector2i pos) {
         if (!mVisible || !mEnabled)
             return false;
-        auto s = size;
-        return (pos.x >= 0 && pos.y >= 0 && pos.x < s.x && pos.y < s.y)
-            && onTestMouse(pos);
+        if (!mBorderArea.isInside(coordsToParent(pos)))
+            return false;
+        return onTestMouse(pos);
     }
 
     ///if the widget could receive input if it had focus
@@ -985,10 +987,11 @@ class Widget {
             //child.parent !is this: not sure if this happens; probably when an
             //i nput event handler called by us removes a widget which has a
             //  lower zorder
-            //also, we test the widget bounds instead of using testMouse(),
-            //  because testMouse() doesn't check for sub-widgets
+            //also, we test the border area instead of using testMouse(),
+            //  because testMouse() doesn't check for sub-widgets (it mustn't
+            //  be allowed to block sub-widget mouse events)
             if (child.parent is this
-                && child.widgetBounds.isInside(cevent.mousePos)
+                && child.mBorderArea.isInside(event.mousePos)
                 && child.canTakeInput()
                 && child.handleInput(cevent))
             {
@@ -1524,7 +1527,7 @@ class Widget {
             //rely on clipping
             c.translate(mContainedWidgetBounds.p1+mAddToPos);
         }
-        if (canScale)
+        if (canScale && mScale.length != 1.0f)
             c.setScale(mScale);
 
         auto background = styles.getValue!(Color)("widget-background");
@@ -1535,8 +1538,6 @@ class Widget {
         //user's draw routine
         onDraw(c);
 
-        onDrawFocus(c);
-
         onDrawChildren(c);
 
         version (WidgetDebug) {
@@ -1544,6 +1545,10 @@ class Widget {
         }
 
         c.popState();
+
+        //xxx shouldn't overdraw children graphics; only here because focus rect
+        // is extended to border area
+        onDrawFocus(c);
 
         //small optical hack: highlighting
         //feel free to replace this by better looking rendering
@@ -1601,11 +1606,13 @@ class Widget {
     /// implementer will notice it and will have to do something about it, like
     /// adding proper drawing code by overriding this method (which is why
     /// there's no simpler method of disabling this code)
+    ///xxx not sure about the drawing context; right now it's in non-client
+    /// area, but this may change
     protected void onDrawFocus(Canvas c) {
         if (!focused())
             return;
 
-        auto rc = widgetBounds();
+        auto rc = containedBorderBounds();
         const border = 3;
         auto s = rc.size;
         if (border*2 < min(s.x, s.y)) {

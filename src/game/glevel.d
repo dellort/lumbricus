@@ -172,7 +172,7 @@ class GameLandscape : GameObject {
 
     private this(GameEngine aengine) {
         super(aengine, "landscape");
-        active = true;
+        internal_active = true;
     }
 
     this (ReflectCtor c) {

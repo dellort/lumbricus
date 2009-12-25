@@ -26,6 +26,7 @@ public import game.controller : Team, TeamMember;
 class GameInfo {
     ClientGameEngine cengine;
     GameEngine engine;
+    GameShell shell;
     GameController logic;
     ClientControl control;
     SimpleNetConnection connection;
@@ -39,7 +40,8 @@ class GameInfo {
     //frame stepped engine time
     TimeSourcePublic serverTime;
 
-    this(ClientGameEngine a_engine, ClientControl ct) {
+    this(GameShell a_shell, ClientGameEngine a_engine, ClientControl ct) {
+        shell = a_shell;
         cengine = a_engine;
         engine = cengine.engine();
         logic = engine.logic;

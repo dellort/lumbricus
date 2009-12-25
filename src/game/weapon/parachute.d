@@ -33,7 +33,7 @@ class ParachuteClass : WeaponClass {
         super(c);
     }
 
-    override Shooter createShooter(GObjectSprite go, GameEngine engine) {
+    override Shooter createShooter(Sprite go, GameEngine engine) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
@@ -71,25 +71,25 @@ class Parachute : Shooter, Controllable {
     }
 
     bool activity() {
-        return active;
+        return internal_active;
     }
 
     override protected void doFire(FireInfo info) {
         reduceAmmo();
         mWorm.activateParachute(true);
-        active = true;
+        internal_active = true;
     }
 
     override protected bool doRefire() {
         mWorm.activateParachute(false);
-        active = false;
+        internal_active = false;
         finished();
         return true;
     }
 
-    override protected void updateActive() {
-        super.updateActive();
-        if (active) {
+    override protected void updateInternalActive() {
+        super.updateInternalActive();
+        if (internal_active) {
             mMember.pushControllable(this);
         } else {
             mMember.releaseControllable(this);
@@ -101,7 +101,7 @@ class Parachute : Shooter, Controllable {
         super.simulate(deltaT);
 
         if (!mWorm.parachuteActivated()) {
-            active = false;
+            internal_active = false;
             finished();
             return;
         }
@@ -110,7 +110,7 @@ class Parachute : Shooter, Controllable {
         mWorm.physics.selfForce = Vector2f(force, 0);
 
         if (mWorm.physics.isGlued)
-            active = false;
+            internal_active = false;
     }
 
     //Controllable implementation -->
@@ -128,7 +128,7 @@ class Parachute : Shooter, Controllable {
         return true;
     }
 
-    GObjectSprite getSprite() {
+    Sprite getSprite() {
         return mWorm;
     }
 

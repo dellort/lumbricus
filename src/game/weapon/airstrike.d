@@ -27,7 +27,7 @@ import math = tango.math.Math;
 class AirstrikeControl : WeaponSelector, Controllable {
     private {
         GameEngine mEngine;
-        GObjectSprite mOwner;
+        Sprite mOwner;
         WormControl mControl;
         InterpolateExp!(float, 3.0f) mIP;  //for rotating the cursor
         int mCurSide;  //index into c...Angles
@@ -39,7 +39,7 @@ class AirstrikeControl : WeaponSelector, Controllable {
 
     mixin Methods!("mouseRender");
 
-    this(WeaponClass wc, GObjectSprite a_owner) {
+    this(WeaponClass wc, Sprite a_owner) {
         super(wc, a_owner);
         mOwner = a_owner;
         mEngine = mOwner.engine;
@@ -107,7 +107,7 @@ class AirstrikeControl : WeaponSelector, Controllable {
         }
         return true;
     }
-    GObjectSprite getSprite() {
+    Sprite getSprite() {
         return null;
     }
     //--- /Controllable

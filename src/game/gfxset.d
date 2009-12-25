@@ -41,7 +41,7 @@ class GfxSet {
         ConfigNode[] mCollNodes;
 
         //managment of sprite classes, for findSpriteClass()
-        GOSpriteClass[char[]] mSpriteClasses;
+        SpriteClass[char[]] mSpriteClasses;
 
         //same for weapons (also such a two-stage factory, creates Shooters)
         WeaponClass[char[]] mWeaponClasses;
@@ -228,15 +228,15 @@ class GfxSet {
         }
     }
 
-    //factory for GOSpriteClasses
-    //the constructor of GOSpriteClasses will call:
+    //factory for SpriteClasses
+    //the constructor of SpriteClasses will call:
     //  engine.registerSpriteClass(registerName, this);
-    GOSpriteClass instantiateSpriteClass(char[] name, char[] registerName) {
+    SpriteClass instantiateSpriteClass(char[] name, char[] registerName) {
         return SpriteClassFactory.instantiate(name, this, registerName);
     }
 
-    //called by sprite.d/GOSpriteClass.this() only
-    void registerSpriteClass(char[] name, GOSpriteClass sc) {
+    //called by sprite.d/SpriteClass.this() only
+    void registerSpriteClass(char[] name, SpriteClass sc) {
         if (findSpriteClass(name, true)) {
             assert(false, "Sprite class "~name~" already registered");
         }
@@ -244,8 +244,8 @@ class GfxSet {
     }
 
     //find a sprite class
-    GOSpriteClass findSpriteClass(char[] name, bool canfail = false) {
-        GOSpriteClass* gosc = name in mSpriteClasses;
+    SpriteClass findSpriteClass(char[] name, bool canfail = false) {
+        SpriteClass* gosc = name in mSpriteClasses;
         if (gosc)
             return *gosc;
 
@@ -349,12 +349,12 @@ class GfxSet {
             }
         }
 
-        foreach (char[] key, GOSpriteClass s; mSpriteClasses) {
+        foreach (char[] key, SpriteClass s; mSpriteClasses) {
             assert(key == s.name);
             char[] name = "sprite::" ~ key;
             ctx.addExternal(s, name);
             //if it gets more complicated than this, add a
-            //  GOSpriteClass.initSerialization() method
+            //  SpriteClass.initSerialization() method
             foreach (char[] key2, StaticStateInfo state; s.states) {
                 assert(key2 == state.name);
                 ctx.addExternal(state, name ~ "::" ~ key2);
@@ -396,6 +396,8 @@ class GfxSet {
         events.inherit("root", "landscape"); //GameLandscape
         events.inherit("root", "shooter"); //weapon.d
         events.inherit("root", "sprite");
+        events.inherit("root", "team");
+        events.inherit("root", "team_member");
     }
 
     static BoxProperties textWormBorderStyle() {

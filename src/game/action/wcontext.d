@@ -11,7 +11,7 @@ import utils.reflection;
 
 //xxx: we really should have a more flexible/sane parameter passing mechanism
 class SpriteContext : ActionContext {
-    GObjectSprite ownerSprite;
+    Sprite ownerSprite;
 
     this(GameEngine eng) {
         super(eng);

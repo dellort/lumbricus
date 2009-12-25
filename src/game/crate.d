@@ -278,9 +278,9 @@ class CrateSprite : ActionSprite {
         graphic.setState(currentState.myAnimation[mCrateType]);
     }
 
-    override protected void updateActive() {
+    override protected void updateInternalActive() {
         bool bomb;
-        if (active) {
+        if (internal_active) {
             foreach (coll; stuffies) {
                 if (cast(CollectableMedkit)coll) {
                     mCrateType = CrateType.med;
@@ -296,8 +296,8 @@ class CrateSprite : ActionSprite {
                     bomb = true;
             }
         }
-        super.updateActive();
-        if (active) {
+        super.updateInternalActive();
+        if (internal_active) {
             //xxx needs a better way to get the contents of the crate
             if (stuffies.length > 0 && mCrateType != CrateType.med) {
                 mSpy = engine.gfx.textCreate();
@@ -371,7 +371,7 @@ class CrateStateInfo : ActionStateInfo {
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
-        GOSpriteClass owner)
+        SpriteClass owner)
     {
         super.loadFromConfig(sc, physNode, owner);
         if (sc["animation"].length > 0) {

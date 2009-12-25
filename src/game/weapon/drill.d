@@ -37,7 +37,7 @@ class DrillClass : WeaponClass {
         super(c);
     }
 
-    override Shooter createShooter(GObjectSprite go, GameEngine engine) {
+    override Shooter createShooter(Sprite go, GameEngine engine) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
@@ -71,31 +71,31 @@ class Drill : Shooter {
     }
 
     override bool delayedAction() {
-        return active;
+        return internal_active;
     }
 
     bool activity() {
-        return active;
+        return internal_active;
     }
 
-    override protected void updateActive() {
+    override protected void updateInternalActive() {
         //xxx simply activate "firing" state for drill weapon (like minigun...)
         if (myclass.blowtorch)
-            mWorm.activateBlowtorch(active);
+            mWorm.activateBlowtorch(internal_active);
         else
-            mWorm.activateDrill(active);
-        if (active)
+            mWorm.activateDrill(internal_active);
+        if (internal_active)
             makeTunnel();
     }
 
     override protected void doFire(FireInfo info) {
         reduceAmmo();
-        active = true;
+        internal_active = true;
         mStart = mNext = engine.gameTime.current;
     }
 
     override protected bool doRefire() {
-        active = false;
+        internal_active = false;
         finished();
         return true;
     }

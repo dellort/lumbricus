@@ -57,7 +57,7 @@ class RopeClass : WeaponClass {
         super(c);
     }
 
-    override Shooter createShooter(GObjectSprite go, GameEngine engine) {
+    override Shooter createShooter(Sprite go, GameEngine engine) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
@@ -138,7 +138,7 @@ class Rope : Shooter {
     }
 
     bool activity() {
-        return active;
+        return internal_active;
     }
 
     override bool canReadjust() {
@@ -146,7 +146,7 @@ class Rope : Shooter {
     }
 
     override protected void doFire(FireInfo info) {
-        active = true;
+        internal_active = true;
         mShootDir = info.dir;
         shootRope();
     }
@@ -187,8 +187,8 @@ class Rope : Shooter {
     override void interruptFiring(bool outOfAmmo = false) {
         if (outOfAmmo)
             return;
-        if (active) {
-            active = false;
+        if (internal_active) {
+            internal_active = false;
             abortShoot();
             abortRope();
             mSecondShot = false;

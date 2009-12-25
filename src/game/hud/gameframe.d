@@ -53,6 +53,7 @@ class GameFrame : SimpleContainer {
         InterpolateExp!(float) mWeaponInterp;
 
         TeamWindow mTeamWindow;
+        Label mPauseLabel;
 
         Time mLastFrameTime;
         bool mFirstFrame = true;
@@ -173,6 +174,12 @@ class GameFrame : SimpleContainer {
         mWeaponSel.setAddToPos(
             Vector2i(cast(int)(mWeaponInterp.value*wsel_edge), 0));
         mWeaponSel.visible = 1.0f-mWeaponInterp.value > float.epsilon;
+
+        //unpaused if any child has focus (normally GameView)
+        game.shell.pauseBlock(!subFocused(), this);
+        game.shell.pauseBlock(!gFramework.appFocused, gFramework);
+
+        mPauseLabel.visible = game.shell.paused;
     }
 
     override bool doesCover() {
@@ -196,8 +203,7 @@ class GameFrame : SimpleContainer {
                 remove();
                 return;
             }
-            //xxx: should somehow pause game while dialog is active
-            //     (but so that stuff doesn't break when you press "pause")
+            game.shell.pauseBlock(true, this);
         }
 
         override void onKeyEvent(KeyInfo info) {
@@ -206,6 +212,7 @@ class GameFrame : SimpleContainer {
                 return;
             this.outer.mModalDialog = null;
             remove();
+            game.shell.pauseBlock(false, this);
         }
     }
 
@@ -230,7 +237,7 @@ class GameFrame : SimpleContainer {
         //currently just the weapon window; maybe others will be added later
         //  (e.g. pause window)
         return isWeaponWindowVisible() || gameView.scrollOverride
-            || gTopLevel.consoleVisible();
+            || gTopLevel.consoleVisible() || game.shell.paused();
     }
 
     this(GameInfo g) {
@@ -295,6 +302,13 @@ class GameFrame : SimpleContainer {
         mWeaponSel.init(game.engine, wlist);
 
         mWeaponInterp.init_done(timeSecs(0.4), 0, 1);
+
+        mPauseLabel = new Label;
+        mPauseLabel.textMarkup = "\\t(gamehud.paused)";
+        mPauseLabel.centerX = true;
+        mPauseLabel.styles.id = "gamepauselabel";
+        mPauseLabel.visible = false;
+        add(mPauseLabel, WidgetLayout.Noexpand());
 
         setPosition(game.engine.level.worldCenter);
 

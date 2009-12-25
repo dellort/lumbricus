@@ -73,8 +73,6 @@ ConfigNode settingsToConfig(PropertyNode s) {
     auto res = new ConfigNode();
     void recurse(PropertyNode n) {
         if (auto v = cast(PropertyValue)n) {
-            if (!v.wasSet)
-                return;
             if (cast(PropertyCommand)v)
                 return;
             //getPath() so, that nodes are only created when actually needed

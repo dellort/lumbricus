@@ -43,7 +43,7 @@ interface Controllable {
     bool jump(JumpMode j);
     bool move(Vector2f m);
     //returning null => no active sprite; worm is considered to be active
-    GObjectSprite getSprite();
+    Sprite getSprite();
 }
 
 //every worm, that's controllable by the user (includes all TeamMembers) has
@@ -54,7 +54,7 @@ interface Controllable {
 class WormControl : WormController {
     private {
         GameEngine mEngine;
-        //GObjectSprite mWorm;    //never null
+        //Sprite mWorm;    //never null
         WormSprite mWorm;
         //SpriteControl mWormControl; //is cast(SpriteControl)mWorm
         WeaponClass mCurrentWeapon;
@@ -83,7 +83,7 @@ class WormControl : WormController {
         bool delegate(Canvas, Vector2i) mMouseRender;
     }
 
-    this(GObjectSprite worm) {
+    this(Sprite worm) {
         assert(!!worm);
         mEngine = worm.engine;
         mWeaponSet = new WeaponSet(mEngine);
@@ -150,17 +150,17 @@ class WormControl : WormController {
     }
 
     //always the worm
-    GObjectSprite sprite() {
+    Sprite sprite() {
         return mWorm;
     }
 
     //the worm, or whatever controllable weapon was lunched (e.g. super sheep)
-    GObjectSprite controlledSprite() {
+    Sprite controlledSprite() {
         //NOTE: at least one weapon (girder) can return null here; there's not
         //  really a sprite or any other game object the user is controlling;
         //  it's just that the weapon code wants to catch some key presses
         //thus, it returns the worm sprite if getSprite() returns null
-        GObjectSprite ret;
+        Sprite ret;
         if (mControlStack.length > 0) {
             ret = mControlStack[$-1].getSprite();
         }
@@ -249,7 +249,7 @@ class WormControl : WormController {
     }
 
     //just for gameview.d
-    //maybe move into GObjectSprite
+    //maybe move into Sprite
     bool isDrowning() {
         return mWorm.graphic && mWorm.hasDrowned();
     }
@@ -646,10 +646,10 @@ class WormControl : WormController {
                 //find sprite closest to where
                 mEngine.physicworld.objectsAtPred(where, 10,
                     (PhysicObject obj) {
-                        mCurrentTarget.sprite = cast(GObjectSprite)obj.backlink;
+                        mCurrentTarget.sprite = cast(Sprite)obj.backlink;
                         return false;
                     }, (PhysicObject obj) {
-                        return !!cast(GObjectSprite)obj.backlink;
+                        return !!cast(Sprite)obj.backlink;
                     });
                 //fall-through
             case PointMode.target:

@@ -136,7 +136,7 @@ class ActionListRunner : GameObject {
     {
         assert(!!ctx);
         super(ctx.engine, "actionlist");
-        active = true;
+        internal_active = true;
         myclass = owner;
         mContext = ctx;
         mScopeIdx = scopeIdx;
@@ -151,7 +151,7 @@ class ActionListRunner : GameObject {
     }
 
     bool activity() {
-        return active;
+        return internal_active;
     }
 
     //wait repeatDelay for next loop
@@ -180,7 +180,7 @@ class ActionListRunner : GameObject {
         }
     }
 
-    override protected void updateActive() {
+    override protected void updateInternalActive() {
         //xxx what about context scope?
     }
 }

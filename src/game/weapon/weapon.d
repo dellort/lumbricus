@@ -24,7 +24,7 @@ alias StaticFactory!("WeaponClasses", WeaponClass, GfxSet, ConfigNode)
     WeaponClassFactory;
 
 alias StaticFactory!("WeaponSelectors", WeaponSelector, WeaponClass,
-    GObjectSprite) WeaponSelectorFactory;
+    Sprite) WeaponSelectorFactory;
 
 alias void delegate(Shooter sh) ShooterCallback;
 
@@ -123,7 +123,7 @@ abstract class WeaponClass {
     //  a weapon is _prepared_ to fire
     //may return null
     //xxx: and actually, the hardcoded FireMode thing sucks a bit
-    WeaponSelector createSelector(GObjectSprite selected_by) {
+    WeaponSelector createSelector(Sprite selected_by) {
         if (!onSelect.length)
             return null;
         return WeaponSelectorFactory.instantiate(onSelect, this, selected_by);
@@ -132,7 +132,7 @@ abstract class WeaponClass {
     //just a factory
     //users call fire() on them to actually activate them
     //  go == entity which fires it (its physical properties will be used)
-    abstract Shooter createShooter(GObjectSprite go, GameEngine engine);
+    abstract Shooter createShooter(Sprite go, GameEngine engine);
 
     bool canUse(GameEngine engine) {
         return !isAirstrike || engine.level.airstrikeAllow;
@@ -150,7 +150,7 @@ abstract class WeaponSelector {
         bool mIsSelected;
     }
 
-    this(WeaponClass wc, GObjectSprite owner) {
+    this(WeaponClass wc, Sprite owner) {
     }
 
     this (ReflectCtor c) {
@@ -204,7 +204,7 @@ struct FireInfo {
 
 struct WeaponTarget {
     Vector2f pos = Vector2f.nan;
-    GObjectSprite sprite;
+    Sprite sprite;
 
     Vector2f currentPos() {
         return (sprite && !sprite.physics.pos.isNaN())
@@ -228,7 +228,7 @@ struct WeaponTarget {
 //projectiles can work completely independend from this class
 abstract class Shooter : GameObject {
     protected WeaponClass mClass;
-    protected GObjectSprite owner;
+    protected Sprite owner;
     private bool mWorking;   //only for finishCb event
 
     //shooters should call this to reduce owner's ammo by 1
@@ -239,7 +239,7 @@ abstract class Shooter : GameObject {
     //(xxx: move to ctor... also, use utils.factory to create shooters)
     WeaponSelector selector;
 
-    protected this(WeaponClass base, GObjectSprite a_owner, GameEngine engine) {
+    protected this(WeaponClass base, Sprite a_owner, GameEngine engine) {
         super(engine, "shooter");
         assert(base !is null);
         mClass = base;
@@ -260,7 +260,7 @@ abstract class Shooter : GameObject {
         if (!mWorking)
             return;
         mWorking = false;
-        active = false;
+        internal_active = false;
         if (finishCb)
             finishCb(this);
     }
@@ -319,12 +319,12 @@ abstract class Shooter : GameObject {
     //after this, isFiring() will return false (mostly...)
     void interruptFiring(bool outOfAmmo = false) {
         //default implementation: make inactive
-        active = false;
+        internal_active = false;
     }
 
     //if this class still thinks the worm is i.e. shooting projectiles
     //weapons like earth quakes might still be active but return false
-    //invariant: isFiring() => active()
+    //invariant: isFiring() => internal_active()
     bool isFiring() {
         //default implementation: link with activity
         return activity;

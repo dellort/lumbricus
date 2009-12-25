@@ -160,7 +160,7 @@ class BeamHandler : GameObject {
     WormSprite worm;
     this(GameEngine eng, WormSprite w) {
         super(eng, "beamhandler");
-        active = true;
+        internal_active = true;
         worm = w;
     }
     this(ReflectCtor c) {
@@ -168,7 +168,7 @@ class BeamHandler : GameObject {
     }
 
     bool activity() {
-        return active;
+        return internal_active;
     }
 
     override void simulate(float deltaT) {
@@ -181,9 +181,9 @@ class BeamHandler : GameObject {
         }
     }
 
-    override protected void updateActive() {
+    override protected void updateInternalActive() {
         //aborted
-        if (!active && worm && worm.isBeaming())
+        if (!internal_active && worm && worm.isBeaming())
             worm.abortBeaming();
     }
 }
@@ -200,7 +200,7 @@ class HomingAction : GameObject {
 
     this(GameEngine eng, ProjectileSprite parent, float forceA, float forceT) {
         super(eng, "homingaction");
-        active = true;
+        internal_active = true;
         this.forceA = forceA;
         this.forceT = forceT;
         mParent = parent;
@@ -215,11 +215,11 @@ class HomingAction : GameObject {
     }
 
     bool activity() {
-        return active;
+        return internal_active;
     }
 
-    override protected void updateActive() {
-        if (!active)
+    override protected void updateInternalActive() {
+        if (!internal_active)
             objForce.dead = true;
     }
 
@@ -285,7 +285,7 @@ abstract class AoEActionClass : ActionClass {
         }
     }
 
-    abstract protected void applyOn(WeaponContext wx, GObjectSprite sprite);
+    abstract protected void applyOn(WeaponContext wx, Sprite sprite);
 
     void execute(ActionContext ctx) {
         auto wx = cast(WeaponContext)ctx;
@@ -296,7 +296,7 @@ abstract class AoEActionClass : ActionClass {
             bool ret;
             bool isWorm = cast(WormSprite)obj.backlink !is null;
             bool isSelf = obj.backlink is wx.ownerSprite;
-            bool isObject = cast(GObjectSprite)obj.backlink !is null;
+            bool isObject = cast(Sprite)obj.backlink !is null;
             if ("other" in hit)
                 ret |= isWorm && !isSelf;
             if ("self" in hit)
@@ -308,7 +308,7 @@ abstract class AoEActionClass : ActionClass {
 
         bool doApply(PhysicObject obj) {
             assert(!!obj.backlink);
-            applyOn(wx, cast(GObjectSprite)obj.backlink);
+            applyOn(wx, cast(Sprite)obj.backlink);
             return true;
         }
 
@@ -348,7 +348,7 @@ class ImpulseActionClass : AoEActionClass {
         }
     }
 
-    override protected void applyOn(WeaponContext wx, GObjectSprite sprite) {
+    override protected void applyOn(WeaponContext wx, Sprite sprite) {
         Vector2f imp;
         switch (directionMode) {
             case ImpulseActionClass.DirMode.fireInfo:
@@ -390,7 +390,7 @@ class AoEDamageActionClass : AoEActionClass {
         damage = node.getValue!(float)("damage", damage);
     }
 
-    override protected void applyOn(WeaponContext wx, GObjectSprite sprite) {
+    override protected void applyOn(WeaponContext wx, Sprite sprite) {
         float dmg;
         if (damage < 1.0f+float.epsilon) {
             //xxx not so sure about that; e.g. 0.5 -> 0.70
@@ -424,7 +424,7 @@ class WormSelectHelper : GameObject {
 
     this(GameEngine eng, TeamMember member) {
         super(eng, "wormselecthelper");
-        active = true;
+        internal_active = true;
         mMember = member;
         assert(!!mMember);
     }
@@ -434,7 +434,7 @@ class WormSelectHelper : GameObject {
     }
 
     bool activity() {
-        return active;
+        return internal_active;
     }
 
     override void simulate(float deltaT) {

@@ -66,7 +66,7 @@ enum FlyMode {
     heavy,
 }
 
-class WormSprite : GObjectSprite {
+class WormSprite : Sprite {
     private {
         WormSpriteClass wsc;
 
@@ -295,7 +295,7 @@ class WormSprite : GObjectSprite {
     void finallyDie() {
         if (isAlive())
             return;
-        if (active) {
+        if (internal_active) {
             if (isDelayedDying())
                 return;
             //assert(delayedDeath());
@@ -1114,7 +1114,7 @@ class WormSprite : GObjectSprite {
         }
         checkReadjust();
         //check death
-        if (active && !isAlive() && !delayedDeath()) {
+        if (internal_active && !isAlive() && !delayedDeath()) {
             finallyDie();
         }
     }
@@ -1136,7 +1136,7 @@ class WormStateInfo : StaticStateInfo {
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
-        GOSpriteClass owner)
+        SpriteClass owner)
     {
         super.loadFromConfig(sc, physNode, owner);
         isGrounded = sc.getBoolValue("is_grounded", isGrounded);
@@ -1147,7 +1147,7 @@ class WormStateInfo : StaticStateInfo {
 }
 
 //the factories work over the sprite classes, so we need one
-class WormSpriteClass : GOSpriteClass {
+class WormSpriteClass : SpriteClass {
     float suicideDamage;
     //SequenceObject[] gravestones;
     Vector2f jumpStrength[JumpMode.max+1];
@@ -1226,7 +1226,7 @@ class WormSpriteClass : GOSpriteClass {
     }
 }
 
-class GravestoneSprite : GObjectSprite {
+class GravestoneSprite : Sprite {
     private {
         GravestoneSpriteClass gsc;
         int mType;
@@ -1261,7 +1261,7 @@ class GravestoneSprite : GObjectSprite {
     this(GameEngine e, GravestoneSpriteClass s) {
         super(e, s);
         gsc = s;
-        active = true;
+        internal_active = true;
     }
 
     this (ReflectCtor c) {
@@ -1269,7 +1269,7 @@ class GravestoneSprite : GObjectSprite {
     }
 }
 
-class GravestoneSpriteClass : GOSpriteClass {
+class GravestoneSpriteClass : SpriteClass {
     StaticStateInfo st_normal, st_drown;
 
     //indexed by type

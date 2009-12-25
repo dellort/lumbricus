@@ -83,7 +83,7 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
     //assert(shootby !is null);
     assert(n >= 0 && n < params.count);
 
-    GObjectSprite sprite = engine.createSprite(params.projectile);
+    Sprite sprite = engine.createSprite(params.projectile);
     sprite.createdBy = shootbyObject;
 
     switch (params.initVelocity) {

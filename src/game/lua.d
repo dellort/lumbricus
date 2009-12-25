@@ -79,10 +79,10 @@ static this() {
     gScripting.setClassPrefix!(GameObject)("Obj");
     gScripting.methods!(GameObject, "activity");
     gScripting.property!(GameObject, "createdBy");
-    gScripting.setClassPrefix!(GObjectSprite)("Sprite");
-    gScripting.methods!(GObjectSprite, "setPos", "pleasedie", "type",
+    gScripting.setClassPrefix!(Sprite)("Sprite");
+    gScripting.methods!(Sprite, "setPos", "pleasedie", "type",
         "activate");
-    gScripting.property_ro!(GObjectSprite, "physics");
+    gScripting.property_ro!(Sprite, "physics");
     gScripting.setClassPrefix!(ProjectileSprite)("Projectile");
     gScripting.property!(ProjectileSprite, "detonateTimer");
     gScripting.setClassPrefix!(WormSprite)("Worm");

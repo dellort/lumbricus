@@ -157,8 +157,8 @@ class GravityCenterAction : SpriteAction {
         super(c);
     }
 
-    override protected void updateActive() {
-        if (!active)
+    override protected void updateInternalActive() {
+        if (!internal_active)
             mGravForce.dead = true;
     }
 
@@ -196,8 +196,8 @@ class ProximitySensorAction : SpriteAction {
         c.types().registerMethod(this, &trigTrigger, "trigTrigger");
     }
 
-    override protected void updateActive() {
-        if (!active)
+    override protected void updateInternalActive() {
+        if (!internal_active)
             mTrigger.dead = true;
     }
 
@@ -374,8 +374,8 @@ class ControlRotateAction : SpriteAction, Controllable {
         super(c);
     }
 
-    override protected void updateActive() {
-        if (!active) {
+    override protected void updateInternalActive() {
+        if (!internal_active) {
             mParent.physics.resetLook();
             mMember.releaseControllable(this);
         }
@@ -407,7 +407,7 @@ class ControlRotateAction : SpriteAction, Controllable {
         return true;
     }
 
-    GObjectSprite getSprite() {
+    Sprite getSprite() {
         return mParent;
     }
 

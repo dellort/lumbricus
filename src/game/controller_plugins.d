@@ -55,14 +55,19 @@ class ControllerMsgs : GamePlugin {
 
     this(GameEngine c) {
         super(c);
-        OnGameStart.handler(engine.events, "root", &onGameStart);
-        OnGameEnd.handler(engine.events, "root", &onGameEnd);
-        OnSuddenDeath.handler(engine.events, "root", &onSuddenDeath);
-        OnWormEvent.handler(engine.events, "root", &onWormEvent);
-        OnTeamEvent.handler(engine.events, "root", &onTeamEvent);
-        OnCrateDrop.handler(engine.events, "root", &onCrateDrop);
-        OnCrateCollect.handler(engine.events, "root", &onCrateCollect);
-        OnVictory.handler(engine.events, "root", &onVictory);
+        auto ev = engine.events;
+        OnGameStart.handler(ev, "root", &onGameStart);
+        OnGameEnd.handler(ev, "root", &onGameEnd);
+        OnSuddenDeath.handler(ev, "root", &onSuddenDeath);
+        OnSpriteDie.handler(ev, "root", &onSpriteDie);
+        OnTeamMemberStartDie.handler(ev, "root", &onTeamMemberStartDie);
+        OnTeamMemberActivate.handler(ev, "root", &onTeamMemberActivate);
+        OnTeamMemberDeactivate.handler(ev, "root", &onTeamMemberDeactivate);
+        OnTeamSkipTurn.handler(ev, "root", &onTeamSkipTurn);
+        OnTeamSurrender.handler(ev, "root", &onTeamSurrender);
+        OnCrateDrop.handler(ev, "root", &onCrateDrop);
+        OnCrateCollect.handler(ev, "root", &onCrateCollect);
+        OnVictory.handler(ev, "root", &onVictory);
     }
     this(ReflectCtor c) {
         super(c);
@@ -73,35 +78,33 @@ class ControllerMsgs : GamePlugin {
         messageAdd("msggamestart", null);
     }
 
-    private void onWormEvent(GameObject dummy, WormEvent id, TeamMember m) {
-        switch (id) {
-            case WormEvent.wormActivate:
-                messageAdd("msgwormstartmove", [m.name], m.team,
-                    m.team);
-                break;
-            case WormEvent.wormDeactivate:
-                mLastMember = m;
-                break;
-            case WormEvent.wormDrown:
-                messageAdd("msgdrown", [m.name], m.team);
-                break;
-            case WormEvent.wormStartDie:
-                messageAdd("msgdie", [m.name], m.team);
-                break;
-            default:
-        }
+    private void onTeamMemberActivate(TeamMember m) {
+        messageAdd("msgwormstartmove", [m.name], m.team, m.team);
     }
 
-    private void onTeamEvent(GameObject dummy, TeamEvent id, Team t) {
-        switch (id) {
-            case TeamEvent.skipTurn:
-                messageAdd("msgskipturn", [t.name()], t);
-                break;
-            case TeamEvent.surrender:
-                messageAdd("msgsurrender", [t.name()], t);
-                break;
-            default:
-        }
+    private void onTeamMemberDeactivate(TeamMember m) {
+        mLastMember = m;
+    }
+
+    private void onSpriteDie(Sprite sprite) {
+        if (!sprite.isUnderWater())
+            return;
+        TeamMember m = controller.memberFromGameObject(sprite, false);
+        if (!m)
+            return;
+        messageAdd("msgdrown", [m.name], m.team);
+    }
+
+    private void onTeamMemberStartDie(TeamMember m) {
+        messageAdd("msgdie", [m.name], m.team);
+    }
+
+    private void onTeamSkipTurn(Team t) {
+        messageAdd("msgskipturn", [t.name()], t);
+    }
+
+    private void onTeamSurrender(Team t) {
+        messageAdd("msgsurrender", [t.name()], t);
     }
 
     private void onCrateDrop(CrateSprite sprite) {
@@ -262,7 +265,7 @@ class ControllerStats : GamePlugin {
         OnGameEnd.handler(engine.events, "root", &onGameEnd);
         OnDamage.handler(engine.events, "root", &onDamage);
         OnDemolish.handler(engine.events, "root", &onDemolish);
-        OnWormEvent.handler(engine.events, "root", &onWormEvent);
+        OnSpriteDie.handler(engine.events, "root", &onSpriteDie);
         OnCrateCollect.handler(engine.events, "root", &onCrateCollect);
         OnFireWeapon.handler(engine.events, "root", &onFireWeapon);
     }
@@ -270,7 +273,7 @@ class ControllerStats : GamePlugin {
         super(c);
     }
 
-    private void onDamage(GObjectSprite victim, GameObject cause, float damage)
+    private void onDamage(Sprite victim, GameObject cause, float damage)
     {
         char[] wname = "unknown_weapon";
         WeaponClass wclass = controller.weaponFromGameObject(cause);
@@ -313,7 +316,7 @@ class ControllerStats : GamePlugin {
         //log("blasted {} pixels of land", pixelCount);
     }
 
-    private void onFireWeapon(GObjectSprite sender, WeaponClass wclass,
+    private void onFireWeapon(Sprite sender, WeaponClass wclass,
         bool refire)
     {
         char[] wname = "unknown_weapon";
@@ -329,26 +332,20 @@ class ControllerStats : GamePlugin {
         }
     }
 
-    private void onWormEvent(GameObject dummy, WormEvent id, TeamMember m) {
-        switch (id) {
-            case WormEvent.wormActivate:
-                log("Worm activate: {}", m);
-                break;
-            case WormEvent.wormDeactivate:
-                log("Worm deactivate: {}", m);
-                break;
-            case WormEvent.wormDie:
-                log("Worm die: {}", m);
-                mStats.wormsDied++;
-                break;
-            case WormEvent.wormDrown:
-                int dh = m.currentHealth() - m.health();
-                log("Worm drown (floating label would say: {}): {} ", dh, m);
-                if (m.health(true) > 0)
-                    mStats.waterDmg += m.health(true);
-                mStats.wormsDrowned++;
-                break;
-            default:
+    private void onSpriteDie(Sprite sprite) {
+        TeamMember m = controller.memberFromGameObject(sprite, false);
+        if (!m)
+            return;
+        bool drowned = sprite.isUnderWater();
+        if (!drowned) {
+            log("Worm die: {}", m);
+            mStats.wormsDied++;
+        } else {
+            int dh = m.currentHealth() - m.health();
+            log("Worm drown (floating label would say: {}): {} ", dh, m);
+            if (m.health(true) > 0)
+                mStats.waterDmg += m.health(true);
+            mStats.wormsDrowned++;
         }
     }
 

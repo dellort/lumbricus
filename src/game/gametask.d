@@ -296,7 +296,7 @@ class GameTask : StatefulTask {
     }
 
     private bool initGameGui() {
-        mGameInfo = new GameInfo(mClientEngine, mControl);
+        mGameInfo = new GameInfo(mGameShell, mClientEngine, mControl);
         mGameInfo.connection = mConnection;
         mGameFrame = new GameFrame(mGameInfo);
         mWindow.add(mGameFrame);

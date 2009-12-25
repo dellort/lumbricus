@@ -442,6 +442,9 @@ class GameShell {
         Hasher mGameHasher;
         SerializeContext mSerializeCtx;
 
+        //abuse AA as set
+        bool[Object] mPauseBlockers;
+
         CommandBucket mCmds;
         CommandLine mCmd;
 
@@ -1007,6 +1010,21 @@ class GameShell {
         return mGameTime.paused();
     }
 
+    //set pause state
+    //the idea is that there can be multiple "blockers" which force the game
+    //  into pause mode, and the game can only continue if all blockers got
+    //  removed
+    void pauseBlock(bool pause_enable, Object blocker) {
+        assert(!!blocker);
+        if (pause_enable) {
+            mPauseBlockers[blocker] = true;
+        } else {
+            mPauseBlockers.remove(blocker);
+        }
+        mGameTime.paused = mPauseBlockers.length > 0;
+        log("pause state={} blockers={}", paused(), mPauseBlockers);
+    }
+
     private void writeDemoEntry(LogEntry e) {
         if (!mDemoOutput.isNull()) {
             Marshaller(&mDemoOutput.write).write(e);
@@ -1043,7 +1061,7 @@ class GameShell {
             nstate = params[0].unbox!(bool)();
         }
         log("pause: {}", nstate);
-        mGameTime.paused = nstate;
+        pauseBlock(nstate, this);
     }
     private void cmdSetSlowdown(MyBox[] params, Output o) {
         float state = params[0].unbox!(float)();

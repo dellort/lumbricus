@@ -91,7 +91,7 @@ class GameEngine {
         EarthQuakeForce mEarthquakeForceVis, mEarthquakeForceDmg;
 
 
-        GObjectSprite[] mPlaceQueue;
+        Sprite[] mPlaceQueue;
 
         FormattedText mTempText;
 
@@ -246,7 +246,7 @@ class GameEngine {
         }
     }
 
-    GObjectSprite createSprite(char[] name) {
+    Sprite createSprite(char[] name) {
         return gfx.findSpriteClass(name).createSprite(this);
     }
 
@@ -341,26 +341,26 @@ class GameEngine {
         if (c.source == ContactSource.generator)
             return;
         //exactly as the old behaviour
-        auto xa = cast(GObjectSprite)(c.obj[0].backlink);
+        auto xa = cast(Sprite)(c.obj[0].backlink);
         if (xa) xa.doImpact(c.obj[1], c.normal);
         if (c.obj[1]) {
-            auto xb = cast(GObjectSprite)(c.obj[1].backlink);
+            auto xb = cast(Sprite)(c.obj[1].backlink);
             if (xb) xb.doImpact(c.obj[0], -c.normal);
         }
     }
 
     private void underWaterTrigger(PhysicTrigger sender, PhysicObject other) {
-        auto x = cast(GObjectSprite)(other.backlink);
+        auto x = cast(Sprite)(other.backlink);
         if (x) x.setIsUnderWater();
     }
 
     private void deathzoneTrigger(PhysicTrigger sender, PhysicObject other) {
-        auto x = cast(GObjectSprite)(other.backlink);
+        auto x = cast(Sprite)(other.backlink);
         if (x) x.exterminate();
     }
 
     private void offworldTrigger(PhysicTrigger sender, PhysicObject other) {
-        auto x = cast(GObjectSprite)(other.backlink);
+        auto x = cast(Sprite)(other.backlink);
         auto member = mController.memberFromGameObject(x, false);
         if (!member)
             return; //I don't know, try firing lots of mine airstrikes
@@ -507,7 +507,7 @@ class GameEngine {
 
         //check distance to other sprites
         foreach (GameObject o; mObjects) {
-            auto s = cast(GObjectSprite)o;
+            auto s = cast(Sprite)o;
             if (s) {
                 if ((s.physics.pos-drop).length < cPlacePlatformDistance+10f)
                     return false;
@@ -557,7 +557,7 @@ class GameEngine {
         {
             //check distance to other sprites
             foreach (GameObject o; mObjects) {
-                auto s = cast(GObjectSprite)o;
+                auto s = cast(Sprite)o;
                 if (s) {
                     if ((s.physics.pos - drop).length < cPlaceMinDistance)
                         return false;
@@ -625,14 +625,14 @@ class GameEngine {
     ///then call finishPlace() to randomize the queue and place them all
     //queue for placing anywhere on landscape
     //call engine.finishPlace() when done with all sprites
-    void queuePlaceOnLandscape(GObjectSprite sprite) {
+    void queuePlaceOnLandscape(Sprite sprite) {
         mPlaceQueue ~= sprite;
     }
     void finishPlace() {
         //randomize place queue
         rnd.randomizeArray(mPlaceQueue);
 
-        foreach (GObjectSprite sprite; mPlaceQueue) {
+        foreach (Sprite sprite; mPlaceQueue) {
             Vector2f npos, tmp;
             if (!placeOnLandscapeDet(sprite.physics.posp.radius,
                 tmp, npos))
@@ -766,7 +766,7 @@ class GameEngine {
     //sry!
     private void onDamage(Object cause, Object victim, float damage) {
         auto a = cast(GameObject)cause;
-        auto b = cast(GObjectSprite)victim;
+        auto b = cast(Sprite)victim;
         if (!a || !b) {
             log("WARNING: unknown damage: {} {} {}", cause, victim, damage);
         } else {
@@ -884,7 +884,7 @@ class GameEngine {
             return 0;
         int ret = 0;
         foreach (GameObject o; mObjects) {
-            auto s = cast(GObjectSprite)o;
+            auto s = cast(Sprite)o;
             if (s) {
                 if (s.type == sc)
                     ret++;
@@ -909,7 +909,7 @@ class GameEngine {
                 i++;
                 if (fix) {
                     sa = "Killed active ";
-                    auto s = cast(GObjectSprite)(o);
+                    auto s = cast(Sprite)(o);
                     if (s)
                         s.exterminate();
                     o.kill();
@@ -917,10 +917,10 @@ class GameEngine {
             } else {
                 if (!all) continue;
             }
-            if (cast(GObjectSprite)o) {
+            if (cast(Sprite)o) {
                 log("{}{} at {} in state {}", sa, o.toString(),
-                    (cast(GObjectSprite)o).physics.pos,
-                    (cast(GObjectSprite)o).currentState.name);
+                    (cast(Sprite)o).physics.pos,
+                    (cast(Sprite)o).currentState.name);
             } else {
                 log("{}{}", sa, o.toString());
             }
@@ -959,9 +959,9 @@ class GameEngine {
 
     GameObject debug_pickObject(Vector2i pos) {
         auto p = toVector2f(pos);
-        GObjectSprite best;
+        Sprite best;
         foreach (GameObject o; mObjects) {
-            if (auto sp = cast(GObjectSprite)o) {
+            if (auto sp = cast(Sprite)o) {
                 //about the NaN thing, there are such objects *shrug*
                 if (!sp.physics.pos.isNaN() && (!best ||
                     (p-sp.physics.pos).length < (p-best.physics.pos).length))

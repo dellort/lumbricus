@@ -30,7 +30,7 @@ void initGameSerialization() {
         ActionSprite, GameController, ActionListRunner, ControlRotateAction,
         Team, TeamMember, WeaponSet, CollectableBomb,
         CollectableWeapon, CollectableMedkit, CrateSprite, GameLandscape,
-        LandscapeGeometry, GObjectSprite, BeamHandler, ActionShooter,
+        LandscapeGeometry, Sprite, BeamHandler, ActionShooter,
         ProjectileSprite, RayShooter, Sequence,
         Jetpack, Rope, Drill, GirderControl, WormSprite, WormSelectHelper,
         GravestoneSprite, WrapFireInfo, RandomJumpAction,
@@ -55,7 +55,7 @@ void initGameSerialization() {
     // doesn't need to be snapshotted)
     serialize_types.registerClasses!(ActionContainer, ActionListClass,
         ActionStateInfo, ActionSpriteClass, CrateSpriteClass,
-        StaticStateInfo, GOSpriteClass,
+        StaticStateInfo, SpriteClass,
         ActionWeapon, ProjectileStateInfo, ProjectileSpriteClass,
         RayWeapon, JetpackClass, RopeClass, SpawnActionClass,
         ImpulseActionClass, AoEDamageActionClass,

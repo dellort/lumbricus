@@ -21,7 +21,7 @@ class DelayedObj : GameObject {
 
     this(GameEngine eng, Time duration) {
         super(eng, "delayaction");
-        active = true;
+        internal_active = true;
         mWaitDone = engine.gameTime.current + duration;
     }
     this(ReflectCtor c) {
@@ -29,7 +29,7 @@ class DelayedObj : GameObject {
     }
 
     bool activity() {
-        return active;
+        return internal_active;
     }
 
     override void simulate(float deltaT) {

@@ -33,7 +33,7 @@ class MeleeWeapon: ActionWeapon {
     }
 
     //using SpecialShooter here leads to dmd lockup (at least with dsss)
-    MeleeShooter createShooter(GObjectSprite owner, GameEngine engine) {
+    MeleeShooter createShooter(Sprite owner, GameEngine engine) {
         return new MeleeShooter(this, owner, engine);
     }
 
@@ -45,7 +45,7 @@ class MeleeWeapon: ActionWeapon {
 class MeleeShooter: ActionShooter {
     MeleeWeapon base;
 
-    this(MeleeWeapon base, GObjectSprite a_owner, GameEngine engine) {
+    this(MeleeWeapon base, Sprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
         this.base = base;
     }

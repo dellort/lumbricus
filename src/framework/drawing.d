@@ -70,7 +70,6 @@ public class Canvas {
 
         State[MAX_STACK] mStack;
         uint mStackTop;             //point to current stack item
-        //Rect2i mParentArea;       //I don't know what this is
         Rect2i mVisibleArea;        //visible area in local canvas coords
     }
 
@@ -105,15 +104,6 @@ public class Canvas {
     final Vector2i clientSize() {
         return mStack[mStackTop].clientsize;
     }
-
-    /+
-    /// The drawable area of the parent canvas in client coords
-    /// (no visibility clipping)
-    //xxx I don't know if this makes any sense
-    final Rect2i parentArea() {
-        return mParentArea;
-    }
-    +/
 
     /// The rectangle in client coords which is visible
     /// (right/bottom borders exclusive; with clipping)
@@ -219,23 +209,11 @@ public class Canvas {
             p2.y - cast(int)((p2.y-p1.y)*perc)), p2, c);
     }
 
-    /// clear visible area (xxx: I hope, recheck drivers)
+    /// clear visible area
     public abstract void clear(Color color);
 
-    //updates parentArea / visibleArea after translating/clipping/scaling
+    //updates visibleArea after translating/clipping/scaling
     private void updateAreas() {
-        /+
-        if (mStackTop > 0) {
-            mParentArea.p1 =
-                -mStack[mStackTop].translate + mStack[mStackTop - 1].translate;
-            mParentArea.p1 =
-                toVector2i(toVector2f(mParentArea.p1) /mStack[mStackTop].scale);
-            mParentArea.p2 = mParentArea.p1 + mStack[mStackTop - 1].clientsize;
-        } else {
-            mParentArea.p1 = mParentArea.p2 = Vector2i(0);
-        }
-        +/
-
         mVisibleArea = mStack[mStackTop].clip - mStack[mStackTop].translate;
         mVisibleArea.p1 =
             toVector2i(toVector2f(mVisibleArea.p1) / mStack[mStackTop].scale);

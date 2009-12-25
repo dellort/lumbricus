@@ -40,7 +40,7 @@ class RayWeapon: ActionWeapon {
     }
 
     //using SpecialShooter here leads to dmd lockup (at least with dsss)
-    RayShooter createShooter(GObjectSprite owner, GameEngine engine) {
+    RayShooter createShooter(Sprite owner, GameEngine engine) {
         return new RayShooter(this, owner, engine);
     }
 
@@ -52,7 +52,7 @@ class RayWeapon: ActionWeapon {
 class RayShooter: ActionShooter {
     RayWeapon base;
 
-    this(RayWeapon base, GObjectSprite a_owner, GameEngine engine) {
+    this(RayWeapon base, Sprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
         this.base = base;
     }

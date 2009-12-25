@@ -64,5 +64,7 @@ final class ReflectCtor {
 
 bool isReflectableClass(T)() {
     ReflectCtor c;
+    T s; //static assert declareable
+    static assert(is(T == class));
     return is(typeof(new T(c)));
 }

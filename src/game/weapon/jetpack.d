@@ -40,7 +40,7 @@ class JetpackClass : WeaponClass {
         super(c);
     }
 
-    override Shooter createShooter(GObjectSprite go, GameEngine engine) {
+    override Shooter createShooter(Sprite go, GameEngine engine) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
@@ -80,13 +80,13 @@ class Jetpack : Shooter, Controllable {
     }
 
     bool activity() {
-        return active;
+        return internal_active;
     }
 
     override protected void doFire(FireInfo info) {
         reduceAmmo();
         mWorm.activateJetpack(true);
-        active = true;
+        internal_active = true;
     }
 
     override protected bool doRefire() {
@@ -97,20 +97,20 @@ class Jetpack : Shooter, Controllable {
             mWorm.physics.addImpulse(-mWorm.physics.velocity.X
                 * mWorm.physics.posp.mass);
         }
-        active = false;
+        internal_active = false;
         finished();
         return true;
     }
 
-    override protected void updateActive() {
-        super.updateActive();
-        if (active) {
+    override protected void updateInternalActive() {
+        super.updateInternalActive();
+        if (internal_active) {
             mMember.pushControllable(this);
         } else {
             mMember.releaseControllable(this);
             mWorm.physics.selfForce = Vector2f(0);
         }
-        if (active && myclass.maxTime != Time.Never) {
+        if (internal_active && myclass.maxTime != Time.Never) {
             assert(!!mWorm.graphic);
             mTimeLabel = engine.gfx.textCreate();
             mWorm.graphic.attachText = mTimeLabel;
@@ -130,7 +130,7 @@ class Jetpack : Shooter, Controllable {
         {
             mWorm.activateJetpack(false);
             mWorm.physics.selfForce = Vector2f(0);
-            active = false;
+            internal_active = false;
             finished();
             return;
         }
@@ -166,7 +166,7 @@ class Jetpack : Shooter, Controllable {
         return true;
     }
 
-    GObjectSprite getSprite() {
+    Sprite getSprite() {
         return mWorm;
     }
 

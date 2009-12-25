@@ -68,7 +68,7 @@ class ActionWeapon : WeaponClass {
     }
 
     /+
-    override void select(GObjectSprite selected_by) {
+    override void select(Sprite selected_by) {
         if (!onSelect || !selected_by)
             return;
         auto ctx = new SpriteContext(selected_by.engine);
@@ -77,7 +77,7 @@ class ActionWeapon : WeaponClass {
     }
     +/
 
-    ActionShooter createShooter(GObjectSprite go, GameEngine engine) {
+    ActionShooter createShooter(Sprite go, GameEngine engine) {
         return new ActionShooter(this, go, engine);
     }
 
@@ -100,7 +100,7 @@ class ActionShooter : Shooter, ProjectileFeedback {
     }
     protected WrapFireInfo fireInfo;
 
-    this(ActionWeapon base, GObjectSprite a_owner, GameEngine engine) {
+    this(ActionWeapon base, Sprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
         myclass = base;
         fireInfo = new WrapFireInfo;
@@ -183,20 +183,20 @@ class ActionShooter : Shooter, ProjectileFeedback {
             fireDone();
         } else {
             //need to wait for action to finish
-            active = true;
+            internal_active = true;
         }
     }
 
     private void fireDone() {
         if (mShotsRemain <= 0) {
             //all shots fired, done
-            active = false;
+            internal_active = false;
             fireFinish();
         } else if (!myclass.manualFire()) {
             //need to wait for next shot
             mWaitDone = engine.gameTime.current
                 + myclass.repeatDelay.sample(engine.rnd);
-            active = true;
+            internal_active = true;
         } else {
             mCanManualFire = true;
         }
@@ -270,7 +270,7 @@ class ActionShooter : Shooter, ProjectileFeedback {
         if (outOfAmmo)
             return;
         //... but abort everything if the worm was hit etc.
-        if (active) {
+        if (internal_active) {
             //waiting for fire action to run, or for next shot
             assert(!!mFireAction);
             mWaitDone = Time.Never;
@@ -291,7 +291,7 @@ class ActionShooter : Shooter, ProjectileFeedback {
                 //waited long enough, auto-fire next shot
                 assert(!myclass.manualFire());
                 mWaitDone = Time.Never;
-                active = false;
+                internal_active = false;
                 fireOne();
             }
         } else if (mFireAction.done()) {
