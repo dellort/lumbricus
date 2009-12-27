@@ -30,7 +30,7 @@ class WormLabel : Widget {
     this(Team team) {
         focusable = false;
         isClickable = false;
-        txt = team.color.textCreate2();
+        txt = team.color.textCreate();
         txt.setLiteral(team.name);
     }
 

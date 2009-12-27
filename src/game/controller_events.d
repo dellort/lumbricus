@@ -5,6 +5,7 @@ module game.controller_events;
 //  events, instead of having to browse the whole code for declare() calls
 //xxx: oh was that the idea?
 
+import framework.i18n; //for LocalizedMessage
 import game.controller;
 import game.game;
 import game.gobject;
@@ -18,6 +19,21 @@ import utils.md;
 import utils.reflection;
 import utils.factory;
 
+///let the client display a message (like it's done on round's end etc.)
+///this is a bit complicated because message shall be translated on the
+///client (i.e. one client might prefer Klingon, while the other is used
+///to Latin); so msgid and args are passed to the translation functions
+///this returns a value, that is incremented everytime a new message is
+///available
+///a random int is passed along, so all clients with the same locale
+///will select the same message
+struct GameMessage {
+    LocalizedMessage lm;
+    Team actor;    //who did the action (for message color), null for neutral
+    Team viewer;   //who should see it (only players with Team
+                   //  in getOwnedTeams() see the message), null for all
+}
+
 //note how all events could be moved to better places (unlike before)
 //xxx: move all events where they belong to
 //  leaving them here until we figure out how events should work
@@ -25,9 +41,10 @@ import utils.factory;
 //xxx: sender is a dummy object, should be controller or something
 alias DeclareEvent!("game_start", GameObject) OnGameStart;
 alias DeclareEvent!("game_end", GameObject) OnGameEnd;
-alias DeclareEvent!("sudden_death", GameObject) OnSuddenDeath;
+alias DeclareEvent!("game_sudden_death", GameObject) OnSuddenDeath;
+alias DeclareEvent!("game_message", GameObject, GameMessage) OnGameMessage;
 //victim, cause, damage
-alias DeclareEvent!("damage", Sprite, GameObject, float) OnDamage;
+alias DeclareEvent!("sprite_damage", Sprite, GameObject, float) OnDamage;
 //cause, number of pixels
 //apparently the victim is 0 to N bitmap based GameLandscapes
 alias DeclareEvent!("demolish", GameObject, int) OnDemolish;
@@ -41,7 +58,7 @@ alias DeclareEvent!("team_member_start_die", TeamMember) OnTeamMemberStartDie;
 alias DeclareEvent!("team_member_activate", TeamMember) OnTeamMemberActivate;
 alias DeclareEvent!("team_member_deactivate", TeamMember) OnTeamMemberDeactivate;
 //sprite firing the weapon, used weapon, refired
-alias DeclareEvent!("fire_weapon", Sprite, WeaponClass, bool) OnFireWeapon;
+alias DeclareEvent!("shooter_fire", Shooter, bool) OnFireWeapon;
 alias DeclareEvent!("team_skipturn", Team) OnTeamSkipTurn;
 alias DeclareEvent!("team_surrender", Team) OnTeamSurrender;
 //oh look, this isn't a TeamEvent
@@ -52,6 +69,8 @@ alias DeclareEvent!("team_victory", GameObject, Team) OnVictory;
 alias DeclareEvent!("crate_drop", CrateSprite) OnCrateDrop;
 //sender is the crate, first parameter is the collecting team member
 alias DeclareEvent!("crate_collect", CrateSprite, TeamMember) OnCrateCollect;
+//number of weapons changed
+alias DeclareEvent!("weaponset_changed", WeaponSet) OnWeaponSetChanged;
 
 //base class for custom plugins
 //now I don't really know what the point of this class was anymore

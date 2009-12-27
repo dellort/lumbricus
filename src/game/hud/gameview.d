@@ -101,12 +101,12 @@ private class ViewMember : SceneObject {
         moveWeaponIcon.currentTimeDg = &ts.current;
         member = m;
         TeamTheme theme = team.color;
-        wormTeam = theme.textCreate2();
+        wormTeam = theme.textCreate();
         wormTeam.setLiteral(team.name());
-        wormName = theme.textCreate2();
+        wormName = theme.textCreate();
         wormName.setLiteral(member.name());
-        wormPoints = theme.textCreate2();
-        healthHint = theme.textCreate2();
+        wormPoints = theme.textCreate();
+        healthHint = theme.textCreate();
         weaponIcon = new BorderImage;
         weaponIcon.border = GfxSet.textWormBorderStyle();
 
@@ -128,6 +128,11 @@ private class ViewMember : SceneObject {
 
         if (!graphic) {
             removeThis();
+            //show the drown label
+            if (sprite.isUnderWater()) {
+                int lost = member.currentHealth - member.health();
+                owner.memberDrown(member, lost, toVector2i(sprite.physics.pos));
+            }
             return;
         }
 
@@ -336,7 +341,7 @@ class DrownLabel : SceneObject {
     //member inf drowned at pos (pos is on the ground)
     this(GameInfo a_game, TeamMember m, int lost, Vector2i pos) {
         mGame = a_game;
-        mTxt = m.team.color.textCreate2();
+        mTxt = m.team.color.textCreate();
         mTxt.setTextFmt(false, "{}", lost);
         mFrom = pos;
         mTo = Vector2i(pos.x, mGame.engine.waterOffset);
@@ -463,7 +468,7 @@ class GameView : Widget {
         }
     }
 
-    private void doMemberDrown(TeamMember member, int lost, Vector2i at) {
+    void memberDrown(TeamMember member, int lost, Vector2i at) {
         mLabels.add(new DrownLabel(mGame, member, lost, at));
     }
 
@@ -477,8 +482,6 @@ class GameView : Widget {
         mLabels.zorder = GameZOrder.Names;
 
         readd_graphics();
-
-        mGame.engine.callbacks.memberDrown ~= &doMemberDrown;
 
         mCamera = new Camera(mGame.clientTime);
 

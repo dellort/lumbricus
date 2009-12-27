@@ -9,11 +9,11 @@ import game.controller_events;
 import game.sequence;
 import game.weapon.weapon;
 import game.sprite;
-import game.text;
 import game.actionsprite;
 import game.action.base;
 import game.weapon.actionweapon;
 import game.temp;
+import gui.rendertext;
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -190,7 +190,7 @@ class CrateSprite : ActionSprite {
 
         CrateType mCrateType;
 
-        RenderText mSpy;
+        FormattedText mSpy;
     }
 
     //contents of the crate
@@ -304,10 +304,10 @@ class CrateSprite : ActionSprite {
                 char[] msg = "\\t(" ~ stuffies[0].id() ~ ")";
                 if (bomb)
                     msg = "\\c(team_red)" ~ msg;
-                mSpy.markupText = msg;
-                mSpy.visibility = &spyVisible;
+                mSpy.setTextFmt(true, msg);
                 assert(!!graphic);
                 graphic.attachText = mSpy;
+                graphic.textVisibility = &spyVisible;
             }
         } else {
             mSpy = null;
@@ -349,9 +349,7 @@ class CrateSprite : ActionSprite {
         super.simulate(deltaT);
     }
 
-    //for TextGraphic.visibleDg : returns true if spy is shown (m is the
-    //  client's controlled member)
-    private bool spyVisible(RenderText s) {
+    private bool spyVisible(Sequence s) {
         auto m = engine.callbacks.getControlledTeamMember();
         if (!m)
             return false;

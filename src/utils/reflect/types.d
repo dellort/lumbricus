@@ -26,6 +26,7 @@ class Types {
         ClassMethod[void*] mMethodMap;
         Class[char[]] mClassMap;
         ReflectCtor mFoo;
+        Type[char[]] mNameMap;
     }
 
     this() {
@@ -92,6 +93,31 @@ class Types {
         return res;
     }
 
+    //another SafePtr function which is unorthogonal to everything!
+    //return a SafePtr with type == to
+    //if it fails, it'll throw an exception
+    final SafePtr objPtr(Object x, TypeInfo to) {
+        if (!cast(TypeInfo_Class)to)
+            throw new Exception("non-class TypeInfo passed to ObjPtr(x, to)");
+        if (x !is null) {
+            //verify "to" is somewhere in the inheritance hierarchy
+            ClassInfo info = x.classinfo;
+            while (info) {
+                if (info.typeinfo is to)
+                    break;
+                info = info.base;
+            }
+            if (!info)
+                throw new Exception("bogus TypeInfo passed to objPtr(x, to)");
+        }
+        void** memory = new void*;
+        *memory = cast(void*)x;
+        SafePtr res;
+        res.ptr = memory;
+        res.type = tiToT(to);
+        return res;
+    }
+
     final SafePtr toSafePtr(TypeInfo ti, void* ptr) {
         return SafePtr(tiToT(ti), ptr);
     }
@@ -128,9 +154,10 @@ class Types {
 
     final Class registerClass(T)() {
         static assert (isReflectableClass!(T)(), "not reflectable: "~T.stringof);
-        return doRegister!(T)(null, (ReflectCtor c) {
-            return cast(Object)new T(c); }
-        );
+        Object do_inst(ReflectCtor c) {
+            return cast(Object)new T(c);
+        }
+        return doRegister!(T)(null, &do_inst);
     }
 
     private Class doRegister(T)(T dummy, Object delegate(ReflectCtor c) inst) {
@@ -209,10 +236,28 @@ class Types {
         }
     }
 
-    private void addBaseTypes(T...)() {
+    //called separately, was just too lazy to figure out if it really has to
+    package void addName(Type t) {
+        char[] name = t.uniqueName();
+        if (name in mNameMap) {
+            assert(false, "double entry? non-unique name?\n"
+                ~ "name: " ~name ~ "\n"
+                ~ "add: "~ t.toString ~ "\n"
+                ~ "conflict: "~mNameMap[name].toString);
+        }
+        mNameMap[name] = t;
+    }
+
+    package void addBaseTypes(T...)() {
         foreach (Type; T) {
             BaseType.create!(Type)(this);
         }
+    }
+
+    //return null on failure
+    Type nameToType(char[] name) {
+        auto pr = name in mNameMap;
+        return pr ? *pr : null;
     }
 
     ///Return a Type describing T; if T is a base type, an array/a-array, a
@@ -233,6 +278,11 @@ class Types {
             return ReferenceType.create!(T)(this);
         } else static if (is(T == struct)) {
             return StructType.create!(T)(this);
+        } else static if (is(T == function)) {
+            //apparently, dmd shits itself and thinks functions are pointers to
+            //  something (dmd bug 3650); I guess pointer-to-something is the
+            //  internal representation for functions
+            //- do nothing, see end of the if cascade
         } else static if (is(T T2 : T2*)) {
             return PointerType.create!(T)(this);
         } else static if (is(T == delegate)) {
@@ -243,10 +293,10 @@ class Types {
             return ArrayType.create!(T)(this);
         } else static if (isAssocArrayType!(T)) {
             return MapType.create!(T)(this);
-        } else {
-            //nothing found
-            assert(false, "can't handle type " ~ T.stringof);
         }
+
+        //anything that's left
+        return UnknownType.create!(T)(this);
     }
 
     package ClassMethod lookupMethod(void* fptr) {

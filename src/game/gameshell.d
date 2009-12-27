@@ -10,6 +10,7 @@ import framework.timesource;
 import framework.commandline;
 
 import game.controller;
+import game.events;
 import game.glue;
 import game.game;
 import game.gfxset;
@@ -334,6 +335,8 @@ class GameLoader {
             mShell.mMasterTime, cFrameLength);
         mShell.mGameTime.paused = mStartPaused;
 
+        mShell.mCEvents = new Events();
+
         //registers many objects referenced from mShell for serialization
         mShell.initSerialization();
 
@@ -345,6 +348,8 @@ class GameLoader {
             //for creation of a new game
             mShell.mEngine = new GameEngine(mGameConfig, mGfx,
                 mShell.mGameTime);
+
+            mShell.mEngine.events.cascade ~= mShell.mCEvents;
         } else {
             //code for loading a savegame
 
@@ -384,6 +389,8 @@ class GameLoader {
         mShell.mEngine.callbacks.interpolateTime = it;
 
         mShell.mEngine.callbacks.scene = new Scene();
+
+        mShell.mEngine.callbacks.cevents = mShell.mCEvents;
 
         if (mDemoInput) {
             //whee whee we simply set it to replay mode and seriously mess with
@@ -441,6 +448,8 @@ class GameShell {
         debug bool mPrintFrameTime;
         Hasher mGameHasher;
         SerializeContext mSerializeCtx;
+
+        Events mCEvents; //==GameEngine.callbacks.cevents
 
         //abuse AA as set
         bool[Object] mPauseBlockers;
@@ -962,10 +971,14 @@ class GameShell {
 
         mSerializeCtx.addExternal(mGameTime, "game_time");
 
+        mSerializeCtx.addExternal(mCEvents, "cevents");
+
         //was addResources()
         //can't really be avoided, because we're not going to write game data
         //  graphics and sounds into the savegame
         mGfx.initSerialization(mSerializeCtx);
+
+        eventsInitSerializeCtx(mSerializeCtx);
     }
 
     //public, but only for debugging stuff

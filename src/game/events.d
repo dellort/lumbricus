@@ -2,6 +2,11 @@
 module game.events;
 
 import framework.lua;
+import utils.misc;
+import utils.mybox;
+import utils.reflection;
+import utils.serialize;
+
 import traits = tango.core.Traits;
 
 class EventTarget {
@@ -67,21 +72,23 @@ struct EventPtr {
     }
 }
 
-alias void delegate(EventTarget sender, EventPtr params) EventHandler;
+alias void delegate(EventTarget, EventPtr) EventHandler;
+alias void delegate(char[], EventTarget, EventPtr) GenericEventHandler;
+alias void function(ref EventEntry, EventTarget, EventPtr) DispatchEventHandler;
 
-//dissect T, which is an event handler delegate/function; see Events.handlerT
-//T is roughly of the form:
-//template T(Sender, Args...) {
-//  alias void delegate/function(Sender sender, Args args) T;
-//}
-template SplitEventHandler(T) {
-    static assert(traits.isCallableType!(T));
-    alias traits.ParameterTupleOf!(T) AllParams;
-    static assert(AllParams.length > 0, "needs at least sender paremeter");
-    alias AllParams[0] Sender;
-    alias AllParams[1..$] Args;
-    static assert(is(Sender : EventTarget));
-    alias ParamStruct!(Args) ParamType;
+private struct EventEntry {
+    MyBox data;
+    DispatchEventHandler handler;
+}
+
+private class EventType {
+    char[] name;
+    TypeInfo paramtype;
+    //MarshalIn marshal;
+    EventEntry[] handlers;
+
+    this() {}
+    this(ReflectCtor c) {}
 }
 
 //basic idea: emulate virtual functions; just that:
@@ -90,7 +97,7 @@ template SplitEventHandler(T) {
 //  3. magically support scripting (raising/handling events in scripts)
 //consequences of the implementation...:
 //  1. handlers are always registered to classes, never to instances
-//  2. adding handlers is SLOW because of some internal dispatch preparation
+//  2. adding handlers is SLOW because of memory allocation
 //
 //the following applies: "make it better", "we can change/fix it later",
 //  "it's better than nothing", "I had to do something about this",
@@ -107,32 +114,28 @@ template SplitEventHandler(T) {
 //    than marshalling the event parameters multiple times)
 //
 //also, either raiseT() or raise() should eventually be removed
-class Events {
+final class Events {
     private {
-        TargetList[char[]] mHandlers;
         EventType[char[]] mEvents;
 
         //LuaState mScripting;
     }
 
-    //only needed to map scripting event to parameter type
-    private static class EventType {
-        char[] name;
-        TypeInfo paramtype;
-        //MarshalIn marshal;
-    }
-
-    private static class TargetList {
-        char[] name;
-        TargetList parent;
-        //indexed by event type
-        EventHandler[][char[]] handlers;
-        EventHandler[][char[]] all_handlers;
-        bool adding, done; //temporary flags for rebuild_stuff()
-    }
+    //catch all events
+    GenericEventHandler[] generic_handlers;
+    //send all events to these objects as well
+    Events[] cascade;
 
     this() {
         //mScripting = ...;
+    }
+
+    this (ReflectCtor c) {
+        c.types.registerClasses!(EventType);
+    }
+
+    void genericHandler(GenericEventHandler h) {
+        generic_handlers ~= h;
     }
 
     private EventType get_event(char[] name) {
@@ -145,152 +148,46 @@ class Events {
         return e;
     }
 
-    private TargetList get_target(char[] name) {
-        auto ptarget = name in mHandlers;
-        if (ptarget)
-            return *ptarget;
-        auto t = new TargetList;
-        t.name = name;
-        mHandlers[t.name] = t;
-        return t;
-    }
-
-    //update TargetList.all_handlers
-    //so that all_handlers will contain the handlers of all target super classes
-    private void rebuild_stuff() {
-        foreach (TargetList t; mHandlers) {
-            t.all_handlers = null;
-            t.done = false;
-        }
-
-        //add everything from "from" to "to"
-        void add_handlers(ref EventHandler[][char[]] to,
-            EventHandler[][char[]] from)
-        {
-            foreach (char[] k, EventHandler[] v; from) {
-                if (!(k in to))
-                    to[k] = null;
-                to[k] ~= v;
-            }
-        }
-
-        void rebuild(TargetList t) {
-            assert(!t.adding, "circular inheritance");
-            if (t.done)
-                return;
-
-            t.adding = true;
-            t.done = true;
-            add_handlers(t.all_handlers, t.handlers);
-            if (t.parent) {
-                rebuild(t.parent);
-                add_handlers(t.all_handlers, t.parent.all_handlers);
-            }
-            t.adding = false;
-        }
-
-        foreach (TargetList t; mHandlers) {
-            if (!t.done)
-                rebuild(t);
-        }
-    }
-
-    //event = event name (e.g. "ondamage")
-    //target = type or super type of the objects to receive events from
-    //         (e.g. "worm" or "sprite")
-    //paramtype is needed for script->D events (what type to demarshal)
-    void handler(char[] event, char[] target, TypeInfo paramtype,
-        EventHandler a_handler)
+    private void do_reg_handler(char[] event, TypeInfo paramtype,
+        EventEntry a_handler)
     {
         EventType e = get_event(event);
         if (e.paramtype && e.paramtype !is paramtype)
             assert(false, "handlers for same event with different parameters");
         e.paramtype = paramtype;
-
-        TargetList t = get_target(target);
-        if (!(event in t.handlers))
-            t.handlers[event] = [];
-        t.handlers[event] ~= a_handler;
-
-        rebuild_stuff();
+        e.handlers ~= a_handler;
     }
 
-    //e.g. when worm is damaged:
-    //  class Worm : ... { void apply_demage() { raise("ondamage", this); }
-    void raise(char[] event, EventTarget sender,
-        EventPtr params = EventPtr.Null)
+    private static void handler_generic(ref EventEntry from, EventTarget sender,
+        EventPtr params)
     {
-        raiseD(event, sender, params);
+        EventHandler h = from.data.unbox!(EventHandler)();
+        h(sender, params);
     }
 
-    //call D event handlers
-    private void raiseD(char[] event, EventTarget sender, EventPtr params) {
-        char[] target = sender.eventTargetType();
-        auto ptarget = target in mHandlers;
-        if (!ptarget)
-            return;
-        TargetList t = *ptarget;
-        auto phandlers = event in t.all_handlers;
-        if (!phandlers)
-            return;
-        foreach (EventHandler h; *phandlers) {
-            h(sender, params);
-        }
+    //event = event name (e.g. "ondamage")
+    //paramtype is needed for script->D events (what type to demarshal)
+    void handler(char[] event, TypeInfo paramtype, EventHandler a_handler) {
+        EventEntry e;
+        e.data.box!(EventHandler)(a_handler);
+        e.handler = &handler_generic;
+        do_reg_handler(event, paramtype, e);
     }
 
-    //make target_super a super class of target_sub
-    //which means if an event handler is registered for target_super, it will
-    //  also receive events from target_sub EventTargets
-    void inherit(char[] target_super, char[] target_sub) {
-        auto sup = get_target(target_super);
-        auto sub = get_target(target_sub);
-
-        if (sub.parent is sup)
-            return;
-
-        assert(!sub.parent); //actually, multiple inheritance could work...
-        sub.parent = sup;
-
-        rebuild_stuff();
-    }
-
-
-    //the template metabloat version of handler()
-    //for EventHandlerT see SplitEventHandler
-    void handlerT(EventHandlerT)(char[] event, char[] target,
-        EventHandlerT a_handler)
-    {
-        alias SplitEventHandler!(EventHandlerT) P;
-
-        paramTypeIn!(P.ParamType)();
-
-        struct Closure { //(needless in D2, could use a_handler directly)
-            EventHandlerT dest;
-            void call(EventTarget sender, EventPtr argptr) {
-                auto sender2 = cast(P.Sender)sender;
-                //what if it's the wrong type?
-                //anyone can raise an event with the wrong sender/arg types
-                if (!sender2)
-                    return;
-                auto args = argptr.get!(P.ParamType)();
-                dest(sender2, args.tupleof);
-            }
+    void raise(char[] event, EventTarget sender, EventPtr params) {
+        //char[] target = sender.eventTargetType();
+        EventType e = get_event(event);
+        foreach (ref h; e.handlers) {
+            h.handler(h, sender, params);
         }
 
-        auto c = new Closure;
-        c.dest = a_handler;
-        handler(event, target, typeid(P.ParamType), &c.call);
-    }
+        foreach (h; generic_handlers) {
+            h(event, sender, params);
+        }
 
-    //again, template metabloat version
-    void raiseT(Args...)(char[] event, EventTarget sender, Args args) {
-        alias ParamStruct!(Args) ParamType;
-        paramTypeOut!(ParamType)();
-        ParamType args2;
-        //dmd bug 3614?
-        static if (Args.length)
-            args2.args = args;
-        raise(event, sender, EventPtr.Ptr(args2));
+        foreach (Events c; cascade) {
+            c.raise(event, sender, params);
+        }
     }
 }
 
@@ -323,24 +220,42 @@ void paramTypeIn(T)() {
 
 //weird way to "declare" and events globally
 //this checks event parameter types at compile time
+//xxx would be nice as struct too, but I get forward reference errors
+//xxx 2 the name will add major symbol name bloat, argh.
 template DeclareEvent(char[] name, SenderBase, Args...) {
-    void handler(T)(Events base, char[] target, T handler) {
-        //type checking
-        alias SplitEventHandler!(T) P;
-        //actually, it just had to be callable (implicit conversions...)
-        static assert(is(Args == P.Args), "wrong types for event "~name~", "
-            ~"\nexpected: "~Args.stringof~"\ngot: "~P.Args.stringof);
-        //must be "somewhere" in inheritance hierarchy
-        static assert(is(P.Sender : SenderBase) || is(SenderBase : P.Sender));
-        //xxx if only we could map SenderBase to target...
-        //  e.g. if SenderBase was a GObjectSprite, target = "sprite" (although
-        //  sprite instances could be more special, but "sprite" would still be
-        //  valid)
-        base.handlerT(name, target, handler);
+    alias void delegate(SenderBase, Args) Handler;
+    alias ParamStruct!(Args) ParamType;
+    alias name Name;
+
+    static void handler(Events base, Handler a_handler) {
+        paramTypeIn!(ParamType)();
+
+        EventEntry e;
+        e.data.box!(Handler)(a_handler);
+        e.handler = &handler_templated;
+        base.do_reg_handler(name, typeid(ParamType), e);
     }
-    void raise(SenderBase sender, Args args) {
+
+    static void raise(SenderBase sender, Args args) {
+        paramTypeOut!(ParamType)();
+
         assert(!!sender);
-        sender.eventsBase.raiseT(name, sender, args);
+        ParamType args2;
+        //dmd bug 3614?
+        static if (Args.length)
+            args2.args = args;
+        sender.eventsBase.raise(name, sender, EventPtr.Ptr(args2));
+    }
+
+    private static void handler_templated(ref EventEntry from,
+        EventTarget sender, EventPtr params)
+    {
+        assert(!!sender);
+        auto sender2 = cast(SenderBase)sender;
+        assert(!!sender2);
+        auto h = from.data.unbox!(Handler)();
+        auto args = params.get!(ParamType)();
+        h(sender2, args.tupleof);
     }
 }
 
@@ -350,6 +265,74 @@ unittest {
     int i;
     bool b;
     auto xd = {SomeEvent.raise(null, i, b);};
+}
+
+//disgusting serialization hacks follow
+//this only deals with the handler_templated functions
+//you could just put the dispatcher as virtual function into a templated class,
+//  and then register that class for serialization, but the thought of the bloat
+//  when generating a class per handler wouldn't let me sleep at night
+
+private {
+    DispatchEventHandler[char[]] gEventHandlerDispatchers;
+}
+
+//[read|write]Handler make up the custom serializer for the templated dispatch
+//  function... the serializer searches through EventHandlerDispatchers and
+//  maps the function pointer to a name
+
+private void readHandler(SerializeBase base, SafePtr p,
+    void delegate(SafePtr) reader)
+{
+    char[] name;
+    reader(base.types.ptrOf(name));
+    auto ph = name in gEventHandlerDispatchers;
+    if (!ph) {
+        throw new SerializeError("can't read event dispatch handler");
+    }
+    p.write!(DispatchEventHandler)(*ph);
+}
+
+private void writeHandler(SerializeBase base, SafePtr p,
+    void delegate(SafePtr) writer)
+{
+    DispatchEventHandler search = p.read!(DispatchEventHandler)();
+    foreach (char[] n, DispatchEventHandler h; gEventHandlerDispatchers) {
+        if (search is h) {
+            writer(base.types.ptrOf(n));
+            return;
+        }
+    }
+    //most likely forgot to pass sth. to registerSerializableEventHandlers()
+    //there's nothing you can do about this error; except maybe reverse lookup
+    //  the function address to a symbol name using your favorite OMF/ELF tool
+    //xxx or like in Types.readDelegateError()
+    throw new SerializeError("unregistered event type?");
+}
+
+//call with DeclareEvent alias (e.g. SomeEvent)
+//this means T is a fully instantiated template (wtf...)
+void registerSerializableEventHandlers(T...)(Types types) {
+    const clen = T.length; //can't pass this directly to Repeat LOL DMD
+    foreach (x; Repeat!(clen)) {
+        add_bloat_fn(&T[x].handler_templated, T[x].Name);
+        //to enable serialization of EventType.paramtype
+        types.getType!(T[x].ParamType)();
+    }
+}
+
+private void add_bloat_fn(DispatchEventHandler f, char[] name) {
+    assert(!(name in gEventHandlerDispatchers), "non-unique event name?");
+    gEventHandlerDispatchers[name] = f;
+}
+
+static this() {
+    add_bloat_fn(&Events.handler_generic, "_generic_");
+}
+
+void eventsInitSerializeCtx(SerializeContext ctx) {
+    ctx.addCustomSerializer!(DispatchEventHandler)(null, &readHandler,
+        &writeHandler);
 }
 
 

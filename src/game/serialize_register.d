@@ -6,7 +6,7 @@ import utils.reflection;
 
 import framework.timesource;
 import game.actionsprite, game.controller, game.crate, game.game,
-    game.glevel, game.sprite, game.worm, game.text,
+    game.glevel, game.sprite, game.worm,
     game.weapon.actionweapon, game.weapon.projectile,
     game.weapon.ray, game.weapon.rope, game.weapon.weapon,
     game.weapon.napalm, game.weapon.melee, game.weapon.jetpack,
@@ -16,7 +16,7 @@ import game.actionsprite, game.controller, game.crate, game.game,
     game.controller_plugins, game.levelgen.renderer, game.action.base,
     game.action.list, game.action.weaponactions, game.action.spriteactions,
     game.action.spawn, game.action.wcontext, game.action.common,
-    game.wcontrol;
+    game.wcontrol, game.events, game.controller_events;
 import common.scene, common.animation;
 import physics.world;
 import utils.random;
@@ -35,7 +35,7 @@ void initGameSerialization() {
         Jetpack, Rope, Drill, GirderControl, WormSprite, WormSelectHelper,
         GravestoneSprite, WrapFireInfo, RandomJumpAction,
         Animator,
-        RenderText, RenderLandscape, RenderRope, Scene,
+        RenderLandscape, RenderRope, Scene,
         RenderCrosshair,
         NapalmSprite, ModeTurnbased, ModeDebug, TimeSource, StuckTriggerAction,
         TimeSourceFixFramerate, TimeStatus, HomingAction, SpriteAction,
@@ -46,23 +46,23 @@ void initGameSerialization() {
         GravityCenterAction, ProximitySensorAction,
         WormControl,
         SimpleAnimationDisplay, WwpNapalmDisplay, WwpJetpackDisplay,
-        WwpWeaponDisplay);
-    /+
-    //stuff that is actually redundant and wouldn't need to be in savegames
-    //but excluding this from savegames would be too much work for nothing
-    //keeping them separate still makes sense if we ever need faster snapshots
-    //(all data stored by these classes doesn't or shouldn't change, and thus
-    // doesn't need to be snapshotted)
-    serialize_types.registerClasses!(ActionContainer, ActionListClass,
-        ActionStateInfo, ActionSpriteClass, CrateSpriteClass,
-        StaticStateInfo, SpriteClass,
-        ActionWeapon, ProjectileStateInfo, ProjectileSpriteClass,
-        RayWeapon, JetpackClass, RopeClass, SpawnActionClass,
-        ImpulseActionClass, AoEDamageActionClass,
-        WormStateInfo, WormSpriteClass, GravestoneSpriteClass,
-        SequenceStateList, NapalmStateDisplay, NapalmState, WormStateDisplay,
-        SubSequence, WormState, NapalmSpriteClass,
-        ProjectileStateInfo, CrateStateInfo, DrillClass);
-    actionSerializeRegister(serialize_types);
-    +/
+        WwpWeaponDisplay, Events, GlobalEvents);
+    registerSerializableEventHandlers!(
+        OnGameStart,
+        OnGameEnd,
+        OnSuddenDeath,
+        OnDamage,
+        OnDemolish,
+        OnSpriteDie,
+        OnTeamMemberStartDie,
+        OnTeamMemberActivate,
+        OnTeamMemberDeactivate,
+        OnFireWeapon,
+        OnTeamSkipTurn,
+        OnTeamSurrender,
+        OnVictory,
+        OnCrateDrop,
+        OnCrateCollect,
+        OnWeaponSetChanged
+    )(serialize_types);
 }

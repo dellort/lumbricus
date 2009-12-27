@@ -6,12 +6,13 @@ module game.hud.teaminfo;
 import framework.font;
 import framework.framework;
 import framework.timesource;
-import game.gfxset;
 import game.clientengine;
 import game.controller;
-import game.gameshell;
-import game.weapon.weapon;
+import game.events;
 import game.game;
+import game.gameshell;
+import game.gfxset;
+import game.weapon.weapon;
 import gui.rendertext;
 import gui.label;
 import gui.widget;
@@ -26,6 +27,7 @@ public import game.controller : Team, TeamMember;
 class GameInfo {
     ClientGameEngine cengine;
     GameEngine engine;
+    Events cevents;
     GameShell shell;
     GameController logic;
     ClientControl control;
@@ -46,6 +48,7 @@ class GameInfo {
         engine = cengine.engine();
         logic = engine.logic;
         control = ct;
+        cevents = engine.callbacks.cevents;
 
         clientTime = cengine.engineTime;
         serverTime = engine.gameTime;

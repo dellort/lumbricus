@@ -12,8 +12,10 @@ import common.resources : gResources, ResourceFile;
 //import common.macroconfig;
 import utils.color;
 import utils.configfile;
-import utils.time;
+import utils.misc;
+import utils.reflection;
 import utils.serialize;
+import utils.time;
 
 import physics.collisionmap;
 import physics.world;
@@ -21,7 +23,6 @@ import game.events;
 import game.sequence;
 import game.setup;
 import game.sprite;
-import game.text;
 import game.weapon.weapon;
 
 class ClassNotRegisteredException : Exception {
@@ -374,6 +375,9 @@ class GfxSet {
         foreach (CollisionType t; collision_map.collisionTypes()) {
             ctx.addExternal(t, "collision_type::" ~ t.name);
         }
+
+        ctx.addCustomSerializer!(FormattedText)(&textDeserialize, null,
+            &textSerialize);
     }
 
     //--- stupid events stuff (hack until we figure out what we want)
@@ -388,6 +392,7 @@ class GfxSet {
     //- sprites are loaded before GameEngine is created
     //- Events is created with the GameEngine
     void initEvents(Events events) {
+        /+
         foreach (e; mEventInheritance) {
             events.inherit(e.sup, e.sub);
         }
@@ -398,6 +403,7 @@ class GfxSet {
         events.inherit("root", "sprite");
         events.inherit("root", "team");
         events.inherit("root", "team_member");
+        +/
     }
 
     static BoxProperties textWormBorderStyle() {
@@ -416,12 +422,9 @@ class GfxSet {
         txt.font = gFontManager.loadFont("wormfont");
     }
 
-    //remember that RenderText is just an idiotic wrapper around FormattedText
-    //  for serialization
-    static RenderText textCreate() {
-        auto txt = new RenderText;
-        textApplyWormStyle(txt.renderer);
-        txt.saveStyle();
+    static FormattedText textCreate() {
+        auto txt = new FormattedText();
+        textApplyWormStyle(txt);
         return txt;
     }
 
@@ -484,14 +487,7 @@ class TeamTheme {
         font_flash = gFontManager.loadFont("wormfont_flash");
     }
 
-    RenderText textCreate() {
-        auto txt = GfxSet.textCreate();
-        txt.renderer.font = font;
-        txt.saveStyle();
-        return txt;
-    }
-    //sigh... god this sucks! what actually sucks is RenderText
-    FormattedText textCreate2() {
+    FormattedText textCreate() {
         auto txt = new FormattedText();
         GfxSet.textApplyWormStyle(txt);
         txt.font = font;
@@ -563,3 +559,44 @@ struct ExplosionSettings {
             sizeTreshold = st;
     }
 }
+
+private struct FTextData {
+    //there may be more FormattedText properties not covered here
+    char[] data;
+    bool as_markup;
+    FontProperties font;
+    BoxProperties border;
+
+    FormattedText createText() {
+        auto fmt = new FormattedText();
+        fmt.setBorder(border);
+        fmt.font = gFontManager.create(font);
+        fmt.setText(data, as_markup);
+        return fmt;
+    }
+
+    void copyFrom(FormattedText fmt) {
+        fmt.getText(as_markup, data);
+        font = fmt.font.properties;
+        border = fmt.border;
+    }
+}
+
+private void textSerialize(SerializeBase base, SafePtr p,
+    void delegate(SafePtr) writer)
+{
+    auto fmt = castStrict!(FormattedText)(p.toObject());
+    assert(fmt.classinfo is typeof(fmt).classinfo); //don't serialize subclasses
+    FTextData d;
+    d.copyFrom(fmt);
+    writer(base.types.ptrOf(d));
+}
+
+private Object textDeserialize(SerializeBase base,
+    void delegate(SafePtr) reader)
+{
+    FTextData d;
+    reader(base.types.ptrOf(d));
+    return d.createText();
+}
+

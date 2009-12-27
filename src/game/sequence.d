@@ -4,6 +4,7 @@ import common.animation;
 import common.common;
 import common.scene;
 import common.resset;
+import gui.rendertext;
 import utils.configfile;
 import utils.factory;
 import utils.math;
@@ -18,7 +19,6 @@ import utils.vector2;
 
 import game.game;
 import game.gfxset;
-import game.text;
 
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
@@ -195,7 +195,12 @@ final class Sequence : SceneObject {
 
 
     //and this is a hack... but I guess it's good enough for now
-    RenderText attachText;
+    FormattedText attachText;
+
+    //another hack until I can think of something better
+    //if non-null, this is visible only if true is returned
+    //remember that the delegate is called in a non-deterministic way
+    bool delegate(Sequence) textVisibility;
 
     this(GameEngine a_engine, TeamTheme a_team) {
         engine = a_engine;
@@ -268,7 +273,8 @@ final class Sequence : SceneObject {
 
         if (mDisplay)
             mDisplay.draw(c);
-        if (attachText) {
+
+        if (attachText && (!textVisibility || textVisibility(this))) {
             Vector2i p = interpolated_position();
             //so that it's on the top of the object
             //we don't really have a real bounding box, so this will have to do

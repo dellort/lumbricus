@@ -9,6 +9,7 @@ class Type {
         Types mOwner;
         TypeInfo mTI;
         size_t mSize;
+        char[] mUniqueName;
         void[] mInit;
         char[] function(SafePtr) mToString;
     }
@@ -67,6 +68,15 @@ class Type {
                 return "";
             }
         };
+        //NOTE: TypeInfo.toString won't work: dmd bug 3086
+        //  (toString is not unique, although D uses it for TypeInfo.opEquals)
+        mUniqueName = T.mangleof;
+        //also, T.mangleof doesn't work for enums: dmd bug 3651
+        //so, disambiguate somehow
+        //using struct Mangle(T) {} alias Mangle!(T) M; M.mangleof works, but
+        //  adds bloat to the compiled executable
+        mUniqueName = mUniqueName ~ "-" ~ mTI.toString();
+        mOwner.addName(this);
     }
 
     final SafePtr ptrOf(T)(T* ptr) {
@@ -81,6 +91,11 @@ class Type {
 
     final size_t size() {
         return mSize;
+    }
+
+    final char[] uniqueName() {
+        assert(mUniqueName != "");
+        return mUniqueName;
     }
 
     //default value, if this type is declared "stand alone" without initializer
@@ -155,6 +170,21 @@ class BaseType : Type {
     }
 }
 
+//dummy for some unhandled types (e.g. function pointers)
+class UnknownType : Type {
+    private this(Types a_owner, TypeInfo a_ti) {
+        super(a_owner, a_ti);
+    }
+
+    package static UnknownType create(T)(Types a_owner) {
+        return new UnknownType(a_owner, typeid(T));
+    }
+
+    override char[] toString() {
+        return "UnknownType[" ~ typeInfo.toString() ~ "]";
+    }
+}
+
 class PointerType : Type {
     private {
         Type mNext;
@@ -212,7 +242,7 @@ class EnumType : Type {
     }
 
     override char[] toString() {
-        return "EnumType[" ~ mUnderlying.toString() ~ "]";
+        return "EnumType[" ~ (mUnderlying ? mUnderlying.toString() : "?") ~ "]";
     }
 
     override bool hasToString() {

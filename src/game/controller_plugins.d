@@ -23,21 +23,6 @@ import tango.util.Convert : to;
 static this() {
 }
 
-///let the client display a message (like it's done on round's end etc.)
-///this is a bit complicated because message shall be translated on the
-///client (i.e. one client might prefer Klingon, while the other is used
-///to Latin); so msgid and args are passed to the translation functions
-///this returns a value, that is incremented everytime a new message is
-///available
-///a random int is passed along, so all clients with the same locale
-///will select the same message
-struct GameMessage {
-    LocalizedMessage lm;
-    Team actor;    //who did the action (for message color), null for neutral
-    Team viewer;   //who should see it (only players with Team
-                   //  in getOwnedTeams() see the message), null for all
-}
-
 //the idea was that the whole game state should be observable (including
 //events), so you can move displaying all messages into a separate piece of
 //code, instead of creating messages directly
@@ -50,28 +35,29 @@ class ControllerMsgs : GamePlugin {
         TeamMember mLastMember;
     }
 
-    //clients register here to receive messages (not serialized)
-    MDelegate!(GameMessage) showMessage;
+    mixin Methods!("onGameStart", "onGameEnd", "onSuddenDeath", "onSpriteDie",
+        "onTeamMemberStartDie", "onTeamMemberActivate",
+        "onTeamMemberDeactivate", "onTeamSkipTurn", "onTeamSurrender",
+        "onCrateDrop", "onCrateCollect", "onVictory");
 
     this(GameEngine c) {
         super(c);
         auto ev = engine.events;
-        OnGameStart.handler(ev, "root", &onGameStart);
-        OnGameEnd.handler(ev, "root", &onGameEnd);
-        OnSuddenDeath.handler(ev, "root", &onSuddenDeath);
-        OnSpriteDie.handler(ev, "root", &onSpriteDie);
-        OnTeamMemberStartDie.handler(ev, "root", &onTeamMemberStartDie);
-        OnTeamMemberActivate.handler(ev, "root", &onTeamMemberActivate);
-        OnTeamMemberDeactivate.handler(ev, "root", &onTeamMemberDeactivate);
-        OnTeamSkipTurn.handler(ev, "root", &onTeamSkipTurn);
-        OnTeamSurrender.handler(ev, "root", &onTeamSurrender);
-        OnCrateDrop.handler(ev, "root", &onCrateDrop);
-        OnCrateCollect.handler(ev, "root", &onCrateCollect);
-        OnVictory.handler(ev, "root", &onVictory);
+        OnGameStart.handler(ev, &onGameStart);
+        OnGameEnd.handler(ev, &onGameEnd);
+        OnSuddenDeath.handler(ev, &onSuddenDeath);
+        OnSpriteDie.handler(ev, &onSpriteDie);
+        OnTeamMemberStartDie.handler(ev, &onTeamMemberStartDie);
+        OnTeamMemberActivate.handler(ev, &onTeamMemberActivate);
+        OnTeamMemberDeactivate.handler(ev, &onTeamMemberDeactivate);
+        OnTeamSkipTurn.handler(ev, &onTeamSkipTurn);
+        OnTeamSurrender.handler(ev, &onTeamSurrender);
+        OnCrateDrop.handler(ev, &onCrateDrop);
+        OnCrateCollect.handler(ev, &onCrateCollect);
+        OnVictory.handler(ev, &onVictory);
     }
     this(ReflectCtor c) {
         super(c);
-        c.transient(this, &showMessage);
     }
 
     private void onGameStart(GameObject dummy) {
@@ -183,7 +169,7 @@ class ControllerMsgs : GamePlugin {
         gameMsg.lm.rnd = engine.rnd.next;
         gameMsg.actor = actor;
         gameMsg.viewer = viewer;
-        showMessage(gameMsg);
+        OnGameMessage.raise(engine.globalEvents, gameMsg);
     }
 
     override bool activity() {
@@ -260,14 +246,17 @@ class ControllerStats : GamePlugin {
         Stats mStats;
     }
 
+    mixin Methods!("onGameEnd", "onDamage","onDemolish", "onSpriteDie",
+        "onCrateCollect", "onFireWeapon");
+
     this(GameEngine c) {
         super(c);
-        OnGameEnd.handler(engine.events, "root", &onGameEnd);
-        OnDamage.handler(engine.events, "root", &onDamage);
-        OnDemolish.handler(engine.events, "root", &onDemolish);
-        OnSpriteDie.handler(engine.events, "root", &onSpriteDie);
-        OnCrateCollect.handler(engine.events, "root", &onCrateCollect);
-        OnFireWeapon.handler(engine.events, "root", &onFireWeapon);
+        OnGameEnd.handler(engine.events, &onGameEnd);
+        OnDamage.handler(engine.events, &onDamage);
+        OnDemolish.handler(engine.events, &onDemolish);
+        OnSpriteDie.handler(engine.events, &onSpriteDie);
+        OnCrateCollect.handler(engine.events, &onCrateCollect);
+        OnFireWeapon.handler(engine.events, &onFireWeapon);
     }
     this(ReflectCtor c) {
         super(c);
@@ -316,10 +305,9 @@ class ControllerStats : GamePlugin {
         //log("blasted {} pixels of land", pixelCount);
     }
 
-    private void onFireWeapon(Sprite sender, WeaponClass wclass,
-        bool refire)
-    {
+    private void onFireWeapon(Shooter sender, bool refire) {
         char[] wname = "unknown_weapon";
+        WeaponClass wclass = sender.weapon;
         if (wclass)
             wname = wclass.name;
         log("Fired weapon (refire={}): {}",refire,wname);
@@ -374,11 +362,13 @@ class ControllerPersistence : GamePlugin {
         const cVictoryCountDef = 2;
     }
 
+    mixin Methods!("onGameStart", "onGameEnd","onVictory");
+
     this(GameEngine c) {
         super(c);
-        OnGameStart.handler(engine.events, "root", &onGameStart);
-        OnGameEnd.handler(engine.events, "root", &onGameEnd);
-        OnVictory.handler(engine.events, "root", &onVictory);
+        OnGameStart.handler(engine.events, &onGameStart);
+        OnGameEnd.handler(engine.events, &onGameEnd);
+        OnVictory.handler(engine.events, &onVictory);
     }
     this(ReflectCtor c) {
         super(c);

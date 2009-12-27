@@ -417,7 +417,6 @@ class TeamMember : GameObject {
         int mLastKnownLifepower;
         int mCurrentHealth; //health value reported to client
         int mHealthTarget;
-        bool mDidGoodbye; //show drown death msg only once
         bool mDeathAnnounced; //show normal death msg only once
         Time mHealthChangeTime;
     }
@@ -577,9 +576,6 @@ class TeamMember : GameObject {
         mActive = act;
         if (act) {
             mLastKnownLifepower = health;
-            //xxx: just another hack, yay
-            //make the hud show the current weapons
-            engine.callbacks.weaponsChanged(mTeam.weapons);
 
             OnTeamMemberActivate.raise(this);
         } else {
@@ -593,19 +589,6 @@ class TeamMember : GameObject {
         //mWormControl deactivates itself if the worm was e.g. injured
         if (!mWormControl.engaged())
             setActive(false);
-
-        //hack for HUD stuff
-        WormSprite worm = castStrict!(WormSprite)(mWormControl.sprite);
-        if (worm.physics.dead && !mDidGoodbye) {
-            mDidGoodbye = true;
-            if (worm.hasDrowned()) {
-                //now it'd be nice if the clientengine could simply catch those
-                //  events, but instead I do this hack (also: need pos and lost)
-                Vector2i pos = toVector2i(worm.physics.pos);
-                int lost = mCurrentHealth - health();
-                engine.callbacks.memberDrown(this, lost, pos);
-            }
-        }
 
         healthAnimation();
     }

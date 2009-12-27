@@ -3,6 +3,7 @@ module utils.serialize;
 import utils.configfile;
 import utils.reflect.all;
 import utils.misc;
+import utils.mybox; //purely optional
 import utils.hashtable;
 import utils.array : Appender;
 import str = utils.string;
@@ -90,6 +91,71 @@ class SerializeContext {
         mTypes = a_types;
         mExternals = new typeof(mExternals);
         mCustomSerializers = new typeof(mCustomSerializers);
+
+        //optional support for serializing MyBox
+        addCustomSerializer!(MyBox)(null, &box_read, &box_write);
+        //and for TypeInfo (needed for boxes)
+        addCustomSerializer!(TypeInfo)(&ti_create, null, &ti_write);
+    }
+
+    //SafePtr to box contents (by ref)
+    private static SafePtr box_safeptr(SerializeBase base, ref MyBox box) {
+        return SafePtr(base.types.tiToT(box.type), box.data.ptr);
+    }
+
+    private static void box_write(SerializeBase base, SafePtr p,
+        void delegate(SafePtr) writer)
+    {
+        MyBox box = p.read!(MyBox)();
+        TypeInfo t = box.type();
+        writer(base.types.ptrOf(t));
+        if (t)
+            writer(box_safeptr(base, box));
+    }
+    private static void box_read(SerializeBase base, SafePtr p,
+        void delegate(SafePtr) reader)
+    {
+        TypeInfo t;
+        reader(base.types.ptrOf(t));
+        MyBox box;
+        if (t) {
+            box.initDynamic(t);
+            reader(box_safeptr(base, box));
+        }
+        p.write(box);
+    }
+
+    private const cNull = "#null";
+
+    private static void ti_write(SerializeBase base, SafePtr p,
+        void delegate(SafePtr) writer)
+    {
+        TypeInfo ti = castStrict!(TypeInfo)(p.toObject());
+        char[] name = cNull;
+        if (ti) {
+            Type t = base.types.tiToT(ti, true);
+            //can fail if the TypeInfo isn't statically known to Types
+            //the type T refered to by TypeInfo ti must have been passed to
+            //  Types.getType!(T) before (de-)serialization
+            if (!t)
+                throw new SerializeError("can't serialize TypeInfo: "
+                    ~ ti.toString());
+            name = t.uniqueName();
+        }
+        writer(base.types.ptrOf(name));
+    }
+    private static Object ti_create(SerializeBase base,
+        void delegate(SafePtr) reader)
+    {
+        char[] name;
+        reader(base.types.ptrOf(name));
+        if (name == cNull)
+            return null;
+        Type t = base.types.nameToType(name);
+        if (!t)
+            throw new SerializeError("couldn't resolve name '"~name~"' to"
+                ~" TypeInfo");
+        return t.typeInfo();
     }
 
     Types types() {
@@ -129,6 +195,7 @@ class SerializeContext {
     }
 
     private CustomSerialize* find_cs(TypeInfo t, bool create) {
+        assert(!!t);
         auto p = t in mCustomSerializers;
         if (!p && create) {
             mCustomSerializers.insert(t, CustomSerialize.init);
@@ -139,7 +206,26 @@ class SerializeContext {
     }
 
     CustomSerialize* lookupCustomSerializer(TypeInfo t) {
-        return find_cs(t, false);
+        //for objects, have to walk up the inheritance chain
+        //the most specific type wins, so start from bottom
+        //this means the caller has to be careful about passing something like
+        //  "o.classinfo.typeinfo", and not "typeid(o)" for objects
+        //xxx not sure what should happen with interfaces; although the
+        //  serializer reduces interfaces to object references + casts
+        if (auto cls = cast(TypeInfo_Class)t) {
+            //object type
+            ClassInfo inf = cls.info;
+            assert(inf.typeinfo is t);
+            while (inf) {
+                if (auto h = find_cs(inf.typeinfo, false))
+                    return h;
+                inf = inf.base;
+            }
+            return null;
+        } else {
+            //value type
+            return find_cs(t, false);
+        }
     }
     CustomSerialize* lookupCustomSerializer(char[] name) {
         auto p = name in mCustomSerializerNames;
@@ -158,6 +244,8 @@ class SerializeContext {
     //  (including object references), but the creator function is restricted to
     //  native types, structs, arrays, and AAs. if you have a better idea (I'm
     //  sure there will be one), tell me.
+    //for object references, the creator/reader/writer functions will be called
+    //  for subtypes of T, and the user is supposed to deal with this
     void addCustomSerializer(T)(CustomCreator creator, CustomReader reader,
         CustomWriter writer)
     {
@@ -168,7 +256,7 @@ class SerializeContext {
         //only allowed / required for reference types
         assert(isref == (!!creator));
         //reader can be omitted for reference types
-        assert(!isref || !reader);
+        assert(isref || !!reader);
         auto s = find_cs(t, true);
         if (s.creator) {
             assert(s.creator is creator);
@@ -180,7 +268,7 @@ class SerializeContext {
         s.reader = reader;
         s.writer = writer;
         s.type = mt;
-        s.id = T.stringof; //just need some unique name
+        s.id = mt.uniqueName();
         mCustomSerializerNames[s.id] = t;
     }
 
@@ -370,14 +458,22 @@ class SerializeBase {
         mCtx = a_ctx;
     }
 
+    final SerializeContext context() {
+        return mCtx;
+    }
+
+    final Types types() {
+        return mCtx.types;
+    }
+
     protected void typeError(SafePtr source, char[] add = "") {
         if (cast(ReferenceType)source.type) {
             Object o = source.toObject();
             if (o)
-                throw new SerializeError(myformat("problem with: {} / {} {}",
-                    source.type, o.classinfo.name, add));
+                throw new SerializeError(myformat("problem with: {} / {} '{}': {}",
+                    source.type, o.classinfo.name, o.toString(), add));
         }
-        throw new SerializeError(myformat("problem with: {}, ti={} {}",
+        throw new SerializeError(myformat("problem with: {}, ti={}: {}",
             source.type, source.type.typeInfo(), add));
     }
 
@@ -475,8 +571,8 @@ class SerializeOutConfig : SerializeConfig {
         if (auto cs = mCtx.lookupCustomSerializer(ti)) {
             //custom serialization
             tnode.value = "custom|" ~ cs.id;
-            SafePtr ptr2 = mCtx.mTypes.objPtr(o);
-            doWriteCustom(node, ptr2, *cs);
+            SafePtr ptr2 = mCtx.mTypes.objPtr(o, cs.type.typeInfo());
+            doWriteCustom(node.getSubNode("data"), ptr2, *cs);
             return true;
         }
 
@@ -589,7 +685,8 @@ class SerializeOutConfig : SerializeConfig {
             //dirty trick: do as if it was an integer; should be bitcompatible
             //don't try this at home!
             ptr.type = et.underlying();
-            defptr.type = ptr.type;
+            if (defptr.ptr)
+                defptr.type = ptr.type;
             //fall through to BaseType
         }
         if (cast(BaseType)ptr.type) {
@@ -679,7 +776,7 @@ class SerializeOutConfig : SerializeConfig {
         SerializeContext.CustomSerialize cs)
     {
         cs.writer(this, ptr, (SafePtr write) {
-            doWriteMember(cur, "", ptr, SafePtr.Null);
+            doWriteMember(cur, "", write, SafePtr.Null);
         });
     }
 
@@ -838,7 +935,7 @@ class SerializeInConfig : SerializeConfig {
                 TypeInfo ti = qo.o.classinfo.typeinfo;
                 auto cs = mCtx.lookupCustomSerializer(ti);
                 assert(!!cs);
-                SafePtr ptr2 = mCtx.mTypes.objPtr(qo.o);
+                SafePtr ptr2 = mCtx.mTypes.objPtr(qo.o, cs.type.typeInfo());
                 doReadCustom(qo.stuff, ptr2, *cs);
             }
         }
@@ -1028,7 +1125,7 @@ class SerializeInConfig : SerializeConfig {
         cs.reader(this, ptr, (SafePtr read) {
             if (!stuff.length)
                 throw new SerializeError("no more data for custom deserializer");
-            doReadMember(stuff[0], ptr);
+            doReadMember(stuff[0], read);
             stuff = stuff[1..$];
         });
     }

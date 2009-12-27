@@ -26,6 +26,7 @@ import game.hud.replaytimer;
 import game.hud.network;
 import game.hud.register;
 import game.clientengine;
+import game.controller_events;
 import game.game;
 import game.weapon.weapon;
 import game.weapon.types;
@@ -312,7 +313,6 @@ class GameFrame : SimpleContainer {
 
         setPosition(game.engine.level.worldCenter);
 
-        auto cb = game.engine.callbacks();
-        cb.weaponsChanged ~= &updateWeapons;
+        OnWeaponSetChanged.handler(game.cevents, &updateWeapons);
     }
 }

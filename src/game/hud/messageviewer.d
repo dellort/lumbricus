@@ -4,8 +4,9 @@ import framework.framework;
 import framework.font;
 import framework.i18n;
 import common.scene;
+import game.gobject;
 import game.hud.teaminfo;
-import game.controller_plugins;
+import game.controller_events;
 import gui.widget;
 import gui.label;
 import utils.misc;
@@ -56,9 +57,7 @@ class MessageViewer : Label {
         mInterp.init(timeSecs(0), -200, 0);
 
         mMessages = new typeof(mMessages);
-        auto msgPlg = cast(ControllerMsgs)mGame.logic.getPlugin("messages");
-        if (msgPlg)
-            msgPlg.showMessage ~= &showMessage;
+        OnGameMessage.handler(mGame.cevents, &showMessage);
     }
 
     void addMessage(char[] msg, Team t = null) {
@@ -74,7 +73,7 @@ class MessageViewer : Label {
         return !working();
     }
 
-    private void showMessage(GameMessage msg) {
+    private void showMessage(GameObject sender, GameMessage msg) {
         if (msg.viewer) {
             //if the message is only for one team, check if it is ours
             bool show = false;

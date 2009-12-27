@@ -4,6 +4,7 @@ import game.gobject;
 import framework.framework;
 import common.resset;
 import physics.world;
+import game.controller_events;
 import game.game;
 import game.gfxset;
 import game.sprite;
@@ -332,8 +333,7 @@ abstract class Shooter : GameObject {
 }
 
 //number and types of weapons a team has available
-class WeaponSet {
-    GameEngine engine;
+class WeaponSet : GameObject {
     private {
         Entry[] mEntries;
     }
@@ -388,16 +388,16 @@ class WeaponSet {
 
     //create empty set
     this(GameEngine aengine) {
-        assert(!!aengine);
-        engine = aengine;
+        super(aengine, "weaponset");
     }
 
     this (ReflectCtor c) {
+        super(c);
     }
 
     private void onChange() {
         //xxx probably not quite kosher, it's a rather random hack
-        engine.callbacks.weaponsChanged(this);
+        OnWeaponSetChanged.raise(this);
     }
 
     void saveToConfig(ConfigNode config) {
@@ -505,5 +505,9 @@ class WeaponSet {
         } else {
             return null;
         }
+    }
+
+    override bool activity() {
+        return false;
     }
 }

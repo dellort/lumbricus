@@ -389,6 +389,11 @@ public class FormattedText {
         setText(res, as_markup);
     }
 
+    void getText(out bool as_markup, out char[] data) {
+        as_markup = mTextIsFormatted;
+        data = mText;
+    }
+
     void translator(Translator t) {
         assert(!!t);
         mTranslator = t;

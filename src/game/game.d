@@ -131,6 +131,7 @@ class GameEngine {
         mGameTime = a_gameTime;
         createCmd();
         mCallbacks = new GameEngineCallback();
+
         events = new Events();
         mGfx.initEvents(events);
         globalEvents = new GlobalEvents(this);

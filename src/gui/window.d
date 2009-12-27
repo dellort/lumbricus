@@ -552,6 +552,10 @@ class WindowWidget : Widget {
         super.onDrawBackground(c, area);
     }
 
+    override void onDrawFocus(Canvas c) {
+        //nothing, but see pollFocus()
+    }
+
     override bool doesCover() {
         return mHasDecorations && mFullScreen && !mShowTooltipLabel;
     }

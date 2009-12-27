@@ -10,9 +10,9 @@ import game.gfxset;
 import game.gobject;
 import game.sprite;
 import game.sequence;
-import game.text;
 import game.particles : ParticleType;
 import game.weapon.weapon;
+import gui.rendertext;
 import tango.math.Math;
 import tango.util.Convert : to;
 import utils.misc;
@@ -43,7 +43,7 @@ class ProjectileSprite : ActionSprite {
         bool gluedCache; //last value of physics.isGlued
         bool mTimerDone = false;
         ProjectileFeedback mFeedback;
-        RenderText mTimeLabel;
+        FormattedText mTimeLabel;
     }
 
     Time detonateTimeState() {
@@ -125,9 +125,9 @@ class ProjectileSprite : ActionSprite {
             }
             int remain = cast(int)(detDelta.secsf + 0.99f);
             if (remain <= 2)
-                mTimeLabel.setFormatted("\\c(team_red){}", remain);
+                mTimeLabel.setTextFmt(true, "\\c(team_red){}", remain);
             else
-                mTimeLabel.setFormatted("{}", remain);
+                mTimeLabel.setTextFmt(true, "{}", remain);
         } else {
             if (mTimeLabel) {
                 //xxx: need cleaner way to remove attached text?

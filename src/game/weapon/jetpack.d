@@ -7,8 +7,8 @@ import game.sprite;
 import game.weapon.weapon;
 import game.worm;
 import game.sequence;
-import game.text;
 import game.wcontrol;
+import gui.rendertext;
 import physics.world;
 import utils.configfile;
 import utils.factory;
@@ -56,7 +56,7 @@ class JetpackClass : WeaponClass {
 
 class Jetpack : Shooter, Controllable {
     private {
-        RenderText mTimeLabel;
+        FormattedText mTimeLabel;
         JetpackClass myclass;
         WormSprite mWorm;
         Vector2f mMoveVector;
@@ -136,7 +136,7 @@ class Jetpack : Shooter, Controllable {
         }
         if (mTimeLabel) {
             float remain = myclass.maxTime.secsf - mJetTimeUsed;
-            mTimeLabel.setFormatted("{:f1}", remain);
+            mTimeLabel.setTextFmt(true, "{:f1}", remain);
         }
 
         //force!

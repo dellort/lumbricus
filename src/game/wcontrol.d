@@ -419,7 +419,7 @@ class WormControl : WormController {
         assert(!!sh);
         //for cooldown
         mWeaponSet.firedWeapon(sh.weapon);
-        OnFireWeapon.raise(sprite, sh.weapon, refire);
+        OnFireWeapon.raise(sh, refire);
     }
 
     void doneFiring(Shooter sh) {

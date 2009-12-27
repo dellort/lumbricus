@@ -19,6 +19,8 @@ abstract class GameObject : EventTarget {
     //for GameEngine
     ObjListNode!(typeof(this)) node;
 
+    //event_target_type: not needed anymore, but leaving it in for now
+    //  basically should give the type of the game object as a string
     this(GameEngine aengine, char[] event_target_type) {
         assert(aengine !is null);
         super(event_target_type);
