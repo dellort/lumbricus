@@ -16,6 +16,7 @@ import utils.vector2;
 import utils.rect2;
 import utils.output;
 import utils.log;
+import utils.mybox;
 import str = utils.string;
 import array = tango.core.Array;
 import marray = utils.array;
@@ -159,7 +160,7 @@ class Widget {
         //placement of Widget within allocation from Container
         WidgetLayout mLayout;
 
-        Styles mStyles;
+        StylesLookup mStyles;
 
         //this is added to the graphical position of the widget (onDraw)
         //it is intended to support animations (without messing up the layouting)
@@ -174,6 +175,7 @@ class Widget {
         //border around widget, adds to size
         BoxProperties mBorderStyle;
         bool mDrawBorder;
+        int mWidgetPad = 0;
         Rect2i mBorderArea;   //just for drawing
 
         //invisible widgets don't draw anything, and don't accept
@@ -184,6 +186,8 @@ class Widget {
 
         //tentative useless feature
         Surface mBmpBackground;
+
+        MyBox[char[]] mStyleOverrides;
     }
 
     ///clip graphics to the inside
@@ -203,21 +207,7 @@ class Widget {
     //-------
 
     this() {
-        mStyles = new Styles();
-
-        //these should probably go elsewhere
-        styleRegisterFloat("highlight-alpha");
-        styleRegisterColor("border-color");
-        styleRegisterColor("border-back-color");
-        styleRegisterColor("border-bevel-color");
-        styleRegisterInt("border-corner-radius");
-        styleRegisterInt("border-width");
-        styleRegisterBool("border-enable");
-        styleRegisterBool("border-bevel-enable");
-        styleRegisterBool("border-not-rounded");
-        styleRegisterColor("widget-background");
-        styleRegisterString("bitmap-background-res");
-        styleRegisterBool("bitmap-background-tile");
+        mStyles = new StylesLookupImpl();
 
         //register with _actual_ classes of the object
         //(that's how D ctors work... this wouldn't work in C++)
@@ -234,7 +224,7 @@ class Widget {
         mStyles.addClasses(myclasses);
     }
 
-    final Styles styles() {
+    final StylesLookup styles() {
         return mStyles;
     }
 
@@ -249,20 +239,16 @@ class Widget {
         mWidgets ~= o;
         mZWidgets ~= o;
         updateZOrder(o, true);
-        o.styles.parent = styles;
 
         o.do_add();
 
         log("on child add {} {}", this, o);
         onAddChild(o);
 
-        fix_focus_on_add(o);
-
         //just to be sure
         o.needRelayout();
 
-        //styles depend from parent
-        o.do_style_check();
+        fix_focus_on_add(o);
     }
 
     /// Undo addChild()
@@ -308,6 +294,17 @@ class Widget {
     private void do_add() {
         assert(!!mParent);
         mGUI = mParent.mGUI;
+        if (mGUI) {
+            mStyles.parent = mGUI.stylesRoot;
+            //how to handle this?
+            //for now, always force re-read of the style properties
+            mStyles.didChange = true;
+            //xxx shitty hack
+            mCachedContainedRequestSizeValid = false;
+            mLayoutNeedReallocate = true;
+            //xxx not good to call user code during this "critical" phase...?
+            readStyles();
+        }
         foreach (c; mWidgets) {
             c.do_add();
         }
@@ -386,7 +383,7 @@ class Widget {
     ///can be visible, receive events, do layouting etc...
     ///simply having a parent is not enough for this for various silly reasons
     final bool isLinked() {
-        return !!gui();
+        return !!mGUI;
     }
 
     ///return true if other is a direct or indirect parent of this
@@ -433,8 +430,10 @@ class Widget {
     }
 
     final void minSize(Vector2i s) {
+        if (s == mMinSize)
+            return;
         mMinSize = s;
-        needResize(true);
+        needResize();
     }
     final Vector2i minSize() {
         return mMinSize;
@@ -476,9 +475,10 @@ class Widget {
 
     final Vector2i bordersize() {
         auto b = mLayout.border;
+        int pad = mWidgetPad;
         if (mDrawBorder)
-            b += Vector2i(mBorderStyle.borderWidth
-                + mBorderStyle.cornerRadius/3);
+            pad += mBorderStyle.borderWidth + mBorderStyle.cornerRadius/3;
+        b += Vector2i(pad);
         return b;
     }
 
@@ -731,43 +731,61 @@ class Widget {
     ///but if layoutSizeAllocation must be called, use needRelayout()
     ///relayouting won't happen if there's no parent!
     ///clearification:
-    ///  needRelayout(): when size calculation and allocation changed
-    ///  needResize(false): absolutely useless (perhaps) (I don't know)
-    ///  needResize(true): when size (possibly) changed
+    ///  needRelayout(): size/allocation calculation changed
+    ///  needResize(): only size calculation (possibly) changed
     final void needRelayout() {
-        mLayoutNeedReallocate = true;
-        mCachedContainedRequestSizeValid = false;
-        requestRelayout();
+        requestRelayout(false);
     }
 
     ///like needRelayout(), but less strict
-    ///only_if_changed == only relayout if requested size changed
-    final void needResize(bool only_if_changed) {
-        if (only_if_changed && mCachedContainedRequestSizeValid) {
-            //read the cache, invalidate it, and see if the size really changed
-            auto oldsize = mCachedContainedRequestSize;
-            mCachedContainedRequestSizeValid = false;
-            if (oldsize == layoutCachedContainerSizeRequest())
-                return;
-        } else {
-            mCachedContainedRequestSizeValid = false;
-        }
-        //difference to needRelayout: don't set the mLayoutNeedReallocate flag
-        requestRelayout();
+    ///if the request size changed, trigger relayout
+    final void needResize() {
+        requestRelayout(true);
     }
 
     //call the parent container to relayout this Widget
     //internal to needRelayout() and needResize()
-    private void requestRelayout() {
-        if (parent) {
-            parent.requestedRelayout(this);
-        } else if (isTopLevel) {
-            layoutContainerAllocate(mContainerBounds);
-        } else {
-            //hm.... Widget without parent wants relayout
-            //do nothing (and don't relayout it)
+    private void requestRelayout(bool resize_only) {
+        if (!resize_only || mLayoutNeedReallocate) {
+            mLayoutNeedReallocate = true;
+            resize_only = false;
         }
-//        layoutContainerAllocate(mContainerBounds); yyy
+
+        bool was_resized = true;
+
+        if (mCachedContainedRequestSizeValid) {
+            //read the cache, invalidate it, and see if the size really changed
+            auto oldsize = mCachedContainedRequestSize;
+            mCachedContainedRequestSizeValid = false;
+            was_resized = !(oldsize == layoutCachedContainerSizeRequest());
+        }
+
+        if (resize_only && !was_resized)
+            return;
+
+        //do nothing (and don't relayout it) => more an optimization
+        //also, it wouldn't make sense (e.g. styles stuff makes the results
+        //  dependent from the parent widget hierarchy [more or less])
+        if (!isLinked())
+            return;
+
+        if (!was_resized) {
+            log("relayout-down: {}", this);
+            //don't need to involve parent, just make this widget happy
+            layoutContainerAllocate(mContainerBounds);
+            return;
+        }
+
+        //involve parent, because the size of its child might have changed
+        //some container could handle the resize of a single child change more
+        //  efficiently, and some require complete relayouting
+        if (parent) {
+            log("relayout-up: {}", this);
+            parent.needRelayout();
+        } else {
+            assert(isTopLevel());
+            layoutContainerAllocate(mContainerBounds);
+        }
     }
 
     private void requestedRelayout(Widget child) {
@@ -789,9 +807,8 @@ class Widget {
     }
 
     /// according to WidgetLayout, adjust area such that the Widget feels warm
-    /// and snugly; can be overridden... but with care and don't forget
-    /// also to override layoutContainerSizeRequest()
-    void layoutCalculateSubAllocation(inout Rect2i area) {
+    /// and snugly <- what
+    final void layoutCalculateSubAllocation(inout Rect2i area) {
         //xxx doesn't handle under-sized stuff
         Vector2i psize = area.size();
         Vector2i offset;
@@ -970,6 +987,8 @@ class Widget {
     //even if you override this and return "false", it doesn't mean this Widget
     //  will receive the event, because handleInput() may decide that the event
     //  is not for this widget (e.g. Widget not focused)
+    //if the widget wants to route the event to itself, don't call the super
+    //  method, call deliverDirectEvent(event), and return true
     protected bool handleChildInput(InputEvent event) {
         if (event.isMouseRelated()) {
             return childDispatchByMouse(event);
@@ -1249,6 +1268,7 @@ class Widget {
         return best;
     }
 
+    //run fix_focus_up() on child and all its children
     private void fix_focus_on_add(Widget child) {
         if (!gui)
             return;
@@ -1263,6 +1283,8 @@ class Widget {
         rec(child);
     }
 
+    //1. focus "greedy focus" widgets
+    //2. possibly delegate focus to sub-children as they are created
     private void fix_focus_up(Widget child) {
         if (child.parent is this) {
             if (child.greedyFocus())
@@ -1422,66 +1444,79 @@ class Widget {
         return MouseCursor.Standard;
     }
 
-    //-> xxx yes, this needs a better way to do things
+    //re-read all style properties (doing fine-grained per-properties updates
+    //  would be too complicated)
+    //can be overridden by derived widget classes
+    protected void readStyles() {
+        mBorderStyle.border = styles.get!(Color)("border-color");
+        mBorderStyle.back = styles.get!(Color)("border-back-color");
+        mBorderStyle.bevel = styles.get!(Color)("border-bevel-color");
+        mBorderStyle.drawBevel = styles.get!(bool)("border-bevel-enable");
+        mBorderStyle.noRoundedCorners = styles.get!(bool)("border-not-rounded");
+        mBorderStyle.borderWidth = styles.get!(int)("border-width");
+        mBorderStyle.cornerRadius = styles.get!(int)("border-corner-radius");
+        mWidgetPad = styles.get!(int)("widget-pad");
 
-    bool mFirstCheck = true;
-    BoxProperties mOldBorderStyle;
-    bool mOldDrawBorder;
-    char[] mOldBmpBackground;
-
-    //check all child widgets when this widget is added
-    package void do_style_check() {
-        //styles are obviously not available if widget not in main hierarchy
-        if (!isLinked())
-            return;
-        check_style_changes();
-        foreach (w; children.dup) {
-            w.do_style_check();
-        }
-    }
-
-    protected void check_style_changes() {
-        mBorderStyle.border = styles.getValue!(Color)("border-color");
-        mBorderStyle.back = styles.getValue!(Color)("border-back-color");
-        mBorderStyle.bevel = styles.getValue!(Color)("border-bevel-color");
-        mBorderStyle.drawBevel = styles.getValue!(bool)("border-bevel-enable");
-        mBorderStyle.noRoundedCorners =
-            styles.getValue!(bool)("border-not-rounded");
-        mBorderStyle.borderWidth = styles.getValue!(int)("border-width");
-        mBorderStyle.cornerRadius =
-            styles.getValue!(int)("border-corner-radius");
-
-        //doesn't need to trigger a resize, because size is independent from it
-        char[] back = styles.getValue!(char[])("bitmap-background-res");
-        if (back != mOldBmpBackground) {
-            mBmpBackground = back == "" ? null
-                : gGuiResources.get!(Surface)(back);
-            mOldBmpBackground = back;
-        }
+        char[] back = styles.get!(char[])("bitmap-background-res");
+        mBmpBackground = back == "" ? null : gGuiResources.get!(Surface)(back);
 
         //draw-border is a misnomer, because it has influence on layout (size)?
-        mDrawBorder = styles.getValue!(bool)("border-enable");
-
-        bool border_changed = mBorderStyle != mOldBorderStyle;
-        bool db_changed = mDrawBorder != mOldDrawBorder;
-
-        if (border_changed || db_changed || mFirstCheck) {
-            version (ResizeDebug) {
-                Trace.formatln("theme change: {}", this);
-            }
-            needResize(true);
-        }
-
-        mOldBorderStyle = mBorderStyle;
-        mOldDrawBorder = mDrawBorder;
-        mFirstCheck = false;
+        mDrawBorder = styles.get!(bool)("border-enable");
     }
 
-    //xxx <-
+    //check if there were style changes, and if yes, do all necessary updates
+    //NOTE: widget addition code will use different code for various reasons to
+    //      handle the initial readStyles() call
+    final void updateStyles() {
+        styles.checkChanges();
+        if (!isLinked())
+            return;
+        if (!styles.didChange)
+            return;
+        styles.didChange = false;
+        readStyles();
+        needResize();
+    }
 
-    //overridden by Container
+    //like updateStyles(), but disregard change-check; needed by style overrides
+    final void forceUpdateStyles() {
+        styles.didChange = true;
+        updateStyles();
+    }
+
+    //override a specific style property (name) with a constant value
+    //box must have the correct type
+    //exception: an empty box resets the style override
+    //unknown/mistyped names will be silently ignored
+    final void setStyleOverride(char[] name, MyBox value) {
+        if (value.empty) {
+            mStyleOverrides.remove(name);
+        } else {
+            if (!styles.onStyleOverride)
+                styles.onStyleOverride = &styleOverrideCb;
+            mStyleOverrides[name] = value;
+        }
+        forceUpdateStyles();
+    }
+
+    //helper
+    final void setStyleOverrideT(T)(char[] name, T val) {
+        setStyleOverride(name, MyBox.Box(val));
+    }
+    final void clearStyleOverride(char[] name) {
+        setStyleOverride(name, MyBox());
+    }
+
+    private MyBox styleOverrideCb(StylesLookup sender, char[] name, MyBox orig)
+    {
+        if (auto pval = name in mStyleOverrides)
+            return *pval;
+        return orig;
+    }
+
+    //xxx make final, after removing SOMEONE's hack in gameframe.d
     void internalSimulate() {
-        check_style_changes();
+        updateStyles();
         foreach (obj; mWidgets) {
             obj.internalSimulate();
         }
@@ -1498,7 +1533,7 @@ class Widget {
         }
 
         if (mBmpBackground) {
-            if (styles.getValue!(bool)("bitmap-background-tile")) {
+            if (styles.get!(bool)("bitmap-background-tile")) {
                 c.drawTiled(mBmpBackground, area.p1, area.size);
             } else {
                 c.draw(mBmpBackground, area.p1 + area.size/2
@@ -1530,7 +1565,7 @@ class Widget {
         if (canScale && mScale.length != 1.0f)
             c.setScale(mScale);
 
-        auto background = styles.getValue!(Color)("widget-background");
+        auto background = styles.get!(Color)("widget-background");
         if (background.a >= Color.epsilon) {
             c.drawFilledRect(Vector2i(0), size, background);
         }
@@ -1553,7 +1588,7 @@ class Widget {
         //small optical hack: highlighting
         //feel free to replace this by better looking rendering
         //here because of drawing to nonclient area
-        auto highlightAlpha = styles.getValue!(float)("highlight-alpha");
+        auto highlightAlpha = styles.get!(float)("highlight-alpha");
         if (highlightAlpha > 0) {
             //brighten
             c.drawFilledRect(mBorderArea + mAddToPos,
@@ -1665,9 +1700,12 @@ class Widget {
         tooltip = loader.locale()(loader.node.getStringValue("tooltip",
             tooltip));
 
+        //xxx not possible anymore - has to use style classes etc...
+        /+
         if (auto stnode = loader.node.findNode("styles")) {
             styles.addRules(stnode);
         }
+        +/
 
         styles.addClasses(str.split(loader.node.getStringValue("style_class")));
 
@@ -1678,7 +1716,7 @@ class Widget {
     }
 
     void onLocaleChange() {
-        foreach (w; children.dup) {
+        foreach (w; children) {
             w.onLocaleChange();
         }
     }
@@ -1698,7 +1736,7 @@ final class MainFrame : Widget {
     private this(GUI top) {
         super();
         mGUI = top;
-        styles.parent = mGUI.mStyleRoot;
+        styles.parent = mGUI.stylesRoot;
 
         doMouseEnterLeave(true); //mous always in, initial event
         pollFocusState();
@@ -1753,7 +1791,7 @@ final class GUI {
         bool captureUser_direct;
 
         MouseCursor mMouseCursor = MouseCursor.Standard;
-        Styles mStyleRoot;
+        StylesBase mStyleRoot;
         MainFrame mRoot; //container with all further widgets
         Vector2i mSize;
         Widget mFocus;
@@ -1767,7 +1805,7 @@ final class GUI {
     this() {
         //first parent, this is used to provide default values for all
         //properties; the actual GUI styling should be somewhere else
-        mStyleRoot = new Styles();
+        mStyleRoot = new StylesPseudoCSS();
 
         //load the theme (it's the theme because this is the top-most widget)
         auto themes = listThemes();
@@ -1778,6 +1816,10 @@ final class GUI {
 
     MainFrame mainFrame() {
         return mRoot;
+    }
+
+    StylesBase stylesRoot() {
+        return mStyleRoot;
     }
 
     void size(Vector2i size) {
@@ -2057,6 +2099,17 @@ class Spacer : Widget {
 
     static this() {
         WidgetFactory.register!(typeof(this))("spacer");
+    }
+}
+
+class UnclickableSpacer : Spacer {
+    this() {
+        focusable = false;
+        isClickable = false;
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("unclickablespacer");
     }
 }
 

@@ -518,7 +518,6 @@ class GameTask : StatefulTask {
                 Cell c = new Cell();
                 c.bla = (y>0) && (x > y);
                 c.blu = (y>0) && (x==y);
-                l.font = gFontManager.loadFont("normal");
                 c.add(l, WidgetLayout.Aligned(0, 0, Vector2i(1)));
                 table.add(c, x, y);
             }
@@ -562,6 +561,10 @@ class GameTask : StatefulTask {
     class WindowContainer : SimpleContainer {
         bool do_capture;
 
+        override bool onTestMouse(Vector2i p) {
+            return do_capture;
+        }
+
         override bool handleChildInput(InputEvent event) {
             if (!do_capture)
                 return super.handleChildInput(event);
@@ -571,6 +574,7 @@ class GameTask : StatefulTask {
                 mGameFrame.gameView.translateCoords(this, p);
                 show_obj(p);
             }
+            deliverDirectEvent(event);
             return true;
         }
 

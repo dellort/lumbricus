@@ -115,7 +115,7 @@ class TestFrame3 : Container {
         auto label = new Button();
         scroll.add(label);
         label.text = "MouseScroller huhuh!";
-        label.font = gFontManager.loadFont("test");
+        //label.font = gFontManager.loadFont("test");
         addChild(wind);
     }
 }
@@ -303,7 +303,7 @@ class TestFrame9 : Container {
             x.text = myformat("{}", r);
             auto props = gFontManager.loadFont("normal").properties();
             props.size += r*10; //just to have different request sizes
-            x.font = new Font(props);
+            x.setStyleOverrideT!(FontProperties)("text-font", props);
             addChild(x);
         }
         override void onDraw(Canvas c) {
@@ -365,7 +365,7 @@ class TestFrame10 : Container {
         fp.size = 70;
         fp.border_width = 3;
         fp.border_color = Color(1, 0, 0);
-        c2.font = new Font(fp);
+        c2.setStyleOverrideT!(FontProperties)("text-font", fp);
         tabs.addTab(c2, "Tab 2");
         auto c3 = new Label();
         c3.text = "tab 3";
@@ -557,7 +557,6 @@ class TestTask2 : Task {
 
         for (int n = 0; n < mBars.length; n++) {
             auto la = new Label();
-            la.font = gFontManager.loadFont("normal");
             la.text = labels[n];
             scr.add(la, 0, n, WidgetLayout.Aligned(-1,0));
 
@@ -705,7 +704,6 @@ class TestTask3 : Task {
 
         for (int n = 0; n < mBars.length; n++) {
             auto la = new Label();
-            la.font = gFontManager.loadFont("normal");
             la.text = labels[n];
             scr.add(la, 0, n, WidgetLayout.Aligned(-1,0));
 
@@ -725,7 +723,6 @@ class TestTask3 : Task {
         gui.add(scr, WidgetLayout.Expand(true));
 
         mValues = new Label();
-        mValues.font = gFontManager.loadFont("normal");
         gui.add(mValues, WidgetLayout.Aligned(-1, 0));
 
         char[][] files;

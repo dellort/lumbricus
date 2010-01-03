@@ -17,10 +17,6 @@ public import game.temp;
 ///for stuff that can't simply be polled
 ///anyone in the client engine can register callbacks here
 class GameEngineCallback {
-    //very hacky *sigh* - maybe controller should always generate events for
-    //  showing damage labels, instead of making gameview.d poll it?
-    //args: (drowning member, lost healthpoints, out-of-screen position)
-    MDelegate!(TeamMember, int, Vector2i) memberDrown;
 
     MDelegate!() nukeSplatEffect;
 

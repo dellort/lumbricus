@@ -17,6 +17,7 @@ class ScrollBar : Widget {
         int mDir; //0=in x direction, 1=y
         Button mSub, mAdd;
         Bar mBar;
+        Widget mBackground;
         Rect2i mBarArea;
 
         int mCurValue;
@@ -98,6 +99,10 @@ class ScrollBar : Widget {
         addChild(mSub);
         mBar = new Bar();
         addChild(mBar);
+        mBackground = new UnclickableSpacer();
+        mBackground.styles.addClass("scrollbar-background");
+        mBackground.zorder = -1;
+        addChild(mBackground);
 
         foreach (w; [mAdd, mSub])
             w.styles.addClass("scrollbar-button");
@@ -168,6 +173,8 @@ class ScrollBar : Widget {
         mBarArea.p2[mDir] = mAdd.containerBounds.p1[mDir];
 
         assert(mBarArea.size[mDir] >= mBar.requestSize[mDir]);
+
+        mBackground.layoutContainerAllocate(mBarArea);
 
         adjustBar();
     }

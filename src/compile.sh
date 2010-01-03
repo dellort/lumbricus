@@ -70,8 +70,8 @@ case $1 in
     clean)
         #$CMD rm -rf .objs .deps
         for x in $TARGETS ; do
-            $CMD rm -f .deps_$x
-            $CMD rm -rf .objs_$x
+            $CMD rm -f $TMPDIR.deps_$x
+            $CMD rm -rf $TMPDIR.objs_$x
             $CMD rm -f $BINDIR$x
         done
         ;;

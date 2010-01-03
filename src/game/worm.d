@@ -91,8 +91,6 @@ class WormSprite : Sprite {
         //by default off, GameController can use this
         bool mDelayedDeath;
 
-        bool mHasDrowned;
-
         int mGravestone;
 
         FlyMode mLastFlyMode;
@@ -274,17 +272,6 @@ class WormSprite : Sprite {
     out (res) { assert(!res || (physics.lifepower < 0) || physics.dead); }
     body {
         return currentState is wsc.st_dead;
-    }
-
-    //true if worm has died by drowning
-    //xxx change in this way:
-    //  - health points loss is always reported as (sprite, amountofloss)
-    //  - gameview.d finds the TeamMember for the sprite
-    //  - gameview.d checks the sprite position, and if it's under water,
-    //    play the floating health point label animation; if not under water,
-    //    the normal HP label animation
-    bool hasDrowned() {
-        return mHasDrowned;
     }
 
     //if suicide animation played
@@ -861,11 +848,6 @@ class WormSprite : Sprite {
         auto fromW = cast(WormStateInfo)from;
         auto toW = cast(WormStateInfo)to;
         //Trace.formatln("state {} -> {}", from.name, to.name);
-
-        if (from is wsc.st_drowning && to is wsc.st_dead) {
-            //die by drowning - are there more actions needed?
-            mHasDrowned = true;
-        }
 
         if (from is wsc.st_beaming) {
             setPos(mBeamDest);

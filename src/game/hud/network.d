@@ -31,21 +31,18 @@ class NetworkHud : SimpleContainer {
             return;
 
         mErrorFrame = new SimpleContainer();
-        mErrorFrame.styles.id = "neterrorbox";
+        mErrorFrame.styles.addClass("neterrorbox");
         mErrorFrame.visible = false;
 
         //centered "waiting for server"
         mLagLabel = new Label();
-        mLagLabel.styles.id = "netlaglabel";
-        auto p = mLagLabel.font.properties;
-        p.fore = Color(0.8);
-        mLagLabel.font = new Font(p);
+        mLagLabel.styles.addClass("netlaglabel");
         mLagLabel.text = translate("nethud.waitingforserver");
         mErrorFrame.add(mLagLabel, WidgetLayout.Aligned(0, 0));
 
         //centered box with disconnected message and close button
         mCloseBox = new BoxContainer(false, false, 10);
-        mCloseBox.styles.id = "netclosebox";
+        mCloseBox.styles.addClass("netclosebox");
         auto cl = new Label();
         cl.text = translate("nethud.connectionlost");
         mCloseBox.add(cl, WidgetLayout.Aligned(0, 0));

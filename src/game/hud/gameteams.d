@@ -39,7 +39,7 @@ class WormLabel : Widget {
     }
 
     void update() {
-        needResize(true);
+        needResize();
     }
 
     override void onDraw(Canvas c) {

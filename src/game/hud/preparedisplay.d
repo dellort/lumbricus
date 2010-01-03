@@ -17,14 +17,16 @@ class PrepareDisplay : Label {
         Translator tr;
         GameInfo mGame;
         PrepareStatus mStatus;
+        bool mInit;
+        int mLastSec;
+        Team mLastTeam;
     }
 
     this(SimpleContainer hudBase, GameInfo game, Object link) {
         mGame = game;
         mStatus = castStrict!(PrepareStatus)(link);
         tr = localeRoot.bindNamespace("gui_prepare");
-        styles.id = "preparebox";
-        font = gFontManager.loadFont("messages");
+        styles.addClass("preparebox");
 
         //hide initially
         visible = false;
@@ -46,9 +48,12 @@ class PrepareDisplay : Label {
             float pt_secs = pt.secs >= 0 ? pt.secsf+1 : 0;
             font = (cast(int)(pt_secs*2)%2 == 0)
                 ? curTeam.color.font_flash : curTeam.color.font;
+            int secs = cast(int)pt_secs;
 
-            char[] teamName = curTeam.name;
-            text = tr("teamgetready", teamName, cast(int)pt_secs);
+            if (mLastTeam !is curTeam || mLastSec != secs)
+                text = tr("teamgetready", curTeam.name, secs);
+            mLastTeam = curTeam;
+            mLastSec = secs;
         }
     }
 

@@ -44,13 +44,13 @@ class GameTimer : BoxContainer {
         lay.border = Vector2i(7, 0);
 
         mTurnTime = new Label();
-        mTurnTime.styles.id = "roundtime";
+        mTurnTime.styles.addClass("roundtime");
         mTurnTime.font = mFont[0];
         mTurnTime.centerX = true;
         mTurnTime.setLayout(lay);
 
         mGameTime = new Label();
-        mGameTime.styles.id = "gametime";
+        mTurnTime.styles.addClass("gametime");
         mGameTime.font = mFont[3];
         mGameTime.centerX = true;
         mGameTime.setLayout(lay);
@@ -77,10 +77,10 @@ class GameTimer : BoxContainer {
     }
 
     private void setTurnTime(Time tRemain, bool paused = false) {
-        char[20] turnTBuffer = void;
         //little hack to show correct time
         Time rt = tRemain - timeMsecs(1);
         float rt_sec = rt.secs >= -1 ? rt.secsf+1 : 0f;
+
         if (paused) {
             mTurnTime.font = mFont[2];
             mGameTime.font = mFont[4];
@@ -92,15 +92,14 @@ class GameTimer : BoxContainer {
             mTurnTime.font = mFont[0];
             mGameTime.font = mFont[3];
         }
-        mTurnTime.text = myformat_s(turnTBuffer, "{}",cast(int)rt_sec);
+
+        mTurnTime.setTextFmt(false, "{}", cast(int)rt_sec);
     }
 
     private void setGameTime(Time tRemain) {
-        char[20] gameTBuffer = void;
         Time gt = tRemain - timeMsecs(1);
         int gt_sec = gt > Time.Null ? gt.secs+1 : 0;
-        mGameTime.text = myformat_s(gameTBuffer, "{:d2}:{:d2}",
-            gt_sec / 60, gt_sec % 60);
+        mGameTime.setTextFmt(false, "{:d2}:{:d2}", gt_sec / 60, gt_sec % 60);
     }
 
     override void simulate() {
@@ -137,12 +136,9 @@ class GameTimer : BoxContainer {
         if (bordercolor != mOldBordercolor) {
             mOldBordercolor = bordercolor;
             if (bordercolor.valid()) {
-                //LOL
-                styles.replaceRule("/gametimer", "border-color",
-                    bordercolor.fromStringRev());
+                setStyleOverrideT!(Color)("border-color", bordercolor);
             } else {
-                //even more LOL
-                styles.removeCustomRule("/gametimer", "border-color");
+                clearStyleOverride("border-color");
             }
         }
     }

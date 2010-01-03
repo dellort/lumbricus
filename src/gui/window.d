@@ -132,7 +132,7 @@ class WindowWidget : Widget {
                         }
                     }
                     mUserSize = bounds.size - b;
-                    wnd.needResize(true);
+                    wnd.needResize();
                     wnd.position = bounds.p1;
                 }
             }
@@ -193,8 +193,6 @@ class WindowWidget : Widget {
 
     this() {
         focusable = true;
-
-        styleRegisterColor("window-fullscreen-color");
 
         //add decorations etc.
         auto all = new TableContainer(3, 3);
@@ -285,7 +283,7 @@ class WindowWidget : Widget {
     ///set initial size
     void initSize(Vector2i s) {
         mUserSize = s;
-        needResize(true);
+        needResize();
     }
 
     ///usersize to current minsize (in case usersize is smaller)
@@ -295,7 +293,7 @@ class WindowWidget : Widget {
         mUserSize = mUserSize.max(mLastMinSize);
         //actually not needed, make spotting errors easier
         //or maybe it's actually needed
-        needResize(true);
+        needResize();
     }
 
     override Vector2i layoutSizeRequest() {
@@ -331,6 +329,9 @@ class WindowWidget : Widget {
         recreateGui();
 
         needRelayout();
+
+        if (parent)
+            parent.needRelayout();
 
         if (!set) {
             position = mFSSavedPos;
@@ -561,7 +562,7 @@ class WindowWidget : Widget {
     }
 
     protected Color fsClearColor() {
-        return styles.getValue!(Color)("window-fullscreen-color");
+        return styles.get!(Color)("window-fullscreen-color");
     }
 
     class WindowClient : BoxContainer {

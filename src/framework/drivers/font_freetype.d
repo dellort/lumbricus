@@ -235,7 +235,12 @@ class FTGlyphCache {
                 ubyte* pn = glyph_bmp.buffer + p1.y*glyph_bmp.pitch + p1.x;
                 ubyte* pb = border_bmp.buffer + p2.y*border_bmp.pitch + p2.x;
                 for (int x = rci.p1.x; x < rci.p2.x; x++) {
-                    *pb = *pb > *pn ? *pb : 0;
+                    //doesn't work: when drawing the border and the glyph,
+                    //  there are parts where both bitmaps have <255 alpha,
+                    //  making the background shine through
+                    //but it still looks better than before + mostly invisible
+                    ubyte b = *pb, n = *pn;
+                    *pb = b > n ? b - (n / 2) : 0;
                     pn++; pb++;
                 }
                 p1.y++; p2.y++;
@@ -309,11 +314,11 @@ class FTFont : DriverFont {
         if (mProps.back.a > 0)
             c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back);
 
-        c.drawSprite(glyph.tex, pos+glyph.offset);
-
         if (glyph.border) {
-            glyph.border.draw(c, pos+glyph.border_offset);
+            c.drawSprite(glyph.border, pos+glyph.border_offset);
         }
+
+        c.drawSprite(glyph.tex, pos+glyph.offset);
     }
 
     Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {

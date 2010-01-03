@@ -80,7 +80,6 @@ class GameSummary : Task {
                 //game ended draw
                 mGameWinLabel.textMarkup = `\t(game_draw)`;
             }
-            mGameWinLabel.font = gFontManager.loadFont("game_win", false);
         } else {
             //game will continue
             mGameOver = false;
@@ -88,7 +87,7 @@ class GameSummary : Task {
                 translate("gamesummary.caption_noend", persist["round_counter"]);
             mCloseButton.textMarkup = `\t(continue)`;
             mGameWinLabel.text = "";
-            mGameWinLabel.font = gFontManager.loadFont("tiny", false);
+            mGameWinLabel.styles.setState("notfinal", true);
         }
         if (persist["round_winner"].length > 0) {
             //xxx code duplication
@@ -117,12 +116,12 @@ class GameSummary : Task {
         foreach (ConfigNode tn; teamsNode) {
             auto nameLbl = new Label();
             nameLbl.textMarkup = `\c(team_` ~ tn["color"] ~ ")" ~ tn["name"];
-            nameLbl.font = gFontManager.loadFont("scores", false);
+            nameLbl.styles.addClass("score_label");
             mScoreTable.add(nameLbl, 0, i);
 
             auto scoreLbl = new Label();
             scoreLbl.text = tn["global_wins"];
-            scoreLbl.font = gFontManager.loadFont("scores", false);
+            scoreLbl.styles.addClass("score_label");
             mScoreTable.add(scoreLbl, 1, i);
             i++;
         }

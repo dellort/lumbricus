@@ -311,7 +311,7 @@ private void writeHandler(SerializeBase base, SafePtr p,
 }
 
 //call with DeclareEvent alias (e.g. SomeEvent)
-//this means T is a fully instantiated template (wtf...)
+//this means T[index] is a fully instantiated template (wtf...)
 void registerSerializableEventHandlers(T...)(Types types) {
     const clen = T.length; //can't pass this directly to Repeat LOL DMD
     foreach (x; Repeat!(clen)) {

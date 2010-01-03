@@ -282,9 +282,13 @@ class Types {
             //apparently, dmd shits itself and thinks functions are pointers to
             //  something (dmd bug 3650); I guess pointer-to-something is the
             //  internal representation for functions
-            //- do nothing, see end of the if cascade
+            //thus they don't really exist; catch them in the pointer case
+            static assert(false);
         } else static if (is(T T2 : T2*)) {
-            return PointerType.create!(T)(this);
+            static if (!is(T2 == function))
+                return PointerType.create!(T)(this);
+            //it's a function pointer
+            return FunctionType.create!(T)(this);
         } else static if (is(T == delegate)) {
             return DelegateType.create!(T)(this);
         } else static if (is(T T2 == enum)) { //enum, T2 is underlying type

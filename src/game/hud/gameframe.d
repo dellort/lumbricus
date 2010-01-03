@@ -247,9 +247,6 @@ class GameFrame : SimpleContainer {
         gDefaultLog("initializeGameGui");
 
         mGui = new SimpleContainer();
-        //needed because I messed up input handling
-        //no children of mGui can receive mouse events
-        mGui.mouseEvents = false;
 
         //xxx ehrm, lol... config file?
         mGui.add(new WindMeter(game),
@@ -307,7 +304,7 @@ class GameFrame : SimpleContainer {
         mPauseLabel = new Label;
         mPauseLabel.textMarkup = "\\t(gamehud.paused)";
         mPauseLabel.centerX = true;
-        mPauseLabel.styles.id = "gamepauselabel";
+        mPauseLabel.styles.addClass("gamepauselabel");
         mPauseLabel.visible = false;
         add(mPauseLabel, WidgetLayout.Noexpand());
 

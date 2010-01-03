@@ -94,7 +94,7 @@ class Type {
     }
 
     final char[] uniqueName() {
-        assert(mUniqueName != "");
+        assert(mUniqueName != "", "in: "~mTI.toString());
         return mUniqueName;
     }
 
@@ -132,7 +132,7 @@ class Type {
 
     //convert the value in p (which must be of type this) to a string
     //meant for debugging only
-    final char[] dataToString(SafePtr p) {
+    char[] dataToString(SafePtr p) {
         assert(!!mToString);
         return mToString(p);
     }
@@ -172,16 +172,38 @@ class BaseType : Type {
 
 //dummy for some unhandled types (e.g. function pointers)
 class UnknownType : Type {
-    private this(Types a_owner, TypeInfo a_ti) {
+    private char[] mHint;
+
+    private this(Types a_owner, TypeInfo a_ti, char[] h) {
         super(a_owner, a_ti);
+        mHint = h;
     }
 
     package static UnknownType create(T)(Types a_owner) {
-        return new UnknownType(a_owner, typeid(T));
+        auto res = new UnknownType(a_owner, typeid(T), "UnknownType");
+        res.do_init!(T)();
+        return res;
+    }
+
+    //dangerous?
+    override char[] dataToString(SafePtr p) {
+        return "?";
     }
 
     override char[] toString() {
-        return "UnknownType[" ~ typeInfo.toString() ~ "]";
+        return mHint ~ "[" ~ typeInfo.toString() ~ "]";
+    }
+}
+
+class FunctionType : UnknownType {
+    private this(Types a_owner, TypeInfo a_ti) {
+        super(a_owner, a_ti, "FunctionType");
+    }
+
+    package static FunctionType create(T)(Types a_owner) {
+        auto res = new FunctionType(a_owner, typeid(T));
+        res.do_init!(T)();
+        return res;
     }
 }
 

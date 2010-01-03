@@ -259,7 +259,7 @@ class EditLine : Widget {
         props.back = mSelBack;
         mSelFont = new Font(props);
 
-        needResize(true);
+        needResize();
     }
 
     override MouseCursor mouseCursor() {

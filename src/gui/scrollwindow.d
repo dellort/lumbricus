@@ -85,6 +85,7 @@ class ScrollArea : SimpleContainer {
         return r;
     }
     override protected void layoutSizeAllocation() {
+    Trace.formatln("allocate: {}", containedBounds()); //yyy
         auto child = getBinChild();
         if (child) {
             Vector2i csize = child.layoutCachedContainerSizeRequest;
@@ -121,6 +122,7 @@ class ScrollArea : SimpleContainer {
             auto msize = size;
             if (mLastUpdateSize != msize) {
                 //keep contents centered if ScrollArea size changes
+
                 mOffset += (msize - mLastUpdateSize)/2;
                 //also center smooth scrolling dest/position
                 mScrollOffset += toVector2f((msize - mLastUpdateSize)/2);
@@ -259,8 +261,6 @@ class ScrollWindow : Container {
         ScrollArea mArea;
         ScrollBar[2] mBars;
         TableContainer mLayout;
-        //used to block recursive change notifications (!= 0 means updating)
-        int mUpdating;
     }
 
     bool enableMouseWheel;
@@ -307,9 +307,6 @@ class ScrollWindow : Container {
 
     private void recreateGui() {
         //recreate only if necessary
-        //this prevents an infinite loop, triggered by recreating the GUI,
-        //which makes the ScrollArea trigger onStateChange, which calls us (this
-        //function) again... argh
         //xxx: horrible implementation, make better
 
         bool[2] scr;
@@ -349,34 +346,26 @@ class ScrollWindow : Container {
         if (!mArea)
             return;
 
-        try {
-            mUpdating++;
-
-            mArea.onPositionChange = &onDoScroll;
-            mArea.onStateChange = &onScrollChange;
-            mLayout = new TableContainer(scr[1]?2:1, scr[0]?2:1);
-            mLayout.add(mArea, 0, 0);
-            for (int n = 0; n < 2; n++) {
-                if (scr[n]) {
-                    auto bar = new ScrollBar(!n);
-                    mBars[n] = bar;
-                    mLayout.add(bar, n?1:0, n?0:1, WidgetLayout.Expand(!n));
-                    bar.onValueChange = &onScrollbar;
-                    bar.maxValue = mArea.clientSize[n]-1;
-                    bar.pageSize = mArea.size[n];
-                    bar.curValue = -mArea.offset[n];
-                }
+        mArea.onPositionChange = &onDoScroll;
+        mArea.onStateChange = &onScrollChange;
+        mLayout = new TableContainer(scr[1]?2:1, scr[0]?2:1);
+        mLayout.add(mArea, 0, 0);
+        for (int n = 0; n < 2; n++) {
+            if (scr[n]) {
+                auto bar = new ScrollBar(!n);
+                mBars[n] = bar;
+                mLayout.add(bar, n?1:0, n?0:1, WidgetLayout.Expand(!n));
+                bar.onValueChange = &onScrollbar;
+                bar.maxValue = mArea.clientSize[n]-1;
+                bar.pageSize = mArea.size[n];
+                bar.curValue = -mArea.offset[n];
             }
-
-            addChild(mLayout);
-        } finally {
-            mUpdating--;
         }
+
+        addChild(mLayout);
     }
 
     private void onScrollbar(ScrollBar sender) {
-        if (mUpdating)
-            return;
 
         Vector2i offset = mArea.offset;
         if (sender is mBars[0]) {
@@ -384,39 +373,21 @@ class ScrollWindow : Container {
         } else if (sender is mBars[1]) {
             offset[1] = -sender.curValue;
         }
-        try {
-            mUpdating++;
-            mArea.offset = offset;
-        } finally {
-            mUpdating--;
-        }
+        mArea.offset = offset;
     }
 
     void scrollRelative(Vector2i delta) {
-        try {
-            mUpdating++;
-            mArea.offset = mArea.offset + delta;
-        } finally {
-            mUpdating--;
-        }
+        mArea.offset = mArea.offset + delta;
         //no idea if correct, but it works
         onDoScroll(area);
     }
 
     //its onPositionChange
     private void onDoScroll(ScrollArea scroller) {
-        if (mUpdating)
-            return;
-
-        try {
-            mUpdating++;
-            if (mBars[0])
-                mBars[0].curValue = -scroller.offset[0];
-            if (mBars[1])
-                mBars[1].curValue = -scroller.offset[1];
-        } finally {
-            mUpdating--;
-        }
+        if (mBars[0])
+            mBars[0].curValue = -scroller.offset[0];
+        if (mBars[1])
+            mBars[1].curValue = -scroller.offset[1];
     }
 
     //its onStateChange

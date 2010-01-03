@@ -32,13 +32,7 @@ class PublicContainer : Container {
 ///by coincidence only needs to add more accessors to the original Container
 ///also supports loading of children widgets using loadFrom()
 class SimpleContainer : PublicContainer {
-    bool mouseEvents = true; //xxx silly hack
-
-    override bool onTestMouse(Vector2i pos) {
-        return mouseEvents ? super.onTestMouse(pos) : false;
-    }
-
-    /// Add an element to the GUI, which gets automatically cleaned up later.
+    /// Add an element to the GUI
     void add(Widget obj) {
         addChild(obj);
     }

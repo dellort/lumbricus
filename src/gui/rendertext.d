@@ -357,7 +357,7 @@ public class FormattedText {
         layout();
     }
 
-    void setText(char[] txt, bool as_markup) {
+    void setText(bool as_markup, char[] txt) {
         if (as_markup) {
             setMarkup(txt);
         } else {
@@ -369,11 +369,12 @@ public class FormattedText {
     //if the resulting string is the same as the last string set, no further
     //  work is done (and if the string is small and the format string doesn't
     //  trigger any toString()s, no memory is allocated)
-    void setTextFmt(bool as_markup, char[] fmt, ...) {
-        setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
+    //returns if the text was changed (if not, the text was the same)
+    bool setTextFmt(bool as_markup, char[] fmt, ...) {
+        return setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
     }
 
-    void setTextFmt_fx(bool as_markup, char[] fmt,
+    bool setTextFmt_fx(bool as_markup, char[] fmt,
         TypeInfo[] arguments, va_list argptr)
     {
         //tries not to change anything if the text to be set is the same
@@ -381,12 +382,13 @@ public class FormattedText {
         char[80] buffer = void;
         char[] res = formatfx_s(buffer, fmt, arguments, argptr);
         if (mTextIsFormatted == as_markup && mText == res)
-            return;
+            return false;
         //formatfx_s allocates on the heap if buffer isn't big enough
         //so .dup is only needed if res still points to that static buffer
         if (res.ptr is buffer.ptr)
             res = res.dup;
-        setText(res, as_markup);
+        setText(as_markup, res);
+        return true;
     }
 
     void getText(out bool as_markup, out char[] data) {

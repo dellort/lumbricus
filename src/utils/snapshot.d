@@ -11,6 +11,9 @@ import utils.array : Appender;
 import str = utils.string;
 import memory = tango.core.Memory;
 
+//hack
+import utils.mybox;
+
 private LogStruct!("utils.snapshot") log;
 
 /+
@@ -149,7 +152,10 @@ class SnapDescriptor {
 
     private void addMember(Type mt, size_t offset) {
         //PODs => just copy
-        if ((!!cast(BaseType)mt) || (!!cast(EnumType)mt)) {
+        //function pointers always point to static data, so it's POD
+        if ((!!cast(BaseType)mt) || (!!cast(EnumType)mt)
+            || (!!cast(FunctionType)mt))
+        {
             switch (mt.size()) {
                 case 1: pod8 ~= offset; break;
                 case 2: pod16 ~= offset; break;
@@ -164,6 +170,18 @@ class SnapDescriptor {
         if (auto rt = cast(ReferenceType)mt) {
             //object references
             objects ~= RefMember(offset, rt);
+            return;
+        }
+        //xxx this is beyond dangerous
+        if (mt.typeInfo is typeid(MyBox)) {
+            //so assume a box never adds new objects to the object graph
+            //further assume the box value never changes (else we had to deal
+            //  with the referenced array, MyBox.mDynamicData)
+            assert((mt.size % 4) == 0);
+            for (int i = 0; i < mt.size / 4; i++) {
+                pod32 ~= offset;
+                offset += 4;
+            }
             return;
         }
         if (auto st = cast(StructType)mt) {
@@ -198,7 +216,8 @@ class SnapDescriptor {
             dgs ~= DgMember(offset, dg);
             return;
         }
-        assert (false);
+        assert (false, "unknown type: "~mt.toString()
+            ~ " inside " ~ type.toString());
     }
 }
 

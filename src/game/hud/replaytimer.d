@@ -23,11 +23,11 @@ class ReplayTimer : BoxContainer {
         mReplayImg = new Label();
         //mReplayImg.image = globals.guiResources.get!(Surface)("replay_r");
         mReplayImg.text = "R";
-        mReplayImg.font = gFontManager.loadFont("replay_r");
+        mReplayImg.styles.addClass("replaydisplay");
         mReplayImg.visible = false;
         mReplayTimer = new Label();
         mReplayTimer.visible = false;
-        mReplayTimer.font = gFontManager.loadFont("replaytime");
+        mReplayTimer.styles.addClass("replaytime");
         add(mReplayImg);
         add(mReplayTimer, WidgetLayout.Aligned(0, 0));
     }

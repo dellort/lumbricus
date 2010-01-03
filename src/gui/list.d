@@ -60,7 +60,7 @@ class AbstractListWidget : Widget {
         if (spacing != mSpacing)
             return;
         mSpacing = spacing;
-        needResize(true);
+        needResize();
     }
 
     /// notify about changed numbers of entries
@@ -70,7 +70,7 @@ class AbstractListWidget : Widget {
         mCount = acount;
         if (mSelected >= mCount) //xxx: unselect event?
             mSelected = cUnselected;
-        needResize(true);
+        needResize();
     }
 
     /// notify about changed height of the entries
@@ -78,7 +78,7 @@ class AbstractListWidget : Widget {
         if (aheight == mHeight)
             return;
         mHeight = aheight;
-        needResize(true);
+        needResize();
     }
 
     protected int size_request_x() {
@@ -202,7 +202,7 @@ class StringListWidget : AbstractListWidget {
         }
         if (w != mWidth) {
             mWidth = w;
-            needResize(true);
+            needResize();
         }
     }
 

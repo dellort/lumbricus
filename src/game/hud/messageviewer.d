@@ -41,17 +41,15 @@ class MessageViewer : Label {
         InterpolateFnTime!(int, msgAnimate) mInterp;
 
         //blergh
-        Font mStdFont;
-        Font[Team] mPerTeamFont;
+        FontProperties mStdFont;
     }
 
     this(GameInfo game) {
         mGame = game;
         mLocaleMsg = localeRoot.bindNamespace("game_msg");
 
-        styles.id = "preparebox";
-        font = gFontManager.loadFont("messages");
-        mStdFont = font;
+        styles.addClass("preparebox");
+        mStdFont = gFontManager.getStyle("messages");
 
         //make sure it's hidden initially
         mInterp.init(timeSecs(0), -200, 0);
@@ -96,22 +94,11 @@ class MessageViewer : Label {
             auto curMsg = mMessages.pop();
             text = curMsg.text;
             auto team = curMsg.teamForColor;
+            auto p = mStdFont;
             if (team) {
-                auto ptf = team in mPerTeamFont;
-                if (!ptf) {
-                    //ok, there should be a way to get a Font instance by
-                    // FontProperties; in such a way that FontManager manages
-                    // a cache of weak references to Font objects blablabla
-                    auto p = mStdFont.properties;
-                    p.fore = team.color.color;
-                    Font f = new Font(p);
-                    mPerTeamFont[team] = f;
-                    ptf = &f;
-                }
-                font = *ptf;
-            } else {
-                font = mStdFont;
+                p.fore = team.color.color;
             }
+            setStyleOverrideT!(FontProperties)("text-font", p);
             mInterp.init(timeSecs(1.5f),
                 -containedBorderBounds.p1.y - containedBorderBounds.size.y, 0);
         }

@@ -934,7 +934,7 @@ public class LevelEditor : Task {
             poly.p_visible = p.visible;
             root.add(poly);
         }
-        render.needResize(true); //for level size
+        render.needResize(); //for level size
     }
 
     void clear() {

@@ -396,7 +396,6 @@ class AnimationHandler : ResViewHandler!(Animation) {
         auto table = new TableContainer(2, 0, Vector2i(10,1), [true, false]);
 
         auto infos = new Label();
-        infos.font = gFontManager.loadFont("normal");
         infos.text = "Flags: "
             ~ (resource.keepLastFrame ? "keepLastFrame, " : "")
             ~ (resource.repeat ? "repeat, " : " ")
@@ -407,7 +406,6 @@ class AnimationHandler : ResViewHandler!(Animation) {
 
         void addscr(out ScrollBar scr, out Label lbl) {
             lbl = new Label();
-            lbl.font = gFontManager.loadFont("normal");
             scr = new ScrollBar(true);
             scr.onValueChange = &onScrollbar;
             table.addRow();
@@ -655,14 +653,11 @@ class ResViewerTask : Task {
             props.addColumn();
             props.cellSpacing = Vector2i(7, 1);
             void addLabel(out Label val, char[] name) {
-                Font f = gFontManager.loadFont("normal");
                 props.addRow();
                 auto lbl = new Label();
                 lbl.text = name ~ ":";
-                lbl.font = f;
                 lbl.setLayout(WidgetLayout.Aligned(-1, 0));
                 val = new Label();
-                val.font = f;
                 props.add(lbl, 0, props.height-1);
                 props.add(val, 1, props.height-1);
             }

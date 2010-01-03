@@ -60,8 +60,7 @@ class WeaponSelWindow : Container {
 
                 image = active;
                 visible = false;
-                styleRegisterColor("cooldown-color");
-                styles.addClasses(["in-weapon-cell"]);
+                styles.addClass("in-weapon-cell");
                 onClick = &clickWeapon;
                 onMouseOver = &mouseoverWeapon;
             }
@@ -90,7 +89,7 @@ class WeaponSelWindow : Container {
                         p = diff.secsf / weapon.cooldown.secsf;
                     }
                     if (p > float.epsilon) {
-                        Color cdCol = styles.getValue!(Color)("cooldown-color");
+                        Color cdCol = styles.get!(Color)("cooldown-color");
                         canvas.drawPercentRect(Vector2i(0), size, p, cdCol);
                     }
                 }
@@ -121,8 +120,6 @@ class WeaponSelWindow : Container {
         Translator mWeaponTranslate, mWeaponFooTranslate;
         char[][] mWeaponPostfixes;
         int mFooCode;
-
-        Font mDFG;
     }
 
     KeyBindings selectionBindings;
@@ -285,7 +282,7 @@ class WeaponSelWindow : Container {
             shortcut.text = selectionBindings ?
                 globals.translateBind(selectionBindings, cCShortcut ~ category)
                 : category;
-            shortcut.font = mDFG;
+            shortcut.styles.addClass("weaponsel_shortcut");
             mGrid.add(shortcut, 0, y, WidgetLayout.Noexpand);
 
             //add the weapon icons
@@ -306,7 +303,7 @@ class WeaponSelWindow : Container {
 
     this() {
         //hm
-        styles.id = "weaponwindow";
+        styles.addClass("weaponwindow");
 
         //meh how stupid
         auto conf = loadConfig("wsel").getSubNode("categories");
@@ -315,7 +312,6 @@ class WeaponSelWindow : Container {
         }
 
         mWeaponTranslate = localeRoot.bindNamespace("weapons");
-        mDFG = gFontManager.loadFont("weaponsel_side");
         mWeaponFooTranslate = localeRoot.bindNamespace("weaponsfoo");
         mWeaponPostfixes = mWeaponFooTranslate.names();
 
@@ -325,10 +321,10 @@ class WeaponSelWindow : Container {
         mGridContainer = new SimpleContainer();
         all.add(mGridContainer);
         mWeaponName = new Label();
-        mWeaponName.font = gFontManager.loadFont("weaponsel_down");
+        mWeaponName.styles.addClass("weaponsel_name");
         mWeaponName.shrink = true;
         mWeaponQuantity = new Label();
-        mWeaponQuantity.font = gFontManager.loadFont("weaponsel_down_bold");
+        mWeaponQuantity.styles.addClass("weaponsel_quantity");
         auto hbox = new BoxContainer(true, false, 10);
         hbox.add(mWeaponName, WidgetLayout.Expand(true));
         hbox.add(mWeaponQuantity, WidgetLayout.Noexpand);

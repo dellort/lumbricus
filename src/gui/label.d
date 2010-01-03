@@ -15,14 +15,10 @@ class Label : Widget {
     private {
         FormattedText mText;
         bool mShrink, mCenterX;
-        Texture mImage;
+        Surface mImage;
         //calculated by layoutSizeRequest
-        Vector2i mFinalBorderSize;
         Vector2i mTextSize;
 
-        //only when set by the user
-        bool mUserTextValid, mUserTextMarkup;
-        char[] mUserText;
         bool mFontOverride;
 
         const cSpacing = 3; //between images and text
@@ -30,9 +26,7 @@ class Label : Widget {
 
     this() {
         focusable = false;
-        styleRegisterString("text-font");
         mText = new FormattedText();
-        mText.font = gFontManager.loadFont("label_default");
     }
 
     //no mouse events
@@ -40,13 +34,13 @@ class Label : Widget {
         return false;
     }
 
-    void image(Texture img) {
+    void image(Surface img) {
         if (img is mImage)
             return;
         mImage = img;
-        needResize(true);
+        needResize();
     }
-    Texture image() {
+    Surface image() {
         return mImage;
     }
 
@@ -69,25 +63,32 @@ class Label : Widget {
     }
 
     void text(char[] txt) {
-        setText(txt, false);
+        setText(false, txt);
     }
     void textMarkup(char[] txt) {
-        setText(txt, true);
+        setText(true, txt);
     }
     char[] text() {
-        //don't know, could also just add a mText.text and return that
-        return mUserTextValid ? mUserText : "";
+        char[] txt;
+        bool is_markup;
+        mText.getText(is_markup, txt);
+        return txt;
     }
     //txt can become invalid after this function is called
-    void setText(char[] txt, bool as_markup) {
-        if (mUserTextValid && mUserTextMarkup == as_markup && mUserText == txt)
-            return;
-        txt = txt.dup;
-        mUserTextValid = true;
-        mUserText = txt;
-        mUserTextMarkup = as_markup;
-        mText.setText(txt, as_markup);
-        needResize(true);
+    void setText(bool as_markup, char[] txt) {
+        setTextFmt(as_markup, "{}", txt);
+    }
+    //like FormattedText.setTextFmt()
+    void setTextFmt(bool as_markup, char[] fmt, ...) {
+        setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
+    }
+    void setTextFmt_fx(bool as_markup, char[] fmt,
+        TypeInfo[] arguments, va_list argptr)
+    {
+        if (mText.setTextFmt_fx(as_markup, fmt, arguments, argptr)) {
+            //text was changed; possibly relayout
+            needResize();
+        }
     }
 
     void font(Font font) {
@@ -98,8 +99,9 @@ class Label : Widget {
         //    ^ "make it better"
         mFontOverride = true;
         mText.font = font;
-        needResize(true);
+        needResize();
     }
+
     Font font() {
         return mText.font;
     }
@@ -122,7 +124,7 @@ class Label : Widget {
 
     override void onLocaleChange() {
         mText.update();
-        needResize(true);
+        needResize();
     }
 
     override void onDraw(Canvas canvas) {
@@ -151,19 +153,18 @@ class Label : Widget {
         //}
     }
 
-    override protected void check_style_changes() {
-        super.check_style_changes();
+    override void readStyles() {
+        super.readStyles();
         if (!mFontOverride) {
-            char[] fontId = styles.getValue!(char[])("text-font");
-            font = gFontManager.loadFont(fontId);
-            mFontOverride = false;
+            auto props = styles.get!(FontProperties)("text-font");
+            //NOTE: not assigning to "font", because that triggers a resize
+            mText.font = gFontManager.create(props);
         }
     }
 
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
-        mUserTextValid = false;
         mText.clear();
 
         //xxx: it would be simpler to read the "locale" field directly, and
@@ -171,8 +172,7 @@ class Label : Widget {
         mText.translator = loader.locale();
 
         //haw haw... but it's ok?
-        mText.setMarkup(r"\t(" ~ node.getStringValue("text") ~ ")");
-        mText.update();
+        setTextFmt(true, r"\t({})", node.getStringValue("text"));
 
         mShrink = node.getBoolValue("shrink", mShrink);
         mCenterX = node.getBoolValue("center_x", mCenterX);

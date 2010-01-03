@@ -51,10 +51,8 @@ class PowerupDisplay : BoxContainer {
             auto col = myTeam.color.color;
             if (col != mOldColor) {
                 mOldColor = col;
-                foreach (s; [mLblDouble.styles, mLblCrate.styles]) {
-                    //all sub labels get changed
-                    s.replaceRule("/w-label", "border-color",
-                        col.fromStringRev());
+                foreach (s; [mLblDouble, mLblCrate]) {
+                    s.setStyleOverrideT!(Color)("border-color", col);
                 }
             }
         }

@@ -226,6 +226,8 @@ class WormControl : WormController {
     }
 
     bool isControllable() {
+        //xxx assertion fails when you beam into deathzone
+        //  e.g. below water ground line in closed level with big sdl window
         if (mEngaged)
             assert(isAlive());
         return mEngaged && !mOnHold;
@@ -246,12 +248,6 @@ class WormControl : WormController {
                 mWorm.jump(j);
         }
         wormAction();
-    }
-
-    //just for gameview.d
-    //maybe move into Sprite
-    bool isDrowning() {
-        return mWorm.graphic && mWorm.hasDrowned();
     }
 
     WeaponClass currentWeapon() {

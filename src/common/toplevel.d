@@ -834,8 +834,6 @@ class StatsWindow : Task {
                 if (!table.get(0, line)) {
                     la = new Label();
                     lb = new Label();
-                    la.font = gFontManager.loadFont("normal");
-                    lb.font = la.font;
                     table.add(la, 0, line);
                     table.add(lb, 1, line, WidgetLayout.Aligned(+1, 0));
                 } else {

@@ -571,7 +571,7 @@ private struct FTextData {
         auto fmt = new FormattedText();
         fmt.setBorder(border);
         fmt.font = gFontManager.create(font);
-        fmt.setText(data, as_markup);
+        fmt.setText(as_markup, data);
         return fmt;
     }
 

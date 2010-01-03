@@ -176,6 +176,7 @@ class FontManager : ResourceManagerT!(FontDriver, Font) {
         Font[char[]] mIDtoFont;
         ConfigNode mNodes;
         FaceStyles[char[]] mFaces;
+        Font[FontProperties] mCache;
     }
 
     this() {
@@ -205,9 +206,15 @@ class FontManager : ResourceManagerT!(FontDriver, Font) {
     }
 
     /// Create the specified font
+    //for now does some caching; because the cache is never released, this may
+    //  lead to memory leaks in some situations
     Font create(FontProperties props, bool tryHard = true) {
         //xxx: tryHard etc.
-        return new Font(props);
+        if (auto pfont = props in mCache)
+            return *pfont;
+        auto font = new Font(props);
+        mCache[props] = font;
+        return font;
     }
 
     /// Create (or return cached result of) a font with properties according

@@ -514,7 +514,6 @@ class TeamMember : GameObject {
         //the thing is that a worm can be dead even if the physics report a
         //positive value - OTOH, we do want these negative values... HACK GO!
         //mLastKnownPhysicHealth is there because mWorm could disappear
-        //yyy check stuff
         auto h = mWormControl.sprite.physics.lifepowerInt;
         if (mWormControl.isAlive() || realHp) {
             return h;
