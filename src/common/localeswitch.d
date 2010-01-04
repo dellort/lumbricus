@@ -65,7 +65,7 @@ class LocaleSwitch : Task {
 
         mDialog = loader.lookup("locale_root");
         mWindow = gWindowManager.createWindow(this, mDialog,
-            translate("localeswitch.caption"));
+            r"\t(localeswitch.caption)");
     }
 
     private void cancelClick(Button sender) {

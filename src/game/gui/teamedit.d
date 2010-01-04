@@ -63,7 +63,7 @@ class TeamEditorTask : Task {
 
         mEditor = loader.lookup("teamedit_root");
         mWindow = gWindowManager.createWindow(this, mEditor,
-            translate("teameditor.caption"));
+            r"\t(teameditor.caption)");
     }
 
     //update list of teams in dropdown, and choose the first if none selected

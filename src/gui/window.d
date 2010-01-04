@@ -385,7 +385,7 @@ class WindowWidget : Widget {
         return res;
     }
     void properties(WindowProperties props) {
-        mTitleBar.text = props.windowTitle;
+        mTitleBar.textMarkup = props.windowTitle;
         mBgOverride = props.background;
         mCanResize = props.canResize;
         mCanMove = props.canMove;

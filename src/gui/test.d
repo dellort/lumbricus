@@ -504,7 +504,7 @@ class TestTask2 : Task {
 
     FontTest mFont;
     BoxTest mBox;
-    ScrollBar[5] mBars;
+    ScrollBar[6] mBars;
     Button mBevel, mNotRounded;
 
     void onScrollbar(ScrollBar sender) {
@@ -515,6 +515,8 @@ class TestTask2 : Task {
         mFont.font.back.a = 0; //getcolor(1);
         mFont.font.border_color = Color(0.5,1.0,0.5,getcolor(1));
         mFont.font.border_width = mBars[4].curValue;
+        mFont.font.shadow_offset = mBars[5].curValue;
+        mFont.font.shadow_color = Color(0.5,0.5,0.5,0.5);
         mFont.updateFont();
         mBox.box.border = mFont.font.border_color;
         mBox.box.back = mFont.font.fore;
@@ -526,7 +528,10 @@ class TestTask2 : Task {
 
         mBox.box.bevel = Color(0,0,1);
 
-        //gFramework.releaseCaches(false);
+        //xxx we don't have any cache managment, and the cache fills up QUITE
+        //    fast (rapidly gets to 1 GB RAM usage when scrollbaring around)
+        //=> better clear everything
+        gFramework.releaseCaches(false);
     }
 
     void onBevelClick(Button sender) {
@@ -549,13 +554,15 @@ class TestTask2 : Task {
         cnt.add(mBox);
         gui.add(cnt);
 
-        auto scr = new TableContainer(2, 5, Vector2i(15, 1));
+        auto scr = new TableContainer(2, 0, Vector2i(15, 1));
         char[][] labels = ["foreground alpha", "background alpha",
-            "container red", "corner size", "border size"];
-        int[] values = [128, 128, 128, 5, 5];
-        int[] maxvals = [255, 255, 255, 50, 50];
+            "container red", "corner size", "border size", "shadow offset"];
+        int[] values = [128, 128, 128, 5, 5, 0];
+        int[] maxvals = [255, 255, 255, 50, 50, 10];
 
         for (int n = 0; n < mBars.length; n++) {
+            scr.addRow();
+
             auto la = new Label();
             la.text = labels[n];
             scr.add(la, 0, n, WidgetLayout.Aligned(-1,0));

@@ -107,3 +107,4 @@ function snowflake(depth, interpolate)
         interpolate)
     LandscapeBitmap_drawBorder(ls, Lexel_soft, Lexel_free, border, border)
 end
+

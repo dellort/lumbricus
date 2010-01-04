@@ -50,6 +50,8 @@ alias DeclareEvent!("sprite_damage", Sprite, GameObject, float) OnDamage;
 alias DeclareEvent!("demolish", GameObject, int) OnDemolish;
 //called when sprite is finally dead (for worms: when done blowing up)
 alias DeclareEvent!("sprite_die", Sprite) OnSpriteDie;
+//with Sprite.activate()
+alias DeclareEvent!("sprite_activate", Sprite) OnSpriteActivate;
 //reached the ocean floor
 //alias DeclareEvent!("sprite_drowned", Sprite) OnSpriteDrowned;
 //starting to blow itself up

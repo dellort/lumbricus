@@ -106,7 +106,7 @@ class CmdNetClientTask : Task {
         mTabs.onActiveChange = &tabActivate;
 
         mConnectWnd = gWindowManager.createWindow(this, mConnectDlg,
-            translate("connect.caption"));
+            r"\t(connect.caption)");
     }
 
     private void onConnect(CmdNetClient sender) {
@@ -406,6 +406,7 @@ class CmdNetLobbyTask : Task {
         loader.lookup!(Button)("btn_leave").onClick = &cancelClick;
 
         //xxx values should be read from configfile
+        //also xxx playerName will be interpreted as markup
         mLobbyWnd = gWindowManager.createWindow(this, mLobbyDlg,
             translate("lobby.caption", mClient.playerName), Vector2i(550, 500));
 
@@ -460,7 +461,7 @@ class CmdNetLobbyTask : Task {
                 mCreateDlg.reset();
                 if (!mCreateWnd) {
                     mCreateWnd = gWindowManager.createWindow(this, mCreateDlg,
-                        translate("gamesetup.caption_net"));
+                        r"\t(gamesetup.caption_net)");
                     mCreateWnd.onClose = &createClose;
                 }
                 mCreateWnd.visible = true;

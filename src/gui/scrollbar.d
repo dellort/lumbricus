@@ -28,6 +28,9 @@ class ScrollBar : Widget {
         //scale factor = pixels / value
         double mScaleFactor;
 
+        //for change notification
+        int mPreviousValue;
+
         //amount of pixels the bar can be moved
         int mBarFreeSpace;
 
@@ -139,6 +142,32 @@ class ScrollBar : Widget {
                 raiseValueChange();
             }
         }
+
+        //xxx we really should have proper bindings (using KeyBindings), but for
+        //  now this is enough...
+
+        if (!ki.isPress())
+            return;
+
+        int[2][2] keys =
+            [[Keycode.LEFT, Keycode.RIGHT], [Keycode.UP, Keycode.DOWN]];
+
+        int change = 0;
+
+        if (ki.code == keys[mDir][0]) {
+            change = -smallChange;
+        } else if (ki.code == keys[mDir][1]) {
+            change = smallChange;
+        } else if (ki.code == Keycode.PAGEUP) {
+            change = -largeChange;
+        } else if (ki.code == Keycode.PAGEDOWN) {
+            change = largeChange;
+        }
+
+        if (change) {
+            curValue = curValue + change;
+            raiseValueChange();
+        }
     }
 
     override protected Vector2i layoutSizeRequest() {
@@ -179,7 +208,10 @@ class ScrollBar : Widget {
         adjustBar();
     }
 
-    void raiseValueChange() {
+    void raiseValueChange(bool force = false) {
+        if (mCurValue == mPreviousValue && !force)
+            return;
+        mPreviousValue = mCurValue;
         if (onValueChange)
             onValueChange(this);
     }
@@ -248,6 +280,7 @@ class ScrollBar : Widget {
         //hmmmm
         curValue = curValue;
         pageSize = pageSize;
+        mPreviousValue = curValue;
     }
 
     ///maximum value for scrollbar
@@ -262,6 +295,7 @@ class ScrollBar : Widget {
         //hmmmm
         curValue = curValue;
         pageSize = pageSize;
+        mPreviousValue = curValue;
     }
 
     //increment/decrement for button click

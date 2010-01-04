@@ -23,6 +23,7 @@ static this() {
     styleRegisterString("bitmap-background-res");
     styleRegisterBool("bitmap-background-tile");
     styleRegisterInt("widget-pad");
+    styleRegisterInt("border-min");
 
     styleRegisterFont("text-font");
     styleRegisterColor("window-fullscreen-color");

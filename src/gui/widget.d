@@ -176,6 +176,7 @@ class Widget {
         BoxProperties mBorderStyle;
         bool mDrawBorder;
         int mWidgetPad = 0;
+        int mBorderMin = 0;
         Rect2i mBorderArea;   //just for drawing
 
         //invisible widgets don't draw anything, and don't accept
@@ -479,6 +480,8 @@ class Widget {
         if (mDrawBorder)
             pad += mBorderStyle.borderWidth + mBorderStyle.cornerRadius/3;
         b += Vector2i(pad);
+        b.x = max(b.x, mBorderMin);
+        b.y = max(b.y, mBorderMin);
         return b;
     }
 
@@ -1456,6 +1459,7 @@ class Widget {
         mBorderStyle.borderWidth = styles.get!(int)("border-width");
         mBorderStyle.cornerRadius = styles.get!(int)("border-corner-radius");
         mWidgetPad = styles.get!(int)("widget-pad");
+        mBorderMin = styles.get!(int)("border-min");
 
         char[] back = styles.get!(char[])("bitmap-background-res");
         mBmpBackground = back == "" ? null : gGuiResources.get!(Surface)(back);

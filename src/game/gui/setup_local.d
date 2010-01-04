@@ -175,7 +175,7 @@ class LevelWidget : SimpleContainer {
         }
         mSelector.loadLevel(mCurrentLevel);
         mLevelWindow = gWindowManager.createWindow(mOwner, mSelector,
-            translate("levelselect.caption"));
+            r"\t(levelselect.caption)");
         mLevelWindow.onClose = &levelWindowClose;
         if (onSetBusy)
             onSetBusy(true);
@@ -291,7 +291,7 @@ class LocalGameSetupTask : Task {
         mSetup = loader.lookup("gamesetup_root");
         mWaiting = loader.lookup("waiting_root");
         mWindow = gWindowManager.createWindow(this, mSetup,
-            translate("gamesetup.caption_local"));
+            r"\t(gamesetup.caption_local)");
 
         loadTeams();
     }

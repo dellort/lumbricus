@@ -9,6 +9,10 @@ import utils.serialize;
 
 import traits = tango.core.Traits;
 
+//framework.lua is missing stuff
+import derelict.lua.lua;
+
+
 class EventTarget {
     private {
         char[] mEventTargetType;
@@ -21,6 +25,13 @@ class EventTarget {
     }
 
     abstract Events eventsBase();
+
+    //for per-class event handlers; possibly point to an Events instance shared
+    //  across all objects of the
+    //can be null
+    Events classLocalEvents() {
+        return null;
+    }
 
     final char[] eventTargetType() {
         return mEventTargetType;
@@ -70,11 +81,18 @@ struct EventPtr {
             assert(false);
         return *cast(T*)mPtr;
     }
+
+    TypeInfo type() { return mType; }
 }
 
 alias void delegate(EventTarget, EventPtr) EventHandler;
 alias void delegate(char[], EventTarget, EventPtr) GenericEventHandler;
 alias void function(ref EventEntry, EventTarget, EventPtr) DispatchEventHandler;
+
+//marshal D -> Lua
+//will call lua.luaCall(), passing the arguments stored in params
+alias void function(LuaState lua, EventTarget sender, EventPtr params)
+    Event_DtoScript;
 
 private struct EventEntry {
     MyBox data;
@@ -84,11 +102,19 @@ private struct EventEntry {
 private class EventType {
     char[] name;
     TypeInfo paramtype;
-    //MarshalIn marshal;
     EventEntry[] handlers;
+    bool enable_script;
+    Event_DtoScript marshal_d2s; //lazily initialized
 
     this() {}
     this(ReflectCtor c) {}
+}
+
+//using RefHashTable because of dmd bug 3086
+RefHashTable!(TypeInfo, Event_DtoScript) gEventsDtoScript;
+
+static this() {
+    gEventsDtoScript = new typeof(gEventsDtoScript);
 }
 
 //basic idea: emulate virtual functions; just that:
@@ -118,7 +144,8 @@ final class Events {
     private {
         EventType[char[]] mEvents;
 
-        //LuaState mScripting;
+        LuaState mScripting;
+        char[] mScriptingEventsNamespace;
     }
 
     //catch all events
@@ -127,11 +154,30 @@ final class Events {
     Events[] cascade;
 
     this() {
-        //mScripting = ...;
     }
 
     this (ReflectCtor c) {
+        c.transient(this, &mScripting); //hack
         c.types.registerClasses!(EventType);
+    }
+
+    //xxx shitty performance hack
+    private char[] nullTerminate(char[] s) {
+        return (s~'\0')[0..$-1];
+    }
+
+    void setScripting(LuaState lua, char[] namespace) {
+        mScripting = lua;
+        mScriptingEventsNamespace = nullTerminate(namespace);
+        mScripting.scriptExec(`
+                local namespace = ...
+                assert(not _G[namespace])
+                _G[namespace] = {}
+            `, mScriptingEventsNamespace);
+    }
+
+    char[] scriptingEventsNamespace() {
+        return mScriptingEventsNamespace;
     }
 
     void genericHandler(GenericEventHandler h) {
@@ -143,7 +189,7 @@ final class Events {
         if (pevent)
             return *pevent;
         auto e = new EventType;
-        e.name = name;
+        e.name = nullTerminate(name);
         mEvents[e.name] = e;
         return e;
     }
@@ -174,6 +220,37 @@ final class Events {
         do_reg_handler(event, paramtype, e);
     }
 
+    //relatively inflexible "backend" function:
+    //if event happens, lookup the global variable namespace (must give a
+    //  table), and then call the entry named event in the table
+    //the namespace gets set with setScripting()
+    //there can be only one such handler (globally), and scripting uses it to
+    //  implement its own event dispatch mechanism (there needs to be only a
+    //  single D->scripting function as bridge)
+    void enableScriptHandler(char[] event) {
+        assert(!!mScripting);
+        get_event(event).enable_script = true;
+    }
+
+    private void raise_to_script(EventType ev, EventTarget sender,
+        EventPtr params)
+    {
+        if (!ev.enable_script)
+            return;
+        if (!ev.marshal_d2s) {
+            ev.marshal_d2s = gEventsDtoScript[params.type];
+        }
+        //xxx optimize by not using string lookups (use luaL_ref())
+        //also xxx try to abstract the lua specific parts
+        lua_State* state = mScripting.state();
+        mScripting.stack0();
+        lua_getglobal(state, mScriptingEventsNamespace.ptr);
+        lua_getfield(state, -1, ev.name.ptr);
+        ev.marshal_d2s(mScripting, sender, params);
+        lua_pop(state, 1);
+        mScripting.stack0();
+    }
+
     void raise(char[] event, EventTarget sender, EventPtr params) {
         //char[] target = sender.eventTargetType();
         EventType e = get_event(event);
@@ -185,11 +262,14 @@ final class Events {
             h(event, sender, params);
         }
 
+        raise_to_script(e, sender, params);
+
         foreach (Events c; cascade) {
             c.raise(event, sender, params);
         }
     }
 }
+
 
 //template metabloat for auto-generating script bindings
 //they instantiate template code for script bindings, and register it in global
@@ -207,9 +287,15 @@ private template GetArgs(T) {
 }
 
 //D -> script
-void paramTypeOut(T)() {
-    alias GetArgs!(T) Args;
-    //...
+void paramTypeOut(ParamType)() {
+    alias GetArgs!(ParamType) Args;
+
+    static void callScript(LuaState lua, EventTarget sender, EventPtr params) {
+        auto args = params.get!(ParamType)();
+        lua.luaCall!(void, Object, Args)(sender, args.tupleof);
+    }
+
+    gEventsDtoScript[typeid(ParamType)] = &callScript;
 }
 
 //script -> D
@@ -227,8 +313,15 @@ template DeclareEvent(char[] name, SenderBase, Args...) {
     alias ParamStruct!(Args) ParamType;
     alias name Name;
 
+    //relies on the compiler doing proper name-mangling
+    //(if that goes wrong, anything could happen)
+    static bool mInRegged, mOutRegged;
+
     static void handler(Events base, Handler a_handler) {
-        paramTypeIn!(ParamType)();
+        if (!mInRegged) {
+            mInRegged = true;
+            paramTypeIn!(ParamType)();
+        }
 
         EventEntry e;
         e.data.box!(Handler)(a_handler);
@@ -237,14 +330,20 @@ template DeclareEvent(char[] name, SenderBase, Args...) {
     }
 
     static void raise(SenderBase sender, Args args) {
-        paramTypeOut!(ParamType)();
+        if (!mOutRegged) {
+            mOutRegged = true;
+            paramTypeOut!(ParamType)();
+        }
 
         assert(!!sender);
         ParamType args2;
         //dmd bug 3614?
         static if (Args.length)
             args2.args = args;
-        sender.eventsBase.raise(name, sender, EventPtr.Ptr(args2));
+        auto argsptr = EventPtr.Ptr(args2);
+        if (auto levents = sender.classLocalEvents())
+            levents.raise(name, sender, argsptr);
+        sender.eventsBase.raise(name, sender, argsptr);
     }
 
     private static void handler_templated(ref EventEntry from,

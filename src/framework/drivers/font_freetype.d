@@ -20,6 +20,7 @@ import utils.stream;
 private struct GlyphData {
     SubSurface tex;     //glyph texture
     SubSurface border;  //second texture for border, can be null
+    SubSurface shadow;  //can also be null
     Vector2i offset;    //texture drawing offset, relative to text top
     Vector2i border_offset; //same for border
     Vector2i size;      //space this glyph takes (!= tex.size)
@@ -193,8 +194,11 @@ class FTGlyphCache {
         ret.offset.x = glyph_bitmap.left;
         ret.offset.y = mBaseline - glyph_bitmap.top;
 
+        bool has_border = props.border_width > 0;
+        bool has_shadow = props.shadow_offset > 0;
+
         //border is an additional texture
-        if (props.border_width > 0) {
+        if (has_border || has_shadow) {
             FT_Glyph border_glyph;
             FT_Get_Glyph(mFace.glyph, &border_glyph);
             ftcheck("FT_Get_Glyph (2)");
@@ -218,6 +222,9 @@ class FTGlyphCache {
             FT_BitmapGlyph border_bitmap = cast(FT_BitmapGlyph)border_glyph;
             FT_Bitmap* border_bmp = &border_bitmap.bitmap;
             assert (border_bmp.pixel_mode == FT_Pixel_Mode.FT_PIXEL_MODE_GRAY);
+
+            if (has_shadow)
+                ret.shadow = ftbitmapToTex(border_bmp, props.shadow_color);
 
             ret.border_offset.x = border_bitmap.left;
             ret.border_offset.y = mBaseline - border_bitmap.top;
@@ -246,7 +253,8 @@ class FTGlyphCache {
                 p1.y++; p2.y++;
             }
 
-            ret.border = ftbitmapToTex(border_bmp, props.border_color);
+            if (has_border)
+                ret.border = ftbitmapToTex(border_bmp, props.border_color);
 
             FT_Done_Glyph(border_glyph);
         }
@@ -313,6 +321,11 @@ class FTFont : DriverFont {
     private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos) {
         if (mProps.back.a > 0)
             c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back);
+
+        if (glyph.shadow) {
+            c.drawSprite(glyph.shadow, pos + glyph.border_offset
+                + Vector2i(mProps.shadow_offset));
+        }
 
         if (glyph.border) {
             c.drawSprite(glyph.border, pos+glyph.border_offset);

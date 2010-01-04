@@ -32,6 +32,7 @@ import utils.reflection;
 import framework.framework;
 import framework.timesource;
 import framework.commandline;
+import framework.lua;
 import common.resset;
 
 import tango.math.Math;
@@ -60,6 +61,10 @@ class GameEngine {
     ConfigNode persistentState;
     Events events;
     GlobalEvents globalEvents;
+
+    //idiotic hack for sprite.d
+    //indexed by SpriteClass only for now
+    Events[Object] perClassEvents;
 
     private {
         static LogStruct!("game.game") log;
@@ -92,6 +97,8 @@ class GameEngine {
 
 
         Sprite[] mPlaceQueue;
+
+        LuaState mScripting;
 
         FormattedText mTempText;
 
@@ -135,6 +142,10 @@ class GameEngine {
         events = new Events();
         mGfx.initEvents(events);
         globalEvents = new GlobalEvents(this);
+
+        foreach (SpriteClass s; mGfx.allSpriteClasses()) {
+            s.initPerEngine(this);
+        }
 
         persistentState = config.gamestate.copy();
 
@@ -232,6 +243,8 @@ class GameEngine {
                 mAccessMapping ~= AccessEntry(sub.name, found);
             }
         }
+
+        addSingletons(scripting, this);
     }
 
     this (ReflectCtor c) {
@@ -239,12 +252,22 @@ class GameEngine {
         c.transient(this, &mCmd);
         c.transient(this, &mCmds);
         c.transient(this, &mTempText);
+        c.transient(this, &mScripting); //for now
         auto t = c.types();
         t.registerClass!(typeof(mObjects));
         if (c.recreateTransient) {
             mCallbacks = new GameEngineCallback();
             createCmd();
         }
+    }
+
+    //for now, create on-demand (because of game-saving crap)
+    final LuaState scripting() {
+        if (!mScripting) {
+            mScripting = createScriptingObj(this);
+            events.setScripting(mScripting, "eventhandlers_global");
+        }
+        return mScripting;
     }
 
     Sprite createSprite(char[] name) {
@@ -932,8 +955,7 @@ class GameEngine {
     void scriptExecute(MyBox[] args, Output write) {
         char[] cmd = args[0].unbox!(char[]);
         try {
-            scope st = createScriptingObj(this);
-            st.scriptExec(cmd);
+            scripting.scriptExec(cmd);
             write.writefln("OK");
         } catch (ScriptingException e) {
             write.writefln(e.msg);

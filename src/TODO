@@ -7,8 +7,6 @@
 
 
 == Sonstiges/Minor ==
-! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge)
-- configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden?
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
     (+ "level editor" töten)
 - weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
@@ -26,6 +24,7 @@
 - feuer animation kann verfrüht durch selektion anderer waffe abgebrochen werden (z.B. axt)
 - axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchron
 - superrope: seil fängt in er mitte des wurmes an => passt nicht zur wurm-graphik
+- minen nicht korrekt rotiert bei levelstart: einfach in Sprite.activate() die rotation prüfen und explizit setzen
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
@@ -35,6 +34,9 @@
 ! napalm ist sehr langsam, minenagriff nicht => ?
 - in broadcast.d, SocketSet allokiert speicher, der der GC überlassen wird (entweder bug report für Tango um eine free() methode hinzuzufügen, oder: blockierender thread?)
 
+== Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
+- physik-kollisions callback entfernen, insbesondere den statistik-müll ("wer schadet wen wieviel" => z.b. versuchen, einfach den schaden per runde auszuwerten?)
+- statt speichern des kompletten zustands (für savegames und replays) nur zwischen den runden speichern? (replays würden input aufzeichnen, man könnte den savegame code verwenden statt snapshot.d)
 
 == GUI (allgemeine Features) ==
 + richtige GUI listen
@@ -128,3 +130,5 @@
    (und den gräuslichen hack in commandline.d entfernen)
 - funktionalität von sky.d durch particles.d ersetzen
 - GameConfig code säubern (absurde ansammlung von ConfigNodes)
+! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge)
+- configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden?

@@ -216,7 +216,7 @@ class GameTask : StatefulTask {
     private void createWindow() {
         mWindow = new WindowContainer();
         auto wnd = gWindowManager.createWindowFullscreen(this, mWindow,
-            "lumbricus");
+            r"\t(game_title)");
         //background is mostly invisible, except when loading and at low
         //detail levels (where the background isn't completely overdrawn)
         auto props = wnd.properties;
@@ -609,8 +609,7 @@ class GameTask : StatefulTask {
     }
 
     private void cmdLua(MyBox[] args, Output write) {
-        new LuaInterpreter(manager,
-            createScriptingObj(mGameShell.serverEngine));
+        new LuaInterpreter(manager, mGameShell.serverEngine.scripting);
     }
 
     private void cmdSafeLevelPNG(MyBox[] args, Output write) {

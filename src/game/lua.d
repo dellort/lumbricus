@@ -3,9 +3,10 @@ module game.lua;
 import framework.framework;
 import framework.lua;
 import framework.timesource;
+import game.controller;
+import game.events;
 import game.game;
 import game.gfxset;
-import game.controller;
 import game.gobject;
 import game.sprite;
 import game.worm;
@@ -46,6 +47,7 @@ static this() {
         "windSpeed", "setWindSpeed", "randomizeWind", "gravity", "raiseWater",
         "addEarthQuake", "explosionAt", "damageLandscape", "landscapeBitmaps",
         "insertIntoLandscape", "countSprites", "ownedTeam");
+    gScripting.properties_ro!(GameEngine, "events");
 
     gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder", "size");
 
@@ -79,7 +81,6 @@ static this() {
     gScripting.setClassPrefix!(GameObject)("Obj");
     gScripting.methods!(GameObject, "activity");
     gScripting.property!(GameObject, "createdBy");
-    gScripting.setClassPrefix!(Sprite)("Sprite");
     gScripting.methods!(Sprite, "setPos", "pleasedie", "type",
         "activate");
     gScripting.property_ro!(Sprite, "physics");
@@ -87,6 +88,9 @@ static this() {
     gScripting.property!(ProjectileSprite, "detonateTimer");
     gScripting.setClassPrefix!(WormSprite)("Worm");
     gScripting.methods!(WormSprite, "beamTo");
+
+    gScripting.methods!(SpriteClass, "createSprite", "getEvents");
+    gScripting.property_ro!(SpriteClass, "name");
 
     gScripting.setClassPrefix!(PhysicWorld)("World");
     //xxx loads of functions with ref/out parameters, need special handling
@@ -156,17 +160,26 @@ static this() {
     gScripting.properties_ro!(PhysicObject, "surface_normal", "lifepower");
     gScripting.setClassPrefix!(PhysicBase)("Phys");
     gScripting.property_ro!(PhysicBase, "backlink");
+
+    gScripting.methods!(Events, "enableScriptHandler");
+    gScripting.properties_ro!(Events, "scriptingEventsNamespace");
 }
 
-LuaState createScriptingObj(GameEngine engine) {
-    auto state = new LuaState(LuaLib.safe);
-    state.register(gScripting);
+//SIGH, do we really need this singleton garbage?
+void addSingletons(LuaState state, GameEngine engine) {
     state.addSingleton(engine);
     state.addSingleton(engine.controller);
     state.addSingleton(engine.gfx);
     state.addSingleton(engine.physicworld);
     state.addSingleton(engine.level);
     state.addSingleton(engine.rnd);
+
+    state.scriptExec(`_G["Game"] = ...`, engine);
+}
+
+LuaState createScriptingObj(GameEngine engine) {
+    auto state = new LuaState(LuaLib.safe);
+    state.register(gScripting);
 
     void loadscript(char[] filename) {
         filename = "lua/" ~ filename;
@@ -186,6 +199,7 @@ LuaState createScriptingObj(GameEngine engine) {
 
     loadscript("utils.lua");
     loadscript("gameutils.lua");
+    loadscript("events.lua");
 
     return state;
 }

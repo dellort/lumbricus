@@ -406,6 +406,10 @@ class GfxSet {
         +/
     }
 
+    SpriteClass[] allSpriteClasses() {
+        return mSpriteClasses.values;
+    }
+
     static BoxProperties textWormBorderStyle() {
         //init to what we had in the GUI in r865
         BoxProperties border;

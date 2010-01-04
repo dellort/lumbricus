@@ -36,8 +36,10 @@ struct FontProperties {
     bool underline;
     //border in pixels (0 means disabled)
     int border_width;
-    //color of the border
     Color border_color;
+    //distance of the shadow from the real text in pixels (0 means disabled)
+    int shadow_offset;
+    Color shadow_color;
 
     FaceStyle getFaceStyle() {
         if (bold && italic)  return FaceStyle.boldItalic;

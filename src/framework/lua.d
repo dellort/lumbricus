@@ -820,6 +820,10 @@ class LuaState {
         mLua = null;
     }
 
+    final lua_State* state() {
+        return mLua;
+    }
+
     //needed by utils.lua to format userdata
     private static char[] ObjectToString(Object o) {
         return o ? o.toString() : "null";

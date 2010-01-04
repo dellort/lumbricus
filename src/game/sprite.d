@@ -1,8 +1,9 @@
 module game.sprite;
 
 import framework.framework;
-import game.gobject;
+import game.events;
 import game.game;
+import game.gobject;
 import game.sequence;
 import game.temp : GameZOrder;
 import game.gfxset;
@@ -58,6 +59,8 @@ class Sprite : GameObject {
 
         bool mIsUnderWater, mWaterUpdated;
         bool mWasActivated;
+
+        Events mEvents;
     }
 
     //xxx: replace by activate(position)?
@@ -67,6 +70,8 @@ class Sprite : GameObject {
         mWasActivated = true;
         setPos(pos);
         internal_active = true;
+
+        OnSpriteActivate.raise(this);
     }
 
     bool activity() {
@@ -75,6 +80,15 @@ class Sprite : GameObject {
 
     SpriteClass type() {
         return mType;
+    }
+
+    final override Events classLocalEvents() {
+        //mEvents is cached, because events are raised often, and getEvents
+        //  does a relatively slow AA lookup
+        if (!mEvents) {
+            mEvents = type.getEvents(engine);
+        }
+        return mEvents;
     }
 
     StaticStateInfo currentState() {
@@ -615,6 +629,29 @@ class SpriteClass {
         }
         return sequenceType.findState(name, allow_not_found);
     }
+
+    //must be called as the engine is "started"
+    void initPerEngine(GameEngine engine) {
+    Trace.formatln("INIT: {}", name);
+        assert(!(this in engine.perClassEvents), "double init? "~name);
+
+        auto ev = new Events();
+        ev.setScripting(engine.scripting, "eventhandlers_" ~ name);
+        engine.perClassEvents[this] = ev;
+    }
+
+    //this is a small WTF: I thought I could put the Events instance into
+    //  SpriteClass (because it exists only once per sprite class), but
+    //  SpriteClass is independent from GameEngine (thus, no scripting!)
+    //so, enjoy this horrible hack.
+    //all Events instances get created on demand
+    //NOTE that this function will be very slow (AA lookup)
+    final Events getEvents(GameEngine engine) {
+        //if this fails, maybe initPerEngine() wasn't called
+        return engine.perClassEvents[this];
+    }
+
+    char[] toString() { return "SpriteClass["~name~"]"; }
 
     static this() {
         SpriteClassFactory.register!(typeof(this))("sprite_mc");
