@@ -460,6 +460,11 @@ class GameEngine {
             }
         }
 
+        //xxx not sure where script functions should be called
+        //  this will handle all script timers and per-frame functions
+        //null termination for efficient toStringz
+        scripting().call("game_per_frame\0");
+
         debug {
             globals.setCounter("gameobjects", mObjects.count);
         }

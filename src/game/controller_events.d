@@ -44,6 +44,7 @@ alias DeclareEvent!("game_end", GameObject) OnGameEnd;
 alias DeclareEvent!("game_sudden_death", GameObject) OnSuddenDeath;
 alias DeclareEvent!("game_message", GameObject, GameMessage) OnGameMessage;
 //victim, cause, damage
+//xxx this has to change, somehow (it's called by controller.d, not sprite.d)
 alias DeclareEvent!("sprite_damage", Sprite, GameObject, float) OnDamage;
 //cause, number of pixels
 //apparently the victim is 0 to N bitmap based GameLandscapes
@@ -52,6 +53,10 @@ alias DeclareEvent!("demolish", GameObject, int) OnDemolish;
 alias DeclareEvent!("sprite_die", Sprite) OnSpriteDie;
 //with Sprite.activate()
 alias DeclareEvent!("sprite_activate", Sprite) OnSpriteActivate;
+//with Sprite.setState()
+alias DeclareEvent!("sprite_setstate", Sprite) OnSpriteSetState;
+//whenever the glue status changes (checked/called every frame)
+alias DeclareEvent!("sprite_gluechanged", Sprite) OnSpriteGlueChanged;
 //reached the ocean floor
 //alias DeclareEvent!("sprite_drowned", Sprite) OnSpriteDrowned;
 //starting to blow itself up

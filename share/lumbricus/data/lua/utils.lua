@@ -205,9 +205,11 @@ end
 -- table.concat and .. only work for strings or arrays of numbers (?!?!?!)
 function concat(...)
     local res = {}
-    for k, v in ipairs({...}) do
-        for k2, v2 in ipairs(v) do
-            res[#res + 1] = v2
+    local n = 1
+    for i = 1, select("#", ...) do
+        for k2, v2 in ipairs(select(i, ...)) do
+            res[n] = v2
+            n = n + 1
         end
     end
     return res
@@ -222,7 +224,7 @@ function iif(cond, a, b)
     end
 end
 
--- return c if nil, or a
+-- return c if c is not nil, or a
 -- useful instead of "c or a", when c can be false
 -- e.g. foo(x) where x is a default argument, but you should also be able to
 --  pass false: function foo(x) x = ifnil(x, true)  use(x) end

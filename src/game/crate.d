@@ -301,10 +301,8 @@ class CrateSprite : ActionSprite {
             //xxx needs a better way to get the contents of the crate
             if (stuffies.length > 0 && mCrateType != CrateType.med) {
                 mSpy = engine.gfx.textCreate();
-                char[] msg = "\\t(" ~ stuffies[0].id() ~ ")";
-                if (bomb)
-                    msg = "\\c(team_red)" ~ msg;
-                mSpy.setTextFmt(true, msg);
+                mSpy.setTextFmt(true, r"{}\t({})", bomb ? r"\c(team_red)" : "",
+                    stuffies[0].id());
                 assert(!!graphic);
                 graphic.attachText = mSpy;
                 graphic.textVisibility = &spyVisible;

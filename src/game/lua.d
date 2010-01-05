@@ -93,55 +93,7 @@ static this() {
     gScripting.property_ro!(SpriteClass, "name");
 
     gScripting.setClassPrefix!(PhysicWorld)("World");
-    //xxx loads of functions with ref/out parameters, need special handling
-    //    (maybe use multiple return values, but how?)
-    //might help for ref-param detection:
-    //  http://h3.team0xf.com/Bind.d (template at line 1084)
-    //no way to distinguish ref and out params (except if you parse .stringof
-    //  results or so; which would be incredibly dirty, evil and unethical)
-    //maybe it would be better to create separate functions suited for scripting
-    //  and use introduce marked structs, that expand into tuple returns?
-    //  (e.g. struct Foo { const cTupleReturn = true; int x1; float x2; })
-    //xxx ok, I implemented the struct hack above
-    /+
-    another way would be to use tuples:
-        //this type is not the same as tango.core.Tuple.Tuple (lol.)
-        struct Tuple(T...) {
-            T whatever;
-        }
-        //can define the return type inline; no separate struct
-        Tuple!(int, char[]) bla() {
-            ...
-            return Tuple!(int, char[])(123, "abc");
-        }
-    to support nil returns for Lua, one could introduce this bloaty stuff:
-        struct Nullable(T) {
-            T _value;
-            bool isNull = true;
-            T value() {
-                assert(!isNull);
-                return _value;
-            }
-            const Nullable!(T) Null;
-            typeof(this) opCall(T v) {
-                typeof(this) res;
-                res._value = v;
-                res.isNull = false;
-                return res;
-            }
-        }
-    and then have the marshaller template handle it
-    one could also introduce a multiple choice type to avoid numReturnValues:
-        struct Choice(T...) {
-            bool isChosen!(Choice)() { ... }
-            static typeof(this) Make(Choice)(Choice value) { ... }
-        }
-    then Nullable(T) would be something like:
-        struct Null {} //dummy type to mark null value
-        template(T) {
-            alias Choice!(Null, T) Nullable;
-        }
-    +/
+
     gScripting.methods!(PhysicWorld, "add", "objectsAtPred");
     gScripting.method!(PhysicWorld, "collideGeometryScript")("collideGeometry");
     gScripting.method!(PhysicWorld, "collideObjectWithGeometryScript")(
@@ -200,6 +152,7 @@ LuaState createScriptingObj(GameEngine engine) {
     loadscript("utils.lua");
     loadscript("gameutils.lua");
     loadscript("events.lua");
+    loadscript("timer.lua");
 
     return state;
 }

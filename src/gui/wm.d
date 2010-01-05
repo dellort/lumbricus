@@ -127,6 +127,10 @@ class Window {
                 }
                 break;
             }
+            case "toggle_ontop": {
+                mWindow.zorder = !mWindow.zorder;
+                break;
+            }
             default:
                 globals.defaultOut.writefln("window action '{}'??", action);
         }

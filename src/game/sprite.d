@@ -59,6 +59,7 @@ class Sprite : GameObject {
 
         bool mIsUnderWater, mWaterUpdated;
         bool mWasActivated;
+        bool mOldGlueState;
 
         Events mEvents;
     }
@@ -108,17 +109,7 @@ class Sprite : GameObject {
         if (mIsUnderWater && currentState.animationWater) {
             graphic.setState(currentState.animationWater);
         } else {
-            SequenceState nstate = currentState.animation;
-            /+
-            if (mType.teamAnimation) {
-                auto m = engine.controller.memberFromGameObject(this, true);
-                if (m) {
-                    nstate = currentState.teamAnim[
-                        TeamTheme.cTeamColors[m.team.color.colorIndex]];
-                }
-            }
-            +/
-            graphic.setState(nstate);
+            graphic.setState(currentState.animation);
         }
     }
 
@@ -294,6 +285,8 @@ class Sprite : GameObject {
 
         //update water state (to catch an underwater state transition)
         waterStateChange(mIsUnderWater);
+
+        OnSpriteSetState.raise(this);
     }
 
     //never returns null
@@ -338,6 +331,13 @@ class Sprite : GameObject {
 
     override void simulate(float deltaT) {
         super.simulate(deltaT);
+
+        bool glue = physics.isGlued;
+        if (glue != mOldGlueState) {
+            mOldGlueState = glue;
+            OnSpriteGlueChanged.raise(this);
+        }
+
         if (currentState.onAnimationEnd && graphic) {
             //as requested by d0c, timing is dependend from the animation
             if (graphic.readyflag) {
