@@ -1,9 +1,11 @@
 //independent from GUI (just as renderbox.d)
 module gui.rendertext;
 
+import common.resset;
 import framework.framework;
 import framework.font;
 import framework.i18n;
+import gui.global;
 import gui.renderbox;
 import utils.configfile;
 import utils.misc;
@@ -14,10 +16,11 @@ import time = utils.time;
 import strparser = utils.strparser;
 import str = utils.string;
 import math = tango.math.Math;
+import marray = utils.array;
 
 /++
  + Parses a string like
- +  Foo\c(ff0000)Bar\rBlub,
+ +  Black\c(ff0000)Red\rBlack,
  + stores the result and draws it to a Canvas
  + the string can contain line breaks (then the text has... multiple line)
  + parse errors insert error messages into the rendered text
@@ -31,6 +34,8 @@ import math = tango.math.Math;
  +    again. For color-spec see Color.parse().
  +  \back(color-spec)
  +    Like \c, but set back color.
+ +  \shadow-color(color-spec)
+ +    Like \c, but set shadow color. (Don't forget \shadow-offset)
  +  \b \i \u
  +    Set bold, italic, underline to true.
  +  \s(size-spec)
@@ -38,15 +43,24 @@ import math = tango.math.Math;
  +    e.g. "\s(16)Text in 16pt. \s(-10%)Now 10% smaller."
  +  \border-width(size-spec)  \border-color(color-spec)
  +    border_width and border_color.
+ +  \shadow-offset(pixels)
+ +    Set shadow offset in pixels (0 means shadows disabled).
+ +    If a relative size is specified (e.g. "10%"), the base value is the font
+ +    size (note that the font size is in points, not pixels).
+ +  \space(pixels)
+ +    Insert horizontal spacing in pixels; if a relative size is specified, base
+ +    value is the font size (font size is in points, not pixels).
+ +  \align_y(i)
+ +    i is an int; it defines the vertical text/image alignment:
+ +      i==0 center, i<0 top, i>0 bottom
  +  \r
  +    Reset the font to the previous style.
- +    If there was a \{, set style as if you'd do \} (but without poping stack)
+ +    If there was a \{, set style as if you'd do \} (but without poping stack).
  +    If the stack is empty, set to default font.
- +  \{  \}
+ +  \[  \]
  +    Push/pop the font style to the stack.
- +    e.g. "\{\c(red)This is red.\}This not."
+ +    e.g. "\[\c(red)This is red.\]This not."
  +    (oh god, maybe we should just use Tango's XML parser.)
- +    (or use { } directly?)
  +  \\
  +    Output a \
  +  \n
@@ -59,9 +73,13 @@ import math = tango.math.Math;
  +    e.g. "\lit+I'm \bliteral!+" the \b tag isn't parsed.
  +  \blink
  +    Annoy the user.
+ +  \imgref(index)
+ +    Use the image as set by setImage(index, image).
+ +    The image is layouted as if it was a text glyph.
+ +  \imgres(name)
+ +    Same as \imgref, but load the image with
+ +    FormattedText.resources.get!(Surface)(name).
  + Extension ideas: (not implemented!)
- +  \image(ref)
- +    Include the referenced image (either a resource, or added by the user)
  +  \include(ref)  \literal-include(ref)
  +    User can set external text by ColoredText.setRef(123, "text"), and this
  +    gets parsed (or included literally without parsing.)
@@ -77,33 +95,67 @@ public class FormattedText {
         struct Style {
             Font font;
             bool blink;
+            int align_y;
+        }
+        enum PartType {
+            Text,
+            Newline,
+            Space,
+            Image,
         }
         struct Part {
+            PartType type;
             Style style;
             Vector2i pos, size;
+            //validity depends from PartType
             char[] text;
-            bool newline; //this Part starts a new line
+            Surface image;
         }
         char[] mText;
         bool mTextIsFormatted; //mText; false: setLiteral(), true: setMarkup()
         Translator mTranslator;
+        ResourceSet mResources;
+        Surface[] mImages;
         Style mRootStyle; //style at start
         Part[] mParts;
         Vector2i mSize;
+        BoxProperties mBorder;
+        bool mShrink = true;
+        bool mForceHeight = true;
+        bool mAreaValid;
+        Vector2i mArea;
+        int[2] mAlign;
         //only during parsing
         Style[] mStyleStack; //[$-1] contains current style, assert(length > 0)
-        BoxProperties mBorder;
+
+        //text used to break overlong text (with shrink option)
+        const char[] cDotDot = "...";
     }
 
     this() {
         mRootStyle.font = gFontManager.loadFont("default");
         mTranslator = localeRoot();
+        mResources = gGuiResources;
         mBorder.enabled = false;
     }
 
-    /+void opAssign(char[] txt) {
-        setMarkup(txt);
-    }+/
+    void translator(Translator t) {
+        assert(!!t);
+        mTranslator = t;
+        update();
+    }
+    Translator translator() {
+        return mTranslator;
+    }
+
+    void resources(ResourceSet s) {
+        assert(!!s);
+        mResources = s;
+        update();
+    }
+    ResourceSet resources() {
+        return mResources;
+    }
 
     void font(Font f) {
         assert(!!f);
@@ -114,6 +166,52 @@ public class FormattedText {
     }
     Font font() {
         return mRootStyle.font;
+    }
+
+    //set an image reference for \imgref
+    void setImage(int idx, Surface s) {
+        assert(idx >= 0);
+        if (mImages.length <= idx)
+            mImages.length = idx + 1;
+        if (mImages[idx] is s)
+            return;
+        mImages[idx] = s;
+        update();
+    }
+
+    //if true, cut too wide text with "..." (needs setArea())
+    void shrink(bool s) {
+        if (mShrink == s)
+            return;
+        mShrink = s;
+        if (mAreaValid)
+            update();
+    }
+    bool shrink() {
+        return mShrink;
+    }
+
+    //if true, make text at least one line high (if the text is empty)
+    void forceHeight(bool h) {
+        if (mForceHeight == h)
+            return;
+        mForceHeight = h;
+        update();
+    }
+    bool forceHeight() {
+        return mForceHeight;
+    }
+
+    //set area rectangle for text (defined by (0,0)-size)
+    //align_x/y work like \align_y() (but it affects the text box, not the text)
+    //this feature is most useful if shrink is enabled
+    void setArea(Vector2i size, int align_x = 0, int align_y = 0) {
+        mAlign[0] = align_x;
+        mAlign[1] = align_y;
+        mArea = size;
+        mAreaValid = true;
+        if (mShrink)
+            update();
     }
 
     //clear text
@@ -136,30 +234,49 @@ public class FormattedText {
     private void doInit() {
         mStyleStack.length = 1;
         mStyleStack[0] = mRootStyle;
-        mParts.length = 1;
-        mParts[0].style = mStyleStack[0];
-        mParts[0].text = null;
+        mParts.length = 0;
     }
 
-    //call this after you change the current style
-    //(the current style is in mStylesStack[$-1])
-    //also can be used to simply start a new Part
-    private void stylechange() {
+    private Part* addpart(PartType type) {
         mParts.length = mParts.length + 1;
-        mParts[$-1].style = mStyleStack[$-1];
+        Part* pres = &mParts[$-1];
+        pres.type = type;
+        pres.style = mStyleStack[$-1];
+        return pres;
     }
 
     //utf-8 and line breaks
     private void parseLiteral(char[] txt) {
         while (txt.length) {
             auto breaks = str.split2(txt, '\n');
-            mParts[$-1].text ~= breaks[0];
+            if (breaks[0].length) {
+                Part* p = addpart(PartType.Text);
+                p.text = breaks[0];
+            }
             txt = null;
             if (breaks[1].length) {
-                stylechange();
-                mParts[$-1].newline = true;
+                addpart(PartType.Newline);
                 txt = breaks[1][1..$];
             }
+        }
+    }
+
+    private void adderror(char[] msg) {
+        //note that only this part has error style (following parts won't)
+        Part* pmsg = addpart(PartType.Text);
+        Style s;
+        s.font = gFontManager.loadFont("txt_error");
+        pmsg.style = s;
+        pmsg.text = "[" ~ msg ~ "]";
+    }
+
+    private bool tryparse(T)(char[] t, ref T res, char[] error = "") {
+        try {
+            res = strparser.fromStr!(T)(str.strip(t));
+            return true;
+        } catch (strparser.ConversionException e) {
+            adderror(error.length ? error : "expected "~T.stringof);
+            return false;
         }
     }
 
@@ -168,12 +285,7 @@ public class FormattedText {
         //--- parser helpers
 
         void error(char[] msg) {
-            //hmmm
-            Part pmsg;
-            pmsg.style.font = gFontManager.loadFont("txt_error");
-            pmsg.text = "[" ~ msg ~ "]";
-            mParts ~= pmsg;
-            stylechange(); //following text has not error style
+            adderror(msg);
         }
 
         bool tryeat(char[] t) {
@@ -209,8 +321,16 @@ public class FormattedText {
                 return true;
             } catch (strparser.ConversionException e) {
             }
-            error("color");
+            error("expected color");
             return false;
+        }
+
+        //read pure int
+        bool readint(ref int value) {
+            char[] t;
+            if (!readbracket(t))
+                return false;
+            return tryparse(t, value);
         }
 
         //size argument, '(' <int> ['%'] ')'
@@ -219,27 +339,18 @@ public class FormattedText {
             char[] t;
             if (!readbracket(t))
                 return false;
-            char[][] stuff = str.split(t);
-            if (!stuff.length || stuff.length > 2) {
-                error("size expected");
-                return false;
-            }
-            int val;
-            try {
-                val = strparser.fromStr!(int)(stuff[0]);
-            } catch (strparser.ConversionException e) {
-                error("size 1");
-                return false;
-            }
-            if (stuff.length == 2) {
-                if (stuff[1] != "%") {
-                    error("size 2");
+            t = str.strip(t);
+            if (str.eatEnd(t, "%")) {
+                float rel;
+                if (!tryparse(t, rel))
                     return false;
-                }
-                val = cast(int)((100+val)/100.0f * value);
+                if (rel != rel)
+                    return true; //user specified nan? what?
+                value = cast(int)((100+rel)/100.0f * value);
+                return true;
+            } else {
+                return tryparse(t, value);
             }
-            value = val;
-            return true;
         }
 
         //--- helpers for setting styles
@@ -248,8 +359,14 @@ public class FormattedText {
             return mStyleStack[$-1].font.properties;
         }
         void setfont(FontProperties p) {
-            mStyleStack[$-1].font = new Font(p);
-            stylechange();
+            mStyleStack[$-1].font = gFontManager.create(p);
+        }
+
+        void insert_image(Surface s) {
+            assert(!!s);
+            Part* p = addpart(PartType.Image);
+            p.image = s;
+            p.size = s.size;
         }
 
         //--- actual parser & "interpreter"
@@ -262,7 +379,7 @@ public class FormattedText {
             parseLiteral("\n");
         } else if (tryeat("lit")) {
             if (!txt.length) {
-                error("what");
+                error("\\lit on end of string");
             } else {
                 char delim = txt[0];
                 txt = txt[1..$];
@@ -275,14 +392,12 @@ public class FormattedText {
             if (mStyleStack.length >= 2)
                 s = mStyleStack[$-2];
             mStyleStack[$-1] = s;
-            stylechange();
-        } else if (tryeat("{")) {
+        } else if (tryeat("[")) {
             mStyleStack ~= mStyleStack[$-1];
-        } else if (tryeat("}")) {
+        } else if (tryeat("]")) {
             //NOTE: removing the last element is not allowed
             if (mStyleStack.length > 1) {
                 mStyleStack.length = mStyleStack.length - 1;
-                stylechange();
             } else {
                 error("stack empty");
             }
@@ -302,9 +417,48 @@ public class FormattedText {
             auto f = getfont();
             if (readrelint(f.border_width))
                 setfont(f);
+        } else if (tryeat("shadow-color")) {
+            auto f = getfont();
+            if (readcolor(f.shadow_color))
+                setfont(f);
+        } else if (tryeat("shadow-offset")) {
+            auto f = getfont();
+            int s = f.size;
+            if (readrelint(s)) {
+                f.shadow_offset = s;
+                setfont(f);
+            }
         } else if (tryeat("blink")) {
             mStyleStack[$-1].blink = true;
-            stylechange();
+        } else if (tryeat("imgref")) {
+            int refidx;
+            if (readint(refidx)) {
+                if (refidx >= 0 && refidx < mImages.length && mImages[refidx]) {
+                    insert_image(mImages[refidx]);
+                } else {
+                    error("invalid image index");
+                }
+            }
+        } else if (tryeat("imgres")) {
+            char[] t;
+            if (readbracket(t)) {
+                Surface s = resources.get!(Surface)(t, true);
+                if (s) {
+                    insert_image(s);
+                } else {
+                    error("image resource invalid");
+                }
+            }
+        } else if (tryeat("space")) {
+            int s = getfont().size;
+            if (readrelint(s)) {
+                Part* p = addpart(PartType.Space);
+                p.size = Vector2i(s, 0);
+            }
+        } else if (tryeat("align_y")) {
+            int a;
+            if (readint(a))
+                mStyleStack[$-1].align_y = a;
         } else if (tryeat("b")) {
             auto f = getfont();
             f.bold = true;
@@ -396,99 +550,171 @@ public class FormattedText {
         data = mText;
     }
 
-    void translator(Translator t) {
-        assert(!!t);
-        mTranslator = t;
-        update();
-    }
-    Translator translator() {
-        return mTranslator;
+    private static int doalign(int a, int container, int element) {
+        if (a > 0) {
+            return container - element; //bottom
+        } else if (a < 0) {
+            return 0;                   //top
+        }
+        return container/2 - element/2; //center
     }
 
-    //init the Part.pos (and mSize and Part.size) fields for mParts
-    //this is done later, because pos.y can't known in advance, if you want to
-    //align text with different font sizes nicely
+    //handle: break on newlines, text part positions, alignment, shrinking
+    //the way it works on mParts is destructive (shrinking...)
     private void layout() {
         foreach (ref p; mParts) {
-            p.size = p.style.font.textSize(p.text);
+            if (p.type == PartType.Text) {
+                p.size = p.style.font.textSize(p.text);
+            }
         }
 
         Vector2i pos;
         int max_x;
+        int max_w = mShrink && mAreaValid ? mArea.x : int.max;
 
-        void layoutLine(Part[] parts) {
-            if (!parts.length)
-                return;
+        //return height
+        int layoutLine(uint p_start, ref uint p_end) {
+            Part[] parts = mParts[p_start..p_end];
 
             //height
             int height = 0;
             foreach (p; parts) {
+                assert(p.type != PartType.Newline);
                 height = max(height, p.size.y);
             }
+
             //actually place
             foreach (ref p; parts) {
                 p.pos.x = pos.x;
-                p.pos.y = pos.y + height/2 - p.size.y/2;
+                p.pos.y = pos.y + doalign(p.style.align_y, height, p.size.y);
                 pos.x += p.size.x;
             }
-            //in first line: if nothing was produced, skip advancing pos.y
-            //(needed for label.d when no text is there, only an image)
-            if (!pos.y && !pos.x)
-                return;
+
+            //shrinking: if text too wide, break with "..." before overflow
+            if (pos.x > max_w) {
+                bool toowide = false;
+                foreach_reverse (uint index, ref p; parts) {
+                    if (p.pos.x + p.size.x > max_w)
+                        toowide = true;
+                    if (!toowide || p.pos.x >= max_w)
+                        continue;
+                    //if there's an image and it is too wide, it will be
+                    //  removed, and the text before it will have ... even if
+                    //  the text fits (that's how it's supposed to work)
+                    if (p.type != PartType.Text)
+                        continue;
+                    Font f = p.style.font;
+                    Vector2i s = f.textSize(cDotDot);
+                    uint at = f.textFit(p.text, max_w - s.x - p.pos.x);
+                    //breaking here may look stupid ("..." in different style)
+                    if (at == 0)
+                        continue;
+                    p.text = p.text[0..at];
+                    p.size = f.textSize(p.text);
+                    //remove the tailing parts for this line
+                    uint tail = p_start + index + 1;
+                    int cnt = p_end - tail;
+                    assert(cnt >= 0);
+                    marray.arrayRemoveN(mParts, tail, cnt);
+                    p_end -= cnt;
+                    //insert "..."
+                    marray.arrayInsertN(mParts, tail, 1);
+                    p_end += 1;
+                    Part* pdots = &mParts[tail];
+                    *pdots = Part.init;
+                    pdots.type = PartType.Text;
+                    pdots.style = p.style;
+                    pdots.text = cDotDot;
+                    pdots.size = s;
+                    pdots.pos = p.pos+Vector2i(p.size.x,0);
+                    //just make sure...
+                    parts = mParts[p_start..p_end];
+                    break;
+                }
+            }
+
             //prepare next line / end
             max_x = max(max_x, pos.x);
             pos.x = 0;
-            pos.y += height;
+            return height;
         }
 
-        //for each range of Parts with Part.newline==false
-        int prev = 0;
-        foreach (int cur, p; mParts) {
-            if (p.newline) {
-                layoutLine(mParts[prev..cur]);
-                prev = cur;
+        //break at newlines
+        uint prev = 0;
+        uint cur = 0;
+        for (;;) {
+            bool end = cur == mParts.length;
+            if (end || mParts[cur].type == PartType.Newline) {
+                uint old = cur;
+                int height = layoutLine(prev, cur);
+                if (height == 0 && !end) {
+                    //spacing for empty lines
+                    height = mParts[old].style.font.textSize("", true).y;
+                }
+                pos.y += height;
+                prev = cur + 1;
             }
+            cur++;
+            if (end)
+                break;
         }
-        layoutLine(mParts[prev..$]);
+
+        if (forceHeight && pos.y == 0) {
+            //probably broken; should use height of first or last Part?
+            pos.y = mRootStyle.font.textSize("", true).y;
+        }
 
         mSize = Vector2i(max_x, pos.y);
 
         if (mBorder.enabled) {
-            //duplicated from widget.d
-            int borderw = mBorder.borderWidth + mBorder.cornerRadius/3;
+            auto borderw = Vector2i(mBorder.effectiveBorderWidth);
             foreach (ref p; mParts) {
-                p.pos += Vector2i(borderw);
+                p.pos += borderw;
             }
-            mSize += Vector2i(borderw*2);
+            mSize += borderw*2;
         }
     }
 
+    //offset added to Part.pos for global alignment
+    //not done in layout, so resizing the global box is free in most situations
+    private Vector2i innerOffset() {
+        Vector2i base;
+        if (mAreaValid) {
+            base.x += doalign(mAlign[0], mArea.x, mSize.x);
+            base.y += doalign(mAlign[1], mArea.y, mSize.y);
+        }
+        return base;
+    }
+
     void draw(Canvas c, Vector2i pos) {
+        pos += innerOffset();
+
         if (mBorder.enabled) {
-            drawBox(c, pos, mSize, mBorder);
+            if (mAreaValid) {
+                drawBox(c, pos, mArea, mBorder);
+            } else {
+                drawBox(c, pos, mSize, mBorder);
+            }
         }
 
         bool blinkphase = cast(int)(time.timeCurrentTime.secsf*2)%2 == 0;
         foreach (ref p; mParts) {
             if (p.style.blink && blinkphase)
                 continue;
-            p.style.font.drawText(c, p.pos + pos, p.text);
+            PartType t = p.type;
+            if (t == PartType.Text) {
+                p.style.font.drawText(c, p.pos + pos, p.text);
+            } else if (t == PartType.Image) {
+                c.draw(p.image, p.pos + pos);
+            }
         }
     }
 
-    //forceHeight: if empty, still return standard text height
-    Vector2i textSize(bool forceHeight = true) {
-        if (mSize.y == 0 && forceHeight) {
-            //probably broken; should use height of first Part?
-            auto f = mRootStyle.font;
-            assert(!!f);
-            return f.textSize("", true);
-        } else {
-            return mSize;
-        }
+    Vector2i textSize() {
+        return mSize;
     }
     Vector2i size() {
-        return textSize();
+        return mAreaValid ? mArea : textSize();
     }
 
     BoxProperties border() {

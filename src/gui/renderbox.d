@@ -24,6 +24,12 @@ struct BoxProperties {
         cornerRadius = node.getIntValue("corner_radius", cornerRadius);
         drawBevel = node.getValue("drawBevel", drawBevel);
     }
+
+    //whatever this is; return a border width that's useful to fit a rectangle
+    //  inside the box (that doesn't intersect with the border)
+    int effectiveBorderWidth() {
+        return borderWidth + cornerRadius/3;
+    }
 }
 
 ///draw a box with rounded corners around the specified rect
@@ -111,16 +117,23 @@ void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props) {
         py += h.y;
     }
 
-    //interrior
+    //interior
     c.drawFilledRect(p + q, p + s - q, props.back);
 }
 
 //no rounded corners + doesn't need a cache
 void drawSimpleBox(Canvas c, Rect2i rc, BoxProperties props) {
+    if (!props.enabled)
+        return;
+
     if (props.back.a > 0) {
-        c.drawFilledRect(rc, props.back);
+        auto rc2 = rc;
+        auto b = Vector2i(props.borderWidth);
+        rc2.p1 += b;
+        rc2.p2 -= b;
+        c.drawFilledRect(rc2, props.back);
     }
-    //the border is just drawn over the background; that's fine and fast
+
     if (props.borderWidth > 0 && props.border.a > 0) {
         c.drawRect(rc, props.border, props.borderWidth);
     }

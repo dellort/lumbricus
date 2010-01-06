@@ -334,13 +334,11 @@ class FTFont : DriverFont {
         c.drawSprite(glyph.tex, pos+glyph.offset);
     }
 
-    Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text) {
+    Vector2i draw(Canvas canvas, Vector2i pos, char[] text) {
         int orgx = pos.x;
         foreach (dchar c; text) {
             auto glyph = mCache.getGlyph(c);
             auto npos = pos.x + glyph.size.x;
-            if (npos - orgx > w)
-                break;
             drawGlyph(canvas, glyph, pos);
             pos.x = npos;
         }

@@ -55,6 +55,8 @@ interface WormController {
     void firedWeapon(Shooter sh, bool refire);
 
     void doneFiring(Shooter sh);
+
+    bool engaged();
 }
 
 const Time cWeaponLoadTime = timeMsecs(1500);
@@ -335,19 +337,27 @@ class WormSprite : Sprite {
         super.setCurrentAnimation();
     }
 
+    WeaponClass displayedWeapon() {
+        WeaponClass curW = actualWeapon();
+        if (currentState is wsc.st_weapon || allowFireSecondary() && curW) {
+            return curW;
+        }
+        return null;
+    }
+
     protected override void fillAnimUpdate() {
         super.fillAnimUpdate();
         graphic.weapon_angle = weaponAngle;
         //for jetpack
         graphic.selfForce = physics.selfForce;
 
-        WeaponClass curW = actualWeapon();
-        if (currentState is wsc.st_weapon || allowFireSecondary() && curW) {
-            char[] w = curW.animation;
+        if (auto wp = displayedWeapon()) {
+            char[] w = wp.animation;
             //right now, an empty string means "no weapon", but we mean
             //  "unknown weapon" (so a default animation is selected, not none)
-            if (w == "")
+            if (w == "") {
                 w = "-";
+            }
             graphic.weapon = w;
             graphic.weapon_firing = firing();
         } else {
@@ -411,7 +421,8 @@ class WormSprite : Sprite {
         updateWeaponAngle(weaponMove);
 
         //fun fact: I have not the slightest clue what this code is doing
-        if (isStanding() && actualWeapon()) {
+        //... and yet I'm hacking it!
+        if (isStanding() && actualWeapon() && wcontrol.engaged()) {
             if (mStandTime == Time.Never)
                 mStandTime = engine.gameTime.current;
             //worms are not standing, they are FIGHTING!

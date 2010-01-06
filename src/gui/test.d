@@ -903,11 +903,15 @@ class TextColorTest : Task {
 
     class W : Widget {
         this() {
+            setVirtualFrame();
+        }
+        override void layoutSizeAllocation() {
+            mText.setArea(size, -1, -1);
         }
         override void onDraw(Canvas c) {
             c.drawRect(Vector2i(0), this.outer.mText.textSize() + Vector2i(2),
                 Color(1,0,0));
-            this.outer.mText.draw(c, Vector2i(1));
+            mText.draw(c, Vector2i(1));
         }
     }
 
@@ -923,9 +927,10 @@ class TextColorTest : Task {
         auto box = new BoxContainer(false);
         auto e = new EditLine();
         e.onChange = &editChange;
-        e.text = r"hi\c(a=0.5)half alpha \r\{\bbold\} \t(gui.cancel)\n\s(200 %)\blink\c(red)\border-color(blue)\border-width(4)LOL\r\s(-10 %)oh god wtf";
+        mText.setImage(0, gGuiResources.get!(Surface)("window_maximize"));
+        e.text = r"hi\c(a=0.5)half alpha \r\[\bbold\] \t(gui.cancel)\n\s(800 %)\blink\c(red)\border-color(blue)\shadow-color(grey,a=0.5)\shadow-offset(-90%)\border-width(10)LOL\imgref(0)\r\s(-10 %)\imgres(checkbox_on)oh god wtf";
         editChange(e);
-        box.add(e);
+        box.add(e, WidgetLayout.Expand(true));
         box.add(new W());
 
         gWindowManager.createWindow(this, box, "Colored text",

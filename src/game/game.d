@@ -119,12 +119,16 @@ class GameEngine {
         const cPlaceIncDistance = 55.0f;
         //distance when creating a platform in empty space
         const cPlacePlatformDistance = 90.0f;
+
+        bool mSavegameHack;
     }
 
     mixin Methods!("deathzoneTrigger", "underWaterTrigger", "windChangerUpdate",
         "waterChangerUpdate", "onPhysicHit", "onDamage", "offworldTrigger");
 
     this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime) {
+        mSavegameHack = true;
+
         rnd = new Random();
         //game initialization must be deterministic; so unless GameConfig
         //contains a good pre-generated seed, use a fixed seed
@@ -143,6 +147,10 @@ class GameEngine {
         mGfx.initEvents(events);
         globalEvents = new GlobalEvents(this);
 
+        mScripting = createScriptingObj(this);
+        events.setScripting(mScripting, "eventhandlers_global");
+
+        //for now, this is to init events+scripting...
         foreach (SpriteClass s; mGfx.allSpriteClasses()) {
             s.initPerEngine(this);
         }
@@ -253,6 +261,7 @@ class GameEngine {
         c.transient(this, &mCmds);
         c.transient(this, &mTempText);
         c.transient(this, &mScripting); //for now
+        c.transient(this, &mSavegameHack);
         auto t = c.types();
         t.registerClass!(typeof(mObjects));
         if (c.recreateTransient) {
@@ -264,8 +273,10 @@ class GameEngine {
     //for now, create on-demand (because of game-saving crap)
     final LuaState scripting() {
         if (!mScripting) {
+            assert(!mSavegameHack);
             mScripting = createScriptingObj(this);
             events.setScripting(mScripting, "eventhandlers_global");
+            addSingletons(mScripting, this);
         }
         return mScripting;
     }

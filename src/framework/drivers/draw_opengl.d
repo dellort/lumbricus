@@ -16,6 +16,8 @@ import utils.proplist;
 import utils.log;
 import cstdlib = tango.stdc.stdlib;
 
+const GLuint GLID_INVALID = 0;
+
 private struct Options {
     //when an OpenGL surface is created, and the framework surface has caching
     //  enabled, the framework surface's pixel memory is free'd and stored in the
@@ -171,8 +173,6 @@ struct MyVertex {
 }
 
 final class GLSurface : DriverSurface {
-    const GLuint GLID_INVALID = 0;
-
     GLDrawDriver mDrawDriver;
     SurfaceData mData;
 
@@ -198,6 +198,7 @@ final class GLSurface : DriverSurface {
             getPixelData(); //possibly read back memory
             glDeleteTextures(1, &mTexId);
             mTexId = GLID_INVALID;
+            mDrawDriver.mCanvas.rawBindTex(GLID_INVALID);
         }
         mError = false;
         if (mData) {
@@ -239,7 +240,7 @@ final class GLSurface : DriverSurface {
         glGenTextures(1, &mTexId);
         assert(mTexId != GLID_INVALID);
 
-        glBindTexture(GL_TEXTURE_2D, mTexId);
+        mDrawDriver.mCanvas.rawBindTex(mTexId);
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -286,7 +287,7 @@ final class GLSurface : DriverSurface {
             return;  //texture failed to load and contains only 1 pixel
 
         assert(mTexId != GLID_INVALID);
-        glBindTexture(GL_TEXTURE_2D, mTexId);
+        mDrawDriver.mCanvas.rawBindTex(mTexId);
 
         Color.RGBA32* texData = mData.data.ptr;
         assert(!!texData);
@@ -363,8 +364,7 @@ final class GLSurface : DriverSurface {
             //copy pixels OpenGL surface => mData.data
             mData.pixels_alloc();
 
-            glBindTexture(GL_TEXTURE_2D, mTexId);
-            checkGLError("glBindTexture", true);
+            mDrawDriver.mCanvas.rawBindTex(mTexId);
 
             auto d = mData.data;
 
@@ -389,16 +389,6 @@ final class GLSurface : DriverSurface {
         desc = myformat("GLSurface, texid={}", mTexId);
     }
 
-    final void bind() {
-        //the glEnable(GL_TEXTURE_2D) and the other ones are handled by canvas
-        glBindTexture(GL_TEXTURE_2D, mTexId);
-
-        //xxx this could break if the user updates the texture during
-        //  drawing, because set_tex() early exits if the texture is the
-        //  same
-        undirty();
-    }
-
     char[] toString() {
         return myformat("GLSurface, {}, id={}, data={}",
             mData ? mData.size : Vector2i(-1), mTexId,
@@ -410,8 +400,9 @@ class GLCanvas : Canvas3DHelper {
     private {
         GLDrawDriver mDrawDriver;
         //some lazy state managment, because they say glEnable etc. are slow
-        Surface state_texture;
+        Surface state_texture, requested_texture;
         bool state_blend, state_alpha_test;
+        GLuint state_bindtexid;
 
         //lazy drawing; assuming reducing the number of glDrawArrays calls
         //  improves performance
@@ -436,6 +427,8 @@ class GLCanvas : Canvas3DHelper {
         glEnable(GL_BLEND);
         state_blend = true;
 
+        state_bindtexid = GLID_INVALID;
+
         //flush() and glDrawArrays use this implicitly
         set_vertex_array(mVertices.ptr);
 
@@ -448,6 +441,7 @@ class GLCanvas : Canvas3DHelper {
         flush();
         uninitFrame();
         disable_vertex_array();
+        requested_texture = null;
     }
 
     //convience function for glEnable/gdDisable
@@ -456,6 +450,14 @@ class GLCanvas : Canvas3DHelper {
             glEnable(state);
         else
             glDisable(state);
+    }
+
+    private void rawBindTex(GLuint texid) {
+        if (texid != GLID_INVALID && texid != state_bindtexid) {
+            glBindTexture(GL_TEXTURE_2D, texid);
+            //checkGLError("glBindTexture", true);
+        }
+        state_bindtexid = texid;
     }
 
     //set vertex pointer + define the vertex format (basically)
@@ -481,9 +483,57 @@ class GLCanvas : Canvas3DHelper {
     private void flush() {
         if (!mVertexCount)
             return;
+
+        fix_states();
+
+        //assumes surface is the same value as passed to begin_verts()
+        GLSurface surface = state_texture
+            ? cast(GLSurface)state_texture.getDriverSurface() : null;
+
+        if (surface) {
+            float ts_x = 1.0f / surface.mTexSize.x;
+            float ts_y = 1.0f / surface.mTexSize.y;
+
+            foreach (ref v; mVertices[0..mVertexCount]) {
+                v.t.x *= ts_x;
+                v.t.y *= ts_y;
+            }
+
+            rawBindTex(surface.mTexId);
+            surface.undirty();
+        }
+
         assert(mVertexCount <= mVertices.length);
         glDrawArrays(mCurrentVertexMode, 0, mVertexCount);
         mVertexCount = 0;
+    }
+
+    private void fix_states() {
+        bool want_blend = !mDrawDriver.opts.low_quality;
+        bool want_atest = !want_blend;
+
+        if (requested_texture && requested_texture !is state_texture) {
+            if (mDrawDriver.opts.low_quality &&
+                requested_texture.transparency == Transparency.Alpha)
+            {
+                want_blend = true;
+                want_atest = false;
+            }
+        }
+
+        void state(bool want_enable, ref bool cur_state, int glstate) {
+            if (want_enable != cur_state) {
+                setGLEnable(glstate, want_enable);
+                cur_state = want_enable;
+            }
+        }
+
+        state(want_blend, state_blend, GL_BLEND);
+        state(want_atest, state_alpha_test, GL_ALPHA_TEST);
+
+        bool texdummy = !!state_texture;
+        state_texture = requested_texture;
+        state(!!state_texture, texdummy, GL_TEXTURE_2D);
     }
 
     //allocate count vertices from the mVertices buffer, and return them
@@ -505,7 +555,10 @@ class GLCanvas : Canvas3DHelper {
             assert(false, "too many vertices");
         }
 
-        set_tex(tex);
+        if (requested_texture !is tex) {
+            flush();
+            requested_texture = tex;
+        }
 
         //you can't just "append" e.g. triangle strips; this breaks (I think)
         static bool can_combine(int vmode) {
@@ -527,20 +580,6 @@ class GLCanvas : Canvas3DHelper {
     }
 
     private void end_verts(MyVertex[] verts) {
-        //assumes surface is the same value as passed to begin_verts()
-        GLSurface surface = state_texture
-            ? cast(GLSurface)state_texture.getDriverSurface() : null;
-
-        if (surface) {
-            float ts_x = 1.0f / surface.mTexSize.x;
-            float ts_y = 1.0f / surface.mTexSize.y;
-
-            foreach (ref v; verts) {
-                v.t.x *= ts_x;
-                v.t.y *= ts_y;
-            }
-        }
-
         //may help with state bugs etc.
         if (!mDrawDriver.opts.batch_draw_calls) {
             assert(mVertexCount == verts.length);
@@ -551,44 +590,6 @@ class GLCanvas : Canvas3DHelper {
     public int features() {
         return DriverFeatures.canvasScaling | DriverFeatures.transformedQuads
             | DriverFeatures.usingOpenGL;
-    }
-
-    //pass null to enable untextured drawing (also enables alpha blending)
-    private void set_tex(Surface tex) {
-        if (state_texture is tex)
-            return;
-
-        flush();
-
-        bool want_tex = false;
-        bool want_blend = !mDrawDriver.opts.low_quality;
-        bool want_atest = !want_blend;
-
-        if (tex) {
-            want_tex = true;
-            auto gltex = cast(GLSurface)tex.getDriverSurface();
-            gltex.bind();
-            if (mDrawDriver.opts.low_quality &&
-                gltex.mData.transparency == Transparency.Alpha)
-            {
-                want_blend = true;
-                want_atest = false;
-            }
-        }
-
-        void state(bool want_enable, ref bool cur_state, int glstate) {
-            if (want_enable != cur_state) {
-                setGLEnable(glstate, want_enable);
-                cur_state = want_enable;
-            }
-        }
-
-        state(want_blend, state_blend, GL_BLEND);
-        state(want_atest, state_alpha_test, GL_ALPHA_TEST);
-
-        bool texdummy = !!state_texture;
-        state(want_tex, texdummy, GL_TEXTURE_2D);
-        state_texture = tex;
     }
 
     final void do_draw(Surface surface, Vector2i destP, Vector2i sourceP,

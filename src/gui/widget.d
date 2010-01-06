@@ -478,7 +478,7 @@ class Widget {
         auto b = mLayout.border;
         int pad = mWidgetPad;
         if (mDrawBorder)
-            pad += mBorderStyle.borderWidth + mBorderStyle.cornerRadius/3;
+            pad += mBorderStyle.effectiveBorderWidth();
         b += Vector2i(pad);
         b.x = max(b.x, mBorderMin);
         b.y = max(b.y, mBorderMin);

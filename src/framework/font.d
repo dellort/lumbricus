@@ -52,7 +52,7 @@ struct FontProperties {
 abstract class DriverFont : DriverResource {
     //w == int.max for unlimited text
     //fore, back, border_color: Color.Invalid to use predefined color
-    abstract Vector2i draw(Canvas canvas, Vector2i pos, int w, char[] text);
+    abstract Vector2i draw(Canvas canvas, Vector2i pos, char[] text);
     abstract Vector2i textSize(char[] text, bool forceHeight);
 }
 
@@ -76,34 +76,9 @@ final class Font : FrameworkResourceT!(DriverFont) {
     /// draw UTF8 encoded text (use framework singleton to instantiate it)
     /// returns position beyond last drawn glyph
     Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
-        return drawTextLimited(canvas, pos, int.max, text);
+        return get().draw(canvas, pos, text);
     }
 
-    /// like drawText(), but try not to draw beyond "width"
-    /// instead the text is cut and, unlike clipping, will be ended with "..."
-    Vector2i drawTextLimited(Canvas canvas, Vector2i pos, int width,
-        char[] text)
-    {
-        auto font = get();
-        if (width == int.max) {
-            return font.draw(canvas, pos, width, text);
-        } else {
-            Vector2i s = textSize(text, true);
-            if (s.x <= width) {
-                return font.draw(canvas, pos, width, text);
-            } else {
-                char[] dotty = "...";
-                int ds = textSize(dotty, true).x;
-                width -= ds;
-                pos = font.draw(canvas, pos, width, text);
-                pos = font.draw(canvas, pos, ds, dotty);
-                return pos;
-            }
-        }
-    }
-
-    /// same for UTF-32
-    //public abstract void drawText(Canvas canvas, Vector2i pos, dchar[] text);
     /// return pixel width/height of the text
     /// forceHeight: if true (default), an empty string will return
     ///              (0, fontHeight) instead of (0,0)

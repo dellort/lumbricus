@@ -17,6 +17,7 @@ import game.hud.camera;
 import game.weapon.weapon;
 import game.hud.teaminfo;
 import game.gfxset;
+import game.worm; //for a hack
 import gui.renderbox;
 import gui.rendertext;
 import gui.widget;
@@ -211,6 +212,18 @@ private class ViewMember : SceneObject {
             showLabels = !isActiveWorm;
         }
 
+        //xxx there's some bug that makes Worm.actualWeapon() and
+        //  WormControl.currentWeapon return different Weapons, which looks
+        //  confusing (weapon icon and weapon as displayed by Sequence will be
+        //  different); that can be easily fixed as soon as the weapon control
+        //  code in Worm gets merged into WormControl; but for now it's a
+        //  damn clusterfuck, and I use this hack to make it look right
+        auto worm = cast(WormSprite)sprite;
+        WeaponClass wicon;
+        if (worm)
+            wicon = worm.displayedWeapon();
+
+/+
         //show a weapon icon when the worm graphic wants to show a weapon,
         //  but fails to select an animation; happens when:
         //   a) we are in weapon state, but have no animation
@@ -219,6 +232,8 @@ private class ViewMember : SceneObject {
         bool weapon_icon_visible = isControlled()
             && graphic.weapon.length && !graphic.weapon_ok
             && member.control.currentWeapon;
++/
+        bool weapon_icon_visible = wicon && !graphic.weapon_ok;
 
         if (weapon_icon_visible) {
             //NOTE: wwp animates the appearance/disappearance of
@@ -250,7 +265,7 @@ private class ViewMember : SceneObject {
                 }
             }
 
-            Surface icon = member.control.currentWeapon.icon;
+            Surface icon = wicon.icon;
             assert(!!icon);
             float wip = moveWeaponIcon.value();
             auto npos = placeRelative(Rect2i(icon.size()),

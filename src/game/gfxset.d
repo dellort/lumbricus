@@ -189,7 +189,7 @@ class GfxSet {
         foreach (e; resources.resourceList().dup) {
             if (e.isAlias())
                 continue;
-            if (auto ani = cast(Animation)e.get!(Object)()) {
+            if (auto ani = cast(Animation)e.resource()) {
                 resources.addResource(ani.reversed(), "reversed_" ~ e.name());
             }
         }
@@ -342,7 +342,7 @@ class GfxSet {
             //(no aliases... externals must be unique)
             if (res.isAlias())
                 continue;
-            Object o = res.get!(Object)();
+            Object o = res.resource();
             ctx.addExternal(o, "res::" ~ res.name());
             //xxx: maybe generalize using an interface or so?
             if (auto seq = cast(SequenceType)o) {

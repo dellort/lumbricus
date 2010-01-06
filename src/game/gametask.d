@@ -1054,7 +1054,7 @@ class ShowObject : Container {
             //generally more useful than nothing or toString
             char[] ext = mSCtx.lookupExternal(o);
             if (ext.length)
-                return "\\{\\c(green)" ~ ext ~ "\\}";
+                return "\\[\\c(green)" ~ ext ~ "\\]";
 
             //use a pointer with the "real" type of the object
             //that helps with hasToString() not returning "shadowed" information
@@ -1070,7 +1070,7 @@ class ShowObject : Container {
         char[] txt = p.type.dataToString(p);
         const cMax = 50;
         if (txt.length > cMax) {
-            return "\"\\lit\0" ~ txt[0..cMax] ~ "\0\\{\\c(red)...\\}\"";
+            return "\"\\lit\0" ~ txt[0..cMax] ~ "\0\\[\\c(red)...\\]\"";
         } else {
             return "\"\\lit\0" ~ txt ~ "\0\"";
         }

@@ -38,6 +38,7 @@ class Label : Widget {
         if (img is mImage)
             return;
         mImage = img;
+        mText.forceHeight = !mImage;
         needResize();
     }
     Surface image() {
@@ -45,7 +46,7 @@ class Label : Widget {
     }
 
     private Vector2i textSize() {
-        return mText.textSize(!mImage);
+        return mText.textSize();
     }
 
     override Vector2i layoutSizeRequest() {

@@ -34,9 +34,14 @@ class ResourceSet {
             return mName;
         }
 
+/+
         ///a cast exception is thrown if resource can't be cast to T
         T get(T)() {
             return castStrict!(T)(mResource);
+        }
++/
+        Object resource() {
+            return mResource;
         }
 
         bool isAlias() {
@@ -97,7 +102,12 @@ class ResourceSet {
         if (canfail && !res) {
             return null;
         }
-        return res.get!(T)();
+        Object r = res.mResource;
+        assert(!!r);
+        T ret = cast(T)r;
+        if (!ret && !canfail)
+            throw new ResourceException(name, "resource has wrong type");
+        return ret;
     }
 
     ///slow O(n)

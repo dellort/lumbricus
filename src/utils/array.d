@@ -169,18 +169,40 @@ void arrayRemoveUnordered(T)(inout T[] arr, T value, bool allowFail = false) {
 
 ///insert count entries at index
 /// old_array = new_array[0..index] ~ new_array[index+count..$]
-void arrayInsertN(T)(inout T[] arr, uint index, uint count) {
-    //xxx make more efficient
-    T[] tmp = arr[index..$].dup;
+///the new entries new_array[index..index+count] are uninitialized
+void arrayInsertN(T)(inout T[] arr, uint index, uint count = 1) {
+    assert(index <= arr.length);
     arr.length = arr.length + count;
-    arr ~= tmp;
+    for (uint n = arr.length; n > index + count; n--) {
+        arr[n-1] = arr[n-count-1];
+    }
+}
+
+unittest {
+    int[] a = [1,2,3,6,7,8];
+    arrayInsertN(a, 3, 2);
+    a[3] = 4;
+    a[4] = 5;
+    assert(a == [1,2,3,4,5,6,7,8]);
+    a.length = 0;
+    arrayInsertN(a, 0, 1);
+    assert(a.length == 1);
 }
 
 ///new_arr = old_arr[0..index] ~ old_arr[index+count..$]
-void arrayRemoveN(T)(inout T[] arr, uint index, uint count) {
-    //xxx move trailing elements only instead of building a new array
-    //    (which, btw., would be the whole point of this function)
-    arr = arr[0..index] ~ arr[index+count..$];
+void arrayRemoveN(T)(inout T[] arr, uint index, uint count = 1) {
+    assert(index <= arr.length);
+    assert(index + count <= arr.length);
+    for (uint n = index; n < arr.length - count; n++) {
+        arr[n] = arr[n+count];
+    }
+    arr.length = arr.length - count;
+}
+
+unittest {
+    int[] a = [1,2,3,4,5,6,7,8];
+    arrayRemoveN(a, 3, 2);
+    assert(a == [1,2,3,6,7,8]);
 }
 
 //return true when b is contained completely in a
@@ -294,6 +316,7 @@ unittest {
 //arrays allocated with C's malloc/free
 //because the D GC really really sucks with big arrays
 //Warning: pointers/slices to the actual array are not GC tracked
+//         plus slices/pointers into the array get invalid when length changes
 final class BigArray(T) {
     private {
         T[] mData;

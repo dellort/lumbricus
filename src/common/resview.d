@@ -703,7 +703,7 @@ class ResViewerTask : Task {
             }
             if (mSourceSet) {
                 foreach (r; mSourceSet.resourceList) {
-                    add(r.name, r.get!(Object)());
+                    add(r.name, r.resource());
                 }
             } else {
                 gResources.enumResources(
