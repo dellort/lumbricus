@@ -333,7 +333,10 @@ private class ViewMember : SceneObject {
         if (moveHealth.inProgress()) {
             pos = health_hint_pos;
             pos.y -= moveHealth.value();
+            canvas.pushState();
+            canvas.setBlend(Color(1, 1, 1, 1.0f - moveHealth.fvalue()));
             addLabel(healthHint);
+            canvas.popState();
         }
     }
 } //ViewMember

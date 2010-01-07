@@ -714,11 +714,8 @@ class GameEngine {
             mTempText = new FormattedText();
             GfxSet.textApplyWormStyle(mTempText);
         }
-        char[20] buffer = void;
-        char[] s = formatfx_s(buffer, fmt, _arguments, _argptr);
-        mTempText.setMarkup(s);
+        mTempText.setTextFmt_fx(true, fmt, _arguments, _argptr);
         mTempText.draw(c, pos);
-        mTempText.clear();
     }
 
 

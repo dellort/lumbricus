@@ -141,11 +141,22 @@ public struct Color {
         res *= m;
         return res;
     }
+    Color opMul(Color c) {
+        Color res = *this;
+        res *= c;
+        return res;
+    }
     void opMulAssign(float m) {
         r = r*m;
         g = g*m;
         b = b*m;
         a = a*m;
+    }
+    void opMulAssign(Color c) {
+        r *= c.r;
+        g *= c.g;
+        b *= c.b;
+        a *= c.a;
     }
     Color opAdd(Color c2) {
         return Color(r+c2.r,g+c2.g,b+c2.b,a+c2.a);

@@ -66,6 +66,7 @@ public class Canvas {
             Vector2i translate;     //_global_ translation offset
             Vector2i clientsize;    //scaled size of what's visible
             Vector2f scale;         //global scale factor
+            Color blend = Color.Invalid;
         }
 
         State[MAX_STACK] mStack;
@@ -77,6 +78,7 @@ public class Canvas {
     ///also calls a first updateTransform()
     protected final void initFrame(Vector2i screen_size) {
         assert(mStackTop == 0);
+        mStack[0] = State.init;
         mStack[0].clientsize = screen_size;
         mStack[0].clip = Rect2i.Span(Vector2i(0), mStack[0].clientsize);
         mStack[0].translate = Vector2i(0);
@@ -245,6 +247,7 @@ public class Canvas {
     //first apply translation, then scaling
     //if the driver doesn't support scaling, the scale value is/should always be
     //  Vector2f(1.0f)
+    //now also used to update further parameters like blending
     protected abstract void updateTransform(Vector2i trans, Vector2f scale);
 
     //set the clip rectangle (screen coordinates)
@@ -273,6 +276,28 @@ public class Canvas {
             toVector2i(toVector2f(mStack[mStackTop].clientsize) / sc);
         mStack[mStackTop].scale = mStack[mStackTop].scale ^ sc;
         updateAreas();
+        do_update_transform();
+    }
+
+    /// blending value as set by setBlend() and stack state
+    /// if returnvalue.valid() is false, blending id disabled.
+    final Color currentBlend() {
+        return mStack[mStackTop].blend;
+    }
+
+    /// Set global blending value; everything drawn will be blended with the
+    /// given color. If c.valid() is false, blending is disabled.
+    /// This is only optional functionality (depends from driver support).
+    /// drivers: updateTransform() will be called
+    final void setBlend(Color c) {
+        Color reference = Color(1,1,1,1);
+        //blend with previous color for composability? no idea
+        if (mStackTop > 0) {
+            auto prev = mStack[mStackTop-1].blend;
+            if (prev.valid)
+                reference = prev;
+        }
+        mStack[mStackTop].blend = reference*c;
         do_update_transform();
     }
 

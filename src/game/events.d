@@ -37,17 +37,11 @@ class EventTarget {
         return mEventTargetType;
     }
 
-/+
-    //for Events.raise()
-    private ID getEventTargetTypeID(Events base) {
-        //this is going to break if this is used with several Events instances
-        //which means the user isn't allowed to do this
-        if (!mEventTargetTypeID) {
-            mEventTargetTypeID = base.atoms.get(mEventTargetType);
-        }
-        return mEventTargetTypeID;
+    final void raiseEvent(char[] name, EventPtr args) {
+        if (auto levents = classLocalEvents())
+            levents.raise(name, this, args);
+        eventsBase.raise(name, this, args);
     }
-+/
 }
 
 //Events.handlerT() and Events.raiseT() use ParamStruct to wrap arguments into
@@ -251,6 +245,7 @@ final class Events {
         mScripting.stack0();
     }
 
+    //one should prefer EventTarget.raiseEvent()
     void raise(char[] event, EventTarget sender, EventPtr params) {
         //char[] target = sender.eventTargetType();
         EventType e = get_event(event);
@@ -309,6 +304,7 @@ void paramTypeIn(T)() {
 //xxx would be nice as struct too, but I get forward reference errors
 //xxx 2 the name will add major symbol name bloat, argh.
 template DeclareEvent(char[] name, SenderBase, Args...) {
+    static assert(is(SenderBase : EventTarget));
     alias void delegate(SenderBase, Args) Handler;
     alias ParamStruct!(Args) ParamType;
     alias name Name;
@@ -341,9 +337,7 @@ template DeclareEvent(char[] name, SenderBase, Args...) {
         static if (Args.length)
             args2.args = args;
         auto argsptr = EventPtr.Ptr(args2);
-        if (auto levents = sender.classLocalEvents())
-            levents.raise(name, sender, argsptr);
-        sender.eventsBase.raise(name, sender, argsptr);
+        sender.raiseEvent(name, argsptr);
     }
 
     private static void handler_templated(ref EventEntry from,

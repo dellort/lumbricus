@@ -26,15 +26,14 @@ Version status for tools and libraries:
     D compiler:
         You need one of those...
         dmd:
-            1.051: works (48, 49, 50 didn't for various reasons)
-            1.047: doesn't work; http://d.puremagic.com/issues/show_bug.cgi?id=3301
-            1.046: works (probably)
-            1.045: apparently doesn't work (struct forward refs)
+            1.054, 1.055: don't work, dmd bugzilla 3685
+            1.053: works (at least with dmd bugzilla 3541 patch + compile.sh)
+            1.051 and 1.046 worked in the past; probably don't anymore
         ldc: *sigh*, if it works depends from the current moonphase
             (worked with lumbricus r876+1 and ldc 1578:1dee66f6ec0b)
         gdc: forget it
     tango:
-        svn r5245 (trunk): works
+        svn r5277 (trunk): works
         release 0.99.8: will not work because not updated to newest dmd
     Derelict:
         http://svn.dsource.org/projects/derelict/trunk/

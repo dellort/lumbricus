@@ -58,6 +58,17 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
             * FN(cast(float)d.msecs / duration.msecs));
     }
 
+    //like value(), but between 0..1 instead of start..target
+    float fvalue() {
+        //sorry for the code duplication, but I didn't want to touch the thing
+        //  above (what does FN even return? always float?)
+        auto d = currentTime() - startTime;
+        if (d >= duration) {
+            return 1.0f;
+        }
+        return FN(cast(float)d.msecs / duration.msecs);
+    }
+
     Time endTime() {
         return startTime + duration;
     }

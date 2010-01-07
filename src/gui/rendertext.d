@@ -111,6 +111,7 @@ public class FormattedText {
             char[] text;
             Surface image;
         }
+        //NOTE: the memory for mText is always owned by us
         char[] mText;
         bool mTextIsFormatted; //mText; false: setLiteral(), true: setMarkup()
         Translator mTranslator;
@@ -217,18 +218,6 @@ public class FormattedText {
     //clear text
     void clear() {
         setLiteral("");
-    }
-
-    //retranslate / restlye / internal reparse
-    void update() {
-        auto tmp = mText;
-        //clear => defeat change detection (although that isn't implemented yet)
-        mText = null;
-        if (mTextIsFormatted) {
-            setMarkup(tmp);
-        } else {
-            setLiteral(tmp);
-        }
     }
 
     private void doInit() {
@@ -486,37 +475,41 @@ public class FormattedText {
         return txt;
     }
 
-    //set text, that can contain commands as described in the class doc
-    void setMarkup(char[] txt) {
-        mText = txt;
-        mTextIsFormatted = true;
+    //retranslate / restlye / internal reparse
+    final void update() {
         doInit();
-        while (txt.length > 0) {
-            auto stuff = str.split2(txt, '\\');
-            txt = null;
-            parseLiteral(stuff[0]);
-            if (stuff[1].length) {
-                txt = parseCmd(stuff[1][1..$]);
+        if (!mTextIsFormatted) {
+            parseLiteral(mText);
+        } else {
+            char[] txt = mText;
+            while (txt.length > 0) {
+                auto stuff = str.split2(txt, '\\');
+                txt = null;
+                parseLiteral(stuff[0]);
+                if (stuff[1].length) {
+                    txt = parseCmd(stuff[1][1..$]);
+                }
             }
         }
         layout();
     }
 
+    //set text, that can contain commands as described in the class doc
+    void setMarkup(char[] txt) {
+        setText(true, txt);
+    }
+
     //normal text rendering, no parsing at all (just utf8 and raw line breaks)
     void setLiteral(char[] txt) {
-        mText = txt;
-        mTextIsFormatted = false;
-        doInit();
-        parseLiteral(txt);
-        layout();
+        setText(false, txt);
     }
 
     void setText(bool as_markup, char[] txt) {
-        if (as_markup) {
-            setMarkup(txt);
-        } else {
-            setLiteral(txt);
-        }
+        mTextIsFormatted = as_markup;
+        //copy the text instead of doing txt.dup to prevent memory re-allocation
+        mText.length = txt.length;
+        mText[] = txt;
+        update();
     }
 
     //like setText(), but build the string with format()
@@ -537,17 +530,18 @@ public class FormattedText {
         char[] res = formatfx_s(buffer, fmt, arguments, argptr);
         if (mTextIsFormatted == as_markup && mText == res)
             return false;
-        //formatfx_s allocates on the heap if buffer isn't big enough
-        //so .dup is only needed if res still points to that static buffer
-        if (res.ptr is buffer.ptr)
-            res = res.dup;
         setText(as_markup, res);
+        //formatfx_s allocates on the heap if buffer isn't big enough
+        //delete the buffer if it was heap-allocated
+        if (res.ptr !is buffer.ptr)
+            delete res;
         return true;
     }
 
     void getText(out bool as_markup, out char[] data) {
         as_markup = mTextIsFormatted;
-        data = mText;
+        //text is copied because mText may change on next set-text
+        data = mText.dup;
     }
 
     private static int doalign(int a, int container, int element) {
