@@ -168,11 +168,11 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
 
     //pass required parameters
     if (auto ps = cast(ProjectileSprite)sprite) {
-        ps.detonateTimer = about.timer;
-        ps.target = about.pointto;
         ps.setFeedback(fb);
     }
     if (auto as = cast(ActionSprite)sprite) {
+        as.detonateTimer = about.timer;
+        as.target = about.pointto;
         as.doubleDamage = doubleDamage;
     }
     auto ssi = sprite.type.findState(params.initState, true);

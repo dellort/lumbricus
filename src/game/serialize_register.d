@@ -43,7 +43,7 @@ void initGameSerialization() {
         ModeRealtime, PrepareStatus, CollectableToolCrateSpy,
         CollectableToolDoubleTime, ControllerMsgs, ControllerStats,
         ControllerPersistence, CollectableToolDoubleDamage, /+LandscapeBitmap,+/
-        GravityCenterAction, ProximitySensorAction,
+        GravityCenterAction, ProximitySensorAction, TimerAction,
         WormControl,
         SimpleAnimationDisplay, WwpNapalmDisplay, WwpJetpackDisplay,
         WwpWeaponDisplay, Events, GlobalEvents);

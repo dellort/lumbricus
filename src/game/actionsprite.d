@@ -24,6 +24,8 @@ class ActionSprite : Sprite {
     protected Vector2f mLastImpactNormal = {0, -1};
     protected WrapFireInfo mFireInfo;
     bool doubleDamage;
+    Time detonateTimer;
+    WeaponTarget target;
 
     private {
         ActionContext[] mActiveActionsGlobal;
@@ -126,6 +128,8 @@ class ActionSprite : Sprite {
         mFireInfo.info.pos = physics.pos;
         mFireInfo.info.shootbyRadius = physics.posp.radius;
         mFireInfo.info.surfNormal = mLastImpactNormal;
+        mFireInfo.info.timer = detonateTimer;
+        mFireInfo.info.pointto = target;   //keep target for spawned projectiles
     }
 
     WeaponContext createContext() {

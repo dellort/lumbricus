@@ -153,8 +153,8 @@ class ActionContext {
     }
 
     //= hack, just for list (the listrunner needs to go into the outer scope)
-    final void putObjOuter(GameObject o) {
-        int idx = mScopeStack[$-1]-1;
+    final void putObjOuter(int sc, GameObject o) {
+        int idx = mScopeStack[sc]-1;
         assert(mObjStack[idx] is null);
         mObjStack[idx] = o;
     }

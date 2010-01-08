@@ -115,7 +115,7 @@ class ActionListClass : ActionClass {
             return;
         } else {
             //need to wait for something
-            ctx.putObjOuter(
+            ctx.putObjOuter(myScope,
                 new ActionListRunner(this, ctx, myScope, next, reps));
         }
     }

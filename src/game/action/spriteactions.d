@@ -18,6 +18,7 @@ import game.sprite;
 import game.sequence;
 import game.wcontrol;
 import game.temp;
+import gui.rendertext;
 import utils.misc;
 import utils.vector2;
 import utils.time;
@@ -44,6 +45,8 @@ static this() {
         ~ "multiple, event = ontrigger")("stucktrigger");
     regAction!(controlRotate, "duration, init_direction, rotate_speed = 3.1415,"
         ~ "thrust = 0")("control_rotate");
+    regAction!(timer, "delay, event = ontimer, show_timer = false,"
+        ~ "gluetime = 0s")("timer");
 }
 
 void state(WeaponContext wx, char[] state) {
@@ -115,7 +118,108 @@ void controlRotate(WeaponContext wx, Time duration, float initDirection,
         rotateSpeed, thrust));
 }
 
+void timer(WeaponContext wx, Time delay, char[] eventId, bool showTimer,
+    Time minimumGluedTime)
+{
+    auto as = cast(ActionSprite)wx.ownerSprite;
+    if (!as)
+        return;
+    if (delay == Time.Infinite)
+        delay = wx.fireInfo.info.timer;
+    wx.putObj(new TimerAction(as, delay, eventId, showTimer, minimumGluedTime));
+}
 
+
+class TimerAction : GameObject {
+    protected {
+        ActionSprite mParent;
+        char[] mEventId;
+        Time mDelay, mNext, mMinimumGluedTime;
+        bool mShowTimer;
+        FormattedText mTimeLabel;
+        Time mGlueTime;   //time when sprite got glued
+        bool mGluedCache; //last value of physics.isGlued
+    }
+
+    this(ActionSprite parent, Time delay, char[] eventId, bool showTimer,
+        Time minimumGluedTime)
+    {
+        super(parent.engine, "timeraction");
+        internal_active = true;
+        mParent = parent;
+        mEventId = eventId;
+        mShowTimer = showTimer;
+        mMinimumGluedTime = minimumGluedTime;
+        mDelay = delay;
+        mNext = engine.gameTime.current + delay;
+    }
+
+    this (ReflectCtor c) {
+        super(c);
+    }
+
+    bool activity() {
+        return internal_active;
+    }
+
+    override protected void updateInternalActive() {
+        super.updateInternalActive();
+        if (!internal_active && mTimeLabel) {
+            mTimeLabel = null;
+        }
+    }
+
+    override void simulate(float deltaT) {
+        super.simulate(deltaT);
+        if (mParent.physics.dead) {
+            kill();
+            return;
+        }
+        Time delta = mNext - engine.gameTime.current;
+        if (delta < Time.Null) {
+            //start glued checking when projectile wants to blow
+            if (mParent.physics.isGlued) {
+                if (!mGluedCache) {
+                    //projectile got glued
+                    mGluedCache = true;
+                    mGlueTime = engine.gameTime.current;
+                }
+            } else {
+                //projectile is not glued
+                mGlueTime = engine.gameTime.current;
+                mGluedCache = false;
+            }
+            //this will do 0 >= 0 for projectiles not needing glue
+            if (engine.gameTime.current - mGlueTime >= mMinimumGluedTime) {
+                mParent.doEvent(mEventId);
+                kill();
+            }
+        }
+        //show timer label when about to blow in <5s
+        //conditions: 1s-5s, enabled in conf file and not using glue check
+        if (delta < timeSecs(5) && delta > Time.Null && internal_active
+            && mShowTimer && mParent.enableEvents
+            /*&& currentState.minimumGluedTime == Time.Null*/)
+        {
+            if (!mTimeLabel) {
+                mTimeLabel = engine.gfx.textCreate();
+                mParent.graphic.attachText = mTimeLabel;
+            }
+            int remain = cast(int)(delta.secsf + 0.99f);
+            if (remain <= 2)
+                mTimeLabel.setTextFmt(true, "\\c(team_red){}", remain);
+            else
+                mTimeLabel.setTextFmt(true, "{}", remain);
+        } else {
+            if (mTimeLabel) {
+                //xxx: need cleaner way to remove attached text?
+                if (mParent.graphic)
+                    mParent.graphic.attachText = null;
+                mTimeLabel = null;
+            }
+        }
+    }
+}
 
 class SpriteAction : DelayedObj {
     protected {

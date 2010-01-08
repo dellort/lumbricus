@@ -19,14 +19,18 @@ struct Vertex2f {
     Color c = Color(1.0f);
 }
 
+//available drawing styles for the Canvas.drawStretched function
 enum ImageDrawStyle {
-    center,
-    tile,
-    stretch,
-    stretchx,
-    stretchy,
-    fitInner,
-    fitOuter,
+    center,      //center image (no scaling, default for drivers not capable
+                 //  of accelerated scaling)
+    tile,        //fill area by repeating image
+    stretch,     //stretch image to full size of dest area
+    stretchx,    //stretch in x, center in y
+    stretchy,    //stretch in y, center in x
+    fitInner,    //fit image inside area so nothing is cut off, keeping aspect
+                 //  ratio; there will be a black border on one axis
+    fitOuter,    //fit image inside area so that there will never be a black
+                 //  border, keeping aspect ratio; crops on one axis
 }
 
 //default values are set such that no effect is applied
@@ -439,9 +443,13 @@ public class Canvas {
         }
     }
 
+    //draws image source into the destination area, using the selected style
+    //  see ImageDrawStyle doc for explanation on styles
     void drawStretched(Surface source, Vector2i destPos, Vector2i destSize,
         ImageDrawStyle style)
     {
+        //draw Surface into dest area, using full texture space (stretching)
+        //xxx make public?
         void drawHelper(Surface source, Vector2i destPos, Vector2i destSize) {
             Vector2f p1, p2;
             p1 = toVector2f(destPos);
@@ -461,6 +469,7 @@ public class Canvas {
         if (!(features() & DriverFeatures.transformedQuads)
             && style >= ImageDrawStyle.stretch)
         {
+            //fallback for "simple" drivers
             style = ImageDrawStyle.center;
         }
         bool outer = true;
@@ -475,13 +484,17 @@ public class Canvas {
                 drawHelper(source, destPos, destSize);
                 break;
             case ImageDrawStyle.stretchx:
+                //calc dest height, keeping source AR when scaling image to
+                //  full width
                 int h = cast(int)(source.size.y
                     * (destSize.x / cast(float)source.size.x));
+                //centered in y direction
                 Vector2i p = Vector2i(0, destPos.y + destSize.y/2 - h/2);
                 Vector2i s = Vector2i(destSize.x, h);
                 drawHelper(source, p, s);
                 break;
             case ImageDrawStyle.stretchy:
+                //xxx code duplication
                 int w = cast(int)(source.size.x
                     * (destSize.y / cast(float)source.size.y));
                 Vector2i p = Vector2i(destPos.x + destSize.x/2 - w/2, 0);
@@ -490,6 +503,7 @@ public class Canvas {
                 break;
             case ImageDrawStyle.fitInner:
                 outer = false;
+                //fall-through
             case ImageDrawStyle.fitOuter:
                 Vector2i newSize = source.size.fitKeepAR(destSize, outer);
                 Vector2i pos = destPos + destSize/2 - newSize/2;
