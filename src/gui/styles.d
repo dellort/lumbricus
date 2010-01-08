@@ -525,6 +525,13 @@ MyBox parseFont(char[] src, MyBox prev) {
     return MyBox.Box!(FontProperties)(props);
 }
 
+MyBox parseStrparser(T)(char[] src, MyBox prev) {
+    MyBox v = strparser.stringToBox!(T)(src);
+    if (v.empty())
+        throw new Exception("can't parse as "~T.stringof~" :"~src);
+    return v;
+}
+
 //register a style property with the given name and parser function
 //see ParserFn for what it does
 void styleRegisterValue(char[] name, ParserFn parser) {
@@ -549,6 +556,10 @@ void styleRegisterBool(char[] name) {
 }
 void styleRegisterFont(char[] name) {
     styleRegisterValue(name, &parseFont);
+}
+
+void styleRegisterStrParser(T)(char[] name) {
+    styleRegisterValue(name, &parseStrparser!(T));
 }
 
 /+

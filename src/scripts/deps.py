@@ -13,15 +13,15 @@ std_ignore = ["object", "tango.", "std.", "core."]
 
 def print_help(option, opt, value, parser, do_exit=True):
     parser.print_help()
-    print ""
-    print "Generate the dependency file with:"
-    print "    dmd -o- -deps=depfile rootfile.d"
-    print ""
-    print "Example to generate a graph with circular dependencies only:"
-    print "    %s -c -C depfile graph.out" % parser.get_prog_name()
-    print ""
-    print "Render graph.out with:"
-    print "    dot -T svg graph.out -o graph.svg"
+    print("")
+    print("Generate the dependency file with:")
+    print("    dmd -o- -deps=depfile rootfile.d")
+    print("")
+    print("Example to generate a graph with circular dependencies only:")
+    print("    %s -c -C depfile graph.out" % parser.get_prog_name())
+    print("")
+    print("Render graph.out with:")
+    print("    dot -T svg graph.out -o graph.svg")
     if do_exit: sys.exit(1)
 
 parser = OptionParser(usage="%prog [options] depfile graph.out",
@@ -64,8 +64,8 @@ if not options.no_std_ignore:
 
 if len(args) != 2:
     print_help(None, None, None, parser, False)
-    print ""
-    print "2 arguments expected (depfile, outfile), but received %s." % args
+    print("")
+    print("2 arguments expected (depfile, outfile), but received %s." % args)
     sys.exit(1)
 
 # nodes[Node.name] = Node

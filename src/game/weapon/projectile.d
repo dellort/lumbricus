@@ -286,5 +286,6 @@ class ProjectileSpriteClass : ActionSpriteClass {
         SpriteClassFactory.register!(typeof(this))("projectile_mc");
         //cyclic dependency error...
         SpriteClassFactory.register!(ActionSpriteClass)("actionsprite_mc");
+        SpriteClassFactory.register!(typeof(this))("sprite_mc");
     }
 }

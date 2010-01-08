@@ -1537,12 +1537,8 @@ class Widget {
         }
 
         if (mBmpBackground) {
-            if (styles.get!(bool)("bitmap-background-tile")) {
-                c.drawTiled(mBmpBackground, area.p1, area.size);
-            } else {
-                c.draw(mBmpBackground, area.p1 + area.size/2
-                    - mBmpBackground.size/2);
-            }
+            auto st = styles.get!(ImageDrawStyle)("bitmap-background-tile");
+            c.drawStretched(mBmpBackground, area.p1, area.size, st);
         }
     }
 

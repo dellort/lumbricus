@@ -40,6 +40,10 @@ void checkDX(HRESULT res, char[] msg) {
     }
 }
 
+private struct Options {
+    bool vsync = false;
+}
+
 class DXDrawDriver : DrawDriver {
     private {
         Vector2i mScreenSize;
@@ -52,7 +56,8 @@ class DXDrawDriver : DrawDriver {
     IDirect3DDevice9 d3dDevice;
 
     this() {
-        mVsync = false;
+        auto opts = driverOptions(this).getval!(Options);
+        mVsync = opts.vsync;
 
         DerelictD3D9.load();
         DerelictD3DX9.load();
@@ -162,7 +167,8 @@ class DXDrawDriver : DrawDriver {
     }
 
     static this() {
-        registerFrameworkDriver!(typeof(this))("directx");
+        auto opts = registerFrameworkDriver!(typeof(this))("directx");
+        opts.addMembers!(Options)();
     }
 }
 

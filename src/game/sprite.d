@@ -652,8 +652,4 @@ class SpriteClass {
     }
 
     char[] toString() { return "SpriteClass["~name~"]"; }
-
-    static this() {
-        SpriteClassFactory.register!(typeof(this))("sprite_mc");
-    }
 }

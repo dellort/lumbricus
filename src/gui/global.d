@@ -1,7 +1,9 @@
 module gui.global;
 
 import common.resset;
+import framework.drawing;
 import gui.styles;
+import utils.strparser;
 
 ResourceSet gGuiResources;
 
@@ -21,7 +23,8 @@ static this() {
     styleRegisterBool("border-not-rounded");
     styleRegisterColor("widget-background");
     styleRegisterString("bitmap-background-res");
-    styleRegisterBool("bitmap-background-tile");
+    enumStrings!(ImageDrawStyle, "center,tile,stretch,stretchx,stretchy,fitInner,fitOuter");
+    styleRegisterStrParser!(ImageDrawStyle)("bitmap-background-tile");
     styleRegisterInt("widget-pad");
     styleRegisterInt("border-min");
 

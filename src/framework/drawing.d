@@ -19,6 +19,16 @@ struct Vertex2f {
     Color c = Color(1.0f);
 }
 
+enum ImageDrawStyle {
+    center,
+    tile,
+    stretch,
+    stretchx,
+    stretchy,
+    fitInner,
+    fitOuter,
+}
+
 //default values are set such that no effect is applied
 struct BitmapEffect {
     bool mirrorY = false;
@@ -132,11 +142,11 @@ public class Canvas {
         }
     }
 
-    public void draw(Texture source, Vector2i destPos) {
+    public void draw(Surface source, Vector2i destPos) {
         draw(source, destPos, Vector2i(0, 0), source.size);
     }
 
-    public abstract void draw(Texture source, Vector2i destPos,
+    public abstract void draw(Surface source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize);
 
     /// more flexible version of draw()
@@ -326,7 +336,7 @@ public class Canvas {
 
     /// Fill the area (destPos, destPos+destSize) with source, tiled on wrap
     //will be specialized in OpenGL
-    public void drawTiled(Texture source, Vector2i destPos, Vector2i destSize) {
+    public void drawTiled(Surface source, Vector2i destPos, Vector2i destSize) {
         if (!visibleArea.intersects(destPos, destPos + destSize))
             return;
 
@@ -426,6 +436,65 @@ public class Canvas {
 
             pos = pnext;
             offset = offset2;
+        }
+    }
+
+    void drawStretched(Surface source, Vector2i destPos, Vector2i destSize,
+        ImageDrawStyle style)
+    {
+        void drawHelper(Surface source, Vector2i destPos, Vector2i destSize) {
+            Vector2f p1, p2;
+            p1 = toVector2f(destPos);
+            p2 = p1 + toVector2f(destSize);
+            Vertex2f[4] q;
+            q[0].p = p1;
+            q[0].t = Vector2i(0, 0);
+            q[1].p = Vector2f(p2.x, p1.y);
+            q[1].t = Vector2i(source.size.x, 0);
+            q[2].p = p2;
+            q[2].t = source.size;
+            q[3].p = Vector2f(p1.x, p2.y);
+            q[3].t = Vector2i(0, source.size.y);
+            drawQuad(source, q);
+        }
+
+        if (!(features() & DriverFeatures.transformedQuads)
+            && style >= ImageDrawStyle.stretch)
+        {
+            style = ImageDrawStyle.center;
+        }
+        bool outer = true;
+        switch (style) {
+            case ImageDrawStyle.center:
+                draw(source, destPos + destSize/2 - source.size/2);
+                break;
+            case ImageDrawStyle.tile:
+                drawTiled(source, destPos, destSize);
+                break;
+            case ImageDrawStyle.stretch:
+                drawHelper(source, destPos, destSize);
+                break;
+            case ImageDrawStyle.stretchx:
+                int h = cast(int)(source.size.y
+                    * (destSize.x / cast(float)source.size.x));
+                Vector2i p = Vector2i(0, destPos.y + destSize.y/2 - h/2);
+                Vector2i s = Vector2i(destSize.x, h);
+                drawHelper(source, p, s);
+                break;
+            case ImageDrawStyle.stretchy:
+                int w = cast(int)(source.size.x
+                    * (destSize.y / cast(float)source.size.y));
+                Vector2i p = Vector2i(destPos.x + destSize.x/2 - w/2, 0);
+                Vector2i s = Vector2i(w, destSize.y);
+                drawHelper(source, p, s);
+                break;
+            case ImageDrawStyle.fitInner:
+                outer = false;
+            case ImageDrawStyle.fitOuter:
+                Vector2i newSize = source.size.fitKeepAR(destSize, outer);
+                Vector2i pos = destPos + destSize/2 - newSize/2;
+                drawHelper(source, pos, newSize);
+                break;
         }
     }
 }

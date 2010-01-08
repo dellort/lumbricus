@@ -250,13 +250,13 @@ public struct Vector2(T) {
 
     //fit this vector into an area of size destArea, keeping our aspect ratio
     //just for real size vectors (no negative/0 values)
-    public Vector2 fitKeepAR(Vector2 destArea) {
+    public Vector2 fitKeepAR(Vector2 destArea, bool outer = false) {
         Vector2 ret;
         assert(destArea.x>0 && destArea.y>0);
         assert(x>0 && y>0);
         float destAR = cast(float)destArea.x/destArea.y;
         float curAR = cast(float)x/y;
-        if (destAR > curAR) {
+        if ((destAR > curAR) != outer) {
             ret.x = cast(T)(destArea.y*curAR);
             ret.y = destArea.y;
         } else {

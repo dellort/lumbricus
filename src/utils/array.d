@@ -1,6 +1,7 @@
 module utils.array;
 import utils.misc;
 import cstdlib = tango.stdc.stdlib;
+import array = tango.core.Array;
 
 //aaIfIn(a,b) works like a[b], but if !(a in b), return null
 public V aaIfIn(K, V)(V[K] aa, K key) {
@@ -372,3 +373,49 @@ final class BigArray(T) {
     }
 }
 
+void mergeSort(T, Pred2E = array.IsLess!(T))(T[] a, Pred2E pred = Pred2E.init) {
+    if (a.length < 2) {
+        return;
+    }
+    int mid = (a.length-1) / 2;
+
+    /*
+     *  Partition the list into two lists and sort them recursively
+     */
+    mergeSort(a[0..mid+1], pred);
+    mergeSort(a[mid+1..$], pred);
+
+    /*
+     *  Merge the two sorted lists
+     */
+    int lo = 0;
+	int end_lo = mid;
+    int start_hi = mid + 1;
+    while ((lo <= end_lo) && (start_hi < a.length)) {
+        if (pred(a[start_hi], a[lo])) {
+            /*
+             *  a[lo] >= a[start_hi]
+             *  The next element comes from the second list,
+             *  move the a[start_hi] element into the next
+             *  position and shuffle all the other elements up.
+             */
+            T item = a[start_hi];
+            for (int k = start_hi - 1; k >= lo; k--) {
+                a[k+1] = a[k];
+            }
+            a[lo] = item;
+            end_lo++;
+            start_hi++;
+        }
+        lo++;
+    }
+}
+
+unittest {
+    int[] t = [2, 6, 3, 5, 7, 7, 4];
+    t.mergeSort();
+    assert(t == [2, 3, 4, 5, 6, 7, 7]);
+    float[] t2 = [1.2f, 2.3f, 2.1f, 0.6f, 1.8f, 1.7f];
+    mergeSort(t2, (float a, float b){ return (cast(int)a) < (cast(int)b); });
+    assert(t2 == [0.6f, 1.2f, 1.8f, 1.7f, 2.3f, 2.1f]);
+}

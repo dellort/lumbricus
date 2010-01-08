@@ -679,6 +679,8 @@ class WindowFrame : Container {
 
         checkCover = true;
 
+        styles.addClass("mainframe");
+
         mConfig = loadConfig("window");
 
         mKeysWindow = new KeyBindings();
