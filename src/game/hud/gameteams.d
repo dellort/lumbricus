@@ -21,7 +21,7 @@ import utils.time;
 import utils.vector2;
 
 import tango.math.Math : PI;
-import array = tango.core.Array;
+import marray = utils.array;
 
 class WormLabel : Widget {
     Team team;
@@ -75,28 +75,22 @@ class TeamWindow : Widget {
         }
     }
 
-    //return if a is superior or equal to b
+    //return if a is less than b... (== a is higher on list than b)
+    //... for initial display
+    bool compareTeamInitial(Team a, Team b) {
+        if (a.totalCurrentHealth() > b.totalCurrentHealth())
+            return true;
+        if (a.globalWins() > b.globalWins())
+            return true;
+        return (a.name() < b.name());
+    }
+    //... in-game
     bool compareTeam(Team a, Team b) {
-        int c = a.totalCurrentHealth() - b.totalCurrentHealth();
-        if (c == 0)
-            c = a.globalWins() - b.globalWins();
-        //sort by name if health is equal (Tango crashes without that)
-        return c == 0 ? a.name() <= b.name() : c > 0;
+        return a.totalCurrentHealth() > b.totalCurrentHealth();
     }
 
     this(GameInfo game) {
         setVirtualFrame(false);
-
-        /+
-        if (mTable) {
-            mTable.remove();
-            mTable = null;
-        }
-
-        mBars = null;
-        mLines = null;
-        currentSwapLine = -1;
-        +/
 
         mTimeSource = game.clientTime;
 
@@ -111,7 +105,7 @@ class TeamWindow : Widget {
 
         Team[] teams = game.engine.controller.teams().dup;
 
-        array.sort(teams, &compareTeam);
+        marray.mergeSort(teams, &compareTeamInitial);
 
         foreach (t; teams) {
             table.addRow();
@@ -192,7 +186,7 @@ class TeamWindow : Widget {
         if (mLines.length == 0)
             return false;
         for (int n = 0; n < mLines.length - 1; n++) {
-            if (!compareTeam(mLines[n], mLines[n+1])) {
+            if (compareTeam(mLines[n+1], mLines[n])) {
                 startSwap(n);
                 return true;
             }

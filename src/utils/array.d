@@ -373,6 +373,8 @@ final class BigArray(T) {
     }
 }
 
+//source: http://people.cs.ubc.ca/~harrison/Java/MergeSortAlgorithm.java.html
+//modified to make it a stable sorting algorithm
 void mergeSort(T, Pred2E = array.IsLess!(T))(T[] a, Pred2E pred = Pred2E.init) {
     if (a.length < 2) {
         return;
