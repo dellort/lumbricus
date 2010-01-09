@@ -126,6 +126,7 @@
 		<Unit filename="..\src\game\events.d" />
 		<Unit filename="..\src\game\game.d" />
 		<Unit filename="..\src\game\gamemodes\base.d" />
+		<Unit filename="..\src\game\gamemodes\lua.d" />
 		<Unit filename="..\src\game\gamemodes\mdebug.d" />
 		<Unit filename="..\src\game\gamemodes\realtime.d" />
 		<Unit filename="..\src\game\gamemodes\shared.d" />

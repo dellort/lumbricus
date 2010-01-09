@@ -251,8 +251,6 @@ class GameEngine {
                 mAccessMapping ~= AccessEntry(sub.name, found);
             }
         }
-
-        addSingletons(scripting, this);
     }
 
     this (ReflectCtor c) {
@@ -288,6 +286,8 @@ class GameEngine {
     package void setController(GameController ctl) {
         assert(!mController);
         mController = ctl;
+        //xxx need singletons for lua gamemode, better way?
+        addSingletons(scripting, this);
     }
 
     //lol.
