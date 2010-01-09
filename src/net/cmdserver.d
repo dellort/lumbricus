@@ -2,7 +2,7 @@ module net.cmdserver;
 
 import framework.config;
 import framework.commandline;
-import framework.timesource;
+import utils.timesource;
 public import net.cmdprotocol;
 import net.netlayer;
 import net.marshal;

@@ -1,6 +1,6 @@
 module game.hud.camera;
 
-import framework.timesource;
+import utils.timesource;
 import gui.mousescroller;
 import utils.rect2;
 import utils.time;

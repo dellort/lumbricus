@@ -108,7 +108,6 @@
 		<Unit filename="..\src\framework\sound.d" />
 		<Unit filename="..\src\framework\stuff.d" />
 		<Unit filename="..\src\framework\texturepack.d" />
-		<Unit filename="..\src\framework\timesource.d" />
 		<Unit filename="..\src\game\action\base.d" />
 		<Unit filename="..\src\game\action\common.d" />
 		<Unit filename="..\src\game\action\list.d" />
@@ -293,6 +292,7 @@
 		<Unit filename="..\src\utils\test.d" />
 		<Unit filename="..\src\utils\time.d" />
 		<Unit filename="..\src\utils\timer.d" />
+		<Unit filename="..\src\utils\timesource.d" />
 		<Unit filename="..\src\utils\transform.d" />
 		<Unit filename="..\src\utils\vector2.d" />
 		<Unit filename="..\src\utils\weaklist.d" />

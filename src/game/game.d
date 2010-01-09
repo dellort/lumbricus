@@ -30,7 +30,7 @@ import utils.perf;
 import utils.random;
 import utils.reflection;
 import framework.framework;
-import framework.timesource;
+import utils.timesource;
 import framework.commandline;
 import framework.lua;
 import common.resset;

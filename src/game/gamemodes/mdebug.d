@@ -1,7 +1,7 @@
 module game.gamemodes.mdebug;
 
 import framework.framework;
-import framework.timesource;
+import utils.timesource;
 import game.game;
 import game.controller;
 import game.gamemodes.base;
@@ -29,14 +29,6 @@ class ModeDebug : Gamemode {
         super(c);
     }
 
-    override void initialize() {
-        super.initialize();
-    }
-
-    override void startGame() {
-        super.startGame();
-    }
-
     void simulate() {
         super.simulate();
         //if active team is dead or so, pick new one
@@ -52,14 +44,6 @@ class ModeDebug : Gamemode {
                 break;
             }
         }
-    }
-
-    bool ended() {
-        return false;
-    }
-
-    Object getStatus() {
-        return null;
     }
 
     static this() {

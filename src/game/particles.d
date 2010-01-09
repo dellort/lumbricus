@@ -2,7 +2,7 @@ module game.particles;
 
 import framework.framework;
 import framework.sound;
-import framework.timesource;
+import utils.timesource;
 import common.animation;
 import common.resset;
 import utils.misc;

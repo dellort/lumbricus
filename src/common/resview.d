@@ -10,7 +10,7 @@ import framework.sound;
 import common.resources;
 import common.resset;
 import common.allres;
-import framework.timesource;
+import utils.timesource;
 import gui.boxcontainer;
 import gui.button;
 import gui.container;

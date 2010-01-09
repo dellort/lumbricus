@@ -5,7 +5,7 @@ import common.common;
 import common.scene;
 import framework.font;
 import framework.framework;
-import framework.timesource;
+import utils.timesource;
 import gui.container;
 import gui.label;
 import gui.progress;

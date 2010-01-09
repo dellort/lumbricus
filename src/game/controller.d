@@ -644,9 +644,6 @@ class GameController {
         const char[][] cLoadPlugins = ["messages", "statistics", "persistence"];
     }
 
-    //when a worm collects a tool from a crate
-    ChainDelegate!(TeamMember, CollectableTool) collectTool;
-
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
         mEngine.setController(this);
@@ -682,7 +679,7 @@ class GameController {
 
         mEngine.finishPlace();
 
-        collectTool ~= &doCollectTool;
+        OnCollectTool.handler(engine.events, &doCollectTool);
     }
 
     this (ReflectCtor c) {
@@ -698,7 +695,7 @@ class GameController {
 
     ///True if game has ended
     bool gameEnded() {
-        return mGamemode.ended;
+        return mGameEnded;
     }
 
     ///Status of selected gamemode (may contain timing, scores or whatever)
@@ -737,8 +734,7 @@ class GameController {
 
         deactivateAll();
         //lol, see gamemode comments for how this should really be used
-        mGamemode.initialize();
-        mGamemode.startGame();
+        OnGameStart.raise(engine.globalEvents);
     }
 
     void simulate() {
@@ -752,20 +748,25 @@ class GameController {
             if (mLastCrate) {
                 if (!mLastCrate.activity) mLastCrate = null;
             }
+        }
+    }
 
-            if (mGamemode.ended() && !mGameEnded) {
-                mGameEnded = true;
+    ///Called by gamemode, when the game is over
+    ///It is the Gamemode's task to make a team win before
+    void endGame() {
+        if (!mGameEnded) {
+            //only call once
+            mGameEnded = true;
 
-                OnGameEnd.raise(engine.globalEvents);
+            OnGameEnd.raise(engine.globalEvents);
 
-                //increase total round count
-                engine.persistentState.setValue("round_counter",
-                    currentRound + 1);
+            //increase total round count
+            engine.persistentState.setValue("round_counter",
+                currentRound + 1);
 
-                debug {
-                    saveConfig(engine.persistentState,
-                        "persistence_debug.conf");
-                }
+            debug {
+                saveConfig(engine.persistentState,
+                    "persistence_debug.conf");
             }
         }
     }
@@ -1045,17 +1046,13 @@ class GameController {
             mLastCrate.unParachute();
     }
 
-    private bool doCollectTool(TeamMember collector, CollectableTool tool)
-    {
+    private void doCollectTool(TeamMember collector, CollectableTool tool) {
         if (auto t = cast(CollectableToolCrateSpy)tool) {
             collector.team.addCrateSpy();
-            return true;
         }
         if (auto t = cast(CollectableToolDoubleDamage)tool) {
             collector.team.addDoubleDamage();
-            return true;
         }
-        return false;
     }
 
     //show effects of sudden death start

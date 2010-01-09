@@ -4,7 +4,7 @@ module game.wtris;
 
 import framework.framework;
 import framework.event;
-import framework.timesource;
+import utils.timesource;
 import common.common;
 import common.task;
 import gui.widget;

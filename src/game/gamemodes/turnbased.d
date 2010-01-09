@@ -1,8 +1,9 @@
 module game.gamemodes.turnbased;
 
 import framework.framework;
-import framework.timesource;
+import utils.timesource;
 import game.game;
+import game.gobject;
 import game.controller;
 import game.controller_events;
 import game.gamemodes.base;
@@ -86,21 +87,6 @@ class ModeTurnbased : Gamemode {
         mPrepareSt = new PrepareStatus();
         this.config = config.getCurValue!(ModeConfig)();
 
-        parent.collectTool ~= &doCollectTool;
-    }
-
-    this(ReflectCtor c) {
-        super(c);
-        Types t = c.types();
-        t.registerMethod(this, &doCollectTool, "doCollectTool");
-    }
-
-    override HudRequests getHudRequests() {
-        return ["timer"[]: cast(Object)mTimeSt, "prepare": mPrepareSt];
-    }
-
-    override void initialize() {
-        super.initialize();
         //we want teams to be activated in a random order that stays the same
         //  over all rounds
         mTeamPerm = engine.persistentState.getValue!(int[])("team_order", null);
@@ -113,11 +99,23 @@ class ModeTurnbased : Gamemode {
             engine.rnd.randomizeArray(mTeamPerm);
             engine.persistentState.setValue("team_order", mTeamPerm);
         }
+
         logic.addCrateTool("doubletime");
+        OnCollectTool.handler(engine.events, &doCollectTool);
     }
 
-    override void startGame() {
-        super.startGame();
+    this(ReflectCtor c) {
+        super(c);
+        Types t = c.types();
+        t.registerMethod(this, &doCollectTool, "doCollectTool");
+    }
+
+    override HudRequests getHudRequests() {
+        return ["timer"[]: cast(Object)mTimeSt, "prepare": mPrepareSt];
+    }
+
+    override void startGame(GameObject dummy) {
+        super.startGame(dummy);
         modeTime.paused = true;
     }
 
@@ -400,22 +398,15 @@ class ModeTurnbased : Gamemode {
             case TurnState.end:
                 modeTime.paused = true;
                 currentTeam = null;
+                logic.endGame();
                 break;
         }
     }
 
-    bool ended() {
-        return mCurrentTurnState == TurnState.end;
-    }
-
-    private bool doCollectTool(TeamMember member,
-        CollectableTool tool)
-    {
+    private void doCollectTool(TeamMember member, CollectableTool tool) {
         if (auto t = cast(CollectableToolDoubleTime)tool) {
             waitAddTimeLocal(1, mTimeSt.turnRemaining);
-            return true;
         }
-        return false;
     }
 
     static this() {

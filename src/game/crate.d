@@ -111,9 +111,7 @@ abstract class CollectableTool : Collectable {
 
     void collect(CrateSprite parent, TeamMember member) {
         //roundabout way, but I hope it makes a bit sense with double time tool?
-        if (!parent.engine.controller.collectTool(member, this)) {
-            //this is executed if nobody knew what to do with the tool
-        }
+        OnCollectTool.raise(member, this);
     }
 }
 

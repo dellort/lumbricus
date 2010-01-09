@@ -76,6 +76,8 @@ alias DeclareEvent!("team_victory", GameObject, Team) OnVictory;
 alias DeclareEvent!("crate_drop", CrateSprite) OnCrateDrop;
 //sender is the crate, first parameter is the collecting team member
 alias DeclareEvent!("crate_collect", CrateSprite, TeamMember) OnCrateCollect;
+//when a worm collects a tool from a crate
+alias DeclareEvent!("collect_tool", TeamMember, CollectableTool) OnCollectTool;
 //number of weapons changed
 alias DeclareEvent!("weaponset_changed", WeaponSet) OnWeaponSetChanged;
 

@@ -6,7 +6,7 @@ import common.resset;
 import common.scene;
 import framework.framework;
 import framework.i18n; //just because of weapon loading...
-import framework.timesource;
+import utils.timesource;
 import framework.commandline;
 
 import game.controller;

@@ -11,7 +11,7 @@ import framework.framework;
 import framework.filesystem;
 import framework.font;
 import framework.i18n;
-import framework.timesource;
+import utils.timesource;
 import framework.lua;
 import game.gui.loadingscreen;
 import game.hud.gameframe;

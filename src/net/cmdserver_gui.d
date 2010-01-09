@@ -3,7 +3,7 @@ module net.cmdserver_gui;
 import common.common;
 import common.task;
 import framework.commandline;
-import framework.timesource;
+import utils.timesource;
 import gui.label;
 import gui.button;
 import gui.widget;

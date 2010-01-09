@@ -2,7 +2,7 @@ module game.lua;
 
 import framework.framework;
 import framework.lua;
-import framework.timesource;
+import utils.timesource;
 import game.controller;
 import game.events;
 import game.game;
@@ -65,7 +65,7 @@ static this() {
         "checkDyingWorms", "updateHealth", "needUpdateHealth", "teams",
         "activateTeam", "deactivateAll", "addMemberGameObject",
         "memberFromGameObject", "weaponFromGameObject", "controlFromGameObject",
-        "dropCrate", "startSuddenDeath");
+        "dropCrate", "startSuddenDeath", "endGame");
 
     gScripting.setClassPrefix!(TeamMember)("Member");
     gScripting.methods!(TeamMember, "control", "updateHealth",

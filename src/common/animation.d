@@ -3,7 +3,7 @@ module common.animation;
 import common.common;
 import common.scene;
 import framework.framework;
-import framework.timesource;
+import utils.timesource;
 public import common.restypes.animation;
 import utils.rect2;
 import utils.reflection;

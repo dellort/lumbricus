@@ -2,7 +2,7 @@ module game.bomberworm;
 
 import framework.framework;
 import framework.event;
-import framework.timesource;
+import utils.timesource;
 import framework.keybindings;
 import common.common;
 import common.task;

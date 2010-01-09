@@ -5,7 +5,7 @@ module game.hud.teaminfo;
 
 import framework.font;
 import framework.framework;
-import framework.timesource;
+import utils.timesource;
 import game.clientengine;
 import game.controller;
 import game.events;

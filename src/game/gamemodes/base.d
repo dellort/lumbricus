@@ -1,8 +1,9 @@
 module game.gamemodes.base;
 
 import framework.framework;
-import framework.timesource;
+import utils.timesource;
 import game.game;
+import game.gobject;
 import game.controller;
 import game.controller_events;
 
@@ -24,6 +25,8 @@ class Gamemode {
     protected TimeSource modeTime;
     alias Object[char[]] HudRequests;
 
+    mixin Methods!("startGame");
+
     this(GameController parent, ConfigNode config) {
         //static initialization doesn't work
         mWaitStart[] = Time.Never;
@@ -31,6 +34,7 @@ class Gamemode {
         engine = parent.engine;
         logic = parent;
         modeTime = new TimeSource("modeTime", engine.gameTime);
+        OnGameStart.handler(engine.events, &startGame);
     }
 
     this(ReflectCtor c) {
@@ -42,15 +46,8 @@ class Gamemode {
         return null;
     }
 
-    ///Initialize gamemode (check requirements or whatever)
-    ///Called after controller initialization and client connection
-    ///Throw exception if anything is not according to plan
-    void initialize() {
-    }
-
     ///Start a new game, called before first simulate call
-    void startGame() {
-        OnGameStart.raise(engine.globalEvents);
+    void startGame(GameObject dummy) {
         modeTime.resetTime();
     }
 
@@ -58,11 +55,6 @@ class Gamemode {
     void simulate() {
         modeTime.update();
     }
-
-    ///Called by controller every frame, after simulate
-    ///Return true if the game is over
-    ///It is the Gamemode's task to make a team win before
-    abstract bool ended();
 
     //Returns the number of teams with alive members
     //If there are any, firstAlive is set to the first one found

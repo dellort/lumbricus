@@ -1,4 +1,4 @@
-module framework.timesource;
+module utils.timesource;
 import utils.misc;
 import utils.time;
 import utils.log;

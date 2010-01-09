@@ -1,6 +1,6 @@
 module game.glue;
 
-import framework.timesource;
+import utils.timesource;
 import common.scene;
 import game.controller; //: Team, TeamMember
 import game.events;

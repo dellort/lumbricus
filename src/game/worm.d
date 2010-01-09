@@ -26,7 +26,7 @@ import tango.math.Math;
 //crosshair
 import common.scene;
 import utils.interpolate;
-import framework.timesource;
+import utils.timesource;
 
 /**
   just an idea:

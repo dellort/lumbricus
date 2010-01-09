@@ -8,7 +8,7 @@ import framework.filesystem;
 import framework.framework;
 import framework.font;
 import framework.commandline;
-import framework.timesource;
+import utils.timesource;
 import framework.i18n;
 import gui.global;
 import utils.array;

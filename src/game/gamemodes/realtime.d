@@ -1,7 +1,7 @@
 module game.gamemodes.realtime;
 
 import framework.framework;
-import framework.timesource;
+import utils.timesource;
 import game.game;
 import game.controller;
 import game.controller_events;
@@ -65,17 +65,6 @@ class ModeRealtime : Gamemode {
         return ["timer": mStatus];
     }
 
-    override void initialize() {
-        super.initialize();
-    }
-
-    override void startGame() {
-        super.startGame();
-        foreach (t; logic.teams()) {
-            logic.activateTeam(t);
-        }
-    }
-
     void simulate() {
         super.simulate();
         mStatus.gameRemaining = max(config.gametime - modeTime.current(),
@@ -84,8 +73,10 @@ class ModeRealtime : Gamemode {
         //--------- Winning and game end ----------------
 
         if (mGameEndedInt) {
-            if (wait(cWinTime, 2, false))
+            if (!mGameEnded && wait(cWinTime, 2, false)) {
+                logic.endGame();
                 mGameEnded = true;
+            }
             return;
         }
         Team lastteam;
@@ -174,10 +165,6 @@ class ModeRealtime : Gamemode {
                 mTeamDeactivateTime[t] = modeTime.current();
             }
         }
-    }
-
-    bool ended() {
-        return mGameEnded;
     }
 
     static this() {

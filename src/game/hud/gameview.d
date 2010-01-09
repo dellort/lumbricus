@@ -5,7 +5,7 @@ import framework.font;
 import framework.framework;
 import framework.i18n;
 import framework.commandline;
-import framework.timesource;
+import utils.timesource;
 import common.animation;
 import common.scene;
 import game.glue;

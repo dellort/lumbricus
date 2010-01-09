@@ -7,7 +7,7 @@ import framework.framework;
 import framework.sound;
 import framework.commandline;
 import framework.i18n;
-import framework.timesource;
+import utils.timesource;
 import gui.widget;
 import gui.fps;
 import gui.container;

@@ -4,7 +4,7 @@ module game.serialize_register;
 
 import utils.reflection;
 
-import framework.timesource;
+import utils.timesource;
 import game.actionsprite, game.controller, game.crate, game.game,
     game.glevel, game.sprite, game.worm,
     game.weapon.actionweapon, game.weapon.projectile,
