@@ -51,6 +51,9 @@ void initGameSerialization() {
         OnGameStart,
         OnGameEnd,
         OnSuddenDeath,
+        OnGameMessage,
+        OnHudAdd,
+        OnGameReload,
         OnDamage,
         OnDemolish,
         OnSpriteDie,
@@ -63,6 +66,7 @@ void initGameSerialization() {
         OnVictory,
         OnCrateDrop,
         OnCrateCollect,
+        OnCollectTool,
         OnWeaponSetChanged
     )(serialize_types);
 }

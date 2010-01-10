@@ -50,23 +50,21 @@ class ModeRealtime : Gamemode {
         bool mSuddenDeath;
     }
 
-    this(GameController parent, ConfigNode config) {
-        super(parent, config);
+    this(GameEngine a_engine, ConfigNode config) {
+        super(a_engine, config);
         mStatus = new TimeStatus();
         mStatus.showGameTime = true;
         this.config = config.getCurValue!(ModeConfig)();
+
+        OnHudAdd.raise(engine.globalEvents, "timer", mStatus);
     }
 
     this(ReflectCtor c) {
         super(c);
     }
 
-    override HudRequests getHudRequests() {
-        return ["timer": mStatus];
-    }
-
-    void simulate() {
-        super.simulate();
+    override void simulate(float dt) {
+        super.simulate(dt);
         mStatus.gameRemaining = max(config.gametime - modeTime.current(),
             Time.Null);
 
@@ -108,7 +106,6 @@ class ModeRealtime : Gamemode {
                 assert(!!lastteam);
                 lastteam.youWinNow();
             }
-            OnVictory.raise(engine.globalEvents, lastteam);
             return;
         }
 
@@ -168,6 +165,6 @@ class ModeRealtime : Gamemode {
     }
 
     static this() {
-        GamemodeFactory.register!(typeof(this))("realtime");
+        GamePluginFactory.register!(typeof(this))("realtime");
     }
 }

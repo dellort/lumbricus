@@ -10,6 +10,7 @@ import common.animation;
 import common.common;
 import common.scene;
 import game.controller;
+import game.controller_events;
 import game.weapon.weapon;
 import game.events;
 import game.glue;
@@ -95,6 +96,7 @@ class GameEngine {
         //generates earthquakes
         EarthQuakeForce mEarthquakeForceVis, mEarthquakeForceDmg;
 
+        Object[char[]] mHudRequests;
 
         Sprite[] mPlaceQueue;
 
@@ -124,7 +126,8 @@ class GameEngine {
     }
 
     mixin Methods!("deathzoneTrigger", "underWaterTrigger", "windChangerUpdate",
-        "waterChangerUpdate", "onPhysicHit", "onDamage", "offworldTrigger");
+        "waterChangerUpdate", "onPhysicHit", "onDamage", "offworldTrigger",
+        "onHudAdd");
 
     this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime) {
         mSavegameHack = true;
@@ -163,6 +166,8 @@ class GameEngine {
         scene = new Scene();
 
         mObjects = new typeof(mObjects)();
+
+        OnHudAdd.handler(events, &onHudAdd);
 
         mPhysicWorld = new PhysicWorld(rnd);
         mPhysicWorld.collide = gfx.collision_map;
@@ -695,6 +700,17 @@ class GameEngine {
         mPlaceQueue = null;
     }
 
+    private void onHudAdd(GameObject sender, char[] id, Object obj) {
+        assert(!(id in mHudRequests), "id must be unique?");
+        mHudRequests[id] = obj;
+    }
+
+    //just needed for game loading (see gameframe.d)
+    //(actually, this is needed even on normal game start)
+    Object[char[]] allHudRequests() {
+        return mHudRequests;
+    }
+
     //draw some text with a border around it, in the usual worms label style
     //this uses a style
     //the bad:
@@ -703,11 +719,11 @@ class GameEngine {
     //- does a lot more work than just draw text and a box
     //- slow because it formats text on each frame
     //- it sucks, maybe I'll replace it by something else
-    //  use FormattedText or RenderText instead with GfxSet.textCreate()
+    //=> use FormattedText instead with GfxSet.textCreate()
     //the good:
     //- uses the same drawing code as other _game_ labels
     //- for very transient labels, this probably performs better than allocating
-    //  a RenderText and keeping it around
+    //  a FormattedText and keeping it around
     //- no need to be deterministic
     void drawTextFmt(Canvas c, Vector2i pos, char[] fmt, ...) {
         if (!mTempText) {

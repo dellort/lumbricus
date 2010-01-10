@@ -88,6 +88,11 @@ alias void function(ref EventEntry, EventTarget, EventPtr) DispatchEventHandler;
 alias void function(LuaState lua, EventTarget sender, EventPtr params)
     Event_DtoScript;
 
+//marshal Lua -> D
+extern(C)
+    alias int function(lua_State* lua, EventTarget target, char[] name)
+        Event_ScriptToD;
+
 private struct EventEntry {
     MyBox data;
     DispatchEventHandler handler;
@@ -106,6 +111,8 @@ private class EventType {
 
 //using RefHashTable because of dmd bug 3086
 RefHashTable!(TypeInfo, Event_DtoScript) gEventsDtoScript;
+
+Event_ScriptToD[char[]] gEventsScriptToD;
 
 static this() {
     gEventsDtoScript = new typeof(gEventsDtoScript);
@@ -168,6 +175,12 @@ final class Events {
                 assert(not _G[namespace])
                 _G[namespace] = {}
             `, mScriptingEventsNamespace);
+        //xxx make independent from raw Lua API etc....
+        lua_State* state = lua.state();
+        lua.stack0();
+        lua_pushcfunction(state, &scriptEventsRaise);
+        lua_setglobal(state, (cEventsRaiseFunction ~ '\0').ptr);
+        lua.stack0();
     }
 
     char[] scriptingEventsNamespace() {
@@ -237,12 +250,13 @@ final class Events {
         //xxx optimize by not using string lookups (use luaL_ref())
         //also xxx try to abstract the lua specific parts
         lua_State* state = mScripting.state();
-        mScripting.stack0();
+        //not stack0() if called from Lua script (calls back)
+        //mScripting.stack0();
         lua_getglobal(state, mScriptingEventsNamespace.ptr);
         lua_getfield(state, -1, ev.name.ptr);
         ev.marshal_d2s(mScripting, sender, params);
         lua_pop(state, 1);
-        mScripting.stack0();
+        //mScripting.stack0();
     }
 
     //one should prefer EventTarget.raiseEvent()
@@ -294,9 +308,51 @@ void paramTypeOut(ParamType)() {
 }
 
 //script -> D
-void paramTypeIn(T)() {
+void paramTypeIn(T)(char[] event) {
     alias GetArgs!(T) Args;
-    //...
+
+    extern(C) static int demarshal(lua_State* state, EventTarget target,
+        char[] name)
+    {
+        void callFromScript(Args args) {
+            //xxx code duplication from DeclareEvent.raise... but then again,
+            //  this stuff is trivial, and all actual code is in raiseEvent
+            assert(!!target);
+            ParamStruct!(Args) args2;
+            //dmd bug 3614?
+            static if (Args.length)
+                args2.args = args;
+            auto argsptr = EventPtr.Ptr(args2);
+            target.raiseEvent(name, argsptr);
+        }
+
+        return callFromLua(&callFromScript, state, 2, cEventsRaiseFunction);
+    }
+
+    gEventsScriptToD[event] = &demarshal;
+}
+
+const char[] cEventsRaiseFunction = "d_events_raise";
+
+//in Lua: d_events_raise(target, name, ...)
+extern(C) private int scriptEventsRaise(lua_State* state) {
+    //xxx should be handled like a this pointer for method calls
+    EventTarget target = luaStackValue!(EventTarget)(state, 1);
+    if (!target)
+        raiseLuaError(state, "event target is null");
+    char[] event = luaStackValue!(char[])(state, 2);
+    //xxx this is awkward and slow too
+    //  main problem is that all events in the program with same name must
+    //  have the same argument types (even for completely unrelated parts of
+    //  the program)
+    Event_ScriptToD* demarshal = event in gEventsScriptToD;
+    if (!demarshal) {
+        //raiseLuaError(state, "no demarshaller for event: " ~ event);
+        //DeclareEvent.handler() wasn't called yet => no demarshaller
+        //could be an unknown event as well
+        return 0;
+    }
+    return (*demarshal)(state, target, event);
 }
 
 //weird way to "declare" and events globally
@@ -316,7 +372,7 @@ template DeclareEvent(char[] name, SenderBase, Args...) {
     static void handler(Events base, Handler a_handler) {
         if (!mInRegged) {
             mInRegged = true;
-            paramTypeIn!(ParamType)();
+            paramTypeIn!(ParamType)(name);
         }
 
         EventEntry e;

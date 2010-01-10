@@ -14,46 +14,43 @@ import utils.configfile;
 import utils.time;
 import utils.misc;
 
-//factory to instantiate gamemodes
-alias StaticFactory!("Gamemodes", Gamemode, GameController, ConfigNode)
-    GamemodeFactory;
-
-class Gamemode {
-    GameEngine engine;
+//NOTE: a game mode doesn't need to derive from this object; it's just for
+//  convenience (hud managment, some strange timing helpers)
+class Gamemode : GameObject {
     GameController logic;
     private Time[5] mWaitStart, mWaitStartLocal;
     protected TimeSource modeTime;
-    alias Object[char[]] HudRequests;
 
     mixin Methods!("startGame");
 
-    this(GameController parent, ConfigNode config) {
+    this(GameEngine a_engine, ConfigNode config) {
+        super(a_engine, "gamemode");
+        logic = engine.controller;
         //static initialization doesn't work
         mWaitStart[] = Time.Never;
         mWaitStartLocal[] = Time.Never;
-        engine = parent.engine;
-        logic = parent;
+        logic = engine.controller;
         modeTime = new TimeSource("modeTime", engine.gameTime);
         OnGameStart.handler(engine.events, &startGame);
+        internal_active = true;
     }
 
     this(ReflectCtor c) {
-    }
-
-    ///Return ids and status objects of HUD elements you want to show
-    ///Called once when the game GUI is created
-    HudRequests getHudRequests() {
-        return null;
+        super(c);
     }
 
     ///Start a new game, called before first simulate call
-    void startGame(GameObject dummy) {
+    protected void startGame(GameObject dummy) {
         modeTime.resetTime();
     }
 
     ///Called every frame, run gamemode-specific code here
-    void simulate() {
+    override void simulate(float dt) {
         modeTime.update();
+    }
+
+    override bool activity() {
+        return false;
     }
 
     //Returns the number of teams with alive members

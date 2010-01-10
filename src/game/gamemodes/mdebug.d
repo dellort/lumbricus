@@ -4,6 +4,7 @@ import framework.framework;
 import utils.timesource;
 import game.game;
 import game.controller;
+import game.controller_events;
 import game.gamemodes.base;
 
 import utils.array;
@@ -21,16 +22,16 @@ class ModeDebug : Gamemode {
         Team mPreviousTeam;
     }
 
-    this(GameController parent, ConfigNode config) {
-        super(parent, config);
+    this(GameEngine a_engine, ConfigNode config) {
+        super(a_engine, config);
     }
 
     this(ReflectCtor c) {
         super(c);
     }
 
-    void simulate() {
-        super.simulate();
+    override void simulate(float dt) {
+        super.simulate(dt);
         //if active team is dead or so, pick new one
         foreach (Team t; logic.teams) {
             if (t.alive) {
@@ -47,6 +48,6 @@ class ModeDebug : Gamemode {
     }
 
     static this() {
-        GamemodeFactory.register!(typeof(this))("debug");
+        GamePluginFactory.register!(typeof(this))("debug");
     }
 }

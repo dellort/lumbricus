@@ -81,9 +81,9 @@ import game.weapon.airstrike;
 import game.gamemodes.turnbased;
 import game.gamemodes.mdebug;
 import game.gamemodes.realtime;
-import game.gamemodes.lua;
 import game.controller_plugins;
 import game.lua;
+import game.luaplugin;
 
 
 class Fader : Widget {

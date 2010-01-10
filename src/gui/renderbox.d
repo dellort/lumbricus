@@ -29,6 +29,8 @@ struct BoxProperties {
     //  inside the box (that doesn't intersect with the border)
     int effectiveBorderWidth() {
         return borderWidth + cornerRadius/3;
+        //would be better, but messes up GUI
+        //return max(borderWidth, cornerRadius);
     }
 }
 
@@ -69,7 +71,7 @@ void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props) {
         return;
     }
 
-    if (props.cornerRadius == 0) {
+    if (props.cornerRadius == 0 && props.borderWidth == 0) {
         c.drawFilledRect(Rect2i.Span(p, s), props.back);
         return;
     }

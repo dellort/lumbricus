@@ -33,6 +33,7 @@ class ControllerMsgs : GamePlugin {
         int mMessageCounter;
         GameMessage[] mPendingMessages;
         TeamMember mLastMember;
+        Team mWinner;
     }
 
     mixin Methods!("onGameStart", "onGameEnd", "onSuddenDeath", "onSpriteDie",
@@ -40,8 +41,8 @@ class ControllerMsgs : GamePlugin {
         "onTeamMemberDeactivate", "onTeamSkipTurn", "onTeamSurrender",
         "onCrateDrop", "onCrateCollect", "onVictory");
 
-    this(GameEngine c) {
-        super(c);
+    this(GameEngine c, ConfigNode o) {
+        super(c, o);
         auto ev = engine.events;
         OnGameStart.handler(ev, &onGameStart);
         OnGameEnd.handler(ev, &onGameEnd);
@@ -134,22 +135,23 @@ class ControllerMsgs : GamePlugin {
         messageAdd("msgsuddendeath");
     }
 
-    private void onVictory(GameObject dummy, Team winner) {
-        if (winner) {
-            if (controller.gamemodeId == "turnbased" && mLastMember
-                && mLastMember.team !is winner)
-            {
-                messageAdd("msgwinstolen", [winner.name, mLastMember.team.name],
-                    winner);
-            } else {
-                messageAdd("msgwin", [winner.name], winner);
-            }
+    private void onVictory(Team member) {
+        mWinner = member;
+        if (mLastMember && mLastMember.team !is mWinner) {
+            //xxx this should only be executed for "turnbased" game mode,
+            //  but there must be a better way than checking the mode
+            //  explicitly
+            messageAdd("msgwinstolen",
+                [mWinner.name, mLastMember.team.name], mWinner);
         } else {
-            messageAdd("msgnowin");
+            messageAdd("msgwin", [mWinner.name], mWinner);
         }
     }
 
     private void onGameEnd(GameObject dummy) {
+        if (!mWinner) {
+            messageAdd("msgnowin");
+        }
         //xxx is this really useful? I would prefer showing the
         //  "team xxx won" message longer
         messageAdd("msggameend");
@@ -249,8 +251,8 @@ class ControllerStats : GamePlugin {
     mixin Methods!("onGameEnd", "onDamage","onDemolish", "onSpriteDie",
         "onCrateCollect", "onFireWeapon");
 
-    this(GameEngine c) {
-        super(c);
+    this(GameEngine c, ConfigNode o) {
+        super(c, o);
         OnGameEnd.handler(engine.events, &onGameEnd);
         OnDamage.handler(engine.events, &onDamage);
         OnDemolish.handler(engine.events, &onDemolish);
@@ -362,13 +364,12 @@ class ControllerPersistence : GamePlugin {
         const cVictoryCountDef = 2;
     }
 
-    mixin Methods!("onGameStart", "onGameEnd","onVictory");
+    mixin Methods!("onGameStart", "onGameEnd");
 
-    this(GameEngine c) {
-        super(c);
+    this(GameEngine c, ConfigNode o) {
+        super(c, o);
         OnGameStart.handler(engine.events, &onGameStart);
         OnGameEnd.handler(engine.events, &onGameEnd);
-        OnVictory.handler(engine.events, &onVictory);
     }
     this(ReflectCtor c) {
         super(c);
@@ -399,26 +400,20 @@ class ControllerPersistence : GamePlugin {
         {
             //this was the final round, game is over
             if (winner) {
+                //xxx round_winner used to be in OnVictory, no idea why this was
+                //  duplicated here
+                engine.persistentState.setStringValue("round_winner",
+                    winner.uniqueId);
                 engine.persistentState.setStringValue("winner",
                     winner.uniqueId);
             } else {
                 //no winner (e.g. game lasted a fixed number of rounds)
                 //the game is over anyway, set "winner" field as marker
+                engine.persistentState.setStringValue("round_winner", "");
                 engine.persistentState.setStringValue("winner", "");
             }
         } else {
             engine.persistentState.remove("winner");
-        }
-    }
-
-    private void onVictory(GameObject dummy, Team winner) {
-        //store winner of current round
-        if (winner) {
-            engine.persistentState.setStringValue("round_winner",
-                winner.uniqueId);
-        } else {
-            //draw
-            engine.persistentState.setStringValue("round_winner", "");
         }
     }
 

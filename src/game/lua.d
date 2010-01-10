@@ -10,6 +10,7 @@ import game.gfxset;
 import game.gobject;
 import game.sprite;
 import game.worm;
+import game.gamemodes.shared;
 import game.levelgen.level;
 import game.levelgen.renderer;
 import game.weapon.projectile;
@@ -47,7 +48,7 @@ static this() {
         "windSpeed", "setWindSpeed", "randomizeWind", "gravity", "raiseWater",
         "addEarthQuake", "explosionAt", "damageLandscape", "landscapeBitmaps",
         "insertIntoLandscape", "countSprites", "ownedTeam");
-    gScripting.properties_ro!(GameEngine, "events");
+    gScripting.properties_ro!(GameEngine, "events", "globalEvents");
 
     gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder", "size");
 
@@ -113,6 +114,13 @@ static this() {
     gScripting.setClassPrefix!(PhysicBase)("Phys");
     gScripting.property_ro!(PhysicBase, "backlink");
 
+    gScripting.ctor!(TimeStatus)();
+    gScripting.properties!(TimeStatus, "showTurnTime", "showGameTime",
+        "timePaused", "turnRemaining", "gameRemaining");
+    gScripting.ctor!(PrepareStatus)();
+    gScripting.properties!(PrepareStatus, "visible", "prepareRemaining");
+
+    //internal functions
     gScripting.methods!(Events, "enableScriptHandler");
     gScripting.properties_ro!(Events, "scriptingEventsNamespace");
 }

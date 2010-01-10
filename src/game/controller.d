@@ -361,6 +361,7 @@ class Team : GameObject {
         foreach (m; mMembers) {
             m.youWinNow();
         }
+        OnVictory.raise(this);
     }
 
     void updateHealth() {
@@ -625,9 +626,6 @@ class GameController {
 
         bool mIsAnythingGoingOn; // (= hack)
 
-        Gamemode mGamemode;
-        char[] mGamemodeId;
-
         CrateSprite mLastCrate;  //just to drop it on spacebar
         bool mGameEnded;
 
@@ -638,8 +636,9 @@ class GameController {
         char[][] mActiveCrateTools;
         int[] mTeamColorCache;
 
-        GamePlugin[char[]] mPluginLookup;
-        GamePlugin[] mPlugins;
+        //xxx what is this needed for?
+        GameObject[char[]] mPluginLookup;
+        GameObject[] mPlugins;
         //xxx this should be configurable
         const char[][] cLoadPlugins = ["messages", "statistics", "persistence"];
     }
@@ -662,9 +661,11 @@ class GameController {
             loadLevelObjects(config.levelobjects);
         }
 
-        mGamemodeId = config.gamemode["mode"];
-        mGamemode = GamemodeFactory.instantiate(mGamemodeId, this,
-            config.gamemode);
+        auto gamemodeId = config.gamemode["mode"];
+        GamePluginFactory.instantiate(gamemodeId, engine, config.gamemode);
+
+        //xxx 1: should be loaded from configfiles
+        //xxx 2: should not be in controller (nothing team specific here)
 
         //only valid while loading
         mWeaponSets = null;
@@ -672,7 +673,8 @@ class GameController {
         foreach (pid; cLoadPlugins) {
             //only load once
             if (!(pid in mPluginLookup)) {
-                mPlugins ~= GamePluginFactory.instantiate(pid, engine);
+                auto opts = new ConfigNode();
+                mPlugins ~= GamePluginFactory.instantiate(pid, engine, opts);
                 mPluginLookup[pid] = mPlugins[$-1];
             }
         }
@@ -689,18 +691,9 @@ class GameController {
 
     //--- start GameLogicPublic
 
-    char[] gamemodeId() {
-        return mGamemodeId;
-    }
-
     ///True if game has ended
     bool gameEnded() {
         return mGameEnded;
-    }
-
-    ///Status of selected gamemode (may contain timing, scores or whatever)
-    Gamemode gamemode() {
-        return mGamemode;
     }
 
     ///Request interface to a plugin; returns null if the plugin is not loaded
@@ -743,7 +736,6 @@ class GameController {
         if (!mIsAnythingGoingOn) {
             startGame();
         } else {
-            mGamemode.simulate();
 
             if (mLastCrate) {
                 if (!mLastCrate.activity) mLastCrate = null;

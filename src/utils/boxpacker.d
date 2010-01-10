@@ -31,6 +31,12 @@ private {
 // TODO: garbage collection
 class BoxPacker {
     Block* getBlock(Vector2i size) {
+        //the extendedHeight thing is duplicated EVERYWHERE, blame h3
+        auto esize = Vector2i(size.x, extendedHeight(size.y));
+        if (esize.x > pageSize.x || esize.y > pageSize.y)
+            return null;
+
+
         Block* res;
 
         float               bestRatio = 0.f;

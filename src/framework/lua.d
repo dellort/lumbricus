@@ -130,7 +130,7 @@ class LuaException : Exception { this(char[] msg) { super(msg); } }
 alias LuaException ScriptingException;
 
 //create an error message if the error is caused by a wrong script
-private void raiseLuaError(lua_State *state, char[] msg) {
+void raiseLuaError(lua_State *state, char[] msg) {
     luaL_where(state, 1);
     lua_pushstring(state, czstr.toStringz(msg));
     lua_concat(state, 2);
@@ -147,7 +147,7 @@ private void luaExpected(char[] expected, char[] got) {
 
 //if this returns a string, you can use it only until you pop the corresponding
 //  Lua value from the stack (because after this, Lua may garbage collect it)
-private T luaStackValue(T)(lua_State *state, int stackIdx) {
+T luaStackValue(T)(lua_State *state, int stackIdx) {
     void expected(char[] t) { luaExpected(state, stackIdx, t); }
     //xxx no check if stackIdx is valid (is checked in demarshal() anyway)
     static if (isIntegerType!(T) || isFloatingPointType!(T) ||
@@ -229,7 +229,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
 
 //returns the number of values pushed (for Vectors maybe, I don't know)
 //xxx: that would be a problem, see luaCall()
-private int luaPush(T)(lua_State *state, T value) {
+int luaPush(T)(lua_State *state, T value) {
     static if (isFloatingPointType!(T) || isIntegerType!(T) ||
         (is(T Base == enum) && isIntegerType!(Base)))
     {
@@ -452,7 +452,7 @@ private RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
 //  skipCount: skip this many parameters from beginning
 //  funcName:  used in error messages
 //stack size must match the requirements of del
-private static int callFromLua(T)(T del, lua_State* state, int skipCount,
+static int callFromLua(T)(T del, lua_State* state, int skipCount,
     char[] funcName)
 {
     //eh static assert(is(T == delegate) || is(T == function));
@@ -524,6 +524,7 @@ class LuaRegistry {
     struct Method {
         ClassInfo classinfo;
         char[] fname;
+        bool is_static;
         lua_CFunction demarshal;
     }
 
@@ -588,6 +589,23 @@ class LuaRegistry {
         m.demarshal = demarshal;
         m.classinfo = ci;
         mMethods ~= m;
+    }
+
+    //a constructor for a given class
+    //there can be multiple ctors and they can't be named => PITA
+    //you have to explicitly pass the argument types and a name
+    void ctor(Class, Args...)(char[] name = "ctor") {
+        extern(C) static int demarshal(lua_State* state) {
+            const cDebugName = "constructor " ~ Class.stringof;
+            static Class construct(Args args) {
+                //if you get an error here, it means ctor registration and
+                //  declaration mismatch
+                return new Class(args);
+            }
+            return callFromLua(&construct, state, 0, cDebugName);
+        }
+
+        registerDMethod(Class.classinfo, name, &demarshal);
     }
 
     //read/write accessor (if rw==false, it's read-only)
@@ -864,6 +882,8 @@ class LuaState {
         stack0();
         foreach (m; mMethods) {
             if (m.classinfo !is ci)
+                continue;
+            if (m.is_static)
                 continue;
             //the method name is the same, just that the singleton is now
             //  automagically added on a call (not sure if that's a good idea)

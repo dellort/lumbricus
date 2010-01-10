@@ -81,8 +81,8 @@ class ModeTurnbased : Gamemode {
         const cNoCrateOnStart = true;
     }
 
-    this(GameController parent, ConfigNode config) {
-        super(parent, config);
+    this(GameEngine a_engine, ConfigNode config) {
+        super(a_engine, config);
         mTimeSt = new TimeStatus();
         mPrepareSt = new PrepareStatus();
         this.config = config.getCurValue!(ModeConfig)();
@@ -102,6 +102,9 @@ class ModeTurnbased : Gamemode {
 
         logic.addCrateTool("doubletime");
         OnCollectTool.handler(engine.events, &doCollectTool);
+
+        OnHudAdd.raise(engine.globalEvents, "timer", mTimeSt);
+        OnHudAdd.raise(engine.globalEvents, "prepare", mPrepareSt);
     }
 
     this(ReflectCtor c) {
@@ -110,17 +113,13 @@ class ModeTurnbased : Gamemode {
         t.registerMethod(this, &doCollectTool, "doCollectTool");
     }
 
-    override HudRequests getHudRequests() {
-        return ["timer"[]: cast(Object)mTimeSt, "prepare": mPrepareSt];
-    }
-
     override void startGame(GameObject dummy) {
         super.startGame(dummy);
         modeTime.paused = true;
     }
 
-    void simulate() {
-        super.simulate();
+    override void simulate(float dt) {
+        super.simulate(dt);
         mTimeSt.gameRemaining = max(config.gametime - modeTime.current(),
             Time.Null);
         //this ensures that after each transition(), doState() is also run
@@ -252,7 +251,6 @@ class ModeTurnbased : Gamemode {
                             assert(!!firstAlive);
                             firstAlive.youWinNow();
                         }
-                        OnVictory.raise(engine.globalEvents, firstAlive);
                         if (aliveTeams == 0) {
                             return TurnState.end;
                         } else {
@@ -342,7 +340,7 @@ class ModeTurnbased : Gamemode {
                 }
                 currentTeam = null;
 
-                assert(next); //should've dropped out in nextOnHold otherwise
+                assert(!!next); //should've dropped out in nextOnHold otherwise
 
                 mLastTeam = next;
                 currentTeam = next;
@@ -410,6 +408,6 @@ class ModeTurnbased : Gamemode {
     }
 
     static this() {
-        GamemodeFactory.register!(typeof(this))("turnbased");
+        GamePluginFactory.register!(typeof(this))("turnbased");
     }
 }

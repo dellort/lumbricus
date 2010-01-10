@@ -38,6 +38,12 @@ function addPerClassEventHandler(class_name, event_name, handler)
     do_addEventHandler(events, event_name, handler)
 end
 
+-- target must be a D EventTarget
+-- name is the event name
+function raiseEvent(target, name, ...)
+    d_events_raise(target, name, ...)
+end
+
 function eventtest()
     local function on_message(sender, msg)
         printf("message: {}", msg)

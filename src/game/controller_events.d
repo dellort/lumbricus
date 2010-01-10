@@ -15,6 +15,7 @@ import game.events;
 import game.gamemodes.base;
 import game.weapon.weapon;
 import game.temp;
+import utils.configfile;
 import utils.md;
 import utils.reflection;
 import utils.factory;
@@ -43,6 +44,13 @@ alias DeclareEvent!("game_start", GameObject) OnGameStart;
 alias DeclareEvent!("game_end", GameObject) OnGameEnd;
 alias DeclareEvent!("game_sudden_death", GameObject) OnSuddenDeath;
 alias DeclareEvent!("game_message", GameObject, GameMessage) OnGameMessage;
+//add a HUD object to the GUI;
+//  char[] id = type of the HUD object to add
+//  Object info = status object, that is used to pass information to the HUD
+alias DeclareEvent!("game_hud_add", GameObject, char[], Object) OnHudAdd;
+//called when the game is loaded from savegame
+//xxx this event is intederministic and must not have influence on game state
+alias DeclareEvent!("game_reload", GameObject) OnGameReload;
 //victim, cause, damage
 //xxx this has to change, somehow (it's called by controller.d, not sprite.d)
 alias DeclareEvent!("sprite_damage", Sprite, GameObject, float) OnDamage;
@@ -68,10 +76,9 @@ alias DeclareEvent!("team_member_deactivate", TeamMember) OnTeamMemberDeactivate
 alias DeclareEvent!("shooter_fire", Shooter, bool) OnFireWeapon;
 alias DeclareEvent!("team_skipturn", Team) OnTeamSkipTurn;
 alias DeclareEvent!("team_surrender", Team) OnTeamSurrender;
-//oh look, this isn't a TeamEvent
-//also called on a tie, with winner = null
-//xxx team should be sender (that winner=null thing wouldn't work anymore)
-alias DeclareEvent!("team_victory", GameObject, Team) OnVictory;
+//the team wins; all OnVictory events will be raised before game_end (so you can
+//  know exactly who wins, even if there can be 0 or >1 winners)
+alias DeclareEvent!("team_victory", Team) OnVictory;
 //sender is the newly dropped crate
 alias DeclareEvent!("crate_drop", CrateSprite) OnCrateDrop;
 //sender is the crate, first parameter is the collecting team member
@@ -83,12 +90,14 @@ alias DeclareEvent!("weaponset_changed", WeaponSet) OnWeaponSetChanged;
 
 //base class for custom plugins
 //now I don't really know what the point of this class was anymore
+//xxx: this is only for "compatibility"; GamePluginFactory now produces
+//  GameObjects (not GamePlugins)
 abstract class GamePlugin : GameObject {
     protected {
         GameController controller;
     }
 
-    this(GameEngine c) {
+    this(GameEngine c, ConfigNode opts) {
         super(c, "plugin");
         internal_active = true;
         controller = engine.controller;
@@ -104,5 +113,5 @@ abstract class GamePlugin : GameObject {
 
 //and another factory...
 //plugins register here, so the Controller can load them
-alias StaticFactory!("GamePlugins", GamePlugin, GameEngine)
+alias StaticFactory!("GamePlugins", GameObject, GameEngine, ConfigNode)
     GamePluginFactory;

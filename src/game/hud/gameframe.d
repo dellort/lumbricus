@@ -28,6 +28,7 @@ import game.hud.register;
 import game.clientengine;
 import game.controller_events;
 import game.game;
+import game.gobject;
 import game.weapon.weapon;
 import game.weapon.types;
 //import levelgen.level;
@@ -241,6 +242,15 @@ class GameFrame : SimpleContainer {
             || gTopLevel.consoleVisible() || game.shell.paused();
     }
 
+    //hud elements requested by gamemode
+    private void onHudAdd(GameObject sender, char[] id, Object link) {
+        addHud(id, link);
+    }
+
+    private void addHud(char[] id, Object link) {
+        HudFactory.instantiate(id, mGui, game, link);
+    }
+
     this(GameInfo g) {
         game = g;
 
@@ -258,12 +268,6 @@ class GameFrame : SimpleContainer {
         mGui.add(new MessageViewer(game), lay);
         mGui.add(new ReplayTimer(game),
             WidgetLayout.Aligned(-1, -1, Vector2i(10, 0)));
-        //hud elements requested by gamemode
-        //[id : StatusObject]
-        auto hudReqs = game.logic.gamemode.getHudRequests();
-        foreach (id, link; hudReqs) {
-            HudFactory.instantiate(id, mGui, game, link);
-        }
 
         mTeamWindow = new TeamWindow(game);
         mGui.add(mTeamWindow);
@@ -311,5 +315,12 @@ class GameFrame : SimpleContainer {
         setPosition(game.engine.level.worldCenter);
 
         OnWeaponSetChanged.handler(game.cevents, &updateWeapons);
+        OnHudAdd.handler(game.cevents, &onHudAdd);
+
+        foreach (char[] id, Object obj; game.engine.allHudRequests) {
+            addHud(id, obj);
+        }
+
+        OnGameReload.raise(game.engine.globalEvents);
     }
 }

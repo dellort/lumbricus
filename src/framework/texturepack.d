@@ -65,7 +65,8 @@ class TexturePack {
 
         SubSurface add(Surface s) {
             auto size = s.size;
-            if (size.x > mPacker.pageSize.x || size.y > mPacker.pageSize.y) {
+            Block* b = mPacker.getBlock(size);
+            if (!b) {
                 //too big, make an exception
                 //adhere to copy semantics even here, although it seems extra
                 //work (but the caller might free s after adding it)
@@ -73,8 +74,6 @@ class TexturePack {
                 mSurfaces ~= s;
                 return surface.createSubSurface(Rect2i(size));
             }
-            Block* b = mPacker.getBlock(size);
-            assert(!!b);  //never happens?
             //check if the BoxPacker added a page and possibly create it
             while (mPacker.pages.length > mPages.length) {
                 auto cur = mPages.length;

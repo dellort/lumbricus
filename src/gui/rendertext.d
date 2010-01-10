@@ -96,6 +96,7 @@ public class FormattedText {
             Font font;
             bool blink;
             int align_y;
+            int img_spacing = 3;
         }
         enum PartType {
             Text,
@@ -553,6 +554,18 @@ public class FormattedText {
         return container/2 - element/2; //center
     }
 
+    //determine additional spacing between two parts
+    private static int parts_spacing(Part* a, Part* b) {
+        Style style = b.style;
+        //only between images or text and image
+        if (b.type == PartType.Image)
+            swap(a, b);
+        if (a.type == PartType.Image &&
+            (b.type == PartType.Image || b.type == PartType.Text))
+            return style.img_spacing;
+        return 0;
+    }
+
     //handle: break on newlines, text part positions, alignment, shrinking
     //the way it works on mParts is destructive (shrinking...)
     private void layout() {
@@ -578,10 +591,14 @@ public class FormattedText {
             }
 
             //actually place
+            Part* prev;
             foreach (ref p; parts) {
                 p.pos.x = pos.x;
                 p.pos.y = pos.y + doalign(p.style.align_y, height, p.size.y);
                 pos.x += p.size.x;
+                if (prev)
+                    pos.x += parts_spacing(prev, &p);
+                prev = &p;
             }
 
             //shrinking: if text too wide, break with "..." before overflow
