@@ -63,8 +63,10 @@ class ActionSprite : Sprite {
         mLastImpactNormal = Vector2f(0, -1);
     }
 
-    override protected void physDamage(float amout, int cause) {
-        super.physDamage(amout, cause);
+    override protected void physDamage(float amout, DamageCause type,
+        Object cause)
+    {
+        super.physDamage(amout, type, cause);
         doEvent("ondamage");
     }
 

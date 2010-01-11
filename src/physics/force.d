@@ -83,8 +83,6 @@ class ExplosiveForce : PhysicForce {
     Vector2f pos;
     Object cause;
 
-    void delegate(Object cause, Object victim, float damage) onReportApply;
-
     //the force is only applied if true is returned
     bool delegate(ExplosiveForce sender, PhysicObject obj) onCheckApply;
 
@@ -115,15 +113,7 @@ class ExplosiveForce : PhysicForce {
                 return;
             if (onCheckApply && !onCheckApply(this, o))
                 return;
-            float before = o.lifepower;
-            o.applyDamage(r*damage, DamageCause.explosion);
-            float diff = before - o.lifepower;
-            //corner cases; i.e. invincible worm
-            if (diff != diff || diff == typeof(diff).infinity)
-                diff = 0;
-            if (diff != 0 && onReportApply) {
-                onReportApply(cause, o.backlink, diff);
-            }
+            o.applyDamage(r*damage, DamageCause.explosion, cause);
             o.addImpulse(-v.normal()*impulse*r*o.posp.explosionInfluence);
         } else {
             //unglue objects at center of explosion

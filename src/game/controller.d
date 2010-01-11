@@ -927,6 +927,8 @@ class GameController {
         //typically, GameObject is transitively (consider spawning projectiles!)
         //created by a Worm
         //"victim" from reportViolence should be directly a Worm
+        if (!go)
+            return null;
 
         while (transitive && go.createdBy) {
             go = go.createdBy;
@@ -940,7 +942,7 @@ class GameController {
         //  a Shooter, but not always (consider landscape objects/crates/
         //  exploding worms)
         Shooter sh;
-        while ((sh = cast(Shooter)go) is null && go.createdBy) {
+        while ((sh = cast(Shooter)go) is null && go) {
             go = go.createdBy;
         }
         if (sh !is null)
@@ -953,16 +955,6 @@ class GameController {
     WormControl controlFromGameObject(GameObject go, bool transitive) {
         TeamMember m = memberFromGameObject(go, transitive);
         return m ? m.control : null;
-    }
-
-    void reportViolence(GameObject cause, Sprite victim, float damage) {
-        assert(!!cause && !!victim);
-        OnDamage.raise(victim, cause, damage);
-    }
-
-    void reportDemolition(int pixelCount, GameObject cause) {
-        assert(!!cause);
-        OnDemolish.raise(cause, pixelCount);
     }
 
     Collectable[] fillCrate() {

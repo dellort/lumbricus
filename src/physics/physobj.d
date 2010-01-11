@@ -387,13 +387,14 @@ class PhysicObject : PhysicBase {
 
     //****************** Damage and lifepower ********************
 
-    public void delegate(float amout, int cause) onDamage;
+    public void delegate(float amout, DamageCause type, Object cause) onDamage;
     float lifepower = float.infinity;
 
-    void applyDamage(float severity, int cause) {
+    void applyDamage(float severity, DamageCause type, Object cause = null) {
         auto delta = -severity*posp.damageable;
         //log("damage: {}/{}", severity, delta);
         if (abs(delta) > posp.damageThreshold) {
+            float before = lifepower;
             lifepower += delta;
             //make sure object is dead if lifepowerInt() reports <= 0
             if (lifepower < 0.5f && lifepower > 0f)
@@ -402,8 +403,13 @@ class PhysicObject : PhysicBase {
                 mFixateConstraint.dead = true;
                 mFixateConstraint = null;
             }
-            if (onDamage)
-                onDamage(delta, cause);
+            float diff = before - lifepower;
+            //corner cases; i.e. invincible worm
+            if (diff != diff || diff == typeof(diff).infinity)
+                diff = 0;
+            if (diff != 0 && onDamage) {
+                onDamage(diff, type, cause);
+            }
             //die muaha
             //xxx rather not (WormSprite is died by GameController)
             //if (lifepower <= 0)

@@ -11,6 +11,7 @@ import game.crate;
 import game.weapon.weapon;
 import game.gamemodes.base;
 import game.gamemodes.mdebug;
+import physics.misc;
 import utils.reflection;
 import utils.log;
 import utils.configfile;
@@ -264,7 +265,8 @@ class ControllerStats : GamePlugin {
         super(c);
     }
 
-    private void onDamage(Sprite victim, GameObject cause, float damage)
+    private void onDamage(Sprite victim, GameObject cause, DamageCause type,
+        float damage)
     {
         char[] wname = "unknown_weapon";
         WeaponClass wclass = controller.weaponFromGameObject(cause);
@@ -288,6 +290,9 @@ class ControllerStats : GamePlugin {
             mStats.collateralDmg += damage;
             log("worm {} caused {} collateral damage with {}", m1, dmgs,
                 wname);
+        } else if (m2 && type == DamageCause.fall) {
+            assert(!cause);
+            log("worm {} took {} fall damage", m2, dmgs);
         } else if (!m1 && m2) {
             //neutral damage is not caused by weapons
             assert(wclass is null, "some createdBy relation wrong");

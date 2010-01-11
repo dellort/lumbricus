@@ -126,7 +126,7 @@ class GameEngine {
     }
 
     mixin Methods!("deathzoneTrigger", "underWaterTrigger", "windChangerUpdate",
-        "waterChangerUpdate", "onPhysicHit", "onDamage", "offworldTrigger",
+        "waterChangerUpdate", "onPhysicHit", "offworldTrigger",
         "onHudAdd");
 
     this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime) {
@@ -817,19 +817,6 @@ class GameEngine {
         callbacks.scene.add(a);
     }
 
-
-    //hack
-    //sry!
-    private void onDamage(Object cause, Object victim, float damage) {
-        auto a = cast(GameObject)cause;
-        auto b = cast(Sprite)victim;
-        if (!a || !b) {
-            log("WARNING: unknown damage: {} {} {}", cause, victim, damage);
-        } else {
-            mController.reportViolence(a, b, damage);
-        }
-    }
-
     void explosionAt(Vector2f pos, float damage, GameObject cause,
         bool effect = true, bool damage_landscape = true,
         bool delegate(ExplosiveForce,PhysicObject) selective = null)
@@ -839,7 +826,6 @@ class GameEngine {
         auto expl = new ExplosiveForce();
         expl.damage = damage;
         expl.pos = pos;
-        expl.onReportApply = &onDamage;
         expl.onCheckApply = selective;
         expl.cause = cause;
         auto iradius = cast(int)((expl.radius+0.5f)/2.0f);
@@ -860,8 +846,9 @@ class GameEngine {
         foreach (ls; gameLandscapes) {
             count += ls.damage(pos, radius);
         }
-        if (cause && count > 0)
-            mController.reportDemolition(count, cause);
+        if (cause && count > 0) {
+            OnDemolish.raise(cause, count);
+        }
     }
 
     //insert bitmap into the landscape

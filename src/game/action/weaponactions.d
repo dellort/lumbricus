@@ -407,7 +407,7 @@ class AoEDamageActionClass : AoEActionClass {
             //absolute damage
             dmg = wx.doubleDamage?damage*2.0f:damage;
         }
-        sprite.physics.applyDamage(dmg, DamageCause.special);
+        sprite.physics.applyDamage(dmg, DamageCause.special, wx.createdBy);
         //xxx stuck in the ground animation here
         sprite.physics.addImpulse(Vector2f(0, -1));
     }

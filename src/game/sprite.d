@@ -154,7 +154,11 @@ class Sprite : GameObject {
         physImpact(other, normal);
     }
 
-    protected void physDamage(float amount, int cause) {
+    protected void physDamage(float amount, DamageCause type, Object cause) {
+        auto goCause = cast(GameObject)cause;
+        assert(!cause || !!goCause, "damage by non-GameObject?");
+        //goCause can be null (e.g. for fall damage)
+        OnDamage.raise(this, goCause, type, amount);
     }
 
     protected void physDie() {

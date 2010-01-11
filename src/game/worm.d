@@ -1037,10 +1037,12 @@ class WormSprite : Sprite {
         }
     }
 
-    override protected void physDamage(float amout, int cause) {
-        super.physDamage(amout, cause);
+    override protected void physDamage(float amout, DamageCause type,
+        Object cause)
+    {
+        super.physDamage(amout, type, cause);
         mRopeCanRefire = false;
-        if (cause != DamageCause.explosion)
+        if (type != DamageCause.explosion)
             return;
         if (currentState is wsc.st_fly) {
             //when damaged in-flight, switch to heavy animation

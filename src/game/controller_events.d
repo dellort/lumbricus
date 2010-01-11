@@ -15,6 +15,7 @@ import game.events;
 import game.gamemodes.base;
 import game.weapon.weapon;
 import game.temp;
+import physics.misc;
 import utils.configfile;
 import utils.md;
 import utils.reflection;
@@ -51,9 +52,10 @@ alias DeclareEvent!("game_hud_add", GameObject, char[], Object) OnHudAdd;
 //called when the game is loaded from savegame
 //xxx this event is intederministic and must not have influence on game state
 alias DeclareEvent!("game_reload", GameObject) OnGameReload;
-//victim, cause, damage
-//xxx this has to change, somehow (it's called by controller.d, not sprite.d)
-alias DeclareEvent!("sprite_damage", Sprite, GameObject, float) OnDamage;
+//victim, cause, type, damage
+//  cause can be null (e.g. for fall damage)
+alias DeclareEvent!("sprite_damage", Sprite, GameObject, DamageCause,
+    float) OnDamage;
 //cause, number of pixels
 //apparently the victim is 0 to N bitmap based GameLandscapes
 alias DeclareEvent!("demolish", GameObject, int) OnDemolish;
