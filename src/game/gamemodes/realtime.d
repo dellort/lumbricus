@@ -153,12 +153,12 @@ class ModeRealtime : Gamemode {
                     if (next && engine.gameTime.current
                         - next.control.lastActivity > cActivateDelay)
                     {
-                        logic.activateTeam(t);
+                        t.active = true;
                     }
                 }
             } else if (!t.current || t.current.lifeLost(config.stamina_power)) {
                 //worm change if the current worm was hit
-                logic.activateTeam(t, false);
+                t.active = false;
                 mTeamDeactivateTime[t] = modeTime.current();
             }
         }

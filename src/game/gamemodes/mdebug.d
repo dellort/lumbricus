@@ -37,9 +37,9 @@ class ModeDebug : Gamemode {
             if (t.alive) {
                 if (!t.active) {
                     if (mPreviousTeam) {
-                        logic.activateTeam(mPreviousTeam, false);
+                        mPreviousTeam.active = false;
                     }
-                    logic.activateTeam(t);
+                    t.active = true;
                 }
                 mPreviousTeam = t;
                 break;

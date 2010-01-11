@@ -62,22 +62,24 @@ static this() {
         "worldSize", "landBounds");
 
     gScripting.setClassPrefix!(GameController)("Control");
-    gScripting.methods!(GameController, "getPlugin", "currentRound",
+    gScripting.methods!(GameController, "currentRound",
         "checkDyingWorms", "updateHealth", "needUpdateHealth", "teams",
-        "activateTeam", "deactivateAll", "addMemberGameObject",
+        "deactivateAll", "addMemberGameObject",
         "memberFromGameObject", "weaponFromGameObject", "controlFromGameObject",
         "dropCrate", "startSuddenDeath", "endGame");
 
     gScripting.setClassPrefix!(TeamMember)("Member");
     gScripting.methods!(TeamMember, "control", "updateHealth",
-        "needUpdateHealth", "name", "team", "active", "alive", "currentHealth",
-        "health", "sprite", "lifeLost", "addHealth", "setActive");
-    gScripting.methods!(Team, "name", "id", "alive", "active", "totalHealth",
+        "needUpdateHealth", "name", "team", "alive", "currentHealth",
+        "health", "sprite", "lifeLost", "addHealth");
+    gScripting.properties!(TeamMember, "active");
+    gScripting.methods!(Team, "name", "id", "alive", "totalHealth",
         "getMembers", "hasCrateSpy", "hasDoubleDamage", "setOnHold",
         "nextActive", "teamAction", "isIdle", "checkDyingMembers",
         "youWinNow", "updateHealth", "needUpdateHealth", "addWeapon",
         "skipTurn", "surrenderTeam", "addDoubleDamage", "addCrateSpy");
-    gScripting.properties!(Team, "current", "allowSelect", "globalWins");
+    gScripting.properties!(Team, "current", "allowSelect", "globalWins",
+        "active");
 
     gScripting.setClassPrefix!(GameObject)("Obj");
     gScripting.methods!(GameObject, "activity");

@@ -2,10 +2,7 @@
 -- Currently just activates the first team
 
 addGlobalEventHandler("game_start", function(sender)
-    -- AV without errormsg when writing [0]
-    -- ^ that's because [0] => nil => null => null pointer access in D code
-    -- (passing null is only forbidden if it's a method call this pointer)
-    Control_activateTeam(Control_teams()[1])
+    Team_set_active(Control_teams()[1], true)
 
     -- for testing
     local status = TimeStatus_ctor()
@@ -15,6 +12,6 @@ addGlobalEventHandler("game_start", function(sender)
 end)
 
 -- simulate() equivalent
-frameCallbackAdd(function()
-    -- ...
+addPeriodicTimer(timeSecs(1), function()
+    printf("insert code here")
 end)

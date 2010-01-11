@@ -15,7 +15,6 @@ import game.weapon.weapon;
 import game.temp;
 import game.sequence;
 import game.setup;
-import game.gamemodes.base;
 import game.controller_events;
 import game.wcontrol;
 import physics.world;
@@ -112,10 +111,6 @@ class Team : GameObject {
                 return true;
         }
         return false;
-    }
-
-    bool active() {
-        return mActive;
     }
 
     override bool activity() {
@@ -221,17 +216,17 @@ class Team : GameObject {
     }
 
     ///activate a member for playing
-    ///only for a member, not the team, use setActive for team
+    ///only for a member, not the team, use active setter for team
     void current(TeamMember cur) {
         if (cur is mCurrent)
             return;
         if (mCurrent)
-            mCurrent.setActive(false);
+            mCurrent.active = false;
         mCurrent = cur;
         if (cur)
             mLastActive = cur;
         if (mCurrent) {
-            mCurrent.setActive(true);
+            mCurrent.active = true;
         }
     }
     ///get active member (can be null)
@@ -249,8 +244,7 @@ class Team : GameObject {
     }
 
     ///set if this team should be able to move/play
-    //module-private (not to be used by gamemodes)
-    private void setActive(bool act) {
+    void active(bool act) {
         if (act == mActive)
             return;
         mActive = act;
@@ -276,6 +270,10 @@ class Team : GameObject {
             }
             mAllowSelect = false;
         }
+    }
+
+    bool active() {
+        return mActive;
     }
 
     ///select the worm to play when team becomes active
@@ -342,7 +340,7 @@ class Team : GameObject {
         }
 
         if (!has_active_worm)
-            setActive(false);
+            active = false;
 
         if (current && current.control.actionPerformed())
             mAllowSelect = false;
@@ -454,10 +452,6 @@ class TeamMember : GameObject {
         return mTeam;
     }
 
-    bool active() {
-        return mActive;
-    }
-
     override bool activity() {
         return active;
     }
@@ -534,14 +528,16 @@ class TeamMember : GameObject {
         mWormControl = new WormControl(worm);
         mWormControl.setWeaponSet(mTeam.weapons);
         mWormControl.setAlternateControl(mTeam.alternateControl);
+        //take control over dying, so we can let them die on end of turn
         mWormControl.setDelayedDeath();
         mTeam.parent.addMemberGameObject(this, worm);
         mLastKnownLifepower = health;
         mCurrentHealth = mHealthTarget = health;
         updateHealth();
-        //take control over dying, so we can let them die on end of turn
+
         xworm.gravestone = mTeam.gravestone;
         xworm.teamColor = mTeam.color;
+
         //let Controller place the worm
         engine.queuePlaceOnLandscape(worm);
     }
@@ -569,7 +565,11 @@ class TeamMember : GameObject {
         updateHealth();
     }
 
-    void setActive(bool act) {
+    bool active() {
+        return mActive;
+    }
+
+    void active(bool act) {
         mWormControl.setEngaged(act);
         if (mActive == act)
             return;
@@ -588,7 +588,7 @@ class TeamMember : GameObject {
 
         //mWormControl deactivates itself if the worm was e.g. injured
         if (!mWormControl.engaged())
-            setActive(false);
+            active = false;
 
         healthAnimation();
     }
@@ -635,12 +635,6 @@ class GameController {
         //list of tool crates that can drop
         char[][] mActiveCrateTools;
         int[] mTeamColorCache;
-
-        //xxx what is this needed for?
-        GameObject[char[]] mPluginLookup;
-        GameObject[] mPlugins;
-        //xxx this should be configurable
-        const char[][] cLoadPlugins = ["messages", "statistics", "persistence"];
     }
 
     this(GameEngine engine, GameConfig config) {
@@ -670,13 +664,12 @@ class GameController {
         //only valid while loading
         mWeaponSets = null;
 
+        //xxx this should be configurable
+        const char[][] cLoadPlugins = ["messages", "statistics", "persistence"];
+
         foreach (pid; cLoadPlugins) {
-            //only load once
-            if (!(pid in mPluginLookup)) {
-                auto opts = new ConfigNode();
-                mPlugins ~= GamePluginFactory.instantiate(pid, engine, opts);
-                mPluginLookup[pid] = mPlugins[$-1];
-            }
+            auto opts = new ConfigNode();
+            GamePluginFactory.instantiate(pid, engine, opts);
         }
 
         mEngine.finishPlace();
@@ -694,11 +687,6 @@ class GameController {
     ///True if game has ended
     bool gameEnded() {
         return mGameEnded;
-    }
-
-    ///Request interface to a plugin; returns null if the plugin is not loaded
-    Object getPlugin(char[] id) {
-        return aaIfIn(mPluginLookup, id);
     }
 
     //--- end GameLogicPublic
@@ -799,14 +787,9 @@ class GameController {
         return mTeams;
     }
 
-    //this function now is no longer special, can use t.setActive directly
-    void activateTeam(Team t, bool active = true) {
-        t.setActive(active);
-    }
-
     void deactivateAll() {
         foreach (t; mTeams) {
-            activateTeam(t, false);
+            t.active = false;
         }
     }
 

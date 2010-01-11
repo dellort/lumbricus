@@ -404,8 +404,11 @@ class GameEngine {
         auto member = mController.memberFromGameObject(x, false);
         if (!member)
             return; //I don't know, try firing lots of mine airstrikes
+        //xxx team stuff should get out of here
+        //  rather, somehow affect the object directly, and the team code has to
+        //  react on it
         if (member.active)
-            member.setActive(false);
+            member.active(false);
     }
 
     //wind speeds are in [-1.0, 1.0]

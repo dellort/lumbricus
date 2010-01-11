@@ -134,10 +134,10 @@ class ModeTurnbased : Gamemode {
     //utility functions to get/set active team (and ensure only one is active)
     private void currentTeam(Team c) {
         if (mCurrentTeam)
-            logic.activateTeam(mCurrentTeam, false);
+            mCurrentTeam.active = false;
         mCurrentTeam = c;
         if (mCurrentTeam)
-            logic.activateTeam(mCurrentTeam);
+            mCurrentTeam.active = true;
     }
     private Team currentTeam() {
         return mCurrentTeam;
