@@ -356,7 +356,10 @@ class GfxSet {
             ctx.addExternal(s, name);
             //if it gets more complicated than this, add a
             //  SpriteClass.initSerialization() method
-            foreach (char[] key2, StaticStateInfo state; s.states) {
+            auto ss = cast(StateSpriteClass)s;
+            if (!ss)
+                continue;
+            foreach (char[] key2, StaticStateInfo state; ss.states) {
                 assert(key2 == state.name);
                 ctx.addExternal(state, name ~ "::" ~ key2);
             }

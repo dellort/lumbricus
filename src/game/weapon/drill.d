@@ -18,7 +18,7 @@ import utils.misc;
 import utils.randval;
 
 //drill (changes worm state etc.)
-class DrillClass : WeaponClass {
+class DrillClass : ConfWeaponClass {
     Time duration = timeSecs(5);
     int tunnelRadius = 8;
     RandomValue!(Time) interval = {timeMsecs(150), timeMsecs(250)};

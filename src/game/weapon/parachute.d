@@ -20,7 +20,7 @@ import utils.misc;
 import tango.math.Math : abs;
 
 
-class ParachuteClass : WeaponClass {
+class ParachuteClass : ConfWeaponClass {
     float sideForce = 0f;
 
     this(GfxSet gfx, ConfigNode node) {

@@ -68,7 +68,7 @@ enum FlyMode {
     heavy,
 }
 
-class WormSprite : Sprite {
+class WormSprite : StateSprite {
     private {
         WormSpriteClass wsc;
 
@@ -1131,7 +1131,7 @@ class WormStateInfo : StaticStateInfo {
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
-        SpriteClass owner)
+        StateSpriteClass owner)
     {
         super.loadFromConfig(sc, physNode, owner);
         isGrounded = sc.getBoolValue("is_grounded", isGrounded);
@@ -1142,7 +1142,7 @@ class WormStateInfo : StaticStateInfo {
 }
 
 //the factories work over the sprite classes, so we need one
-class WormSpriteClass : SpriteClass {
+class WormSpriteClass : StateSpriteClass {
     float suicideDamage;
     //SequenceObject[] gravestones;
     Vector2f jumpStrength[JumpMode.max+1];
@@ -1221,7 +1221,7 @@ class WormSpriteClass : SpriteClass {
     }
 }
 
-class GravestoneSprite : Sprite {
+class GravestoneSprite : StateSprite {
     private {
         GravestoneSpriteClass gsc;
         int mType;
@@ -1264,7 +1264,7 @@ class GravestoneSprite : Sprite {
     }
 }
 
-class GravestoneSpriteClass : SpriteClass {
+class GravestoneSpriteClass : StateSpriteClass {
     StaticStateInfo st_normal, st_drown;
 
     //indexed by type

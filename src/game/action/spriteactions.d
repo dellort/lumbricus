@@ -50,11 +50,12 @@ static this() {
 }
 
 void state(WeaponContext wx, char[] state) {
-    if (!wx.ownerSprite)
+    auto ss = cast(StateSprite)wx.ownerSprite;
+    if (!ss)
         return;
-    auto ssi = wx.ownerSprite.type.findState(state);
+    auto ssi = ss.type.findState(state);
     if (ssi)
-        wx.ownerSprite.setState(ssi);
+        ss.setState(ssi);
 }
 
 void gravityCenter(WeaponContext wx, Time duration, float gravity,

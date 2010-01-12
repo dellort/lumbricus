@@ -175,9 +175,11 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
         as.target = about.pointto;
         as.doubleDamage = doubleDamage;
     }
-    auto ssi = sprite.type.findState(params.initState, true);
-    if (ssi)
-        sprite.setStateForced(ssi);
+    if (auto ss = cast(StateSprite)sprite) {
+        auto ssi = ss.type.findState(params.initState, true);
+        if (ssi)
+            ss.setStateForced(ssi);
+    }
 
     //set fire to it
     sprite.activate(pos);

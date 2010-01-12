@@ -24,7 +24,7 @@ import utils.serialize;
 import utils.time;
 import utils.randval;
 
-class ActionWeapon : WeaponClass {
+class ActionWeapon : ConfWeaponClass {
     ActionClass onFire, onBlowup; //, onSelect;
     int repeatCount = 1;      //how many shots will be fired on one activation
     int reduceAmmo = int.max; //take 1 ammo every x bullets (and always at end)

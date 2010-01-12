@@ -64,7 +64,7 @@ alias DeclareEvent!("sprite_die", Sprite) OnSpriteDie;
 //with Sprite.activate()
 alias DeclareEvent!("sprite_activate", Sprite) OnSpriteActivate;
 //with Sprite.setState()
-alias DeclareEvent!("sprite_setstate", Sprite) OnSpriteSetState;
+alias DeclareEvent!("sprite_setstate", StateSprite) OnSpriteSetState;
 //whenever the glue status changes (checked/called every frame)
 alias DeclareEvent!("sprite_gluechanged", Sprite) OnSpriteGlueChanged;
 //reached the ocean floor

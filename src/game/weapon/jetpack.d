@@ -22,7 +22,7 @@ import tango.math.Math : abs;
 
 
 //jetpack for a worm (special because it changes worm state)
-class JetpackClass : WeaponClass {
+class JetpackClass : ConfWeaponClass {
     //maximum active time, i.e. fuel
     Time maxTime = Time.Never;
     Vector2f jetpackThrust = {0f, 0f};

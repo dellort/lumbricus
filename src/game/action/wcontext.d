@@ -9,6 +9,16 @@ import game.weapon.weapon;
 import game.weapon.projectile;
 import utils.reflection;
 
+//wtf? why not make FireInfo a class?
+class WrapFireInfo { //wee so Java like
+    FireInfo info;
+    this (ReflectCtor c) {
+    }
+    this () {
+    }
+}
+
+
 //xxx: we really should have a more flexible/sane parameter passing mechanism
 class SpriteContext : ActionContext {
     Sprite ownerSprite;

@@ -21,7 +21,7 @@ import utils.log;
 import tango.util.Convert : to;
 
 
-alias StaticFactory!("WeaponClasses", WeaponClass, GfxSet, ConfigNode)
+alias StaticFactory!("WeaponClasses", ConfWeaponClass, GfxSet, ConfigNode)
     WeaponClassFactory;
 
 alias StaticFactory!("WeaponSelectors", WeaponSelector, WeaponClass,
@@ -29,14 +29,6 @@ alias StaticFactory!("WeaponSelectors", WeaponSelector, WeaponClass,
 
 alias void delegate(Shooter sh) ShooterCallback;
 
-//wtf? why not make FireInfo a class?
-class WrapFireInfo { //wee so Java like
-    FireInfo info;
-    this (ReflectCtor c) {
-    }
-    this () {
-    }
-}
 
 //abstract weapon type; only contains generic infos about a weapon
 //this includes how stuff is fired (for the code which does worm controll)
@@ -62,9 +54,6 @@ abstract class WeaponClass {
 
     FireMode fireMode;
 
-    //argument to WeaponSelectorFactory
-    char[] onSelect;
-
     //weapon-holding animations
     char[] animation;
 
@@ -72,11 +61,42 @@ abstract class WeaponClass {
         return mGfx;
     }
 
+    this(GfxSet gfx, char[] a_name) {
+        mGfx = gfx;
+        assert(gfx !is null);
+        name = a_name;
+    }
+
+    //xxx class
+    this (ReflectCtor c) {
+    }
+
+    //called when the sprite selected_by selects this weapon
+    //this is needed when you want to have somewhat more control over the how
+    //  a weapon is _prepared_ to fire
+    //may return null (actually, it returns null in the most cases)
+    //xxx: and actually, the hardcoded FireMode thing sucks a bit
+    abstract WeaponSelector createSelector(Sprite selected_by);
+
+    //just a factory
+    //users call fire() on them to actually activate them
+    //  go == entity which fires it (its physical properties will be used)
+    abstract Shooter createShooter(Sprite go, GameEngine engine);
+
+    bool canUse(GameEngine engine) {
+        return !isAirstrike || engine.level.airstrikeAllow;
+    }
+}
+
+class ConfWeaponClass : WeaponClass {
+    //argument to WeaponSelectorFactory
+    char[] onSelect;
+
     this(GfxSet gfx, ConfigNode node) {
+        super(gfx, node.name);
         mGfx = gfx;
         assert(gfx !is null);
 
-        name = node.name;
         value = node.getIntValue("value", value);
         category = node.getStringValue("category", category);
         isAirstrike = node.getBoolValue("airstrike", isAirstrike);
@@ -115,28 +135,14 @@ abstract class WeaponClass {
         }
     }
 
-    //xxx class
     this (ReflectCtor c) {
+        super(c);
     }
 
-    //called when the sprite selected_by selects this weapon
-    //this is needed when you want to have somewhat more control over the how
-    //  a weapon is _prepared_ to fire
-    //may return null
-    //xxx: and actually, the hardcoded FireMode thing sucks a bit
-    WeaponSelector createSelector(Sprite selected_by) {
+    override WeaponSelector createSelector(Sprite selected_by) {
         if (!onSelect.length)
             return null;
         return WeaponSelectorFactory.instantiate(onSelect, this, selected_by);
-    }
-
-    //just a factory
-    //users call fire() on them to actually activate them
-    //  go == entity which fires it (its physical properties will be used)
-    abstract Shooter createShooter(Sprite go, GameEngine engine);
-
-    bool canUse(GameEngine engine) {
-        return !isAirstrike || engine.level.airstrikeAllow;
     }
 }
 

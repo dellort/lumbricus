@@ -28,15 +28,14 @@ import utils.reflection;
 
 private LogStruct!("game.sprite") log;
 
-//factory to instantiate sprite classes, this is a small wtf
+//factory to instantiate StateSprite classes, this is a small wtf
 alias StaticFactory!("Sprites", SpriteClass, GfxSet, char[])
     SpriteClassFactory;
 
 //version = RotateDebug;
 
-class BasicSprite : GameObject {
+class Sprite : GameObject {
     private {
-        BasicSpriteClass type;
         //transient for savegames, Particle created from StaticStateInfo.particle
         //all state associated with this variable is non-deterministic and must not
         //  have any influence on the rest of the game state
@@ -44,12 +43,13 @@ class BasicSprite : GameObject {
         ParticleEmitter mParticleEmitter;
         ParticleType mCurrentParticle;
 
-        bool mIsUnderWater, mWaterUpdated;
         bool mWasActivated;
         bool mOldGlueState;
+        bool mIsUnderWater, mWaterUpdated;
 
         Events mEvents;
     }
+    protected SpriteClass mType;
 
     PhysicObject physics;
     //attention: can be null if object inactive
@@ -61,9 +61,10 @@ class BasicSprite : GameObject {
 
     mixin Methods!("physDie", "physDamage");
 
-    this(GameEngine a_engine, BasicSpriteClass a_type) {
+    this(GameEngine a_engine, SpriteClass a_type) {
         super(a_engine, a_type.name);
-        type = a_type;
+        mType = a_type;
+        assert(!!mType);
 
         physics = new PhysicObject();
         physics.backlink = this;
@@ -78,6 +79,10 @@ class BasicSprite : GameObject {
     this (ReflectCtor c) {
         super(c);
         c.transient(this, &mParticleEmitter);
+    }
+
+    SpriteClass type() {
+        return mType;
     }
 
     final override Events classLocalEvents() {
@@ -96,7 +101,7 @@ class BasicSprite : GameObject {
         setPos(pos);
         internal_active = true;
 
-        OnSpriteActivate.raise(cast(Sprite)this);
+        OnSpriteActivate.raise(this);
     }
 
     //force position
@@ -141,7 +146,7 @@ class BasicSprite : GameObject {
         auto goCause = cast(GameObject)cause;
         assert(!cause || !!goCause, "damage by non-GameObject?");
         //goCause can be null (e.g. for fall damage)
-        OnDamage.raise(cast(Sprite)this, goCause, type, amount);
+        OnDamage.raise(this, goCause, type, amount);
     }
 
     protected void physDie() {
@@ -165,7 +170,7 @@ class BasicSprite : GameObject {
         if (!physics.dead) {
             physics.dead = true;
             log("really die: {}", type.name);
-            OnSpriteDie.raise(cast(Sprite)this);
+            OnSpriteDie.raise(this);
         }
     }
 
@@ -215,13 +220,31 @@ class BasicSprite : GameObject {
         updateParticles();
     }
 
+    //called by GameEngine on each frame if it's really under water
+    //xxx: TriggerEnter/TriggerExit was more beautiful, so maybe bring it back
+    final void setIsUnderWater() {
+        mWaterUpdated = true;
+
+        if (mIsUnderWater)
+            return;
+        mIsUnderWater = true;
+        waterStateChange();
+    }
+
+    final bool isUnderWater() {
+        return mIsUnderWater;
+    }
+
+    protected void waterStateChange() {
+    }
+
     override void simulate(float deltaT) {
         super.simulate(deltaT);
 
         bool glue = physics.isGlued;
         if (glue != mOldGlueState) {
             mOldGlueState = glue;
-            OnSpriteGlueChanged.raise(cast(Sprite)this);
+            OnSpriteGlueChanged.raise(this);
         }
 
         if (graphic)
@@ -230,6 +253,12 @@ class BasicSprite : GameObject {
         //xxx: added with sequence-messup
         if (graphic)
             graphic.simulate();
+
+        if (!mWaterUpdated && mIsUnderWater) {
+            mIsUnderWater = false;
+            waterStateChange();
+        }
+        mWaterUpdated = false;
 
         updateParticles();
     }
@@ -258,22 +287,15 @@ class BasicSprite : GameObject {
 
 //object which represents a PhysicObject and an animation on the screen
 //also provides loading from ConfigFiles and state managment
-class Sprite : BasicSprite {
+class StateSprite : Sprite {
     protected static LogStruct!("game.sprite") log;
-
-    protected SpriteClass mType;
-
 
     private {
         StaticStateInfo mCurrentState; //must not be null
-
-        bool mIsUnderWater, mWaterUpdated;
-        bool mWasActivated;
-        bool mOldGlueState;
     }
 
-    SpriteClass type() {
-        return mType;
+    override StateSpriteClass type() {
+        return cast(StateSpriteClass)mType;
     }
 
     StaticStateInfo currentState() {
@@ -297,7 +319,7 @@ class Sprite : BasicSprite {
         if (!graphic)
             return;
 
-        if (mIsUnderWater && currentState.animationWater) {
+        if (isUnderWater && currentState.animationWater) {
             graphic.setState(currentState.animationWater);
         } else {
             graphic.setState(currentState.animation);
@@ -310,9 +332,10 @@ class Sprite : BasicSprite {
         }
     }
 
-    protected void waterStateChange(bool under) {
+    override protected void waterStateChange() {
+        super.waterStateChange();
         //do something that involves an object and a lot of water
-        if (under) {
+        if (isUnderWater) {
             auto st = currentState.onDrown;
             if (st) {
                 setState(st);
@@ -350,7 +373,7 @@ class Sprite : BasicSprite {
 
         log("force state: {}", nstate.name);
 
-        waterStateChange(mIsUnderWater);
+        waterStateChange();
     }
 
     //when called: currentState is to
@@ -397,7 +420,7 @@ class Sprite : BasicSprite {
         updateParticles();
 
         //update water state (to catch an underwater state transition)
-        waterStateChange(mIsUnderWater);
+        waterStateChange();
 
         OnSpriteSetState.raise(this);
     }
@@ -405,21 +428,6 @@ class Sprite : BasicSprite {
     //never returns null
     StaticStateInfo findState(char[] name) {
         return type.findState(name);
-    }
-
-    //called by GameEngine on each frame if it's really under water
-    //xxx: TriggerEnter/TriggerExit was more beautiful, so maybe bring it back
-    final void setIsUnderWater() {
-        mWaterUpdated = true;
-
-        if (mIsUnderWater)
-            return;
-        mIsUnderWater = true;
-        waterStateChange(true);
-    }
-
-    final bool isUnderWater() {
-        return mIsUnderWater;
     }
 
     override void simulate(float deltaT) {
@@ -434,21 +442,11 @@ class Sprite : BasicSprite {
             }
         }
 
-        if (!mWaterUpdated && mIsUnderWater) {
-            mIsUnderWater = false;
-            waterStateChange(false);
-        }
-        mWaterUpdated = false;
-
         setParticle(currentState.particle);
     }
 
-    protected this(GameEngine engine, SpriteClass type) {
+    protected this(GameEngine engine, StateSpriteClass type) {
         super(engine, type);
-
-        assert(type !is null);
-        mType = type;
-
 
         setStateForced(type.initState);
     }
@@ -460,7 +458,7 @@ class Sprite : BasicSprite {
 
 
 
-//state infos (per sprite class, thus it's static)
+//state infos (per StateSprite class, thus it's static)
 class StaticStateInfo {
     private {
         char[] mName;
@@ -501,7 +499,7 @@ class StaticStateInfo {
         return mName;
     }
 
-    void loadFromConfig(ConfigNode sc, ConfigNode physNode, SpriteClass owner)
+    void loadFromConfig(ConfigNode sc, ConfigNode physNode, StateSpriteClass owner)
     {
         //physic stuff, already loaded physic-types are not cached
         //NOTE: if no "physic" value given, use state-name for physics
@@ -550,7 +548,7 @@ class StaticStateInfo {
         }
     }
 
-    void fixup(SpriteClass owner) {
+    void fixup(StateSpriteClass owner) {
         if (onEndTmp.length > 0) {
             onAnimationEnd = owner.findState(onEndTmp, true);
             onEndTmp = null;
@@ -569,7 +567,7 @@ class StaticStateInfo {
 //loads the required animation file
 //loads static physic properties (in a POSP struct)
 //load static parts of the "states"-nodes
-class SpriteClass : BasicSpriteClass {
+class StateSpriteClass : SpriteClass {
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
 
@@ -599,15 +597,15 @@ class SpriteClass : BasicSpriteClass {
             return null;
     }
 
-    Sprite createSprite(GameEngine engine) {
-        return new Sprite(engine, this);
+    StateSprite createSprite(GameEngine engine) {
+        return new StateSprite(engine, this);
     }
 
     override void loadFromConfig(ConfigNode config) {
         super.loadFromConfig(config);
 
         //some sprites don't have a "normal" state
-        //the "normal" sprite is mostly needed for very simple projectiles only
+        //the "normal" StateSprite is mostly needed for very simple projectiles only
         //actually, the complex sprites (worm) don't use initState at all or
         //  replace it with "initstate"...
         initState.animation = findSequenceState("normal", true);
@@ -656,10 +654,10 @@ class SpriteClass : BasicSpriteClass {
         return sequenceType.findState(name, allow_not_found);
     }
 
-    char[] toString() { return "SpriteClass["~name~"]"; }
+    char[] toString() { return "StateSpriteClass["~name~"]"; }
 }
 
-class BasicSpriteClass {
+class SpriteClass {
     GfxSet gfx;
     char[] name;
 
@@ -671,15 +669,15 @@ class BasicSpriteClass {
         this.gfx = gfx;
         name = regname;
 
-        gfx.registerSpriteClass(name, cast(SpriteClass)this);
+        gfx.registerSpriteClass(name, cast(StateSpriteClass)this);
     }
 
     //xxx class
     this (ReflectCtor c) {
     }
 
-    BasicSprite createSprite(GameEngine engine) {
-        return new BasicSprite(engine, this);
+    Sprite createSprite(GameEngine engine) {
+        return new Sprite(engine, this);
     }
 
     void loadFromConfig(ConfigNode config) {
@@ -704,8 +702,8 @@ class BasicSpriteClass {
     }
 
     //this is a small WTF: I thought I could put the Events instance into
-    //  SpriteClass (because it exists only once per sprite class), but
-    //  SpriteClass is independent from GameEngine (thus, no scripting!)
+    //  StateSpriteClass (because it exists only once per StateSprite class), but
+    //  StateSpriteClass is independent from GameEngine (thus, no scripting!)
     //so, enjoy this horrible hack.
     //all Events instances get created on demand
     //NOTE that this function will be very slow (AA lookup)
@@ -714,5 +712,5 @@ class BasicSpriteClass {
         return engine.perClassEvents[this];
     }
 
-    char[] toString() { return "BasicSpriteClass["~name~"]"; }
+    char[] toString() { return "SpriteClass["~name~"]"; }
 }

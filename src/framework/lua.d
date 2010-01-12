@@ -508,7 +508,7 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
             }
         }
         assert(false);
-    } catch (LuaException e) {
+    } catch (Exception e) {
         raiseLuaError(state, e.msg);
     }
 }

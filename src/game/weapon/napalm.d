@@ -89,14 +89,14 @@ class NapalmSprite : ProjectileSprite {
         graphic.lifePercent = clampRangeC(100.0f-mDecayPerc*80, 0.0f, 100.0f);
     }
 
-    override void waterStateChange(bool under) {
-        if (under && myclass.emitOnWater) {
+    override void waterStateChange() {
+        if (isUnderWater && myclass.emitOnWater) {
             //emit some particles when we die
             engine.callbacks.particleEngine.emitParticle(physics.pos,
                 Vector2f(0), myclass.emitOnWater);
         }
         //if under=true, this will make the sprite die
-        super.waterStateChange(under);
+        super.waterStateChange();
     }
 
     this(GameEngine engine, NapalmSpriteClass type) {

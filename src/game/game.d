@@ -390,7 +390,7 @@ class GameEngine {
     }
 
     private void underWaterTrigger(PhysicTrigger sender, PhysicObject other) {
-        auto x = cast(Sprite)(other.backlink);
+        auto x = cast(StateSprite)(other.backlink);
         if (x) x.setIsUnderWater();
     }
 
@@ -961,9 +961,8 @@ class GameEngine {
                 if (!all) continue;
             }
             if (cast(Sprite)o) {
-                log("{}{} at {} in state {}", sa, o.toString(),
-                    (cast(Sprite)o).physics.pos,
-                    (cast(Sprite)o).currentState.name);
+                log("{}{} at {}", sa, o.toString(),
+                    (cast(Sprite)o).physics.pos);
             } else {
                 log("{}{}", sa, o.toString());
             }

@@ -20,7 +20,7 @@ import utils.factory;
 import utils.time;
 import utils.reflection;
 
-class ActionSprite : Sprite {
+class ActionSprite : StateSprite {
     protected Vector2f mLastImpactNormal = {0, -1};
     protected WrapFireInfo mFireInfo;
     bool doubleDamage;
@@ -199,7 +199,7 @@ class ActionSprite : Sprite {
         return mEnableEvents;
     }
 
-    protected this(GameEngine engine, SpriteClass type) {
+    protected this(GameEngine engine, ActionSpriteClass type) {
         super(engine, type);
         mFireInfo = new WrapFireInfo();
     }
@@ -234,7 +234,7 @@ class ActionStateInfo : StaticStateInfo {
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
-        SpriteClass owner)
+        StateSpriteClass owner)
     {
         super.loadFromConfig(sc, physNode, owner);
 
@@ -259,7 +259,7 @@ class ActionStateInfo : StaticStateInfo {
         }
     }
 
-    override void fixup(SpriteClass owner) {
+    override void fixup(StateSpriteClass owner) {
         super.fixup(owner);
         if (actionsTmp.length > 0) {
             auto st = cast(ActionSpriteClass)owner.findState(actionsTmp, true);
@@ -270,7 +270,7 @@ class ActionStateInfo : StaticStateInfo {
     }
 }
 
-class ActionSpriteClass : SpriteClass {
+class ActionSpriteClass : StateSpriteClass {
     ActionContainer actions;
     bool canRefire = false;
 

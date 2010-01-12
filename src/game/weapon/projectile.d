@@ -113,7 +113,7 @@ class ProjectileStateInfo : ActionStateInfo {
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
-        SpriteClass owner)
+        StateSpriteClass owner)
     {
         super.loadFromConfig(sc, physNode, owner);
 

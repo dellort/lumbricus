@@ -25,7 +25,7 @@ import math = tango.math.Math;
 import tango.math.IEEE : signbit;
 
 
-class RopeClass : WeaponClass {
+class RopeClass : ConfWeaponClass {
     int shootSpeed = 1000;     //speed when firing
     int maxLength = 1000;      //max full rope length
     int moveSpeed = 200;       //up/down speed along rope
