@@ -26,36 +26,23 @@ import utils.time;
 import utils.mybox;
 import utils.reflection;
 
+private LogStruct!("game.sprite") log;
+
 //factory to instantiate sprite classes, this is a small wtf
 alias StaticFactory!("Sprites", SpriteClass, GfxSet, char[])
     SpriteClassFactory;
 
 //version = RotateDebug;
 
-//object which represents a PhysicObject and an animation on the screen
-//also provides loading from ConfigFiles and state managment
-class Sprite : GameObject {
-    protected static LogStruct!("game.sprite") log;
-
-    protected SpriteClass mType;
-
-    PhysicObject physics;
-    //attention: can be null if object inactive
-    //if it gets active again it's recreated again LOL
-    Sequence graphic;
-    SequenceState currentAnimation;
-
-    //hack for worm.d
-    bool died_in_deathzone;
-
+class BasicSprite : GameObject {
     private {
+        BasicSpriteClass type;
         //transient for savegames, Particle created from StaticStateInfo.particle
         //all state associated with this variable is non-deterministic and must not
         //  have any influence on the rest of the game state
         //xxx: move to Sequence, as soon as this is being rewritten
         ParticleEmitter mParticleEmitter;
-
-        StaticStateInfo mCurrentState; //must not be null
+        ParticleType mCurrentParticle;
 
         bool mIsUnderWater, mWaterUpdated;
         bool mWasActivated;
@@ -64,23 +51,33 @@ class Sprite : GameObject {
         Events mEvents;
     }
 
-    //xxx: replace by activate(position)?
-    void activate(Vector2f pos) {
-        if (physics.dead || mWasActivated)
-            return;
-        mWasActivated = true;
-        setPos(pos);
-        internal_active = true;
+    PhysicObject physics;
+    //attention: can be null if object inactive
+    //if it gets active again it's recreated again LOL
+    Sequence graphic;
 
-        OnSpriteActivate.raise(this);
+    //hack for worm.d
+    bool died_in_deathzone;
+
+    mixin Methods!("physDie", "physDamage");
+
+    this(GameEngine a_engine, BasicSpriteClass a_type) {
+        super(a_engine, a_type.name);
+        type = a_type;
+
+        physics = new PhysicObject();
+        physics.backlink = this;
+        physics.lifepower = type.initialHp;
+
+        engine.physicworld.add(physics);
+
+        physics.onDie = &physDie;
+        physics.onDamage = &physDamage;
     }
 
-    bool activity() {
-        return internal_active && !physics.isGlued;
-    }
-
-    SpriteClass type() {
-        return mType;
+    this (ReflectCtor c) {
+        super(c);
+        c.transient(this, &mParticleEmitter);
     }
 
     final override Events classLocalEvents() {
@@ -92,25 +89,90 @@ class Sprite : GameObject {
         return mEvents;
     }
 
-    StaticStateInfo currentState() {
-        assert(!!mCurrentState);
-        return mCurrentState;
-    }
-    private void currentState(StaticStateInfo n) {
-        mCurrentState = n;
-    }
-
-    //update the animation to the current state
-    //can be overridden
-    protected void setCurrentAnimation() {
-        if (!graphic)
+    void activate(Vector2f pos) {
+        if (physics.dead || mWasActivated)
             return;
+        mWasActivated = true;
+        setPos(pos);
+        internal_active = true;
 
-        if (mIsUnderWater && currentState.animationWater) {
-            graphic.setState(currentState.animationWater);
-        } else {
-            graphic.setState(currentState.animation);
+        OnSpriteActivate.raise(cast(Sprite)this);
+    }
+
+    //force position
+    void setPos(Vector2f pos) {
+        physics.setPos(pos, false);
+        if (graphic)
+            fillAnimUpdate();
+    }
+
+    override protected void updateInternalActive() {
+        //xxx: doesn't deal with physics!
+        if (graphic) {
+            graphic.remove();
+            graphic = null;
         }
+        if (internal_active) {
+            auto member = engine.controller ?
+                engine.controller.memberFromGameObject(this, true) : null;
+            auto owner = member ? member.team : null;
+            graphic = new Sequence(engine, owner ? owner.teamColor : null);
+            graphic.zorder = GameZOrder.Objects;
+            engine.scene.add(graphic);
+            physics.checkRotation();
+            updateAnimation();
+        }
+        updateParticles();
+    }
+
+    override bool activity() {
+        return internal_active && !physics.isGlued;
+    }
+
+    protected void physImpact(PhysicBase other, Vector2f normal) {
+    }
+
+    //normal always points away from other object
+    final void doImpact(PhysicBase other, Vector2f normal) {
+        physImpact(other, normal);
+    }
+
+    protected void physDamage(float amount, DamageCause type, Object cause) {
+        auto goCause = cast(GameObject)cause;
+        assert(!cause || !!goCause, "damage by non-GameObject?");
+        //goCause can be null (e.g. for fall damage)
+        OnDamage.raise(cast(Sprite)this, goCause, type, amount);
+    }
+
+    protected void physDie() {
+        //assume that's what we want
+        if (!internal_active)
+            return;
+        die();
+    }
+
+    void exterminate() {
+        //_always_ die completely (or are there exceptions?)
+        log("exterminate in deathzone: {}", type.name);
+        died_in_deathzone = true;
+        die();
+    }
+
+    //called when object should die
+    //this implementation kills it immediately
+    protected void die() {
+        internal_active = false;
+        if (!physics.dead) {
+            physics.dead = true;
+            log("really die: {}", type.name);
+            OnSpriteDie.raise(cast(Sprite)this);
+        }
+    }
+
+    //hmm... I'm sure there's a reason die() is protected
+    //remove this function to see who needs public access
+    void pleasedie() {
+        die();
     }
 
     //update animation to physics status etc.
@@ -140,58 +202,112 @@ class Sprite : GameObject {
 
     private void updateParticles() {
         mParticleEmitter.active = internal_active();
-        mParticleEmitter.current = currentState.particle;
+        mParticleEmitter.current = mCurrentParticle;
         mParticleEmitter.pos = physics.pos;
         mParticleEmitter.velocity = physics.velocity;
         mParticleEmitter.update(engine.callbacks.particleEngine);
     }
 
-    protected void physImpact(PhysicBase other, Vector2f normal) {
-    }
-
-    //normal always points away from other object
-    void doImpact(PhysicBase other, Vector2f normal) {
-        physImpact(other, normal);
-    }
-
-    protected void physDamage(float amount, DamageCause type, Object cause) {
-        auto goCause = cast(GameObject)cause;
-        assert(!cause || !!goCause, "damage by non-GameObject?");
-        //goCause can be null (e.g. for fall damage)
-        OnDamage.raise(this, goCause, type, amount);
-    }
-
-    protected void physDie() {
-        //assume that's what we want
-        if (!internal_active)
+    final void setParticle(ParticleType pt) {
+        if (mCurrentParticle is pt)
             return;
-        die();
+        mCurrentParticle = pt;
+        updateParticles();
+    }
+
+    override void simulate(float deltaT) {
+        super.simulate(deltaT);
+
+        bool glue = physics.isGlued;
+        if (glue != mOldGlueState) {
+            mOldGlueState = glue;
+            OnSpriteGlueChanged.raise(cast(Sprite)this);
+        }
+
+        if (graphic)
+            fillAnimUpdate();
+
+        //xxx: added with sequence-messup
+        if (graphic)
+            graphic.simulate();
+
+        updateParticles();
+    }
+
+    override void hash(Hasher hasher) {
+        super.hash(hasher);
+        hasher.hash(physics.pos);
+        hasher.hash(physics.velocity);
+    }
+
+    override void debug_draw(Canvas c) {
+        version (RotateDebug) {
+            auto p = toVector2i(physics.pos);
+
+            auto r = Vector2f.fromPolar(30, physics.rotation);
+            c.drawLine(p, p + toVector2i(r), Color(1,0,0));
+
+            auto n = Vector2f.fromPolar(30, physics.ground_angle);
+            c.drawLine(p, p + toVector2i(n), Color(0,1,0));
+
+            auto l = Vector2f.fromPolar(30, physics.lookey_smooth);
+            c.drawLine(p, p + toVector2i(l), Color(0,0,1));
+        }
+    }
+}
+
+//object which represents a PhysicObject and an animation on the screen
+//also provides loading from ConfigFiles and state managment
+class Sprite : BasicSprite {
+    protected static LogStruct!("game.sprite") log;
+
+    protected SpriteClass mType;
+
+
+    private {
+        StaticStateInfo mCurrentState; //must not be null
+
+        bool mIsUnderWater, mWaterUpdated;
+        bool mWasActivated;
+        bool mOldGlueState;
+    }
+
+    SpriteClass type() {
+        return mType;
+    }
+
+    StaticStateInfo currentState() {
+        assert(!!mCurrentState);
+        return mCurrentState;
+    }
+    private void currentState(StaticStateInfo n) {
+        mCurrentState = n;
+    }
+
+    override protected void updateInternalActive() {
+        super.updateInternalActive();
+        if (internal_active) {
+            setCurrentAnimation();
+        }
+    }
+
+    //update the animation to the current state
+    //can be overridden
+    protected void setCurrentAnimation() {
+        if (!graphic)
+            return;
+
+        if (mIsUnderWater && currentState.animationWater) {
+            graphic.setState(currentState.animationWater);
+        } else {
+            graphic.setState(currentState.animation);
+        }
     }
 
     void exterminate() {
         if (!currentState.deathZoneImmune) {
-            //_always_ die completely (or are there exceptions?)
-            log("exterminate in deathzone: {}", type.name);
-            died_in_deathzone = true;
-            die();
+            super.exterminate();
         }
-    }
-
-    //called when object should die
-    //this implementation kills it immediately
-    protected void die() {
-        internal_active = false;
-        if (!physics.dead) {
-            physics.dead = true;
-            log("really die: {}", type.name);
-            OnSpriteDie.raise(this);
-        }
-    }
-
-    //hmm... I'm sure there's a reason die() is protected
-    //remove this function to see who needs public access
-    void pleasedie() {
-        die();
     }
 
     protected void waterStateChange(bool under) {
@@ -216,13 +332,6 @@ class Sprite : GameObject {
                 physics.posp = currentState.physic_properties;
             }
         }
-    }
-
-    //force position
-    void setPos(Vector2f pos) {
-        physics.setPos(pos, false);
-        if (graphic)
-            fillAnimUpdate();
     }
 
     //do as less as necessary to force a new state
@@ -298,26 +407,6 @@ class Sprite : GameObject {
         return type.findState(name);
     }
 
-    override protected void updateInternalActive() {
-        //xxx: doesn't deal with physics!
-        if (graphic) {
-            graphic.remove();
-            graphic = null;
-        }
-        if (internal_active) {
-            auto member = engine.controller ?
-                engine.controller.memberFromGameObject(this, true) : null;
-            auto owner = member ? member.team : null;
-            graphic = new Sequence(engine, owner ? owner.teamColor : null);
-            graphic.zorder = GameZOrder.Objects;
-            engine.scene.add(graphic);
-            physics.checkRotation();
-            setCurrentAnimation();
-            updateAnimation();
-        }
-        updateParticles();
-    }
-
     //called by GameEngine on each frame if it's really under water
     //xxx: TriggerEnter/TriggerExit was more beautiful, so maybe bring it back
     final void setIsUnderWater() {
@@ -336,12 +425,6 @@ class Sprite : GameObject {
     override void simulate(float deltaT) {
         super.simulate(deltaT);
 
-        bool glue = physics.isGlued;
-        if (glue != mOldGlueState) {
-            mOldGlueState = glue;
-            OnSpriteGlueChanged.raise(this);
-        }
-
         if (currentState.onAnimationEnd && graphic) {
             //as requested by d0c, timing is dependend from the animation
             if (graphic.readyflag) {
@@ -357,60 +440,21 @@ class Sprite : GameObject {
         }
         mWaterUpdated = false;
 
-        if (graphic)
-            fillAnimUpdate();
-
-        //xxx: added with sequence-messup
-        if (graphic)
-            graphic.simulate();
-
-        updateParticles();
-    }
-
-    override void hash(Hasher hasher) {
-        super.hash(hasher);
-        hasher.hash(physics.pos);
-        hasher.hash(physics.velocity);
-    }
-
-    override void debug_draw(Canvas c) {
-        version (RotateDebug) {
-            auto p = toVector2i(physics.pos);
-
-            auto r = Vector2f.fromPolar(30, physics.rotation);
-            c.drawLine(p, p + toVector2i(r), Color(1,0,0));
-
-            auto n = Vector2f.fromPolar(30, physics.ground_angle);
-            c.drawLine(p, p + toVector2i(n), Color(0,1,0));
-
-            auto l = Vector2f.fromPolar(30, physics.lookey_smooth);
-            c.drawLine(p, p + toVector2i(l), Color(0,0,1));
-        }
+        setParticle(currentState.particle);
     }
 
     protected this(GameEngine engine, SpriteClass type) {
-        super(engine, type.name);
+        super(engine, type);
 
         assert(type !is null);
         mType = type;
 
-        physics = new PhysicObject();
-        physics.backlink = this;
-        physics.lifepower = type.initialHp;
-
-        engine.physicworld.add(physics);
-
-        physics.onDie = &physDie;
-        physics.onDamage = &physDamage;
 
         setStateForced(type.initState);
     }
 
-    this (ReflectCtor c) {
+    this(ReflectCtor c) {
         super(c);
-        c.types().registerMethod(this, &physDie, "physDie");
-        c.types().registerMethod(this, &physDamage, "physDamage");
-        c.transient(this, &mParticleEmitter);
     }
 }
 
@@ -493,7 +537,7 @@ class StaticStateInfo {
         }
 
         if (!animation) {
-            owner.log("WARNING: no animation for state '{}'", name);
+            log("WARNING: no animation for state '{}'", name);
         }
 
         onEndTmp = sc["on_animation_end"];
@@ -525,24 +569,22 @@ class StaticStateInfo {
 //loads the required animation file
 //loads static physic properties (in a POSP struct)
 //load static parts of the "states"-nodes
-class SpriteClass {
-    GfxSet gfx;
-    char[] name;
-
-    SequenceType sequenceType;
-    //bool teamAnimation = false;
-
+class SpriteClass : BasicSpriteClass {
     StaticStateInfo[char[]] states;
     StaticStateInfo initState;
 
-    float initialHp = float.infinity;
+    this (GfxSet gfx, char[] regname) {
+        super(gfx, regname);
 
-    //ParticleType
-
-    protected static LogStruct!("game.spriteclass") log;
+        //create a default state to have at least one state at all
+        auto ssi = createStateInfo("defaultstate");
+        states[ssi.name] = ssi;
+        initState = ssi;
+    }
 
     //xxx class
     this (ReflectCtor c) {
+        super(c);
     }
 
     StaticStateInfo findState(char[] name, bool canfail = false) {
@@ -561,34 +603,14 @@ class SpriteClass {
         return new Sprite(engine, this);
     }
 
-    this (GfxSet gfx, char[] regname) {
-        this.gfx = gfx;
-        name = regname;
+    override void loadFromConfig(ConfigNode config) {
+        super.loadFromConfig(config);
 
-        gfx.registerSpriteClass(name, this);
-        gfx.event_inherit("sprite", name);
-
-        //create a default state to have at least one state at all
-        auto ssi = createStateInfo("defaultstate");
-        states[ssi.name] = ssi;
-        initState = ssi;
-    }
-
-    void loadFromConfig(ConfigNode config) {
-        //load collision map
-        auto col = config.findNode("collisions");
-        if (col)
-            gfx.addCollideConf(col);
-
-        sequenceType = gfx.resources.get!(SequenceType)
-            (config["sequence_object"]);
         //some sprites don't have a "normal" state
         //the "normal" sprite is mostly needed for very simple projectiles only
         //actually, the complex sprites (worm) don't use initState at all or
         //  replace it with "initstate"...
         initState.animation = findSequenceState("normal", true);
-
-        initialHp = config.getFloatValue("initial_hp", initialHp);
 
         //load states
         //physic stuff is loaded when it's referenced in a state description
@@ -606,8 +628,8 @@ class SpriteClass {
             initState = *init;
 
         //at least the constructor created a default state
-        assert(initState !is null);
         assert(states.length > 0);
+        assert(initState !is null);
     }
 
     //resolve forward refs
@@ -634,9 +656,46 @@ class SpriteClass {
         return sequenceType.findState(name, allow_not_found);
     }
 
+    char[] toString() { return "SpriteClass["~name~"]"; }
+}
+
+class BasicSpriteClass {
+    GfxSet gfx;
+    char[] name;
+
+    SequenceType sequenceType;
+
+    float initialHp = float.infinity;
+
+    this (GfxSet gfx, char[] regname) {
+        this.gfx = gfx;
+        name = regname;
+
+        gfx.registerSpriteClass(name, cast(SpriteClass)this);
+    }
+
+    //xxx class
+    this (ReflectCtor c) {
+    }
+
+    BasicSprite createSprite(GameEngine engine) {
+        return new BasicSprite(engine, this);
+    }
+
+    void loadFromConfig(ConfigNode config) {
+        //load collision map
+        auto col = config.findNode("collisions");
+        if (col)
+            gfx.addCollideConf(col);
+
+        sequenceType = gfx.resources.get!(SequenceType)
+            (config["sequence_object"]);
+
+        initialHp = config.getFloatValue("initial_hp", initialHp);
+    }
+
     //must be called as the engine is "started"
     void initPerEngine(GameEngine engine) {
-    Trace.formatln("INIT: {}", name);
         assert(!(this in engine.perClassEvents), "double init? "~name);
 
         auto ev = new Events();
@@ -655,5 +714,5 @@ class SpriteClass {
         return engine.perClassEvents[this];
     }
 
-    char[] toString() { return "SpriteClass["~name~"]"; }
+    char[] toString() { return "BasicSpriteClass["~name~"]"; }
 }

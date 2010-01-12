@@ -76,15 +76,6 @@ class TeamWindow : Widget {
     }
 
     //return if a is less than b... (== a is higher on list than b)
-    //... for initial display
-    bool compareTeamInitial(Team a, Team b) {
-        if (a.totalCurrentHealth() > b.totalCurrentHealth())
-            return true;
-        if (a.globalWins() > b.globalWins())
-            return true;
-        return (a.name() < b.name());
-    }
-    //... in-game
     bool compareTeam(Team a, Team b) {
         return a.totalCurrentHealth() > b.totalCurrentHealth();
     }
@@ -105,7 +96,13 @@ class TeamWindow : Widget {
 
         Team[] teams = game.engine.controller.teams().dup;
 
-        marray.mergeSort(teams, &compareTeamInitial);
+        marray.mergeSort(teams, (Team a, Team b) {
+            return a.name < b.name;
+        });
+        marray.mergeSort(teams, (Team a, Team b) {
+            return a.globalWins > b.globalWins;
+        });
+        marray.mergeSort(teams, &compareTeam);
 
         foreach (t; teams) {
             table.addRow();

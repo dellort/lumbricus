@@ -165,6 +165,8 @@ class TimerAction : GameObject {
     override protected void updateInternalActive() {
         super.updateInternalActive();
         if (!internal_active && mTimeLabel) {
+            if (mParent.graphic)
+                mParent.graphic.attachText = null;
             mTimeLabel = null;
         }
     }
