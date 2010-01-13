@@ -453,8 +453,9 @@ class AniStateDisplay : StateDisplay {
             //if object is out of world boundaries, show arrow
             Rect2i worldbounds = owner.engine.level.worldBounds;
             if (!worldbounds.isInside(ipos) && ipos.y < worldbounds.p2.y) {
+                const int cMargin = 20; //est. size for arrow / 2
                 auto posrect = worldbounds;
-                posrect.extendBorder(Vector2i(-20));
+                posrect.extendBorder(Vector2i(-cMargin));
                 auto apos = posrect.clip(ipos);
                 //use object velocity for arrow rotation
                 int a = 90;
@@ -467,11 +468,13 @@ class AniStateDisplay : StateDisplay {
                 //now they have the zorder of the object; I think it's ok
                 arrow.draw(c, apos, aparams, itime - mStart);
 
-                //text
-                //don't even think about making it team colored
-                posrect.extendBorder(Vector2i(-20));
-                apos = posrect.clip(apos);
-                owner.engine.drawTextFmt(c, apos, "{}", (ipos-apos).length);
+                //label for distance between outer border and object
+                posrect.extendBorder(Vector2i(-cMargin));
+                FormattedText txt = owner.engine.getTempLabel(owner.team);
+                txt.setTextFmt(false, "{}", (ipos-apos).length - cMargin);
+                Vector2i s = txt.textSize();
+                Rect2i rn = posrect.moveInside(Rect2i(s).centeredAt(ipos));
+                txt.draw(c, rn.p1);
             }
         }
     }

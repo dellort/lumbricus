@@ -242,8 +242,29 @@ public struct Rect2(T) {
         return r;
     }
 
+    //return this rectangle centered at pos
+    Rect2 centeredAt(Point pos) {
+        auto s = size();
+        pos -= s/2;
+        return *this + pos;
+    }
+
+    //assuming there's an object with the rect rc, move it inside the "this"
+    //  rect; if it's already inside, don't move
+    Rect2 moveInside(Rect2 rc) {
+        if (rc.p1.x < p1.x)
+            rc += Point(p1.x - rc.p1.x, 0);
+        if (rc.p2.x > p2.x)
+            rc -= Point(rc.p2.x - p2.x, 0);
+        if (rc.p1.y < p1.y)
+            rc += Point(0, p1.y - rc.p1.y);
+        if (rc.p2.y > p2.y)
+            rc -= Point(0, rc.p2.y - p2.y);
+        return rc;
+    }
+
     //extend rect so, that the rect starts and ends on tile boundaries
-    void fitTileGrid(Vector2i tilesize) {
+    void fitTileGrid(Point tilesize) {
         void doalign(ref T p, T sz, bool roundup) {
             T offs = realmod(p, sz);
             if (offs == 0)

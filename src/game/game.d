@@ -102,7 +102,8 @@ class GameEngine {
 
         LuaState mScripting;
 
-        FormattedText mTempText;
+        //for neutral text, I use GameEngine as key (hacky but simple)
+        FormattedText[Object] mTempTextThemed;
 
         AccessEntry[] mAccessMapping;
         struct AccessEntry {
@@ -275,7 +276,7 @@ class GameEngine {
         c.transient(this, &mCallbacks);
         c.transient(this, &mCmd);
         c.transient(this, &mCmds);
-        c.transient(this, &mTempText);
+        c.transient(this, &mTempTextThemed);
         c.transient(this, &mScripting); //for now
         c.transient(this, &mSavegameHack);
         auto t = c.types();
@@ -726,7 +727,7 @@ class GameEngine {
     }
 
     //draw some text with a border around it, in the usual worms label style
-    //this uses a style
+    //see getTempLabel()
     //the bad:
     //- slow, may trigger memory allocations (at the very least it will use
     //  slow array appends, even if no new memory is really allocated)
@@ -740,12 +741,35 @@ class GameEngine {
     //  a FormattedText and keeping it around
     //- no need to be deterministic
     void drawTextFmt(Canvas c, Vector2i pos, char[] fmt, ...) {
-        if (!mTempText) {
-            mTempText = new FormattedText();
-            GfxSet.textApplyWormStyle(mTempText);
+        auto txt = getTempLabel();
+        txt.setTextFmt_fx(true, fmt, _arguments, _argptr);
+        txt.draw(c, pos);
+    }
+
+    //return a temporary label in worms style
+    //see drawTextFmt() for the why and when to use this
+    //how to use:
+    //- use txt.setTextFmt() to set the text on the returned object
+    //- possibly call txt.textSize() to get the size including label border
+    //- call txt.draw()
+    //- never touch the object again, as it will be used by other code
+    //- you better not change any obscure properties of the label (like font)
+    //if theme is !is null, the label will be in the team's color
+    FormattedText getTempLabel(TeamTheme theme = null) {
+        //xxx: AA lookup could be avoided by using TeamTheme.colorIndex
+        Object idx = theme ? theme : this;
+        if (auto p = idx in mTempTextThemed)
+            return *p;
+
+        FormattedText res;
+        if (theme) {
+            res = theme.textCreate();
+        } else {
+            res = GfxSet.textCreate();
         }
-        mTempText.setTextFmt_fx(true, fmt, _arguments, _argptr);
-        mTempText.draw(c, pos);
+        res.shrink = false;
+        mTempTextThemed[idx] = res;
+        return res;
     }
 
 
