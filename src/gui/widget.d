@@ -1395,6 +1395,19 @@ class Widget {
         return true;
     }
 
+    //return the max. focus age of any focusable child widget (including "this")
+    //needed this for finding out the last focused Widget out of a group of
+    //  child widgets (windows & window manager)
+    int maxFocusAge() {
+        if (!canFocus)
+            return -1;
+        int m = mFocusAge;
+        foreach (w; mWidgets) {
+            m = max(m, w.maxFocusAge);
+        }
+        return m;
+    }
+
     // --- captures
     //there are mouse and key captures; both disable the global
     //event dispatch mechanism (mouse events are normally dispatched by zorder

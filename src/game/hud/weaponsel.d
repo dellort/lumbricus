@@ -11,6 +11,7 @@ import game.weapon.weapon;
 import gui.boxcontainer;
 import gui.button;
 import gui.container;
+import gui.global;
 import gui.label;
 import gui.tablecontainer;
 import gui.widget;
@@ -53,7 +54,11 @@ class WeaponSelWindow : Container {
                 allowFocus = false;
                 weapon = c;
 
-                active = weapon.icon;
+                Surface icon = weapon.icon;
+                if (!icon)
+                    icon = gGuiResources.get!(Surface)("missing");
+
+                active = icon;
                 inactive = active.clone;
                 //make the image look disabled
                 inactive.applyBCG(-0.3, 0.5f, 2.5f);

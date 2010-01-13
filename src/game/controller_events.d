@@ -45,6 +45,8 @@ alias DeclareEvent!("game_start", GameObject) OnGameStart;
 alias DeclareEvent!("game_end", GameObject) OnGameEnd;
 alias DeclareEvent!("game_sudden_death", GameObject) OnSuddenDeath;
 alias DeclareEvent!("game_message", GameObject, GameMessage) OnGameMessage;
+//for test code
+alias DeclareEvent!("game_init", GameObject) OnGameInit;
 //add a HUD object to the GUI;
 //  char[] id = type of the HUD object to add
 //  Object info = status object, that is used to pass information to the HUD

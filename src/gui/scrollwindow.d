@@ -85,7 +85,6 @@ class ScrollArea : SimpleContainer {
         return r;
     }
     override protected void layoutSizeAllocation() {
-    Trace.formatln("allocate: {}", containedBounds()); //yyy
         auto child = getBinChild();
         if (child) {
             Vector2i csize = child.layoutCachedContainerSizeRequest;

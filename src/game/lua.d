@@ -8,6 +8,7 @@ import game.events;
 import game.game;
 import game.gfxset;
 import game.gobject;
+import game.luaplugin;
 import game.sprite;
 import game.worm;
 import game.gamemodes.shared;
@@ -54,7 +55,7 @@ static this() {
 
     gScripting.setClassPrefix!(GfxSet)("Gfx");
     gScripting.methods!(GfxSet, "findSpriteClass", "findWeaponClass",
-        "weaponList");
+        "weaponList", "registerWeapon");
     gScripting.method!(GfxSet, "scriptGetRes")("resource");
 
     gScripting.methods!(Level, "worldCenter");
@@ -122,47 +123,40 @@ static this() {
     gScripting.ctor!(PrepareStatus)();
     gScripting.properties!(PrepareStatus, "visible", "prepareRemaining");
 
+    gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
+    gScripting.properties!(LuaWeaponClass, "onCreateShooter",
+        "onCreateSelector");
+    gScripting.methods!(LuaWeaponClass, "setParams");
+
     //internal functions
     gScripting.methods!(Events, "enableScriptHandler");
     gScripting.properties_ro!(Events, "scriptingEventsNamespace");
 }
 
-//SIGH, do we really need this singleton garbage?
-void addSingletons(LuaState state, GameEngine engine) {
-    state.addSingleton(engine);
-    state.addSingleton(engine.controller);
-    state.addSingleton(engine.gfx);
-    state.addSingleton(engine.physicworld);
-    state.addSingleton(engine.level);
-    state.addSingleton(engine.rnd);
-
-    state.scriptExec(`_G["Game"] = ...`, engine);
+void loadScript(LuaState state, char[] filename) {
+    filename = "lua/" ~ filename;
+    auto st = gFS.open(filename);
+    scope(exit) st.close();
+    state.loadScript(filename, st);
 }
 
 LuaState createScriptingObj(GameEngine engine) {
     auto state = new LuaState(LuaLib.safe);
     state.register(gScripting);
 
-    void loadscript(char[] filename) {
-        filename = "lua/" ~ filename;
-        auto st = gFS.open(filename);
-        scope(exit) st.close();
-        state.loadScript(filename, st);
-    }
+    //only load base stuff here
+    //don't load game specific stuff here
 
-    loadscript("vector2.lua");
+    loadScript(state, "utils.lua");
+
+    loadScript(state, "vector2.lua");
     state.addScriptType!(Vector2i)("Vector2");
     state.addScriptType!(Vector2f)("Vector2");
-    loadscript("rect2.lua");
+    loadScript(state, "rect2.lua");
     state.addScriptType!(Rect2i)("Rect2");
     state.addScriptType!(Rect2f)("Rect2");
-    loadscript("time.lua");
+    loadScript(state, "time.lua");
     state.addScriptType!(Time)("Time");
-
-    loadscript("utils.lua");
-    loadscript("gameutils.lua");
-    loadscript("events.lua");
-    loadscript("timer.lua");
 
     return state;
 }

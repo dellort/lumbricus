@@ -18,6 +18,7 @@ import game.weapon.weapon;
 import game.hud.teaminfo;
 import game.gfxset;
 import game.worm; //for a hack
+import gui.global;
 import gui.renderbox;
 import gui.rendertext;
 import gui.widget;
@@ -266,7 +267,8 @@ private class ViewMember : SceneObject {
             }
 
             Surface icon = wicon.icon;
-            assert(!!icon);
+            if (!icon)
+                icon = gGuiResources.get!(Surface)("missing");
             float wip = moveWeaponIcon.value();
             auto npos = placeRelative(Rect2i(icon.size()),
                 bounds, Vector2i(0, -1), wip, 0.5f);

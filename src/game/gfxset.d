@@ -298,6 +298,11 @@ class GfxSet {
         //xxx error handling
         //hope you never need to debug this code!
         WeaponClass c = WeaponClassFactory.instantiate(type, this, weapon);
+        registerWeapon(c);
+    }
+
+    //mainly for scripts
+    void registerWeapon(WeaponClass c) {
         assert(findWeaponClass(c.name, true) is null);
         mWeaponClasses[c.name] = c;
     }
@@ -381,32 +386,6 @@ class GfxSet {
 
         ctx.addCustomSerializer!(FormattedText)(&textDeserialize, null,
             &textSerialize);
-    }
-
-    //--- stupid events stuff (hack until we figure out what we want)
-
-    //make known that all event handlers for "sup" receive all events for "sub"
-    //this just calls Events.inherit()
-    void event_inherit(char[] sup, char[] sub) {
-        mEventInheritance ~= Inherit(sup, sub);
-    }
-
-    //event_inherit is delayed until here, because:
-    //- sprites are loaded before GameEngine is created
-    //- Events is created with the GameEngine
-    void initEvents(Events events) {
-        /+
-        foreach (e; mEventInheritance) {
-            events.inherit(e.sup, e.sub);
-        }
-
-        //xxx didn't know where to put these
-        events.inherit("root", "landscape"); //GameLandscape
-        events.inherit("root", "shooter"); //weapon.d
-        events.inherit("root", "sprite");
-        events.inherit("root", "team");
-        events.inherit("root", "team_member");
-        +/
     }
 
     SpriteClass[] allSpriteClasses() {

@@ -28,9 +28,7 @@ class LuaPlugin : GameObject {
         super(a_engine, "luaplugin");
         config = cfgNode.getCurValue!(Config)();
 
-        auto st = gFS.open(config.filename);
-        scope(exit) st.close();
-        engine.scripting.loadScript(config.filename, st);
+        engine.loadScript(config.filename);
     }
 
     override bool activity() {

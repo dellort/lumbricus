@@ -639,6 +639,7 @@ class GameController {
 
     this(GameEngine engine, GameConfig config) {
         mEngine = engine;
+        mEngine.scripting.addSingleton(this);
         mEngine.setController(this);
 
         //those work for all gamemodes

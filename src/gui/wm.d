@@ -229,7 +229,7 @@ class Window {
     }
 
     bool visible() {
-        return !!mWindow.manager;
+        return !!mWindow.parent;
     }
 
     void destroy() {
@@ -449,7 +449,7 @@ class WindowManager {
     }
 
     Window activeWindow() {
-        return windowFromWidget(mFrame.focusWindow());
+        return windowFromWidget(mFrame.activeWindow());
     }
     void activeWindow(Window w) {
         if (w && w.visible && w.mWindow)
@@ -520,6 +520,8 @@ class WindowManager {
                 write.writefln("        pos: {}", w.mWindow.position);
                 write.writefln("        size: {}", w.mWindow.size);
                 write.writefln("        fullscreen: {}", w.mWindow.fullScreen);
+                write.writefln("        active: {}",
+                    w.mWindow is mFrame.activeWindow());
             }
         }
     }

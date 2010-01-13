@@ -161,11 +161,18 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         //accepts everything, true for anything except 'false' and 'nil'
         return !!lua_toboolean(state, stackIdx);
     } else static if (is(T : char[])) {
+        //there is the strange behaviour that tolstring may change the stack
+        //  value, if the value is a number, and that can cause trouble with
+        //  other functions - thus, better reject numbers
+        //http://www.lua.org/manual/5.1/manual.html#lua_tolstring
+        //NOTE: lua_isstring returns true for numbers (implicitly convertible
+        //  to string), but I'd say "fuck implicit conversion to string"
         try {
-            return lua_todstring(state, stackIdx);
+            if (lua_type(state, stackIdx) == LUA_TSTRING)
+                return lua_todstring(state, stackIdx);
         } catch (LuaException e) {
-            expected("string");
         }
+        expected("string");
     } else static if (is(T == class)) {
         //allow userdata and nil, nothing else
         if (!lua_islightuserdata(state, stackIdx) && !lua_isnil(state,stackIdx))
@@ -186,6 +193,11 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         T ret;
         int tablepos = luaRelToAbsIndex(state, stackIdx);
         foreach (int idx, x; ret.tupleof) {
+            //goddamn dmd crap
+            //skip enums because .stringof doesn't work on enum members
+            //dmd bug http://d.puremagic.com/issues/show_bug.cgi?id=2881
+            static if (!is(typeof(x) == enum)) {
+        //----------
             //first try named access
             static assert(ret.tupleof[idx].stringof[0..4] == "ret.");
             luaPush(state, (ret.tupleof[idx].stringof)[4..$]);
@@ -201,6 +213,8 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
                     state, -1);
             }
             lua_pop(state, 1);
+        //----------
+            }
         }
         return ret;
     } else static if (isArrayType!(T) || isAssocArrayType!(T)) {
@@ -578,12 +592,17 @@ class LuaRegistry {
         lua_CFunction demarshal)
     {
         Method m;
-        auto cn = ci in mPrefixes;
-        char[] clsname = cn ? *cn : ci.name;
-        //strip package/module path
-        int i = str.rfind(clsname, ".");
-        if (i >= 0) {
-            clsname = clsname[i+1..$];
+        char[] clsname;
+        if (auto cn = ci in mPrefixes) {
+            clsname = *cn;
+        } else {
+            clsname = ci.name;
+            //strip package/module path
+            int i = str.rfind(clsname, ".");
+            if (i >= 0) {
+                clsname = clsname[i+1..$];
+            }
+            mPrefixes[ci] = clsname;
         }
         m.fname = clsname ~ "_" ~ method;
         m.demarshal = demarshal;
@@ -785,6 +804,7 @@ class LuaState {
         //handle to LUA whatever-thingy
         lua_State* mLua;
         LuaRegistry.Method[] mMethods;
+        char[][ClassInfo] mClassNames;
         Object[ClassInfo] mSingletons;
     }
 
@@ -864,19 +884,24 @@ class LuaState {
 
             mMethods ~= m;
         }
+        foreach (ClassInfo key, char[] value; stuff.mPrefixes) {
+            mClassNames[key] = value;
+        }
     }
 
     void addSingleton(T)(T instance) {
-        doAddSingleton(T.classinfo, instance);
+        addSingletonD(T.classinfo, instance);
     }
 
     //non-templated
     //xxx actually, this should follow the inheritance chain, shouldn't it?
     //    would be a problem, because not all superclasses would be singleton
-    private void doAddSingleton(ClassInfo ci, Object instance) {
+    //let's just say this singleton stuff is broken design
+    void addSingletonD(ClassInfo ci, Object instance) {
         assert(!!instance);
         assert(!(ci in mSingletons));
         mSingletons[ci] = instance;
+
         //just rewrite the already registered methods
         //if methods are added after this call, the user is out of luck
         stack0();
@@ -898,6 +923,13 @@ class LuaState {
             `, m.fname, instance);
         }
         stack0();
+
+        //add a global variable for the singleton (script can use it)
+        if (auto pname = ci in mClassNames) {
+            char[] name = *pname;
+            scriptExec(`local name, inst = ...; _G[name] = inst`,
+                name, instance);
+        }
     }
 
     private void lua_loadChecked(lua_Reader reader, void *d, char[] chunkname) {

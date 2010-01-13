@@ -108,3 +108,29 @@ function snowflake(depth, interpolate)
     LandscapeBitmap_drawBorder(ls, Lexel_soft, Lexel_free, border, border)
 end
 
+
+--------------------
+
+-- this is just a test
+
+function createTestWeapon(name)
+    local w = LuaWeaponClass_ctor(Gfx, name)
+    local function createShooter(firing_sprite)
+        printf("GOODBYE LOL")
+        return null -- LuaShooter_ctor(...
+    end
+    LuaWeaponClass_set_onCreateShooter(w, createShooter)
+    LuaWeaponClass_setParams(w, {
+        category = "fly",
+        animation = "bazooka",
+        icon = Gfx_resource("icon_bazooka"),
+    })
+    Gfx_registerWeapon(w)
+    return w
+end
+
+-- instead of this, the script should just be loaded at the right time
+addGlobalEventHandler("game_init", function(sender)
+    -- comment the following line to prevent weapon from being loaded
+    createTestWeapon("bozaaka")
+end)

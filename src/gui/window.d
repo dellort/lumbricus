@@ -58,9 +58,6 @@ class WindowWidget : Widget {
 
         Color mBgOverride;
 
-        //"window manager"; supported to be null
-        WindowFrame mManager;
-
         bool mFullScreen;
         bool mHasDecorations = true;
         Vector2i mFSSavedPos; //saved window position when in fullscreen mode
@@ -309,10 +306,6 @@ class WindowWidget : Widget {
             acceptSize(true);
     }
 
-    WindowFrame manager() {
-        return mManager;
-    }
-
     bool fullScreen() {
         return mFullScreen;
     }
@@ -520,7 +513,7 @@ class WindowWidget : Widget {
 
     protected void onMouseMove(MouseInfo mouse) {
         if (mDraging) {
-            if (mCanMove && !mFullScreen && mManager) {
+            if (mCanMove && !mFullScreen) {
                 position = position + mouse.rel;
             }
         } else {
@@ -725,7 +718,6 @@ class WindowFrame : Container {
 
     void addWindow(WindowWidget wnd) {
         wnd.remove();
-        wnd.mManager = this;
         wnd.bindings = mKeysWindow;
         mWindows ~= wnd;
         addChild(wnd);
@@ -741,19 +733,19 @@ class WindowFrame : Container {
         auto wnd = cast(WindowWidget)child;
         if (wnd) {
             arrayRemove(mWindows, wnd);
-            wnd.mManager = null;
         }
         super.removeChild(child);
         if (wnd)
             wnd.wasRemoved();
     }
 
-    WindowWidget focusWindow() {
+    WindowWidget activeWindow() {
+        WindowWidget best;
         foreach (w; mWindows) {
-            if (w.subFocused())
-                return w;
+            if (!best || w.maxFocusAge() > best.maxFocusAge())
+                best = w;
         }
-        return null;
+        return best;
     }
 
     protected override Vector2i layoutSizeRequest() {

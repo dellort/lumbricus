@@ -146,12 +146,18 @@ class GameEngine {
         createCmd();
         mCallbacks = new GameEngineCallback();
 
-        events = new Events();
-        mGfx.initEvents(events);
-        globalEvents = new GlobalEvents(this);
-
         mScripting = createScriptingObj(this);
+
+        mScripting.addSingleton(this);
+        mScripting.addSingleton(gfx);
+        mScripting.addSingleton(rnd);
+
+        events = new Events();
+        globalEvents = new GlobalEvents(this);
         events.setScripting(mScripting, "eventhandlers_global");
+        loadScript("events.lua");
+
+        loadScript("timer.lua");
 
         //for now, this is to init events+scripting...
         foreach (SpriteClass s; mGfx.allSpriteClasses()) {
@@ -162,6 +168,7 @@ class GameEngine {
 
         assert(config.level !is null);
         mLevel = config.level;
+        scripting.addSingleton(mLevel);
 
         scene = new Scene();
 
@@ -171,6 +178,7 @@ class GameEngine {
 
         mPhysicWorld = new PhysicWorld(rnd);
         mPhysicWorld.collide = gfx.collision_map;
+        scripting.addSingleton(mPhysicWorld);
 
         foreach (o; level.objects) {
             if (auto ls = cast(LevelLandscape)o) {
@@ -235,8 +243,13 @@ class GameEngine {
 
         loadLevelStuff();
 
+        //lol.
+        loadScript("gameutils.lua");
+        OnGameInit.raise(globalEvents);
+
         //NOTE: GameController relies on many stuff at initialization
         //i.e. physics for worm placement
+        //and a complete weapon class list (when loading team weaponsets)
         new GameController(this, config);
 
         //read the shitty access map, need to have access to the controller
@@ -273,15 +286,15 @@ class GameEngine {
         }
     }
 
-    //for now, create on-demand (because of game-saving crap)
     final LuaState scripting() {
-        if (!mScripting) {
-            assert(!mSavegameHack);
-            mScripting = createScriptingObj(this);
-            events.setScripting(mScripting, "eventhandlers_global");
-            addSingletons(mScripting, this);
-        }
+        //assertion may happen on savegames (when I was writing this, I didn't
+        //  care about savegames at all; they may be broken; enjoy.)
+        assert (!!mScripting);
         return mScripting;
+    }
+
+    final void loadScript(char[] filename) {
+        .loadScript(scripting(), filename);
     }
 
     Sprite createSprite(char[] name) {
@@ -291,8 +304,6 @@ class GameEngine {
     package void setController(GameController ctl) {
         assert(!mController);
         mController = ctl;
-        //xxx need singletons for lua gamemode, better way?
-        addSingletons(scripting, this);
     }
 
     //lol.
