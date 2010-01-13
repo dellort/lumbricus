@@ -18,7 +18,7 @@
 				<MakeCommands>
 					<Build command="dsss build luatest.d --debug" />
 					<CompileFile command="" />
-					<Clean command="dsss clean" />
+					<Clean command="dsss distclean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
 					<SilentBuild command="dsss build luatest.d --debug" />
@@ -34,7 +34,7 @@
 				<MakeCommands>
 					<Build command="dsss build luatest.d" />
 					<CompileFile command="" />
-					<Clean command="dsss clean" />
+					<Clean command="dsss distclean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
 					<SilentBuild command="dsss build luatest.d" />

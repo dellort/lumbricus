@@ -18,7 +18,7 @@
 				<MakeCommands>
 					<Build command="dsss build lumbricus.d --debug" />
 					<CompileFile command="" />
-					<Clean command="dsss clean" />
+					<Clean command="dsss distclean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
 					<SilentBuild command="dsss build lumbricus.d --debug" />
@@ -34,7 +34,7 @@
 				<MakeCommands>
 					<Build command="dsss build lumbricus.d" />
 					<CompileFile command="" />
-					<Clean command="dsss clean" />
+					<Clean command="dsss distclean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
 					<SilentBuild command="dsss build lumbricus.d" />

@@ -17,7 +17,7 @@
 				<MakeCommands>
 					<Build command="dsss build extractdata.d --debug" />
 					<CompileFile command="" />
-					<Clean command="dsss clean" />
+					<Clean command="dsss distclean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
 					<SilentBuild command="dsss build extractdata.d --debug" />
@@ -32,7 +32,7 @@
 				<MakeCommands>
 					<Build command="dsss build extractdata.d" />
 					<CompileFile command="" />
-					<Clean command="dsss clean" />
+					<Clean command="dsss distclean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
 					<SilentBuild command="dsss build extractdata.d" />
