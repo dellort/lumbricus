@@ -1221,7 +1221,7 @@ Lexel[] scaleLexels(Lexel[] data, Vector2i orgSize, Vector2i newSize) {
 LandscapeLexels landscapeRenderData(LandscapeGeometry geo, Vector2i size) {
     auto ret = new LandscapeLexels();
     Vector2f scale = toVector2f(size) / toVector2f(geo.size);
-    scope renderer = new LandscapeBitmap(size, true);
+    auto renderer = new LandscapeBitmap(size, true);
 
     //draw background (not drawn when it's not a cave!)
     //(actually, a FillRect would be enough, but...)

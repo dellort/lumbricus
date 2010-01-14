@@ -110,7 +110,7 @@ class LevelWidget : SimpleContainer {
     }
 
     private void loadLastPlayedLevel() {
-        scope level = loadConfig(cLastlevelConf, false, true);
+        auto level = loadConfig(cLastlevelConf, false, true);
         if (level) {
             auto gen = new GenerateFromSaved(mGenerator, level);
             setCurrentLevel(gen);
@@ -122,7 +122,7 @@ class LevelWidget : SimpleContainer {
             loadLastPlayedLevel();
             return;
         }
-        scope level = loadConfig(cSavedLevelsPath~sender.selection);
+        auto level = loadConfig(cSavedLevelsPath~sender.selection);
         auto gen = new GenerateFromSaved(mGenerator, level);
         setCurrentLevel(gen);
         //level is already saved

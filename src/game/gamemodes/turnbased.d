@@ -322,7 +322,7 @@ class ModeTurnbased : Gamemode {
                 Team next;
                 //mix teams array according to mTeamPerm
                 assert(mTeamPerm.length == logic.teams.length);
-                scope Team[] teamsP; //xxx: scope arrays don't work as expected
+                Team[] teamsP;
                 teamsP.length = logic.teams.length;
                 for (int i = 0; i < logic.teams.length; i++) {
                     teamsP[i] = logic.teams[mTeamPerm[i]];

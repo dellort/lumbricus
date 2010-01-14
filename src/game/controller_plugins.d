@@ -434,7 +434,8 @@ class ControllerPersistence : GamePlugin {
         }
         //add weapons from last round
         if (engine.persistentState.getValue("keep_weapons", cKeepWeaponsDef)) {
-            scope lastRoundWeapons = new WeaponSet(engine,
+            //memorial for bug in revision 1019
+            auto lastRoundWeapons = new WeaponSet(engine,
                 node.getSubNode("weapons"));
             t.weapons.addSet(lastRoundWeapons);
         }

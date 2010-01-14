@@ -25,7 +25,7 @@ import game.gameshell : serialize_types;
 
 void initGameSerialization() {
     serialize_types = new Types();
-    serialize_types.registerClasses!(Random, GameEngine, PhysicWorld,
+    /*serialize_types.registerClasses!(Random, GameEngine, PhysicWorld,
         GameController, WormSprite, GameLandscape, ActionContext,
         ActionSprite, GameController, ActionListRunner, ControlRotateAction,
         Team, TeamMember, WeaponSet, CollectableBomb,
@@ -68,5 +68,5 @@ void initGameSerialization() {
         OnCrateCollect,
         OnCollectTool,
         OnWeaponSetChanged
-    )(serialize_types);
+    )(serialize_types);*/
 }

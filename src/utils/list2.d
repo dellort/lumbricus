@@ -85,6 +85,7 @@ final class ObjectList(T, char[] member) {
 
     //O(1)
     void insert_before(T item, T succ) {
+        //verify_not_contained(item);
         assert(!!item);
         assert(!!head_item || !succ);
         if (succ is head_item)  //also catches head_item == null
@@ -101,10 +102,12 @@ final class ObjectList(T, char[] member) {
         node(n.next).prev = item;
         node(n.prev).next = item;
         mCount++;
+        //verify_list();
     }
 
     //O(1)
     void insert_after(T item, T pred) {
+        //verify_not_contained(item);
         if (!pred || !head_item) {
             insert_before(item, head_item);
             return;
@@ -120,6 +123,43 @@ final class ObjectList(T, char[] member) {
         node(n.next).prev = item;
         node(n.prev).next = item;
         mCount++;
+        //verify_list();
+    }
+
+    debug {
+        void verify_not_contained(T item) {
+            if (head_item) {
+                T cur = head_item;
+                do {
+                    assert(cur !is item);
+                    cur = node(cur).next;
+                } while (cur !is head_item);
+            }
+        }
+
+        void verify_list() {
+            int mc = 0;
+            if (head_item) {
+                T cur = head_item;
+                do {
+                    assert(!!cur);
+                    Node* ncur = node(cur);
+                    assert(ncur.owner is this);
+                    assert(!!ncur.next);
+                    assert(!!ncur.prev);
+                    Node* nnext = node(ncur.next);
+                    assert(nnext.owner is this);
+                    assert(nnext.prev is cur);
+                    Node* nprev = node(ncur.prev);
+                    assert(nprev.owner is this);
+                    assert(nprev.next is cur);
+                    mc++;
+                    assert(mc <= mCount, "loop or too many elements");
+                    cur = node(cur).next;
+                } while (cur !is head_item);
+            }
+            assert(mCount == mc);
+        }
     }
 
     //O(1)

@@ -74,7 +74,8 @@ class GameEngine {
         GameEngineCallback mCallbacks;
 
         PhysicWorld mPhysicWorld;
-        ObjectList!(GameObject, "node") mObjects;
+        ObjectList!(GameObject, "all_node") mAllObjects;
+        ObjectList!(GameObject, "sim_node") mActiveObjects;
         Level mLevel;
 
         PhysicZonePlane mWaterBorder;
@@ -147,6 +148,9 @@ class GameEngine {
         createCmd();
         mCallbacks = new GameEngineCallback();
 
+        mAllObjects = new typeof(mAllObjects)();
+        mActiveObjects = new typeof(mActiveObjects)();
+
         mScripting = createScriptingObj(this);
 
         mScripting.addSingleton(this);
@@ -172,8 +176,6 @@ class GameEngine {
         scripting.addSingleton(mLevel);
 
         scene = new Scene();
-
-        mObjects = new typeof(mObjects)();
 
         OnHudAdd.handler(events, &onHudAdd);
 
@@ -280,7 +282,8 @@ class GameEngine {
         c.transient(this, &mScripting); //for now
         c.transient(this, &mSavegameHack);
         auto t = c.types();
-        t.registerClass!(typeof(mObjects));
+        t.registerClass!(typeof(mActiveObjects));
+        t.registerClass!(typeof(mAllObjects));
         if (c.recreateTransient) {
             mCallbacks = new GameEngineCallback();
             createCmd();
@@ -462,8 +465,8 @@ class GameEngine {
         assert(obj._is_active());
         //in case of lazy removal
         //note that .contains is O(1) if used with .node
-        if (!mObjects.contains(obj))
-            mObjects.add(obj);
+        if (!mActiveObjects.contains(obj))
+            mActiveObjects.add(obj);
     }
 
     PhysicWorld physicworld() {
@@ -482,12 +485,12 @@ class GameEngine {
         //NOTE: objects might be inserted/removed while iterating
         //      List.opApply can deal with that
         float deltat = mGameTime.difference.secsf;
-        foreach (GameObject o; mObjects) {
+        foreach (GameObject o; mActiveObjects) {
             if (o._is_active()) {
                 o.simulate(deltat);
             } else {
                 //remove (it's done lazily, and here it's actually removed)
-                mObjects.remove(o);
+                mActiveObjects.remove(o);
             }
         }
 
@@ -497,16 +500,26 @@ class GameEngine {
         scripting().call("game_per_frame\0");
 
         debug {
-            globals.setCounter("gameobjects", mObjects.count);
+            globals.setCounter("active_gameobjects", mActiveObjects.count);
+            globals.setCounter("all_gameobjects", mAllObjects.count);
         }
     }
 
     //remove all objects etc. from the scene
     void kill() {
+        //xxx figure out why this is needed etc. etc.
         //must iterate savely
-        foreach (GameObject o; mObjects) {
-            o.kill();
-        }
+        //foreach (GameObject o; mObjects) {
+        //    o.kill();
+        //}
+    }
+
+    //only for gobject.d
+    package void _object_created(GameObject obj) {
+        mAllObjects.add(obj);
+    }
+    package void _object_killed(GameObject obj) {
+        mAllObjects.remove(obj);
     }
 
     Rect2f placementArea() {
@@ -566,7 +579,7 @@ class GameEngine {
             return false;
 
         //check distance to other sprites
-        foreach (GameObject o; mObjects) {
+        foreach (GameObject o; mAllObjects) {
             auto s = cast(Sprite)o;
             if (s) {
                 if ((s.physics.pos-drop).length < cPlacePlatformDistance+10f)
@@ -616,7 +629,7 @@ class GameEngine {
             && abs(contact.normal.x) < -contact.normal.y*1.19f)
         {
             //check distance to other sprites
-            foreach (GameObject o; mObjects) {
+            foreach (GameObject o; mAllObjects) {
                 auto s = cast(Sprite)o;
                 if (s) {
                     if ((s.physics.pos - drop).length < cPlaceMinDistance)
@@ -938,21 +951,11 @@ class GameEngine {
             return true;
         if (!mWaterChanger.done)
             return true;
-        foreach (GameObject o; mObjects) {
+        foreach (GameObject o; mAllObjects) {
             if (o.activity)
                 return true;
         }
         return false;
-    }
-
-    //count game objects of type T currently in the game
-    int countObjects(T)() {
-        int ret = 0;
-        foreach (GameObject o; mObjects) {
-            if (cast(T)o)
-                ret++;
-        }
-        return ret;
     }
 
     //count sprites with passed spriteclass name currently in the game
@@ -961,7 +964,7 @@ class GameEngine {
         if (!sc)
             return 0;
         int ret = 0;
-        foreach (GameObject o; mObjects) {
+        foreach (GameObject o; mAllObjects) {
             auto s = cast(Sprite)o;
             if (s) {
                 if (s.type == sc)
@@ -980,7 +983,7 @@ class GameEngine {
         bool fix = (mode == "fix");
         log("-- Active game objects:");
         int i;
-        foreach (GameObject o; mObjects) {
+        foreach (GameObject o; mAllObjects) {
             char[] sa = "Dormant ";
             if (o.activity) {
                 sa = "Active ";
@@ -1022,13 +1025,13 @@ class GameEngine {
     //it should always prefer speed over accuracy
     void hash(Hasher hasher) {
         hasher.hash(rnd.state());
-        foreach (GameObject o; mObjects) {
+        foreach (GameObject o; mAllObjects) {
             o.hash(hasher);
         }
     }
 
     void debug_draw(Canvas c) {
-        foreach (GameObject o; mObjects) {
+        foreach (GameObject o; mAllObjects) {
             o.debug_draw(c);
         }
     }
@@ -1036,7 +1039,7 @@ class GameEngine {
     GameObject debug_pickObject(Vector2i pos) {
         auto p = toVector2f(pos);
         Sprite best;
-        foreach (GameObject o; mObjects) {
+        foreach (GameObject o; mAllObjects) {
             if (auto sp = cast(Sprite)o) {
                 //about the NaN thing, there are such objects *shrug*
                 if (!sp.physics.pos.isNaN() && (!best ||

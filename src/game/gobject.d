@@ -4,12 +4,14 @@ import framework.drawing : Canvas;
 import game.game;
 import game.events;
 import utils.list2;
+import utils.misc;
 import utils.reflection;
 import utils.time;
 
 import net.marshal : Hasher;
 
 abstract class GameObject : EventTarget {
+    private bool mIsAlive;
     private bool mInternalActive;
     private GameEngine mEngine;
 
@@ -17,7 +19,7 @@ abstract class GameObject : EventTarget {
     GameObject createdBy;
 
     //for GameEngine
-    ObjListNode!(typeof(this)) node;
+    ObjListNode!(typeof(this)) sim_node, all_node;
 
     //event_target_type: not needed anymore, but leaving it in for now
     //  basically should give the type of the game object as a string
@@ -25,6 +27,8 @@ abstract class GameObject : EventTarget {
         assert(aengine !is null);
         super(event_target_type);
         mEngine = aengine;
+        mIsAlive = true;
+        engine._object_created(this);
         //starts out with internal_active == false
     }
 
@@ -47,6 +51,8 @@ abstract class GameObject : EventTarget {
             return;
         mInternalActive = set;
         if (mInternalActive) {
+            if (!mIsAlive)
+                throw new Exception("setting active=true for a dead object");
             engine.ensureAdded(this);
         }
         updateInternalActive();
@@ -59,6 +65,10 @@ abstract class GameObject : EventTarget {
     //only for game.d, stay away
     package bool _is_active() {
         return mInternalActive;
+    }
+
+    final bool objectAlive() {
+        return mIsAlive;
     }
 
     //called after internal_active-value updated
@@ -77,8 +87,10 @@ abstract class GameObject : EventTarget {
         //override this if you need game time
     }
 
-    void kill() {
+    final void kill() {
         internal_active = false;
+        mIsAlive = false;
+        //engine._object_killed(this);
     }
 
     void hash(Hasher hasher) {
