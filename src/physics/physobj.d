@@ -407,7 +407,7 @@ class PhysicObject : PhysicBase {
             //corner cases; i.e. invincible worm
             if (diff != diff || diff == typeof(diff).infinity)
                 diff = 0;
-            if (diff != 0 && onDamage) {
+            if (diff != 0 && onDamage && !dead) {
                 onDamage(diff, type, cause);
             }
             //die muaha

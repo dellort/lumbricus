@@ -111,6 +111,26 @@ end
 
 --------------------
 
+-- global table to map GameObject => Lua context
+_dgo_contexts = {}
+
+-- d_game_object = a D GameObject
+-- ctx = any Lua value
+function set_context(d_game_object, ctx)
+    -- xxx verify if d_game_object is really a GameObject
+    _dgo_contexts[d_game_object] = ctx
+end
+
+-- return what was set with set_context() (or nil)
+function get_context(d_game_object)
+    return _dgo_contexts[d_game_object]
+end
+
+-- called by game.d as objects are removed
+function game_kill_object(d_game_object)
+    _dgo_contexts[d_game_object] = nil
+end
+
 -- this is just a test
 
 function createTestWeapon(name)

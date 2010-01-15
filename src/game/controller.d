@@ -917,6 +917,8 @@ class GameController {
         //  in some cases, it could be released again (i.e. after a new round
         //  was started)
         assert(!go.createdBy, "fix memberFromGameObject and remove this");
+        //maybe just remove sprites from this AA as they die
+        go.killVeto(this);
         mGameObjectToMember[go] = member;
     }
 
@@ -1001,6 +1003,7 @@ class GameController {
         //actually start it
         crate.activate(from);
         mLastCrate = crate;
+        mLastCrate.killVeto(this);
         if (!silent) {
             //xxx move into CrateSprite.activate()
             OnCrateDrop.raise(crate);

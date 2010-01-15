@@ -6,7 +6,7 @@ module game.wcontrol;
 
 import common.animation;
 import framework.framework;
-import game.controller_events : OnFireWeapon;
+import game.controller_events;
 import game.game;
 import game.gfxset;
 import game.sprite;
@@ -92,6 +92,7 @@ class WormControl : WormController {
         //assert(!!mWormControl);
         //set feedback interface to this class
         mWorm.wcontrol = this;
+        OnSpriteDie.handler(mWorm.instanceLocalEvents, &onSpriteDie);
     }
 
     this(ReflectCtor c) {
@@ -99,6 +100,11 @@ class WormControl : WormController {
 
     final GameEngine engine() {
         return mEngine;
+    }
+
+    private void onSpriteDie(Sprite sender) {
+        if (sender is mWorm)
+            mWorm.killVeto(this);
     }
 
     //sets list of available weapons (by reference)

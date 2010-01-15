@@ -17,6 +17,7 @@ class EventTarget {
     private {
         char[] mEventTargetType;
         //ID mEventTargetTypeID;
+        Events mPerInstance;
     }
 
     this(char[] type) {
@@ -33,11 +34,22 @@ class EventTarget {
         return null;
     }
 
+    //for per-instance event handlers; should be avoided if possible, because it
+    //  causes lots of memory allocations per instance and event
+    //is created on demand
+    Events instanceLocalEvents() {
+        if (!mPerInstance)
+            mPerInstance = new Events();
+        return mPerInstance;
+    }
+
     final char[] eventTargetType() {
         return mEventTargetType;
     }
 
     final void raiseEvent(char[] name, EventPtr args) {
+        if (mPerInstance)
+            mPerInstance.raise(name, this, args);
         if (auto levents = classLocalEvents())
             levents.raise(name, this, args);
         eventsBase.raise(name, this, args);

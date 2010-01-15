@@ -216,6 +216,8 @@ class PhysicWorld {
     }
 
     private void callCollide(Contact c) {
+        if ((c.obj[0] && c.obj[0].dead) || (c.obj[1] && c.obj[1].dead))
+            return;
         assert(!!onCollide);
         onCollide(c);
     }

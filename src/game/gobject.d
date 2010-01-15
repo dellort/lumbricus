@@ -67,10 +67,6 @@ abstract class GameObject : EventTarget {
         return mInternalActive;
     }
 
-    final bool objectAlive() {
-        return mIsAlive;
-    }
-
     //called after internal_active-value updated
     protected void updateInternalActive() {
     }
@@ -87,10 +83,40 @@ abstract class GameObject : EventTarget {
         //override this if you need game time
     }
 
+    final bool objectAlive() {
+        return mIsAlive;
+    }
+
+    protected void onKill() {
+    }
+
+    //when kill() is called, the object is considered to be deallocated on the
+    //  next game frame (actually, it may be left to the GC or something, but
+    //  we need explicit lifetime for scripting)
+    //questionable whether this should be public or protected; public for now,
+    //  because it was already public before
     final void kill() {
+        if (!mIsAlive)
+            return;
+        onKill();
         internal_active = false;
         mIsAlive = false;
-        //engine._object_killed(this);
+        engine._object_killed(this);
+    }
+
+    //this is a hack
+    //some code (wcontrol.d) wants to keep the sprite around, even if it's dead
+    //for now I didn't want to change this; but one other hack clears all memory
+    //  of a game object to make sure anyone using it will burn his fingers, so
+    //  the possibility of not stomping an object had to be introduced
+    //Note that this doesn't change semantics (the object will be dead even with
+    //  "vetos" added), it just disables the stomping debug code for this object
+    //to remove this hack, either...
+    //  1. disable stomping, remove this call, and go on normally, or
+    //  2. search for code calling killVeto() and fix it
+    package Object[] dontDieOnMe;
+    final void killVeto(Object user) {
+        dontDieOnMe ~= user;
     }
 
     void hash(Hasher hasher) {

@@ -74,7 +74,7 @@ class GameEngine {
         GameEngineCallback mCallbacks;
 
         PhysicWorld mPhysicWorld;
-        ObjectList!(GameObject, "all_node") mAllObjects;
+        ObjectList!(GameObject, "all_node") mAllObjects, mKillList;
         ObjectList!(GameObject, "sim_node") mActiveObjects;
         Level mLevel;
 
@@ -149,6 +149,7 @@ class GameEngine {
         mCallbacks = new GameEngineCallback();
 
         mAllObjects = new typeof(mAllObjects)();
+        mKillList = new typeof(mKillList)();
         mActiveObjects = new typeof(mActiveObjects)();
 
         mScripting = createScriptingObj(this);
@@ -488,9 +489,6 @@ class GameEngine {
         foreach (GameObject o; mActiveObjects) {
             if (o._is_active()) {
                 o.simulate(deltat);
-            } else {
-                //remove (it's done lazily, and here it's actually removed)
-                mActiveObjects.remove(o);
             }
         }
 
@@ -499,10 +497,56 @@ class GameEngine {
         //null termination for efficient toStringz
         scripting().call("game_per_frame\0");
 
+        cleanup_objects();
+
         debug {
             globals.setCounter("active_gameobjects", mActiveObjects.count);
             globals.setCounter("all_gameobjects", mAllObjects.count);
         }
+    }
+
+    //per-frame cleanup for GameObjects
+    private void cleanup_objects() {
+        //remove inactive objects from list before killing the game objects,
+        //  just needed because of debugging memory stomp
+        foreach (GameObject o; mActiveObjects) {
+            if (!o._is_active()) {
+                //remove (it's done lazily, and here it's actually removed)
+                mActiveObjects.remove(o);
+            }
+        }
+
+        //the promise is, that dead objects get invalid only in the "next" game
+        //  frame - and this is here
+        foreach (GameObject o; mKillList) {
+            log("killed GameObject: {}", o);
+            mKillList.remove(o);
+            scripting().call("game_kill_object\0", o);
+            //for debugging: clear the object by memory stomping it
+            //scripting could still access the object, violating the rules; but
+            //  we have to stay memory safe, so that evil scripts can't cause
+            //  security issues
+            //but clearing with 0 should be fine... maybe
+            //ok, case 1 where this will cause failure:
+            //  1. shoot at something (bazooka on barrel)
+            //  2. on explosion, it will crash in Sprite.physDamage, because
+            //     the "cause" parameter refers to an outdated GameObject (the
+            //     dynamic cast will segfault if stomping is enabled)
+            //  3. the "cause" is saved by some PhysicForce object, and that
+            //     object probably exploded and was "killed" (creating that
+            //     PhysicForce with the explosion)
+            //  - not assigning a "cause" in explosionAt() works it around
+            //case 2:
+            //  worm dies => everyone uses a dead sprite
+            //case 3:
+            //  mLastCrate in controller.d
+            if (o.dontDieOnMe.length) {
+                log("don't stomp, those still need it: {}", o.dontDieOnMe);
+                continue;
+            }
+            (cast(ubyte*)cast(void*)o)[0..o.classinfo.init.length] = 0;
+        }
+        mKillList.clear();
     }
 
     //remove all objects etc. from the scene
@@ -520,6 +564,7 @@ class GameEngine {
     }
     package void _object_killed(GameObject obj) {
         mAllObjects.remove(obj);
+        mKillList.add(obj);
     }
 
     Rect2f placementArea() {
@@ -581,7 +626,7 @@ class GameEngine {
         //check distance to other sprites
         foreach (GameObject o; mAllObjects) {
             auto s = cast(Sprite)o;
-            if (s) {
+            if (s && s.visible) {
                 if ((s.physics.pos-drop).length < cPlacePlatformDistance+10f)
                     return false;
             }
@@ -631,7 +676,7 @@ class GameEngine {
             //check distance to other sprites
             foreach (GameObject o; mAllObjects) {
                 auto s = cast(Sprite)o;
-                if (s) {
+                if (s && s.visible) {
                     if ((s.physics.pos - drop).length < cPlaceMinDistance)
                         return false;
                 }
@@ -875,7 +920,7 @@ class GameEngine {
         expl.damage = damage;
         expl.pos = pos;
         expl.onCheckApply = selective;
-        expl.cause = cause;
+        //expl.cause = cause;
         auto iradius = cast(int)((expl.radius+0.5f)/2.0f);
         if (damage_landscape)
             damageLandscape(toVector2i(pos), iradius, cause);
@@ -966,7 +1011,7 @@ class GameEngine {
         int ret = 0;
         foreach (GameObject o; mAllObjects) {
             auto s = cast(Sprite)o;
-            if (s) {
+            if (s && s.visible) {
                 if (s.type == sc)
                     ret++;
             }
@@ -1040,7 +1085,8 @@ class GameEngine {
         auto p = toVector2f(pos);
         Sprite best;
         foreach (GameObject o; mAllObjects) {
-            if (auto sp = cast(Sprite)o) {
+            auto sp = cast(Sprite)o;
+            if (sp && sp.visible) {
                 //about the NaN thing, there are such objects *shrug*
                 if (!sp.physics.pos.isNaN() && (!best ||
                     (p-sp.physics.pos).length < (p-best.physics.pos).length))

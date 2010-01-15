@@ -44,6 +44,8 @@ function raiseEvent(target, name, ...)
     d_events_raise(target, name, ...)
 end
 
+testCounter = 0
+
 function eventtest()
     local function on_message(sender, msg)
         printf("message: {}", msg)
@@ -52,10 +54,15 @@ function eventtest()
         printf("message, 2nd handler: {}", msg)
     end
     local function on_bazooka_activate(sender)
-        printf("bazooka got fired at {}!", Phys_pos(Sprite_physics(sender)))
+        testCounter = testCounter + 1
+        local ctx = testCounter
+        set_context(sender, ctx)
+        printf("bazooka {} got fired at {}!", ctx,
+            Phys_pos(Sprite_physics(sender)))
     end
     local function on_bazooka_die(sender)
-        printf("bazooka died at {}!", Phys_pos(Sprite_physics(sender)))
+        local ctx = get_context(sender)
+        printf("bazooka {} died at {}!", ctx, Phys_pos(Sprite_physics(sender)))
     end
     addGlobalEventHandler("game_message", on_message)
     addGlobalEventHandler("game_message", on_message2)

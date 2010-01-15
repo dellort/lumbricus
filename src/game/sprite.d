@@ -94,6 +94,11 @@ class Sprite : GameObject {
         return mEvents;
     }
 
+    //if it's placed in the world (physics, animation)
+    bool visible() {
+        return internal_active;
+    }
+
     void activate(Vector2f pos) {
         if (physics.dead || mWasActivated)
             return;
@@ -166,6 +171,11 @@ class Sprite : GameObject {
     //called when object should die
     //this implementation kills it immediately
     protected void die() {
+        kill();
+    }
+
+    override void onKill() {
+        super.onKill();
         internal_active = false;
         if (!physics.dead) {
             physics.dead = true;
