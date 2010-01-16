@@ -16,27 +16,32 @@ class EventTarget {
     private {
         char[] mEventTargetType;
         //ID mEventTargetTypeID;
-        Events mPerInstance;
+        Events mEvents, mPerClass, mPerInstance;
     }
 
-    this(char[] type) {
+    this(char[] type, Events global_events) {
+        assert(!!global_events);
+        mEvents = global_events;
         mEventTargetType = type;
         //mEventTargetTypeID = 0;
+        mPerClass = mEvents.perClassEvents(mEventTargetType);
     }
 
-    abstract Events eventsBase();
+    //for global event handlers
+    final Events eventsBase() {
+        return mEvents;
+    }
 
-    //for per-class event handlers; possibly point to an Events instance shared
-    //  across all objects of the
-    //can be null
-    Events classLocalEvents() {
-        return null;
+    //for per-class event handlers; point to an Events instance shared across
+    //  all objects of the same type
+    final Events classLocalEvents() {
+        return mPerClass;
     }
 
     //for per-instance event handlers; should be avoided if possible, because it
     //  causes lots of memory allocations per instance and event
-    //is created on demand
-    Events instanceLocalEvents() {
+    //is created on demand (to save memory, assuming it is seldomly used)
+    final Events instanceLocalEvents() {
         if (!mPerInstance)
             mPerInstance = new Events();
         return mPerInstance;
@@ -49,9 +54,10 @@ class EventTarget {
     final void raiseEvent(char[] name, EventPtr args) {
         if (mPerInstance)
             mPerInstance.raise(name, this, args);
-        if (auto levents = classLocalEvents())
-            levents.raise(name, this, args);
-        eventsBase.raise(name, this, args);
+        if (mPerClass)
+            mPerClass.raise(name, this, args);
+        if (mEvents)
+            mEvents.raise(name, this, args);
     }
 }
 
@@ -136,20 +142,6 @@ static this() {
 //  1. handlers are always registered to classes, never to instances
 //  2. adding handlers is SLOW because of memory allocation
 //
-//the following applies: "make it better", "we can change/fix it later",
-//  "it's better than nothing", "I had to do something about this",
-//  "making it simple was too complicated", "first make it work, then optimize"
-//
-//optimization ideas:
-//  - pass around unique IDs or precomputed hashes instead of strings
-//    for both event identifiers and object types
-//  - somehow make raiseT call Lua directly, instead of going through an AA
-//    lookup and calling a demarshaller (re-implement the event dispatch
-//    mechanism in Lua, also see next item)
-//  - don't call Lua if no Lua handlers are registered; if Lua handlers are
-//    registered, call Lua only once and do the actual dispatch in Lua (cheaper
-//    than marshalling the event parameters multiple times)
-//
 //also, either raiseT() or raise() should eventually be removed
 final class Events {
     private {
@@ -157,6 +149,10 @@ final class Events {
 
         LuaState mScripting;
         char[] mScriptingEventsNamespace;
+
+        //hack
+        Events[char[]] mPerClassEvents;
+        char[] mTargetType;
     }
 
     //catch all events
@@ -167,11 +163,37 @@ final class Events {
     this() {
     }
 
+    //for Events that are for per-class handlers
+    this(char[] target_type) {
+        mTargetType = target_type;
+    }
+
+    //this is a hack insofar, that only the global Events instance should have
+    //  this method, and it doesn't really make sense for per-class Events
+    //  instances
+    final Events perClassEvents(char[] target_type) {
+        auto pevents = target_type in mPerClassEvents;
+        if (pevents)
+            return *pevents;
+        auto ev = new Events(target_type);
+        mPerClassEvents[target_type] = ev;
+        if (mScripting)
+            subevents_init_scripting(ev);
+        return ev;
+    }
+
+    private void subevents_init_scripting(Events ev) {
+        assert(!!mScripting);
+        ev.setScripting(mScripting, mScriptingEventsNamespace ~ "_"
+            ~ ev.mTargetType);
+    }
+
     //xxx shitty performance hack
     private char[] nullTerminate(char[] s) {
         return (s~'\0')[0..$-1];
     }
 
+    //this is also a method which should only exist for the global Events object
     void setScripting(LuaState lua, char[] namespace) {
         mScripting = lua;
         mScriptingEventsNamespace = nullTerminate(namespace);
@@ -182,10 +204,14 @@ final class Events {
             `, mScriptingEventsNamespace);
         //xxx make independent from raw Lua API etc....
         lua_State* state = lua.state();
-        lua.stack0();
+        //--lua.stack0();
         lua_pushcfunction(state, &scriptEventsRaise);
         lua_setglobal(state, (cEventsRaiseFunction ~ '\0').ptr);
-        lua.stack0();
+        //--lua.stack0();
+
+        foreach (Events sub; mPerClassEvents) {
+            subevents_init_scripting(sub);
+        }
     }
 
     char[] scriptingEventsNamespace() {
@@ -239,9 +265,9 @@ final class Events {
     //there can be only one such handler (globally), and scripting uses it to
     //  implement its own event dispatch mechanism (there needs to be only a
     //  single D->scripting function as bridge)
-    void enableScriptHandler(char[] event) {
+    void enableScriptHandler(char[] event, bool enable) {
         assert(!!mScripting);
-        get_event(event).enable_script = true;
+        get_event(event).enable_script = enable;
     }
 
     private void raise_to_script(EventType ev, EventTarget sender,

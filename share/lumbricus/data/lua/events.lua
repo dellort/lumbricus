@@ -23,7 +23,7 @@ function do_addEventHandler(events, event_name, handler)
         ghandler = {}
         setmetatable(ghandler, EventHandlerMeta)
         ns[event_name] = ghandler
-        Events_enableScriptHandler(events, event_name)
+        Events_enableScriptHandler(events, event_name, true)
     end
     ghandler[#ghandler + 1] = handler
 end
@@ -33,8 +33,7 @@ function addGlobalEventHandler(event_name, handler)
 end
 
 function addPerClassEventHandler(class_name, event_name, handler)
-    local spriteclass = Gfx_findSpriteClass(class_name)
-    local events = SpriteClass_getEvents(spriteclass, Game)
+    local events = Events_perClassEvents(Game_events(), class_name)
     do_addEventHandler(events, event_name, handler)
 end
 
@@ -53,11 +52,11 @@ function addInstanceEventHandler(object, event_name, handler)
     -- register the per-class handler
     local ns = EventTarget_eventTargetType(object)
     local cls = _perInstanceDispatchers[ns]
-    if (not cls) or (not cls[event_name]) then
-        if not cls then
-            cls = {}
-            _perInstanceDispatchers[ns] = cls
-        end
+    if not cls then
+        cls = {}
+        _perInstanceDispatchers[ns] = cls
+    end
+    if not cls[event_name] then
         cls[event_name] = true
         addPerClassEventHandler(ns, event_name,
             -- this is the per-instance dispatch function

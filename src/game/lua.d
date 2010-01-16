@@ -95,7 +95,7 @@ static this() {
     gScripting.setClassPrefix!(WormSprite)("Worm");
     gScripting.methods!(WormSprite, "beamTo");
 
-    gScripting.methods!(SpriteClass, "createSprite", "getEvents");
+    gScripting.methods!(SpriteClass, "createSprite");
     gScripting.property_ro!(SpriteClass, "name");
 
     gScripting.setClassPrefix!(PhysicWorld)("World");
@@ -132,7 +132,7 @@ static this() {
 
     //internal functions
     gScripting.properties_ro!(EventTarget, "eventTargetType");
-    gScripting.methods!(Events, "enableScriptHandler");
+    gScripting.methods!(Events, "enableScriptHandler", "perClassEvents");
     gScripting.properties_ro!(Events, "scriptingEventsNamespace");
 }
 

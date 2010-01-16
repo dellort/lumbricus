@@ -13,6 +13,8 @@ import net.marshal;
 import utils.misc;
 import utils.stream;
 
+import tango.core.Exception;
+
 //--- stuff which might appear as keys in the Lua "Registry"
 
 //mangle value that's unique for each D type
@@ -345,10 +347,6 @@ private void luaPushDelegate(T)(lua_State* state, T del) {
 //  of dead objects free'd since the last query, and the Lua delegate table
 //  entry could be removed without synchronization problems
 private abstract class LuaDelegateWrapper {
-    alias void function(LuaState) Init;
-    //key is a TypeInfo casted to void* (why? bug 3086)
-    static Init[void*] gTypes;
-
     private {
         lua_State* mState;
         int mLuaRef = LUA_NOREF;
@@ -401,14 +399,6 @@ private class LuaDelegateWrapperT(T) : LuaDelegateWrapper {
         assert(lua_isfunction(mState, -1));
         //will pop function from the stack
         return doLuaCall!(RetType, Params)(mState, args);
-    }
-
-    //register the wrapper for deserialization
-    private static void doInit(LuaState state) {
-        //... maybe pass a delegate for dynamic creation to state
-    }
-    static this() {
-        gTypes[cast(void*)typeid(typeof(this))] = &doInit;
     }
 }
 
@@ -502,6 +492,15 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
             }
         }
         assert(false);
+    } catch (AssertException e) {
+        //go boom immediately to avoid confusion
+        //this should also be done for other "runtime" exceptions, but at least
+        //  in D1, the exception class hierarchy is too retarded and you have
+        //  to catch every single specialized exception type (got fixed in D2)
+        Trace.formatln("catching failing assert before returning to Lua:");
+        e.writeOut((char[] s) { Trace.format("{}", s); });
+        Trace.formatln("done, will die now.");
+        asm { hlt; }
     } catch (Exception e) {
         raiseLuaError(state, e.msg);
     }

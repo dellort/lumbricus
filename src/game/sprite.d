@@ -77,15 +77,6 @@ class Sprite : GameObject {
         return mType;
     }
 
-    final override Events classLocalEvents() {
-        //mEvents is cached, because events are raised often, and getEvents
-        //  does a relatively slow AA lookup
-        if (!mEvents) {
-            mEvents = type.getEvents(engine);
-        }
-        return mEvents;
-    }
-
     //if it's placed in the world (physics, animation)
     bool visible() {
         return internal_active;
@@ -674,26 +665,6 @@ class SpriteClass {
             (config["sequence_object"]);
 
         initialHp = config.getFloatValue("initial_hp", initialHp);
-    }
-
-    //must be called as the engine is "started"
-    void initPerEngine(GameEngine engine) {
-        assert(!(this in engine.perClassEvents), "double init? "~name);
-
-        auto ev = new Events();
-        ev.setScripting(engine.scripting, "eventhandlers_" ~ name);
-        engine.perClassEvents[this] = ev;
-    }
-
-    //this is a small WTF: I thought I could put the Events instance into
-    //  StateSpriteClass (because it exists only once per StateSprite class), but
-    //  StateSpriteClass is independent from GameEngine (thus, no scripting!)
-    //so, enjoy this horrible hack.
-    //all Events instances get created on demand
-    //NOTE that this function will be very slow (AA lookup)
-    final Events getEvents(GameEngine engine) {
-        //if this fails, maybe initPerEngine() wasn't called
-        return engine.perClassEvents[this];
     }
 
     char[] toString() { return "SpriteClass["~name~"]"; }

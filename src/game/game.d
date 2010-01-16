@@ -61,10 +61,6 @@ class GameEngine {
     Events events;
     GlobalEvents globalEvents;
 
-    //idiotic hack for sprite.d
-    //indexed by SpriteClass only for now
-    Events[Object] perClassEvents;
-
     private {
         static LogStruct!("game.game") log;
 
@@ -158,11 +154,6 @@ class GameEngine {
         loadScript("events.lua");
 
         loadScript("timer.lua");
-
-        //for now, this is to init events+scripting...
-        foreach (SpriteClass s; mGfx.allSpriteClasses()) {
-            s.initPerEngine(this);
-        }
 
         persistentState = config.gamestate.copy();
 
@@ -519,11 +510,15 @@ class GameEngine {
             //  worm dies => everyone uses a dead sprite
             //case 3:
             //  mLastCrate in controller.d
+            //case 4:
+            //  throwing a carpet bomb (don't know why)
             if (o.dontDieOnMe.length) {
                 log("don't stomp, those still need it: {}", o.dontDieOnMe);
                 continue;
             }
-            (cast(ubyte*)cast(void*)o)[0..o.classinfo.init.length] = 0;
+            //can uncomment this to enable delicious crashes whenever dead
+            //  objects are being accessed
+            //(cast(ubyte*)cast(void*)o)[0..o.classinfo.init.length] = 0;
         }
         mKillList.clear();
     }

@@ -242,6 +242,8 @@ void main(char[][] args) {
 
     //GC test - don't try this without version Lua_In_D_Memory
 
+    Trace.formatln("GC test...");
+
     //get some garbage, trigger GC and overwriting of free'd data, etc.
     for (int i = 0; i < 5000000; i++) {
         new ubyte[1];
@@ -252,35 +254,6 @@ void main(char[][] args) {
     `);
 
     //end GC test
-
-/+
-    char[][Object] exts;
-    Stream outs = //Stream.OpenFile("foo.out", File.ReadWriteCreate);
-    new MemoryStream();//
-    s.serialize("stuff", outs, (Object o) {
-        if (!(o in exts))
-            exts[o] = myformat("#{}", exts.length);
-        return exts[o];
-    });
-
-    outs.position = 0;
-
-    s.deserialize("meep", outs, (char[] s) {
-        foreach (Object o, char[] id; exts) {
-            if (s == id)
-                return o;
-        }
-        //signals error
-        //also, lol pathetic D type "inference" (more like type interference)
-        return cast(Object)null;
-    });
-
-    loadexec(`
-        print(string.format("deserialized: some_string=%s", meep.some_string));
-        -- the printed string was actually not serialized
-        print(string.format("deserialized: some_b=%s", Bar_blurgh(meep.some_b)));
-    `);
-+/
 
     //these are expected to fail (type checks etc.)
 

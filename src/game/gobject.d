@@ -35,7 +35,7 @@ abstract class GameObject : EventTarget {
     //  basically should give the type of the game object as a string
     this(GameEngine aengine, char[] event_target_type) {
         assert(aengine !is null);
-        super(event_target_type);
+        super(event_target_type, aengine.events);
         mEngine = aengine;
         mIsAlive = true;
         engine._object_created(this);
@@ -44,10 +44,6 @@ abstract class GameObject : EventTarget {
 
     final GameEngine engine() {
         return mEngine;
-    }
-
-    final override Events eventsBase() {
-        return mEngine.events;
     }
 
     //for GameObject, the only meaning of this is whether simulate() should be
