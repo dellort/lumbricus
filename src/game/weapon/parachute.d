@@ -11,7 +11,6 @@ import game.wcontrol;
 import physics.world;
 import utils.configfile;
 import utils.factory;
-import utils.reflection;
 import utils.time;
 import utils.vector2;
 import utils.log;
@@ -26,11 +25,6 @@ class ParachuteClass : ConfWeaponClass {
     this(GfxSet gfx, ConfigNode node) {
         super(gfx, node);
         sideForce = node.getValue("side_force", sideForce);
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override Shooter createShooter(Sprite go, GameEngine engine) {
@@ -60,10 +54,6 @@ class Parachute : Shooter, Controllable {
         mWorm = a_owner;
         myclass = base;
         mMember = engine.controller.controlFromGameObject(mWorm, false);
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override bool delayedAction() {

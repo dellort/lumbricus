@@ -12,7 +12,6 @@ import game.weapon.types;
 import utils.configfile;
 import utils.misc;
 import utils.time;
-import utils.reflection;
 
 //lua script as generic GameObject (only good for plugin loading)
 //questionable way to load scripts, but needed for game mode right now
@@ -67,11 +66,6 @@ class LuaWeaponClass : WeaponClass {
 
     this(GfxSet gfx, char[] a_name) {
         super(gfx, a_name);
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
     }
 
     void setParams(WeaponParams p) {

@@ -1,7 +1,6 @@
 module physics.force;
 
 import utils.vector2;
-import utils.reflection;
 import utils.list2;
 import utils.misc;
 
@@ -19,12 +18,6 @@ class PhysicForce : PhysicBase {
     ObjListNode!(typeof(this)) forces_node;
 
     abstract void applyTo(PhysicObject o, float deltaT);
-
-    static void registerstuff(ReflectCtor c) {
-        c.types().registerClasses!(ConstantForce, ConstantAccel, WindyForce,
-            ExplosiveForce, GravityCenter, StokesDragObject, StokesDragFixed,
-            ObjectForce, ForceZone);
-    }
 }
 
 class ConstantForce : PhysicForce {
@@ -33,8 +26,6 @@ class ConstantForce : PhysicForce {
     Vector2f force;
 
     this() {
-    }
-    this (ReflectCtor c) {
     }
 
     void applyTo(PhysicObject o, float deltaT) {
@@ -48,8 +39,6 @@ class ConstantAccel: PhysicForce {
 
     this() {
     }
-    this (ReflectCtor c) {
-    }
 
     void applyTo(PhysicObject o, float deltaT) {
         o.addForce(accel * o.posp.mass, true);
@@ -61,8 +50,6 @@ class WindyForce : PhysicForce {
     private const cStokesConstant = 6*math.PI;
 
     this() {
-    }
-    this (ReflectCtor c) {
     }
 
     void applyTo(PhysicObject o, float deltaT) {
@@ -85,9 +72,6 @@ class ExplosiveForce : PhysicForce {
 
     //the force is only applied if true is returned
     bool delegate(ExplosiveForce sender, PhysicObject obj) onCheckApply;
-
-    this (ReflectCtor c) {
-    }
 
     this() {
         //one time
@@ -128,8 +112,6 @@ class GravityCenter : PhysicForce {
 
     this() {
     }
-    this (ReflectCtor c) {
-    }
 
     private float cDistDelta = 0.01f;
     void applyTo(PhysicObject o, float deltaT) {
@@ -151,8 +133,6 @@ class StokesDragObject : PhysicForce {
     private const cStokesConstant = -6*math.PI;
 
     this() {
-    }
-    this (ReflectCtor c) {
     }
 
     void applyTo(PhysicObject o, float deltaT) {
@@ -176,9 +156,6 @@ class StokesDragFixed : PhysicForce {
         viscosity = visc;
     }
 
-    this (ReflectCtor c) {
-    }
-
     void applyTo(PhysicObject o, float deltaT) {
         if (viscosity != 0.0f) {
             //F = -6*PI*r*eta*v
@@ -192,9 +169,6 @@ class StokesDragFixed : PhysicForce {
 class ObjectForce : PhysicForce {
     PhysicObject target;
     PhysicForce force;
-
-    this (ReflectCtor c) {
-    }
 
     this(PhysicForce f, PhysicObject t) {
         force = f;
@@ -213,9 +187,6 @@ class ForceZone : PhysicForce {
     PhysicForce force;
     PhysicZone zone;
     bool invert;
-
-    this (ReflectCtor c) {
-    }
 
     this(PhysicForce f, PhysicZone z, bool inv = false) {
         force = f;

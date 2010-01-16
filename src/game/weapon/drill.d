@@ -10,7 +10,6 @@ import game.sequence;
 import physics.world;
 import utils.configfile;
 import utils.factory;
-import utils.reflection;
 import utils.time;
 import utils.vector2;
 import utils.log;
@@ -30,11 +29,6 @@ class DrillClass : ConfWeaponClass {
         tunnelRadius = node.getValue("tunnel_radius", tunnelRadius);
         blowtorch = node.getValue("blowtorch", blowtorch);
         interval = node.getValue("interval", interval);
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override Shooter createShooter(Sprite go, GameEngine engine) {
@@ -58,16 +52,10 @@ class Drill : Shooter {
         Time mStart, mNext;
     }
 
-    mixin Methods!("checkApply");
-
     this(DrillClass base, WormSprite a_owner) {
         super(base, a_owner, a_owner.engine);
         mWorm = a_owner;
         myclass = base;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override bool delayedAction() {

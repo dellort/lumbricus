@@ -7,7 +7,6 @@ import game.gobject;
 import utils.configfile;
 import utils.time;
 import utils.randval;
-import utils.reflection;
 import utils.misc;
 import utils.log;
 import utils.factory;
@@ -27,10 +26,6 @@ class ActionListClass : ActionClass {
     int repeatCount = 1;
     RandomValue!(Time) repeatDelay = {Time.Null, Time.Null};
 
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
     this (GfxSet gfx, ConfigNode node, char[] a_name) {
         super(a_name);
         //parameters for _this_ list
@@ -145,9 +140,6 @@ class ActionListRunner : GameObject {
         assert(mLoops > 0);
         if (mNext == 0)
             startWait();  //ScriptListClass already finished one loop
-    }
-    this(ReflectCtor c) {
-        super(c);
     }
 
     bool activity() {

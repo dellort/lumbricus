@@ -18,7 +18,6 @@ import game.temp;
 import physics.misc;
 import utils.configfile;
 import utils.md;
-import utils.reflection;
 import utils.factory;
 
 ///let the client display a message (like it's done on round's end etc.)
@@ -105,9 +104,6 @@ abstract class GamePlugin : GameObject {
         super(c, "plugin");
         internal_active = true;
         controller = engine.controller;
-    }
-    this(ReflectCtor c) {
-        super(c);
     }
 
     override bool activity() {

@@ -1,6 +1,5 @@
 module physics.earthquake;
 
-import utils.reflection;
 import utils.time;
 import utils.vector2;
 import random = utils.random;
@@ -38,8 +37,6 @@ class EarthQuakeForce : PhysicForce {
 
     this (bool doImpulse) {
         mDoImpulse = doImpulse;
-    }
-    this (ReflectCtor c) {
     }
 
     //when something wants to cause an earth quake, it needs to update this
@@ -129,11 +126,6 @@ class EarthQuakeDegrader : PhysicBase {
         mInterp.init(duration, mStrength, 0);
         mForce = eqForce;
         assert(!!mForce);
-    }
-
-    this (ReflectCtor c) {
-        auto t = c.types();
-        t.registerMethod(this, &getTime, "getTime");
     }
 
     private Time getTime() {

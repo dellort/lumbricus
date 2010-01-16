@@ -26,7 +26,6 @@ import utils.md;
 import utils.misc;
 import utils.array;
 import utils.queue;
-import utils.reflection;
 
 import math = tango.math.Math;
 import tango.util.Convert : to;
@@ -35,6 +34,7 @@ import tango.util.Convert : to;
 const Time cTimePerHealthTick = timeMsecs(4);
 
 
+//class Team : TeamRef {
 class Team : GameObject {
     char[] mName = "unnamed team";
     TeamTheme teamColor;
@@ -86,10 +86,6 @@ class Team : GameObject {
         internal_active = true;
     }
 
-    this (ReflectCtor c) {
-        super(c);
-    }
-
     // --- start Team
 
     char[] name() {
@@ -100,7 +96,12 @@ class Team : GameObject {
         return mTeamId;
     }
 
+    //the naming sucks, superseded by theme()
     TeamTheme color() {
+        return teamColor;
+    }
+
+    TeamTheme theme() {
         return teamColor;
     }
 
@@ -427,9 +428,6 @@ class TeamMember : GameObject {
         internal_active = true;
     }
 
-    this (ReflectCtor c) {
-        super(c);
-    }
 
     final WormControl control() {
         return mWormControl;
@@ -676,11 +674,6 @@ class GameController {
         mEngine.finishPlace();
 
         OnCollectTool.handler(engine.events, &doCollectTool);
-    }
-
-    this (ReflectCtor c) {
-        Types t = c.types();
-        t.registerMethod(this, &doCollectTool, "doCollectTool");
     }
 
     //--- start GameLogicPublic

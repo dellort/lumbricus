@@ -14,7 +14,6 @@ import game.temp : GameZOrder;
 import physics.world;
 import utils.configfile;
 import utils.factory;
-import utils.reflection;
 import utils.time;
 import utils.vector2;
 import utils.color;
@@ -50,11 +49,6 @@ class RopeClass : ConfWeaponClass {
             ropeSegment = gfx.resources.get!(Surface)(resseg);
 
         anchorAnim = gfx.resources.get!(Animation)(node["anchor_anim"]);
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override Shooter createShooter(Sprite go, GameEngine engine) {
@@ -119,11 +113,6 @@ class Rope : Shooter {
         super(base, a_owner, a_owner.engine);
         myclass = base;
         mWorm = a_owner;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-        c.types().registerMethod(this, &ropeMove, "ropeMove");
     }
 
     //check if rope anchor is still connected / can be connected
@@ -430,8 +419,6 @@ class RenderRope : SceneObject {
     this(Rope r) {
         rope = r;
         zorder = GameZOrder.FrontObjects;
-    }
-    this(ReflectCtor c) {
     }
     override void draw(Canvas c) {
         rope.draw(c);

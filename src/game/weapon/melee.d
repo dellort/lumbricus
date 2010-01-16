@@ -15,7 +15,6 @@ import utils.color;
 import utils.log;
 import utils.random;
 import utils.time;
-import utils.reflection;
 
 class MeleeWeapon: ActionWeapon {
     int dist = 10;
@@ -25,11 +24,6 @@ class MeleeWeapon: ActionWeapon {
         //always directed with fixed strength
         fireMode.variableThrowStrength = false;
         node.getValue!(int)("distance", dist);
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
     }
 
     //using SpecialShooter here leads to dmd lockup (at least with dsss)
@@ -48,10 +42,6 @@ class MeleeShooter: ActionShooter {
     this(MeleeWeapon base, Sprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
         this.base = base;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override void fireRound() {

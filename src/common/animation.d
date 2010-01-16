@@ -6,7 +6,6 @@ import framework.framework;
 import utils.timesource;
 public import common.restypes.animation;
 import utils.rect2;
-import utils.reflection;
 import utils.time;
 import utils.vector2;
 
@@ -42,9 +41,6 @@ class Animator : SceneObjectCentered {
     this(TimeSourcePublic ts) {
         assert(!!ts); //for now, be nazi about it
         mTimeSource = ts;
-    }
-    this(ReflectCtor c) {
-        super(c);
     }
 
     //set new animation; or null to stop all

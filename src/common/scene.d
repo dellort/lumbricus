@@ -4,7 +4,6 @@ import framework.framework;
 import utils.list2;
 import utils.vector2;
 import utils.rect2;
-import utils.reflection;
 import utils.misc;
 
 import arr = tango.core.Array;
@@ -25,9 +24,6 @@ class Scene : SceneObjectCentered {
     }
 
     this() {
-    }
-    this (ReflectCtor c) {
-        c.types.registerClass!(SList)();
     }
 
     private void extend_zorder(int z) {
@@ -201,8 +197,6 @@ class SceneObject {
 
     this() {
     }
-    this (ReflectCtor c) {
-    }
 
     //returns non-null only, if it has been added to a Scene
     final Scene parent() {
@@ -237,7 +231,5 @@ class SceneObjectCentered : SceneObject {
     Vector2i pos = {0, 0};
 
     this() {
-    }
-    this (ReflectCtor c) {
     }
 }

@@ -8,7 +8,6 @@ import game.controller;
 import game.controller_events;
 
 import utils.factory;
-import utils.reflection;
 import utils.mybox;
 import utils.configfile;
 import utils.time;
@@ -21,8 +20,6 @@ class Gamemode : GameObject {
     private Time[5] mWaitStart, mWaitStartLocal;
     protected TimeSource modeTime;
 
-    mixin Methods!("startGame");
-
     this(GameEngine a_engine, ConfigNode config) {
         super(a_engine, "gamemode");
         logic = engine.controller;
@@ -33,10 +30,6 @@ class Gamemode : GameObject {
         modeTime = new TimeSource("modeTime", engine.gameTime);
         OnGameStart.handler(engine.events, &startGame);
         internal_active = true;
-    }
-
-    this(ReflectCtor c) {
-        super(c);
     }
 
     ///Start a new game, called before first simulate call

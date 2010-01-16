@@ -24,7 +24,6 @@ import tango.math.Math : abs, PI;
 import utils.factory;
 import utils.time;
 import utils.mybox;
-import utils.reflection;
 
 private LogStruct!("game.sprite") log;
 
@@ -59,8 +58,6 @@ class Sprite : GameObject {
     //hack for worm.d
     bool died_in_deathzone;
 
-    mixin Methods!("physDie", "physDamage");
-
     this(GameEngine a_engine, SpriteClass a_type) {
         super(a_engine, a_type.name);
         mType = a_type;
@@ -74,11 +71,6 @@ class Sprite : GameObject {
 
         physics.onDie = &physDie;
         physics.onDamage = &physDamage;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-        c.transient(this, &mParticleEmitter);
     }
 
     SpriteClass type() {
@@ -460,10 +452,6 @@ class StateSprite : Sprite {
 
         setStateForced(type.initState);
     }
-
-    this(ReflectCtor c) {
-        super(c);
-    }
 }
 
 
@@ -496,11 +484,6 @@ class StaticStateInfo {
         char[] onDrownTmp = "drowning";
     }
 
-    //xxx class
-    this (ReflectCtor c) {
-        c.transient(this, &onEndTmp);
-        c.transient(this, &onDrownTmp);
-    }
     this (char[] a_name) {
         mName = a_name;
     }
@@ -590,11 +573,6 @@ class StateSpriteClass : SpriteClass {
         initState = ssi;
     }
 
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
-
     StaticStateInfo findState(char[] name, bool canfail = false) {
         StaticStateInfo* state = name in states;
         if (!state && !canfail) {
@@ -680,10 +658,6 @@ class SpriteClass {
         name = regname;
 
         gfx.registerSpriteClass(name, cast(StateSpriteClass)this);
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
     }
 
     Sprite createSprite(GameEngine engine) {

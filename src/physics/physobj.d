@@ -5,7 +5,6 @@ import tango.math.IEEE : copysign;
 import utils.list2;
 import utils.vector2;
 import utils.misc: min, max, myformat;
-import utils.reflection;
 import utils.log;
 
 import physics.base;
@@ -25,9 +24,6 @@ class PhysicObject : PhysicBase {
 
     this() {
         //
-    }
-
-    this (ReflectCtor c) {
     }
 
     POSP posp() {

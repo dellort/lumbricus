@@ -1,14 +1,10 @@
 module utils.queue;
 
-import utils.reflection;
-
 //a little funny Queue class, because Phobos doesn't have one (argh)
 class Queue(T) {
     private T[] mItems;
 
     this () {
-    }
-    this (ReflectCtor c) {
     }
 
     void push(T item) {

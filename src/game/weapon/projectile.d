@@ -21,7 +21,6 @@ import utils.configfile;
 import utils.log;
 import utils.random;
 import utils.factory;
-import utils.reflection;
 import utils.mybox;
 
 interface ProjectileFeedback {
@@ -93,10 +92,6 @@ class ProjectileSprite : ActionSprite {
         myclass = type;
         assert(myclass !is null);
     }
-
-    this (ReflectCtor c) {
-        super(c);
-    }
 }
 
 class ProjectileStateInfo : ActionStateInfo {
@@ -104,10 +99,6 @@ class ProjectileStateInfo : ActionStateInfo {
     //when glued, consider it as inactive (so next turn can start); i.e. mines
     bool inactiveWhenGlued;
 
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
     this(char[] owner_name, char[] this_name) {
         super(owner_name, this_name);
     }
@@ -181,11 +172,6 @@ class ProjectileSpriteClass : ActionSpriteClass {
 
     this(GfxSet e, char[] r) {
         super(e, r);
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
     }
 
     static this() {

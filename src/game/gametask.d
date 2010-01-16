@@ -48,15 +48,12 @@ import utils.vector2;
 import utils.log;
 import utils.configfile;
 import utils.random;
-import utils.reflection;
-import utils.serialize;
 import utils.path;
-import utils.archive;
-import utils.snapshot;
 import utils.perf;
+import utils.archive;
 import str = utils.string;
 
-import game.serialize_register : initGameSerialization;
+//import game.serialize_register : initGameSerialization;
 
 import utils.stream;
 import tango.io.device.File : File;
@@ -68,6 +65,7 @@ import game.action.list;
 import game.action.spawn;
 import game.action.weaponactions;
 import game.action.spriteactions;
+import game.weapon.girder;
 import game.weapon.projectile;
 import game.weapon.rope;
 import game.weapon.jetpack;
@@ -149,10 +147,12 @@ class GameTask : StatefulTask {
 
         bool mDelayedFirstFrame; //draw screen before loading first chunk
 
+        /+
         //temporary when loading a game
         SerializeInConfig mSaveGame;
         Vector2i mSavedViewPosition;
         bool mSavedSetViewPosition;
+        +/
         ConfigNode mGamePersist;
     }
 
@@ -244,8 +244,8 @@ class GameTask : StatefulTask {
     private void initFromSave(TarArchive tehfile) {
         auto guiconf = tehfile.readConfigStream("gui.conf");
 
-        mSavedViewPosition = guiconf.getValue!(Vector2i)("viewpos");
-        mSavedSetViewPosition = true;
+        //mSavedViewPosition = guiconf.getValue!(Vector2i)("viewpos");
+        //mSavedSetViewPosition = true;
 
         mGameLoader = GameLoader.CreateFromSavegame(tehfile);
         doInit();
@@ -301,10 +301,12 @@ class GameTask : StatefulTask {
         mGameInfo.connection = mConnection;
         mGameFrame = new GameFrame(mGameInfo);
         mWindow.add(mGameFrame);
+        /+
         if (mSavedSetViewPosition) {
             mSavedSetViewPosition = false;
             mGameFrame.setPosition(mSavedViewPosition);
         }
+        +/
 
         return true;
     }
@@ -382,7 +384,7 @@ class GameTask : StatefulTask {
         mGUIGameLoader = null;
         mGameLoader = null;
         mResPreloader = null;
-        mSaveGame = null;
+        //mSaveGame = null;
         mControl = null;
     }
 
@@ -474,8 +476,6 @@ class GameTask : StatefulTask {
             mCmds.register(Command("slow", &cmdSlow, "set slowdown",
                 ["float:slow down",
                  "text?:ani or game"]));
-            mCmds.register(Command("ser_dump", &cmdSerDump,
-                "serialiation dump"));
             mCmds.register(Command("snap", &cmdSnapTest, "snapshot test",
                 ["int:1=store, 2=load, 3=store+load"]));
             mCmds.register(Command("replay", &cmdReplay,
@@ -490,7 +490,7 @@ class GameTask : StatefulTask {
             " bitmaps"));
         mCmds.register(Command("server", &cmdExecServer,
             "Run a command on the server", ["text...:command"]));
-        mCmds.register(Command("show_obj", &cmdShowObj, "", null));
+        //mCmds.register(Command("show_obj", &cmdShowObj, "", null));
         mCmds.register(Command("game_res", &cmdGameRes, "show in-game resources"
             " (doesn't include all global resources, but does include some"
             " game-only stuff)", null));
@@ -573,7 +573,7 @@ class GameTask : StatefulTask {
                 do_capture = false;
                 auto p = mousePos;
                 mGameFrame.gameView.translateCoords(this, p);
-                show_obj(p);
+                //-- show_obj(p);
             }
             deliverDirectEvent(event);
             return true;
@@ -589,6 +589,7 @@ class GameTask : StatefulTask {
         }
     }
 
+/+ gone due to serialization removal
     private void cmdShowObj(MyBox[] args, Output write) {
         mWindow.do_capture = true;
     }
@@ -602,6 +603,7 @@ class GameTask : StatefulTask {
         auto ctx = mGameShell.getSerializeContext;
         ShowObject.CreateWindow(this, ctx, ctx.types.ptrOf(o));
     }
++/
 
     private void cmdGameRes(MyBox[] args, Output write) {
         if (!mGameShell)
@@ -694,15 +696,6 @@ class GameTask : StatefulTask {
         mGameFrame.gameView.readd_graphics();
     }
 
-    private void cmdSerDump(MyBox[] args, Output write) {
-        debug {
-            debugDumpTypeInfos(serialize_types);
-            auto ctx = mGameShell.getSerializeContext();
-            char[] res = ctx.dumpGraph(mGameShell.serverEngine());
-            File.set("dump_graph.dot", res);
-        }
-    }
-
     ConfigNode gamePersist() {
         return mGamePersist;
     }
@@ -716,10 +709,10 @@ class GameTask : StatefulTask {
     static this() {
         TaskFactory.register!(typeof(this))("game");
         StatefulFactory.register!(typeof(this))(cSaveId);
-        initGameSerialization();
     }
 }
 
+/+
 class ShowObject : Container {
     private {
         SafePtr mP; //watched
@@ -1077,6 +1070,7 @@ class ShowObject : Container {
         }
     }
 }
++/
 
 class LuaInterpreter : Task {
     private {

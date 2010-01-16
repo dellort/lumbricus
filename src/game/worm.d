@@ -20,7 +20,6 @@ import utils.log;
 import utils.misc;
 import utils.math;
 import utils.configfile;
-import utils.reflection;
 import tango.math.Math;
 
 //crosshair
@@ -305,14 +304,6 @@ class WormSprite : StateSprite {
         wsc = spriteclass;
 
         gravestone = 0;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-        c.types().registerMethod(this, &physDamage, "physDamage");
-        c.types().registerMethod(this, &physImpact, "physImpact");
-        c.types().registerMethod(this, &shooterFinish, "shooterFinish");
-        c.types().registerMethod(this, &reduceAmmo, "reduceAmmo");
     }
 
     protected override void setCurrentAnimation() {
@@ -1122,10 +1113,6 @@ class WormStateInfo : StaticStateInfo {
     bool canAim = false;        //can the target cross be moved
     bool canFire = false;       //can the main weapon be fired
 
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
     this (char[] a_name) {
         super(a_name);
     }
@@ -1157,11 +1144,6 @@ class WormSpriteClass : StateSpriteClass {
     //alias WormSprite.FlyMode FlyMode;
 
     SequenceState[FlyMode.max+1] flyState;
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
 
     this(GfxSet e, char[] r) {
         super(e, r);
@@ -1258,10 +1240,6 @@ class GravestoneSprite : StateSprite {
         gsc = s;
         internal_active = true;
     }
-
-    this (ReflectCtor c) {
-        super(c);
-    }
 }
 
 class GravestoneSpriteClass : StateSpriteClass {
@@ -1270,11 +1248,6 @@ class GravestoneSpriteClass : StateSpriteClass {
     //indexed by type
     SequenceState[] normal;
     SequenceState[] drown;
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
 
     this(GfxSet e, char[] r) {
         super(e, r);
@@ -1331,11 +1304,6 @@ class RenderCrosshair : SceneObject {
         zorder = GameZOrder.Crosshair;
         init_ip();
         reset();
-    }
-    this (ReflectCtor c) {
-        super(c);
-        c.transient(this, &mIP);
-        c.transient(this, &mEmit);
     }
 
     override void removeThis() {

@@ -19,8 +19,6 @@ import utils.vector2;
 import utils.configfile;
 import utils.log;
 import utils.factory;
-import utils.reflection;
-import utils.serialize;
 import utils.time;
 import utils.randval;
 
@@ -29,11 +27,6 @@ class ActionWeapon : ConfWeaponClass {
     int repeatCount = 1;      //how many shots will be fired on one activation
     int reduceAmmo = int.max; //take 1 ammo every x bullets (and always at end)
     RandomValue!(Time) repeatDelay = {Time.Null, Time.Null};
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
 
     this(GfxSet gfx, ConfigNode node) {
         super(gfx, node);
@@ -104,10 +97,6 @@ class ActionShooter : Shooter, ProjectileFeedback {
         super(base, a_owner, engine);
         myclass = base;
         fireInfo = new WrapFireInfo;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     bool activity() {

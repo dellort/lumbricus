@@ -1,6 +1,5 @@
 module physics.geometry;
 
-import utils.reflection;
 import utils.list2;
 import utils.vector2;
 
@@ -59,9 +58,6 @@ class PhysicGeometry : PhysicBase {
 
     this() {
     }
-    this (ReflectCtor c) {
-        c.types().registerClass!(PlaneGeometry);
-    }
 
     override protected void addedToWorld() {
         //register fixed collision id "ground" on first call
@@ -88,10 +84,6 @@ class PlaneGeometry : PhysicGeometry {
     }
 
     this() {
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     bool collide(Vector2f pos, float radius, out GeomContact contact) {

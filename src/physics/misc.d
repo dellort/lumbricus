@@ -2,7 +2,6 @@ module physics.misc;
 
 import tango.util.Convert;
 import utils.configfile : ConfigNode;
-import utils.reflection;
 import utils.vector2;
 import utils.misc : myformat;
 
@@ -199,7 +198,5 @@ class POSP {
     }
 
     this() {
-    }
-    this (ReflectCtor c) {
     }
 }

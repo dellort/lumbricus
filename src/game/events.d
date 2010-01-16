@@ -2,10 +2,9 @@
 module game.events;
 
 import framework.lua;
+import utils.hashtable;
 import utils.misc;
 import utils.mybox;
-import utils.reflection;
-import utils.serialize;
 
 import traits = tango.core.Traits;
 
@@ -118,7 +117,6 @@ private class EventType {
     Event_DtoScript marshal_d2s; //lazily initialized
 
     this() {}
-    this(ReflectCtor c) {}
 }
 
 //using RefHashTable because of dmd bug 3086
@@ -167,11 +165,6 @@ final class Events {
     Events[] cascade;
 
     this() {
-    }
-
-    this (ReflectCtor c) {
-        c.transient(this, &mScripting); //hack
-        c.types.registerClasses!(EventType);
     }
 
     //xxx shitty performance hack
@@ -427,75 +420,6 @@ unittest {
     bool b;
     auto xd = {SomeEvent.raise(null, i, b);};
 }
-
-//disgusting serialization hacks follow
-//this only deals with the handler_templated functions
-//you could just put the dispatcher as virtual function into a templated class,
-//  and then register that class for serialization, but the thought of the bloat
-//  when generating a class per handler wouldn't let me sleep at night
-
-private {
-    DispatchEventHandler[char[]] gEventHandlerDispatchers;
-}
-
-//[read|write]Handler make up the custom serializer for the templated dispatch
-//  function... the serializer searches through EventHandlerDispatchers and
-//  maps the function pointer to a name
-
-private void readHandler(SerializeBase base, SafePtr p,
-    void delegate(SafePtr) reader)
-{
-    char[] name;
-    reader(base.types.ptrOf(name));
-    auto ph = name in gEventHandlerDispatchers;
-    if (!ph) {
-        throw new SerializeError("can't read event dispatch handler");
-    }
-    p.write!(DispatchEventHandler)(*ph);
-}
-
-private void writeHandler(SerializeBase base, SafePtr p,
-    void delegate(SafePtr) writer)
-{
-    DispatchEventHandler search = p.read!(DispatchEventHandler)();
-    foreach (char[] n, DispatchEventHandler h; gEventHandlerDispatchers) {
-        if (search is h) {
-            writer(base.types.ptrOf(n));
-            return;
-        }
-    }
-    //most likely forgot to pass sth. to registerSerializableEventHandlers()
-    //there's nothing you can do about this error; except maybe reverse lookup
-    //  the function address to a symbol name using your favorite OMF/ELF tool
-    //xxx or like in Types.readDelegateError()
-    throw new SerializeError("unregistered event type?");
-}
-
-//call with DeclareEvent alias (e.g. SomeEvent)
-//this means T[index] is a fully instantiated template (wtf...)
-void registerSerializableEventHandlers(T...)(Types types) {
-    const clen = T.length; //can't pass this directly to Repeat LOL DMD
-    foreach (x; Repeat!(clen)) {
-        add_bloat_fn(&T[x].handler_templated, T[x].Name);
-        //to enable serialization of EventType.paramtype
-        types.getType!(T[x].ParamType)();
-    }
-}
-
-private void add_bloat_fn(DispatchEventHandler f, char[] name) {
-    assert(!(name in gEventHandlerDispatchers), "non-unique event name?");
-    gEventHandlerDispatchers[name] = f;
-}
-
-static this() {
-    add_bloat_fn(&Events.handler_generic, "_generic_");
-}
-
-void eventsInitSerializeCtx(SerializeContext ctx) {
-    ctx.addCustomSerializer!(DispatchEventHandler)(null, &readHandler,
-        &writeHandler);
-}
-
 
 /+
 //stupid "optimization"

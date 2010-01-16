@@ -12,7 +12,6 @@ import game.weapon.weapon;
 import game.gamemodes.base;
 import game.gamemodes.mdebug;
 import physics.misc;
-import utils.reflection;
 import utils.log;
 import utils.configfile;
 import utils.misc;
@@ -37,11 +36,6 @@ class ControllerMsgs : GamePlugin {
         Team mWinner;
     }
 
-    mixin Methods!("onGameStart", "onGameEnd", "onSuddenDeath", "onSpriteDie",
-        "onTeamMemberStartDie", "onTeamMemberActivate",
-        "onTeamMemberDeactivate", "onTeamSkipTurn", "onTeamSurrender",
-        "onCrateDrop", "onCrateCollect", "onVictory");
-
     this(GameEngine c, ConfigNode o) {
         super(c, o);
         auto ev = engine.events;
@@ -57,9 +51,6 @@ class ControllerMsgs : GamePlugin {
         OnCrateDrop.handler(ev, &onCrateDrop);
         OnCrateCollect.handler(ev, &onCrateCollect);
         OnVictory.handler(ev, &onVictory);
-    }
-    this(ReflectCtor c) {
-        super(c);
     }
 
     private void onGameStart(GameObject dummy) {
@@ -249,9 +240,6 @@ class ControllerStats : GamePlugin {
         Stats mStats;
     }
 
-    mixin Methods!("onGameEnd", "onDamage","onDemolish", "onSpriteDie",
-        "onCrateCollect", "onFireWeapon");
-
     this(GameEngine c, ConfigNode o) {
         super(c, o);
         OnGameEnd.handler(engine.events, &onGameEnd);
@@ -260,9 +248,6 @@ class ControllerStats : GamePlugin {
         OnSpriteDie.handler(engine.events, &onSpriteDie);
         OnCrateCollect.handler(engine.events, &onCrateCollect);
         OnFireWeapon.handler(engine.events, &onFireWeapon);
-    }
-    this(ReflectCtor c) {
-        super(c);
     }
 
     private void onDamage(Sprite victim, GameObject cause, DamageCause type,
@@ -369,15 +354,10 @@ class ControllerPersistence : GamePlugin {
         const cVictoryCountDef = 2;
     }
 
-    mixin Methods!("onGameStart", "onGameEnd");
-
     this(GameEngine c, ConfigNode o) {
         super(c, o);
         OnGameStart.handler(engine.events, &onGameStart);
         OnGameEnd.handler(engine.events, &onGameEnd);
-    }
-    this(ReflectCtor c) {
-        super(c);
     }
 
     private void onGameStart(GameObject dummy) {

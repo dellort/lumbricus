@@ -18,7 +18,6 @@ import utils.mybox;
 import utils.log;
 import utils.factory;
 import utils.time;
-import utils.reflection;
 
 class ActionSprite : StateSprite {
     protected Vector2f mLastImpactNormal = {0, -1};
@@ -203,12 +202,6 @@ class ActionSprite : StateSprite {
         super(engine, type);
         mFireInfo = new WrapFireInfo();
     }
-
-    this (ReflectCtor c) {
-        super(c);
-        c.types().registerMethod(this, &physDamage, "physDamage");
-        c.types().registerMethod(this, &physImpact, "physImpact");
-    }
 }
 
 class ActionStateInfo : StaticStateInfo {
@@ -221,11 +214,6 @@ class ActionStateInfo : StaticStateInfo {
     private {
         //for forward references
         char[] actionsTmp;
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
     }
 
     this(char[] owner_name, char[] this_name) {
@@ -280,11 +268,6 @@ class ActionSpriteClass : StateSpriteClass {
         super(gfx, regname);
 
         actions = new ActionContainer(name);
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
     }
 
     ActionSprite createSprite(GameEngine engine) {

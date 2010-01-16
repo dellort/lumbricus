@@ -9,8 +9,6 @@ import game.particles;
 import utils.configfile;
 import utils.time;
 import utils.randval;
-import utils.reflection;
-import utils.serialize;
 import utils.misc;
 import utils.log;
 import utils.strparser : fromStr;
@@ -33,9 +31,6 @@ class ActionContainer {
         char[] mName;
     }
 
-    //xxx class
-    this (ReflectCtor c) {
-    }
     this (char[] name) {
         mName = name;
     }
@@ -113,9 +108,6 @@ class ActionClass {
         return mName;
     }
 
-    //xxx class
-    this(ReflectCtor c) {
-    }
     this(char[] name) {
         mName = name;
     }
@@ -136,8 +128,6 @@ class ActionContext {
         assert(!!eng);
         engine = eng;
         reset();
-    }
-    this(ReflectCtor c) {
     }
 
     final void reset() {
@@ -279,9 +269,7 @@ class MyActionClass(alias Func, char[] args) : ActionClass {
             }
         }
     }
-    this(ReflectCtor c) {
-        super(c);
-    }
+
     void execute(ActionContext ctx) {
         //xxx allocating new memory (just because of RandomValue stuff)
         //    maybe pass RandomValues and let the function handle it
@@ -307,27 +295,9 @@ class MyActionClass(alias Func, char[] args) : ActionClass {
     }
 }
 
-/+
-private void delegate(Types)[] gActionSerializeRegCache;
-//run this after all script functions are registered to setup serialization
-void actionSerializeRegister(Types t) {
-    foreach (fp; gActionSerializeRegCache) {
-        fp(t);
-    }
-}
-+/
-
 //registers a scripting function at the factory, and for serialization
 //all regScript calls must be done before the scriptSerializeRegister() call
 void regAction(alias Func, char[] args)(char[] id) {
     alias MyActionClass!(Func, args) AcClass;
     ActionClassFactory.register!(AcClass)(id);
-
-    /+
-    //whatever
-    void reg(Types t) {
-        t.registerClass!(AcClass)();
-    }
-    gActionSerializeRegCache ~= &reg;
-    +/
 }

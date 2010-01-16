@@ -29,7 +29,6 @@ import utils.md;
 import utils.misc;
 import utils.perf;
 import utils.random;
-import utils.reflection;
 import framework.framework;
 import utils.timesource;
 import framework.commandline;
@@ -45,7 +44,6 @@ import game.levelgen.renderer;// : LandscapeBitmap;
 //dummy object *sigh*
 class GlobalEvents : GameObject {
     this(GameEngine aengine) { super(aengine, "root"); }
-    this (ReflectCtor c) { super(c); }
     override bool activity() { return false; }
 }
 
@@ -126,10 +124,6 @@ class GameEngine {
 
         bool mSavegameHack;
     }
-
-    mixin Methods!("deathzoneTrigger", "underWaterTrigger", "windChangerUpdate",
-        "waterChangerUpdate", "onPhysicHit", "offworldTrigger",
-        "onHudAdd");
 
     this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime) {
         mSavegameHack = true;
@@ -249,6 +243,7 @@ class GameEngine {
 
         //lol.
         loadScript("gameutils.lua");
+        loadScript("game_cheats.lua");
         OnGameInit.raise(globalEvents);
 
         //NOTE: GameController relies on many stuff at initialization
@@ -272,22 +267,6 @@ class GameEngine {
                 assert(!!found, "invalid team id: "~value);
                 mAccessMapping ~= AccessEntry(sub.name, found);
             }
-        }
-    }
-
-    this (ReflectCtor c) {
-        c.transient(this, &mCallbacks);
-        c.transient(this, &mCmd);
-        c.transient(this, &mCmds);
-        c.transient(this, &mTempTextThemed);
-        c.transient(this, &mScripting); //for now
-        c.transient(this, &mSavegameHack);
-        auto t = c.types();
-        t.registerClass!(typeof(mActiveObjects));
-        t.registerClass!(typeof(mAllObjects));
-        if (c.recreateTransient) {
-            mCallbacks = new GameEngineCallback();
-            createCmd();
         }
     }
 

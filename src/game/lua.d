@@ -82,11 +82,13 @@ static this() {
     gScripting.properties!(Team, "current", "allowSelect", "globalWins",
         "active");
 
-    gScripting.setClassPrefix!(GameObject)("Obj");
+    //no thanks -- gScripting.setClassPrefix!(GameObject)("Obj");
     gScripting.methods!(GameObject, "activity");
     gScripting.property!(GameObject, "createdBy");
     gScripting.methods!(Sprite, "setPos", "pleasedie", "type",
         "activate");
+    gScripting.property_ro!(GameObject, "objectAlive");
+
     gScripting.property_ro!(Sprite, "physics");
     gScripting.setClassPrefix!(ProjectileSprite)("Projectile");
     gScripting.property!(ProjectileSprite, "detonateTimer");
@@ -129,6 +131,7 @@ static this() {
     gScripting.methods!(LuaWeaponClass, "setParams");
 
     //internal functions
+    gScripting.properties_ro!(EventTarget, "eventTargetType");
     gScripting.methods!(Events, "enableScriptHandler");
     gScripting.properties_ro!(Events, "scriptingEventsNamespace");
 }

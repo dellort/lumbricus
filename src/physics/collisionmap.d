@@ -6,7 +6,6 @@ import physics.misc;
 
 import utils.array : arrayMap;
 import utils.configfile;
-import utils.reflection;
 import utils.misc;
 
 import str = utils.string;
@@ -41,9 +40,6 @@ final class CollisionMap {
         mCTAlways = findCollisionID("always");
         mCTAll = findCollisionID("all");
         mCTNever = findCollisionID("never");
-    }
-
-    this (ReflectCtor c) {
     }
 
     CollisionType newCollisionType(char[] name) {

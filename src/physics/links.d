@@ -1,7 +1,6 @@
 module physics.links;
 
 import tango.math.Math: abs;
-import utils.reflection;
 import utils.vector2;
 
 import physics.base;
@@ -34,9 +33,6 @@ class PhysicConstraint : PhysicContactGen {
         this.length = length;
         this.restitution = restitution;
         this.isCable = isCable;
-    }
-
-    this (ReflectCtor c) {
     }
 
     override void process(float deltaT, CollideDelegate contactHandler) {
@@ -119,9 +115,6 @@ class PhysicFixate : PhysicContactGen {
         updatePos();
     }
 
-    this (ReflectCtor c) {
-    }
-
     void updatePos() {
         mFixatePos = obj.pos;
     }
@@ -167,9 +160,6 @@ class WaterSurfaceGeometry : PhysicCollider {
         updatePos(yPos);
     }
     this() {
-    }
-
-    this (ReflectCtor c) {
     }
 
     void updatePos(float yPos) {

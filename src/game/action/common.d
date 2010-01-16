@@ -3,7 +3,6 @@ module game.action.common;
 import game.action.base;
 import game.game;
 import game.gobject;
-import utils.reflection;
 import utils.time;
 
 //waits for some time
@@ -23,9 +22,6 @@ class DelayedObj : GameObject {
         super(eng, "delayaction");
         internal_active = true;
         mWaitDone = engine.gameTime.current + duration;
-    }
-    this(ReflectCtor c) {
-        super(c);
     }
 
     bool activity() {

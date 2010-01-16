@@ -6,7 +6,6 @@ import utils.array;
 import utils.configfile;
 import utils.list2;
 import utils.random;
-import utils.reflection;
 import utils.time;
 import utils.vector2;
 import utils.log;
@@ -50,27 +49,6 @@ class PhysicWorld {
     Random rnd;
     CollisionMap collide;
     CollideDelegate onCollide;
-
-    this (ReflectCtor c) {
-        Types t = c.types();
-        c.transient(this, &mContacts);
-        t.registerClasses!(typeof(mAllObjects), typeof(mForceObjects),
-            typeof(mGeometryObjects), typeof(mObjects), typeof(mTriggers),
-            typeof(mContactGenerators), typeof(mObjectColliders));
-        t.registerClasses!(CollisionMap, PhysicConstraint, POSP,
-            BPSortAndSweep, PhysicTimedChangerVector2f, PhysicBase,
-            CollisionType, EarthQuakeForce, EarthQuakeDegrader,
-            PhysicObject, PhysicTimedChangerFloat, ZoneTrigger, PhysicFixate,
-            WaterSurfaceGeometry, PlaneGeometry);
-        BroadPhase.registerstuff(c);
-        PhysicZone.registerstuff(c);
-        PhysicForce.registerstuff(c);
-        t.registerMethod(this, &checkObjectCollision, "checkObjectCollision");
-        if (c.recreateTransient) {
-            //initialization
-            mContacts.length = 1024;
-        }
-    }
 
     public void add(PhysicBase obj) {
         obj.world = this;

@@ -17,7 +17,6 @@ import utils.color;
 import utils.log;
 import utils.random;
 import utils.time;
-import utils.reflection;
 
 class RayWeapon: ActionWeapon {
     float spread = 0;      //random spread (degrees)
@@ -32,11 +31,6 @@ class RayWeapon: ActionWeapon {
         lineTime = node.getValue("linetime", lineTime);
         lineColors[0] = node.getValue!(Color)("color1");
         lineColors[1] = node.getValue!(Color)("color2");
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
     }
 
     //using SpecialShooter here leads to dmd lockup (at least with dsss)
@@ -55,10 +49,6 @@ class RayShooter: ActionShooter {
     this(RayWeapon base, Sprite a_owner, GameEngine engine) {
         super(base, a_owner, engine);
         this.base = base;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override void fireRound() {
@@ -108,10 +98,6 @@ class RenderLaser : SceneObject {
         mStart = base.interpolateTime.current;
         mEnd = mStart + duration;
         mColors = colors;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override void draw(Canvas c) {

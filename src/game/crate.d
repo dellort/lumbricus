@@ -20,7 +20,6 @@ import utils.time;
 import utils.log;
 import utils.misc;
 import utils.configfile;
-import utils.reflection;
 import utils.factory;
 import tango.math.Math;
 import tango.util.Convert;
@@ -45,8 +44,6 @@ class Collectable {
 
     this () {
     }
-    this (ReflectCtor c) {
-    }
 }
 
 ///Adds a weapon to your inventory
@@ -57,9 +54,6 @@ class CollectableWeapon : Collectable {
     this(WeaponClass w, int quantity = 1) {
         weapon = w;
         this.quantity = quantity;
-    }
-
-    this (ReflectCtor c) {
     }
 
     void collect(CrateSprite parent, TeamMember member) {
@@ -90,9 +84,6 @@ class CollectableMedkit : Collectable {
         this.amount = amount;
     }
 
-    this (ReflectCtor c) {
-    }
-
     char[] id() {
         return "game_msg.crate.medkit";
     }
@@ -106,9 +97,6 @@ abstract class CollectableTool : Collectable {
     this() {
     }
 
-    this (ReflectCtor c) {
-    }
-
     void collect(CrateSprite parent, TeamMember member) {
         //roundabout way, but I hope it makes a bit sense with double time tool?
         OnCollectTool.raise(member, this);
@@ -117,8 +105,6 @@ abstract class CollectableTool : Collectable {
 
 class CollectableToolCrateSpy : CollectableTool {
     this() {
-    }
-    this (ReflectCtor c) {
     }
 
     char[] id() {
@@ -134,8 +120,6 @@ class CollectableToolCrateSpy : CollectableTool {
 class CollectableToolDoubleTime : CollectableTool {
     this() {
     }
-    this (ReflectCtor c) {
-    }
 
     char[] id() {
         return "game_msg.crate.doubletime";
@@ -148,8 +132,6 @@ class CollectableToolDoubleTime : CollectableTool {
 
 class CollectableToolDoubleDamage : CollectableTool {
     this() {
-    }
-    this (ReflectCtor c) {
     }
 
     char[] id() {
@@ -164,8 +146,6 @@ class CollectableToolDoubleDamage : CollectableTool {
 ///Blows up the crate without giving the worm anything
 ///Note that you can add other collectables in the same crate
 class CollectableBomb : Collectable {
-    this (ReflectCtor c) {
-    }
     this() {
     }
 
@@ -206,13 +186,6 @@ class CrateSprite : ActionSprite {
         //doesntwork
         //collectTrigger.collision = physics.collision;
         engine.physicworld.add(collectTrigger);
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-        Types t = c.types();
-        t.registerMethod(this, &oncollect, "oncollect");
-        t.registerMethod(this, &spyVisible, "spyVisible");
     }
 
     private void collected() {
@@ -356,10 +329,6 @@ class CrateSprite : ActionSprite {
 class CrateStateInfo : ActionStateInfo {
     SequenceState[CrateType.max+1] myAnimation;
 
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
     this(char[] owner_name, char[] this_name) {
         super(owner_name, this_name);
     }
@@ -385,11 +354,6 @@ class CrateSpriteClass : ActionSpriteClass {
 
     StaticStateInfo st_creation, st_normal, st_parachute, st_drowning;
     SequenceType[CrateType.max+1] mySequences;
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
 
     this(GfxSet e, char[] r) {
         super(e, r);

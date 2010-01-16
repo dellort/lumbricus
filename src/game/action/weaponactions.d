@@ -20,7 +20,6 @@ import utils.configfile;
 import utils.time;
 import utils.vector2;
 import utils.randval;
-import utils.reflection;
 import utils.misc;
 import utils.log;
 
@@ -163,9 +162,6 @@ class BeamHandler : GameObject {
         internal_active = true;
         worm = w;
     }
-    this(ReflectCtor c) {
-        super(c);
-    }
 
     bool activity() {
         return internal_active;
@@ -208,10 +204,6 @@ class HomingAction : GameObject {
         homingForce = new ConstantForce();
         objForce = new ObjectForce(homingForce, mParent.physics);
         engine.physicworld.add(objForce);
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     bool activity() {
@@ -272,10 +264,6 @@ abstract class AoEActionClass : ActionClass {
     float radius = 10.0f;
     bool[char[]] hit;
 
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
     this (GfxSet gfx, ConfigNode node, char[] a_name) {
         super(a_name);
         radius = node.getValue!(float)("radius", radius);
@@ -331,10 +319,6 @@ class ImpulseActionClass : AoEActionClass {
         vector,
     }
 
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
     this (GfxSet gfx, ConfigNode node, char[] a_name) {
         super(gfx, node, a_name);
         strength = node.getValue!(float)("strength", strength);
@@ -381,10 +365,6 @@ class AoEDamageActionClass : AoEActionClass {
     //if <= 1.0f, damage is relative to current HP, otherwise absolute
     float damage = 0.5f;
 
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
     this (GfxSet gfx, ConfigNode node, char[] a_name) {
         super(gfx, node, a_name);
         damage = node.getValue!(float)("damage", damage);
@@ -427,10 +407,6 @@ class WormSelectHelper : GameObject {
         internal_active = true;
         mMember = member;
         assert(!!mMember);
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     bool activity() {

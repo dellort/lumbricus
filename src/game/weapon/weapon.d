@@ -13,8 +13,6 @@ import utils.misc;
 import utils.vector2;
 import utils.time;
 import utils.factory;
-import utils.reflection;
-import utils.serialize;
 import utils.configfile;
 import utils.log;
 
@@ -65,10 +63,6 @@ abstract class WeaponClass {
         mGfx = gfx;
         assert(gfx !is null);
         name = a_name;
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
     }
 
     //called when the sprite selected_by selects this weapon
@@ -135,10 +129,6 @@ class ConfWeaponClass : WeaponClass {
         }
     }
 
-    this (ReflectCtor c) {
-        super(c);
-    }
-
     override WeaponSelector createSelector(Sprite selected_by) {
         if (!onSelect.length)
             return null;
@@ -158,9 +148,6 @@ abstract class WeaponSelector {
     }
 
     this(WeaponClass wc, Sprite owner) {
-    }
-
-    this (ReflectCtor c) {
     }
 
     final bool isSelected() {
@@ -252,10 +239,6 @@ abstract class Shooter : GameObject {
         mClass = base;
         owner = a_owner;
         createdBy = a_owner;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     protected void reduceAmmo() {
@@ -395,10 +378,6 @@ class WeaponSet : GameObject {
     //create empty set
     this(GameEngine aengine) {
         super(aengine, "weaponset");
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     private void onChange() {

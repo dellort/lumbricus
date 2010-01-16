@@ -1,6 +1,5 @@
 module physics.base;
 
-import utils.reflection;
 import utils.list2;
 
 import physics.world;
@@ -25,8 +24,6 @@ class CollisionType {
 
     this() {
     }
-    this (ReflectCtor c) {
-    }
 }
 
 //it's illegal to use CollisionType_Invalid in PhysicBase.collision
@@ -50,8 +47,6 @@ class PhysicBase {
     Object backlink;
 
     this() {
-    }
-    this (ReflectCtor c) {
     }
 
     PhysicWorld world() {

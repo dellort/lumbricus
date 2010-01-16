@@ -9,7 +9,6 @@ import game.gamemodes.base;
 
 import utils.array;
 import utils.configfile;
-import utils.reflection;
 import utils.time;
 import utils.misc;
 import utils.mybox;
@@ -24,10 +23,6 @@ class ModeDebug : Gamemode {
 
     this(GameEngine a_engine, ConfigNode config) {
         super(a_engine, config);
-    }
-
-    this(ReflectCtor c) {
-        super(c);
     }
 
     override void simulate(float dt) {

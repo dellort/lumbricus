@@ -7,13 +7,10 @@ import game.sprite;
 import game.actionsprite;
 import game.weapon.weapon;
 import game.weapon.projectile;
-import utils.reflection;
 
 //wtf? why not make FireInfo a class?
 class WrapFireInfo { //wee so Java like
     FireInfo info;
-    this (ReflectCtor c) {
-    }
     this () {
     }
 }
@@ -26,9 +23,6 @@ class SpriteContext : ActionContext {
     this(GameEngine eng) {
         super(eng);
     }
-    this(ReflectCtor c) {
-        super(c);
-    }
 }
 
 class WeaponContext : SpriteContext {
@@ -39,9 +33,6 @@ class WeaponContext : SpriteContext {
 
     this(GameEngine eng) {
         super(eng);
-    }
-    this(ReflectCtor c) {
-        super(c);
     }
 
     bool doubleDamage() {

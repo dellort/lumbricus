@@ -3,7 +3,6 @@ module physics.zone;
 ///A "zone" is a region in space, which objects can occupy (or not)
 ///Base functionality is to check if an object is inside
 
-import utils.reflection;
 import utils.vector2;
 import utils.rect2;
 import utils.list2;
@@ -15,11 +14,6 @@ import physics.plane;
 //utility class, no extension of PhysicBase
 class PhysicZone {
     this() {
-    }
-
-    static void registerstuff(ReflectCtor c) {
-        c.types().registerClasses!(PhysicZonePlane, PhysicZoneCircle,
-            PhysicZoneRect, PhysicZoneXRange);
     }
 
     bool check(PhysicObject obj) {
@@ -41,9 +35,6 @@ class PhysicZonePlane : PhysicZone {
     this() {
     }
 
-    this (ReflectCtor c) {
-    }
-
     override bool checkCircle(Vector2f pos, float radius) {
         //out values of plane.collide are not used
         Vector2f n;
@@ -63,9 +54,6 @@ class PhysicZoneCircle : PhysicZone {
         this.pos = pos;
     }
 
-    this (ReflectCtor c) {
-    }
-
     override bool checkCircle(Vector2f opos, float orad) {
         return (opos-pos).quad_length < (radius*radius + orad*orad);
     }
@@ -77,9 +65,6 @@ class PhysicZoneRect : PhysicZone {
 
     this(Rect2f r) {
         rect = r;
-    }
-
-    this (ReflectCtor c) {
     }
 
     override bool checkCircle(Vector2f pos, float radius) {
@@ -96,9 +81,6 @@ class PhysicZoneXRange : PhysicZone {
     this(float a_min, float a_max) {
         xMin = a_min;
         xMax = a_max;
-    }
-
-    this (ReflectCtor c) {
     }
 
     override bool checkCircle(Vector2f pos, float radius) {

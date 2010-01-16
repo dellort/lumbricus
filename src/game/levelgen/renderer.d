@@ -17,7 +17,6 @@ import drawing = utils.drawing;
 import math = tango.math.Math;
 import digest = tango.util.digest.Digest;
 import md5 = tango.util.digest.Md5;
-import utils.reflection;
 
 debug import utils.perf;
 
@@ -740,9 +739,6 @@ class LandscapeBitmap {
             o2 += mWidth;
         }
         return new LandscapeBitmap(mImage.subrect(rc), ndata, false);
-    }
-
-    this(ReflectCtor c) {
     }
 
     //create an empty Landscape of passed size

@@ -13,8 +13,6 @@ import common.resources : gResources, ResourceFile;
 import utils.color;
 import utils.configfile;
 import utils.misc;
-import utils.reflection;
-import utils.serialize;
 import utils.time;
 
 import physics.collisionmap;
@@ -334,6 +332,7 @@ class GfxSet {
         mActionClasses[name] = o;
     }
 
+/+ bye bye
     void initSerialization(SerializeContext ctx) {
         assert(mFinished, "must have called finishLoading()");
 
@@ -387,6 +386,7 @@ class GfxSet {
         ctx.addCustomSerializer!(FormattedText)(&textDeserialize, null,
             &textSerialize);
     }
++/
 
     SpriteClass[] allSpriteClasses() {
         return mSpriteClasses.values;
@@ -546,6 +546,8 @@ struct ExplosionSettings {
     }
 }
 
+/+ byebye
+
 private struct FTextData {
     //there may be more FormattedText properties not covered here
     char[] data;
@@ -585,4 +587,4 @@ private Object textDeserialize(SerializeBase base,
     reader(base.types.ptrOf(d));
     return d.createText();
 }
-
++/

@@ -30,9 +30,6 @@ import utils.misc;
 import utils.mybox;
 import utils.perf;
 import utils.random;
-import utils.reflection;
-import utils.serialize;
-import utils.snapshot;
 import utils.strparser : boxToString;
 import utils.time;
 import utils.vector2;
@@ -55,7 +52,7 @@ struct EngineHash {
 }
 
 //initialized by serialize_register.d
-Types serialize_types;
+//Types serialize_types;
 
 //fixed framerate for the game logic (all of GameEngine)
 //also check physic frame length cPhysTimeStepMs in world.d
@@ -338,7 +335,7 @@ class GameLoader {
         mShell.mCEvents = new Events();
 
         //registers many objects referenced from mShell for serialization
-        mShell.initSerialization();
+        //-- mShell.initSerialization();
 
         if (!mDemoOutput.isNull()) {
             mShell.mDemoOutput = mDemoOutput;
@@ -353,6 +350,9 @@ class GameLoader {
         } else {
             //code for loading a savegame
 
+            assert(false, "savegames have been ditched");
+
+/+
             SerializeContext ctx = mShell.mSerializeCtx;
             auto saveGame = new SerializeInConfig(ctx, mGameData);
 
@@ -381,6 +381,7 @@ class GameLoader {
             }
             mBitmaps = null; //make GC-able, just in case
             ctx.removeExternal(mPersistence);
++/
         }
 
         auto it = new TimeSourceSimple("GameShell/Interpolated");
@@ -447,7 +448,6 @@ class GameShell {
         bool mExtIsLagging;
         debug bool mPrintFrameTime;
         Hasher mGameHasher;
-        SerializeContext mSerializeCtx;
 
         Events mCEvents; //==GameEngine.callbacks.cevents
 
@@ -473,7 +473,7 @@ class GameShell {
     void delegate() OnRestoreGuiAfterSnapshot;
 
     struct GameSnap {
-        Snapshot snapshot;
+        //Snapshot snapshot;
         long game_time_ts; //what was mTimeStamp
         Time game_time;
         LandscapeBitmap[] bitmaps;
@@ -540,7 +540,7 @@ class GameShell {
                 log("current hash: {}", expect);
                 log("LogEntry hash: {}", e.hash);
                 log("timestamp: {}", mTimeStamp);
-                debug_save();
+                //debug_save();
                 log("not bothering you anymore, enjoy your day");
                 mSOMETHINGISWRONG = true;
                 woosh();
@@ -798,12 +798,12 @@ class GameShell {
     }
 
     void replay() {
-        if (!mReplaySnapshot.snapshot) {
+        /+if (!mReplaySnapshot.snapshot) {
             log("replay failed: no snapshot saved");
             return;
         }
         debug(debug_save)
-            debug_save();
+            debug_save();+/
         mReplayInput.end_ts = mTimeStamp;
         doUnsnapshot(mReplaySnapshot);
         mLogReplayInput = false;
@@ -833,11 +833,9 @@ class GameShell {
     }
 
     void doSnapshot(ref GameSnap snap) {
-        if (!snap.snapshot)
-            snap.snapshot = new Snapshot(new SnapDescriptors(serialize_types));
         snap.game_time = mGameTime.current();
         snap.game_time_ts = mTimeStamp;
-        snap.snapshot.snap(mEngine);
+        //-- snap.snapshot.snap(mEngine);
         //bitmaps are specially handled, I don't know how to do better
         //probably unify with savegame stuff?
         PerfTimer timer = new PerfTimer(true);
@@ -863,7 +861,7 @@ class GameShell {
     //      GameEngine frame (or during doFrame in general)
     //      if you do, replay-determinism might be destroyed
     void doUnsnapshot(ref GameSnap snap) {
-        snap.snapshot.unsnap();
+        //-- snap.snapshot.unsnap();
         PerfTimer timer = new PerfTimer(true);
         timer.start();
         auto bitmaps = mEngine.landscapeBitmaps();
@@ -900,6 +898,8 @@ class GameShell {
     }
 
     void saveGame(TarArchive file) {
+        assert(false, "savegames have been ditched");
+/+
         //------ gamedata.conf
         ConfigNode savegame = new ConfigNode();
 
@@ -951,49 +951,7 @@ class GameShell {
         auto zwriter = file.openWriteStream("gamedata.conf");
         savegame.writeFile(zwriter);
         zwriter.close();
-    }
-
-    private void initSerialization() {
-        if (!!mSerializeCtx)
-            return;
-
-        mSerializeCtx = new SerializeContext(serialize_types);
-
-        //all of the following should go away *sigh*
-
-        //mSerializeCtx.addExternal(mEngine.persistentState, "persistence");
-        mSerializeCtx.addExternal(mGameConfig, "gameconfig");
-        mSerializeCtx.addExternal(mGameConfig.level, "level");
-
-        foreach (int index, LevelItem o; mGameConfig.level.objects) {
-            mSerializeCtx.addExternal(o, myformat("levelobject_{}", index));
-        }
-
-        mSerializeCtx.addExternal(mGameTime, "game_time");
-
-        mSerializeCtx.addExternal(mCEvents, "cevents");
-
-        //was addResources()
-        //can't really be avoided, because we're not going to write game data
-        //  graphics and sounds into the savegame
-        mGfx.initSerialization(mSerializeCtx);
-
-        eventsInitSerializeCtx(mSerializeCtx);
-    }
-
-    //public, but only for debugging stuff
-    SerializeContext getSerializeContext() {
-        return mSerializeCtx;
-    }
-
-    void debug_save() {
-        int t;
-        char[] p = gFS.getUniqueFilename("/debug/", "dump{0:d3}", ".tar", t);
-        log("saving debugging dump to {}", p);
-        scope st = gFS.open(p, File.WriteCreate);
-        scope writer = new TarArchive(st, false);
-        saveGame(writer);
-        writer.close();
++/
     }
 
     GameEngine serverEngine() {

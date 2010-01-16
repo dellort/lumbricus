@@ -339,49 +339,6 @@ class ClassMethod : ClassElement {
         return mDgType;
     }
 
-/+ don't use
-    //initialize a delegate, that points to this method and the object obj
-    //  ptr = must be preinitialized with type()
-    //  obj = object with exact type
-    final void setDelegate(SafePtr ptr, SafePtr obj) {
-        if (ptr.type !is mDgType || obj.type !is mOwner.owner)
-            throw new Exception("setDelegate: incompatible types");
-        D_Delegate* dp = cast(D_Delegate*)ptr.ptr;
-        dp.ptr = *cast(void**)obj.ptr;
-        dp.funcptr = mAddress;
-    }
-+/
-
-    private const LOLCODEDUPLICATION = `
-        assert(!!o);
-        //could generate the call code at compile-time, instead of generating
-        //a call-delegate; but both ways seem to be messy
-        assert(!mOwnerType.isInterface()); //needs some testing
-        void* rawptr = mOwnerType.castTo(o);
-        if (!rawptr)
-            throw new Exception("no.");
-        //dirty constructed pointer to delegate to this method
-        void delegate() rawdg;
-        assert(rawdg.sizeof == type().size());
-        rawdg.funcptr = cast(void function())mAddress;
-        rawdg.ptr = rawptr;
-        SafePtr pdg = SafePtr(type(), &rawdg);
-    `;
-
-    //like DelegateType.invoke_dynamic(), but you don't need a call-delegate
-    //xxx: in r811 was a function to invoke with compiletime args
-    final void invoke_dynamic(Object o, SafePtr ret, SafePtr[] args) {
-        mixin(LOLCODEDUPLICATION);
-        type.invoke_dynamic(pdg, ret, args);
-    }
-
-    final void invoke_dynamic_trampoline(Object o,
-        void delegate(SafePtr ret, SafePtr[] args, void delegate() call) jump)
-    {
-        mixin(LOLCODEDUPLICATION);
-        type.invoke_dynamic_trampoline(pdg, jump);
-    }
-
     char[] toString() {
         return myformat("{}() @ {:x#} : {}", fullname(), address(), type());
     }

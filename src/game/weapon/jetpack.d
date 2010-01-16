@@ -12,7 +12,6 @@ import gui.rendertext;
 import physics.world;
 import utils.configfile;
 import utils.factory;
-import utils.reflection;
 import utils.time;
 import utils.vector2;
 import utils.log;
@@ -33,11 +32,6 @@ class JetpackClass : ConfWeaponClass {
         maxTime = node.getValue("max_time", maxTime);
         jetpackThrust = node.getValue("jet_thrust", jetpackThrust);
         stopOnDisable = node.getValue("stop_on_disable", stopOnDisable);
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override Shooter createShooter(Sprite go, GameEngine engine) {
@@ -69,10 +63,6 @@ class Jetpack : Shooter, Controllable {
         mWorm = a_owner;
         myclass = base;
         mMember = engine.controller.controlFromGameObject(mWorm, false);
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override bool delayedAction() {

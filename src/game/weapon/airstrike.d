@@ -14,7 +14,6 @@ import game.levelgen.landscape;
 import physics.world;
 import utils.configfile;
 import utils.factory;
-import utils.reflection;
 import utils.time;
 import utils.vector2;
 import utils.log;
@@ -37,8 +36,6 @@ class AirstrikeControl : WeaponSelector, Controllable {
         const cMouseAngles = [230, 310]; //how the cursor animation is rotated
     }
 
-    mixin Methods!("mouseRender");
-
     this(WeaponClass wc, Sprite a_owner) {
         super(wc, a_owner);
         mOwner = a_owner;
@@ -46,13 +43,6 @@ class AirstrikeControl : WeaponSelector, Controllable {
 
         mControl = mEngine.controller.controlFromGameObject(mOwner, true);
         initIP();
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-        c.transient(this, &mIP);
-        if (c.recreateTransient)
-            initIP();
     }
 
     private void initIP() {

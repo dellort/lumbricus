@@ -2,7 +2,6 @@ module utils.timesource;
 import utils.misc;
 import utils.time;
 import utils.log;
-import utils.reflection;
 
 //(changed in r533, I hate interfaces, but love useless microoptimizations)
 class TimeSourcePublic {
@@ -15,8 +14,6 @@ class TimeSourcePublic {
 
     this(char[] a_name) {
         mName = a_name;
-    }
-    this(ReflectCtor c) {
     }
 
     //simulated time (don't forget to call update())
@@ -74,9 +71,6 @@ final class TimeSource : TimeSourcePublic {
     }
     this(char[] a_name, Time timeoffset = Time.Null) {
         this(a_name, null, timeoffset);
-    }
-    this(ReflectCtor c) {
-        super(c);
     }
 
     //initialize time to 0 (or the given time)
@@ -203,9 +197,6 @@ class TimeSourceFixFramerate : TimeSourcePublic {
         mChain = new TimeSource("chain-" ~ mName, mParent);
         resetTime();
     }
-    this(ReflectCtor c) {
-        super(c);
-    }
 
     Time frameLength() {
         return mFrameLength;
@@ -256,9 +247,6 @@ class TimeSourceFixFramerate : TimeSourcePublic {
 class TimeSourceSimple : TimeSourcePublic {
     this(char[] a_name) {
         super(a_name);
-    }
-    this(ReflectCtor c) {
-        super(c);
     }
 
     void reset(Time t) {

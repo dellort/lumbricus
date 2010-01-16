@@ -5,10 +5,19 @@ import game.game;
 import game.events;
 import utils.list2;
 import utils.misc;
-import utils.reflection;
 import utils.time;
 
 import net.marshal : Hasher;
+
+//hurf
+//"abstract" Team, so that not all of the game has to depend from controller.d
+/+
+class TeamRef : GameObject {
+    this(GameEngine aengine, char[] atype) {
+        super(aengine, atype);
+    }
+}
++/
 
 abstract class GameObject : EventTarget {
     private bool mIsAlive;
@@ -16,6 +25,7 @@ abstract class GameObject : EventTarget {
     private GameEngine mEngine;
 
     //for the controller
+    //TeamRef createdBy;
     GameObject createdBy;
 
     //for GameEngine
@@ -30,10 +40,6 @@ abstract class GameObject : EventTarget {
         mIsAlive = true;
         engine._object_created(this);
         //starts out with internal_active == false
-    }
-
-    this (ReflectCtor c) {
-        super("");
     }
 
     final GameEngine engine() {

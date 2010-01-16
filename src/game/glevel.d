@@ -12,7 +12,6 @@ import game.temp : GameZOrder;
 import utils.vector2;
 import utils.log;
 import utils.misc;
-import utils.reflection;
 import drawing = utils.drawing;
 import tango.math.Math : sqrt, PI;
 import physics.world;
@@ -31,8 +30,6 @@ const cLandscapeSnowBit = Lexel.Type_Bit_Min << 0;
 class LandscapeGeometry : PhysicGeometry {
     GameLandscape ls;
 
-    this (ReflectCtor c) {
-    }
     this () {
     }
 
@@ -115,8 +112,6 @@ class RenderLandscape : SceneObject {
         source = s;
         zorder = GameZOrder.Landscape;
     }
-    this(ReflectCtor c) {
-    }
     override void draw(Canvas c) {
         source.draw(c);
     }
@@ -173,10 +168,6 @@ class GameLandscape : GameObject {
     private this(GameEngine aengine) {
         super(aengine, "landscape");
         internal_active = true;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     void init() {

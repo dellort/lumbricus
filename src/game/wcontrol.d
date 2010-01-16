@@ -17,7 +17,6 @@ import game.worm;
 import physics.world;
 import utils.array;
 import utils.misc;
-import utils.reflection;
 import utils.time;
 import utils.vector2;
 
@@ -93,9 +92,6 @@ class WormControl : WormController {
         //set feedback interface to this class
         mWorm.wcontrol = this;
         OnSpriteDie.handler(mWorm.instanceLocalEvents, &onSpriteDie);
-    }
-
-    this(ReflectCtor c) {
     }
 
     final GameEngine engine() {

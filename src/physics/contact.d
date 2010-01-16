@@ -1,6 +1,5 @@
 module physics.contact;
 
-import utils.reflection;
 import utils.list2;
 import utils.vector2;
 
@@ -191,16 +190,12 @@ class PhysicContactGen : PhysicBase {
 
     this() {
     }
-    this (ReflectCtor c) {
-    }
 }
 
 class PhysicCollider : PhysicBase {
     ObjListNode!(typeof(this)) coll_node;
 
     this() {
-    }
-    this (ReflectCtor c) {
     }
 
     abstract bool collide(PhysicObject obj, CollideDelegate contactHandler);

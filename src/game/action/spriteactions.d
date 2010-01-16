@@ -27,7 +27,6 @@ import utils.log;
 import utils.random;
 import utils.randval;
 import utils.factory;
-import utils.reflection;
 
 import tango.math.Math : PI;
 import tango.math.IEEE : isNaN;
@@ -155,10 +154,6 @@ class TimerAction : GameObject {
         mNext = engine.gameTime.current + delay;
     }
 
-    this (ReflectCtor c) {
-        super(c);
-    }
-
     bool activity() {
         return internal_active;
     }
@@ -236,10 +231,6 @@ class SpriteAction : DelayedObj {
         super(parent.engine, duration);
     }
 
-    this (ReflectCtor c) {
-        super(c);
-    }
-
     override void simulate(float deltaT) {
         super.simulate(deltaT);
         if (mParent.physics.dead)
@@ -259,9 +250,6 @@ class GravityCenterAction : SpriteAction {
         mGravForce.radius = radius;
         mGravForce.pos = mParent.physics.pos;
         engine.physicworld.add(mGravForce);
-    }
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override protected void updateInternalActive() {
@@ -296,11 +284,6 @@ class ProximitySensorAction : SpriteAction {
         mTrigger.onTrigger = &trigTrigger;
         mFireTime = Time.Never;
         engine.physicworld.add(mTrigger);
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-        c.types().registerMethod(this, &trigTrigger, "trigTrigger");
     }
 
     override protected void updateInternalActive() {
@@ -343,10 +326,6 @@ class RandomJumpAction : SpriteAction {
         super(parent, duration);
         mJumpStrength = jumpStrength;
         mJumpsPerSec = jumpsPerSec;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override void simulate(float deltaT) {
@@ -393,10 +372,6 @@ class StuckTriggerAction : SpriteAction {
         mTreshold = treshold;
         mMultiple = multiple;
         mEventId = eventId;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     //adds a position-change sample to the list (with timestamp)
@@ -475,10 +450,6 @@ class ControlRotateAction : SpriteAction, Controllable {
         mRotateSpeed = rotateSpeed;
         mThrust = thrust;
         setForce();
-    }
-
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override protected void updateInternalActive() {

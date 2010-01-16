@@ -12,7 +12,6 @@ import game.crate;
 
 import utils.array;
 import utils.configfile;
-import utils.reflection;
 import utils.time;
 import utils.misc;
 import utils.log;
@@ -105,12 +104,6 @@ class ModeTurnbased : Gamemode {
 
         OnHudAdd.raise(engine.globalEvents, "timer", mTimeSt);
         OnHudAdd.raise(engine.globalEvents, "prepare", mPrepareSt);
-    }
-
-    this(ReflectCtor c) {
-        super(c);
-        Types t = c.types();
-        t.registerMethod(this, &doCollectTool, "doCollectTool");
     }
 
     override void startGame(GameObject dummy) {

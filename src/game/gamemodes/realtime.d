@@ -10,7 +10,6 @@ import game.gamemodes.shared;
 
 import utils.array;
 import utils.configfile;
-import utils.reflection;
 import utils.time;
 import utils.misc;
 import utils.mybox;
@@ -57,10 +56,6 @@ class ModeRealtime : Gamemode {
         this.config = config.getCurValue!(ModeConfig)();
 
         OnHudAdd.raise(engine.globalEvents, "timer", mStatus);
-    }
-
-    this(ReflectCtor c) {
-        super(c);
     }
 
     override void simulate(float dt) {

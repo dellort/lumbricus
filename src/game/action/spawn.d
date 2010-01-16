@@ -10,7 +10,6 @@ import game.actionsprite;
 import game.weapon.weapon;
 import game.weapon.projectile;
 import utils.configfile;
-import utils.reflection;
 import utils.vector2;
 import utils.random;
 import utils.randval;
@@ -190,10 +189,6 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
 class SpawnActionClass : ActionClass {
     SpawnParams sparams;
 
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
-    }
     this (GfxSet gfx, ConfigNode node, char[] a_name) {
         super(a_name);
         sparams.loadFromConfig(node);

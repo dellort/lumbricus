@@ -1,7 +1,5 @@
 module utils.list2;
 
-import utils.reflection;
-
 
 //The 3rd iteration of our list class follows...
 //This is my approach to write a serializable, doubly-linked list with all
@@ -50,8 +48,6 @@ final class ObjectList(T, char[] member) {
     }
 
     this() {
-    }
-    this (ReflectCtor c) {
     }
 
     T head() {

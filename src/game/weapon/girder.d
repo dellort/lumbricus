@@ -13,7 +13,6 @@ import game.levelgen.landscape;
 import physics.world;
 import utils.configfile;
 import utils.factory;
-import utils.reflection;
 import utils.time;
 import utils.vector2;
 import utils.log;
@@ -57,8 +56,6 @@ class GirderControl : WeaponSelector, Controllable {
         const cMaxDistance = 500;  //in pixels from worm position
     }
 
-    mixin Methods!("mouseRender");
-
     this(WeaponClass wc, Sprite a_owner) {
         super(wc, a_owner);
         mOwner = a_owner;
@@ -68,12 +65,6 @@ class GirderControl : WeaponSelector, Controllable {
 
         Surface girder = mEngine.level.theme.girder;
         mBaseSize = girder.size;
-    }
-
-    this (ReflectCtor c) {
-        super(c);
-        c.transient(this, &mGirders);
-        c.transient(this, &mGirdersLong);
     }
 
     void initGirderSurfaces() {

@@ -12,7 +12,6 @@ import utils.misc;
 import utils.rect2;
 import utils.time;
 import utils.random;
-import utils.reflection;
 import utils.randval;
 import utils.serialize;
 import utils.vector2;
@@ -207,11 +206,6 @@ final class Sequence : SceneObject {
         mTeam = a_team;
     }
 
-    this (ReflectCtor c) {
-        c.transient(this, &mIP);
-        c.transient(this, &mOthers);
-    }
-
     final TeamTheme team() { return mTeam; }
     final SequenceState currentState() { return mCurrentState; }
 
@@ -365,9 +359,6 @@ abstract class StateDisplay {
         owner = a_owner;
     }
 
-    this (ReflectCtor c) {
-    }
-
     //actually the constructor, but because StateDisplay objects are "cached",
     //  this is a normal method (so you should do all initialization here)
     //note that unlike in a ctor, you must reset all class members manually
@@ -418,9 +409,6 @@ class AniStateDisplay : StateDisplay {
 
     this (Sequence a_owner) {
         super(a_owner);
-    }
-    this (ReflectCtor c) {
-        super(c);
     }
 
     override void init(SequenceState state) {
@@ -510,7 +498,6 @@ class SimpleAnimationDisplay : AniStateDisplay {
     SimpleAnimationState myclass;
 
     this (Sequence a_owner) { super(a_owner); }
-    this (ReflectCtor c) { super(c); }
 
     override void init(SequenceState state) {
         myclass = castStrict!(SimpleAnimationState)(state);
@@ -559,7 +546,6 @@ class WwpNapalmDisplay : AniStateDisplay {
     const cVelDelta = cFullVelocity - cTresholdVelocity;
 
     this (Sequence a_owner) { super(a_owner); }
-    this (ReflectCtor c) { super(c); }
 
     override void init(SequenceState state) {
         myclass = castStrict!(WwpNapalmState)(state);
@@ -616,7 +602,6 @@ class WwpJetpackDisplay : AniStateDisplay {
     AniState[2] mJetFlames;
 
     this (Sequence a_owner) { super(a_owner); }
-    this (ReflectCtor c) { super(c); }
 
     override void init(SequenceState state) {
         myclass = castStrict!(WwpJetpackState)(state);
@@ -729,7 +714,6 @@ class WwpParachuteDisplay : AniStateDisplay {
     WwpParachuteState myclass;
 
     this (Sequence a_owner) { super(a_owner); }
-    this (ReflectCtor c) { super(c); }
 
     override void init(SequenceState state) {
         myclass = castStrict!(WwpParachuteState)(state);
@@ -818,7 +802,6 @@ class WwpWeaponDisplay : AniStateDisplay {
     int mWeaponDir; //1: get, 0: nothing, -1: unget
 
     this (Sequence a_owner) { super(a_owner); }
-    this (ReflectCtor c) { super(c); }
 
     override void init(SequenceState state) {
         myclass = castStrict!(WwpWeaponState)(state);

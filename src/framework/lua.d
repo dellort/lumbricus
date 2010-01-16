@@ -1,7 +1,6 @@
 module framework.lua;
 
 import derelict.lua.lua;
-import derelict.lua.pluto;
 import derelict.util.exception : SharedLibLoadException;
 import czstr = tango.stdc.stringz;
 import tango.core.Traits : ParameterTupleOf, isIntegerType, isFloatingPointType,
@@ -343,29 +342,6 @@ private void luaPushDelegate(T)(lua_State* state, T del) {
 //  regular cleanups (e.g. each game frame); the weaklist would return the set
 //  of dead objects free'd since the last query, and the Lua delegate table
 //  entry could be removed without synchronization problems
-//no idea how serialization should work, some bits and pieces:
-//  - can't really find out which D objects are referenced by Lua, or which Lua
-//    objects are ref'ed by D objects (what if a delegate wrapper refers to a
-//    Lua closure, which again refers to a D object, or maybe another Lua one?)
-//    ...until Pluto or utils.serialize traverse the object graph, and do
-//    incorrect stuff as soon as they find an unknown, unserializeable objects
-//    (utils.serialize will crash, Pluto will write pointers as bytes...)
-//  - with the gTypes thing, one can recreate delegates to Lua functions for
-//    deserialization, although it's a bit unnice to have mangled D symbol names
-//    in the data stream (but: won't be able to identify the delegate types
-//    otherwise)
-//  - for utils.serialize, one could use custom serialization (which is there,
-//    but unused, might need to be a bit hacked), so framework.lua doesn't need
-//    to depend on our damn reflection system
-//  - it is possible to get the D wrapper objects from the entries in the Lua
-//    delegate table; just traverse the weaklist (if we need this)
-//  - even if we make serialization of D->Lua delegates work, there might be
-//    unreferenced D->Lua delegates in the serialized data stream, unless we
-//    traverse both the D and Lua object graph to find all live references,
-//    which we can't (ok we could parse the Pluto data output, or fork Pluto xD)
-//  - Pluto muzzles with internals and seems generally a bad idea to use, maybe
-//    we should throw away the whole serialization business
-//PS: and we can forget the replay feature
 private abstract class LuaDelegateWrapper {
     alias void function(LuaState) Init;
     //key is a TypeInfo casted to void* (why? bug 3086)
@@ -533,8 +509,6 @@ class LuaRegistry {
         char[][ClassInfo] mPrefixes;
     }
 
-    static bool gPlutoOK; //Pluto could be loaded
-
     struct Method {
         ClassInfo classinfo;
         char[] fname;
@@ -544,13 +518,6 @@ class LuaRegistry {
 
     this() {
         DerelictLua.load();
-        //try loading Pluto, but treat it as optional dependency
-        try {
-            DerelictLua_Pluto.load();
-            gPlutoOK = true;
-        } catch (SharedLibLoadException) {
-        }
-        debug Trace.formatln("pluto available: {}", gPlutoOK);
     }
 
     //e.g. setClassPrefix!(GameEngine)("Game"), to keep scripting names short
@@ -1053,157 +1020,6 @@ class LuaState {
 
     void stack0() {
         assert(lua_gettop(mLua) == 0);
-    }
-
-    private const cSerializeNull = "#null";
-    private const cSerializeMagic = "MAGIC";
-
-    //write contents of global variable stuff into Stream st
-    //external_id() is called for D objects residing inside the lua dump; the
-    //  only requirement for the returned IDs is to unique and to be != ""
-    //returning "" from external_id() means "unknown object" and will trigger an
-    //  error
-    void serialize(char[] stuff, Stream st,
-        char[] delegate(Object o) external_id)
-    {
-        assert(LuaRegistry.gPlutoOK);
-        stack0();
-
-        lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(stuff));
-
-        //pluto expects us to resolve externals in advance (permanents-table)
-        //traverse Lua's object graph, and find any light user data (= external)
-        //be aware that the Pluto crap will serialize userdata as POINTERS if
-        //  you don't add them to the permanents-table (yes, really)
-        //do this in Lua because that's simply simpler
-        //this helps: http://lua-users.org/wiki/TableSerialization
-        luaLoadAndPush("serialize_find_externals", `
-            -- xxx: metatables, environments, ...?
-            local done = {}
-            local exts = {}
-            local ws = {}
-
-            local function add(x)
-                if type(x) == "table" then
-                    if done[x] == nil then
-                        ws[x] = true
-                    end
-                end
-                if type(x) == "userdata" then
-                    exts[x] = true
-                end
-            end
-
-            --for key, value in pairs(...) do
-            --    add(value)
-            --end
-            add(...)
-
-            while true do
-                -- like a stack.pop()
-                -- look how simple and elegant Lua makes this!
-                local cur = next(ws)
-                if cur == nil then break end
-                ws[cur] = nil
-
-                done[cur] = true
-                for key, value in pairs(cur) do
-                    add(key)
-                    add(value)
-                end
-            end
-
-            return exts
-        `);
-        lua_pushvalue(mLua, -2);
-        lua_call(mLua, 1, 1);
-        lua_pushvalue(mLua, -1);
-        int tidx = lua_gettop(mLua);
-        assert(tidx == 3);
-
-        //build Pluto "permanent table"; external objects as keys, id as values
-        //reuses the returned set of userdata found by the script above
-        char[][] externals;
-        lua_pushnil(mLua);
-        while (lua_next(mLua, tidx)) {
-            Object o = luaStackValue!(Object)(mLua, -2);
-            char[] id = cSerializeNull;
-            if (o) {
-                id = external_id(o);
-                if (id.length == 0) {
-                    assert(false, "can't serialize: " ~ o.classinfo.name);
-                }
-                externals ~= id;
-            }
-            lua_pop(mLua, 1);
-            lua_pushvalue(mLua, -1); //key
-            luaPush(mLua, id);
-            lua_settable(mLua, tidx);
-            //key remains on stack for lua_next
-        }
-        lua_pop(mLua, 1); //table
-
-        assert(lua_gettop(mLua) == 2);
-
-        //Pluto crap requires us to construct the permanents-table before
-        //  deserializing; so we store our own crap in the stream
-        auto marshal = Marshaller((ubyte[] d) { st.writeExact(d); });
-        marshal.write(externals);
-        marshal.write!(char[])(cSerializeMagic);
-
-        //stack contents: 1=stuff, 2=permanent-table
-        //exchange 1 and 2
-        lua_pushvalue(mLua, 1);
-        lua_remove(mLua, 1);
-
-        //pluto is very touchy about this, and non-debug versions don't catch it
-        assert(lua_gettop(mLua) == 2);
-        pluto_persist(mLua, &lua_WriteStream, cast(void*)st);
-
-        assert(lua_gettop(mLua) == 2);
-        lua_pop(mLua, 2);
-    }
-
-    //parameters same as serialize
-    //external_id is the inverse as in serialize(); returning null means error
-    void deserialize(char[] stuff, Stream st,
-        Object delegate(char[]) external_id)
-    {
-        auto unmarshal =
-            Unmarshaller((ubyte[] d) { st.readExact(d); return size_t.max; });
-        auto ext_names = unmarshal.read!(char[][])();
-
-        stack0();
-        lua_newtable(mLua);
-
-        void add_ext(char[] name, Object o) {
-            luaPush(mLua, name);
-            luaPush(mLua, o);
-            lua_settable(mLua, -3);
-        }
-
-        foreach (name; ext_names) {
-            Object o = external_id(name);
-            if (!o) {
-                assert(false, "object not found: "~name);
-            }
-
-            add_ext(name, o);
-        }
-
-        add_ext("#null", null);
-
-        auto m = unmarshal.read!(char[])();
-        assert(m == cSerializeMagic);
-
-        assert(lua_gettop(mLua) == 1); //perm-table
-        pluto_unpersist(mLua, &lua_ReadStream, cast(void*)st);
-
-        //should push the desrrialized objects
-        assert(lua_gettop(mLua) == 2);
-        lua_setfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(stuff));
-        lua_pop(mLua, 1);
-        stack0();
     }
 
     void addScriptType(T)(char[] tableName) {

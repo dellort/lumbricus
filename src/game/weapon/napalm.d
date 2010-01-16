@@ -20,7 +20,6 @@ import utils.log;
 import utils.random;
 import utils.randval;
 import utils.factory;
-import utils.reflection;
 
 class NapalmSprite : ProjectileSprite {
     private {
@@ -109,10 +108,6 @@ class NapalmSprite : ProjectileSprite {
         mLastDmg = engine.gameTime.current;
         lightUp();
     }
-
-    this (ReflectCtor c) {
-        super(c);
-    }
 }
 
 class NapalmSpriteClass : ProjectileSpriteClass {
@@ -148,11 +143,6 @@ class NapalmSpriteClass : ProjectileSpriteClass {
 
     this(GfxSet e, char[] r) {
         super(e, r);
-    }
-
-    //xxx class
-    this (ReflectCtor c) {
-        super(c);
     }
 
     static this() {

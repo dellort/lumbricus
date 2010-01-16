@@ -2,7 +2,6 @@
 //xxx new code should use tango.math.random.Random (I think)
 module utils.rndkiss;
 
-import utils.reflection;
 import utils.time;
 import utils.misc;
 
@@ -49,9 +48,6 @@ class Random
     this ()
     {
         this.seed;
-    }
-
-    this (ReflectCtor c) {
     }
 
     /**********************************************************************
