@@ -27,7 +27,11 @@ class LuaPlugin : GameObject {
         super(a_engine, "luaplugin");
         config = cfgNode.getCurValue!(Config)();
 
-        engine.loadScript(config.filename);
+        auto st = gFS.open("lua/" ~ config.filename);
+        scope(exit) st.close();
+        //xxx figure out a way to group modules into "plugins" and
+        //    assign them a shared environment
+        engine.scripting().loadScriptEnv(config.filename, "dummyplugin", st);
     }
 
     override bool activity() {
@@ -61,7 +65,7 @@ struct WeaponParams {
 }
 
 class LuaWeaponClass : WeaponClass {
-    Shooter delegate(Sprite) onCreateShooter;
+    void delegate(Shooter, FireInfo) onFire;
     WeaponSelector delegate(Sprite) onCreateSelector;
 
     this(GfxSet gfx, char[] a_name) {
@@ -89,7 +93,28 @@ class LuaWeaponClass : WeaponClass {
     }
 
     override Shooter createShooter(Sprite go, GameEngine engine) {
-        assert(!!onCreateShooter, "no shooter set");
-        return onCreateShooter(go);
+        return new LuaShooter(this, go, engine);
+    }
+}
+
+class LuaShooter : Shooter {
+    private {
+        LuaWeaponClass myclass;
+    }
+
+    this(LuaWeaponClass base, Sprite a_owner, GameEngine engine) {
+        super(base, a_owner, engine);
+        myclass = base;
+    }
+
+    override bool activity() {
+        return false;
+    }
+
+    override protected void doFire(FireInfo info) {
+        info.pos = owner.physics.pos;   //?
+        if (myclass.onFire) {
+            myclass.onFire(this, info);
+        }
     }
 }

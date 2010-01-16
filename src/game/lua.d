@@ -126,7 +126,7 @@ static this() {
     gScripting.properties!(PrepareStatus, "visible", "prepareRemaining");
 
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
-    gScripting.properties!(LuaWeaponClass, "onCreateShooter",
+    gScripting.properties!(LuaWeaponClass, "onFire",
         "onCreateSelector");
     gScripting.methods!(LuaWeaponClass, "setParams");
 

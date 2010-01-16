@@ -24,6 +24,9 @@ import utils.stream;
 private template C_Mangle(T) {
     const C_Mangle = "D_bind_" ~ T.mangleof ~ '\0';
 }
+private char* envMangle(char[] envName) {
+    return czstr.toStringz("chunk_env_" ~ envName);
+}
 
 const cLuaDelegateTable = "D_delegates";
 
@@ -193,10 +196,10 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         int tablepos = luaRelToAbsIndex(state, stackIdx);
         foreach (int idx, x; ret.tupleof) {
             //goddamn dmd crap
-            //skip enums because .stringof doesn't work on enum members
             //dmd bug http://d.puremagic.com/issues/show_bug.cgi?id=2881
-            static if (!is(typeof(x) == enum)) {
-        //----------
+            //  will strike here; see end of this file for a test
+            //xxx we now require a patched compiler; I hope the fix
+            //    gets accepted soon
             //first try named access
             static assert(ret.tupleof[idx].stringof[0..4] == "ret.");
             luaPush(state, (ret.tupleof[idx].stringof)[4..$]);
@@ -212,8 +215,6 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
                     state, -1);
             }
             lua_pop(state, 1);
-        //----------
-            }
         }
         return ret;
     } else static if (isArrayType!(T) || isAssocArrayType!(T)) {
@@ -290,6 +291,7 @@ int luaPush(T)(lua_State *state, T value) {
             luaPush(state, value.tupleof[idx]);
             lua_settable(state, -3);
         }
+        //set the metatable for the type, if it was set by addScriptType()
         lua_getfield(state, LUA_REGISTRYINDEX, C_Mangle!(T).ptr);
         lua_setmetatable(state, -2);
     } else static if (isArrayType!(T) || isAssocArrayType!(T)) {
@@ -394,6 +396,8 @@ private class LuaDelegateWrapperT(T) : LuaDelegateWrapper {
         //get callee from the registry and call
         lua_getfield(mState, LUA_REGISTRYINDEX, cLuaDelegateTable.ptr);
         lua_rawgeti(mState, -1, mLuaRef);
+        //replace ref to delegate table by closure (stack cleanup)
+        lua_replace(mState, -2);
         assert(lua_isfunction(mState, -1));
         //will pop function from the stack
         return doLuaCall!(RetType, Params)(mState, args);
@@ -937,6 +941,37 @@ class LuaState {
         luaCall!(void)();
         stack0();
     }
+    //load code from stream and assign it the env. environmentId
+    //the environment will be created if it doesn't exist, and reused if it does
+    //a metatable is set to forward lookups to the globals table
+    //(see http://lua-users.org/lists/lua-l/2006-05/msg00121.html )
+    void loadScriptEnv(char[] name, char[] environmentId, Stream input) {
+        stack0();
+        luaLoadAndPush(name, input);
+
+        //check if the environment was defined before
+        lua_getfield(mLua, LUA_REGISTRYINDEX, envMangle(environmentId));
+        if (!lua_istable(mLua, -1)) {
+            lua_pop(mLua, 1);
+            //new environment
+            lua_newtable(mLua);
+
+            //environment metatable
+            lua_newtable(mLua);
+            //meta = { __index = _G }
+            lua_pushvalue(mLua, LUA_GLOBALSINDEX);
+            lua_setfield(mLua, -2, "__index");
+            lua_setmetatable(mLua, -2);
+
+            //store for later use
+            lua_pushvalue(mLua, -1);
+            lua_setfield(mLua, LUA_REGISTRYINDEX, envMangle(environmentId));
+        }
+
+        lua_setfenv(mLua, -2);
+        luaCall!(void)();
+        stack0();
+    }
 
     //Call a function defined in lua
     void call(T...)(char[] funcName, T args) {
@@ -1022,8 +1057,19 @@ class LuaState {
         assert(lua_gettop(mLua) == 0);
     }
 
+    //assign a lua-defined metatable tableName to a D struct type
     void addScriptType(T)(char[] tableName) {
+        //get the metatable from the global scope and write it into the registry
         lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(tableName));
         lua_setfield(mLua, LUA_REGISTRYINDEX, C_Mangle!(T).ptr);
     }
 }
+
+//test for http://d.puremagic.com/issues/show_bug.cgi?id=2881
+//(other static asserts will throw; this is just to output a good error message)
+private enum _Compiler_Test {
+    x,
+}
+private _Compiler_Test _test_enum;
+static assert(_test_enum.stringof == "_test_enum", "Get a dmd version "
+    "where #2881 is fixed (or patch dmd yourself)");

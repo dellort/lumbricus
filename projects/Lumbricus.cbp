@@ -286,7 +286,6 @@
 		<Unit filename="..\src\utils\reflection.d" />
 		<Unit filename="..\src\utils\rndkiss.d" />
 		<Unit filename="..\src\utils\serialize.d" />
-		<Unit filename="..\src\utils\snapshot.d" />
 		<Unit filename="..\src\utils\stream.d" />
 		<Unit filename="..\src\utils\string.d" />
 		<Unit filename="..\src\utils\strparser.d" />

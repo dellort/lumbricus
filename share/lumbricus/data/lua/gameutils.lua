@@ -41,15 +41,22 @@ end
 
 function createTestWeapon(name)
     local w = LuaWeaponClass_ctor(Gfx, name)
-    local function createShooter(firing_sprite)
-        printf("GOODBYE LOL")
-        return null -- LuaShooter_ctor(...
+    local function fire(shooter, info)
+        -- copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
+        dist = (info.shootbyRadius + 5) * 1.5 + 2
+        spawnSprite("bazooka", info.pos + info.dir * dist, info.dir * info.strength)
     end
-    LuaWeaponClass_set_onCreateShooter(w, createShooter)
+    LuaWeaponClass_set_onFire(w, fire)
     LuaWeaponClass_setParams(w, {
         category = "fly",
-        animation = "bazooka",
+        animation = "weapon_bazooka",
         icon = Gfx_resource("icon_bazooka"),
+        fireMode = {
+            direction = 1,    -- xxx use enumStrings ?
+            variableThrowStrength = true,
+            throwStrengthFrom = 200,
+            throwStrengthTo = 1200
+        }
     })
     Gfx_registerWeapon(w)
     return w
