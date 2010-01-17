@@ -418,6 +418,7 @@ class ControllerPersistence : GamePlugin {
             auto lastRoundWeapons = new WeaponSet(engine,
                 node.getSubNode("weapons"));
             t.weapons.addSet(lastRoundWeapons);
+            lastRoundWeapons.kill();
         }
 
         t.crateSpy = node.getValue("crate_spy", t.crateSpy);

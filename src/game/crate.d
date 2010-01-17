@@ -73,6 +73,8 @@ class CollectableWeapon : Collectable {
             auto ctx = parent.createContext;
             aw.onBlowup.execute(ctx);
         }
+        //ok, made more generic
+        OnWeaponCrateBlowup.raise(weapon, parent);
     }
 }
 

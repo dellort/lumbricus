@@ -43,47 +43,12 @@ class LuaPlugin : GameObject {
     }
 }
 
-//copy and pasted from weapon.d
-struct WeaponParams {
-    int value = 0;  //see config file
-    char[] category = "none"; //category-id for this weapon
-    bool isAirstrike = false; //needed to exlude it from cave levels
-    bool allowSecondary = false;  //allow selecting and firing a second
-                                  //weapon while active
-    bool dontEndRound = false;
-    bool deselectAfterFire = false;
-    Time cooldown = Time.Null;
-    int crateAmount = 1;
-
-    //for the weapon selection; only needed on client-side
-    Surface icon;
-
-    FireMode fireMode;
-
-    //weapon-holding animations
-    char[] animation;
-}
-
 class LuaWeaponClass : WeaponClass {
     void delegate(Shooter, FireInfo) onFire;
     WeaponSelector delegate(Sprite) onCreateSelector;
 
-    this(GfxSet gfx, char[] a_name) {
-        super(gfx, a_name);
-    }
-
-    void setParams(WeaponParams p) {
-        value = p.value;
-        category = p.category;
-        isAirstrike = p.isAirstrike;
-        allowSecondary = p.allowSecondary;
-        dontEndRound = p.dontEndRound;
-        deselectAfterFire = p.deselectAfterFire;
-        cooldown = p.cooldown;
-        crateAmount = p.crateAmount;
-        icon = p.icon;
-        fireMode = p.fireMode;
-        animation = p.animation;
+    this(GfxSet a_gfx, char[] a_name) {
+        super(a_gfx, a_name);
     }
 
     override WeaponSelector createSelector(Sprite selected_by) {

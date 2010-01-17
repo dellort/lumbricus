@@ -13,7 +13,6 @@ import utils.rect2;
 import utils.time;
 import utils.random;
 import utils.randval;
-import utils.serialize;
 import utils.vector2;
 
 import game.game;
@@ -55,6 +54,12 @@ final class SequenceType {
     final char[] name() { return mName; }
     final GfxSet gfx() { return mGfx; }
 
+    //helper; may return null
+    final SequenceState normalState() {
+        auto pstate = "normal" in mStates;
+        return pstate ? *pstate : null;
+    }
+
     ///return a state by name; return null if not found, if !allow_notfound,
     ///then raise an error instead of returning null
     final SequenceState findState(char[] sname, bool allow_notfound = false) {
@@ -67,12 +72,6 @@ final class SequenceType {
             throw new Exception(myformat("state not found: {} in {}",  sname,
                 name));
         return null;
-    }
-
-    void initSerialization(SerializeContext ctx) {
-        foreach (char[] k, s; mStates) {
-            ctx.addExternal(s, myformat("sequence_state::{}::{}", name, k));
-        }
     }
 }
 

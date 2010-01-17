@@ -64,6 +64,9 @@ class GfxSet {
     //null until begin of finishLoading()
     ResourceSet resources;
 
+    //lol sorry
+    Events events;
+
     //needed during loading
     //- first, all resources are collected here
     //- then, they're loaded bit by bit (loading screen)
@@ -104,6 +107,8 @@ class GfxSet {
     //the constructor does allmost all the work, but you have to call
     //finishLoading() too; in between, you can preload the resources
     this(GameConfig cfg) {
+        events = new Events();
+
         ConfigNode gfx = cfg.gfx;
 
         mFlashFont = gFontManager.loadFont("wormfont_flash");
@@ -235,11 +240,12 @@ class GfxSet {
     }
 
     //called by sprite.d/SpriteClass.this() only
-    void registerSpriteClass(char[] name, SpriteClass sc) {
-        if (findSpriteClass(name, true)) {
-            assert(false, "Sprite class "~name~" already registered");
+    void registerSpriteClass(SpriteClass sc) {
+        if (findSpriteClass(sc.name, true)) {
+            assert(false, "Sprite class "~sc.name~" already registered");
         }
-        mSpriteClasses[name] = sc;
+        assert(!!sc);
+        mSpriteClasses[sc.name] = sc;
     }
 
     //find a sprite class
@@ -260,8 +266,9 @@ class GfxSet {
     void loadSpriteClass(ConfigNode sprite) {
         char[] type = sprite.getStringValue("type", "notype");
         char[] name = sprite.getStringValue("name", "unnamed");
-        auto res = instantiateSpriteClass(type, name);
+        SpriteClass res = instantiateSpriteClass(type, name);
         res.loadFromConfig(sprite);
+        registerSpriteClass(res);
     }
 
     //load all weapons from one weapon set (directory containing set.conf)

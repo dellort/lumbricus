@@ -4,6 +4,20 @@ function giveWeapon(name, amount)
     Team_addWeapon(Game_ownedTeam(), Gfx_findWeaponClass(name), amount)
 end
 
+-- drop a crate with a weapon in it; weapon_name is a string for the weapon
+function dropCrate(weapon_name)
+    local w = Gfx_findWeaponClass(weapon_name)
+    Control_dropCrate(true, w)
+    crateSpy()
+end
+
+-- give all teams a crate spy
+function crateSpy()
+    for k,t in ipairs(Control_teams()) do
+        Team_set_crateSpy(t, 1)
+    end
+end
+
 -- the caller wins
 function allYourBaseAreBelongToUs()
     for k,t in ipairs(Control_teams()) do

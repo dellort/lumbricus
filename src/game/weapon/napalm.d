@@ -1,7 +1,6 @@
 module game.weapon.napalm;
 
 import framework.framework;
-import game.actionsprite;
 import game.game;
 import game.gfxset;
 import game.gobject;
@@ -9,7 +8,6 @@ import game.particles;
 import game.sprite;
 import game.sequence;
 import game.weapon.weapon;
-import game.weapon.projectile;
 import physics.world;
 import tango.math.Math;
 import utils.misc;
@@ -21,7 +19,7 @@ import utils.random;
 import utils.randval;
 import utils.factory;
 
-class NapalmSprite : ProjectileSprite {
+class NapalmSprite : Sprite {
     private {
         NapalmSpriteClass myclass;
         Time mLightupTime;              //Time when decaying started
@@ -29,6 +27,17 @@ class NapalmSprite : ProjectileSprite {
         Time mLastDmg;                  //Time the last damage was caused
         float mDecaySecs;               //seconds for full decay
         float mDecayPerc = 1.0f;        //cache for decay percentage
+    }
+
+    this(GameEngine engine, NapalmSpriteClass type) {
+        super(engine, type);
+
+        assert(type !is null);
+        myclass = type;
+        mDecaySecs = myclass.decayTime.sample(engine.rnd).secsf;
+        mRepeatDelay = myclass.initialDelay.sample(engine.rnd);
+        mLastDmg = engine.gameTime.current;
+        lightUp();
     }
 
     //percentage of decayTime that remains, negative if passed
@@ -62,7 +71,7 @@ class NapalmSprite : ProjectileSprite {
         else if (dp <= 0.5 && mDecayPerc > 0.5)
             physics.posp = myclass.physMedium;
         else if (dp > 0.5 && mDecayPerc <= 0.5)
-            physics.posp = currentState.physic_properties;
+            physics.posp = myclass.initPhysic;
 
         //check for death
         mDecayPerc = dp;
@@ -89,28 +98,20 @@ class NapalmSprite : ProjectileSprite {
     }
 
     override void waterStateChange() {
-        if (isUnderWater && myclass.emitOnWater) {
-            //emit some particles when we die
-            engine.callbacks.particleEngine.emitParticle(physics.pos,
-                Vector2f(0), myclass.emitOnWater);
+        Trace.formatln("qater: {}!", isUnderWater);
+        if (isUnderWater) {
+            if (myclass.emitOnWater) {
+                //emit some particles when we die
+                engine.callbacks.particleEngine.emitParticle(physics.pos,
+                    Vector2f(0), myclass.emitOnWater);
+            }
+            kill();
         }
-        //if under=true, this will make the sprite die
         super.waterStateChange();
-    }
-
-    this(GameEngine engine, NapalmSpriteClass type) {
-        super(engine, type);
-
-        assert(type !is null);
-        myclass = type;
-        mDecaySecs = myclass.decayTime.sample(engine.rnd).secsf;
-        mRepeatDelay = myclass.initialDelay.sample(engine.rnd);
-        mLastDmg = engine.gameTime.current;
-        lightUp();
     }
 }
 
-class NapalmSpriteClass : ProjectileSpriteClass {
+class NapalmSpriteClass : SpriteClass {
     RandomFloat damage = {5f, 5f};
     RandomValue!(Time) decayTime = {timeMsecs(5000), timeMsecs(5000)};
     RandomValue!(Time) initialDelay = {timeMsecs(0), timeMsecs(0)};
@@ -130,9 +131,9 @@ class NapalmSpriteClass : ProjectileSpriteClass {
         initialDelay = config.getValue("initial_delay", initialDelay);
         repeatDelay = config.getValue("repeat_delay", repeatDelay);
         decayTime = config.getValue("decay_time", decayTime);
-        physMedium = initState.physic_properties.copy;
+        physMedium = initPhysic.copy;
         physMedium.radius = config.getFloatValue("radius_m", 2);
-        physSmall = initState.physic_properties.copy;
+        physSmall = initPhysic.copy;
         physSmall.radius = config.getFloatValue("radius_s", 1);
         lightupVelocity = config.getFloatValue("lightup_velocity",
             lightupVelocity);

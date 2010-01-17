@@ -33,6 +33,8 @@ alias StaticFactory!("Sprites", SpriteClass, GfxSet, char[])
 
 //version = RotateDebug;
 
+//object which represents a PhysicObject and an animation on the screen
+//also provides loading from ConfigFiles
 class Sprite : GameObject {
     private {
         //transient for savegames, Particle created from StaticStateInfo.particle
@@ -45,8 +47,6 @@ class Sprite : GameObject {
         bool mWasActivated;
         bool mOldGlueState;
         bool mIsUnderWater, mWaterUpdated;
-
-        Events mEvents;
     }
     protected SpriteClass mType;
 
@@ -69,8 +69,13 @@ class Sprite : GameObject {
 
         engine.physicworld.add(physics);
 
+        //due to braindamage, can set physic props only after adding to world
+        physics.posp = type.initPhysic;
+
         physics.onDie = &physDie;
         physics.onDamage = &physDamage;
+
+        setParticle(type.initParticle);
     }
 
     SpriteClass type() {
@@ -111,6 +116,8 @@ class Sprite : GameObject {
             auto owner = member ? member.team : null;
             graphic = new Sequence(engine, owner ? owner.teamColor : null);
             graphic.zorder = GameZOrder.Objects;
+            if (type.sequenceType)
+                graphic.setState(type.sequenceType.normalState);
             engine.scene.add(graphic);
             physics.checkRotation();
             updateAnimation();
@@ -123,6 +130,8 @@ class Sprite : GameObject {
     }
 
     protected void physImpact(PhysicBase other, Vector2f normal) {
+        //it appears no code uses the "other" parameter
+        OnSpriteImpact.raise(this, normal);
     }
 
     //normal always points away from other object
@@ -229,6 +238,7 @@ class Sprite : GameObject {
     }
 
     protected void waterStateChange() {
+        OnSpriteWaterState.raise(this);
     }
 
     override void simulate(float deltaT) {
@@ -278,8 +288,50 @@ class Sprite : GameObject {
     }
 }
 
-//object which represents a PhysicObject and an animation on the screen
-//also provides loading from ConfigFiles and state managment
+class SpriteClass {
+    GfxSet gfx;
+    char[] name;
+
+    SequenceType sequenceType;
+
+    //those are just "utility" properties to simplify initialization
+    //in most cases, it's all what one needs
+    float initialHp = float.infinity;
+    POSP initPhysic;
+    ParticleType initParticle;
+
+    this (GfxSet gfx, char[] regname) {
+        this.gfx = gfx;
+        name = regname;
+
+        initPhysic = new POSP();
+    }
+
+    Sprite createSprite(GameEngine engine) {
+        return new Sprite(engine, this);
+    }
+
+    void loadFromConfig(ConfigNode config) {
+        //load collision map
+        auto col = config.findNode("collisions");
+        if (col)
+            gfx.addCollideConf(col);
+
+        sequenceType = gfx.resources.get!(SequenceType)
+            (config["sequence_object"]);
+
+        initialHp = config.getFloatValue("initial_hp", initialHp);
+        initPhysic.loadFromConfig(config.getSubNode("init_physic"));
+        char[] p = config["init_particle"];
+        if (p.length)
+            initParticle = gfx.resources.get!(ParticleType)(p);
+    }
+
+    char[] toString() { return "SpriteClass["~name~"]"; }
+}
+
+//------------
+
 class StateSprite : Sprite {
     protected static LogStruct!("game.sprite") log;
 
@@ -636,36 +688,3 @@ class StateSpriteClass : SpriteClass {
     char[] toString() { return "StateSpriteClass["~name~"]"; }
 }
 
-class SpriteClass {
-    GfxSet gfx;
-    char[] name;
-
-    SequenceType sequenceType;
-
-    float initialHp = float.infinity;
-
-    this (GfxSet gfx, char[] regname) {
-        this.gfx = gfx;
-        name = regname;
-
-        gfx.registerSpriteClass(name, cast(StateSpriteClass)this);
-    }
-
-    Sprite createSprite(GameEngine engine) {
-        return new Sprite(engine, this);
-    }
-
-    void loadFromConfig(ConfigNode config) {
-        //load collision map
-        auto col = config.findNode("collisions");
-        if (col)
-            gfx.addCollideConf(col);
-
-        sequenceType = gfx.resources.get!(SequenceType)
-            (config["sequence_object"]);
-
-        initialHp = config.getFloatValue("initial_hp", initialHp);
-    }
-
-    char[] toString() { return "SpriteClass["~name~"]"; }
-}

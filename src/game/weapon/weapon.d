@@ -5,6 +5,7 @@ import framework.framework;
 import common.resset;
 import physics.world;
 import game.controller_events;
+import game.events;
 import game.game;
 import game.gfxset;
 import game.sprite;
@@ -32,8 +33,8 @@ alias void delegate(Shooter sh) ShooterCallback;
 //this includes how stuff is fired (for the code which does worm controll)
 //(argument against making classes like i.e. WeaponThrowable: no multiple
 // inheritance *g*; and how would you have a single fire() method then)
-abstract class WeaponClass {
-    protected GfxSet mGfx;
+abstract class WeaponClass : EventTarget {
+    private GfxSet mGfx;
 
     //generally read-only fields
     char[] name; //weapon name, translateable string
@@ -59,9 +60,10 @@ abstract class WeaponClass {
         return mGfx;
     }
 
-    this(GfxSet gfx, char[] a_name) {
-        mGfx = gfx;
-        assert(gfx !is null);
+    this(GfxSet a_gfx, char[] a_name) {
+        assert(a_gfx !is null);
+        super("weapon_" ~ a_name, a_gfx.events);
+        mGfx = a_gfx;
         name = a_name;
     }
 
@@ -86,10 +88,8 @@ class ConfWeaponClass : WeaponClass {
     //argument to WeaponSelectorFactory
     char[] onSelect;
 
-    this(GfxSet gfx, ConfigNode node) {
-        super(gfx, node.name);
-        mGfx = gfx;
-        assert(gfx !is null);
+    this(GfxSet a_gfx, ConfigNode node) {
+        super(a_gfx, node.name);
 
         value = node.getIntValue("value", value);
         category = node.getStringValue("category", category);
@@ -126,6 +126,7 @@ class ConfWeaponClass : WeaponClass {
             //projectiles[pr.name] = spriteclass;
 
             spriteclass.loadFromConfig(pr);
+            gfx.registerSpriteClass(spriteclass);
         }
     }
 

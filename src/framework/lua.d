@@ -7,6 +7,7 @@ import tango.core.Traits : ParameterTupleOf, isIntegerType, isFloatingPointType,
     ElementTypeOfArray, isArrayType, isAssocArrayType, KeyTypeOfAA, ValTypeOfAA,
     ReturnTypeOf;
 import cstd = tango.stdc.stdlib;
+import rtraits = tango.core.RuntimeTraits;
 import str = utils.string;
 import net.marshal;
 
@@ -180,7 +181,7 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
     } else static if (is(T == class)) {
         //allow userdata and nil, nothing else
         if (!lua_islightuserdata(state, stackIdx) && !lua_isnil(state,stackIdx))
-            expected("class reference");
+            expected("class reference of type "~T.stringof);
         //by convention, all light userdatas are casted from Object
         //which means we can always type check it
         Object o = cast(Object)lua_touserdata(state, stackIdx);
@@ -512,11 +513,22 @@ class LuaRegistry {
         char[][ClassInfo] mPrefixes;
     }
 
+    enum MethodType {
+        Method,
+        Property_R,
+        Property_W,
+        Ctor,
+        FreeFunction,
+    }
+
     struct Method {
         ClassInfo classinfo;
+        char[] name;
+        char[] prefix;
         char[] fname;
         bool is_static;
         lua_CFunction demarshal;
+        MethodType type;
     }
 
     this() {
@@ -527,6 +539,40 @@ class LuaRegistry {
     //call before any method() calls
     void setClassPrefix(Class)(char[] name) {
         mPrefixes[Class.classinfo] = name;
+    }
+
+    private void registerDMethod(ClassInfo ci, char[] method,
+        lua_CFunction demarshal, MethodType type)
+    {
+        Method m;
+        m.name = method;
+        m.fname = method;
+        if (type == MethodType.Property_W) {
+            m.fname = "set_" ~ m.fname;
+        }
+        if (ci) {
+            //BlaClass.somemethod becomes BlaClass_somemethod in Lua
+            char[] clsname;
+            if (auto cn = ci in mPrefixes) {
+                clsname = *cn;
+            } else {
+                clsname = ci.name;
+                //strip package/module path
+                int i = str.rfind(clsname, ".");
+                if (i >= 0) {
+                    clsname = clsname[i+1..$];
+                }
+                mPrefixes[ci] = clsname;
+            }
+            m.classinfo = ci;
+            m.prefix = clsname;
+            m.fname = clsname ~ "_" ~ m.fname;
+        } else {
+            assert(type == MethodType.FreeFunction);
+        }
+        m.demarshal = demarshal;
+        m.type = type;
+        mMethods ~= m;
     }
 
     private static char[] methodThisError(char[] name, ClassInfo expected,
@@ -555,29 +601,7 @@ class LuaRegistry {
         }
 
         registerDMethod(Class.classinfo, rename.length ? rename : name,
-            &demarshal);
-    }
-
-    private void registerDMethod(ClassInfo ci, char[] method,
-        lua_CFunction demarshal)
-    {
-        Method m;
-        char[] clsname;
-        if (auto cn = ci in mPrefixes) {
-            clsname = *cn;
-        } else {
-            clsname = ci.name;
-            //strip package/module path
-            int i = str.rfind(clsname, ".");
-            if (i >= 0) {
-                clsname = clsname[i+1..$];
-            }
-            mPrefixes[ci] = clsname;
-        }
-        m.fname = clsname ~ "_" ~ method;
-        m.demarshal = demarshal;
-        m.classinfo = ci;
-        mMethods ~= m;
+            &demarshal, MethodType.Method);
     }
 
     //a constructor for a given class
@@ -594,7 +618,7 @@ class LuaRegistry {
             return callFromLua(&construct, state, 0, cDebugName);
         }
 
-        registerDMethod(Class.classinfo, name, &demarshal);
+        registerDMethod(Class.classinfo, name, &demarshal, MethodType.Ctor);
     }
 
     //read/write accessor (if rw==false, it's read-only)
@@ -628,7 +652,7 @@ class LuaRegistry {
             return callFromLua(&get, state, 0, cDebugName);
         }
 
-        registerDMethod(ci, name, &demarshal_get);
+        registerDMethod(ci, name, &demarshal_get, MethodType.Property_R);
 
         static if (rw) {
             //xxx: a bit strange how it does three nested calls for stuff known
@@ -649,7 +673,7 @@ class LuaRegistry {
                 return callFromLua(&set, state, 0, cDebugName);
             }
 
-            registerDMethod(ci, "set_" ~ name, &demarshal_set);
+            registerDMethod(ci, name, &demarshal_set, MethodType.Property_W);
         }
     }
 
@@ -689,10 +713,8 @@ class LuaRegistry {
         extern(C) static int demarshal(lua_State* state) {
             return callFromLua(&Fn, state, 0, funcName);
         }
-        Method m;
-        m.fname = rename.length ? rename : funcName;
-        m.demarshal = &demarshal;
-        mMethods ~= m;
+        registerDMethod(null, rename.length ? rename : funcName, &demarshal,
+            MethodType.FreeFunction);
     }
 
     DefClass!(Class) defClass(Class)(char[] prefixname = "") {
@@ -821,6 +843,8 @@ class LuaState {
         kill("loadfile");
 
         stack0();
+
+        scriptExec(`_G.d_get_obj_metadata = ...`, &script_get_obj_metadata);
     }
 
     void destroy() {
@@ -849,14 +873,61 @@ class LuaState {
 
     void register(LuaRegistry stuff) {
         foreach (m; stuff.mMethods) {
+            auto name = czstr.toStringz(m.fname);
+
+            lua_getglobal(mLua, name);
+            bool nil = lua_isnil(mLua, -1);
+            lua_pop(mLua, 1);
+
+            if (!nil) {
+                //this caused some error which took me 30 minutes of debugging
+                //most likely multiple bind calls for a method
+                throw new Exception("attempting to overwrite existing name "
+                    "in _G when adding D method: "~m.fname);
+            }
+
             lua_pushcclosure(mLua, m.demarshal, 0);
-            lua_setglobal(mLua, czstr.toStringz(m.fname));
+            lua_setglobal(mLua, name);
 
             mMethods ~= m;
         }
         foreach (ClassInfo key, char[] value; stuff.mPrefixes) {
             mClassNames[key] = value;
         }
+    }
+
+    struct MetaData {
+        char[] type;        //stringified LuaRegistry.MethodType
+        char[] dclass;      //name/prefix of the D class for the method
+        char[] name;        //name of the mthod
+        char[] lua_g_name;  //name of the Lua bind function in _G
+    }
+    //return MetaData for all known bound D functions for the passed object
+    //if from is null, an empty array is returned
+    private MetaData[] script_get_obj_metadata(Object from) {
+        if (!from)
+            return null;
+        MetaData[] res;
+        foreach (LuaRegistry.Method m; mMethods) {
+            if (rtraits.isDerived(from.classinfo, m.classinfo))
+                res ~= convert_md(m);
+        }
+        return res;
+    }
+    private MetaData convert_md(LuaRegistry.Method m) {
+        alias LuaRegistry.MethodType MT;
+        MetaData d;
+        switch (m.type) {
+            case MT.Method: d.type = "Method"; break;
+            case MT.Property_R: d.type = "Property_R"; break;
+            case MT.Property_W: d.type = "Property_W"; break;
+            case MT.Ctor: d.type = "Ctor"; break;
+            case MT.FreeFunction: d.type = "FreeFunction"; break;
+        }
+        d.dclass = m.prefix;
+        d.name = m.name;
+        d.lua_g_name = m.fname;
+        return d;
     }
 
     void addSingleton(T)(T instance) {
@@ -869,6 +940,7 @@ class LuaState {
     //let's just say this singleton stuff is broken design
     void addSingletonD(ClassInfo ci, Object instance) {
         assert(!!instance);
+        assert(!!ci);
         assert(!(ci in mSingletons));
         mSingletons[ci] = instance;
 

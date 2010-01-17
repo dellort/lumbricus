@@ -10,7 +10,6 @@ import tango.math.Math : PI;
 import utils.random : rngShared;
 import utils.configfile : ConfigNode;
 import utils.misc : myformat;
-import utils.serialize : floatToHex; //right function from wrong module
 
 //about textures: currently marker implies texture
 
@@ -86,8 +85,7 @@ public class LandscapeGeometry {
             sub.setBoolValue("changeable", p.changeable);
             //sub.setStringValue("texoffset", myformat("%a %s",
                 //p.texoffset.x, p.texoffset.y));
-            sub.setStringValue("texoffset", floatToHex(p.texoffset.x) ~ " " ~
-                floatToHex(p.texoffset.y));
+            sub.setValue("texoffset", p.texoffset);
             sub.setStringValue("marker", writeMarker(p.marker));
         }
     }

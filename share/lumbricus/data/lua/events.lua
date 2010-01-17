@@ -32,7 +32,7 @@ function addGlobalEventHandler(event_name, handler)
     do_addEventHandler(Game_events(), event_name, handler)
 end
 
-function addPerClassEventHandler(class_name, event_name, handler)
+function addClassEventHandler(class_name, event_name, handler)
     local events = Events_perClassEvents(Game_events(), class_name)
     do_addEventHandler(events, event_name, handler)
 end
@@ -58,7 +58,7 @@ function addInstanceEventHandler(object, event_name, handler)
     end
     if not cls[event_name] then
         cls[event_name] = true
-        addPerClassEventHandler(ns, event_name,
+        addClassEventHandler(ns, event_name,
             -- this is the per-instance dispatch function
             function(sender, ...)
                 local ctx = get_context(sender, true)
@@ -123,6 +123,6 @@ function eventtest()
     end
     addGlobalEventHandler("game_message", on_message)
     addGlobalEventHandler("game_message", on_message2)
-    addPerClassEventHandler("bazooka", "sprite_activate", on_bazooka_activate)
-    addPerClassEventHandler("bazooka", "sprite_die", on_bazooka_die)
+    addClassEventHandler("bazooka", "sprite_activate", on_bazooka_activate)
+    addClassEventHandler("bazooka", "sprite_die", on_bazooka_die)
 end

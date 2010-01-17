@@ -10,6 +10,10 @@ setmetatable(Vector2, {__call = function(self, x, y)
     end
 end})
 
+function Vector2.FromPolar(length, angle)
+    return Vector2(math.cos(angle)*length, math.sin(angle)*length)
+end
+
 function Vector2:__add(v)
     return Vector2(self.x + v.x, self.y + v.y)
 end

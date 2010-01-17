@@ -54,10 +54,8 @@ class EventTarget {
     final void raiseEvent(char[] name, EventPtr args) {
         if (mPerInstance)
             mPerInstance.raise(name, this, args);
-        if (mPerClass)
-            mPerClass.raise(name, this, args);
-        if (mEvents)
-            mEvents.raise(name, this, args);
+        mPerClass.raise(name, this, args);
+        mEvents.raise(name, this, args);
     }
 }
 

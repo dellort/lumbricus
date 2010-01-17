@@ -133,6 +133,7 @@ class GameEngine {
             rnd.seed(1);
         }
         mGfx = a_gfx;
+        events = mGfx.events;
         gameConfig = config;
         mGameTime = a_gameTime;
         createCmd();
@@ -148,7 +149,6 @@ class GameEngine {
         mScripting.addSingleton(gfx);
         mScripting.addSingleton(rnd);
 
-        events = new Events();
         globalEvents = new GlobalEvents(this);
         events.setScripting(mScripting, "eventhandlers_global");
         loadScript("events.lua");
@@ -376,7 +376,7 @@ class GameEngine {
     }
 
     private void underWaterTrigger(PhysicTrigger sender, PhysicObject other) {
-        auto x = cast(StateSprite)(other.backlink);
+        auto x = cast(Sprite)(other.backlink);
         if (x) x.setIsUnderWater();
     }
 

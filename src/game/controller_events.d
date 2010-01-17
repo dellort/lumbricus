@@ -19,6 +19,7 @@ import physics.misc;
 import utils.configfile;
 import utils.md;
 import utils.factory;
+import utils.vector2;
 
 ///let the client display a message (like it's done on round's end etc.)
 ///this is a bit complicated because message shall be translated on the
@@ -57,11 +58,16 @@ alias DeclareEvent!("game_reload", GameObject) OnGameReload;
 //  cause can be null (e.g. for fall damage)
 alias DeclareEvent!("sprite_damage", Sprite, GameObject, DamageCause,
     float) OnDamage;
+//well whatever this is
+//should be avoided in scripting; the Vector2f will allocate a table
+alias DeclareEvent!("sprite_impact", Sprite, Vector2f) OnSpriteImpact;
 //cause, number of pixels
 //apparently the victim is 0 to N bitmap based GameLandscapes
 alias DeclareEvent!("demolish", GameObject, int) OnDemolish;
 //called when sprite is finally dead (for worms: when done blowing up)
 alias DeclareEvent!("sprite_die", Sprite) OnSpriteDie;
+//on Sprite.waterStateChange()
+alias DeclareEvent!("sprite_waterstate", Sprite) OnSpriteWaterState;
 //with Sprite.activate()
 alias DeclareEvent!("sprite_activate", Sprite) OnSpriteActivate;
 //with Sprite.setState()
@@ -90,6 +96,10 @@ alias DeclareEvent!("crate_collect", CrateSprite, TeamMember) OnCrateCollect;
 alias DeclareEvent!("collect_tool", TeamMember, CollectableTool) OnCollectTool;
 //number of weapons changed
 alias DeclareEvent!("weaponset_changed", WeaponSet) OnWeaponSetChanged;
+//a crate is being blown up, and the crate contains this weapon
+//  Sprite = the sprite for the crate
+alias DeclareEvent!("weapon_crate_blowup", WeaponClass, Sprite)
+    OnWeaponCrateBlowup;
 
 //base class for custom plugins
 //now I don't really know what the point of this class was anymore

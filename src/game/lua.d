@@ -9,12 +9,14 @@ import game.game;
 import game.gfxset;
 import game.gobject;
 import game.luaplugin;
+import game.sequence;
 import game.sprite;
 import game.worm;
 import game.gamemodes.shared;
 import game.levelgen.level;
 import game.levelgen.renderer;
 import game.weapon.projectile;
+import game.weapon.weapon;
 import physics.world;
 import utils.vector2;
 import utils.rect2;
@@ -55,7 +57,7 @@ static this() {
 
     gScripting.setClassPrefix!(GfxSet)("Gfx");
     gScripting.methods!(GfxSet, "findSpriteClass", "findWeaponClass",
-        "weaponList", "registerWeapon");
+        "weaponList", "registerWeapon", "registerSpriteClass");
     gScripting.method!(GfxSet, "scriptGetRes")("resource");
 
     gScripting.methods!(Level, "worldCenter");
@@ -80,23 +82,32 @@ static this() {
         "youWinNow", "updateHealth", "needUpdateHealth", "addWeapon",
         "skipTurn", "surrenderTeam", "addDoubleDamage", "addCrateSpy");
     gScripting.properties!(Team, "current", "allowSelect", "globalWins",
-        "active");
+        "active", "crateSpy", "doubleDmg");
 
     //no thanks -- gScripting.setClassPrefix!(GameObject)("Obj");
     gScripting.methods!(GameObject, "activity");
     gScripting.property!(GameObject, "createdBy");
-    gScripting.methods!(Sprite, "setPos", "pleasedie", "type",
-        "activate");
     gScripting.property_ro!(GameObject, "objectAlive");
 
-    gScripting.property_ro!(Sprite, "physics");
+    gScripting.methods!(Sprite, "setPos", "die", "pleasedie", "type",
+        "activate", "setParticle");
+    gScripting.properties!(Sprite, "graphic");
+    gScripting.properties_ro!(Sprite, "physics", "isUnderWater", "visible");
+
     gScripting.setClassPrefix!(ProjectileSprite)("Projectile");
     gScripting.property!(ProjectileSprite, "detonateTimer");
     gScripting.setClassPrefix!(WormSprite)("Worm");
     gScripting.methods!(WormSprite, "beamTo");
 
+    gScripting.ctor!(SpriteClass, GfxSet, char[])();
     gScripting.methods!(SpriteClass, "createSprite");
     gScripting.property_ro!(SpriteClass, "name");
+    gScripting.properties!(SpriteClass, "initialHp", "initPhysic",
+        "initParticle", "sequenceType");
+
+    gScripting.methods!(SequenceType, "findState");
+
+    gScripting.methods!(Sequence, "setState");
 
     gScripting.setClassPrefix!(PhysicWorld)("World");
 
@@ -114,10 +125,24 @@ static this() {
         "setInitialVelocity", "addForce", "addImpulse", "onSurface",
         "setPos", "move", "forceLook", "resetLook", "lookey", "applyDamage",
         "setWalking", "isWalkingMode", "isWalking");
-    gScripting.properties!(PhysicObject, "selfForce", "acceleration");
+    gScripting.properties!(PhysicObject, "selfForce", "acceleration", "posp");
     gScripting.properties_ro!(PhysicObject, "surface_normal", "lifepower");
     gScripting.setClassPrefix!(PhysicBase)("Phys");
     gScripting.property_ro!(PhysicBase, "backlink");
+
+    //oh my
+    //NOTE: we could handle classes just like structs and use tupleof on them
+    //  (you have to instantiate the object; no problem in POSP's case)
+    gScripting.properties!(POSP, "elasticity", "radius", "mass",
+        "windInfluence", "explosionInfluence", "fixate", "damageUnfixate",
+        "glueForce", "walkingSpeed", "walkingClimb", "walkLimitSlopeSpeed",
+        "rotation", "gluedForceLook", "damageable", "damageThreshold",
+        "sustainableImpulse", "fallDamageFactor", "fallDamageIgnoreX",
+        "mediumViscosity", "stokesModifier", "airResistance", "friction",
+        "bounceAbsorb", "slideAbsorb", "extendNormalcheck", "zeroGrav",
+        "velocityConstraint", "speedLimit", "collisionID");
+    gScripting.properties_ro!(POSP, "inverseMass");
+    gScripting.methods!(POSP, "copy");
 
     gScripting.ctor!(TimeStatus)();
     gScripting.properties!(TimeStatus, "showTurnTime", "showGameTime",
@@ -125,10 +150,13 @@ static this() {
     gScripting.ctor!(PrepareStatus)();
     gScripting.properties!(PrepareStatus, "visible", "prepareRemaining");
 
+    gScripting.properties!(WeaponClass, "value", "category", "isAirstrike",
+        "allowSecondary", "dontEndRound", "deselectAfterFire",
+        "cooldown", "crateAmount", "icon", "fireMode", "animation");
+
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
     gScripting.properties!(LuaWeaponClass, "onFire",
         "onCreateSelector");
-    gScripting.methods!(LuaWeaponClass, "setParams");
 
     //internal functions
     gScripting.properties_ro!(EventTarget, "eventTargetType");

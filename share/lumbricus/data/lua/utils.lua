@@ -235,3 +235,21 @@ function ifnil(c, a)
         return c
     end
 end
+
+-- duplicate the table (but not its values)
+function table_copy(table)
+    local ntable = {}
+    for k, v in pairs(table) do
+        ntable[k] = v
+    end
+    return ntable
+end
+
+-- return true or false whether the table is empty
+-- I have no clue how to do this "right" (#table obviously doesn't always work)
+function table_empty(table)
+    for k, v in pairs(table) do
+        return false
+    end
+    return true
+end
