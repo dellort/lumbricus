@@ -4,6 +4,7 @@ module game.weapon.types;
 
 import utils.configfile;
 import utils.randval;
+import utils.strparser;
 import utils.time;
 import utils.vector2;
 
@@ -22,6 +23,11 @@ enum ThrowDirection {
     any,       //full 360 freedom
     threeway,  //sloping-up, straight, sloping-down (think of blowtorch)
     limit90,    //90deg freedom only (up/down limited)
+}
+
+static this() {
+    enumStrings!(PointMode, "none,target,targetTracking,instant,instantFree")();
+    enumStrings!(ThrowDirection, "fixed,any,threeway,limit90")();
 }
 
 struct FireMode {

@@ -220,7 +220,7 @@ void enumStrings(EnumType, char[] fields)() {
     static char[] box_unparse_enum(MyBox b) {
         EnumType val = b.unbox!(EnumType)();
         assert(val >= EnumType.min && val <= EnumType.max);
-        foreach (EnumItem e; items) {
+        foreach (ref EnumItem e; items) {
             if (e.value == val)
                 return e.name;
         }
@@ -229,7 +229,7 @@ void enumStrings(EnumType, char[] fields)() {
     }
 
     static MyBox box_parse_enum(char[] s) {
-        foreach (EnumItem e; items) {
+        foreach (ref EnumItem e; items) {
             if (e.name == s)
                 return MyBox.Box!(EnumType)(cast(EnumType)e.value);
         }

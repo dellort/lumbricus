@@ -472,6 +472,7 @@ class GameEngine {
         debug {
             globals.setCounter("active_gameobjects", mActiveObjects.count);
             globals.setCounter("all_gameobjects", mAllObjects.count);
+            globals.setByteSizeStat("game_lua_vm", scripting.vmsize());
         }
     }
 

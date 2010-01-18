@@ -125,6 +125,7 @@ private:
 
     Time[PerfTimer] mLastTimerValues;
     long[char[]] mLastCounterValues;
+    size_t[char[]] mLastSizeStatValues;
 
     const cTimerStatsUpdateTimeMs = 1000;
 
@@ -162,6 +163,10 @@ private:
                 mLastCounterValues[name] = cnt;
                 cnt = 0;
             }
+            foreach (char[] name, ref size_t sz; globals.size_stats) {
+                mLastSizeStatValues[name] = sz;
+                sz = 0;
+            }
         }
         mLastTimerStatsFrames++;
 
@@ -189,6 +194,15 @@ private:
             if (pt)
                 t = *pt;
             cb(name, t);
+        }
+    }
+    void listSizeStats(void delegate(char[] name, size_t sz) cb) {
+        foreach (char[] name, size_t sz; globals.size_stats) {
+            size_t* ps = name in mLastSizeStatValues;
+            size_t s = 0;
+            if (ps)
+                s = *ps;
+            cb(name, s);
         }
     }
 
@@ -883,6 +897,11 @@ class StatsWindow : Task {
 
             bla.listCounters((char[] a, long b) {
                 auto s = myformat_s(lineBuffer(), "{}", b);
+                addLine(a, s);
+            });
+
+            bla.listSizeStats((char[] a, size_t sz) {
+                auto s = str.sizeToHuman(sz, lineBuffer());
                 addLine(a, s);
             });
 

@@ -13,6 +13,7 @@ import net.marshal;
 
 import utils.misc;
 import utils.stream;
+import utils.strparser;
 
 import tango.core.Exception;
 
@@ -155,13 +156,23 @@ private void luaExpected(char[] expected, char[] got) {
 T luaStackValue(T)(lua_State *state, int stackIdx) {
     void expected(char[] t) { luaExpected(state, stackIdx, t); }
     //xxx no check if stackIdx is valid (is checked in demarshal() anyway)
-    static if (isIntegerType!(T) || isFloatingPointType!(T) ||
-        (is(T Base == enum) && isIntegerType!(Base)))
-    {
+    static if (isIntegerType!(T) || isFloatingPointType!(T)) {
         lua_Number ret = lua_tonumber(state, stackIdx);
         if (ret == 0 && !lua_isnumber(state, stackIdx))
             expected("number");
         return cast(T)ret;
+    } else static if (is(T Base == enum)) {
+        if (lua_type(state, stackIdx) == LUA_TSTRING) {
+            //we have this enumStrings() thing in strparser; try to use it
+            //this costs a slow AA lookup
+            auto pconvert = typeid(T) in gBoxParsers;
+            if (!pconvert)
+                expected("enum "~T.stringof);
+            return (*pconvert)(lua_todstring(state, stackIdx)).unbox!(T)();
+        } else {
+            //try base type
+            return cast(T)luaStackValue!(Base)(state, stackIdx);
+        }
     } else static if (is(T : bool)) {
         //accepts everything, true for anything except 'false' and 'nil'
         return !!lua_toboolean(state, stackIdx);
@@ -251,6 +262,9 @@ int luaPush(T)(lua_State *state, T value) {
         (is(T Base == enum) && isIntegerType!(Base)))
     {
         //everything is casted to double internally anyway; avoids overflows
+        //NOTE about enums: we could convert enums to strings (with
+        //  enumStrings), but numbers are faster to pass; plus you had to do a
+        //  slow AA lookup to get the string
         lua_pushnumber(state, value);
     } else static if (is(T : bool)) {
         lua_pushboolean(state, cast(int)value);
@@ -854,6 +868,12 @@ class LuaState {
 
     final lua_State* state() {
         return mLua;
+    }
+
+    //return memory used by Lua in bytes
+    final size_t vmsize() {
+        return lua_gc(mLua, LUA_GCCOUNT, 0)*1024
+            + lua_gc(mLua, LUA_GCCOUNTB, 0);
     }
 
     //needed by utils.lua to format userdata

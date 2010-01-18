@@ -132,7 +132,7 @@ end
 _RelayMetaTable = {}
 
 -- for use with setProperties()
--- if you so setProperties(obj, { bla = relay table }), setProperties will
+-- if you do setProperties(obj, { bla = relay table }), setProperties will
 --  call setProperties(obj.bla, table). this assumes obj.bla is a non-null D-
 --  object, and allows setProperties() to be called recursively.
 function relay(table)
@@ -149,7 +149,7 @@ function createTestWeapon(name)
     local function fire(shooter, info)
         -- copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
         -- eh, and why not use those values directly?
-        dist = (info.shootbyRadius + 5) * 1.5 + 2
+        local dist = (info.shootbyRadius + 5) * 1.5 + 2
         spawnSprite(sprite_class_name, info.pos + info.dir * dist, info.dir * info.strength)
     end
     setProperties(w, {
@@ -159,8 +159,9 @@ function createTestWeapon(name)
         animation = "weapon_bazooka",
         icon = Gfx_resource("icon_bazooka"),
         fireMode = {
-            direction = 1,    -- xxx use enumStrings ?
+            direction = "any",
             variableThrowStrength = true,
+            strengthMode = "variable",
             throwStrengthFrom = 200,
             throwStrengthTo = 1200,
         }

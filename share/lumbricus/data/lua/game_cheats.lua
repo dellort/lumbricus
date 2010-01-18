@@ -6,7 +6,7 @@ end
 
 -- drop a crate with a weapon in it; weapon_name is a string for the weapon
 function dropCrate(weapon_name)
-    local w = Gfx_findWeaponClass(weapon_name)
+    local w = weapon_name and Gfx_findWeaponClass(weapon_name)
     Control_dropCrate(true, w)
     crateSpy()
 end

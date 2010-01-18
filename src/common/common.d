@@ -41,6 +41,7 @@ class Common {
     //toplevel.d will reset them all!
     PerfTimer[char[]] timers;
     long[char[]] counters;
+    size_t[char[]] size_stats;
 
     private {
         //another hack, see addFrameCallback()
@@ -201,6 +202,10 @@ class Common {
     }
     void setCounter(char[] name, long cnt) {
         counters[name] = cnt;
+    }
+
+    void setByteSizeStat(char[] name, size_t size) {
+        size_stats[name] = size;
     }
 
     //cb will be called each frame between Task and GUI updates

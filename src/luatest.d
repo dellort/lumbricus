@@ -7,6 +7,7 @@ import framework.filesystem;
 
 import utils.misc;
 import utils.stream;
+import utils.strparser;
 import utils.vector2;
 import utils.rect2;
 import utils.time;
@@ -43,8 +44,15 @@ class Bar {
 class Evul {
 }
 
+enum Test {
+    a = 1,
+    b,
+    c,
+}
+
 class Foo {
     char[] bla;
+    Test muh;
 
     char[] test(int x, float y = 99.0, char[] msg = "Default") {
         return myformat("hello from D! got: {} {} '{}'", x, y, msg);
@@ -108,11 +116,12 @@ static this() {
     scripting.methods!(Foo, "test", "createBar", "createEvul", "passBar");
     scripting.methods!(Foo, "vector", "makeVector", "vectors", "array", "aarray",
         "makeArray", "callCb", "makeTime");
-    scripting.property!(Foo, "bla");
+    scripting.properties!(Foo, "bla", "muh");
     auto bar = scripting.defClass!(Bar)();
     bar.properties!("blu", "blo", "something")();
     bar.methods!("test", "blurgh")();
     scripting.func!(funcBlub)();
+    enumStrings!(Test, "a,b,c");
 }
 
 void funcBlub(char[] arg) {
@@ -157,6 +166,11 @@ void main(char[][] args) {
         print(Foo_test(1))
         Foo_set_bla("durf")
         print(Foo_bla())
+        printf("enum = {}", Foo_muh())
+        Foo_set_muh(2)
+        printf("enum = {}", Foo_muh())
+        Foo_set_muh("c")
+        printf("enum = {}", Foo_muh())
         b = Foo_createBar()
         Bar_test(b, "hurf")
 

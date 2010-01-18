@@ -556,6 +556,8 @@ private void load(SharedLib lib)
   *cast(void**)&lua_gethookmask = Derelict_GetProc(lib, "lua_gethookmask");
   *cast(void**)&lua_gethookcount = Derelict_GetProc(lib, "lua_gethookcount");
 
+  *cast(void**)&lua_gc = Derelict_GetProc(lib, "lua_gc");
+
   // lauxlib
 
   *cast(void**)&luaL_openlib = Derelict_GetProc(lib, "luaL_openlib");
