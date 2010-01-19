@@ -302,7 +302,7 @@ class SpriteClass {
 
     this (GfxSet gfx, char[] regname) {
         this.gfx = gfx;
-        name = regname;
+        name = regname.dup;
 
         initPhysic = new POSP();
     }

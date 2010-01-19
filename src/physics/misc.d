@@ -4,6 +4,7 @@ import tango.util.Convert;
 import utils.configfile : ConfigNode;
 import utils.vector2;
 import utils.misc : myformat;
+import utils.strparser;
 
 //Important: No physics. references in this file!
 
@@ -199,4 +200,8 @@ class POSP {
 
     this() {
     }
+}
+
+static this() {
+    enumStrings!(RotateMode, "velocity,distance,selfforce");
 }

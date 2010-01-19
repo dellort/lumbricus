@@ -682,6 +682,7 @@ class LuaRegistry {
                     //but the parser messes it up, we don't get an expression
                     //make use of the glorious comma operator to make it one
                     //"I can't believe this works"
+                    static if (is(Type == char[])) t = t.dup;
                     1, mixin("o." ~ name) = t;
                 }
                 return callFromLua(&set, state, 0, cDebugName);

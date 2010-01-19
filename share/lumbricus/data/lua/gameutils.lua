@@ -36,6 +36,7 @@ function spawnSprite(name, pos, velocity)
         Phys_setInitialVelocity(Sprite_physics(s), velocity)
     end
     Sprite_activate(s, pos)
+    return s
 end
 
 -- simple shortcut
@@ -86,11 +87,12 @@ function enableDrown(sprite_class, drown_phys)
 end
 
 -- when a create with the weapon is blown up, the sprite gets spawned somehow
-function enableSpriteCrateBlowup(weapon_class, sprite_class)
+function enableSpriteCrateBlowup(weapon_class, sprite_class, count)
+    count = count or 1
     function blowup(weapon, crate_sprite)
-        local dir = Vector2.FromPolar(10, Random_rangef(0, math.pi*2))
+        local dir = Vector2.FromPolar(1, Random_rangef(-3*math.pi/4, -math.pi/4))
         spawnSprite(SpriteClass_name(sprite_class),
-            Phys_pos(Sprite_physics(crate_sprite)) + dir*2, dir)
+            Phys_pos(Sprite_physics(crate_sprite)) + dir*12, dir * Random_rangei(350, 550))
     end
     addClassEventHandler(EventTarget_eventTargetType(weapon_class),
         "weapon_crate_blowup", blowup)

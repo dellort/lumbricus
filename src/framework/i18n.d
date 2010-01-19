@@ -157,7 +157,7 @@ public class Translator {
     private void addLocaleDir(char[] targetId, char[] localePath) {
         auto dir = LocaleDir(targetId, localePath);
         foreach (ref d; mAdditionalDirs) {
-            if (d.targetId == targetId) {
+            if (d.localePath == localePath) {
                 //already added
                 return;
             }

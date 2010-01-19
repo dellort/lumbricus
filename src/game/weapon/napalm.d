@@ -98,7 +98,6 @@ class NapalmSprite : Sprite {
     }
 
     override void waterStateChange() {
-        Trace.formatln("qater: {}!", isUnderWater);
         if (isUnderWater) {
             if (myclass.emitOnWater) {
                 //emit some particles when we die

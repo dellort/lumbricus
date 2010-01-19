@@ -64,7 +64,7 @@ abstract class WeaponClass : EventTarget {
         assert(a_gfx !is null);
         super("weapon_" ~ a_name, a_gfx.events);
         mGfx = a_gfx;
-        name = a_name;
+        name = a_name.dup;
     }
 
     //called when the sprite selected_by selects this weapon
