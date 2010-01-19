@@ -654,6 +654,7 @@ class GameController {
             loadLevelObjects(config.levelobjects);
         }
 
+        //xxx gamemode still special; fixme
         auto gamemodeId = config.gamemode["mode"];
         GamePluginFactory.instantiate(gamemodeId, engine, config.gamemode);
 
@@ -662,14 +663,6 @@ class GameController {
 
         //only valid while loading
         mWeaponSets = null;
-
-        //xxx this should be configurable
-        const char[][] cLoadPlugins = ["messages", "statistics", "persistence"];
-
-        foreach (pid; cLoadPlugins) {
-            auto opts = new ConfigNode();
-            GamePluginFactory.instantiate(pid, engine, opts);
-        }
 
         mEngine.finishPlace();
 

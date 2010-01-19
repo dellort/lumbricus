@@ -5,7 +5,6 @@ import common.resources;
 import common.resset;
 import common.scene;
 import framework.framework;
-import framework.i18n; //just because of weapon loading...
 import utils.timesource;
 import framework.commandline;
 
@@ -218,19 +217,6 @@ class GameLoader {
         return r;
     }
 
-    private void loadWeaponSets() {
-        //xxx for weapon set stuff:
-        //    weapon ids are assumed to be unique between sets
-        foreach (char[] ws; mGameConfig.weaponsets) {
-            char[] dir = "weapons/"~ws;
-            //load set.conf as gfx set (resources and sequences)
-            auto conf = gResources.loadConfigForRes(dir ~ "/set.conf");
-            mGfx.addGfxSet(conf);
-            //load weaponset locale
-            addLocaleDir("weapons", dir ~ "/locale");
-        }
-    }
-
     private void doInit() {
         //save last played level functionality
         //xxx should this really be here
@@ -261,7 +247,6 @@ class GameLoader {
         }
 
         mGfx = new GfxSet(mGameConfig);
-        loadWeaponSets();
 
         mResPreloader = gResources.createPreloader(mGfx.load_resources);
         mGfx.load_resources = null;

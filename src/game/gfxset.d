@@ -22,6 +22,7 @@ import game.sequence;
 import game.setup;
 import game.sprite;
 import game.weapon.weapon;
+import game.plugins;
 
 class ClassNotRegisteredException : Exception {
     this(char[] msg) {
@@ -35,7 +36,6 @@ class GfxSet {
     private {
         //bits from GameConfig; during loading
         ConfigNode mSprites;
-        char[][] mWeaponSets;
         ConfigNode[] mSequenceConfig;
         ConfigNode[] mCollNodes;
 
@@ -56,6 +56,8 @@ class GfxSet {
 
         bool mFinished;
         Font mFlashFont;
+
+        bool[char[]] mLoadedPlugins;
     }
 
     //xxx only needed by sky.d
@@ -83,6 +85,7 @@ class GfxSet {
     CrosshairSettings crosshair;
 
     ExplosionSettings expl;
+    RegisteredPlugin[] plugins;
 
     private void loadTeamThemes() {
         for (int n = 0; n < TeamTheme.cTeamColors.length; n++) {
@@ -136,9 +139,30 @@ class GfxSet {
         //xxx this file is loaded at two places (gravity in game engine)
         mSprites = loadConfig("game.conf", true).getSubNode("sprites");
 
-        mWeaponSets = cfg.weaponsets;
-
         mCollisionMap = new CollisionMap();
+
+        foreach (pid; cfg.plugins) {
+            loadPlugin(pid);
+        }
+    }
+
+    void loadPlugin(char[] pluginId) {
+        if (pluginId in mLoadedPlugins) {
+            return;
+        }
+        char[] dir = "plugins/" ~ pluginId;
+        //load plugin.conf as gfx set (resources and sequences)
+        auto conf = gResources.loadConfigForRes(dir ~ "/plugin.conf");
+        char[] plgType = conf.getStringValue("type", "lua");
+
+        auto newPlugin = RegPluginFactory.instantiate(plgType, pluginId, this,
+            conf);
+        foreach (dep; newPlugin.dependencies) {
+            loadPlugin(dep);
+        }
+
+        plugins ~= newPlugin;
+        mLoadedPlugins[pluginId] = true;
     }
 
     //this also means that a bogus/changed resource file could cause scripting
@@ -227,8 +251,8 @@ class GfxSet {
         }
 
         //load weapons
-        foreach (char[] ws; mWeaponSets) {
-            loadWeapons("weapons/"~ws);
+        foreach (plg; plugins) {
+            plg.finishLoading();
         }
     }
 
@@ -269,41 +293,6 @@ class GfxSet {
         SpriteClass res = instantiateSpriteClass(type, name);
         res.loadFromConfig(sprite);
         registerSpriteClass(res);
-    }
-
-    //load all weapons from one weapon set (directory containing set.conf)
-    //loads only collisions and weapon behavior, no resources/sequences
-    private void loadWeapons(char[] dir) {
-        auto set_conf = loadConfig(dir~"/set");
-        auto coll_conf = loadConfig(dir ~ "/"
-            ~ set_conf.getStringValue("collisions","collisions.conf"),true,true);
-        if (coll_conf)
-            addCollideConf(coll_conf.getSubNode("collisions"));
-        //load all .conf files found
-        char[] weaponsdir = dir ~ "/weapons";
-        gFS.listdir(weaponsdir, "*.conf", false,
-            (char[] path) {
-                //a weapons file can contain resources, collision map
-                //additions and a list of weapons
-                auto wp_conf = loadConfig(weaponsdir ~ "/"
-                    ~ path[0..$-5]);
-                addCollideConf(wp_conf.getSubNode("collisions"));
-                auto list = wp_conf.getSubNode("weapons");
-                foreach (ConfigNode item; list) {
-                    loadWeaponClass(item);
-                }
-                return true;
-            }
-        );
-    }
-
-    //a weapon subnode of weapons.conf
-    private void loadWeaponClass(ConfigNode weapon) {
-        char[] type = weapon.getStringValue("type", "action");
-        //xxx error handling
-        //hope you never need to debug this code!
-        WeaponClass c = WeaponClassFactory.instantiate(type, this, weapon);
-        registerWeapon(c);
     }
 
     //mainly for scripts

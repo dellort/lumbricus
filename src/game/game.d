@@ -235,6 +235,16 @@ class GameEngine {
         //lol.
         loadScript("gameutils.lua");
         loadScript("game_cheats.lua");
+        //initialize loaded plugins
+        foreach (plg; gfx.plugins) {
+            //xxx load from newgame.conf somehow
+            auto opts = new ConfigNode();
+            //xxx controller is not yet available; plugins have to be careful
+            //    best way around: add more events for different states of
+            //    game initialization
+            plg.init(this, opts);
+        }
+
         OnGameInit.raise(globalEvents);
 
         //NOTE: GameController relies on many stuff at initialization

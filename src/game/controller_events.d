@@ -106,14 +106,13 @@ alias DeclareEvent!("weapon_crate_blowup", WeaponClass, Sprite)
 //xxx: this is only for "compatibility"; GamePluginFactory now produces
 //  GameObjects (not GamePlugins)
 abstract class GamePlugin : GameObject {
-    protected {
-        GameController controller;
-    }
-
     this(GameEngine c, ConfigNode opts) {
         super(c, "plugin");
         internal_active = true;
-        controller = engine.controller;
+    }
+
+    protected GameController controller() {
+        return engine.controller;
     }
 
     override bool activity() {

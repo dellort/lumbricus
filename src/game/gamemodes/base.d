@@ -16,20 +16,21 @@ import utils.misc;
 //NOTE: a game mode doesn't need to derive from this object; it's just for
 //  convenience (hud managment, some strange timing helpers)
 class Gamemode : GameObject {
-    GameController logic;
     private Time[5] mWaitStart, mWaitStartLocal;
     protected TimeSource modeTime;
 
     this(GameEngine a_engine, ConfigNode config) {
         super(a_engine, "gamemode");
-        logic = engine.controller;
         //static initialization doesn't work
         mWaitStart[] = Time.Never;
         mWaitStartLocal[] = Time.Never;
-        logic = engine.controller;
         modeTime = new TimeSource("modeTime", engine.gameTime);
         OnGameStart.handler(engine.events, &startGame);
         internal_active = true;
+    }
+
+    GameController logic() {
+        return engine.controller;
     }
 
     ///Start a new game, called before first simulate call

@@ -169,8 +169,8 @@
 		<Unit filename="..\src\game\lua.d" />
 		<Unit filename="..\src\game\luaplugin.d" />
 		<Unit filename="..\src\game\particles.d" />
+		<Unit filename="..\src\game\plugins.d" />
 		<Unit filename="..\src\game\sequence.d" />
-		<Unit filename="..\src\game\serialize_register.d" />
 		<Unit filename="..\src\game\setup.d" />
 		<Unit filename="..\src\game\sky.d" />
 		<Unit filename="..\src\game\sprite.d" />

@@ -15,7 +15,7 @@ import utils.misc;
 class GameConfig {
     Level level;
     ConfigNode saved_level; //is level.saved
-    char[][] weaponsets;
+    char[][] plugins;
     ConfigNode teams;
     ConfigNode weapons;
     ConfigNode gamemode;
@@ -46,7 +46,7 @@ class GameConfig {
         to.addNode("levelobjects", levelobjects.copy);
         to.addNode("gfx", gfx.copy);
         to.addNode("gamestate", gamestate.copy);
-        to.setValue!(char[][])("weaponsets", weaponsets);
+        to.setValue!(char[][])("plugins", plugins);
         to.setStringValue("random_seed", randomSeed);
         to.addNode("managment", managment.copy);
         return to;
@@ -61,7 +61,7 @@ class GameConfig {
         levelobjects = n.getSubNode("levelobjects");
         gfx = n.getSubNode("gfx");
         gamestate = n.getSubNode("gamestate");
-        weaponsets = n.getValue!(char[][])("weaponsets");
+        plugins = n.getValue!(char[][])("plugins");
         randomSeed = n["random_seed"];
         managment = n.getSubNode("managment");
     }
@@ -132,9 +132,9 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
     }
 
     cfg.gfx = mConfig.getSubNode("gfx");
-    cfg.weaponsets = mConfig.getValue!(char[][])("weaponsets");
-    if (cfg.weaponsets.length == 0) {
-        cfg.weaponsets ~= "default";
+    cfg.plugins = mConfig.getValue!(char[][])("plugins");
+    if (cfg.plugins.length == 0) {
+        cfg.plugins ~= "ws_default";
     }
 
     if (!persistentState)
