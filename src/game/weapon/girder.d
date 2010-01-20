@@ -159,6 +159,7 @@ class GirderControl : WeaponSelector, Controllable {
             v = v.rotated(rot);
             v += toVector2f(pos);
         }
+        /+
         foreach (land; mEngine.gameLandscapes) {
             Vector2f[4] lverts;
             lverts[] = verts;
@@ -168,6 +169,7 @@ class GirderControl : WeaponSelector, Controllable {
             if (land.landscape_bitmap.collidePolygon(lverts))
                 return false;
         }
+        +/
 
         //check for objects
         //do some approximate bullshit, because we can't get a good collision

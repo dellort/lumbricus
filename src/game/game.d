@@ -352,16 +352,6 @@ class GameEngine {
         mWaterBouncer.updatePos(val - 5);
     }
 
-    //landscape bitmaps need special handling in many cases
-    //xxx: need somehow to be identified
-    LandscapeBitmap[] landscapeBitmaps() {
-        LandscapeBitmap[] res;
-        foreach (x; gameLandscapes) {
-            res ~= x.landscape_bitmap();
-        }
-        return res;
-    }
-
     //one time initialization, where levle objects etc. should be loaded (?)
     private void loadLevelStuff() {
         auto conf = loadConfig("game");

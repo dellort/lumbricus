@@ -122,6 +122,7 @@ class RenderLandscape : SceneObject {
 class GameLandscape : GameObject {
     private {
         LandscapeBitmap mLandscape;
+        Item[] mRender;
         LevelLandscape mOriginal;
         //offset of the level bitmap inside the world coordinates
         //i.e. worldcoords = mOffset + levelcoords
@@ -150,6 +151,8 @@ class GameLandscape : GameObject {
         //landscape landscape landscape
         mLandscape = land.landscape.copy();
         mBorderSegment = engine.gfx.resources.get!(Surface)("border_segment");
+        mRender = fuzzleLevel(mLandscape);
+        //mRender ~= Item(mLandscape, Vector2i(0));
 
         init();
     }
@@ -161,6 +164,7 @@ class GameLandscape : GameObject {
         mOffset = rc.p1;
 
         mLandscape = new LandscapeBitmap(mSize);
+        mRender ~= Item(mLandscape, Vector2i(0));
 
         init();
     }
@@ -174,6 +178,11 @@ class GameLandscape : GameObject {
         engine.scene.add(new RenderLandscape(this));
 
         mLandscape.image.enableCaching(false);
+
+        foreach (ls; mRender) {
+            ls.ls.image.enableCaching(false);
+            ls.ls.image.preload();
+        }
 
         mPhysics = new LandscapeGeometry();
         mPhysics.ls = this;
@@ -209,6 +218,10 @@ class GameLandscape : GameObject {
         if (Rect2i(mSize).intersects(Rect2i(-vr, vr) + pos)) {
             count = mLandscape.blastHole(pos, radius, cBlastBorder,
                 mOriginal ? mOriginal.landscape_theme : null);
+            foreach (i; mRender) {
+                i.ls.blastHole(pos-i.pos, radius, cBlastBorder,
+                    mOriginal ? mOriginal.landscape_theme : null);
+            }
             mPhysics.generationNo++;
         }
         return count;
@@ -231,7 +244,8 @@ class GameLandscape : GameObject {
     }
 
     private void draw(Canvas c) {
-        c.draw(mLandscape.image, mOffset);
+        foreach (i; mRender)
+            c.draw(i.ls.image, i.pos+mOffset);
 
         foreach (w; mWalls) {
             c.drawTexLine(w.from, w.to, mBorderSegment, 0, Color(1, 0, 0));
@@ -239,14 +253,6 @@ class GameLandscape : GameObject {
 
         version (DebugShowLandscape)
             c.drawRect(rect(), Color(1, 0, 0));
-    }
-
-    public Surface image() {
-        return mLandscape.image;
-    }
-
-    public LandscapeBitmap landscape_bitmap() {
-        return mLandscape;
     }
 
     final Vector2i offset() {
@@ -277,3 +283,29 @@ class GameLandscape : GameObject {
     }
 }
 
+const bool TileLevel = false;
+const int TileLevelSize = 256;
+
+//this is a test: it explodes the landscape graphic into several smaller ones
+struct Item {
+    LandscapeBitmap ls;
+    Vector2i pos;
+}
+Item[] fuzzleLevel(LandscapeBitmap ls) {
+    const cTile = TileLevelSize;
+    const cSpace = 0; //even more for testing only
+    const cTileSize = cTile + cSpace;
+    Item[] items;
+
+    auto sx = (ls.size.x + cTile - 1) / cTile;
+    auto sy = (ls.size.y + cTile - 1) / cTile;
+    for (int y = 0; y < sy; y++) {
+        for (int x = 0; x < sx; x++) {
+            auto offs = Vector2i(x, y) * cTileSize;
+            auto soffs = Vector2i(x, y) * cTile;
+            items ~= Item(ls.
+                cutOutRect(Rect2i(Vector2i(cTile))+soffs), offs);
+        }
+    }
+    return items;
+}

@@ -135,9 +135,7 @@ class GameLoader {
     }
 
     static GameLoader CreateFromSavegame(TarArchive file) {
-        auto r = new GameLoader();
-        r.initFromSavegame(file);
-        return r;
+        assert(false, "savegames removed");
     }
 
     static GameLoader CreateNewGame(GameConfig cfg) {
@@ -250,48 +248,6 @@ class GameLoader {
 
         mResPreloader = gResources.createPreloader(mGfx.load_resources);
         mGfx.load_resources = null;
-    }
-
-    private void initFromSavegame(TarArchive file) {
-        //------ gamedata.conf
-        ConfigNode savegame = file.readConfigStream("gamedata.conf");
-
-        mTimeConfig = savegame.getSubNode("game_time");
-        int bitmap_count = savegame.getValue!(int)("bitmap_count");
-        ConfigNode game_cfg = savegame.getSubNode("game_config");
-        ConfigNode game_data = savegame.getSubNode("game_data");
-        ConfigNode persNode = savegame.getSubNode("persistence");
-
-        //------ GameConfig & level
-        mGameConfig = new GameConfig();
-        mGameConfig.load(game_cfg);
-        //reconstruct GameConfig.level
-        auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
-            mGameConfig.saved_level);
-        //false parameter prevents re-rendering... we don't need the original
-        //level bitmap; instead it's loaded from the png in the savegame
-        //this also means the call should be relatively fast (I HOPE)
-        mGameConfig.level = gen.render(false);
-
-        //------ bitmaps
-        for (int idx = 0; idx < bitmap_count; idx++) {
-            Surface image = gFramework.loadImage(file
-                .openReadStreamUncompressed(myformat("bitmap_{}.png", idx)));
-            LandscapeBitmap lb = new LandscapeBitmap(image, false);
-            auto lexels = lb.levelData();
-            auto rd = file.openReadStream(myformat("lexels_{}", idx));
-            scope(exit) rd.close();
-            rd.readExact(cast(ubyte[])lexels);
-            mBitmaps ~= lb;
-        }
-
-        //NOTE: can read actual GameEngine from mGameData only after all
-        //      resources have been loaded; addResources() is the reason
-        //      so it will be done in finish()
-        mPersistence = persNode.copy();
-        mGameData = game_data;
-
-        doInit();
     }
 
     GameShell finish() {
@@ -818,68 +774,14 @@ class GameShell {
     }
 
     void doSnapshot(ref GameSnap snap) {
-        snap.game_time = mGameTime.current();
-        snap.game_time_ts = mTimeStamp;
-        //-- snap.snapshot.snap(mEngine);
-        //bitmaps are specially handled, I don't know how to do better
-        //probably unify with savegame stuff?
-        PerfTimer timer = new PerfTimer(true);
-        timer.start();
-        auto bitmaps = mEngine.landscapeBitmaps();
-        foreach (int index, LandscapeBitmap lb; bitmaps) {
-            if (index >= snap.bitmaps.length) {
-                snap.bitmaps ~= lb.copy();
-            } else {
-                //assume LandscapeBitmap.size() never changes, and that the
-                //result of server's landscapeBitmaps() returns the same objects
-                //in the same order (newly created ones attached to the end)
-                //random note: for faster snapshotting, one could copy only the
-                // regions that have been modified since the last snapshot
-                snap.bitmaps[index].copyFrom(lb);
-            }
-        }
-        timer.stop();
-        log("snapshot backup bitmaps t={}", timer.time);
+        assert(false);
     }
 
     //NOTE: because of the time managment, you must not call this during a
     //      GameEngine frame (or during doFrame in general)
     //      if you do, replay-determinism might be destroyed
     void doUnsnapshot(ref GameSnap snap) {
-        //-- snap.snapshot.unsnap();
-        PerfTimer timer = new PerfTimer(true);
-        timer.start();
-        auto bitmaps = mEngine.landscapeBitmaps();
-        foreach (int index, LandscapeBitmap lb; bitmaps) {
-            lb.copyFrom(snap.bitmaps[index]);
-        }
-        timer.stop();
-        log("snapshot restore bitmaps t={}", timer.time);
-        //(yes, mMasterTime is set to what mGameTime was - that's like when
-        // loading a savegame)
-        //one must be very careful that this bug doesn't happen: you restore
-        // a snapshot, and then you repeat the frame that was executed right
-        // before the snapshot was made. this can happen because the time before
-        // and after a frame can be the same (the time doesn't change during the
-        // frame; instead the time is increased by the frame length before a new
-        // frame is executed)
-        //so I did this lol, I hope this works; feel free to make it better
-        //mTimeStamp is incremented right after a GameEngine frame, so it must
-        //refer to the exact time for the next frame
-        mMasterTime.initTime(snap.game_time_ts*cFrameLength);
-        assert(mMasterTime.current == snap.game_time);
-        //mMasterTime.initTime(snap.game_time);
-        mGameTime.resetTime();
-        mTimeStamp = snap.game_time_ts;
-        //xxx it seems using snap.game_time was fine, but whatever
-        assert(mGameTime.current == snap.game_time);
-        //interpolated time => reset to start of restored frame (?)
-        mLastFrameRealTime = Time.init;
-        mInterpolateTime.reset(mGameTime.current);
-        //assert(!!OnRestoreGuiAfterSnapshot);
-        if (OnRestoreGuiAfterSnapshot) {
-            OnRestoreGuiAfterSnapshot();
-        }
+        assert(false);
     }
 
     void saveGame(TarArchive file) {

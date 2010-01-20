@@ -780,13 +780,6 @@ class GameController {
         }
     }
 
-    //actually still stupid debugging code
-    private void spawnWorm(Vector2i pos) {
-        //now stupid debug code in another way
-        auto w = mEngine.createSprite("worm");
-        w.activate(toVector2f(pos));
-    }
-
     //config = the "teams" node, i.e. from data/data/teams.conf
     private void loadTeams(ConfigNode config) {
         mTeams = null;

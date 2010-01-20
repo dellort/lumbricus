@@ -49,7 +49,7 @@ static this() {
     gScripting.setClassPrefix!(GameEngine)("Game");
     gScripting.methods!(GameEngine, "createSprite", "gameTime", "waterOffset",
         "windSpeed", "setWindSpeed", "randomizeWind", "gravity", "raiseWater",
-        "addEarthQuake", "explosionAt", "damageLandscape", "landscapeBitmaps",
+        "addEarthQuake", "explosionAt", "damageLandscape",
         "insertIntoLandscape", "countSprites", "ownedTeam");
     gScripting.properties_ro!(GameEngine, "events", "globalEvents");
 

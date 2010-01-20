@@ -618,10 +618,13 @@ class GameTask : StatefulTask {
     private void cmdSafeLevelPNG(MyBox[] args, Output write) {
         if (!mGameShell)
             return;
+        /+
         char[] filename = args[0].unbox!(char[])();
         Stream s = gFS.open(filename, File.WriteCreate);
         mGameShell.serverEngine.gameLandscapes[0].image.saveImage(s, "png");
         s.close();
+        +/
+        write.writefln("disabled");
     }
 
     //slow time <whatever>
