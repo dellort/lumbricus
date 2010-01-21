@@ -86,6 +86,12 @@ abstract class LevelGenerator {
     /// render_bitmaps: if false, don't render bitmaps, which are e.g. saved in
     ///                 a savegame anyway
     abstract Level render(bool render_bitmaps = true);
+
+    ///helper functions for the gui, to determine what will be generated
+    ///  (and set button states accordingly)
+    abstract bool isCave();
+    abstract bool placeObjects();
+    abstract bool[] impenetrable();
 }
 
 ///generate/render a level from a template
@@ -460,6 +466,23 @@ class GenerateFromTemplate : LevelGenerator {
         }
     }
 
+    override bool isCave() {
+        return !mUnrendered.airstrikeAllow;
+    }
+
+    override bool placeObjects() {
+        return mLand["land0"].placeObjects;
+    }
+
+    override bool[] impenetrable() {
+        if (!mUnrendered.objects.length)
+            return [false, false, false, false];
+        auto land = cast(LevelLandscape)mUnrendered.objects[0];
+        if (!land)
+            return [false, false, false, false];
+        return land.impenetrable;
+    }
+
     static this() {
         mGeneratorFactory.register!(typeof(this))("level_renderer");
     }
@@ -606,6 +629,19 @@ class GenerateFromBitmap : LevelGenerator {
         mBitmap = gFramework.loadImage(mFilename);
     }
 
+    override bool isCave() {
+        //xxx does mIsCave even work? I thought is_cave had been removed
+        return mIsCave;
+    }
+
+    override bool placeObjects() {
+        return mPlaceObjects;
+    }
+
+    override bool[] impenetrable() {
+        return [false, false, false, false];
+    }
+
     static this() {
         mGeneratorFactory.register!(typeof(this))("import_bitmap");
     }
@@ -635,6 +671,18 @@ class GenerateFromSaved : LevelGenerator {
 
     override float previewAspect() {
         return mReal.previewAspect();
+    }
+
+    override bool isCave() {
+        return mReal.isCave();
+    }
+
+    override bool placeObjects() {
+        return mReal.placeObjects();
+    }
+
+    override bool[] impenetrable() {
+        return mReal.impenetrable();
     }
 
     this(LevelGeneratorShared shared, ConfigNode from) {

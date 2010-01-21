@@ -23,6 +23,7 @@ import game.setup;
 import game.sprite;
 import game.weapon.weapon;
 import game.plugins;
+import game.controller_events;
 
 class ClassNotRegisteredException : Exception {
     this(char[] msg) {
@@ -85,7 +86,8 @@ class GfxSet {
     CrosshairSettings crosshair;
 
     ExplosionSettings expl;
-    RegisteredPlugin[] plugins;
+    //list of active plugins, in load order
+    Plugin[] plugins;
 
     private void loadTeamThemes() {
         for (int n = 0; n < TeamTheme.cTeamColors.length; n++) {
@@ -150,13 +152,21 @@ class GfxSet {
         if (pluginId in mLoadedPlugins) {
             return;
         }
-        char[] dir = "plugins/" ~ pluginId;
-        //load plugin.conf as gfx set (resources and sequences)
-        auto conf = gResources.loadConfigForRes(dir ~ "/plugin.conf");
-        char[] plgType = conf.getStringValue("type", "lua");
+        char[] confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
+        Plugin newPlugin;
+        if (!gFS.exists(confFile) && GamePluginFactory.exists(pluginId)) {
+            //internal plugin without plugin.conf
+            newPlugin = new InternalPlugin(pluginId, this);
+        } else {
+            //load plugin.conf as gfx set (resources and sequences)
+            auto conf = gResources.loadConfigForRes(confFile);
+            char[] plgType = conf.getStringValue("type", "lua");
 
-        auto newPlugin = RegPluginFactory.instantiate(plgType, pluginId, this,
-            conf);
+            newPlugin = PluginFactory.instantiate(plgType, pluginId, this,
+                conf);
+        }
+        //this will place dependencies in the plugins[] first, making them load
+        //  before the current plugin
         foreach (dep; newPlugin.dependencies) {
             loadPlugin(dep);
         }

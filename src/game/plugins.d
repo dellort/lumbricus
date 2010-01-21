@@ -14,12 +14,12 @@ import utils.misc;
 import utils.factory;
 import utils.configfile;
 
-alias StaticFactory!("RegPlugins", RegisteredPlugin, char[], GfxSet, ConfigNode)
-    RegPluginFactory;
+alias StaticFactory!("Plugins", Plugin, char[], GfxSet, ConfigNode)
+    PluginFactory;
 
 //the "load-time" part of a plugin (static; loaded when GfxSet is created)
 //always contains: dependencies, collisions, resources, sequences, locales
-class RegisteredPlugin {
+class Plugin {
     char[] name;            //unique plugin id
     char[][] dependencies;  //all plugins in this list will be loaded, too
 
@@ -32,8 +32,7 @@ class RegisteredPlugin {
     //called in resource-loading phase; currently name comes from plugin path
     //  conf = static plugin configuration
     this(char[] a_name, GfxSet gfx, ConfigNode conf) {
-        name = a_name;
-        mGfx = gfx;
+        this(a_name, gfx);
         mConfig = conf;
         dependencies = mConfig.getValue("dependencies", dependencies);
 
@@ -50,6 +49,11 @@ class RegisteredPlugin {
         addLocaleDir("weapons", mResources.fixPath("locale"));
     }
 
+    this(char[] a_name, GfxSet gfx) {
+        name = a_name;
+        mGfx = gfx;
+    }
+
     //called from GfxSet.finishLoading(); resources are sealed and can be used
     void finishLoading() {
     }
@@ -61,7 +65,7 @@ class RegisteredPlugin {
 }
 
 //plain old weapon set; additionally contains some conf-based weapons
-class WeaponsetPlugin : RegisteredPlugin {
+class WeaponsetPlugin : Plugin {
     this(char[] a_name, GfxSet gfx, ConfigNode conf) {
         super(a_name, gfx, conf);
     }
@@ -96,12 +100,12 @@ class WeaponsetPlugin : RegisteredPlugin {
     }
 
     static this() {
-        RegPluginFactory.register!(typeof(this))("weaponset");
+        PluginFactory.register!(typeof(this))("weaponset");
     }
 }
 
 //lua-based plugin; additionally contains a list of lua modules
-class LuaPlugin : RegisteredPlugin {
+class LuaPlugin : Plugin {
     protected {
         char[][] mModules;
     }
@@ -124,14 +128,21 @@ class LuaPlugin : RegisteredPlugin {
     }
 
     static this() {
-        RegPluginFactory.register!(typeof(this))("lua");
+        PluginFactory.register!(typeof(this))("lua");
     }
 }
 
 //a plugin implemented in D; name has to match with GamePluginFactory
-class InternalPlugin : RegisteredPlugin {
+class InternalPlugin : Plugin {
+    //factory constructor
     this(char[] a_name, GfxSet gfx, ConfigNode conf) {
         super(a_name, gfx, conf);
+        assert(GamePluginFactory.exists(name));
+    }
+
+    //for internal use
+    this(char[] a_name, GfxSet gfx) {
+        super(a_name, gfx);
         assert(GamePluginFactory.exists(name));
     }
 
@@ -140,6 +151,6 @@ class InternalPlugin : RegisteredPlugin {
     }
 
     static this() {
-        RegPluginFactory.register!(typeof(this))("internal");
+        PluginFactory.register!(typeof(this))("internal");
     }
 }

@@ -134,9 +134,13 @@ class LevelSelector : SimpleContainer {
             LandscapeLexels lex = lvl.renderData();
             if (lex)
                 mPainter.setData(lex.levelData, lex.size);
-            //xxx how to get that?
-            //mIsCave.checked = ??;
-            mPlaceObjects.checked = true;
+            //get parameters from loaded level
+            mIsCave.checked = lvl.isCave();
+            mPlaceObjects.checked = lvl.placeObjects();
+            foreach (int idx, bool hasWall; lvl.impenetrable()) {
+                assert(idx < mWalls.length);
+                mWalls[idx].checked = hasWall;
+            }
             mLastLevel = lvl;
         }
     }

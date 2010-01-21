@@ -21,6 +21,7 @@ import gui.loader;
 import gui.list;
 import gui.boxcontainer;
 import gui.container;
+import gui.global;
 import utils.configfile;
 import utils.misc;
 import utils.path;
@@ -74,12 +75,15 @@ class LevelWidget : SimpleContainer {
 
         mLevelDDBox = loader.lookup!(BoxContainer)("box_leveldd");
 
-        int templateCount = mGenerator.templates.all.length;
+        auto allTemplates = mGenerator.templates.all;
         foreach (int idx, ref btn; mLvlQuickGen) {
             //template names are 1-based
             btn = loader.lookup!(Button)(myformat("btn_quickgen{}", idx+1));
+            //xxx template description used as an id (like in game.gui.preview)
+            btn.image = gGuiResources.get!(Surface)("tmpl_thumb_"
+                ~ allTemplates[idx].description);
             btn.onClick = &quickGenClick;
-            assert(idx <= templateCount);
+            assert(idx < allTemplates.length);
         }
 
         add(loader.lookup("levelwidget_root"));
