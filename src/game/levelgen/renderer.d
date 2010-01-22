@@ -26,9 +26,12 @@ public alias Vector2f Point;
 //affects the bitmap modification bounding box
 const int cBlastBorder = 4;
 
+//can be set to a high value to disable tiling
+const int cTileSize = 256;
+
 class LandscapeBitmap {
-    private int mWidth, mHeight;
-    private Surface mImage;
+    private Vector2i mSize;
+    private bool mDataOnly;
     private Lexel[] mLevelData;
     private static LogStruct!("levelrenderer") mLog;
 
@@ -38,6 +41,27 @@ class LandscapeBitmap {
     private const int cBlastCenterDist = 25;
 
     private int[][] mCircles; //getCircle()
+
+    //indexed mTiles[ty*mTilesX + tx]
+    //the tiles are sorted by position
+    //all tiles have the same size, except possibly the bottom/right tiles
+    private Tile[] mTiles;
+    //number of tiles
+    private int mTilesX, mTilesY;
+
+    //temporary and for debugging
+    private PixelAccess mAccess;
+
+    private struct Tile {
+        Vector2i pos, size; //absolute pixel position and surface.size
+        int tx, ty;         //tile position
+        Surface surface;
+
+        //temporary during accessing pixels
+        //PixelAccess takes care of this
+        Color.RGBA32* _pixels;
+        uint _pitch;
+    }
 
     //because I'm stupid, I'll store all points into a linked lists to be able
     //to do naive corner cutting by subdividing the curve recursively
@@ -55,26 +79,21 @@ class LandscapeBitmap {
         Vector2i offs;
 
         private Surface mSurface;
+        private Color.RGBA32 mPixel;
 
-        static TexData opCall(Surface s, Vector2i offs,
-            Color fallback = Color(0,0,0,0))
-        {
-            TexData ret;
-            ret.mSurface = s;
+        void set(Surface s, Color fallback = Color(0,0,0,0)) {
+            mSurface = s;
             if (s !is null) {
-                s.lockPixelsRGBA32(ret.data, ret.pitch);
-                ret.w = s.size.x;
-                ret.h = s.size.y;
+                s.lockPixelsRGBA32(data, pitch);
+                w = s.size.x;
+                h = s.size.y;
             } else {
                 //simulate an image consisting of a single transparent pixel
-                Color.RGBA32* data = new Color.RGBA32;
-                *data = fallback.toRGBA32();
-                ret.data = data;
-                ret.w = ret.h = 1;
-                ret.pitch = 1;
+                mPixel = fallback.toRGBA32();
+                data = &mPixel;
+                w = h = 1;
+                pitch = 1;
             }
-            ret.offs = offs;
-            return ret;
         }
 
         void release() {
@@ -83,6 +102,288 @@ class LandscapeBitmap {
         }
     }
 
+    //helper class for PixelAccess
+    //the idea is that opApply style iterating is much slower than using a
+    //  struct, and also allows inlining better
+    //you are allowed to iterate through a tile part of the scanline manually
+    //  for more speed; you can increment x and px until you reach x2 or
+    //  tile_end, and in case of px==tile_end, call next_tile()
+    private struct ScanlineIter {
+        //consider all elements read-only for the user
+        //except if iterating manually (x and px can be incremented)
+
+        //absolute x coordinate
+        int x;
+        //points into current pixel into current tile
+        Color.RGBA32* px;
+        //points after last pixel (px >= tile_end means iteration done)
+        Color.RGBA32* tile_end;
+        //absolute x coordinate where iteration should be finished
+        //(iterate as long as x<x2)
+        int x2;
+
+        int y;
+
+        Tile* current_tile;
+        LandscapeBitmap owner;
+
+        //go to next pixel
+        //px will be invalid if x >= x2 (after the call)
+        void next_x() {
+            x++;
+            px++;
+            if (px >= tile_end && x < x2) {
+                next_tile();
+            }
+        }
+
+        //go to next tile
+        void next_tile() {
+            assert(!!owner.mAccess);
+            assert(current_tile.tx + 1 < owner.mTilesX, "no more tiles");
+            //for now, assume x starts at 0 in the tile - could be relaxed
+            assert(px is tile_end);
+            //this is just current_tile++;
+            Tile* ntile = &owner.mTiles[current_tile.ty*owner.mTilesX +
+                current_tile.tx + 1];
+            current_tile = ntile;
+            //same assumption about x starting at 0
+            assert(x == current_tile.pos.x);
+            owner.mAccess.lock_tile(current_tile);
+            px = current_tile._pixels
+                + (y - current_tile.pos.y) * current_tile._pitch;
+            assert(current_tile.size.x <= current_tile._pitch);
+            tile_end = px + current_tile.size.x;
+        }
+    }
+
+    //this class takes care about locking and unlocking Surfaces from multiple
+    //  tiles, and simplifies pixel access to them
+    private final scope class PixelAccess {
+        int _tx1, _ty1, _tx2, _ty2;
+        bool _was_released = false;
+        this() {
+            _tx1 = _ty1 = int.max;
+            _tx2 = _ty2 = int.min;
+            //multiple PixelAccesses at a time just won't work (Surface locking)
+            assert(!mAccess);
+            mAccess = this;
+        }
+
+        //start iterating at the given pixel
+        //positions out of bounds are assert()ed
+        ScanlineIter get_iter(int y, int x1, int x2) {
+            ScanlineIter iter;
+            iter.owner = this.outer;
+            iter.x = x1;
+            iter.x2 = x2;
+            iter.y = y;
+            //too many special cases for this below
+            if (iter.x >= iter.x2)
+                return iter;
+            //beware of the off-by-one errors
+            //y exclusive for now
+            assert(y >= 0 && y < mSize.y && x1 >= 0 && x1 < mSize.x
+                && x2 >= 0 && x2 <= mSize.x && x1 < x2);
+            int tx = x1 / cTileSize;
+            int ty = y / cTileSize;
+            Tile* t = &mTiles[ty*mTilesX + tx];
+            iter.current_tile = t;
+            lock_tile(t);
+            iter.px = t._pixels + (y - t.pos.y) * t._pitch;
+            iter.tile_end = iter.px + t.size.x;
+            iter.px += iter.x - t.pos.x;
+            return iter;
+        }
+
+        //makes sure Tile._pixels and Tile._pitch are filled
+        //the Surface will be unlocked again on done()
+        void lock_tile(Tile* tile) {
+            if (tile._pixels)
+                return;
+            _tx1 = min(_tx1, tile.tx);
+            _ty1 = min(_ty1, tile.ty);
+            _tx2 = max(_tx2, tile.tx);
+            _ty2 = max(_ty2, tile.ty);
+            tile.surface.lockPixelsRGBA32(tile._pixels, tile._pitch);
+        }
+
+        //read-only done()
+        void done() {
+            done(Rect2i.init, true);
+        }
+        //read-write done() (re-uploads all pixels in the rect)
+        void done(Rect2i rc, bool read_only = false) {
+            assert(!_was_released);
+            _was_released = true;
+
+            if (_tx1 > _tx2 || _ty1 > _ty2) {
+                check_unreleased();
+                return;
+            }
+
+            //change rect has size 0 => no pixels re-uploaded
+            if (read_only)
+                rc = Rect2i.init;
+
+            for (int ty = _ty1; ty <= _ty2; ty++) {
+                for (int tx = _tx1; tx <= _tx2; tx++) {
+                    Tile* t = &mTiles[ty*mTilesX + tx];
+                    if (t._pixels) {
+                        t.surface.unlockPixels(rc - t.pos);
+                        t._pixels = null;
+                        t._pitch = 0;
+                    }
+                }
+            }
+
+            check_unreleased();
+        }
+
+        void check_unreleased() {
+            /+
+            debug {
+                foreach (ref Tile t; mTiles) {
+                    assert(!t._pixels);
+                }
+            }
+            +/
+        }
+
+        ~this() {
+            assert(_was_released, "done() not called");
+            assert(mAccess is this);
+            mAccess = null;
+            check_unreleased();
+        }
+    }
+
+
+    //create an empty Landscape of passed size
+    //  dataOnly: false will also generate a textured Landscape bitmap,
+    //            true only creates a Lexel[] (this.image will return null)
+    //  data: set to copy Lexel data, null to start empty (not copied)
+    this(Vector2i a_size, bool dataOnly = false, Lexel[] data = null) {
+        assert(a_size.x >= 0 && a_size.y >= 0);
+        mSize = a_size;
+        mDataOnly = dataOnly;
+        if (data.length > 0)
+            mLevelData = data;
+        else
+            mLevelData.length = mSize.x*mSize.y;
+        assert(mLevelData.length == mSize.x*mSize.y);
+
+        if (mDataOnly)
+            return;
+
+        mTilesX = (mSize.x + cTileSize - 1) / cTileSize;
+        mTilesY = (mSize.y + cTileSize - 1) / cTileSize;
+        mTiles.length = mTilesX * mTilesY;
+        for (int ty = 0; ty < mTilesY; ty++) {
+            for (int tx = 0; tx < mTilesX; tx++) {
+                Tile* t = &mTiles[ty*mTilesX+tx];
+                t.tx = tx;
+                t.ty = ty;
+                t.pos = Vector2i(tx, ty) * cTileSize;
+                t.size = Vector2i(cTileSize).min(mSize - t.pos);
+                t.surface = new Surface(t.size, Transparency.Colorkey);
+                t.surface.enableCaching(false);
+                t.surface.fill(Rect2i(mSize), Color.Transparent);
+            }
+        }
+    }
+
+    //create from a bitmap; also used as common constructor
+    //bmp = the landscape-bitmap, must not be null
+    //import_bmp = create the metadata from the image's transparency information
+    //      if false, initialize metadata with Lexel.init
+    //memory managment: you shall not touch the Surface instance in bmp anymore
+    this(Surface bmp, bool import_bmp = true) {
+        this(bmp.size);
+
+        //bmp -> level bitmap, but tiled
+        foreach (ref Tile t; mTiles) {
+            t.surface.copyFrom(bmp, Vector2i(0), t.pos, t.size);
+        }
+
+        //create mask
+
+        if (!import_bmp)
+            return;
+
+        scope pixels = new PixelAccess();
+
+        for (int y = 0; y < mSize.y; y++) {
+            auto iter = pixels.get_iter(y, 0, mSize.x);
+            Lexel* meta = &mLevelData[y*mSize.x];
+            while (iter.x < iter.x2) {
+                *meta = Surface.isTransparent(iter.px) ? Lexel.SolidSoft
+                    : Lexel.Null;
+                meta++;
+                iter.next_x();
+            }
+        }
+
+        pixels.done();
+    }
+
+    //just an empty ctor for internal use
+    private this() {
+    }
+
+    public void free() {
+        foreach (ref t; mTiles) {
+            t.surface.free();
+        }
+        mTiles = null;
+        delete mLevelData;
+    }
+
+    //return a full, untiled surface for the level bitmap
+    Surface createImage() {
+        assert(!mDataOnly, "Not for data-only renderer");
+        //xxx transparency mode?
+        Surface s = new Surface(mSize, Transparency.Alpha);
+        foreach (ref t; mTiles) {
+            s.copyFrom(t.surface, t.pos, Vector2i(0), t.size);
+        }
+        return s;
+    }
+
+    LandscapeBitmap copy(bool dataOnly = false) {
+        auto ret = new LandscapeBitmap();
+        ret.mSize = mSize;
+        ret.mLevelData = dataOnly ? null : mLevelData.dup;
+        ret.mDataOnly = mDataOnly;
+        ret.mTilesX = mTilesX;
+        ret.mTilesY = mTilesY;
+        ret.mTiles = mTiles.dup;
+        foreach (ref Tile t; ret.mTiles) {
+            t.surface = t.surface.clone;
+        }
+        return ret;
+    }
+
+    public Vector2i size() {
+        return mSize;
+    }
+
+    public Lexel[] levelData() {
+        return mLevelData;
+    }
+
+    void draw(Canvas c, Vector2i pos) {
+        foreach (ref Tile t; mTiles) {
+            c.draw(t.surface, pos + t.pos);
+        }
+    }
+
+    //before calling draw() the first time (completely optional)
+    void prepareForRendering() {
+        foreach (ref Tile t; mTiles) {
+            t.surface.preload();
+        }
+    }
 
     //steps = number of subdivisions
     //start = start of the subdivision
@@ -126,7 +427,7 @@ class LandscapeBitmap {
         float subdivStart = 0.25f)
     {
         //if no image available, just set the mLevelData[]
-        bool textured = !!mImage;
+        bool textured = !mDataOnly;
 
         VertexList vertices = new VertexList();
 
@@ -164,49 +465,55 @@ class LandscapeBitmap {
             urgs[n++] = v.pt;
         }
 
-        Color.RGBA32* dstptr; uint dstpitch;
-        TexData tex;
-
-        if (textured) {
-            tex = TexData(texture, texture_offset);
-
-            mImage.lockPixelsRGBA32(dstptr, dstpitch);
-        }
-
-        void drawScanline(int x1, int x2, int y) {
-            assert(y >= 0 && y < mHeight);
-            assert(x1 >= 0 && x1 <= mWidth);
-            assert(x2 >= 0 && x2 <= mWidth);
-            assert(x1 < x2);
-            if (textured) {
-                uint ty = (y + tex.offs.y) % tex.h;
-                Color.RGBA32* dst = dstptr +  y*dstpitch + x1;
-                Color.RGBA32* texptr = tex.data + ty*tex.pitch;
-                for (uint x = x1; x < x2; x++) {
-                    auto texel = texptr + (x + tex.offs.x) % tex.w;
-                    *dst = *texel;
-                    dst++;
-                }
-            }
-            int ly = y*mWidth;
-            mLevelData[ly+x1..ly+x2] = marker;
-        }
-
         debug {
             auto counter = new PerfTimer(true);
             counter.start();
         }
 
-        drawing.rasterizePolygon(mWidth, mHeight, urgs, false, &drawScanline);
+
+        if (true) {
+
+            TexData tex;
+
+            scope PixelAccess pixels = new PixelAccess();
+
+            if (textured) {
+                tex.set(texture);
+                tex.offs = texture_offset;
+            }
+
+            void drawScanline(int x1, int x2, int y) {
+                assert(y >= 0 && y < mSize.y);
+                assert(x1 >= 0 && x1 <= mSize.x);
+                assert(x2 >= 0 && x2 <= mSize.x);
+                assert(x1 < x2);
+                if (textured) {
+                    uint ty = (y + tex.offs.y) % tex.h;
+                    Color.RGBA32* texptr = tex.data + ty*tex.pitch;
+                    auto iter = pixels.get_iter(y, x1, x2);
+                    while (iter.x < iter.x2) {
+                        auto texel = texptr + (iter.x + tex.offs.x) % tex.w;
+                        *iter.px = *texel;
+                        iter.next_x();
+                    }
+                }
+                int ly = y*mSize.x;
+                mLevelData[ly+x1..ly+x2] = marker;
+            }
+
+            drawing.rasterizePolygon(Rect2i(mSize), urgs,
+                &drawScanline);
+
+            pixels.done(Rect2i(mSize));
+
+            if (textured) {
+                tex.release();
+            }
+        }
 
         debug {
             counter.stop();
             mLog("render.d: polygon rendered in {}", counter.time);
-        }
-
-        if (textured) {
-            mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
-            tex.release();
         }
 
         delete urgs;
@@ -220,12 +527,7 @@ class LandscapeBitmap {
     //overrides image if already created
     //arrays are indexed by Lexel
     void texturizeData(Surface[] textures, Vector2i[] texOffsets) {
-        //prepare image
-        if (!mImage) {
-            //xxx colorkey
-            mImage = new Surface(size, Transparency.Colorkey);
-        }
-        assert(mLevelData.length == mImage.size.x*mImage.size.y);
+        assert(mLevelData.length == mSize.x*mSize.y);
 
         //prepare textures (one for each marker)
         TexData[Lexel.Max+1] texData;
@@ -233,15 +535,13 @@ class LandscapeBitmap {
             Surface t;
             if (idx < textures.length)
                 t = textures[idx];
-            if (idx < texOffsets.length)
-                texData[idx] = TexData(t, texOffsets[idx]);
-            else
-                //no texOffset was given for this index
-                texData[idx] = TexData(t, Vector2i(0));
+            texData[idx].set(t);
+            if (idx < texOffsets.length) {
+                texData[idx].offs = texOffsets[idx];
+            }
         }
 
-        Color.RGBA32* dstptr; uint dstpitch;
-        mImage.lockPixelsRGBA32(dstptr, dstpitch);
+        scope pixels = new PixelAccess();
 
         Color.RGBA32*[Lexel.Max+1] texptr;
 
@@ -254,20 +554,21 @@ class LandscapeBitmap {
             //current line in data array
             Lexel* src = mLevelData.ptr + y*size.x;
             //destination pixel
-            Color.RGBA32* dst = dstptr +  y*dstpitch;
-            for (int x = 0; x < size.x; x++) {
+            auto iter = pixels.get_iter(y, 0, size.x);
+            while (iter.x < iter.x2) {
                 Lexel l = *src;
                 if (l >= texData.length)
                     l = Lexel.init;
                 Color.RGBA32* texel = texptr[l]
-                    + (x + texData[l].offs.x) % texData[l].w;
-                *dst = *texel;
-                dst++;
+                    + (iter.x + texData[l].offs.x) % texData[l].w;
+                *iter.px = *texel;
                 src++;
+                iter.next_x();
             }
         }
 
-        mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
+        pixels.done(Rect2i(mSize));
+
         foreach (ref TexData t; texData) {
             t.release();
         }
@@ -279,8 +580,10 @@ class LandscapeBitmap {
     //  tex_up !is null:   draw bottom border with texture "tex_up"
     //  tex_down !is null: draw top border with texture "tex_down"
     void drawBorder(Lexel a, Lexel b, Surface tex_up, Surface tex_down) {
-        assert(!!mImage, "No border drawing for data-only renderer");
+        assert(!mDataOnly, "No border drawing for data-only renderer");
         ubyte[] apline;
+
+        scope pixels = new PixelAccess();
 
         //it always scans in the given direction; to draw both borders where "a"
         //is on top ob "b" and where "b" is on top of "a", you have to call this
@@ -302,17 +605,14 @@ class LandscapeBitmap {
 
             auto dsttransparent = Color.Transparent.toRGBA32();
 
-            Color.RGBA32* dstptr; uint dstpitch;
-            mImage.lockPixelsRGBA32(dstptr, dstpitch);
-
             apline[] = 0; //initialize to 0
-            int start = up ? mHeight-1 : 0;
-            for (int y = start; y >= 0 && y <= mHeight-1; y += dir) {
-                Color.RGBA32* scanline = dstptr + y*dstpitch;
-                Lexel* meta_scanline = &mLevelData[y*mWidth];
-                ubyte* poldline = &tmpData[y*mWidth];
+            int start = up ? mSize.y-1 : 0;
+            for (int y = start; y >= 0 && y <= mSize.y-1; y += dir) {
+                Lexel* meta_scanline = &mLevelData[y*mSize.x];
+                ubyte* poldline = &tmpData[y*mSize.x];
                 ubyte* ppline = &apline[0];
-                for (int x = 0; x < mWidth; x++) {
+                auto iter = pixels.get_iter(y, 0, mSize.x);
+                while (iter.x < iter.x2) {
                     //the data written into ppline is used by the next pass in
                     //the other direction
                     ubyte pline = *ppline;
@@ -334,32 +634,31 @@ class LandscapeBitmap {
                     //comparison with *oldpline ensures that up and down texture
                     //use the same part of the available space
                     if (pline > 0 && pline < 0xFF && pline > *poldline) {
-                        Color.RGBA32* texel = texptr + x%tex_w;
+                        Color.RGBA32* texel = texptr + iter.x % tex_w;
                         uint texy = (tex_h-pline)%tex_h;
                         texel = texel + texy*tex_pitch;
                         if (!texture.isTransparent(texel))
-                            *scanline = *texel;
+                            *iter.px = *texel;
                         else {
                             //XXX assumption: parts of the texture that should
                             //render transparent only take half of the y space
                             if (texy < tex_h/2) {
                                 //set current pixel transparent
-                                *scanline = dsttransparent;
+                                *iter.px = dsttransparent;
                                 *meta_scanline = Lexel.Null;
                             }
                         }
                     }
 
-                    scanline++;
                     meta_scanline++;
                     ppline++;
                     poldline++;
+                    iter.next_x();
                 }
                 //save current pline for next pass in other direction
-                tmpData[y*mWidth..(y+1)*mWidth] = apline;
+                tmpData[y*mSize.x..(y+1)*mSize.x] = apline;
             }
 
-            mImage.unlockPixels(Rect2i(Vector2i(0), mImage.size));
             texture.unlockPixels(Rect2i.init);
         }
 
@@ -369,16 +668,18 @@ class LandscapeBitmap {
         }
 
         //stores temporary data between up and down pass
-        scope tmp_array = new BigArray!(ubyte)(mWidth*mHeight);
+        scope tmp_array = new BigArray!(ubyte)(mSize.x*mSize.y);
         ubyte[] tmp = tmp_array[];
 
-        scope apline_array = new BigArray!(ubyte)(mWidth);
+        scope apline_array = new BigArray!(ubyte)(mSize.x);
         apline = apline_array[];
 
         if (tex_down)
             drawBorderInt(a, b, false, tex_down, tmp);
         if (tex_up)
             drawBorderInt(a, b, true, tex_up, tmp);
+
+        pixels.done(Rect2i(mSize));
 
         debug {
             counter.stop();
@@ -392,8 +693,8 @@ class LandscapeBitmap {
     // meta_domask: after checking and copying the pixel, mask meta with this
     //I put it all into this to avoid code duplication
     //called in-game!
-    private int circle_masked(Vector2i pos, int radius, Color.RGBA32* dst,
-        uint dst_pitch, Color.RGBA32* src, uint src_pitch, uint w, uint h,
+    private int circle_masked(PixelAccess pixels, Vector2i pos, int radius,
+        ref TexData tex,
         ubyte meta_mask, ubyte meta_cmp, ubyte meta_domask = 255)
     {
         assert(radius >= 0);
@@ -403,37 +704,32 @@ class LandscapeBitmap {
 
         for (int y = -radius; y <= radius; y++) {
             int ly = st.y + y;
-            if (ly < 0 || ly >= mHeight)
+            if (ly < 0 || ly >= mSize.y)
                 continue;
             int xoffs = radius - circle[y+radius];
             int x1 = st.x - xoffs;
             int x2 = st.x + xoffs + 1;
             //clipping
-            x1 = x1 < 0 ? 0 : x1;
-            x1 = x1 > mWidth ? mWidth : x1;
-            x2 = x2 < 0 ? 0 : x2;
-            x2 = x2 > mWidth ? mWidth : x2;
-            Color.RGBA32* dstptr = dst+dst_pitch*ly;
-            Color.RGBA32* srcptr = src+src_pitch*(ly % h);
-            dstptr += x1;
-            Lexel* meta = mLevelData.ptr + mWidth*ly + x1;
-            for (int x = x1; x < x2; x++) {
+            x1 = max(x1, 0);
+            x1 = min(x1, mSize.x);
+            x2 = max(x2, 0);
+            x2 = min(x2, mSize.x);
+            if (x1 >= x2)
+                continue;
+            Color.RGBA32* srcptr = tex.data+tex.pitch*(ly % tex.h);
+            uint w = tex.w;
+            Lexel* meta = mLevelData.ptr + mSize.x*ly + x1;
+            auto iter = pixels.get_iter(ly, x1, x2);
+            while (iter.x < iter.x2) {
                 bool set = ((*meta & meta_mask) == meta_cmp);
-                /+bool set = ((((*meta & Lexel.SolidSoft) == 0) ^ paintOnSolid)
-                    & !(*meta & Lexel.SolidHard));+/
-                /+ same code without if, hehe
-                uint mask = cast(uint)set - 1;
-                uint rcolor = *(srcptr+(x & swl));
-                *dstptr = (*dstptr & mask) | (rcolor & ~mask);
-                +/
                 if (set) {
-                    *dstptr = *(srcptr+(x % w));
+                    *iter.px = *(srcptr+(iter.x % w));
                     count++;
                 }
                 //yes, unconditionally
                 *meta &= meta_domask;
-                dstptr++;
                 meta++;
+                iter.next_x();
             }
         }
         return count;
@@ -450,7 +746,7 @@ class LandscapeBitmap {
     public int blastHole(Vector2i pos, int radius, int blast_border,
         LandscapeTheme theme = null)
     {
-        assert(!!mImage, "Not for data-only renderer");
+        assert(!mDataOnly, "Not for data-only renderer");
         const ubyte cAllMeta = Lexel.SolidSoft | Lexel.SolidHard;
 
         assert(radius >= 0);
@@ -465,8 +761,7 @@ class LandscapeBitmap {
         uint col;
         int count;
 
-        Color.RGBA32* pixels; uint pitch;
-        mImage.lockPixelsRGBA32(pixels, pitch);
+        scope pixels = new PixelAccess();
 
         auto nradius = max(radius - cBlastCenterDist,0);
 
@@ -475,26 +770,13 @@ class LandscapeBitmap {
         int doCircle(int radius, Surface s, Color c, ubyte meta_mask,
             ubyte meta_cmp, ubyte meta_domask = 255)
         {
-            Color.RGBA32* srcpixels; uint srcpitch;
-            int sx, sy;
-            int count;
-            if (s) {
-                s.lockPixelsRGBA32(srcpixels, srcpitch);
-                sx = s.size.x; sy = s.size.y;
-            } else {
-                //plain evil etc.: simulate a 1x1 bitmap with the color in it
-                Color.RGBA32 col = c.toRGBA32();
-                srcpixels = &col;
-                srcpitch = 1;
-                sx = 1; sy = 1;
-            }
-            count = circle_masked(pos, radius, pixels, pitch, srcpixels,
-                srcpitch, sx, sy, meta_mask, meta_cmp, meta_domask);
-            change += count;
-            if (s) {
-                s.unlockPixels(Rect2i.init);
-            }
-            return count;
+            TexData tex;
+            tex.set(s, c);
+            int x_count = circle_masked(pixels, pos, radius, tex,
+                meta_mask, meta_cmp, meta_domask);
+            tex.release();
+            change += x_count;
+            return x_count;
         }
 
         //draw the background image into the area to be destroyed
@@ -527,7 +809,7 @@ class LandscapeBitmap {
         Rect2i bb;
         bb.p1 = pos - Vector2i(blast_radius);
         bb.p2 = pos + Vector2i(blast_radius);
-        mImage.unlockPixels(change ? bb : Rect2i.init);
+        pixels.done(change ? bb : Rect2i.init);
 
         return count;
     }
@@ -555,17 +837,17 @@ class LandscapeBitmap {
         //dir and count are initialized with 0
 
         int ly1 = max(pos.y - radius, 0);
-        int ly2 = min(pos.y + radius + 1, mHeight);
+        int ly2 = min(pos.y + radius + 1, mSize.y);
         for (int y = ly1; y < ly2; y++) {
             int xoffs = radius;
             if (circle) {
                 xoffs -= acircle[y-pos.y+radius];
             }
             int lx1 = max(pos.x - xoffs, 0);
-            int lx2 = min(pos.x + xoffs + 1, mWidth);
+            int lx2 = min(pos.x + xoffs + 1, mSize.x);
             if (!(lx1 < lx2))
                 continue;
-            int pl = y*mWidth + lx1;
+            int pl = y*mSize.x + lx1;
             Lexel* data = &mLevelData[pl];
             int count_y = count;
             int max_x = lx2 - pos.x;
@@ -617,6 +899,7 @@ class LandscapeBitmap {
         return stuff;
     }
 
+/+
     //collide an arbitrary polygon with the landscape
     //just returns if a collision happened
     bool collidePolygon(Vector2f[] points) {
@@ -636,6 +919,7 @@ class LandscapeBitmap {
         );
         return result;
     }
++/
 
     //oh yeah, manual bitmap drawing code!
     private void doDrawBmp(int px, int py, Surface source, int w, int h,
@@ -646,36 +930,37 @@ class LandscapeBitmap {
         h = min(h, source.size.y);
         int cx1 = max(px, 0);
         int cy1 = max(py, 0);
-        int cx2 = min(mWidth, px+w);  //exclusive
-        int cy2 = min(mHeight, py+h);
+        int cx2 = min(mSize.x, px+w);  //exclusive
+        int cy2 = min(mSize.y, py+h);
         assert(cx2-cx1 <= w);
         assert(cy2-cy1 <= h);
         if (cx1 >= cx2 || cy1 >= cy2)
             return;
 
+        scope pixels = new PixelAccess();
+
         Color.RGBA32* data; uint pitch;
         source.lockPixelsRGBA32(data, pitch);
-        Color.RGBA32* dstptr; uint dstpitch;
-        mImage.lockPixelsRGBA32(dstptr, dstpitch);
 
         for (int y = cy1; y < cy2; y++) {
             //offset to relevant start of source scanline
             Color.RGBA32* src = data + pitch*(y-py) + (cx1-px);
-            Color.RGBA32* dst = dstptr + dstpitch*y + cx1;
-            Lexel* dst_meta = &mLevelData[mWidth*y+cx1];
-            for (int x = cx1; x < cx2; x++) {
+            Lexel* dst_meta = &mLevelData[mSize.x*y+cx1];
+            auto iter = pixels.get_iter(y, cx1, cx2);
+            while (iter.x < iter.x2) {
                 if (!source.isTransparent(src)
                     && ((*dst_meta & meta_mask) == meta_cmp))
                 {
                     *dst_meta = after;
                     //actually copy pixel
-                    *dst = *src;
+                    *iter.px = *src;
                 }
-                src++; dst++; dst_meta++;
+                src++; dst_meta++;
+                iter.next_x();
             }
         }
 
-        mImage.unlockPixels(Rect2i(cx1, cy1, cx2, cy2));
+        pixels.done(Rect2i(cx1, cy1, cx2, cy2));
         source.unlockPixels(Rect2i.init);
     }
 
@@ -685,165 +970,18 @@ class LandscapeBitmap {
     public void drawBitmap(Vector2i p, Surface source, Vector2i size,
         ubyte meta_mask, ubyte meta_cmp, Lexel after)
     {
-        assert(!!mImage, "Not for data-only renderer");
+        assert(!mDataOnly, "Not for data-only renderer");
         //ewww what has this become
         doDrawBmp(p.x, p.y, source, size.x, size.y, meta_mask, meta_cmp, after);
     }
 
-    /+
-    untested... unneeded?
-    //same as above, but only draw a sub region of the source bitmap
-    // p == uper right corner in destination
-    // sp == upper right corner in source bitmap
-    public void drawBitmap(Vector2i p, Surface source, Vector2i sp,
-        Vector2i size, Lexel before, Lexel after)
-    {
-        assert(!!mImage, "Not for data-only renderer");
-        size.x = min(size.x + sp.x, source.size.x) - sp.x;
-        size.y = min(size.y + sp.y, source.size.y) - sp.y;
-        void* data, uint pitch;
-        source.lockPixelsRGBA32(data, pitch);
-        //xxx: hm, more clipping to make it robust?
-        void* ndata = data + sp.y*pitch + sp.x*uint.sizeof;
-        doDrawBmp(p.x, p.y, ndata, pitch, size.x, size.y, before, after);
-        source.unlockPixels();
-    }
-    +/
-
-    //under no cirumstances change pixelformat or size of this
-    public Surface image() {
-        return mImage;
-    }
-
-    LandscapeBitmap copy(bool dataOnly = false) {
-        if (!mImage || dataOnly)
-            return new LandscapeBitmap(size, true, mLevelData.dup);
-        else
-            return new LandscapeBitmap(mImage, mLevelData);
-    }
-
-    //create a new Landscape which contains a copy of a subrectangle of this
-    LandscapeBitmap cutOutRect(Rect2i rc) {
-        rc.fitInsideB(Rect2i(mImage.size()));
-        //copy out the subrect from the metadata
-        if (!rc.isNormal())
-            return null; //negative sizes duh
-        Lexel[] ndata;
-        ndata.length = rc.size.x * rc.size.y;
-        uint sx = rc.size.x;
-        int o1 = 0;
-        int o2 = rc.p1.y*mWidth + rc.p1.x;
-        for (int y = 0; y < rc.size.y; y++) {
-            ndata[o1 .. o1 + sx] = mLevelData[o2 .. o2 + sx];
-            o1 += sx;
-            o2 += mWidth;
-        }
-        return new LandscapeBitmap(mImage.subrect(rc), ndata, false);
-    }
-
-    //create an empty Landscape of passed size
-    //  dataOnly: false will also generate a textured Landscape bitmap,
-    //            true only creates a Lexel[] (this.image will return null)
-    //  data: set to copy Lexel data, null to start empty
-    public this(Vector2i size, bool dataOnly = false, Lexel[] data = null) {
-        mWidth = size.x;
-        mHeight = size.y;
-        if (data.length > 0)
-            mLevelData = data;
-        else
-            mLevelData.length = mWidth*mHeight;
-        assert(mLevelData.length == mWidth*mHeight);
-
-        if (!dataOnly) {
-            mImage = new Surface(size, Transparency.Colorkey);
-            mImage.fill(Rect2i(mImage.size), Color.Transparent);
-        }
-    }
-
-    //copy the level bitmap and per-pixel-metadata
-    //make sure Surface size and data size match
-    public this(Surface bmp, Lexel[] a_data, bool copy = true) {
-        this(bmp.size, true, a_data.dup);
-        mImage = copy ? bmp.clone() : bmp;
-    }
-
-    //create from a bitmap; also used as common constructor
-    //bmp = the landscape-bitmap, must not be null
-    //import_bmp = create the metadata from the image's transparency information
-    //      if false, initialize metadata with Lexel.init
-    //memory managment: you shall not touch the Surface instance in bmp anymore
-    public this(Surface bmp, bool import_bmp = true) {
-        this(bmp.size, true);
-        mImage = bmp;
-
-        //create mask
-
-        if (!import_bmp)
-            return;
-
-        Color.RGBA32* ptr; uint pitch;
-        mImage.lockPixelsRGBA32(ptr, pitch);
-
-        for (int y = 0; y < mHeight; y++) {
-            Color.RGBA32* pixel = ptr + y*pitch;
-            Lexel* meta = &mLevelData[y*mWidth];
-            for (int x = 0; x < mWidth; x++) {
-                *meta = mImage.isTransparent(pixel) ? Lexel.SolidSoft
-                    : Lexel.Null;
-                meta++;
-                pixel++;
-            }
-        }
-
-        mImage.unlockPixels(Rect2i.init);
-    }
-
-    public void free() {
-        assert(!!mImage, "Not for data-only renderer");
-        mImage.free();
-        delete mLevelData;
-    }
-
-    public Surface releaseImage() {
-        assert(!!mImage, "Not for data-only renderer");
-        auto img = mImage;
-        mImage = null;
-        return img;
-    }
-
-    public Vector2i size() {
-        return Vector2i(mWidth, mHeight);
-    }
-
-    public Lexel[] levelData() {
-        return mLevelData;
-    }
-
-    //copy everything from "from" to this
-    //sizes of the landscape must match
-    public void copyFrom(LandscapeBitmap from) {
-        assert(size == from.size);
-        mLevelData[] = from.levelData();
-        //xxx transparency mode and colorkey??? (that damn crap!)
-        mImage.copyFrom(from.image, Vector2i(0), Vector2i(0), size);
-    }
-
-    //the checksum includes the image and the data
-    //xxx evil bug: the SDL renderer sets transparent pixels to colorkey, which
-    //              changes the checksum... (damn colorkey crap artrgghgfgd!!1)
+    //the checksum includes only the data
+    //(the image doesn't matter for the game, as only the "data" is used for
+    //  collision testing; further, image saving and reloading with colorkeyed
+    //  images may change the color value for transparent pixels)
     char[] checksum() {
         digest.Digest hash = new md5.Md5();
-
         hash.update(cast(void[])mLevelData);
-
-        Color.RGBA32* ptr; uint pitch;
-        mImage.lockPixelsRGBA32(ptr, pitch);
-        for (int y = 0; y < mImage.size.y; y++) {
-            Color.RGBA32* pixel = ptr + y*pitch;
-            hash.update(cast(void[])(pixel[0..mImage.size.x]));
-        }
-        mImage.unlockPixels(Rect2i.init);
-
         return hash.hexDigest();
     }
 }

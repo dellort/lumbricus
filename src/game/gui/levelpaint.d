@@ -304,7 +304,7 @@ class PainterWidget : Widget {
                         poly[3] = toVector2f(p2+Vector2i(r, r));
                     }
                 }
-                drawing.rasterizePolygon(size.x, size.y, poly, false, dg);
+                drawing.rasterizePolygon(Rect2i(size), poly, dg);
             }
         }
 

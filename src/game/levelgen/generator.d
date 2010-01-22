@@ -1142,7 +1142,7 @@ LandscapeBitmap landscapeRenderGeometry(LandscapeGeometry geometry,
 LandscapeBitmap landscapeRenderPregenerated(LandscapeLexels lexelData,
     LandscapeGenTheme gfx)
 {
-    auto renderer = new LandscapeBitmap(lexelData.size, true,
+    auto renderer = new LandscapeBitmap(lexelData.size, false,
         lexelData.levelData.dup);
     assert(renderer && lexelData && gfx);
 
@@ -1211,7 +1211,7 @@ Surface landscapeRenderPreview(T)(T land, Vector2i size,
         //scale down to preview size
         Lexel[] data = scaleLexels(land.levelData, land.size, size);
 
-        auto renderer = new LandscapeBitmap(size, true, data);
+        auto renderer = new LandscapeBitmap(size, false, data);
         renderer.texturizeData(markers, null);
     } else {
         static assert(false);
@@ -1222,7 +1222,9 @@ Surface landscapeRenderPreview(T)(T land, Vector2i size,
     }
     nocolor.free();
 
-    return renderer.releaseImage();
+    Surface s = renderer.createImage();
+    renderer.free();
+    return s;
 }
 
 void scaleLexels(Lexel[] dataIn, Lexel[] dataOut,

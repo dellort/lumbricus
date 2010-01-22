@@ -80,11 +80,6 @@ const bool WriteDemoHashFrames = true;
 //  frame a LogEntry is appended to the replay log
 const bool ReplayHashFrames = true;
 
-//if true, break the level into smaller tiles
-//want to test this with those shitty Intel graphic adapters
-const bool TileLevel = false;
-const int TileLevelSize = 64;
-
 //const long cDebugDumpAt = 1;
 
 //to implement a pre-load mechanism
@@ -147,9 +142,6 @@ class GameLoader {
             cfg.level = gen.render();
         }
         assert(!!cfg.level);
-        static if (TileLevel) {
-            cfg.level = fuzzleLevel(cfg.level);
-        }
         r.mGameConfig = cfg;
         r.doInit();
         return r;
@@ -1060,44 +1052,3 @@ abstract:
     //returns true if the game is paused because server frames are not available
     bool waitingForServer();
 }
-
-static if (TileLevel) {
-
-    //this is a test: it explodes the landscape graphic into several smaller ones
-    Level fuzzleLevel(Level level) {
-        const cTile = TileLevelSize;
-        const cSpace = 0; //even more for testing only
-        const cTileSize = cTile + cSpace;
-
-        auto rlevel = level.copy();
-        //remove all landscapes from new level
-        LevelItem[] objs;
-        foreach (i; rlevel.objects) {
-            if (!cast(LevelLandscape)i)
-                objs ~= i;
-        }
-        rlevel.objects = objs;
-        foreach (o; level.objects) {
-            if (auto ls = cast(LevelLandscape)o) {
-                auto sx = (ls.landscape.size.x + cTile - 1) / cTile;
-                auto sy = (ls.landscape.size.y + cTile - 1) / cTile;
-                for (int y = 0; y < sy; y++) {
-                    for (int x = 0; x < sx; x++) {
-                        auto nls = castStrict!(LevelLandscape)(ls.copy);
-                        nls.name = myformat("{}_{}_{}", nls.name, x, y);
-                        auto offs = Vector2i(x, y) * cTileSize;
-                        auto soffs = Vector2i(x, y) * cTile;
-                        nls.position += offs;
-                        nls.landscape = ls.landscape.
-                            cutOutRect(Rect2i(Vector2i(cTile))+soffs);
-                        nls.owner = rlevel;
-                        rlevel.objects ~= nls;
-                    }
-                }
-            }
-        }
-
-        return rlevel;
-    }
-}
-

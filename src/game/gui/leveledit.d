@@ -31,6 +31,7 @@ import game.levelgen.landscape;
 import game.levelgen.generator;
 import game.levelgen.genrandom;
 import game.levelgen.placeobjects;
+import game.levelgen.renderer;
 import utils.output;
 
 //import stdx.bind;
@@ -485,7 +486,7 @@ public class LevelEditor : Task {
     Vector2i levelSize = {2000, 700};
 
     Level mCurrentPreview;
-    Texture mPreviewImage;
+    LandscapeBitmap mPreviewImage;
     GenerateFromTemplate mPreview2;
 
     Window mWindow;
@@ -514,7 +515,7 @@ public class LevelEditor : Task {
         }
         protected void onDraw(Canvas c) {
             if (mPreviewCheckbox.checked && editor.mPreviewImage)
-                c.draw(editor.mPreviewImage, Vector2i(0));
+                editor.mPreviewImage.draw(c, Vector2i(0));
             if (mPreview2Checkbox.checked && editor.mPreview2)
                 editor.renderGeoWireframe(editor.mPreview2, c);
             editor.root.draw(c);
@@ -1106,7 +1107,7 @@ public class LevelEditor : Task {
         mPreviewImage = null;
         foreach (obj; mCurrentPreview.objects) {
             if (auto ls = cast(LevelLandscape)obj) {
-                mPreviewImage = ls.landscape.image;
+                mPreviewImage = ls.landscape;
                 break;
             }
         }
@@ -1118,7 +1119,7 @@ public class LevelEditor : Task {
     void renderGeoWireframe(GenerateFromTemplate g, Canvas c)
     {
         foreach (d; g.listGenerated()) {
-            if (d.ls && (d.ls.landscape.image is mPreviewImage) && d.geo) {
+            if (d.ls && (d.ls.landscape is mPreviewImage) && d.geo) {
                 auto theme = g.theme;
                 doRenderGeoWireframe(c, d.geo, theme ? theme.genTheme : null,
                     d.objs);

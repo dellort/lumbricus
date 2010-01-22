@@ -1,5 +1,6 @@
 module utils.drawing;
 
+import utils.rect2;
 import utils.vector2;
 
 //from http://en.wikipedia.org/wiki/Midpoint_circle_algorithm
@@ -59,17 +60,19 @@ private int myround(float f) {
     return cast(int)(f+0.5f);
 }
 
-void rasterizePolygon(uint width, uint height, Vector2f[] points,
-    bool invert, void delegate (int x1, int x2, int y) renderScanline)
+//clip rect: renderScanline will never be called with coordinates outside the
+//  rect; pixels on the bottom/right border are not considered to be included
+void rasterizePolygon(Rect2i clip, Vector2f[] points,
+    void delegate (int x1, int x2, int y) renderScanline)
 {
     void scanline(int x1, int x2, int y) {
-        if (x2 < 0 || x1 >= width)
+        if (x2 < clip.p1.x || x1 >= clip.p2.x)
             return;
-        if (x1 < 0)
-            x1 = 0;
-        if (x2 > width)
-            x2 = width;
-        assert(y >= 0 && y < height);
+        if (x1 < clip.p1.x)
+            x1 = clip.p1.x;
+        if (x2 > clip.p2.x)
+            x2 = clip.p2.x;
+        assert(y >= clip.p1.y && y < clip.p2.y);
         assert(x2 >= x1);
         if (x1 == x2)
             return;
@@ -79,10 +82,14 @@ void rasterizePolygon(uint width, uint height, Vector2f[] points,
     if (points.length < 3)
         return;
 
+    //negative sizes
+    if (!clip.isNormal())
+        return;
+
     //note: leave entries in per_scanline[y] unsorted
     //I sort them inefficiently when inserting them into the AEL
     Edge*[] per_scanline;
-    per_scanline.length = height;
+    per_scanline.length = clip.p2.y - clip.p1.y;
     //manual mm
     Edge* all_edges;
 
@@ -92,38 +99,35 @@ void rasterizePolygon(uint width, uint height, Vector2f[] points,
         edge.all = all_edges;
         all_edges = edge;
 
-        bool invert = false;
-        if (a.y > b.y) {
+        if (a.y > b.y)
             a.swap(b);
-            invert = true;
-        }
 
         int ymin = myround(a.y);
         edge.ymax = myround(b.y);
 
         //throw away horizontal segments or if not visible
-        if (edge.ymax == ymin || edge.ymax < 0 || ymin >= cast(int)height) {
+        if (edge.ymax == ymin || edge.ymax < clip.p1.y || ymin >= clip.p2.y)
             return;
-        }
 
         auto d = b-a;
         edge.m1 = cast(double)d.x / d.y; //x increment for each y increment
 
-        if (ymin < 0) {
+        if (ymin < clip.p1.y) {
             //clipping, xxx: seems to work, but untested
-            a.x = a.x += edge.m1*(-ymin);
-            a.y = 0;
-            ymin = 0;
+            a.x = a.x += edge.m1*(clip.p1.y-ymin);
+            a.y = clip.p1.y;
+            ymin = clip.p1.y;
         }
-        assert(ymin >= 0);
+        assert(ymin >= clip.p1.y);
 
         edge.xmin = a.x;
 
-        if (ymin >= height)
+        if (ymin >= clip.p2.y)
             return;
 
-        edge.next = per_scanline[ymin];
-        per_scanline[ymin] = edge;
+        int yidx = ymin - clip.p1.y;
+        edge.next = per_scanline[yidx];
+        per_scanline[yidx] = edge;
     }
 
     for (uint n = 0; n < points.length-1; n++) {
@@ -131,19 +135,13 @@ void rasterizePolygon(uint width, uint height, Vector2f[] points,
     }
     add_edge(points[$-1], points[0]);
 
-    //umm, I wonder if this trick always works
-    if (invert) {
-        add_edge(Vector2f(0, 0), Vector2f(0, height));
-        add_edge(Vector2f(width, 0), Vector2f(width, height));
-    }
-
     Edge* ael;
     Edge* resort_edges_first;
     Edge* resort_edges_last;
 
-    for (uint y = 0; y < height; y++) {
+    for (int y = clip.p1.y; y < clip.p2.y; y++) {
         //copy new edges into the AEL
-        Edge* newedge = per_scanline[y];
+        Edge* newedge = per_scanline[y-clip.p1.y];
 
         //somewhat hacky way to resort something
         if (resort_edges_last) {

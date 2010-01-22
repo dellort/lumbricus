@@ -416,8 +416,6 @@ final class SurfaceData {
     //indexed by SubSurface.index()
     SubSurface[] subsurfaces;
 
-    bool was_freed; //debugging
-
     //alloc/set data
     //size must be set before calling this
     void pixels_alloc() {
@@ -471,6 +469,7 @@ final class SurfaceData {
     //this is so stupid
     //will fix as soon as Tango makes weak pointers possible
     ~this() {
+        assert (!data_locked, "freeing a surface while it's locked");
         assert(!driver_surface);
         version (UseCMalloc) {
             pixels_free();
@@ -478,9 +477,7 @@ final class SurfaceData {
     }
 
     void do_free() {
-        assert(!was_freed, "double free"); //yyy remove
         if (data || driver_surface) {
-            was_freed = true;
             kill_driver_surface();
             pixels_free();
         }
@@ -488,6 +485,9 @@ final class SurfaceData {
 
     void lock() {
         assert(!data_locked);
+        if (driver_surface) {
+            driver_surface.getPixelData();
+        }
         data_locked = true;
     }
     void unlock() {
@@ -505,6 +505,7 @@ final class SurfaceData {
 
     void kill_driver_surface() {
         if (driver_surface) {
+            assert(!data_locked);
             driver_surface.destroy();
             driver_surface = null;
         }
@@ -513,7 +514,6 @@ final class SurfaceData {
 
     ///return and possibly create the driver's surface
     void create_driver_surface() {
-        assert(!was_freed);
         assert(!driver_surface);
         assert(data !is null);
         driver_surface = gFramework.drawDriver.createSurface(this);
@@ -524,6 +524,9 @@ final class SurfaceData {
     //stuff might break when using them
 
     SurfaceData clone() {
+        if (driver_surface) {
+            driver_surface.getPixelData();
+        }
         assert(data !is null);
         auto ns = new SurfaceData();
         ns.size = size;
@@ -747,9 +750,6 @@ class Surface {
     ///     larger Surface), but maybe that idea is already dead...
     //xxx: add a "Rect2i area" parameter to return the pixels for a subrect?
     void lockPixelsRGBA32(out Color.RGBA32* pixels, out uint pitch) {
-        if (mData.driver_surface) {
-            mData.driver_surface.getPixelData();
-        }
         mData.lock();
         assert(mData.data !is null);
         pixels = mData.data.ptr;
