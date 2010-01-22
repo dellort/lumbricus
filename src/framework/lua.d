@@ -14,6 +14,7 @@ import net.marshal;
 import utils.misc;
 import utils.stream;
 import utils.strparser;
+import utils.configfile;
 
 import tango.core.Exception;
 
@@ -270,6 +271,24 @@ int luaPush(T)(lua_State *state, T value) {
         lua_pushboolean(state, cast(int)value);
     } else static if (is(T : char[])) {
         lua_pushlstring(state, value.ptr, value.length);
+    } else static if (is(T == ConfigNode)) {
+        //push a confignode as a table; only uses named values
+        lua_newtable(state);
+        foreach (ConfigNode sub; value) {
+            if (!sub.name.length) {
+                //no unnamed values
+                continue;
+            }
+            luaPush(state, sub.name);
+            if (sub.hasSubNodes()) {
+                //subnode, push as sub-table
+                luaPush(state, sub);
+            } else {
+                //name-value pair
+                luaPush(state, sub.value);
+            }
+            lua_settable(state, -3);
+        }
     } else static if (is(T == class)) {
         if (value is null) {
             lua_pushnil(state);
@@ -1021,26 +1040,23 @@ class LuaState {
     //another variation
     //load script in "code", using "name" for error messages
     //there's also scriptExec() if you need to pass parameters
-    void loadScript(char[] name, char[] code) {
+    //environmentId = set to create/reuse a named execution environment
+    void loadScript(T)(char[] name, T code, char[] environmentId = null) {
         stack0();
         luaLoadAndPush(name, code);
+        if (environmentId.length) {
+            luaGetEnvironment(environmentId);
+            lua_setfenv(mLua, -2);
+        }
         luaCall!(void)();
         stack0();
     }
-    void loadScript(char[] name, Stream input) {
-        stack0();
-        luaLoadAndPush(name, input);
-        luaCall!(void)();
-        stack0();
-    }
-    //load code from stream and assign it the env. environmentId
-    //the environment will be created if it doesn't exist, and reused if it does
+
+    //get an execution environment from the registry and push it to the stack
+    //the environment is created if it doesn't exist
     //a metatable is set to forward lookups to the globals table
     //(see http://lua-users.org/lists/lua-l/2006-05/msg00121.html )
-    void loadScriptEnv(char[] name, char[] environmentId, Stream input) {
-        stack0();
-        luaLoadAndPush(name, input);
-
+    private void luaGetEnvironment(char[] environmentId) {
         //check if the environment was defined before
         lua_getfield(mLua, LUA_REGISTRYINDEX, envMangle(environmentId));
         if (!lua_istable(mLua, -1)) {
@@ -1059,10 +1075,6 @@ class LuaState {
             lua_pushvalue(mLua, -1);
             lua_setfield(mLua, LUA_REGISTRYINDEX, envMangle(environmentId));
         }
-
-        lua_setfenv(mLua, -2);
-        luaCall!(void)();
-        stack0();
     }
 
     //Call a function defined in lua
@@ -1108,17 +1120,30 @@ class LuaState {
 
     //store a value as global Lua variable
     //slightly inefficient (because of toStringz heap activity)
-    void setGlobal(T)(char[] name, T value) {
+    void setGlobal(T)(char[] name, T value, char[] environmentId = null) {
         stack0();
+        int stackIdx = LUA_GLOBALSINDEX;
+        if (environmentId.length) {
+            luaGetEnvironment(environmentId);
+            stackIdx = -2;
+        }
         luaPush(mLua, value);
-        lua_setglobal(mLua, czstr.toStringz(name));
+        lua_setfield(mLua, stackIdx, czstr.toStringz(name));
+        if (environmentId.length) {
+            lua_pop(mLua, 1);
+        }
         stack0();
     }
-    T getGlobal(T)(char[] name) {
+    T getGlobal(T)(char[] name, char[] environmentId = null) {
         stack0();
-        lua_getglobal(mLua, czstr.toStringz(name));
-        T res = luaStackValue!(T)(mLua, 1);
-        lua_pop(mLua, 1);
+        int stackIdx = LUA_GLOBALSINDEX;
+        if (environmentId.length) {
+            luaGetEnvironment(environmentId);
+            stackIdx = -1;
+        }
+        lua_getfield(mLua, stackIdx, czstr.toStringz(name));
+        T res = luaStackValue!(T)(mLua, -1);
+        lua_pop(mLua, environmentId.length ? 2 : 1);
         stack0();
         return res;
     }

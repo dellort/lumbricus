@@ -41,6 +41,8 @@ static this() {
     gScripting = new typeof(gScripting)();
     gScripting.func!(className);
     gScripting.func!(fullClassName);
+    //I'm not gonna rewrite that
+    gScripting.func!(Time.fromString)("timeParse");
 
     gScripting.setClassPrefix!(TimeSourcePublic)("Time");
     gScripting.methods!(TimeSourcePublic, "current", "difference");

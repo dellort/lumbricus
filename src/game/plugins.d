@@ -115,13 +115,15 @@ class LuaPlugin : Plugin {
     }
 
     override void init(GameEngine eng) {
+        //pass configuration as global "config"
+        eng.scripting().setGlobal("config", mConfig.getSubNode("config"), name);
         foreach (modf; mModules) {
             char[] filename = mResources.fixPath(modf);
 
             auto st = gFS.open(filename);
             scope(exit) st.close();
             //filename = for debug output; name = lua environment
-            eng.scripting().loadScriptEnv(filename, name, st);
+            eng.scripting().loadScript(filename, st, name);
         }
         //no GameObject? hmm
     }

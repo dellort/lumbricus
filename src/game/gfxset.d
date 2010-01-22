@@ -148,11 +148,12 @@ class GfxSet {
         foreach (ConfigNode sub; cfg.plugins) {
             //either an unnamed value, or a subnode with config items
             char[] pid = sub.value.length ? sub.value : sub.name;
-            loadPlugin(pid, sub);
+            loadPlugin(pid, sub, cfg.plugins);
         }
     }
 
-    void loadPlugin(char[] pluginId, ConfigNode cfg) {
+    void loadPlugin(char[] pluginId, ConfigNode cfg, ConfigNode allPlugins) {
+        assert(!!allPlugins);
         if (pluginId in mLoadedPlugins) {
             return;
         }
@@ -178,8 +179,7 @@ class GfxSet {
         //this will place dependencies in the plugins[] first, making them load
         //  before the current plugin
         foreach (dep; newPlugin.dependencies) {
-            //xxx no config for dependencies
-            loadPlugin(dep, null);
+            loadPlugin(dep, allPlugins.findNode(dep), allPlugins);
         }
 
         plugins ~= newPlugin;
