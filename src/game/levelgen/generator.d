@@ -65,6 +65,12 @@ class LevelGeneratorShared {
     }
 }
 
+struct LevelProperties {
+    bool isCave;
+    bool placeObjects;
+    bool[4] impenetrable;
+}
+
 ///there's now a LevelGenerator instance for each level that is generated
 ///this class is abstract - there are different subclasses for these cases:
 /// - random level generation out of templates
@@ -87,11 +93,9 @@ abstract class LevelGenerator {
     ///                 a savegame anyway
     abstract Level render(bool render_bitmaps = true);
 
-    ///helper functions for the gui, to determine what will be generated
+    ///helper function for the gui, to determine what will be generated
     ///  (and set button states accordingly)
-    abstract bool isCave();
-    abstract bool placeObjects();
-    abstract bool[] impenetrable();
+    abstract LevelProperties properties();
 }
 
 ///generate/render a level from a template
@@ -466,21 +470,18 @@ class GenerateFromTemplate : LevelGenerator {
         }
     }
 
-    override bool isCave() {
-        return !mUnrendered.airstrikeAllow;
-    }
-
-    override bool placeObjects() {
-        return mLand["land0"].placeObjects;
-    }
-
-    override bool[] impenetrable() {
-        if (!mUnrendered.objects.length)
-            return [false, false, false, false];
-        auto land = cast(LevelLandscape)mUnrendered.objects[0];
-        if (!land)
-            return [false, false, false, false];
-        return land.impenetrable;
+    override LevelProperties properties() {
+        LevelProperties ret;
+        ret.isCave = !mUnrendered.airstrikeAllow;
+        assert("land0" in mLand);
+        ret.placeObjects = mLand["land0"].placeObjects;
+        if (mUnrendered.objects.length) {
+            auto land = cast(LevelLandscape)mUnrendered.objects[0];
+            if (land) {
+                ret.impenetrable[] = land.impenetrable;
+            }
+        }
+        return ret;
     }
 
     static this() {
@@ -629,17 +630,12 @@ class GenerateFromBitmap : LevelGenerator {
         mBitmap = gFramework.loadImage(mFilename);
     }
 
-    override bool isCave() {
+    override LevelProperties properties() {
+        LevelProperties ret;
         //xxx does mIsCave even work? I thought is_cave had been removed
-        return mIsCave;
-    }
-
-    override bool placeObjects() {
-        return mPlaceObjects;
-    }
-
-    override bool[] impenetrable() {
-        return [false, false, false, false];
+        ret.isCave = mIsCave;
+        ret.placeObjects = mPlaceObjects;
+        return ret;
     }
 
     static this() {
@@ -673,16 +669,8 @@ class GenerateFromSaved : LevelGenerator {
         return mReal.previewAspect();
     }
 
-    override bool isCave() {
-        return mReal.isCave();
-    }
-
-    override bool placeObjects() {
-        return mReal.placeObjects();
-    }
-
-    override bool[] impenetrable() {
-        return mReal.impenetrable();
+    override LevelProperties properties() {
+        return mReal.properties();
     }
 
     this(LevelGeneratorShared shared, ConfigNode from) {

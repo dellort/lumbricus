@@ -15,10 +15,9 @@ import utils.misc;
 class GameConfig {
     Level level;
     ConfigNode saved_level; //is level.saved
-    char[][] plugins;
+    ConfigNode plugins;
     ConfigNode teams;
     ConfigNode weapons;
-    ConfigNode gamemode;
     //objects which shall be created and placed into the level at initialization
     //(doesn't include the worms, ???)
     ConfigNode levelobjects;
@@ -31,7 +30,7 @@ class GameConfig {
     char[] randomSeed;
     //contains subnode "access_map", which maps tag-names to team-ids
     //the tag-name is passed as first arg to GameEngine.executeCmd(), see there
-    ConfigNode managment;
+    ConfigNode management;
 
     //state that survives multiple rounds, e.g. worm statistics and points
     ConfigNode gamestate;
@@ -42,13 +41,12 @@ class GameConfig {
         to.addNode("level", saved_level.copy);
         to.addNode("teams", teams.copy);
         to.addNode("weapons", weapons.copy);
-        to.addNode("gamemode", gamemode.copy);
         to.addNode("levelobjects", levelobjects.copy);
         to.addNode("gfx", gfx.copy);
         to.addNode("gamestate", gamestate.copy);
-        to.setValue!(char[][])("plugins", plugins);
+        to.addNode("plugins", plugins.copy);
         to.setStringValue("random_seed", randomSeed);
-        to.addNode("managment", managment.copy);
+        to.addNode("management", management.copy);
         return to;
     }
 
@@ -57,13 +55,12 @@ class GameConfig {
         saved_level = n.getSubNode("level");
         teams = n.getSubNode("teams");
         weapons = n.getSubNode("weapons");
-        gamemode = n.getSubNode("gamemode");
         levelobjects = n.getSubNode("levelobjects");
         gfx = n.getSubNode("gfx");
         gamestate = n.getSubNode("gamestate");
-        plugins = n.getValue!(char[][])("plugins");
+        plugins = n.getSubNode("plugins");
         randomSeed = n["random_seed"];
-        managment = n.getSubNode("managment");
+        management = n.getSubNode("management");
     }
 }
 
@@ -112,7 +109,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
 
     auto gamemodecfg = loadConfig("gamemode");
     auto modes = gamemodecfg.getSubNode("modes");
-    cfg.gamemode = modes.getSubNode(
+    auto modeNode = modes.getSubNode(
         mConfig.getStringValue("gamemode",""));
 
     //gamemode.conf contains all defined weapon sets, but we only
@@ -132,10 +129,12 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
     }
 
     cfg.gfx = mConfig.getSubNode("gfx");
-    cfg.plugins = mConfig.getValue!(char[][])("plugins");
-    if (cfg.plugins.length == 0) {
-        cfg.plugins ~= "ws_default";
+    cfg.plugins = mConfig.getSubNode("plugins");
+    //xxx always load default weaponset
+    if (!cfg.plugins.hasSubNodes()) {
+        cfg.plugins.getSubNode("ws_default");
     }
+    cfg.plugins.getSubNode(modeNode["mode"]).mixinNode(modeNode, true);
 
     if (!persistentState)
         persistentState = mConfig.getSubNode("gamestate");
@@ -144,7 +143,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
     //needs to be set up by user
     //for local games, the access tag "local" can be used to control all teams;
     //  so there's no access map needed
-    cfg.managment = mConfig.getSubNode("managment");
+    cfg.management = mConfig.getSubNode("management");
 
     return cfg;
 }

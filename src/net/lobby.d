@@ -322,7 +322,7 @@ class CreateNetworkGame : SimpleContainer {
         //  teams. for the game engine, the tag is an arbitrary string. we use
         //  the net-team-id as the tag, so that "cheating" by trying to control
         //  the other's teams is not possible.
-        ConfigNode access_map = conf.managment.getSubNode("access_map");
+        ConfigNode access_map = conf.management.getSubNode("access_map");
         foreach (ref ti; info.teams) {
             //s is the list of controlled teams
             auto s = access_map.getSubNode(makeAccessTag(ti.playerId));

@@ -135,9 +135,10 @@ class LevelSelector : SimpleContainer {
             if (lex)
                 mPainter.setData(lex.levelData, lex.size);
             //get parameters from loaded level
-            mIsCave.checked = lvl.isCave();
-            mPlaceObjects.checked = lvl.placeObjects();
-            foreach (int idx, bool hasWall; lvl.impenetrable()) {
+            auto props = lvl.properties();
+            mIsCave.checked = props.isCave;
+            mPlaceObjects.checked = props.placeObjects;
+            foreach (int idx, bool hasWall; props.impenetrable) {
                 assert(idx < mWalls.length);
                 mWalls[idx].checked = hasWall;
             }

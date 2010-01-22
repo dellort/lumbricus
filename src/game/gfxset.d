@@ -139,36 +139,47 @@ class GfxSet {
         //...
 
         //xxx this file is loaded at two places (gravity in game engine)
-        mSprites = loadConfig("game.conf", true).getSubNode("sprites");
+        auto gameConf = loadConfig("game.conf", true);
+        mSprites = gameConf.getSubNode("sprites");
 
         mCollisionMap = new CollisionMap();
+        addCollideConf(gameConf.getSubNode("collisions"));
 
-        foreach (pid; cfg.plugins) {
-            loadPlugin(pid);
+        foreach (ConfigNode sub; cfg.plugins) {
+            //either an unnamed value, or a subnode with config items
+            char[] pid = sub.value.length ? sub.value : sub.name;
+            loadPlugin(pid, sub);
         }
     }
 
-    void loadPlugin(char[] pluginId) {
+    void loadPlugin(char[] pluginId, ConfigNode cfg) {
         if (pluginId in mLoadedPlugins) {
             return;
         }
         char[] confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
         Plugin newPlugin;
+        char[] plgType;
+        ConfigNode conf;
         if (!gFS.exists(confFile) && GamePluginFactory.exists(pluginId)) {
             //internal plugin without plugin.conf
-            newPlugin = new InternalPlugin(pluginId, this);
+            plgType = "internal";
+            conf = new ConfigNode();
         } else {
             //load plugin.conf as gfx set (resources and sequences)
-            auto conf = gResources.loadConfigForRes(confFile);
-            char[] plgType = conf.getStringValue("type", "lua");
-
-            newPlugin = PluginFactory.instantiate(plgType, pluginId, this,
-                conf);
+            conf = gResources.loadConfigForRes(confFile);
+            plgType = conf.getStringValue("type", "lua");
         }
+        //mixin dynamic configuration
+        if (cfg) {
+            conf.getSubNode("config").mixinNode(cfg, true);
+        }
+
+        newPlugin = PluginFactory.instantiate(plgType, pluginId, this, conf);
         //this will place dependencies in the plugins[] first, making them load
         //  before the current plugin
         foreach (dep; newPlugin.dependencies) {
-            loadPlugin(dep);
+            //xxx no config for dependencies
+            loadPlugin(dep, null);
         }
 
         plugins ~= newPlugin;

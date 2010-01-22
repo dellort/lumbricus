@@ -14,18 +14,19 @@ import gui.widget;
 import utils.time;
 import utils.misc;
 import utils.vector2;
+import utils.interpolate;
 
 class GameTimer : BoxContainer {
     private {
         GameInfo mGame;
         Label mTurnTime, mGameTime;
-        bool mActive;
         Time mLastTime;
         Font[5] mFont;
         //xxx load this from somewhere
         bool mShowGameTime, mShowTurnTime;
         Color mOldBordercolor;
         TimeStatus mStatus;
+        InterpolateExp!(float) mPosInterp;
     }
 
     this(SimpleContainer hudBase, GameInfo game, Object link) {
@@ -58,9 +59,17 @@ class GameTimer : BoxContainer {
         minSize = toVector2i(toVector2f(mTurnTime.font.textSize("99"))*1.5f);
 
         mLastTime = timeCurrentTime();
-        visible = false;
+        mPosInterp.init_done(timeSecs(0.4), 0, 1);
 
         hudBase.add(this, WidgetLayout.Aligned(-1, 1, Vector2i(5, 5)));
+    }
+
+    private bool isVisible() {
+        return mPosInterp.target == 0;
+    }
+
+    private void toggleVisible() {
+        mPosInterp.revert();
     }
 
     void setGameTimeMode(bool showGT, bool showTT = true) {
@@ -126,9 +135,8 @@ class GameTimer : BoxContainer {
         styles.setState("active",
             m && (m is mGame.control.getControlledMember));
 
-        if (active != mActive) {
-            mActive = active;
-            visible = mActive;
+        if (active != isVisible) {
+            toggleVisible();
         }
 
         assert(Color.Invalid == Color.Invalid);
@@ -141,6 +149,9 @@ class GameTimer : BoxContainer {
                 clearStyleOverride("border-color");
             }
         }
+
+        int edge = findParentBorderDistance(0, 1, false);
+        setAddToPos(Vector2i(0, cast(int)(mPosInterp.value*edge)));
     }
 
     static this() {

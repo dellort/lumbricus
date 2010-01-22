@@ -654,10 +654,7 @@ class GameController {
             loadLevelObjects(config.levelobjects);
         }
 
-        //xxx gamemode still special; fixme
-        auto gamemodeId = config.gamemode["mode"];
-        GamePluginFactory.instantiate(gamemodeId, engine, config.gamemode);
-
+        //?? where do these belong?
         //xxx 1: should be loaded from configfiles
         //xxx 2: should not be in controller (nothing team specific here)
 
@@ -873,13 +870,13 @@ class GameController {
                 auto cnt = sub.getIntValue("count");
                 log("count {} type {}", cnt, sub["type"]);
                 for (int n = 0; n < cnt; n++) {
-                    //try {
+                    try {
                         mEngine.queuePlaceOnLandscape(
                             mEngine.createSprite(sub["type"]));
-                    /*} catch {
+                    } catch (ClassNotRegisteredException e) {
                         log("Warning: Placing {} objects failed", sub["type"]);
                         continue;
-                    }*/
+                    }
                 }
             } else {
                 log("warning: unknown placing mode: '{}'", sub["mode"]);

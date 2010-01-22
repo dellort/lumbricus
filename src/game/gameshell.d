@@ -215,8 +215,8 @@ class GameLoader {
         }
 
         //this doesn't really make sense, but is a helpful hack for now
-        mStartPaused = mGameConfig.managment.getValue!(bool)("start_paused");
-        mEnableDemoRecording = mGameConfig.managment
+        mStartPaused = mGameConfig.management.getValue!(bool)("start_paused");
+        mEnableDemoRecording = mGameConfig.management
             .getValue!(bool)("enable_demo_recording", true);
 
         //never record a demo when playing back a demo

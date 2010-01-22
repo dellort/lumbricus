@@ -360,6 +360,7 @@ class WeaponSet : GameObject {
             } catch (ClassNotRegisteredException e) {
                 registerLog("game.controller")
                     ("Error in weapon set '"~wname~"': "~e.msg);
+                continue;
             }
             if (node.value == "inf") {
                 quantity = Entry.cINF;

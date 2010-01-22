@@ -373,6 +373,17 @@ public class Resources {
         return res;
     }
 
+    public bool isResourceFile(ConfigNode config) {
+        if (!config) {
+            return false;
+        }
+        auto parent = config;
+        while (parent && !parent.findNode(cResourcePathName)) {
+            parent = parent.parent();
+        }
+        return !!parent;
+    }
+
     ///provided for simplicity
     public ResourceFile loadResources(char[] conffile) {
         return loadResources(loadConfigForRes(conffile));

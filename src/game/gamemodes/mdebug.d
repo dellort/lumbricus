@@ -22,7 +22,7 @@ class ModeDebug : Gamemode {
     }
 
     this(GameEngine a_engine, ConfigNode config) {
-        super(a_engine, config);
+        super(a_engine);
     }
 
     override void simulate(float dt) {

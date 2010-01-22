@@ -32,26 +32,24 @@ class Plugin {
     //called in resource-loading phase; currently name comes from plugin path
     //  conf = static plugin configuration
     this(char[] a_name, GfxSet gfx, ConfigNode conf) {
-        this(a_name, gfx);
+        name = a_name;
+        mGfx = gfx;
         mConfig = conf;
+        assert(!!conf);
         dependencies = mConfig.getValue("dependencies", dependencies);
 
         //load resources
-        mResources = gfx.addGfxSet(mConfig);
-        assert(!!mResources);
-        //load collisions
-        char[] colFile = mConfig.getStringValue("collisions","collisions.conf");
-        auto coll_conf = loadConfig(mResources.fixPath(colFile), true, true);
-        if (coll_conf)
-            gfx.addCollideConf(coll_conf.getSubNode("collisions"));
-        //load locale
-        //xxx fixed id "weapons"; has to change, but how?
-        addLocaleDir("weapons", mResources.fixPath("locale"));
-    }
-
-    this(char[] a_name, GfxSet gfx) {
-        name = a_name;
-        mGfx = gfx;
+        if (gResources.isResourceFile(mConfig)) {
+            mResources = gfx.addGfxSet(mConfig);
+            //load collisions
+            char[] colFile = mConfig.getStringValue("collisions","collisions.conf");
+            auto coll_conf = loadConfig(mResources.fixPath(colFile), true, true);
+            if (coll_conf)
+                gfx.addCollideConf(coll_conf.getSubNode("collisions"));
+            //load locale
+            //xxx fixed id "weapons"; has to change, but how?
+            addLocaleDir("weapons", mResources.fixPath("locale"));
+        }
     }
 
     //called from GfxSet.finishLoading(); resources are sealed and can be used
@@ -59,8 +57,7 @@ class Plugin {
     }
 
     //called from GameEngine, to create the runtime part of this plugin
-    //  cfg = dynamic plugin configuration
-    void init(GameEngine eng, ConfigNode cfg) {
+    void init(GameEngine eng) {
     }
 }
 
@@ -68,6 +65,7 @@ class Plugin {
 class WeaponsetPlugin : Plugin {
     this(char[] a_name, GfxSet gfx, ConfigNode conf) {
         super(a_name, gfx, conf);
+        assert(!!mResources);
     }
 
     override void finishLoading() {
@@ -113,9 +111,10 @@ class LuaPlugin : Plugin {
     this(char[] a_name, GfxSet gfx, ConfigNode conf) {
         super(a_name, gfx, conf);
         mModules = conf.getValue("modules", mModules);
+        assert(!!mResources);
     }
 
-    override void init(GameEngine eng, ConfigNode cfg) {
+    override void init(GameEngine eng) {
         foreach (modf; mModules) {
             char[] filename = mResources.fixPath(modf);
 
@@ -140,13 +139,8 @@ class InternalPlugin : Plugin {
         assert(GamePluginFactory.exists(name));
     }
 
-    //for internal use
-    this(char[] a_name, GfxSet gfx) {
-        super(a_name, gfx);
-        assert(GamePluginFactory.exists(name));
-    }
-
-    override void init(GameEngine eng, ConfigNode cfg) {
+    override void init(GameEngine eng) {
+        ConfigNode cfg = mConfig.getSubNode("config");
         GamePluginFactory.instantiate(name, eng, cfg);
     }
 

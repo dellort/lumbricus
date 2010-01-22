@@ -50,7 +50,7 @@ class ModeRealtime : Gamemode {
     }
 
     this(GameEngine a_engine, ConfigNode config) {
-        super(a_engine, config);
+        super(a_engine);
         mStatus = new TimeStatus();
         mStatus.showGameTime = true;
         this.config = config.getCurValue!(ModeConfig)();

@@ -19,7 +19,7 @@ class Gamemode : GameObject {
     private Time[5] mWaitStart, mWaitStartLocal;
     protected TimeSource modeTime;
 
-    this(GameEngine a_engine, ConfigNode config) {
+    this(GameEngine a_engine) {
         super(a_engine, "gamemode");
         //static initialization doesn't work
         mWaitStart[] = Time.Never;

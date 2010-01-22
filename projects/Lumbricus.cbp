@@ -167,7 +167,6 @@
 		<Unit filename="..\src\game\levelgen\renderer.d" />
 		<Unit filename="..\src\game\loader.d" />
 		<Unit filename="..\src\game\lua.d" />
-		<Unit filename="..\src\game\luaplugin.d" />
 		<Unit filename="..\src\game\particles.d" />
 		<Unit filename="..\src\game\plugins.d" />
 		<Unit filename="..\src\game\sequence.d" />
@@ -182,6 +181,7 @@
 		<Unit filename="..\src\game\weapon\drill.d" />
 		<Unit filename="..\src\game\weapon\girder.d" />
 		<Unit filename="..\src\game\weapon\jetpack.d" />
+		<Unit filename="..\src\game\weapon\luaweapon.d" />
 		<Unit filename="..\src\game\weapon\melee.d" />
 		<Unit filename="..\src\game\weapon\napalm.d" />
 		<Unit filename="..\src\game\weapon\parachute.d" />

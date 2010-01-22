@@ -81,10 +81,22 @@ class ModeTurnbased : Gamemode {
     }
 
     this(GameEngine a_engine, ConfigNode config) {
-        super(a_engine, config);
+        super(a_engine);
         mTimeSt = new TimeStatus();
         mPrepareSt = new PrepareStatus();
+        assert(!!config);
         this.config = config.getCurValue!(ModeConfig)();
+
+        OnCollectTool.handler(engine.events, &doCollectTool);
+
+        OnHudAdd.raise(engine.globalEvents, "timer", mTimeSt);
+        OnHudAdd.raise(engine.globalEvents, "prepare", mPrepareSt);
+    }
+
+    override void startGame(GameObject dummy) {
+        super.startGame(dummy);
+
+        logic.addCrateTool("doubletime");
 
         //we want teams to be activated in a random order that stays the same
         //  over all rounds
@@ -99,15 +111,6 @@ class ModeTurnbased : Gamemode {
             engine.persistentState.setValue("team_order", mTeamPerm);
         }
 
-        logic.addCrateTool("doubletime");
-        OnCollectTool.handler(engine.events, &doCollectTool);
-
-        OnHudAdd.raise(engine.globalEvents, "timer", mTimeSt);
-        OnHudAdd.raise(engine.globalEvents, "prepare", mPrepareSt);
-    }
-
-    override void startGame(GameObject dummy) {
-        super.startGame(dummy);
         modeTime.paused = true;
     }
 

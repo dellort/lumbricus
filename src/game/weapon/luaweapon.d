@@ -1,4 +1,4 @@
-module game.luaplugin;
+module game.weapon.luaweapon;
 
 import framework.framework;
 import game.controller;

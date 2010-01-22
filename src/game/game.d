@@ -237,12 +237,10 @@ class GameEngine {
         loadScript("game_cheats.lua");
         //initialize loaded plugins
         foreach (plg; gfx.plugins) {
-            //xxx load from newgame.conf somehow
-            auto opts = new ConfigNode();
             //xxx controller is not yet available; plugins have to be careful
             //    best way around: add more events for different states of
             //    game initialization
-            plg.init(this, opts);
+            plg.init(this);
         }
 
         OnGameInit.raise(globalEvents);
@@ -253,7 +251,7 @@ class GameEngine {
         new GameController(this, config);
 
         //read the shitty access map, need to have access to the controller
-        auto map = config.managment.getSubNode("access_map");
+        auto map = config.management.getSubNode("access_map");
         foreach (ConfigNode sub; map) {
             //sub is "tag_name { "teamid1" "teamid2" ... }"
             foreach (char[] key, char[] value; sub) {
