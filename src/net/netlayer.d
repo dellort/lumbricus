@@ -373,7 +373,7 @@ class NetPeer {
     }
 }
 
-class NetException : Exception {
+class NetException : CustomException {
     this(char[] msg) {
         super(msg);
     }

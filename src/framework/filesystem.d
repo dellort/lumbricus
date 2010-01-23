@@ -26,7 +26,7 @@ private Log log;
 //or so I thought
 //version = FSDebug;
 
-class FilesystemException : Exception {
+class FilesystemException : CustomException {
     this(char[] m) {
         super(m);
     }
@@ -139,7 +139,7 @@ private class HandlerDirectory : HandlerInstance {
     private void createPath(VFSPath handlerPath) {
         if (!pathExists(handlerPath)) {
             if (handlerPath.isEmpty())
-                throw new Exception("createPath error: handler"
+                throw new CustomException("createPath error: handler"
                     ~ " path does not exist");
             //recursively create parent dir
             createPath(handlerPath.parent);

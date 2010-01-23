@@ -814,7 +814,7 @@ class GameController {
         else
             ws = mWeaponSets["default"];
         if (!ws)
-            throw new Exception("Weapon set " ~ id ~ " not found.");
+            throw new CustomException("Weapon set " ~ id ~ " not found.");
         return new WeaponSet(mEngine, ws, forCrate);
     }
 
@@ -832,13 +832,13 @@ class GameController {
         foreach (ConfigNode item; config) {
             if (item.value.length > 0) {
                 if (!(item.value in mWeaponSets))
-                    throw new Exception("Weapon set " ~ item.value
+                    throw new CustomException("Weapon set " ~ item.value
                         ~ " not found.");
                 mWeaponSets[item.name] = mWeaponSets[item.value];
             }
         }
         if (mWeaponSets.length == 0)
-            throw new Exception("No weapon sets defined.");
+            throw new CustomException("No weapon sets defined.");
         //we always need a default set
         assert(firstId in mWeaponSets);
         if (!("default" in mWeaponSets))

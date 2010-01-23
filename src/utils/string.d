@@ -398,3 +398,21 @@ unittest {
     static assert(ctfe_firstupper("testing") == "Testing");
 }
 
+//check if name is a valid identifier
+//  (defined as "[A-Za-z_][A-Za-z0-9_]*")
+//this is stricter than D's identifier rules, but should work with all languages
+bool isIdentifier(char[] name) {
+    bool isid(char c, bool first = false) {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+            || (!first && c >= '0' && c <= '9') || (c == '_');
+    }
+    if (name.length == 0 || !isid(name[0], true)) {
+        return false;
+    }
+    foreach (ref char c; name[1..$]) {
+        if (!isid(c)) {
+            return false;
+        }
+    }
+    return true;
+}

@@ -35,7 +35,7 @@ class ActionWeapon : ConfWeaponClass {
                 name ~ "::" ~ aname);
             if (!res && required) {
                 //xxx error handling...
-                throw new Exception(myformat("Action-based weapon needs action:"
+                throw new CustomException(myformat("Action-based weapon needs action:"
                     " weapon={} action={}", name, aname));
             }
             return res;

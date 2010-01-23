@@ -90,7 +90,7 @@ final class CollisionMap {
         }
 
         if (errors.length > 0) {
-            throw new Exception(myformat("the following collision names were"
+            throw new CustomException(myformat("the following collision names were"
                 " referenced, but not defined: {}", errors));
         }
 
@@ -191,7 +191,7 @@ final class CollisionMap {
         foreach (d; defines) {
             auto cid = findCollisionID(d);
             if (!cid.undefined) {
-                throw new Exception("collision name '" ~ cid.name
+                throw new CustomException("collision name '" ~ cid.name
                     ~ "' redefined");
             }
             cid.undefined = false;
@@ -201,7 +201,7 @@ final class CollisionMap {
             auto cls = findCollisionID(name);
             auto supercls = findCollisionID(value);
             if (cls.superclass) {
-                throw new Exception("collision class '" ~ cls.name ~ "' already"
+                throw new CustomException("collision class '" ~ cls.name ~ "' already"
                     ~ " has a superclass");
             }
             cls.superclass = supercls;
@@ -214,7 +214,7 @@ final class CollisionMap {
                 t = t.superclass;
                 trace ~= t;
                 if (t is cls) {
-                    throw new Exception("circular subclass relation: " ~
+                    throw new CustomException("circular subclass relation: " ~
                         str.join(arrayMap(trace, (CollisionType x) {
                             return x.name;
                         }), " -> ") ~ ".");

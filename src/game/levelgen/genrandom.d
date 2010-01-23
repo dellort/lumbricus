@@ -9,7 +9,7 @@ import framework = framework.framework : Color;
 import tango.math.Math : PI;
 import utils.random : rngShared;
 import utils.configfile : ConfigNode;
-import utils.misc : myformat;
+import utils.misc;
 
 //about textures: currently marker implies texture
 
@@ -264,7 +264,7 @@ private final class Group {
     //i.e. start.b is modified to be start[0]...
     void splicify(SegmentRange range, Point[] points) {
         if (range.isEmpty) {
-            throw new Exception("can't insert into an empty range");
+            throw new CustomException("can't insert into an empty range");
         }
 
         Segment start = range.start;

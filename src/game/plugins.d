@@ -13,9 +13,17 @@ import game.weapon.weapon;
 import utils.misc;
 import utils.factory;
 import utils.configfile;
+import utils.string : isIdentifier;
 
 alias StaticFactory!("Plugins", Plugin, char[], GfxSet, ConfigNode)
     PluginFactory;
+
+///thrown when a plugin fails to load; the game may still work without it
+class PluginException : CustomException {
+    this(char[] msg) {
+        super(msg);
+    }
+}
 
 //the "load-time" part of a plugin (static; loaded when GfxSet is created)
 //always contains: dependencies, collisions, resources, sequences, locales
@@ -33,6 +41,9 @@ class Plugin {
     //  conf = static plugin configuration
     this(char[] a_name, GfxSet gfx, ConfigNode conf) {
         name = a_name;
+        if (!isIdentifier(name)) {
+            throw new PluginException("Plugin name is not a valid identifier");
+        }
         mGfx = gfx;
         mConfig = conf;
         assert(!!conf);
@@ -40,12 +51,24 @@ class Plugin {
 
         //load resources
         if (gResources.isResourceFile(mConfig)) {
-            mResources = gfx.addGfxSet(mConfig);
+            try {
+                mResources = gfx.addGfxSet(mConfig);
+            //this doesn't work because error handling is generally crap
+            } catch (LoadException e) {
+                throw new PluginException("Failed to load resources: " ~ e.msg);
+            }
             //load collisions
-            char[] colFile = mConfig.getStringValue("collisions","collisions.conf");
-            auto coll_conf = loadConfig(mResources.fixPath(colFile), true, true);
-            if (coll_conf)
-                gfx.addCollideConf(coll_conf.getSubNode("collisions"));
+            char[] colFile = mConfig.getStringValue("collisions",
+                "collisions.conf");
+            auto coll_conf = loadConfig(mResources.fixPath(colFile), true,true);
+            if (coll_conf) {
+                try {
+                    gfx.addCollideConf(coll_conf.getSubNode("collisions"));
+                } catch (CustomException e) {
+                    throw new PluginException("Failed to load collisions: "
+                        ~ e.msg);
+                }
+            }
             //load locale
             //xxx fixed id "weapons"; has to change, but how?
             addLocaleDir("weapons", mResources.fixPath("locale"));

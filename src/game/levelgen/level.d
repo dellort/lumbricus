@@ -207,7 +207,7 @@ Lexel parseMarker(char[] value) {
         }
     }
     //else explode
-    throw new Exception("invalid marker value in configfile: " ~ value);
+    throw new CustomException("invalid marker value in configfile: " ~ value);
 }
 
 char[] writeMarker(Lexel v) {

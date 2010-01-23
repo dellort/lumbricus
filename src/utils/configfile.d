@@ -388,7 +388,7 @@ public class ConfigNode {
         //ah this sucks, but nothing can be done about it
         //note that the root node can't have a name either
         if (level == 0 && have_value) {
-            throw new Exception("can't save root ConfigNodes that have a value");
+            throw new CustomException("can't save root ConfigNodes that have a value");
         }
         +/
 
@@ -495,7 +495,7 @@ public class ConfigNode {
             //     - continue reading out the confignode even after an error,
             //       because reporting all errors is better than exit-on-first
             //     - avoid function-with-dozens-of-getValue-calls orgies
-            static class ConfigError : Exception {
+            static class ConfigError : CustomException {
                 this(char[] msg) {
                     super(msg);
                 }
@@ -768,7 +768,7 @@ public class ConfigNode {
 }
 
 
-private class ConfigFatalError : Exception {
+private class ConfigFatalError : CustomException {
     int type;
     this(int type) {
         super("");
@@ -892,7 +892,7 @@ public class ConfigFile {
         mErrorCount++;
 
         if (!mErrorOut)
-            throw new Exception("no configfile error handler set, no detailed"
+            throw new CustomException("no configfile error handler set, no detailed"
                 " error messages for you.");
 
         //xxx: add possibility to translate error messages

@@ -69,7 +69,7 @@ final class SequenceType {
             return *pstate;
         }
         if (!allow_notfound)
-            throw new Exception(myformat("state not found: {} in {}",  sname,
+            throw new CustomException(myformat("state not found: {} in {}",  sname,
                 name));
         return null;
     }

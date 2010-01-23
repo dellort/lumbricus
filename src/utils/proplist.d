@@ -9,7 +9,7 @@ import str = utils.string;
 import tango.core.Traits : isIntegerType, isRealType, ParameterTupleOf;
 import tango.util.Convert : to, ConversionException;
 
-class PropertyException : Exception {
+class PropertyException : CustomException {
     this(PropertyNode from, char[] msg) {
         super(myformat("{} (at '{}')", msg, from.path()));
     }
@@ -123,7 +123,7 @@ class PropertyNode {
     }
     void changesEnd() {
         if (mSilent == 0)
-            throw new Exception("changesEnd(): underflow; nesting error?");
+            throw new CustomException("changesEnd(): underflow; nesting error?");
         mSilent--;
         if (mSilent == 0) {
             if (auto list = cast(PropertyList)this) {
@@ -727,7 +727,7 @@ final class PropertyList : PropertyNode {
         assert(!!node);
         assert(!node.mParent, "node already added to a list");
         if (find(node.name))
-            throw new Exception("property already exists: "~node.name);
+            throw new CustomException("property already exists: "~node.name);
         //patch up change level; needed when adding nodes while changes are
         //  inhibited
         //xxx be sure to do the same when nodes are removed

@@ -82,7 +82,7 @@ class Common {
         if (!gFramework.videoActive) {
             //this means we're F****D!!1  ("FOOLED")
             log("ERROR: couldn't initialize video");
-            throw new Exception("can't continue");
+            throw new CustomException("can't continue");
         }
 
         //woo woo load this stuff here, because framework blows up if

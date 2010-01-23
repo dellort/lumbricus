@@ -49,8 +49,7 @@ MyBox stringToBox(T)(char[] s) {
 T stringToType(T)(char[] s) {
     MyBox res = stringToBoxTypeID(typeid(T), s);
     if (res.empty()) {
-        throw new Exception(myformat("can't parse '{}' to type {}", s,
-            typeid(T)));
+        newConversionException!(T)(s);
     }
     return res.unbox!(T)();
 }

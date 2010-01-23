@@ -229,7 +229,7 @@ class FMODSoundDriver : SoundDriver {
         uint fmVersion;
         FMOD_ErrorCheck(FMOD_System_GetVersion(mSystem, &fmVersion));
         if (fmVersion < FMOD_VERSION)
-            throw new Exception(myformat(
+            throw new CustomException(myformat(
             "Version of FMOD library is too low. Required is at least {:x8}",
             FMOD_VERSION));
 

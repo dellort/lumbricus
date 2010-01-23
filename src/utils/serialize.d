@@ -165,7 +165,7 @@ class SerializeContext {
     //register external object
     void addExternal(Object o, char[] id) {
         if (o in mExternals || id in mExternalsReverse)
-            throw new Exception("external not unique: "~id);
+            throw new CustomException("external not unique: "~id);
         mExternals[o] = id;
         mExternalsReverse[id] = o;
     }
@@ -443,7 +443,7 @@ class SerializeContext {
     }
 }
 
-typedef Exception SerializeError;
+typedef CustomException SerializeError;
 
 //base class for serializers/deserializers
 //"external" objects: objects which aren't serialized, but which are still

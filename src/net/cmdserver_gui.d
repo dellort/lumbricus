@@ -23,6 +23,7 @@ debug import utils.random;
 
 import tango.core.Thread;
 import tango.stdc.stdlib : abort;
+import tango.core.Runtime;
 
 //as GUI
 class CmdNetServerTask : Task {
@@ -63,7 +64,7 @@ class CmdNetServerTask : Task {
             mServer = new CmdNetServer(mSrvConf);
             Time tlast;
             while (true) {
-                if (gMainTerminated)
+                if (Runtime.isHalting())
                     break;
                 Time t = timeCurrentTime();
                 synchronized (this) {

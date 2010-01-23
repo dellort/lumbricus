@@ -13,6 +13,7 @@ public import tango.io.device.Conduit : Conduit;
 public import tango.io.device.File : File;
 
 import tango.io.model.IConduit;
+import tango.core.Runtime;
 import utils.misc;
 
 
@@ -557,7 +558,7 @@ class ThreadedWriter {
             copyAvailable();
             //exit when the write end is closed, or when the main thread
             //shuts down
-            terminated = (!mPipe.isAlive() || gMainTerminated);
+            terminated = (!mPipe.isAlive() || Runtime.isHalting());
         } while (!terminated);
         copyAvailable();
         mPipe.stop();

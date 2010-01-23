@@ -98,7 +98,7 @@ class Types {
     //if it fails, it'll throw an exception
     final SafePtr objPtr(Object x, TypeInfo to) {
         if (!cast(TypeInfo_Class)to)
-            throw new Exception("non-class TypeInfo passed to ObjPtr(x, to)");
+            throw new CustomException("non-class TypeInfo passed to ObjPtr(x, to)");
         if (x !is null) {
             //verify "to" is somewhere in the inheritance hierarchy
             ClassInfo info = x.classinfo;
@@ -108,7 +108,7 @@ class Types {
                 info = info.base;
             }
             if (!info)
-                throw new Exception("bogus TypeInfo passed to objPtr(x, to)");
+                throw new CustomException("bogus TypeInfo passed to objPtr(x, to)");
         }
         void** memory = new void*;
         *memory = cast(void*)x;
@@ -133,7 +133,7 @@ class Types {
         }
         if (can_fail)
             return null;
-        throw new Exception("Type for TypeInfo >"~ti.toString()~"< not found");
+        throw new CustomException("Type for TypeInfo >"~ti.toString()~"< not found");
     }
 
     //special handling for superclasses: this might not be instantiable (if they
@@ -205,12 +205,12 @@ class Types {
         static assert (is(T1 == class));
         static assert (is(T2 == delegate));
         if (del.ptr !is cast(void*)owner)
-            throw new Exception("not an object method?");
+            throw new CustomException("not an object method?");
         Class klass = findClass(owner);
         //user is supposed to call registerMethod() in the reflection ctor, so
         //this shouldn't happen
         if (!klass)
-            throw new Exception("class not registered");
+            throw new CustomException("class not registered");
         DelegateType dgt = cast(DelegateType)getType!(T2)();
         assert (!!dgt);
         void* ptr = del.funcptr;
@@ -348,7 +348,7 @@ class Types {
         char[] what = myformat("dest-class: {} function: 0x{:x} '{}'",
             crashy, dgp.funcptr, func);
 
-        throw new Exception(myformat("{}: couldn't write delegate, {}",
+        throw new CustomException(myformat("{}: couldn't write delegate, {}",
             where, what));
     }
 }

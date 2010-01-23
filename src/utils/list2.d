@@ -1,5 +1,6 @@
 module utils.list2;
 
+import utils.misc;
 
 //The 3rd iteration of our list class follows...
 //This is my approach to write a serializable, doubly-linked list with all
@@ -167,7 +168,7 @@ final class ObjectList(T, char[] member) {
     void remove(T item) {
         Node* n = node(item);
         if (n.owner !is this)
-            throw new Exception("not in list");
+            throw new CustomException("not in list");
         if (item is head_item) {
             if (n.next is item)
                 head_item = null;

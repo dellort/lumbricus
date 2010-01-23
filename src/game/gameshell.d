@@ -191,7 +191,7 @@ class GameLoader {
             auto e = Unmarshaller(&readfunc).read!(GameShell.LogEntry)();
             if (e.timestamp < previous_ts) {
                 //invalid file contents
-                throw new Exception("demo file contains unsorted or negative "
+                throw new CustomException("demo file contains unsorted or negative "
                     "timestamps");
             }
             previous_ts = e.timestamp;

@@ -5,6 +5,7 @@ import gui.container;
 import gui.widget;
 import utils.configfile;
 import utils.factory;
+import utils.misc;
 
 /// This class can construct a Widget tree from config files
 /// (currently only one Wiget tree per file / LoadGui object)
@@ -44,7 +45,7 @@ class LoadGui {
             return mFactory.instantiate(classname);
         if (WidgetFactory.exists(classname))
             return WidgetFactory.instantiate(classname);
-        throw new Exception("Widget '"~classname~"' not found.");
+        throw new CustomException("Widget '"~classname~"' not found.");
     }
 
     //templates: allow to mixin stuff from a "central" place
@@ -54,7 +55,7 @@ class LoadGui {
         if (templ) {
             auto mix = mTemplates.findNode(templ.value);
             if (!mix)
-                throw new Exception("template not found: '"~templ.value~"'");
+                throw new CustomException("template not found: '"~templ.value~"'");
             node.mixinNode(mix);
             node.remove(cTemplate);
         }
@@ -104,7 +105,7 @@ class LoadGui {
     ///config file, using said field
     void addNamedWidget(Widget w, char[] name) {
         if ((name in mWidgets) && (mWidgets[name] !is w)) {
-            throw new Exception("double name: '"~name~"'");
+            throw new CustomException("double name: '"~name~"'");
         }
         w.styles.addClass("id-" ~ name);
         mWidgets[name] = w;
@@ -128,7 +129,7 @@ class LoadGui {
         if (p)
             res = cast(T)(*p);
         if (!res && !canfail)
-            throw new Exception("LoadGui.lookup: '"~name~"' not found/invalid");
+            throw new CustomException("LoadGui.lookup: '"~name~"' not found/invalid");
         return res;
     }
 

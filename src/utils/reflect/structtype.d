@@ -94,7 +94,7 @@ class ReferenceType : StructuredType {
             res.ptr = castTo(o);
         }
         if (!res.ptr && !can_fail)
-            throw new Exception("type cast with castFrom() failed.");
+            throw new CustomException("type cast with castFrom() failed.");
         return res;
     }
 

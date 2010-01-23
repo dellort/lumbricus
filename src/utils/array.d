@@ -160,7 +160,7 @@ void arrayRemoveUnordered(T)(inout T[] arr, T value, bool allowFail = false) {
     auto index = arraySearch(arr, value);
     if (index < 0) {
         if (allowFail) return;
-        throw new Exception("arrayRemoveUnordered: element not in array");
+        throw new CustomException("arrayRemoveUnordered: element not in array");
     }
     if (arr.length >= 1) {
         arr[index] = arr[$-1];

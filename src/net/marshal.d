@@ -225,7 +225,7 @@ struct Unmarshaller {
     }
 }
 
-class UnmarshalException : Exception {
+class UnmarshalException : CustomException {
     this(char[] msg) {
         super(msg);
     }

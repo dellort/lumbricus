@@ -14,6 +14,7 @@ import utils.color;
 import utils.configfile;
 import utils.misc;
 import utils.time;
+import utils.factory;
 
 import physics.collisionmap;
 import physics.world;
@@ -25,7 +26,7 @@ import game.weapon.weapon;
 import game.plugins;
 import game.controller_events;
 
-class ClassNotRegisteredException : Exception {
+class ClassNotRegisteredException : CustomException {
     this(char[] msg) {
         super(msg);
     }
@@ -148,7 +149,12 @@ class GfxSet {
         foreach (ConfigNode sub; cfg.plugins) {
             //either an unnamed value, or a subnode with config items
             char[] pid = sub.value.length ? sub.value : sub.name;
-            loadPlugin(pid, sub, cfg.plugins);
+            try {
+                loadPlugin(pid, sub, cfg.plugins);
+            } catch (PluginException e) {
+                //xxx we need "something" to handle non-fatal errors
+                Trace.formatln("Plugin '{}' failed to load: {}", pid, e.msg);
+            }
         }
     }
 
@@ -175,11 +181,20 @@ class GfxSet {
             conf.getSubNode("config").mixinNode(cfg, true);
         }
 
-        newPlugin = PluginFactory.instantiate(plgType, pluginId, this, conf);
+        try {
+            newPlugin = PluginFactory.instantiate(plgType, pluginId, this, conf);
+        } catch (ClassNotFoundException e) {
+            throw new PluginException("Invalid plugin type '"~plgType~"'");
+        }
         //this will place dependencies in the plugins[] first, making them load
         //  before the current plugin
         foreach (dep; newPlugin.dependencies) {
-            loadPlugin(dep, allPlugins.findNode(dep), allPlugins);
+            try {
+                loadPlugin(dep, allPlugins.findNode(dep), allPlugins);
+            } catch (PluginException e) {
+                throw new PluginException("Dependency '" ~ dep
+                    ~ "' failed to load: " ~ e.msg);
+            }
         }
 
         plugins ~= newPlugin;

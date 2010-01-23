@@ -228,7 +228,7 @@ class TableContainer : PublicContainer {
     {
         int index = find_pc(w);
         if (index < 0)
-            throw new Exception("getChildRowCol: bad parameter");
+            throw new CustomException("getChildRowCol: bad parameter");
         auto pc = mChildren[index];
         x = pc.p[0];
         y = pc.p[1];

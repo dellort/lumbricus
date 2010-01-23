@@ -477,7 +477,7 @@ class AnimationResource : ResourceItem {
                 mContents = new ComplicatedAnimation(node, frames);
                 break;
             default:
-                throw new Exception("invalid AnimationResource type");
+                throw new CustomException("invalid AnimationResource type");
         }
     }
 

@@ -77,7 +77,6 @@ version(LogExceptions) {
 }
 
 int main(char[][] args) {
-    scope(exit) gMainTerminated = true;
     version(LogExceptions) {
         //catch all exceptions, write them to logfile and console and exit
         try {

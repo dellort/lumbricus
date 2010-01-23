@@ -121,7 +121,7 @@ class ResourceSet {
 }
 
 ///use this for recoverable loading errors
-class LoadException : Exception {
+class LoadException : CustomException {
     this(char[] name, char[] why) {
         super("Failed to load '" ~ name ~ "': " ~ why ~ ".");
     }

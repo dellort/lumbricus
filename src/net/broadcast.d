@@ -144,7 +144,7 @@ class NetBroadcast {
             enet_socket_set_option(mSock, ENET_SOCKOPT_BROADCAST, 1);
         }
         if (mSock == ENET_SOCKET_NULL)
-            throw new Exception("CreateSocket failed.");
+            throw new CustomException("CreateSocket failed.");
         //Nonblocking mode? well, not for now
         //enet_socket_set_option(mSock, ENET_SOCKOPT_NONBLOCK, 1);
     }

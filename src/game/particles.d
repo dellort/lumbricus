@@ -525,7 +525,7 @@ class ParticleWorld {
         version (CMemory) {
             void* p = cstdlib.calloc(n, Particle.sizeof);
             if (!p)
-                throw new Exception("out of memory");
+                throw new CustomException("out of memory");
             mParticleStorage = (cast(Particle*)p)[0..n];
         } else {
             mParticleStorage.length = n;

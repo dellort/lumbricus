@@ -60,7 +60,7 @@ private bool checkGLError(lazy char[] operation, bool crash = false) {
     debug Trace.formatln("Warning: GL error at '{}': {}", msg,
         errors);
     if (crash)
-        throw new Exception(myformat("OpenGL error: '{}': {}", msg, errors));
+        throw new CustomException(myformat("OpenGL error: '{}': {}", msg, errors));
     return true;
 }
 
@@ -259,7 +259,7 @@ final class GLSurface : DriverSurface {
             mError = true;
             debug Trace.formatln("Failed to create texture of size {}.",
                 mTexSize);
-            //throw new Exception(
+            //throw new CustomException(
             //    "glTexImage2D failed, probably texture was too big. "
             //    ~ "Requested size: "~mTexSize.toString);
 

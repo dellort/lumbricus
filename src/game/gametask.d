@@ -184,7 +184,7 @@ class GameTask : StatefulTask {
             return;
         }
 
-        throw new Exception("unknown commandline params"); //???
+        throw new CustomException("unknown commandline params"); //???
     }
 
     //start a game
@@ -458,7 +458,7 @@ class GameTask : StatefulTask {
     //implements StatefulTask
     override void saveState(TarArchive tehfile) {
         if (!mGameShell)
-            throw new Exception("can't save network game as client");
+            throw new CustomException("can't save network game as client");
 
         mGameShell.saveGame(tehfile);
 

@@ -1,12 +1,14 @@
 module utils.factory;
 
-class ClassNotFoundException : Exception {
+import utils.misc;
+
+class ClassNotFoundException : CustomException {
     this(char[] msg) {
         super(msg);
     }
 }
 
-class WrapNotFoundException : Exception {
+class WrapNotFoundException : CustomException {
     this(Exception e, char[] msg) {
         super("wrapped exception, this was thrown when trying to instantiate " ~
             msg ~ ": " ~ e.toString());
@@ -29,7 +31,7 @@ class Factory(T, ConstructorArgs...) {
             //(not sure if this is a good idea, but it can't really harm)
             if (*pc is create)
                 return;
-            throw new Exception("oh noes! class already exists: " ~ name);
+            throw new CustomException("oh noes! class already exists: " ~ name);
         }
         mConstructors[name] = create;
     }

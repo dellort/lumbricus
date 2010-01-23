@@ -620,7 +620,7 @@ class StateSpriteClass : SpriteClass {
         StaticStateInfo* state = name in states;
         if (!state && !canfail) {
             //xxx better error handling
-            throw new Exception("state "~name~" not found");
+            throw new CustomException("state "~name~" not found");
         }
         if (state)
             return *state;

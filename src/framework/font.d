@@ -206,7 +206,7 @@ class FontManager : ResourceManagerT!(FontDriver, Font) {
         auto f = create(p);
         if (!f) {
             if (tryHard)
-                throw new Exception("font >" ~ id ~ "< not found (1)");
+                throw new FrameworkException("font >" ~ id ~ "< not found (1)");
             return null;
         }
 
@@ -222,13 +222,12 @@ class FontManager : ResourceManagerT!(FontDriver, Font) {
         p.back.a = 0;
         char[] filename;
 
-        if (!mNodes)
-            throw new Exception("not initialized using readFontDefinitions()");
+        assert(!!mNodes, "not initialized using readFontDefinitions()");
 
         ConfigNode font = mNodes.findNode(id);
         if (!font) {
             if (fail_exception)
-                throw new Exception("font >" ~ id ~ "< not found (2)");
+                throw new FrameworkException("font >" ~ id ~ "< not found (2)");
             //Trace.formatln("not found: >{}<", id);
             font = mNodes.getSubNode("normal");
         }

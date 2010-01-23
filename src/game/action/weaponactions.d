@@ -328,7 +328,7 @@ class ImpulseActionClass : AoEActionClass {
             directionMode = DirMode.vector;
             direction = node.getValue("direction", direction);
             if (direction.isNaN())
-                throw new Exception("Direction vector is illegal");
+                throw new CustomException("Direction vector is illegal");
         }
     }
 

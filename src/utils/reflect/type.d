@@ -81,7 +81,7 @@ class Type {
 
     final SafePtr ptrOf(T)(T* ptr) {
         if (typeid(T) !is mTI)
-            throw new Exception("type error");
+            throw new CustomException("type error");
         return SafePtr(this, ptr);
     }
 
@@ -119,14 +119,14 @@ class Type {
     //xxx: comparision is different for floats and nans
     bool op_is(SafePtr pa, SafePtr pb) {
         if (pa.type !is this || pb.type !is this)
-            throw new Exception("type error");
+            throw new CustomException("type error");
         return pa.ptr[0..mSize] == pb.ptr[0..mSize];
     }
 
     //xxx: same as in op_is()
     final void assign(SafePtr dest, SafePtr src) {
         if (dest.type !is src.type)
-            throw new Exception("type error");
+            throw new CustomException("type error");
         dest.ptr[0..mSize] = src.ptr[0..mSize];
     }
 

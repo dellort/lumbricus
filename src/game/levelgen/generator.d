@@ -185,7 +185,7 @@ class GenerateFromTemplate : LevelGenerator {
         if (!mCurTheme) {
             mCurTheme = mShared.themes.findRandom();
             if (!mCurTheme)
-                throw new Exception("no level themes found");
+                throw new CustomException("no level themes found");
         }
 
         generate(false); //in the rare case it wasn't already called
@@ -277,7 +277,7 @@ class GenerateFromTemplate : LevelGenerator {
                 } else if (rland.prerender_id != "") {
                     auto p = rland.prerender_id in prerendered;
                     if (!p) {
-                        throw new Exception("level generator: landscape id '"
+                        throw new CustomException("level generator: landscape id '"
                             ~ rland.prerender_id ~ "' not found");
                     }
                     rendered = *p;
@@ -358,7 +358,7 @@ class GenerateFromTemplate : LevelGenerator {
 
         loadStuff(saved);
         if (!mCurTheme) {
-            throw new Exception("no theme?");
+            throw new CustomException("no theme?");
         }
     }
 
@@ -372,7 +372,7 @@ class GenerateFromTemplate : LevelGenerator {
             templ = mShared.templates.findRandom();
         }
         if (!templ) {
-            throw new Exception("no level templates found");
+            throw new CustomException("no level templates found");
         }
 
         //probably quite useless, we only need the .data member, but this is
@@ -464,7 +464,7 @@ class GenerateFromTemplate : LevelGenerator {
                     assert(false);
                 }
             } else {
-                throw new Exception("unknown object type '"~t~"' in level"
+                throw new CustomException("unknown object type '"~t~"' in level"
                     " template");
             }
         }
@@ -923,7 +923,7 @@ class LandscapeLexels {
         size = node.getValue("size", size);
         levelData = cast(Lexel[])node.getValue!(ubyte[])("data");
         if (size.x == 0 || size.y == 0 || levelData.length != size.x*size.y) {
-            throw new Exception("Pregenerated level failed to load");
+            throw new CustomException("Pregenerated level failed to load");
         }
     }
 
@@ -968,7 +968,7 @@ template BlaList(T : Object) {
             }
         }
         if (!canfail)
-            throw new Exception("item '" ~ name ~ "' not found");
+            throw new CustomException("item '" ~ name ~ "' not found");
         return null;
     }
 

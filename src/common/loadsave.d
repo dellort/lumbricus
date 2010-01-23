@@ -128,7 +128,7 @@ abstract class StatefulTask : Task {
     abstract char[] saveId();
 }
 
-class SaveException : Exception {
+class SaveException : CustomException {
     this(char[] msg) {
         super(msg);
     }

@@ -200,14 +200,14 @@ class StylesPseudoCSS : StylesBase {
                 s = str.strip(s);
                 auto rest = str.strip(s[1..$]);
                 if (rest == "") {
-                    throw new Exception("not enough text");
+                    throw new CustomException("not enough text");
                 }
                 if (s[0] == '/') {
                     sorted_classes ~= rest;
                 } else if (s[0] == ':') {
                     sorted_states ~= rest;
                 } else {
-                    throw new Exception("unparsable string in selector");
+                    throw new CustomException("unparsable string in selector");
                 }
             }
             sort(sorted_classes);
@@ -528,7 +528,7 @@ MyBox parseFont(char[] src, MyBox prev) {
 MyBox parseStrparser(T)(char[] src, MyBox prev) {
     MyBox v = strparser.stringToBox!(T)(src);
     if (v.empty())
-        throw new Exception("can't parse as "~T.stringof~" :"~src);
+        throw new CustomException("can't parse as "~T.stringof~" :"~src);
     return v;
 }
 

@@ -455,7 +455,7 @@ class CmdNetServer {
     }
 }
 
-private class CCError : Exception {
+private class CCError : CustomException {
     this(char[] msg) { super(msg); }
 }
 

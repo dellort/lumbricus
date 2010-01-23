@@ -403,7 +403,7 @@ class ScrollWindow : Container {
             auto childw = loader.loadWidget(child);
             auto arr = cast(ScrollArea)childw;
             if (!arr)
-                throw new Exception("whatever");
+                throw new CustomException("whatever");
             setScrollArea(arr);
         }
 

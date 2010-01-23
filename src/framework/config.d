@@ -10,6 +10,7 @@ import utils.log;
 import utils.output;
 import utils.path;
 import utils.stream;
+import utils.misc;
 
 private LogStruct!("configfile") logConf;
 private LogStruct!("configerror") logError;
@@ -50,7 +51,7 @@ ConfigNode loadConfig(char[] section, bool asfilename = false,
             data = cast(char[])gunzipData(cast(ubyte[])data);
         } catch (ZlibException e) {
             if (!allowFail)
-                throw new Exception("Decompression failed: "~e.msg);
+                throw new CustomException("Decompression failed: "~e.msg);
             goto error;
         }
     }
@@ -59,7 +60,7 @@ ConfigNode loadConfig(char[] section, bool asfilename = false,
             logError("{}", log);
         });
     if (!f.rootnode)
-        throw new Exception("?");
+        throw new CustomException("?");
     return f.rootnode;
 
 error:
@@ -116,6 +117,6 @@ ConfigNode loadConfigGzBuf(ubyte[] buf) {
             logError("{}", log);
         });
     if (!f.rootnode)
-        throw new Exception("?");
+        throw new CustomException("?");
     return f.rootnode;
 }

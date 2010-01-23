@@ -83,13 +83,13 @@ class TarArchive {
                 foreach (ref digit; hcs)
                     if (digit == ' ') digit = '0';
                 if (h.getchecksum()[0..6] != hcs)
-                    throw new Exception("tar error: CS "~h.getchecksum()[0..6]~" != "~hcs);
+                    throw new CustomException("tar error: CS "~h.getchecksum()[0..6]~" != "~hcs);
                 char[] getField(char[] f) {
                     assert (f.length > 0);
                     //else we had a buffer overflow with toString
                     //xxx: utf safety?
                     if (h.filename[$-1] != '\0')
-                        throw new Exception("tar error");
+                        throw new CustomException("tar error");
                     return fromStringz(&f[0]);
                 }
                 e.name = getField(h.filename).dup;
@@ -100,7 +100,7 @@ class TarArchive {
                     if (sz[0] == ' ') sz[0] = '0';
                     int digit = sz[0] - '0';
                     if (digit < 0 || digit > 7)
-                        throw new Exception("tar error");
+                        throw new CustomException("tar error");
                     isz = isz*8 + digit;
                     sz = sz[1..$];
                 }
@@ -156,7 +156,7 @@ class TarArchive {
         }
         if (can_fail)
             return null;
-        throw new Exception("tar entry not found: >"~name~"<");
+        throw new CustomException("tar entry not found: >"~name~"<");
     }
 
     PipeIn openReadStream(char[] name, bool can_fail = false) {
@@ -210,7 +210,7 @@ class TarArchive {
             return;
         if (mCurrentWriter && mCurrentWriter.source()) {
             //because we can support only one writer at a moment
-            throw new Exception("previous tar sub-file not closed: "~e.name);
+            throw new CustomException("previous tar sub-file not closed: "~e.name);
         }
         e.writing = false;
         mCurrentWriter = null;
@@ -228,7 +228,7 @@ class TarArchive {
             mFile.position = npos;
         } else {
             if (mReading)
-                throw new Exception("tar error (file unaligned)");
+                throw new CustomException("tar error (file unaligned)");
             ulong todo = npos - mFile.position();
             assert (todo < 512);
             mFile.writeExact(waste[0..todo]);

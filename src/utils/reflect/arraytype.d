@@ -22,7 +22,7 @@ class ArrayType : Type {
 
         SafePtr get(size_t element) {
             if (element >= length)
-                throw new Exception("out of bounds");
+                throw new CustomException("out of bounds");
             return SafePtr(ptr.type, ptr.ptr + element*ptr.type.size());
         }
     }
@@ -76,7 +76,7 @@ class ArrayType : Type {
                 T* ta = array.castTo!(T)();
                 (*ta).length = len;
             } else {
-                throw new Exception("setting the length of a static array");
+                throw new CustomException("setting the length of a static array");
             }
         };
         t.mGetArray = function Array(ArrayType t, SafePtr array) {

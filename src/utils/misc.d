@@ -100,10 +100,10 @@ T castStrict(T)(Object t) {
     T res = cast(T)t;
     if (t && !res) {
         static if (is(T == class)) {
-            throw new Exception("could not cast "~t.classinfo.name~" to "
+            throw new CustomException("could not cast "~t.classinfo.name~" to "
                 ~T.classinfo.name);
         } else {
-            throw new Exception("figure it out yourself");
+            throw new CustomException("figure it out yourself");
         }
     }
     return res;
@@ -234,6 +234,11 @@ unittest {
     assert(names == ["muh"[], "fool"]);
 }
 
-//I hate Tango so much.
-//Threads can use this flag to determine when the main thread is exiting
-bool gMainTerminated = false;
+///all code should throw this instead of 'Exception'
+///  (to discern from system errors)
+///if you expect a system error, wrap it with this (or a derived class)
+class CustomException : Exception {
+    this(char[] msg) {
+        super(msg);
+    }
+}

@@ -2,7 +2,7 @@ module utils.mybox;
 
 import utils.misc;
 
-class MyBoxException : Exception {
+class MyBoxException : CustomException {
     this(char[] msg) { super(msg); }
 }
 

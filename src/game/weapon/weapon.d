@@ -113,13 +113,13 @@ class ConfWeaponClass : WeaponClass {
         onSelect = node.getValue!(char[])("on_select", "");
         if (onSelect.length) {
             if (!WeaponSelectorFactory.exists(onSelect))
-                throw new Exception("not in WeaponSelectorFactory: "~onSelect);
+                throw new CustomException("not in WeaponSelectorFactory: "~onSelect);
         }
 
         //load projectiles
         foreach (ConfigNode pr; node.getSubNode("projectiles")) {
             //if (pr.name in projectiles)
-            //    throw new Exception("projectile already exists: "~pr.name);
+            //    throw new CustomException("projectile already exists: "~pr.name);
             //instantiate a sprite class
             //xxx error handling?
             auto spriteclass = gfx.instantiateSpriteClass(pr["type"], pr.name);

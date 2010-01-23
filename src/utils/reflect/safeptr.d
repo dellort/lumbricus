@@ -35,24 +35,24 @@ struct SafePtr {
     //throw an appropriate exception if types are incompatible
     void check(TypeInfo ti) {
         if (ti !is type.typeInfo)
-            throw new Exception(myformat("incompatible types: got {}, expected"
+            throw new CustomException(myformat("incompatible types: got {}, expected"
                 " {}", ti, type.typeInfo));
     }
 
     //check if exactly the same type (no conversions) and not a null ptr
     void checkExactNotNull(Type needed, char[] caller) {
         if (!ptr)
-            throw new Exception("null SafePtr passed to " ~ caller);
+            throw new CustomException("null SafePtr passed to " ~ caller);
         if (type !is needed)
-            throw new Exception("SafePtr of wrong type passed to " ~ caller);
+            throw new CustomException("SafePtr of wrong type passed to " ~ caller);
     }
 
     SafePtr deref() {
         if (!ptr)
-            throw new Exception("deref() null pointer");
+            throw new CustomException("deref() null pointer");
         PointerType pt = cast(PointerType)type;
         if (!pt)
-            throw new Exception("deref() on non-pointer type");
+            throw new CustomException("deref() on non-pointer type");
         return SafePtr(pt.next, *cast(void**)ptr);
     }
 
@@ -87,7 +87,7 @@ struct SafePtr {
         rt2 = type.owner.findClassRef(o.classinfo);
         if (!rt2) {
             if (!may_fail)
-                throw new Exception("class not found, maybe it is not "
+                throw new CustomException("class not found, maybe it is not "
                     "reflected?");
             return SafePtr(null, null);
         }
@@ -117,7 +117,7 @@ struct SafePtr {
             return null;
         auto rt = cast(ReferenceType)type;
         if (!rt && !may_fail)
-            throw new Exception("toObject() on non-reference ptr");
+            throw new CustomException("toObject() on non-reference ptr");
         if (!rt)
             return null;
         return rt.castFrom(*cast(void**)ptr);
@@ -147,7 +147,7 @@ struct SafePtr {
         assert (!!type);
         auto rt = cast(ReferenceType)type;
         if (!rt)
-            throw new Exception("target not an object or interface type");
+            throw new CustomException("target not an object or interface type");
         void* p = rt.castTo(from);
         if (!p && from)
             return false;
@@ -212,7 +212,7 @@ struct SafePtr {
     bool writeDelegate(Object obj, ClassMethod method) {
         auto dgt = cast(DelegateType)type;
         if (!dgt)
-            throw new Exception("not a delegate pointer");
+            throw new CustomException("not a delegate pointer");
         assert (!!ptr);
         Dg* dp = cast(Dg*)ptr;
         if (obj) {

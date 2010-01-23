@@ -131,7 +131,7 @@ private int luaRelToAbsIndex(lua_State* state, int index) {
     return index;
 }
 
-class LuaException : Exception { this(char[] msg) { super(msg); } }
+class LuaException : CustomException { this(char[] msg) { super(msg); } }
 
 //this alias is just so that we can pretend our scripting interface is generic
 alias LuaException ScriptingException;
@@ -190,6 +190,10 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         } catch (LuaException e) {
         }
         expected("string");
+    } else static if (is(T == ConfigNode)) {
+        //I don't think we will ever need that, but better catch the special case
+        //see luaPush() for the format
+        static assert(false, "Implement me: ConfigNode");
     } else static if (is(T == class)) {
         //allow userdata and nil, nothing else
         if (!lua_islightuserdata(state, stackIdx) && !lua_isnil(state,stackIdx))
@@ -922,7 +926,7 @@ class LuaState {
             if (!nil) {
                 //this caused some error which took me 30 minutes of debugging
                 //most likely multiple bind calls for a method
-                throw new Exception("attempting to overwrite existing name "
+                throw new CustomException("attempting to overwrite existing name "
                     "in _G when adding D method: "~m.fname);
             }
 
@@ -1057,6 +1061,7 @@ class LuaState {
     //a metatable is set to forward lookups to the globals table
     //(see http://lua-users.org/lists/lua-l/2006-05/msg00121.html )
     private void luaGetEnvironment(char[] environmentId) {
+        assert(environmentId.length);
         //check if the environment was defined before
         lua_getfield(mLua, LUA_REGISTRYINDEX, envMangle(environmentId));
         if (!lua_istable(mLua, -1)) {
@@ -1070,6 +1075,10 @@ class LuaState {
             lua_pushvalue(mLua, LUA_GLOBALSINDEX);
             lua_setfield(mLua, -2, "__index");
             lua_setmetatable(mLua, -2);
+
+            //set environment name as variable "ENV_NAME"
+            luaPush(mLua, environmentId);
+            lua_setfield(mLua, -2, "ENV_NAME");
 
             //store for later use
             lua_pushvalue(mLua, -1);
@@ -1146,6 +1155,23 @@ class LuaState {
         lua_pop(mLua, environmentId.length ? 2 : 1);
         stack0();
         return res;
+    }
+
+    //copy symbol name1 from env1 to the global name2 in env2
+    //if env2 is null, the symbol is copied to the global environment
+    void copyEnvSymbol(char[] env1, char[] name1, char[] env2, char[] name2) {
+        assert(env1.length && name1.length && name2.length);
+        stack0();
+        luaGetEnvironment(env1);
+        int stackIdx = LUA_GLOBALSINDEX;
+        if (env2.length) {
+            luaGetEnvironment(env2);
+            stackIdx = -2;
+        }
+        lua_getfield(mLua, -2, czstr.toStringz(name1));
+        lua_setfield(mLua, stackIdx, czstr.toStringz(name2));
+        lua_pop(mLua, env2.length ? 2 : 1);
+        stack0();
     }
 
     //this redirects the print() function from stdio to cb(); the string passed

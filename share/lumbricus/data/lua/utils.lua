@@ -253,3 +253,14 @@ function table_empty(table)
     end
     return true
 end
+
+-- returns the calling module's export table
+-- equal to _G[ENV_NAME] (initialized to table if empty)
+function export_table()
+    -- use caller's environment
+    setfenv(1, getfenv(2))
+    if not _G[ENV_NAME] then
+        _G[ENV_NAME] = {}
+    end
+    return _G[ENV_NAME]
+end

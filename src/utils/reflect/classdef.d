@@ -153,7 +153,7 @@ class Class {
         foreach (ClassMethod m; mMethods) {
             if (m.name() == name) {
                 if (m.mDgType !is dgt || m.mAddress !is funcptr)
-                    throw new Exception("different method with same name");
+                    throw new CustomException("different method with same name");
                 return;
             }
         }

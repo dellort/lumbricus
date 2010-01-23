@@ -96,7 +96,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
             break;
         default:
             //wrong string in configfile
-            throw new Exception("noes noes noes!");
+            throw new CustomException("noes noes noes!");
         }
     }
 

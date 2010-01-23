@@ -1,5 +1,7 @@
 module utils.queue;
 
+import utils.misc;
+
 //a little funny Queue class, because Phobos doesn't have one (argh)
 class Queue(T) {
     private T[] mItems;
@@ -14,7 +16,7 @@ class Queue(T) {
     //throws exception if empty
     T pop() {
         if (empty)
-            throw new Exception("Queue.pop: Queue is empty!");
+            throw new CustomException("Queue.pop: Queue is empty!");
         T res = mItems[0];
         mItems = mItems[1..$];
         return res;

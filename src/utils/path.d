@@ -7,6 +7,7 @@ import tfs = tango.io.FileSystem;
 import tango.sys.Environment : Environment;
 import tango.io.Path;
 import tango.io.FilePath;
+import utils.misc;
 
 char[] getFilePath(char[] fullname)
     out (result)
@@ -274,7 +275,7 @@ struct VFSPath {
     }
 
     private void error(char[] msg) {
-        throw new Exception("VFSPath: "~msg);
+        throw new CustomException("VFSPath: "~msg);
     }
 }
 

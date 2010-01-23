@@ -54,7 +54,7 @@ abstract class GameObject : EventTarget {
         mInternalActive = set;
         if (mInternalActive) {
             if (!mIsAlive)
-                throw new Exception("setting active=true for a dead object");
+                throw new CustomException("setting active=true for a dead object");
             engine.ensureAdded(this);
         }
         updateInternalActive();

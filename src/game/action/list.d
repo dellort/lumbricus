@@ -48,7 +48,7 @@ class ActionListClass : ActionClass {
         }
         if (actions.length == 0) {
             //xxx
-            throw new Exception("Sorry, empty action list not allowed");
+            throw new CustomException("Sorry, empty action list not allowed");
         }
     }
 
