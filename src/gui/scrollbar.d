@@ -3,6 +3,7 @@ module gui.scrollbar;
 import gui.button;
 import gui.container;
 import gui.global;
+import gui.label;
 import gui.widget;
 import framework.framework;
 import framework.event;
@@ -15,7 +16,7 @@ import utils.time;
 class ScrollBar : Widget {
     private {
         int mDir; //0=in x direction, 1=y
-        Button mSub, mAdd;
+        ImageButton mSub, mAdd;
         Bar mBar;
         Widget mBackground;
         Rect2i mBarArea;
@@ -70,12 +71,18 @@ class ScrollBar : Widget {
             }
         }
 
-        override protected void onKeyEvent(KeyInfo key) {
-            if (!key.isPress && key.code == Keycode.MOUSE_LEFT) {
-                drag_active = key.isDown;
+        override bool onKeyDown(KeyInfo key) {
+            if (key.code == Keycode.MOUSE_LEFT) {
+                drag_active = true;
                 drag_start = containerPosition();
                 drag_displace = coordsToParent(mousePos);
+                return true;
             }
+            return false;
+        }
+        override void onKeyUp(KeyInfo key) {
+            if (key.code == Keycode.MOUSE_LEFT)
+                drag_active = false;
         }
     }
 
@@ -90,12 +97,12 @@ class ScrollBar : Widget {
     this(bool horiz) {
         mDir = horiz ? 0 : 1;
         //xxx: let the button be load completely by the styles system (huh)
-        mAdd = new Button();
+        mAdd = new ImageButton();
         mAdd.image = gGuiResources.get!(Surface)(cAddImg[mDir]);
         mAdd.onClick = &onAddSub;
         mAdd.autoRepeat = true;
         addChild(mAdd);
-        mSub = new Button();
+        mSub = new ImageButton();
         mSub.image = gGuiResources.get!(Surface)(cSubImg[mDir]);
         mSub.onClick = &onAddSub;
         mSub.autoRepeat = true;
@@ -126,28 +133,24 @@ class ScrollBar : Widget {
         raiseValueChange();
     }
 
-    override protected void onKeyEvent(KeyInfo ki) {
+    override bool onKeyDown(KeyInfo ki) {
         //nothing was hit -> free area of scrollbar, between the bar and the
         //two buttons
 
         auto at = mousePos;
         if (ki.code == Keycode.MOUSE_LEFT && mBarArea.isInside(at)) {
-            if (ki.isDown) {
-                //xxx: would need some kind of auto repeat too
-                //also, this looks ugly
-                auto bar = mBar.containedBounds;
-                int dir = (at[mDir] > ((bar.p1 + bar.p2)/2)[mDir]) ? +1 : -1;
-                //multiply dir with the per-click increment (fixed to 1 now)
-                curValue = curValue + dir*mLargeChange;
-                raiseValueChange();
-            }
+            //xxx: would need some kind of auto repeat too
+            //also, this looks ugly
+            auto bar = mBar.containedBounds;
+            int dir = (at[mDir] > ((bar.p1 + bar.p2)/2)[mDir]) ? +1 : -1;
+            //multiply dir with the per-click increment (fixed to 1 now)
+            curValue = curValue + dir*mLargeChange;
+            raiseValueChange();
+            return true;
         }
 
         //xxx we really should have proper bindings (using KeyBindings), but for
         //  now this is enough...
-
-        if (!ki.isPress())
-            return;
 
         int[2][2] keys =
             [[Keycode.LEFT, Keycode.RIGHT], [Keycode.UP, Keycode.DOWN]];
@@ -167,7 +170,10 @@ class ScrollBar : Widget {
         if (change) {
             curValue = curValue + change;
             raiseValueChange();
+            return true;
         }
+
+        return false;
     }
 
     override protected Vector2i layoutSizeRequest() {

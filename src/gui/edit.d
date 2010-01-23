@@ -152,28 +152,29 @@ class EditLine : Widget {
         return mFont.findIndex(mCurline, x - mFont.textSize(mPrompt).x);
     }
 
-    override void onKeyEvent(KeyInfo info) {
-        if (info.isPress && handleKeyPress(info)) {
+    override bool onKeyDown(KeyInfo info) {
+        if (handleKeyPress(info)) {
             //make cursor visible when a keypress was handled
             mCursorVisible = true;
             mCursorTimer.reset();
-            return;
+            return true;
         }
-        if (info.isMouseButton) { //take focus when clicked
-            if (!info.isPress && info.code == Keycode.MOUSE_LEFT) {
-                mMouseDown = info.isDown;
-                if (mMouseDown) {
-                    //set cursor pos according to click
-                    mCursor = indexAtX(mousePos.x);
-                    mSelStart = mSelEnd = mCursor;
-                    //make cursor visible
-                    mCursorVisible = true;
-                    mCursorTimer.reset();
-                }
-            }
-            claimFocus();
-            return;
+        if (info.isMouseButton && info.code == Keycode.MOUSE_LEFT) {
+            mMouseDown = true;
+            //set cursor pos according to click
+            mCursor = indexAtX(mousePos.x);
+            mSelStart = mSelEnd = mCursor;
+            //make cursor visible
+            mCursorVisible = true;
+            mCursorTimer.reset();
+            return true;
         }
+        return false;
+    }
+
+    override void onKeyUp(KeyInfo info) {
+        if (info.isMouseButton)
+            mMouseDown = false;
     }
 
     override void onMouseMove(MouseInfo info) {

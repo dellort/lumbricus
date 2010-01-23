@@ -160,11 +160,11 @@ class Common {
     }
 
     //translate into translated user-readable string
-    char[] translateKeyshortcut(Keycode code, ModifierSet mods) {
+    char[] translateKeyshortcut(BindKey key) {
         if (!localizedKeynames)
             return "?";
-        char[] res = localizedKeynames(translateKeycodeToKeyID(code), "?");
-        foreachSetModifier(mods,
+        char[] res = localizedKeynames(translateKeycodeToKeyID(key.code), "?");
+        foreachSetModifier(key.mods,
             (Modifier mod) {
                 res = localizedKeynames(modifierToString(mod), "?") ~ "+" ~ res;
             }
@@ -174,12 +174,11 @@ class Common {
 
     //xxx maybe move to framework
     char[] translateBind(KeyBindings b, char[] bind) {
-        Keycode code;
-        ModifierSet mods;
-        if (!b.readBinding(bind, code, mods)) {
+        BindKey k;
+        if (!b.readBinding(bind, k)) {
             return "-";
         } else {
-            return translateKeyshortcut(code, mods);
+            return translateKeyshortcut(k);
         }
     }
 

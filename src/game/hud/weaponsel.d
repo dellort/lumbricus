@@ -37,6 +37,8 @@ class WeaponSelWindow : Container {
             WeaponClass weapon;
             WeaponSet.Entry item;
 
+            ImageLabel image;
+
             Texture active;   //enabled, selectable weapon
             Texture inactive; //disabled weapon (like airstrikes in caves)
 
@@ -52,6 +54,9 @@ class WeaponSelWindow : Container {
 
             this(WeaponClass c) {
                 allowFocus = false;
+                image = new ImageLabel();
+                setClient(image);
+
                 weapon = c;
 
                 Surface icon = weapon.icon;
@@ -63,7 +68,7 @@ class WeaponSelWindow : Container {
                 //make the image look disabled
                 inactive.applyBCG(-0.3, 0.5f, 2.5f);
 
-                image = active;
+                image.image = active;
                 visible = false;
                 styles.addClass("in-weapon-cell");
                 onClick = &clickWeapon;
@@ -78,7 +83,7 @@ class WeaponSelWindow : Container {
                     item = wset.find(weapon);
                 }
                 if (quantity > 0) {
-                    image = (canUse ? active : inactive);
+                    image.image = (canUse ? active : inactive);
                     enabled = canUse;
                 }
                 visible = (quantity > 0);

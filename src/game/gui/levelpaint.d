@@ -163,7 +163,7 @@ class PainterWidget : Widget {
         }
     }
 
-    private bool onKeyDown(char[] bind, KeyInfo infos) {
+    override bool onKeyDown(KeyInfo infos) {
         if (infos.code == Keycode.MOUSE_LEFT) {
             mPaintLexel = Lexel.SolidSoft;
             paintAtMouse(PMState.down);
@@ -190,21 +190,13 @@ class PainterWidget : Widget {
         return false;
     }
 
-    private bool onKeyUp(char[] bind, KeyInfo infos) {
+    override void onKeyUp(KeyInfo infos) {
         if (infos.code == Keycode.MOUSE_LEFT
             || infos.code == Keycode.MOUSE_MIDDLE
             || infos.code == Keycode.MOUSE_RIGHT) {
             paintAtMouse(PMState.up);
             mPaintLexel = Lexel.INVALID;
-            return true;
         }
-        return false;
-    }
-
-    override protected void onKeyEvent(KeyInfo ki) {
-        auto b = findBind(ki);
-        (ki.isDown && onKeyDown(b, ki))
-            || (ki.isUp && onKeyUp(b, ki));
     }
 
     override protected void onMouseMove(MouseInfo info) {

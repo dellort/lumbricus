@@ -654,10 +654,6 @@ class GameController {
             loadLevelObjects(config.levelobjects);
         }
 
-        //?? where do these belong?
-        //xxx 1: should be loaded from configfiles
-        //xxx 2: should not be in controller (nothing team specific here)
-
         //only valid while loading
         mWeaponSets = null;
 

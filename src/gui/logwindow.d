@@ -164,14 +164,14 @@ public class LogWindow : Widget, Output {
         return Vector2i(0);
     }
 
-    override protected void onKeyEvent(KeyInfo infos) {
+    override bool onKeyDown(KeyInfo infos) {
         bool wd = infos.code == Keycode.MOUSE_WHEELDOWN;
         bool wu = infos.code == Keycode.MOUSE_WHEELUP;
         if (wd || wu) {
-            if (infos.isDown()) {
-                scrollBack(wu ? +1 : -1);
-            }
+            scrollBack(wu ? +1 : -1);
+            return true;
         }
+        return false;
     }
 
     override void loadFrom(GuiLoader loader) {

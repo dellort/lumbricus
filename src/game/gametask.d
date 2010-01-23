@@ -514,7 +514,7 @@ class GameTask : StatefulTask {
             auto types = ph.collide.collisionTypes;
             auto table = new TableContainer(types.length+1, types.length+1,
                 Vector2i(2));
-            void addc(int x, int y, Label l) {
+            void addc(int x, int y, Widget l) {
                 Cell c = new Cell();
                 c.bla = (y>0) && (x > y);
                 c.blu = (y>0) && (x==y);
@@ -534,7 +534,7 @@ class GameTask : StatefulTask {
             foreach (t; types) {
                 int x = 1;
                 foreach (t2; types) {
-                    Label lbl = new Label();
+                    ImageLabel lbl = new ImageLabel();
                     if (ph.collide.canCollide(t, t2)) {
                         lbl.image = gGuiResources.get!(Surface)
                             ("window_close"); //that icon is good enough

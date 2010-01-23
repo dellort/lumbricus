@@ -122,3 +122,22 @@ class BoxContainer : SimpleContainer {
     }
 }
 
+class HBoxContainer : BoxContainer {
+    this(bool homogeneous = false, int cellspacing = 0) {
+        super(true, homogeneous, cellspacing);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("hbox");
+    }
+}
+
+class VBoxContainer : BoxContainer {
+    this(bool homogeneous = false, int cellspacing = 0) {
+        super(false, homogeneous, cellspacing);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("vbox");
+    }
+}

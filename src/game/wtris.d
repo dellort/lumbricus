@@ -249,13 +249,7 @@ public class WTris : Task {
             return true;
         }
 
-        override protected void onKeyEvent(KeyInfo key) {
-            if (key.isDown) {
-                onKeyDown(key);
-            }
-        }
-
-        private bool onKeyDown(KeyInfo key) {
+        override bool onKeyDown(KeyInfo key) {
             int rel_x, rel_rot;
             switch (key.code) {
                 case Keycode.LEFT: rel_x -= 1; break;

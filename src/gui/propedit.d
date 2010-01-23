@@ -103,12 +103,11 @@ class EditProperty {
 class EditBool : EditProperty {
 //private: lol dmd bug 3581
     PropertyBool mB;
-    Button mCheckbox;
+    CheckBox mCheckbox;
     public this(PropertyValue v) {
         super(v);
         mB = castStrict!(PropertyBool)(v);
-        mCheckbox = new Button;
-        mCheckbox.isCheckbox = true;
+        mCheckbox = new CheckBox;
         mCheckbox.onClick2 = &onclick;
         widget = mCheckbox;
     }

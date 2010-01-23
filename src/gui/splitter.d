@@ -36,11 +36,16 @@ class Splitter : Container {
                 styles.addClass("w-splitbar");
             }
 
-            override void onKeyEvent(KeyInfo info) {
-                if (info.isMouseButton() && !info.isPress()) {
-                    mDraging = info.isDown();
-                    mStartDrag = mousePos();
-                }
+            override bool onKeyDown(KeyInfo info) {
+                if (!info.isMouseButton())
+                    return false;
+                mDraging = true;
+                mStartDrag = mousePos();
+                return true;
+            }
+            override void onKeyUp(KeyInfo info) {
+                if (info.isMouseButton())
+                    mDraging = false;
             }
 
             override void onMouseMove(MouseInfo info) {

@@ -90,7 +90,7 @@ class Animator : SceneObjectCentered {
         if (mData) {
             return mData.bounds() + pos;
         }
-        return Rect2i.Empty;
+        return Rect2i.Abnormal;
     }
 
     Animation animation() {

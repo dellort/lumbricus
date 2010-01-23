@@ -71,11 +71,6 @@ class GuiConsole : Container {
             }
             return true;
         }
-
-        //needs <tab> for autocompletion
-        override protected bool usesTabKey() {
-            return true;
-        }
     }
 
     final Output output() {
@@ -171,11 +166,6 @@ class GuiConsole : Container {
         }
 
         super.simulate();
-    }
-
-    //catch all events
-    override void onKeyEvent(KeyInfo infos) {
-        mEdit.claimFocus();
     }
 
     override protected void layoutSizeAllocation() {

@@ -29,7 +29,7 @@ class CmdNetServerTask : Task {
     private {
         CmdNetServer mServer;
         Label mLabel;
-        Button mInternetToggle;
+        CheckBox mInternetToggle;
         StringListWidget mPlayerList;
         ConfigNode mSrvConf;
         Thread mServerThread;
@@ -45,8 +45,7 @@ class CmdNetServerTask : Task {
         mSrvConf = loadConfigDef("server");
 
         mLabel = new Label();
-        mInternetToggle = new Button();
-        mInternetToggle.isCheckbox = true;
+        mInternetToggle = new CheckBox();
         mInternetToggle.text = "announce on internet";
         mPlayerList = new StringListWidget();
         auto box = new BoxContainer(false);

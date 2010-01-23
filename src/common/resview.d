@@ -123,11 +123,11 @@ class ParticleHandler : ResViewHandler!(ParticleType) {
             world.waterLine = 200;
         }
 
-        override void onKeyEvent(KeyInfo info) {
-            if (info.isMouseButton && info.isDown) {
-                world.emitParticle(toVector2f(mousePos()), Vector2f(0),
-                    resource);
-            }
+        override bool onKeyDown(KeyInfo info) {
+            if (!info.isMouseButton)
+                return false;
+            world.emitParticle(toVector2f(mousePos()), Vector2f(0), resource);
+            return true;
         }
 
         override void onDraw(Canvas c) {
@@ -180,8 +180,10 @@ class SampleHandler : ResViewHandler!(Sample) {
                     btnBox.add(b, al);
                 return b;
             }
-            auto chk = button("loop?", &onLoop, true);
-            chk.isCheckbox = true;
+            auto chk = new CheckBox();
+            chk.text = "loop?";
+            chk.onClick = &onLoop;
+            box.add(chk, al);
             button("play", &onPlay);
             button("pause", &onPause);
             button("stop", &onStop);
@@ -190,7 +192,7 @@ class SampleHandler : ResViewHandler!(Sample) {
             box.add(new Position());
             addChild(box);
         }
-        void onLoop(Button b) {
+        void onLoop(CheckBox b) {
             ch.looping = b.checked();
         }
         void onPlay(Button b) {
@@ -239,10 +241,11 @@ class SampleHandler : ResViewHandler!(Sample) {
                     resource.length.secsf, Color(0.3, 0.3, 0.3, 0.5));
             }
         }
-        override void onKeyEvent(KeyInfo infos) {
-            if (infos.isMouseButton && infos.isDown) {
-                ch.play(resource.length/4, timeMsecs(300));
-            }
+        override bool onKeyDown(KeyInfo infos) {
+            if (!infos.isMouseButton)
+                return false;
+            ch.play(resource.length/4, timeMsecs(300));
+            return true;
         }
     }
 
@@ -384,7 +387,8 @@ class AnimationHandler : ResViewHandler!(Animation) {
         Label mFrameLabel;
         ScrollBar mSpeed;
         Label mSpeedLabel;
-        Button mPaused, mShowFrames;
+        CheckBox mPaused;
+        Button mShowFrames;
         BoxContainer mGuiBox;
     }
 
@@ -445,9 +449,8 @@ class AnimationHandler : ResViewHandler!(Animation) {
         mSpeed.curValue = mSpeed.maxValue/2;
 
         table.addRow();
-        mPaused = new Button();
+        mPaused = new CheckBox();
         //mPaused.font = gFramework.getFont("normal");
-        mPaused.isCheckbox = true;
         mPaused.text = "paused";
         mPaused.onClick = &onPause;
         table.add(mPaused, 0, table.height-1, 2, 1);
@@ -481,7 +484,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
         mSpeedLabel.text = myformat("Speed: {}", mTime.slowDown);
     }
 
-    private void onPause(Button sender) {
+    private void onPause(CheckBox sender) {
         mTime.paused = mPaused.checked;
     }
 
@@ -559,10 +562,11 @@ class AnimationHandler : ResViewHandler!(Animation) {
             }
         }
 
-        override void onKeyEvent(KeyInfo infos) {
-            if (infos.isMouseButton && infos.isUp) {
-                resetAnim();
-            }
+        override bool onKeyDown(KeyInfo infos) {
+            if (!infos.isMouseButton)
+                return false;
+            resetAnim();
+            return true;
         }
 
         Vector2i layoutSizeRequest() {

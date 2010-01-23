@@ -34,8 +34,8 @@ class LevelWidget : SimpleContainer {
     private {
         DropDownList mSavedLevels;
         LevelGenerator mCurrentLevel;
-        Button mLevelBtn, mLevelSaveBtn;
-        Button[8] mLvlQuickGen;
+        ImageButton mLevelBtn, mLevelSaveBtn;
+        ImageButton[8] mLvlQuickGen;
         BoxContainer mLevelDDBox;
         LevelGeneratorShared mGenerator;
 
@@ -57,7 +57,7 @@ class LevelWidget : SimpleContainer {
         auto loader = new LoadGui(config);
         loader.load();
 
-        mLevelBtn = loader.lookup!(Button)("btn_level");
+        mLevelBtn = loader.lookup!(ImageButton)("btn_level");
         mLevelBtn.onClick = &levelClick;
         mLevelBtn.onRightClick = &levelRightClick;
 
@@ -69,7 +69,7 @@ class LevelWidget : SimpleContainer {
         mSavedLevels.onEditEnd = &levelEditEnd;
         mSavedLevels.edit.onChange = &levelEditChange;
 
-        mLevelSaveBtn = loader.lookup!(Button)("btn_savelevel");
+        mLevelSaveBtn = loader.lookup!(ImageButton)("btn_savelevel");
         mLevelSaveBtn.onClick = &saveLevelClick;
         mLevelSaveBtn.remove();
 
@@ -78,7 +78,7 @@ class LevelWidget : SimpleContainer {
         auto allTemplates = mGenerator.templates.all;
         foreach (int idx, ref btn; mLvlQuickGen) {
             //template names are 1-based
-            btn = loader.lookup!(Button)(myformat("btn_quickgen{}", idx+1));
+            btn = loader.lookup!(ImageButton)(myformat("btn_quickgen{}", idx+1));
             //xxx template description used as an id (like in game.gui.preview)
             btn.image = gGuiResources.get!(Surface)("tmpl_thumb_"
                 ~ allTemplates[idx].description);

@@ -187,15 +187,14 @@ class TestFrame7 : Container {
     Window mActivePopup;
     Widget mPopup;
     ScrollBar mAlign, mLength;
-    Button mVolatile, mInside;
+    CheckBox mVolatile, mInside;
 
     this() {
         auto tc = new TableContainer(3, 3, Vector2i(10));
-        Button[4] chk;
+        CheckBox[4] chk;
         foreach (inout b; chk) {
-            b = new Button();
+            b = new CheckBox();
             b.onClick = &onChk;
-            b.isCheckbox = true;
             mChk.add(b);
         }
         tc.add(chk[0], 0, 1);
@@ -217,12 +216,10 @@ class TestFrame7 : Container {
         mLength.minValue = 1;
         mLength.onValueChange = &onAlign;
         inner.add(mLength);
-        mVolatile = new Button();
-        mVolatile.isCheckbox = true;
+        mVolatile = new CheckBox();
         mVolatile.text = "Volatile";
         inner.add(mVolatile);
-        mInside = new Button;
-        mInside.isCheckbox = true;
+        mInside = new CheckBox();
         mInside.text = "Inside Wnd.";
         inner.add(mInside);
         tc.add(inner, 1, 1);
@@ -233,7 +230,7 @@ class TestFrame7 : Container {
         mPopup = p;
     }
 
-    void onChk(Button b) {
+    void onChk(CheckBox b) {
         mChk.check(b);
         update();
     }
@@ -321,7 +318,7 @@ class TestFrame9 : Container {
 
 //not really GUI related
 class TestGradient : Container {
-    Button mChk;
+    CheckBox mChk;
     class Draw : Widget {
         override void onDraw(Canvas c) {
             auto rc = widgetBounds();
@@ -342,8 +339,7 @@ class TestGradient : Container {
         auto b = new BoxContainer(false);
         auto d = new Draw();
         b.add(d);
-        mChk = new Button();
-        mChk.isCheckbox = true;
+        mChk = new CheckBox();
         mChk.text = "gradient versus solid rect";
         b.add(mChk, WidgetLayout.Noexpand());
         addChild(b);
@@ -395,10 +391,9 @@ class TestTask : Task {
         editl.prompt = "> ";
         createWindow("EditLine", editl);
         createWindow("Console", new TestFrame6);
-        auto checkbox = new Button();
-        checkbox.isCheckbox = true;
+        auto checkbox = new CheckBox();
         checkbox.text = "Hello I'm a checkbox!";
-        checkbox.shrink = true; //for more testing
+        //checkbox.shrink = true; //for more testing
         createWindow("CheckBox", checkbox);
         createWindow("Popup-Test", new TestFrame7());
         createWindow("DropDownList", new TestFrame8());
@@ -505,7 +500,7 @@ class TestTask2 : Task {
     FontTest mFont;
     BoxTest mBox;
     ScrollBar[6] mBars;
-    Button mBevel, mNotRounded;
+    CheckBox mBevel, mNotRounded;
 
     void onScrollbar(ScrollBar sender) {
         float getcolor(int n) {
@@ -534,11 +529,11 @@ class TestTask2 : Task {
         gFramework.releaseCaches(false);
     }
 
-    void onBevelClick(Button sender) {
+    void onBevelClick(CheckBox sender) {
         mBox.box.drawBevel = sender.checked();
     }
 
-    void onNotRoundedClick(Button sender) {
+    void onNotRoundedClick(CheckBox sender) {
         mBox.box.noRoundedCorners = sender.checked();
     }
 
@@ -582,14 +577,12 @@ class TestTask2 : Task {
 
         gui.add(scr, WidgetLayout.Expand(true));
 
-        mBevel = new Button();
-        mBevel.isCheckbox = true;
+        mBevel = new CheckBox();
         mBevel.onClick = &onBevelClick;
         mBevel.text = "Bevel";
         gui.add(mBevel, WidgetLayout.Expand(true));
 
-        mNotRounded = new Button();
-        mNotRounded.isCheckbox = true;
+        mNotRounded = new CheckBox();
         mNotRounded.onClick = &onNotRoundedClick;
         mNotRounded.text = "No rounded corners";
         gui.add(mNotRounded, WidgetLayout.Expand(true));
@@ -768,10 +761,14 @@ class TestTask4 : Task {
             log.writefln("{}: {}", this, m);
         }
 
-        override void onKeyEvent(KeyInfo info) {
+        override bool onKeyDown(KeyInfo info) {
             log.writefln("{}: {}", this, info.toString());
             if (info.isDown() && info.code == Keycode.MOUSE_RIGHT)
                 gFramework.mouseLocked = !gFramework.mouseLocked;
+            return true;
+        }
+        override void onKeyUp(KeyInfo info) {
+            log.writefln("{}: {}", this, info.toString());
         }
 
         override void onMouseEnterLeave(bool mouseIsInside) {
@@ -805,7 +802,7 @@ class TestTask4 : Task {
         }
     }
 
-    private void mouseLock(Button sender) {
+    private void mouseLock(CheckBox sender) {
         gFramework.mouseLocked = sender.checked();
     }
 
@@ -948,13 +945,14 @@ class PixelTest : Task {
 
         this() {
         }
-        override void onKeyEvent(KeyInfo inf) {
-            if (!inf.isUp())
-                return;
+        override bool onKeyDown(KeyInfo inf) {
             if (inf.code == Keycode.MOUSE_LEFT)
                 x++;
             else if (inf.code == Keycode.MOUSE_RIGHT)
                 x--;
+            else
+                return false;
+            return true;
         }
         override void onDraw(Canvas canvas) {
             const m = 5;
@@ -1033,7 +1031,7 @@ class CanvasTest : Task {
     private {
         ScrollBar mRot, mZoom;
         const cZoomScale = 100;
-        Button mMirrY;
+        CheckBox mMirrY;
         Surface mImg;
         SubSurface mImgSub;
         Vector2i mCenter;
@@ -1060,12 +1058,13 @@ class CanvasTest : Task {
             c.drawFilledCircle(at-x, 3, Color(1,0,0));
         }
 
-        override void onKeyEvent(KeyInfo inf) {
-            if (!inf.isDown() || inf.code != Keycode.MOUSE_LEFT)
-                return;
+        override bool onKeyDown(KeyInfo inf) {
+            if (inf.code != Keycode.MOUSE_LEFT)
+                return false;
             auto r = toVector2f(mousePos - at);
             r = r.rotated(-eff.rotate) / eff.scale;
             mCenter = toVector2i(r) + eff.center;
+            return true;
         }
     }
 
@@ -1086,8 +1085,7 @@ class CanvasTest : Task {
         mZoom.setLayout(WidgetLayout.Expand(true));
         box.add(mZoom);
 
-        mMirrY = new Button();
-        mMirrY.isCheckbox = true;
+        mMirrY = new CheckBox();
         mMirrY.text = "Mirror Y";
         mMirrY.setLayout(WidgetLayout.Expand(true));
         box.add(mMirrY);

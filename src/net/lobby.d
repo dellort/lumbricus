@@ -157,11 +157,11 @@ class CmdNetClientTask : Task {
     }
 
     private void tabActivate(Tabs sender) {
-        if (sender.active == mDirectMarker) {
+        if (sender.active && sender.active.client is mDirectMarker) {
             setMode(-1);
         } else {
             foreach (int idx, ref as; mAnnounce) {
-                if (sender.active == as.marker) {
+                if (sender.active && sender.active.client is as.marker) {
                     setMode(idx);
                     return;
                 }

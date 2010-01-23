@@ -47,7 +47,7 @@ public struct Rect2(T) {
     //return a rectangle that could be considered to be "empty"
     // .isNormal() will return false, and the first .extend() will make the
     // rectangle to exactly the extended point, and also makes isNormal()==true
-    public static Rect2 Empty() {
+    public static Rect2 Abnormal() {
         Rect2 r;
         r.p1 = Point(T.max);
         r.p2 = Point(T.min);

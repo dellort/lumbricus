@@ -756,18 +756,25 @@ class GameView : Widget {
         bind = str.replace(bind, "%my", myformat("{}", mousePos.y));
         return bind;
     }
-    override protected void onKeyEvent(KeyInfo ki) {
-        if (ki.isDown() || ki.isUp()) {
-            char[] bind = findBind(ki);
+    override bool onKeyDown(KeyInfo ki) {
+        return doKeyEvent(ki);
+    }
+    override void onKeyUp(KeyInfo ki) {
+        doKeyEvent(ki);
+    }
+    private bool doKeyEvent(KeyInfo ki) {
+        char[] bind = findBind(ki);
+        if (!bind.length)
+            return false;
+        if (!ki.isRepeated) {
             if (auto pcmd = bind in mKeybindToCommand) {
                 bind = processBinding(*pcmd, ki.isUp);
             }
-            if (!bind.length)
-                return;
             //if not processed locally, send
             if (!mCmd.execute(bind, true))
                 executeServerCommand(bind);
         }
+        return true;
     }
     /*protected void onMouseMove(MouseInfo mouse) {
         auto bind = processBinding("set_target %mx %my", false);

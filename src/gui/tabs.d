@@ -10,21 +10,36 @@ import utils.vector2;
 import utils.configfile;
 import utils.misc;
 
-//NOTE: reparents the client widgets depending on which tab is active; this
-//      means you must not use Widget.remove() to remove clients from it, and
-//      Widget.parent is meaningless for client widgets.
+//NOTE: Tabs uses TabPage.visible internally
+class TabPage : Widget {
+    private Widget mClient;
+
+    this(Widget client) {
+        mClient = client;
+        styles.addClass("tab-page");
+        focusable = false;
+        addChild(mClient);
+    }
+
+    final Widget client() {
+        return mClient;
+    }
+}
+
+
+//NOTE: Widget.parent is meaningless for client widgets.
 class Tabs : Container {
     private {
         struct Item {
             Button button;
-            Widget client;
+            TabPage page;
             //rectangle for the button, only valid after relayouting
             Rect2i buttonrc;
             Vector2i size_tmp;
         }
 
         Item[] mItems;
-        Widget mActive;
+        TabPage mActive;
         Vector2i mButtons;
 
         const cBorder = 1;
@@ -32,9 +47,11 @@ class Tabs : Container {
 
     void delegate(Tabs sender) onActiveChange;
 
-    void addTab(Widget client, char[] caption) {
+    TabPage addTab(Widget client, char[] caption) {
         assert (!!client);
         assert (!client.parent);
+        auto page = new TabPage(client);
+        page.visible = false;
         auto b = new Button();
         b.styles.addClass("tab-button");
         b.text = caption;
@@ -44,20 +61,22 @@ class Tabs : Container {
         l.padA.y = cBorder*2;
         l.padB.y = cBorder;
         b.setLayout(l);
-        mItems ~= Item(b, client);
+        mItems ~= Item(b, page);
         addChild(b);
+        addChild(page);
         //-- addChild for the button already does this
         //-- needRelayout();
         if (!active)
-            active = client;
+            active = page;
+        return page;
     }
 
-    void removeTab(Widget client) {
+    void removeTab(TabPage page) {
         foreach (int i, Item item; mItems) {
-            if (item.client is client) {
+            if (item.page is page) {
                 item.button.remove();
                 mItems = mItems[0..i] ~ mItems[i+1..$];
-                if (client is active)
+                if (page is active)
                     active = null;
                 return;
             }
@@ -65,21 +84,22 @@ class Tabs : Container {
         assert (false);
     }
 
-    Widget active() {
+    TabPage active() {
         return mActive;
     }
 
-    void active(Widget w) {
+    void active(TabPage w) {
         if (mActive is w)
             return;
-        if (mActive)
-            mActive.remove();
         if (!w)
             return;
+        assert(w.parent is this);
+        if (mActive)
+            mActive.visible = false;
         foreach (Item item; mItems) {
-            if (item.client is w) {
+            if (item.page is w) {
                 mActive = w;
-                addChild(mActive);
+                mActive.visible = true;
                 if (onActiveChange)
                     onActiveChange(this);
                 return;
@@ -91,7 +111,7 @@ class Tabs : Container {
     private void onSetActive(Button sender) {
         foreach (Item item; mItems) {
             if (item.button is sender) {
-                active = item.client;
+                active = item.page;
                 return;
             }
         }
@@ -103,7 +123,7 @@ class Tabs : Container {
         Vector2i buttons;
         foreach (ref Item w; mItems) {
             //report the biggest, but among all existing tabs (?)
-            biggest = biggest.max(w.client.layoutCachedContainerSizeRequest());
+            biggest = biggest.max(w.page.layoutCachedContainerSizeRequest());
             //and some manual layouting (see drawing code) for the button bar
             w.size_tmp = w.button.layoutCachedContainerSizeRequest();
             buttons.x += w.size_tmp.x;
@@ -117,15 +137,13 @@ class Tabs : Container {
 
     protected override void layoutSizeAllocation() {
         Rect2i b = widgetBounds();
-        if (mActive) {
-            b.p1.y += mButtons.y + (cBorder+1)/2;
-            mActive.layoutContainerAllocate(b);
-        }
+        b.p1.y += mButtons.y + (cBorder+1)/2;
         Vector2i cur;
         foreach (ref Item w; mItems) {
             w.buttonrc = Rect2i(cur, cur + w.size_tmp);
             cur.x += w.size_tmp.x;
             w.button.layoutContainerAllocate(w.buttonrc);
+            w.page.layoutContainerAllocate(b);
         }
     }
 
@@ -149,7 +167,7 @@ class Tabs : Container {
         }
         Item* pactive = null;
         foreach (ref Item item; mItems) {
-            bool ac = item.client is mActive;
+            bool ac = item.page is mActive;
             if (!ac) {
                 drawFrame(item.buttonrc, Color(0.7));
             } else {

@@ -89,7 +89,7 @@ class AniFramesAtlas : AniFrames {
 
             //calculate bounds, xxx slight code duplication with drawFrame()
             Rect2i boundingBox() {
-                Rect2i bnds = Rect2i.Empty();
+                Rect2i bnds = Rect2i.Abnormal();
                 foreach (inout frame; frames) {
                     auto image = mImages.texture(frame.bitmapIndex);
                     auto origin = Vector2i(frame.centerX, frame.centerY);

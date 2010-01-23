@@ -423,14 +423,15 @@ class ScrollWindow : Container {
         return super.handleChildInput(event);
     }
 
-    override void onKeyEvent(KeyInfo info) {
+    override bool onKeyDown(KeyInfo info) {
         bool up = info.code == Keycode.MOUSE_WHEELUP;
         bool down = info.code == Keycode.MOUSE_WHEELDOWN;
         if (enableMouseWheel && (up || down)) {
-            if (info.isDown)
-                //xxx: arbitrarly chosen value
-                scrollRelative(Vector2i(0, (up ? +1 : -1))*10);
+            //xxx: arbitrarly chosen value
+            scrollRelative(Vector2i(0, (up ? +1 : -1))*10);
+            return true;
         }
+        return false;
     }
 
     static this() {

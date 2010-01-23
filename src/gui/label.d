@@ -15,7 +15,6 @@ class Label : Widget {
     private {
         FormattedText mText;
         bool mShrink, mCenterX;
-        Surface mImage;
         //calculated by layoutSizeRequest
         Vector2i mTextSize;
 
@@ -26,41 +25,25 @@ class Label : Widget {
 
     this() {
         focusable = false;
+        isClickable = false;
         mText = new FormattedText();
     }
 
-    //no mouse events
-    override bool onTestMouse(Vector2i) {
-        return false;
-    }
-
-    void image(Surface img) {
-        if (img is mImage)
-            return;
-        mImage = img;
-        mText.forceHeight = !mImage;
-        needResize();
-    }
-    Surface image() {
-        return mImage;
-    }
-
-    private Vector2i textSize() {
-        return mText.textSize();
+    final FormattedText renderer() {
+        return mText;
     }
 
     override Vector2i layoutSizeRequest() {
-        auto csize = textSize();
+        auto csize = mText.textSize();
         mTextSize = csize;
         if (mShrink) {
             csize.x = 0;
         }
-        if (mImage) {
-            //(mText.size.x was mText.length)
-            csize.x += mImage.size.x + (mText.size.x ? cSpacing : 0);
-            csize.y = max(csize.y, mImage.size.y);
-        }
         return csize;
+    }
+
+    override void layoutSizeAllocation() {
+        mText.setArea(size, mCenterX ? 0 : -1, 0);
     }
 
     void text(char[] txt) {
@@ -110,7 +93,7 @@ class Label : Widget {
     //if true, report size as 0 and then draw in a special way (see .draw())
     void shrink(bool s) {
         mShrink = s;
-        needRelayout();
+        needResize();
     }
     bool shrink() {
         return mShrink;
@@ -118,6 +101,7 @@ class Label : Widget {
 
     void centerX(bool c) {
         mCenterX = c;
+        needResize();
     }
     bool centerX() {
         return mCenterX;
@@ -129,29 +113,7 @@ class Label : Widget {
     }
 
     override void onDraw(Canvas canvas) {
-        //xxx replace manual centering code etc. by sth. automatic
-        int x = 0;
-        if (mImage) {
-            auto s = size;
-            //(mText.size.x was text.length)
-            if (mText.size.x)
-                s.x = mImage.size.x;
-            auto ipos = s/2 - mImage.size/2;
-            canvas.draw(mImage, ipos);
-            x = ipos.x + mImage.size.x + cSpacing;
-        }
-        Vector2i p = Vector2i(x, 0);
-        if (mCenterX && mTextSize.x <= size.x)
-            p = p + size/2 - mTextSize/2;
-        else
-            p.y = p.y + size.y/2 - mTextSize.y/2;
-        //xxx need replacement for drawTextLimited
-        //    FormattedText should do this all by itself
-        //if (!mShrink) {
-            mText.draw(canvas, p);
-        //} else {
-        //    mFont.drawTextLimited(canvas, p, (size-b*2-p).x, text);
-        //}
+        mText.draw(canvas, Vector2i(0));
     }
 
     override void readStyles() {
@@ -178,15 +140,49 @@ class Label : Widget {
         mShrink = node.getBoolValue("shrink", mShrink);
         mCenterX = node.getBoolValue("center_x", mCenterX);
 
-        char[] img = node.getStringValue("image");
-        if (img.length > 0) {
-            image = gGuiResources.get!(Surface)(img);
-        }
-
         super.loadFrom(loader);
     }
 
     static this() {
         WidgetFactory.register!(typeof(this))("label");
+    }
+}
+
+class ImageLabel : Widget {
+    private {
+        Surface mImage;
+    }
+
+    this() {
+        focusable = false;
+        isClickable = false;
+    }
+
+    this(Surface img) {
+        this();
+        image = img;
+    }
+
+    void image(Surface img) {
+        if (img is mImage)
+            return;
+        mImage = img;
+        needResize();
+    }
+    Surface image() {
+        return mImage;
+    }
+
+    override Vector2i layoutSizeRequest() {
+        return mImage ? mImage.size : Vector2i(0);
+    }
+
+    override void onDraw(Canvas canvas) {
+        if (mImage)
+            canvas.draw(mImage, size/2 - mImage.size/2);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("imagelabel");
     }
 }

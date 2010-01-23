@@ -192,7 +192,7 @@ class GenerateFromTemplate : LevelGenerator {
 
         Level nlevel = mUnrendered.copy();
         nlevel.theme = mCurTheme.environmentTheme;
-        nlevel.landBounds = Rect2i.Empty();
+        nlevel.landBounds = Rect2i.Abnormal();
 
         auto saveto = new ConfigNode();
         //the following code generates a level and. at the same time, saves the

@@ -57,7 +57,7 @@ Keycode translateKeyIDToKeycode(char[] keyid) {
 /// Where mod is a Modifier and modifierset is a ModifierSet:
 /// bool modifier_active = !!((1<<mod) & modifierset)
 /// ("!!" means convert to bool)
-public typedef uint ModifierSet;
+alias uint ModifierSet;
 
 public bool modifierIsSet(ModifierSet s, Modifier m) {
     return !!((1<<m) & s);
@@ -85,7 +85,6 @@ public bool modifierIsExact(ModifierSet s, Modifier mod) {
 enum KeyEventType {
     Down, ///key pressed down
     Up, ///key released
-    Press ///triggered on key down; but unlike Down, this is also autorepeated
 }
 
 /// Information about a key press, this also covers mouse buttons
@@ -97,6 +96,8 @@ public struct KeyInfo {
     dchar unicode = '\0';
     /// set of active modifiers when event was fired
     ModifierSet mods;
+    /// whether this event is an artifical one coming from autorepeat
+    bool isRepeated;
 
     ///if not a control character
     bool isPrintable() {
@@ -112,15 +113,10 @@ public struct KeyInfo {
         return keycodeIsModifierKey(code);
     }
 
-    bool isPress() {
-        return type == KeyEventType.Press;
-    }
-
-    ///if type is KeyEventType.Down
+    ///invariant: isDown() != isUp()
     bool isDown() {
         return type == KeyEventType.Down;
     }
-
     bool isUp() {
         return type == KeyEventType.Up;
     }
@@ -135,9 +131,10 @@ public struct KeyInfo {
         }
         modstr ~= "]";
 
-        return myformat("[KeyInfo: ev={} code={} ('{}') mods={} ch='{}']",
-            ["down", "up", "press"][type],
-            cast(int)code, translateKeycodeToKeyID(code), modstr,
+        return myformat("[KeyInfo: ev={} code={} ('{}') mods={} isRepeated={}"
+            " ch='{}']",
+            ["down", "up"][type],
+            cast(int)code, translateKeycodeToKeyID(code), modstr, isRepeated,
             isPrintable ? [unicode] : "None");
     }
 }

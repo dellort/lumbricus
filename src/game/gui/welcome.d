@@ -72,7 +72,7 @@ class WelcomeTask : Task {
         //xxx this hack steals all enter key presses from all children
         override bool handleChildInput(InputEvent event) {
             if (event.isKeyEvent && event.keyEvent.code == Keycode.RETURN) {
-                if (event.keyEvent.isPress())
+                if (event.keyEvent.isDown())
                     executeDefault();
                 return true;
             }

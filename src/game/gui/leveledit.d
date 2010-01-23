@@ -94,7 +94,7 @@ class EditObject {
             }
         }
 
-        bounds = Rect2i.Empty();
+        bounds = Rect2i.Abnormal();
         foreach (o; subObjects) {
             addBB(o.bounds);
         }
@@ -493,8 +493,8 @@ public class LevelEditor : Task {
 
     Widget mEditor;
     Widget mLoadTemplate;
-    Button[3] mS;
-    Button mCaveCheckbox, mNochangeCheckbox, mPreviewCheckbox,
+    CheckBox[3] mS;
+    CheckBox mCaveCheckbox, mNochangeCheckbox, mPreviewCheckbox,
         mPreview2Checkbox;
 
     StringListWidget mLoadTemplateList;
@@ -535,7 +535,7 @@ public class LevelEditor : Task {
             return levelSize;
         }
 
-        bool onKeyDown(char[] bind, KeyInfo infos) {
+        override bool onKeyDown(KeyInfo infos) {
             if (infos.code == Keycode.MOUSE_LEFT) {
                 auto obj = pickDeepest(mousePos);
                 if (gFramework.getModifierState(Modifier.Control)) {
@@ -559,14 +559,16 @@ public class LevelEditor : Task {
                 didReallyDrag = false;
                 dragPick = mousePos;
                 dragRel = Vector2i(0);
+                return true;
             }
             if (infos.code == Keycode.MOUSE_RIGHT) {
                 mScroller.mouseScrollToggle();
+                return true;
             }
-            return true;
+            return false;
         }
 
-        bool onKeyUp(char[] bind, KeyInfo infos) {
+        override void onKeyUp(KeyInfo infos) {
             if (infos.code == Keycode.MOUSE_LEFT) {
                 if (isDraging) {
                     isDraging = false;
@@ -591,13 +593,6 @@ public class LevelEditor : Task {
                     }
                 }
             }
-            return true;
-        }
-
-        override protected void onKeyEvent(KeyInfo ki) {
-            auto b = findBind(ki);
-            (ki.isDown && onKeyDown(b, ki))
-                || (ki.isUp && onKeyUp(b, ki));
         }
 
         override void onMouseMove(MouseInfo info) {
@@ -757,10 +752,10 @@ public class LevelEditor : Task {
         createGui();
     }
 
-    private void btn_setnochange(Button b) {
+    private void btn_setnochange(CheckBox b) {
         setNochange(b.checked);
     }
-    private void btn_setcave(Button b) {
+    private void btn_setcave(CheckBox b) {
         setCave(b.checked);
     }
 
@@ -785,6 +780,10 @@ public class LevelEditor : Task {
             auto b = loader.lookup!(Button)(name);
             b.onClick = onclick;
         }
+        void setOnClick3(char[] name, void delegate(CheckBox b) onclick) {
+            auto b = loader.lookup!(CheckBox)(name);
+            b.onClick = onclick;
+        }
 
         setOnClick2("preview", &genPreview);
         setOnClick2("inspt", &insertPoint);
@@ -792,20 +791,20 @@ public class LevelEditor : Task {
         setOnClick2("play", &play);
         setOnClick2("load", &loadTemplate);
 
-        setOnClick("setnochange", &btn_setnochange);
-        setOnClick("setcave", &btn_setcave);
+        setOnClick3("setnochange", &btn_setnochange);
+        setOnClick3("setcave", &btn_setcave);
 
-        mS[0] = loader.lookup!(Button)("s1");
-        mS[1] = loader.lookup!(Button)("s2");
-        mS[2] = loader.lookup!(Button)("s3");
+        mS[0] = loader.lookup!(CheckBox)("s1");
+        mS[1] = loader.lookup!(CheckBox)("s2");
+        mS[2] = loader.lookup!(CheckBox)("s3");
         mS[0].onClick = &selLexelType;
         mS[1].onClick = mS[0].onClick;
         mS[2].onClick = mS[0].onClick;
 
-        mNochangeCheckbox = loader.lookup!(Button)("setnochange");
-        mPreviewCheckbox = loader.lookup!(Button)("showpreview");
-        mPreview2Checkbox = loader.lookup!(Button)("showpreview2");
-        mCaveCheckbox = loader.lookup!(Button)("setcave");
+        mNochangeCheckbox = loader.lookup!(CheckBox)("setnochange");
+        mPreviewCheckbox = loader.lookup!(CheckBox)("showpreview");
+        mPreview2Checkbox = loader.lookup!(CheckBox)("showpreview2");
+        mCaveCheckbox = loader.lookup!(CheckBox)("setcave");
 
         mEditor = loader.lookup("ledit_root");
         mWindow = gWindowManager.createWindowFullscreen(this, mEditor,
@@ -825,7 +824,7 @@ public class LevelEditor : Task {
 
     const cLexelTypes = [Lexel.Null, Lexel.SolidSoft, Lexel.SolidHard];
 
-    void selLexelType(Button b) {
+    void selLexelType(CheckBox b) {
         int n = -1;
         foreach (int x, b2; mS) {
             if (b2 is b) { n = x; break; }

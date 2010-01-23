@@ -293,7 +293,9 @@ class SDLDriver : FrameworkDriver {
         mLockMouse = s;
     }
 
-    void updateMousePos(Vector2i pos) {
+    void updateMousePos(int x, int y) {
+        auto pos = Vector2i(x, y);
+
         if (mMousePos == pos)
             return;
 
@@ -331,30 +333,38 @@ class SDLDriver : FrameworkDriver {
             switch(event.type) {
                 case SDL_KEYDOWN:
                     KeyInfo infos = keyInfosFromSDL(event.key);
-                    gFramework.driver_doKeyDown(infos);
+                    infos.type = KeyEventType.Down;
+                    //SDL repeats SDL_KEYDOWN on key repeat
+                    //that's exactly how the framework does it
+                    //SDL doesn't provide an isRepeated, though
+                    infos.isRepeated = gFramework.getKeyState(infos.code);
+                    gFramework.driver_doKeyEvent(infos);
                     break;
                 case SDL_KEYUP:
                     //xxx TODO: SDL provides no unicode translation for KEYUP
                     KeyInfo infos = keyInfosFromSDL(event.key);
-                    gFramework.driver_doKeyUp(infos);
+                    infos.type = KeyEventType.Up;
+                    gFramework.driver_doKeyEvent(infos);
                     break;
                 case SDL_MOUSEMOTION:
                     //update mouse pos after button state
                     if (mInputFocus)
-                        updateMousePos(Vector2i(event.motion.x, event.motion.y));
+                        updateMousePos(event.motion.x, event.motion.y);
                     break;
                 case SDL_MOUSEBUTTONUP:
                     if (mInputFocus) {
                         KeyInfo infos = mouseInfosFromSDL(event.button);
-                        updateMousePos(Vector2i(event.button.x, event.button.y));
-                        gFramework.driver_doKeyUp(infos);
+                        infos.type = KeyEventType.Up;
+                        updateMousePos(event.button.x, event.button.y);
+                        gFramework.driver_doKeyEvent(infos);
                     }
                     break;
                 case SDL_MOUSEBUTTONDOWN:
                     if (mInputFocus) {
                         KeyInfo infos = mouseInfosFromSDL(event.button);
-                        updateMousePos(Vector2i(event.button.x, event.button.y));
-                        gFramework.driver_doKeyDown(infos);
+                        infos.type = KeyEventType.Down;
+                        updateMousePos(event.button.x, event.button.y);
+                        gFramework.driver_doKeyEvent(infos);
                     }
                     break;
                 case SDL_VIDEORESIZE:

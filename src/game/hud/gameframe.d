@@ -208,13 +208,11 @@ class GameFrame : SimpleContainer {
             game.shell.pauseBlock(true, this);
         }
 
-        override void onKeyEvent(KeyInfo info) {
-            //filter against releasing 'h'
-            if (info.isUp() || info.isPress())
-                return;
+        override bool onKeyDown(KeyInfo info) {
             this.outer.mModalDialog = null;
             remove();
             game.shell.pauseBlock(false, this);
+            return true;
         }
     }
 

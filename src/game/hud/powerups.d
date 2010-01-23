@@ -14,7 +14,7 @@ import utils.vector2;
 class PowerupDisplay : BoxContainer {
     private {
         GameInfo mGame;
-        Label mLblCrate, mLblDouble;
+        ImageLabel mLblCrate, mLblDouble;
         Color mOldColor = Color.Invalid;
     }
 
@@ -25,11 +25,10 @@ class PowerupDisplay : BoxContainer {
         mLblDouble = createLabel("icon_doubledamage");
     }
 
-    protected Label createLabel(char[] iconRes) {
-        auto ret = new Label();
+    protected ImageLabel createLabel(char[] iconRes) {
+        auto ret = new ImageLabel();
         ret.styles.addClass("powerup-icon");
         ret.image = mGame.cengine.gfx.resources.get!(Surface)(iconRes);
-        ret.text = "";
         return ret;
     }
 

@@ -3,15 +3,17 @@ module gui.button;
 import framework.event;
 import framework.framework;
 import framework.font;
+import gui.boxcontainer;
 import gui.global;
 import gui.label;
 import gui.widget;
 import utils.time;
 import utils.timer;
+import utils.misc;
 
 ///small helper to let checkboxes behave like radio buttons
 struct CheckBoxGroup {
-    Button[] buttons;
+    CheckBox[] buttons;
 
     int checkedIndex() {
         foreach (int index, b; buttons) {
@@ -21,32 +23,32 @@ struct CheckBoxGroup {
         return -1;
     }
 
-    Button checked() {
+    CheckBox checked() {
         int n = checkedIndex();
         return n >= 0 ? buttons[n] : null;
     }
 
-    void add(Button b) {
+    void add(CheckBox b) {
         buttons ~= b;
         b.checked = false;
     }
 
-    void check(Button b) {
+    void check(CheckBox b) {
         foreach (bu; buttons) {
             bu.checked = bu is b;
         }
     }
 }
 
-//xxx this is a hack
-class Button : Label {
+class ButtonBase : Widget {
     private {
         bool mMouseOver; //mouse is inside Widget or captured
         bool mMouseInside; //mouse is really inside the Widget
         bool mMouseDown;   //last reported mouse button click
         bool mButtonState; //down or up (true if down)
-        bool mIsCheckbox, mChecked;
         Timer mAutoRepeatTimer;
+        Widget mClient;
+        Label mLabel;
     }
 
     ///if true, the Button will send click events while pressed
@@ -55,22 +57,13 @@ class Button : Label {
     ///the first mouse down event; if false, a single event is sent on mouse up
     bool autoRepeat = false;
 
-    ///if this is a checkbox, use the standard checkbox images
-    ///if false, don't touch the image
-    bool useCheckBoxImages = true;
-
     ///auto repeat rate when autoRepeat is enabled
     ///gives the number of click events spawned per second (clicks/seconds)
     Time autoRepeatInterval = timeMsecs(50);
     Time autoRepeatDelay = timeMsecs(500);
 
-    ///True to light up the button on mouseover/click
-    //-- was never disabled, if needed add as style bool enableHighlight = true;
-
-    void delegate(Button sender) onClick;
     void delegate() onClick2;
-    void delegate(Button sender) onRightClick;
-    void delegate(Button sender, bool over) onMouseOver;
+
 
     this() {
         focusable = true;
@@ -79,6 +72,9 @@ class Button : Label {
         //drops (which is good since simulate() will not be called if the Widget
         //is made invisible temporarly...)
         mAutoRepeatTimer.mode = TimerMode.fixedDelay;
+
+        auto lbl = new Label();
+        setClient(lbl, lbl);
     }
 
     //can be used to disable keyboard focus
@@ -86,51 +82,22 @@ class Button : Label {
         focusable = f;
     }
 
-    //undo what was set in label.d
-    override bool onTestMouse(Vector2i) {
-        return true;
-    }
-
-    bool isCheckbox() {
-        return mIsCheckbox;
-    }
-    void isCheckbox(bool set) {
-        if (mIsCheckbox == set)
-            return;
-        if (set) {
-            styles.addClass("checkbox");
-        } else {
-            styles.removeClass("checkbox");
-        }
-        mIsCheckbox = set;
-        updateCheckboxState();
-    }
-
-    bool checked() {
-        return mChecked;
-    }
-    void checked(bool set) {
-        mChecked = set;
-        updateCheckboxState();
-    }
-
-    private void updateCheckboxState() {
-        if (!mIsCheckbox)
-            return;
-        if (useCheckBoxImages) {
-            auto imgname = mChecked ? "checkbox_on" : "checkbox_off";
-            image = gGuiResources.get!(Surface)(imgname);
+    override void readStyles() {
+        super.readStyles();
+        //whatever
+        //hack can be removed when styles stuff is improved
+        if (auto label = getLabel(false)) {
+            auto props = styles.get!(FontProperties)("text-font");
+            //xxx possibly triggering resize
+            label.font = gFontManager.create(props);
         }
     }
 
-    override protected void onMouseEnterLeave(bool mouseIsInside) {
+    override void onMouseEnterLeave(bool mouseIsInside) {
         super.onMouseEnterLeave(mouseIsInside);
         mMouseOver = mouseIsInside;
         if (!mMouseOver)
             mMouseInside = false;
-        if (onMouseOver) {
-            onMouseOver(this, mouseIsInside);
-        }
     }
 
     //state = if button is up (false) or down (true)
@@ -141,6 +108,9 @@ class Button : Label {
 
         mButtonState = state;
         styles.setState("button-down", mButtonState);
+
+        if (mClient)
+            mClient.setAddToPos(mButtonState ? Vector2i(1) : Vector2i(0));
 
         if (state) {
             if (autoRepeat) {
@@ -157,33 +127,39 @@ class Button : Label {
     }
 
     protected void doClick() {
-        if (mIsCheckbox) {
-            mChecked = !mChecked;
-            updateCheckboxState();
-        }
-        if (onClick)
-            onClick(this);
         if (onClick2)
             onClick2();
     }
 
-    override protected void onKeyEvent(KeyInfo key) {
+    protected void doRightClick() {
+    }
+
+    override bool onKeyDown(KeyInfo key) {
+        return handleKey(key);
+    }
+    override void onKeyUp(KeyInfo key) {
+        handleKey(key);
+    }
+
+    private bool handleKey(KeyInfo key) {
         if (key.code == Keycode.MOUSE_LEFT || key.code == Keycode.SPACE) {
             bool kb = !key.isMouseButton;
-            if (key.isDown) {
+            if (key.isDown && !key.isRepeated) {
                 mMouseDown = true;
                 buttonSetState(true, kb);
             } else if (key.isUp) {
                 mMouseDown = false;
                 buttonSetState(false, kb);
             }
-            return;
+            return true;
         }
         if (key.code == Keycode.MOUSE_RIGHT) {
-            if (key.isUp && onRightClick) {
-                onRightClick(this);
+            if (key.isUp) {
+                doRightClick();
             }
+            return true;
         }
+        return false;
     }
 
     override protected void onMouseMove(MouseInfo mi) {
@@ -210,6 +186,11 @@ class Button : Label {
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
+        if (auto label = getLabel(false)) {
+            label.renderer.translator = loader.locale();
+            label.setTextFmt(true, r"\t({})", node.getStringValue("text"));
+        }
+
         autoRepeat = node.getBoolValue("auto_repeat", autoRepeat);
         autoRepeatDelay = timeMsecs(node.getIntValue("auto_repeat_delay",
             autoRepeatDelay.msecs));
@@ -217,12 +198,163 @@ class Button : Label {
             autoRepeatInterval.msecs));
 
         super.loadFrom(loader);
+    }
 
-        isCheckbox = node.getBoolValue("check_box", isCheckbox);
-        checked = node.getBoolValue("checked", checked);
+    //set the client area of the button
+    //if label is non-null, it will be returned by getLabel(), and the text
+    //  accessor functions will use the label as backend (otherwise, the text
+    //  accessors will raise an exception as called)
+    void setClient(Widget client, Label label = null) {
+        clear();
+        mClient = client;
+        mLabel = label;
+        if (mClient)
+            addChild(mClient);
+    }
+
+    //if a label is set, return it
+    //this is used for the text accessors
+    //if must_exist==true, never return null, and raise an exception instead
+    Label getLabel(bool must_exist = true) {
+        if (!mLabel && must_exist)
+            throw new Exception("button has no label");
+        return mLabel;
+    }
+
+    //tunnel through the text accessors
+    //see Label
+
+    void text(char[] txt) {
+        getLabel().text = txt;
+    }
+    void textMarkup(char[] txt) {
+        getLabel().textMarkup = txt;
+    }
+    void setText(bool as_markup, char[] txt) {
+        getLabel().setText(as_markup, txt);
+    }
+    void setTextFmt(bool as_markup, char[] fmt, ...) {
+        setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
+    }
+    void setTextFmt_fx(bool as_markup, char[] fmt,
+        TypeInfo[] arguments, va_list argptr)
+    {
+        getLabel().setTextFmt_fx(as_markup, fmt, arguments, argptr);
+    }
+    //returns an empty string if no label set (never throws an exception)
+    char[] text() {
+        if (auto label = getLabel(false))
+            return label.text;
+        return "";
+    }
+}
+
+class Button : ButtonBase {
+    //this shit can go away as soon as GUI uses Events
+    void delegate(Button sender) onClick;
+    void delegate(Button sender) onRightClick;
+    void delegate(Button sender, bool over) onMouseOver;
+
+    this() {
+    }
+
+    override void onMouseEnterLeave(bool mouseIsInside) {
+        super.onMouseEnterLeave(mouseIsInside);
+        if (onMouseOver)
+            onMouseOver(this, mMouseOver);
+    }
+
+    override void doClick() {
+        super.doClick();
+        if (onClick)
+            onClick(this);
+    }
+
+    override void doRightClick() {
+        super.doRightClick();
+        if (onRightClick)
+            onRightClick(this);
     }
 
     static this() {
         WidgetFactory.register!(typeof(this))("button");
+    }
+}
+
+class ImageButton : Button {
+    private {
+        ImageLabel mImage;
+    }
+
+    this() {
+        mImage = new ImageLabel();
+        setClient(mImage);
+    }
+
+    void image(Surface img) {
+        mImage.image = img;
+    }
+    Surface image() {
+        return mImage.image;
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("imagebutton");
+    }
+}
+
+class CheckBox : ButtonBase {
+    private {
+        bool mChecked;
+        HBoxContainer mBox;
+        ImageLabel mStateImage;
+    }
+
+    void delegate(CheckBox sender) onClick;
+
+    this() {
+        //xxx: spacing should be in styles stuff
+        //  (actually, somehow, the layout in general should be)
+        mBox = new HBoxContainer(false, 3);
+        mStateImage = new ImageLabel();
+        mStateImage.setLayout(WidgetLayout.Noexpand());
+        mBox.add(mStateImage);
+        auto lbl = getLabel();
+        lbl.remove();
+        mBox.add(lbl);
+        setClient(mBox, lbl);
+        updateCheckBoxState();
+    }
+
+    override void doClick() {
+        mChecked = !mChecked;
+        updateCheckBoxState();
+        super.doClick();
+        if (onClick)
+            onClick(this);
+    }
+
+    bool checked() {
+        return mChecked;
+    }
+    void checked(bool set) {
+        mChecked = set;
+        updateCheckBoxState();
+    }
+
+    private void updateCheckBoxState() {
+        auto imgname = mChecked ? "checkbox_on" : "checkbox_off";
+        mStateImage.image = gGuiResources.get!(Surface)(imgname);
+    }
+
+    override void loadFrom(GuiLoader loader) {
+        auto node = loader.node;
+        checked = node.getBoolValue("checked", checked);
+
+        super.loadFrom(loader);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("checkbox");
     }
 }

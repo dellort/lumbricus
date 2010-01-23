@@ -1288,35 +1288,13 @@ class Framework {
     //  sub packages can't access parent package package-declarations, wtf?
 
     //called from framework implementation... relies on key repeat
-    void driver_doKeyDown(KeyInfo infos) {
-        infos.type = KeyEventType.Down;
-
-        bool was_down = getKeyState(infos.code);
-
-        updateKeyState(infos, true);
-
-        if (!onInput)
-            return;
-
-        InputEvent event;
-        event.keyEvent = infos;
-        event.isKeyEvent = true;
-        event.mousePos = mousePos();
-
-        if (!was_down) {
-            onInput(event);
-        }
-        event.keyEvent.type = KeyEventType.Press;
-        onInput(event);
-    }
-
-    void driver_doKeyUp(in KeyInfo infos) {
-        infos.type = KeyEventType.Up;
-
-        updateKeyState(infos, false);
+    void driver_doKeyEvent(KeyInfo infos) {
+        updateKeyState(infos, infos.type == KeyEventType.Down);
 
         //xxx: huh? shouldn't that be done by the OS' window manager?
-        if (infos.code == Keycode.F4 && getModifierState(Modifier.Alt)) {
+        if (infos.type == KeyEventType.Down && infos.code == Keycode.F4
+            && getModifierState(Modifier.Alt))
+        {
             doTerminate();
         }
 
@@ -1327,7 +1305,6 @@ class Framework {
         event.keyEvent = infos;
         event.isKeyEvent = true;
         event.mousePos = mousePos();
-
         onInput(event);
     }
 

@@ -7,21 +7,64 @@ import utils.misc;
 import utils.vector2;
 import str = utils.string;
 
+//describes a key binding
+struct BindKey {
+    Keycode code;
+    ModifierSet mods;
+
+    static BindKey fromKeyInfo(KeyInfo info) {
+        BindKey k;
+        k.code = info.code;
+        k.mods = info.mods;
+        return k;
+    }
+
+    //parse a whitespace separated list of strings into sth. that can be passed
+    //  to KeyBindings.addBinding()
+    //return success (members are only changed if successful)
+    bool parse(char[] bindstr) {
+        BindKey out_bind;
+        foreach (char[] s; str.split(bindstr)) {
+            Modifier mod;
+            if (stringToModifier(s, mod)) {
+                out_bind.mods |= (1<<mod);
+            } else {
+                if (out_bind.code != Keycode.INVALID)
+                    break;
+                out_bind.code = translateKeyIDToKeycode(s);
+                if (out_bind.code == Keycode.INVALID)
+                    break;
+            }
+        }
+        bool success = (out_bind.code != Keycode.INVALID);
+        if (success)
+            *this = out_bind;
+        return success;
+    }
+
+    //undo parse(), return bindstr
+    char[] unparse() {
+        char[][] stuff;
+        stuff = [translateKeycodeToKeyID(code)];
+        for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
+            if (modifierIsSet(mods, mod))
+                stuff ~= modifierToString(mod);
+        }
+        return str.join(stuff, " ");
+    }
+
+}
+
 /// Map key combinations to IDs (strings).
 public class KeyBindings {
-    private struct Key {
-        Keycode code;
-        //bit field, each bit as in Modifier enum
-        uint required_mods;
-    }
     private struct Entry {
         char[] bound_to;
         uint required_mods;
     }
 
-    private Entry[Key] mBindings;
+    private Entry[BindKey] mBindings;
     //only for readBinding()
-    private Key[char[]] mReverseLookup;
+    private BindKey[char[]] mReverseLookup;
 
     private uint countmods(uint mods) {
         uint sum = 0;
@@ -33,21 +76,20 @@ public class KeyBindings {
 
     //find the key which matches with the _most_ modifiers
     //to do that, try with all permutations (across active mods) :/
-    private Entry* doFindBinding(Keycode code, uint mods, uint pos = 0) {
+    private Entry* doFindBinding(BindKey bind, uint mods, uint pos = 0) {
         if (!(mods & (1<<pos))) {
             pos++;
             if (pos > Modifier.max) {
                 //recursion end
-                Key k;
-                k.code = code;
-                k.required_mods = mods;
+                BindKey k = bind;
+                k.mods = mods;
                 return k in mBindings;
             }
         }
         //bit is set at this position...
         //try recursively with and without that bit set
-        Entry* e1 = doFindBinding(code, mods & ~(1<<pos), pos+1);
-        Entry* e2 = doFindBinding(code, mods, pos+1);
+        Entry* e1 = doFindBinding(bind, mods & ~(1<<pos), pos+1);
+        Entry* e2 = doFindBinding(bind, mods, pos+1);
 
         //check which wins... if both are non-null, that with more modifiers
         if (e1 && e2) {
@@ -64,8 +106,8 @@ public class KeyBindings {
 
     //returns how many modifiers the winning key binding eats up
     //return -1 if no match
-    public int checkBinding(Keycode code, ModifierSet mods) {
-        Entry* e = doFindBinding(code, mods);
+    int checkBinding(BindKey key) {
+        Entry* e = doFindBinding(key, key.mods);
         if (!e) {
             return -1;
         } else {
@@ -73,8 +115,8 @@ public class KeyBindings {
         }
     }
 
-    public char[] findBinding(Keycode code, ModifierSet mods) {
-        Entry* e = doFindBinding(code, mods);
+    char[] findBinding(BindKey key) {
+        Entry* e = doFindBinding(key, key.mods);
         if (!e) {
             return null;
         } else {
@@ -82,49 +124,15 @@ public class KeyBindings {
         }
     }
 
-    public char[] findBinding(KeyInfo info) {
-        return findBinding(info.code, info.mods);
-    }
-
-    //parse a whitespace separated list of strings into sth. that can be passed
-    //to addBinding()
-    public bool parseBindString(char[] bindstr, out Keycode out_code,
-        out ModifierSet out_mods)
-    {
-        foreach (char[] s; str.split(bindstr)) {
-            Modifier mod;
-            if (stringToModifier(s, mod)) {
-                out_mods |= (1<<mod);
-            } else {
-                if (out_code != Keycode.INVALID)
-                    return false;
-                out_code = translateKeyIDToKeycode(s);
-                if (out_code == Keycode.INVALID)
-                    return false;
-            }
-        }
-        return (out_code != Keycode.INVALID);
-    }
-    //undo parseBindString, return bindstr
-    public char[] unparseBindString(Keycode code, ModifierSet mods) {
-        char[][] stuff;
-        stuff = [translateKeycodeToKeyID(code)];
-        for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
-            if (modifierIsSet(mods, mod))
-                stuff ~= modifierToString(mod);
-        }
-        return str.join(stuff, " ");
+    char[] findBinding(KeyInfo info) {
+        return findBinding(BindKey.fromKeyInfo(info));
     }
 
     /// Add a binding.
-    public bool addBinding(char[] bind_to, Keycode code, ModifierSet mods) {
-        Key k;
-        k.code = code;
-        k.required_mods = mods;
-
+    bool addBinding(char[] bind_to, BindKey k) {
         Entry e;
         e.bound_to = bind_to;
-        e.required_mods = k.required_mods;;
+        e.required_mods = k.mods;;
 
         mBindings[k] = e;
         mReverseLookup[bind_to] = k;
@@ -132,23 +140,22 @@ public class KeyBindings {
     }
 
     /// Add a binding (by string).
-    public bool addBinding(char[] bind_to, char[] bindstr) {
-        Keycode code;
-        ModifierSet mods;
-        if (!parseBindString(bindstr, code, mods))
+    bool addBinding(char[] bind_to, char[] bindstr) {
+        BindKey k;
+        if (!k.parse(bindstr))
             return false;
-        return addBinding(bind_to, code, mods);
+        return addBinding(bind_to, k);
     }
 
     /// Remove all key combinations that map to the binding "bind".
-    public void removeBinding(char[] bind) {
+    void removeBinding(char[] bind) {
         //hm...
-        Key[] keys;
-        foreach (Key k, Entry e; mBindings) {
+        BindKey[] keys;
+        foreach (BindKey k, Entry e; mBindings) {
             if (bind == e.bound_to)
                 keys ~= k;
         }
-        foreach (Key k; keys) {
+        foreach (BindKey k; keys) {
             mBindings.remove(k);
         }
         mReverseLookup.remove(bind);
@@ -156,20 +163,20 @@ public class KeyBindings {
 
     /// Return the arguments for the addBinding() call which created "bind".
     /// Return value is false if not found.
-    bool readBinding(char[] bind, out Keycode code, out ModifierSet mods) {
-        Key* k = bind in mReverseLookup;
+    bool readBinding(char[] bind, out BindKey key) {
+        BindKey* k = bind in mReverseLookup;
         if (!k)
             return false;
-        code = k.code;
-        mods = cast(ModifierSet)k.required_mods;
+        key = *k;
         return true;
     }
 
-    public void clear() {
+    void clear() {
         mBindings = null;
+        mReverseLookup = null;
     }
 
-    public void loadFrom(config.ConfigNode node) {
+    void loadFrom(config.ConfigNode node) {
         foreach (config.ConfigNode v; node) {
             char[] cmd, key;
             if (v.hasNode("cmd")) {
@@ -188,14 +195,12 @@ public class KeyBindings {
 
     /// Enum all defined bindings.
     /// Caller must not add or remove bindings while enumerating.
-    public void enumBindings(void delegate(char[] bind, Keycode code,
-        ModifierSet mods) callback)
-    {
+    void enumBindings(void delegate(char[] bind, BindKey k) callback) {
         if (!callback)
             return;
 
-        foreach (Key k, Entry e; mBindings) {
-            callback(e.bound_to, k.code, cast(ModifierSet)k.required_mods);
+        foreach (BindKey k, Entry e; mBindings) {
+            callback(e.bound_to, k);
         }
     }
 
@@ -203,20 +208,15 @@ public class KeyBindings {
     /// the winner. If the event matches neither a nor b, return null. If both
     /// match equally (it's a draw), always return a.
     /// Both a and b can be null, null ones are handled as no-match.
-    public static KeyBindings compareBindings(KeyBindings a, KeyBindings b,
-        Keycode code, ModifierSet mods)
+    static KeyBindings compareBindings(KeyBindings a, KeyBindings b,
+        BindKey key)
     {
-        int wa = a ? a.checkBinding(code, mods) : -1;
-        int wb = b ? b.checkBinding(code, mods) : -1;
+        int wa = a ? a.checkBinding(key) : -1;
+        int wb = b ? b.checkBinding(key) : -1;
         if (wa >= wb && wa >= 0)
             return a;
         else if (wb >= 0)
             return b;
         return null;
-    }
-    public static KeyBindings compareBindings(KeyBindings a, KeyBindings b,
-        KeyInfo info)
-    {
-        return compareBindings(a, b, info.code, info.mods);
     }
 }

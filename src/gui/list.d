@@ -110,15 +110,22 @@ class AbstractListWidget : Widget {
         }
     }
 
-    override protected void onKeyEvent(KeyInfo key) {
+    override bool onKeyDown(KeyInfo key) {
+        return handleKey(key);
+    }
+    override void onKeyUp(KeyInfo key) {
+        handleKey(key);
+    }
+
+    private bool handleKey(KeyInfo key) {
         switch (key.code) {
             case Keycode.DOWN: {
-                if (key.isPress && selectedIndex+1 < count)
+                if (key.isDown && selectedIndex+1 < count)
                     selectedIndex = selectedIndex+1;
                 break;
             }
             case Keycode.UP: {
-                if (key.isPress && selectedIndex-1 >= 0)
+                if (key.isDown && selectedIndex-1 >= 0)
                     selectedIndex = selectedIndex-1;
                 break;
             }
@@ -126,7 +133,7 @@ class AbstractListWidget : Widget {
                 mHoverIndex = cUnselected;
                 int newIndex = mousePos.y / mRHeight;
                 newIndex = newIndex>=count ? count-1 : newIndex;
-                if ((key.isDown || key.isPress) && mMouseInside) {
+                if ((key.isDown) && mMouseInside) {
                     mHoverIndex = newIndex;
                 }
                 if (key.isUp && mMouseInside) {
@@ -135,7 +142,9 @@ class AbstractListWidget : Widget {
                 break;
             }
             default:
+                return false;
         }
+        return true;
     }
 
     override protected void onMouseMove(MouseInfo mi) {

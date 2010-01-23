@@ -400,18 +400,26 @@ private:
             }
         }
 
-        override protected void onKeyEvent(KeyInfo info) {
+        override bool onKeyDown(KeyInfo info) {
+            return handleKey(info);
+        }
+        override void onKeyUp(KeyInfo info) {
+            handleKey(info);
+        }
+
+        private bool handleKey(KeyInfo info) {
             foreach (e; mObjects) {
                 auto p = cast(Player)e;
                 if (!p)
                     continue;
                 char[] bind = p.bindings.findBinding(info);
                 if (bind.length) {
-                    if (!info.isPress)
+                    if (!info.isRepeated)
                         p.updateKey(bind, info.isDown);
-                    return;
+                    return true;
                 }
             }
+            return false;
         }
 
         bool greedyFocus() {

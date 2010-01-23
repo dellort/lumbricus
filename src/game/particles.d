@@ -728,16 +728,17 @@ class TestTask : Task {
         this() {
         }
 
-        override void onKeyEvent(KeyInfo info) {
-            if (info.isMouseButton && info.isDown) {
-                if (info.code == Keycode.MOUSE_LEFT)
-                    mWorld.explosion(toVector2f(mousePos()));
-                if (info.code == Keycode.MOUSE_RIGHT) {
-                    auto grav = new ParticleGravity(mWorld);
-                    grav.accel = 10f;
-                    grav.pos = toVector2f(mousePos());
-                }
+        override bool onKeyDown(KeyInfo info) {
+            if (!info.isMouseButton)
+                return false;
+            if (info.code == Keycode.MOUSE_LEFT)
+                mWorld.explosion(toVector2f(mousePos()));
+            if (info.code == Keycode.MOUSE_RIGHT) {
+                auto grav = new ParticleGravity(mWorld);
+                grav.accel = 10f;
+                grav.pos = toVector2f(mousePos());
             }
+            return true;
         }
 
         override void onDraw(Canvas c) {

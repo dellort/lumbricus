@@ -26,7 +26,7 @@ class LevelSelector : SimpleContainer {
         int mPreviewHeight = 70;
 
         int rowCount;
-        Button[] mShowBitmap;
+        ImageButton[] mShowBitmap;
         LevelInfo[] mLevel;
         char[] mGfx;
 
@@ -36,11 +36,11 @@ class LevelSelector : SimpleContainer {
         Label mLblWait;
         DropDownList mDdGfx;
         PainterWidget mPainter;
-        Button[] mChkDrawMode;
+        CheckBox[] mChkDrawMode;
         //last selected level, null if the level has been modified
         LevelGenerator mLastLevel;
-        Button mIsCave, mPlaceObjects;
-        Button[4] mWalls;
+        CheckBox mIsCave, mPlaceObjects;
+        CheckBox[4] mWalls;
     }
 
     struct LevelInfo {
@@ -88,7 +88,7 @@ class LevelSelector : SimpleContainer {
             if (i >= templCount)
                 break;
             //prepare button
-            auto sb = loader.lookup!(Button)(myformat("level{}", i));
+            auto sb = loader.lookup!(ImageButton)(myformat("level{}", i));
             sb.onClick = &levelClick;
             sb.onRightClick = &generate;
             mShowBitmap ~= sb;
@@ -104,25 +104,25 @@ class LevelSelector : SimpleContainer {
         loader.lookup!(Button)("btn_fill").onClick = &fillClick;
         loader.lookup!(Button)("btn_cancel").onClick = &cancelClick;
         loader.lookup!(Button)("btn_ok").onClick = &okClick;
-        mIsCave = loader.lookup!(Button)("chk_iscave");
-        mIsCave.onClick = &button_painterchange;
-        mPlaceObjects = loader.lookup!(Button)("chk_objects");
-        mPlaceObjects.onClick = &button_painterchange;
+        mIsCave = loader.lookup!(CheckBox)("chk_iscave");
+        mIsCave.onClick2 = &button_painterchange;
+        mPlaceObjects = loader.lookup!(CheckBox)("chk_objects");
+        mPlaceObjects.onClick2 = &button_painterchange;
 
         //xxx: get rid of the code duplication (the handler callbacks as well)
-        mChkDrawMode ~= loader.lookup!(Button)("chk_circle");
+        mChkDrawMode ~= loader.lookup!(CheckBox)("chk_circle");
         mChkDrawMode[$-1].onClick = &chkCircleClick;
-        mChkDrawMode ~= loader.lookup!(Button)("chk_square");
+        mChkDrawMode ~= loader.lookup!(CheckBox)("chk_square");
         mChkDrawMode[$-1].onClick = &chkSquareClick;
-        mChkDrawMode ~= loader.lookup!(Button)("chk_line");
+        mChkDrawMode ~= loader.lookup!(CheckBox)("chk_line");
         mChkDrawMode[$-1].onClick = &chkLineClick;
-        mChkDrawMode ~= loader.lookup!(Button)("chk_rect");
+        mChkDrawMode ~= loader.lookup!(CheckBox)("chk_rect");
         mChkDrawMode[$-1].onClick = &chkRectClick;
 
         foreach (int i, ref b; mWalls) {
-            mWalls[i] = loader.lookup!(Button)(
+            mWalls[i] = loader.lookup!(CheckBox)(
                 "chk_" ~ LevelLandscape.cWallNames[i]);
-            mWalls[i].onClick = &button_painterchange;
+            mWalls[i].onClick2 = &button_painterchange;
         }
 
         mLayout = loader.lookup!(Widget)("levelpreview_root");
@@ -154,7 +154,7 @@ class LevelSelector : SimpleContainer {
         mPainter.fillSolidSoft();
     }
 
-    private void chkCircleClick(Button sender) {
+    private void chkCircleClick(CheckBox sender) {
         foreach (b; mChkDrawMode) {
             if (b != sender)
                 b.checked = false;
@@ -162,7 +162,7 @@ class LevelSelector : SimpleContainer {
         mPainter.setDrawMode(DrawMode.circle);
     }
 
-    private void chkSquareClick(Button sender) {
+    private void chkSquareClick(CheckBox sender) {
         foreach (b; mChkDrawMode) {
             if (b != sender)
                 b.checked = false;
@@ -170,7 +170,7 @@ class LevelSelector : SimpleContainer {
         mPainter.setDrawMode(DrawMode.square);
     }
 
-    private void chkLineClick(Button sender) {
+    private void chkLineClick(CheckBox sender) {
         foreach (b; mChkDrawMode) {
             if (b != sender)
                 b.checked = false;
@@ -178,7 +178,7 @@ class LevelSelector : SimpleContainer {
         mPainter.setDrawMode(DrawMode.line);
     }
 
-    private void chkRectClick(Button sender) {
+    private void chkRectClick(CheckBox sender) {
         foreach (b; mChkDrawMode) {
             if (b != sender)
                 b.checked = false;
@@ -187,7 +187,7 @@ class LevelSelector : SimpleContainer {
     }
 
     //onClick for several unrelated buttons
-    private void button_painterchange(Button sender) {
+    private void button_painterchange() {
         painterChange(mPainter);
     }
 

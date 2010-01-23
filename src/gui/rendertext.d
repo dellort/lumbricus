@@ -551,7 +551,12 @@ public class FormattedText {
         } else if (a < 0) {
             return 0;                   //top
         }
-        return container/2 - element/2; //center
+        //center
+        //if too wide, align to one side (at least needed when Label has centerX
+        //  and shrink set, when text is cut due to shrinking)
+        if (element > container)
+            return 0;
+        return container/2 - element/2;
     }
 
     //determine additional spacing between two parts

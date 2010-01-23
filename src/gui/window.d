@@ -134,11 +134,17 @@ class WindowWidget : Widget {
                 }
             }
 
-            override protected void onKeyEvent(KeyInfo key) {
-                if (!key.isPress && key.isMouseButton) {
-                    drag_active = key.isDown;
-                    drag_start = mousePos;
-                }
+            override bool onKeyDown(KeyInfo key) {
+                if (!key.isMouseButton)
+                    return false;
+                drag_active = true;
+                drag_start = mousePos;
+                return true;
+            }
+
+            override void onKeyUp(KeyInfo key) {
+                if (key.isMouseButton)
+                    drag_active = false;
             }
 
             Vector2i layoutSizeRequest() {
@@ -487,27 +493,28 @@ class WindowWidget : Widget {
     }
 
     //treat all events as handled (?)
-    override void onKeyEvent(KeyInfo key) {
+    override bool onKeyDown(KeyInfo key) {
         char[] bind = findBind(key);
 
         if (bind.length) {
-            if (key.isDown())
-                doAction(bind);
-            return;
-        }
-
-        if (mDraging) {
-            //stop draging by any further mouse-up event
-            if (key.isMouseButton && !key.isPress && !key.isDown) {
-                mDraging = false;
-            }
-            return;
+            doAction(bind);
+            return true;
         }
 
         //if a mouse click wasn't handled, start draging the window around
         //xxx mostly inactive (filtered out by allowInputForChild())
-        if (key.code == Keycode.MOUSE_LEFT && !key.isPress && key.isDown) {
+        if (key.code == Keycode.MOUSE_LEFT) {
             mDraging = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    override void onKeyUp(KeyInfo key) {
+        if (key.isMouseButton && mDraging) {
+            //stop draging by any further mouse-up event
+            mDraging = false;
         }
     }
 
@@ -634,11 +641,11 @@ class WindowFrame : Container {
         }
 
         class ButtonPart : DefPart {
-            Texture img;
+            char[] markup;
             char[] action;
             this(char[] name, ConfigNode node) {
                 super(name, node);
-                img = gGuiResources.get!(Surface)(node["image"]);
+                markup = node["markup"];
                 action = node.getStringValue("action");
             }
 
@@ -652,7 +659,7 @@ class WindowFrame : Container {
             void addTo(WindowWidget w) {
                 auto b = new Button();
                 b.allowFocus = false;
-                b.image = img;
+                b.textMarkup = markup;
                 b.styles.addClass("window-button");
                 b.setLayout(WidgetLayout.Noexpand());
                 auto h = new Holder; //could use std.bind too, I guess
@@ -787,7 +794,7 @@ class WindowFrame : Container {
         return super.handleChildInput(event);
     }
 
-    protected override void onKeyEvent(KeyInfo info) {
+    override bool onKeyDown(KeyInfo info) {
         if (mWindowSelecting) {
             if (!wsIsSet()) {
                 //modifiers were released => end of selection
@@ -795,18 +802,17 @@ class WindowFrame : Container {
                 if (onSelectWindow)
                     onSelectWindow(true);
             }
+            return true;
         }
         auto bnd = mKeysWM.findBinding(info);
-        if (bnd.length == 0)
-            return;
-        if (info.isDown()) {
-            if (bnd == "select_window") {
-                mSelectMods = info.mods;
-                mWindowSelecting = true;
-                assert(wsIsSet()); //doesn't work if it doesn't hold true
-                if (onSelectWindow)
-                    onSelectWindow(false);
-            }
+        if (bnd == "select_window") {
+            mSelectMods = info.mods;
+            mWindowSelecting = true;
+            assert(wsIsSet()); //doesn't work if it doesn't hold true
+            if (onSelectWindow)
+                onSelectWindow(false);
+            return true;
         }
+        return false;
     }
 }

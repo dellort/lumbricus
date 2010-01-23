@@ -890,9 +890,17 @@ class Widget {
         return mVisible && mEnabled;
     }
 
-    //event handler which can be overridden by the user
-    //the default implementation is always empty and doesn't need to be called
-    protected void onKeyEvent(KeyInfo info) {
+    ///handle a key down event; if the function couldn't handle the key, false
+    /// is returned (this is used to do e.g. focus change by tab)
+    ///if the event was taken, onKeyUp will always be called as soon as the key
+    /// is released again
+    ///in case of key autorepeat, onKeyDown is called multiple times (with the
+    /// repeated events info.isRepeated set to true)
+    protected bool onKeyDown(KeyInfo info) {
+        return false;
+    }
+
+    protected void onKeyUp(KeyInfo info) {
     }
 
     //handler for mouse move events
@@ -980,7 +988,7 @@ class Widget {
 
     //this function is called to deliver events to child widgets
     //this function is just overrideable to be able to "bend the rules"; for
-    //  proper input handling use onKeyEvent etc.
+    //  proper input handling use onKeyDown/Up etc.
     //this also determines if the input is sent to this widget:
     //  return false => event may be delivered to this (or not at all if that
     //      fails; there's still a final event test)
@@ -1048,28 +1056,6 @@ class Widget {
         gui.deliverDirectEvent(this, event);
     }
 
-    //return true if tab-handling steals the event
-    private bool checkTabKey(InputEvent event) {
-        if (!event.isKeyEvent)
-            return false;
-
-        if (event.keyEvent.code == Keycode.TAB
-            && findBind(event.keyEvent) == "" && !usesTabKey)
-        {
-            bool shift = modifierIsExact(event.keyEvent.mods, Modifier.Shift);
-            bool none = event.keyEvent.mods == 0;
-
-            if (none || shift) {
-                if (event.keyEvent.isPress)
-                    nextFocus(shift);
-                //always eat all tab key events (down, up events)
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     //return an event changed so that the child can handle it; currently
     //translates the mouse positions to the child's coordinate system
     //child must be a direct child of this
@@ -1088,12 +1074,6 @@ class Widget {
     void loadBindings(ConfigNode node) {
         bindings = new KeyBindings();
         bindings.loadFrom(node);
-    }
-
-    //override if you internally use the <tab> key (blocks <tab> focus changing)
-    //(keybindings can always override, no need to use this)
-    protected bool usesTabKey() {
-        return false;
     }
 
     // --- focus handling
@@ -1141,6 +1121,11 @@ class Widget {
     ///only matters if canFocus() is true and there are child widgets
     protected bool doesDelegateFocusToChildren() {
         return false;
+    }
+
+    ///return if this widget, if focused, will delegate the focus to a child
+    final bool willDelegateFocusToChild() {
+        return doesDelegateFocusToChildren() && focus_find_something(false);
     }
 
     /// claim global focus (try to make this.focused() == true)
@@ -1342,6 +1327,19 @@ class Widget {
         }
     }
 
+    //find the first parent widget that's like a window (in the sense of
+    //  focusing; normally you don't leave a window with e.g. tab)
+    //may return null
+    Widget findFocusWindow() {
+        Widget window = this;
+        while (window) {
+            if (!window.allowLeaveFocusByTab())
+                break;
+            window = window.parent;
+        }
+        return window;
+    }
+
     /// focus the next element inside (containers) or after this widget
     /// used to focus the next element using <tab>
     /// normal Widgets call their parent to focus the next widget
@@ -1355,12 +1353,7 @@ class Widget {
         if (!cur)
             cur = this; //what
 
-        Widget window = cur;
-        while (window) {
-            if (!window.allowLeaveFocusByTab())
-                break;
-            window = window.parent;
-        }
+        Widget window = cur.findFocusWindow();
 
         //find the next focusable widget after "cur"
         //or before "cur" if invertDir==true
@@ -1377,8 +1370,7 @@ class Widget {
                 continue;
             //never focus a widget which would delegate its focus to another
             //  widget (this breaks tabbing through the widget list)
-            if (cur.doesDelegateFocusToChildren()
-                && cur.focus_find_something(false))
+            if (cur.willDelegateFocusToChild())
                 continue;
             //all ok
             break;
@@ -1813,6 +1805,9 @@ final class GUI {
         //keystate array, can be queried with Framework.getKeyState())
         //this keeps track which key-down events were sent to mCaptureKey widget
         bool[Keycode.max+1] mCaptureKeyState;
+        //if the mCaptureKey accepted the key-down event as taken (onKeyDown
+        //  returned true)
+        bool[Keycode.max+1] mKeyTaken;
     }
 
     this() {
@@ -1938,11 +1933,9 @@ final class GUI {
 
     //always called when a Widget definitely receives a keyboard event
     //this code takes care of sending artificial key-release events for all
-    //keys that were pressed, if mCaptureKey changes
+    //  keys that were pressed, if mCaptureKey changes (e.g. when focus changes
+    //  while key is held down)
     private void updateKeyCapture(Widget w, KeyInfo event) {
-        if (!event.isDown() && !event.isUp())
-            return;
-
         assert(!!w);
 
         if (mCaptureKey !is w) {
@@ -1950,22 +1943,26 @@ final class GUI {
             //input widget changed; send release events to old widget
             auto old = mCaptureKey;
             foreach (int i, ref bool state; mCaptureKeyState) {
+                bool taken = mKeyTaken[i];
+                mKeyTaken[i] = false;
+
                 if (!state)
                     continue;
+
                 //if this happens, it means mCaptureKey and mCaptureKeyState can
                 //somehow change when calling the event handlers; so should the
                 //assertion fail, you should at least ensure no bogus events are
                 //sent
                 assert(old is mCaptureKey);
                 state = false;
-                if (old) {
+                if (old && taken) {
                     //slightly evil: call user event handler directly?
                     KeyInfo e;
                     e.type = KeyEventType.Up;
                     e.code = cast(Keycode)i;
                     //e.unicode = oops
                     //e.mods = huh
-                    old.onKeyEvent(e);
+                    old.onKeyUp(e);
                 }
             }
             mCaptureKey = null;
@@ -1986,11 +1983,6 @@ final class GUI {
     private void deliverDirectEvent(Widget receiver, InputEvent event) {
         log("deliver event to {}: {}", receiver, event);
 
-        if (receiver.checkTabKey(event)) {
-            log("tab stuff eats event");
-            return;
-        }
-
         if (event.isMouseRelated) {
             receiver.mMousePos = event.mousePos;
         }
@@ -2001,11 +1993,28 @@ final class GUI {
             receiver.focusOnInput();
 
         if (event.isKeyEvent) {
-            //keyboard capture, so that artificial key-release events are always
-            //generated (e.g. on focus change while key is pressed)
             updateKeyCapture(receiver, event.keyEvent);
+            Keycode code = event.keyEvent.code;
 
-            receiver.onKeyEvent(event.keyEvent);
+            if (event.keyEvent.isUp) {
+                if (mKeyTaken[code]) {
+                    receiver.onKeyUp(event.keyEvent);
+                } else {
+                    defaultKeyUp(receiver, event.keyEvent);
+                }
+            } else {
+                //xxx slightly unkosher because not reentrant
+                //  what if an event handler uses deliverDirectEvent()
+                bool taken = receiver.onKeyDown(event.keyEvent);
+                if (mCaptureKey !is receiver) {
+                    //onKeyDown did something strange (reentrancy issue)
+                    log("capture key changed after onKeyDown() handler?");
+                }
+                mKeyTaken[code] = taken;
+                if (!taken) {
+                    defaultKeyDown(receiver, event.keyEvent);
+                }
+            }
         } else if (event.isMouseEvent) {
             //usually used for the mouse cursor
             //NOTE: not for mouse click events... this is a hack to prevent the
@@ -2019,6 +2028,121 @@ final class GUI {
 
             receiver.onMouseMove(event.mouseEvent);
         }
+    }
+
+    //gets executed if a Widget returned false for onKeyDown()
+    private void defaultKeyDown(Widget receiver, KeyInfo event) {
+        assert(!!receiver);
+        bool taken = false;
+
+        if (event.code == Keycode.TAB) {
+            bool shift = modifierIsExact(event.mods, Modifier.Shift);
+            bool none = event.mods == 0;
+
+            if (none || shift) {
+                if (event.isDown)
+                    receiver.nextFocus(shift);
+                taken = true;
+            }
+        }
+
+        const dirs = [Keycode.RIGHT, Keycode.DOWN, Keycode.LEFT, Keycode.UP];
+        foreach (int i, d; dirs) {
+            if (event.code == d && event.mods == 0) {
+                taken |= keynavFocus(i % 2, i/2 ? -1 : +1);
+                break;
+            }
+        }
+
+        if (!taken)
+            log("unhandled key event: {}", event);
+    }
+    private void defaultKeyUp(Widget receiver, KeyInfo event) {
+        assert(!!receiver);
+    }
+
+    //focus a widget that is in the given direction (relative to mFocus)
+    private bool keynavFocus(int axis, int dir) {
+        assert(axis == 0 || axis == 1);
+        assert(dir == -1 || dir == +1);
+
+        Vector2i edge_point(Rect2i rc, bool other) {
+            int[2] d;
+            d[axis] = other ? -dir : dir;
+            int x = d[0] < 0 ? rc.p1.x : (d[0] > 0 ? rc.p2.x : rc.center.x);
+            int y = d[1] < 0 ? rc.p1.y : (d[1] > 0 ? rc.p2.y : rc.center.y);
+            return Vector2i(x, y);
+        }
+
+        if (!mFocus)
+            return false;
+
+        Widget window = mFocus.findFocusWindow();
+
+        Rect2i getrc(Widget cur) {
+            if (!cur.parent)
+                return Rect2i.Abnormal;
+            Rect2i area = cur.containedBorderBounds();
+            if (!mRoot.translateCoords(cur.parent, area))
+                return Rect2i.Abnormal;
+            //the normal selection code fails a little bit at overlapping
+            //  widgets; the only widgets that are actually desired to overlap
+            //  are scrolling containers whose nested children may be bigger
+            //  than the parent, so handle this by clipping with parents
+            Rect2i parent_area = getrc(cur.parent);
+            if (parent_area.isNormal())
+                area = area.intersection(parent_area);
+            return area;
+        }
+
+        Rect2i rel = getrc(mFocus);
+        if (!rel.isNormal())
+            return false;
+        Vector2i ep = edge_point(rel, false);
+
+        Widget best;
+        float best_dist;
+
+        void widget(Widget cur) {
+            //code duplication with nextFocus() for focusable check
+            if (cur is mFocus)
+                return;
+            if (!cur.canFocus())
+                return;
+            if (window && !window.isTransitiveChild(cur))
+                return;
+            if (cur.willDelegateFocusToChild())
+                return;
+            //see if it's in the correct direction
+            auto area = getrc(cur);
+            auto p = edge_point(area, true);
+            if ((ep[axis] - p[axis])*dir > 0)
+                return;
+            //distance, nearest wins
+            float dist = (toVector2f(p) - toVector2f(ep)).length;
+            if (!best || dist < best_dist) {
+                best = cur;
+                best_dist = dist;
+            }
+        }
+
+        void recurse(Widget cur) {
+            widget(cur);
+            foreach (n; cur.mWidgets) {
+                recurse(n);
+            }
+        }
+
+        recurse(mRoot);
+
+        if (!best)
+            return false;
+
+        log("keynav focus: dist={} widget={}", best_dist, best);
+
+        best.claimFocus();
+
+        return true;
     }
 
     //w goes from isLinked==true to isLinked==false

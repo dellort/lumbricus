@@ -647,10 +647,9 @@ private:
         //else, list all bindings
         write.writefln("Bindings:");
         keybindings.enumBindings(
-            (char[] bind, Keycode code, ModifierSet mods) {
+            (char[] bind, BindKey key) {
                 write.writefln("    {}='{}' ('{}')", bind,
-                    keybindings.unparseBindString(code, mods),
-                    globals.translateKeyshortcut(code, mods));
+                    key.unparse(), globals.translateKeyshortcut(key));
             }
         );
     }
@@ -748,13 +747,11 @@ private:
             if (!event.keyEvent.isDown())
                 return;
 
-            auto mods = event.keyEvent.mods;
-            auto code = event.keyEvent.code;
+            BindKey key = BindKey.fromKeyInfo(event.keyEvent);
 
             mGuiConsole.output.writefln("Key: '{}' '{}', code={} mods={}",
-                keybindings.unparseBindString(code, mods),
-                globals.translateKeyshortcut(code, mods),
-                cast(int)code, cast(int)mods);
+                key.unparse(), globals.translateKeyshortcut(key),
+                key.code, key.mods);
 
             //modifiers are also keys, ignore them
             if (!event.keyEvent.isModifierKey()) {
@@ -918,7 +915,7 @@ class StatsWindow : Task {
 
 //GUI to disable or enable log targets
 class LogConfig : Task {
-    Button[char[]] mLogButtons;
+    CheckBox[char[]] mLogButtons;
     BoxContainer mLogList;
 
     this(TaskManager mgr, char[] args = "") {
@@ -937,8 +934,8 @@ class LogConfig : Task {
         gWindowManager.createWindow(this, main, "Logging Configuration");
     }
 
-    void onToggle(Button sender) {
-        foreach (char[] name, Button b; mLogButtons) {
+    void onToggle(CheckBox sender) {
+        foreach (char[] name, CheckBox b; mLogButtons) {
             if (sender is b) {
                 registerLog(name).stfu = !sender.checked;
                 return;
@@ -958,11 +955,10 @@ class LogConfig : Task {
     void addLogs() {
         foreach (char[] name, Log log; gAllLogs) {
             auto pbutton = name in mLogButtons;
-            Button button = pbutton ? *pbutton : null;
+            CheckBox button = pbutton ? *pbutton : null;
             if (!button) {
                 //actually add
-                button = new Button();
-                button.isCheckbox = true;
+                button = new CheckBox();
                 button.text = name;
                 button.onClick = &onToggle;
                 mLogButtons[name] = button;
