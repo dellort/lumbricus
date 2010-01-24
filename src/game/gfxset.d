@@ -16,6 +16,8 @@ import utils.misc;
 import utils.time;
 import utils.factory;
 
+import str = utils.string;
+
 import physics.collisionmap;
 import physics.world;
 import game.events;
@@ -156,29 +158,25 @@ class GfxSet {
         if (pluginId in mLoadedPlugins) {
             return;
         }
-        char[] confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
-        Plugin newPlugin;
-        char[] plgType;
+
         ConfigNode conf;
-        if (!gFS.exists(confFile) && GamePluginFactory.exists(pluginId)) {
-            //internal plugin without plugin.conf
-            plgType = "internal";
-            conf = new ConfigNode();
-        } else {
+        if (str.eatStart(pluginId, "ext:")) {
+            char[] confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
             //load plugin.conf as gfx set (resources and sequences)
             conf = gResources.loadConfigForRes(confFile);
-            plgType = conf.getStringValue("type", "lua");
+        } else {
+            //internal plugin with no confignode
+            conf = new ConfigNode();
+            conf["internal_plugin"] = pluginId;
         }
+
         //mixin dynamic configuration
         if (cfg) {
             conf.getSubNode("config").mixinNode(cfg, true);
         }
 
-        try {
-            newPlugin = PluginFactory.instantiate(plgType, pluginId, this, conf);
-        } catch (ClassNotFoundException e) {
-            throw new PluginException("Invalid plugin type '"~plgType~"'");
-        }
+        Plugin newPlugin = new Plugin(pluginId, this, conf);
+
         //this will place dependencies in the plugins[] first, making them load
         //  before the current plugin
         foreach (dep; newPlugin.dependencies) {

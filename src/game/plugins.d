@@ -15,9 +15,6 @@ import utils.factory;
 import utils.configfile;
 import utils.string : isIdentifier;
 
-alias StaticFactory!("Plugins", Plugin, char[], GfxSet, ConfigNode)
-    PluginFactory;
-
 ///thrown when a plugin fails to load; the game may still work without it
 class PluginException : CustomException {
     this(char[] msg) {
@@ -31,10 +28,12 @@ class Plugin {
     char[] name;            //unique plugin id
     char[][] dependencies;  //all plugins in this list will be loaded, too
 
-    protected {
+    private {
         ConfigNode mConfig;
+        ConfigNode mConfigWhateverTheFuckThisIs;
         ResourceFile mResources;
         GfxSet mGfx;
+        char[][] mModules;
     }
 
     //called in resource-loading phase; currently name comes from plugin path
@@ -73,73 +72,47 @@ class Plugin {
             //xxx fixed id "weapons"; has to change, but how?
             addLocaleDir("weapons", mResources.fixPath("locale"));
         }
+
+        //
+        mModules = conf.getValue("modules", mModules);
+
+        //?
+        mConfigWhateverTheFuckThisIs = mConfig.getSubNode("config");
     }
 
     //called from GfxSet.finishLoading(); resources are sealed and can be used
     void finishLoading() {
+        if (mResources) {
+            //load the weapons (they reference resources)
+            char[] weaponsdir = mResources.fixPath("weapons");
+            gFS.listdir(weaponsdir, "*.conf", false,
+                (char[] path) {
+                    //a weapons file can contain resources, collision map
+                    //additions and a list of weapons
+                    auto wp_conf = loadConfig(weaponsdir ~ "/"
+                        ~ path[0..$-5]);
+                    mGfx.addCollideConf(wp_conf.getSubNode("collisions"));
+                    auto list = wp_conf.getSubNode("weapons");
+                    foreach (ConfigNode item; list) {
+                        loadWeaponClass(item);
+                    }
+                    return true;
+                }
+            );
+        }
     }
 
     //called from GameEngine, to create the runtime part of this plugin
     void init(GameEngine eng) {
-    }
-}
+        //handling of internal plugins (special cased D-only plugin hack)
+        char[] internal_plugin = mConfig["internal_plugin"];
+        if (internal_plugin.length) {
+            GamePluginFactory.instantiate(internal_plugin, eng,
+                mConfigWhateverTheFuckThisIs);
+        }
 
-//plain old weapon set; additionally contains some conf-based weapons
-class WeaponsetPlugin : Plugin {
-    this(char[] a_name, GfxSet gfx, ConfigNode conf) {
-        super(a_name, gfx, conf);
-        assert(!!mResources);
-    }
-
-    override void finishLoading() {
-        super.finishLoading();
-        //load the weapons (they reference resources)
-        char[] weaponsdir = mResources.fixPath("weapons");
-        gFS.listdir(weaponsdir, "*.conf", false,
-            (char[] path) {
-                //a weapons file can contain resources, collision map
-                //additions and a list of weapons
-                auto wp_conf = loadConfig(weaponsdir ~ "/"
-                    ~ path[0..$-5]);
-                mGfx.addCollideConf(wp_conf.getSubNode("collisions"));
-                auto list = wp_conf.getSubNode("weapons");
-                foreach (ConfigNode item; list) {
-                    loadWeaponClass(item);
-                }
-                return true;
-            }
-        );
-    }
-
-    //a weapon subnode of weapons.conf
-    private void loadWeaponClass(ConfigNode weapon) {
-        char[] type = weapon.getStringValue("type", "action");
-        //xxx error handling
-        //hope you never need to debug this code!
-        WeaponClass c = WeaponClassFactory.instantiate(type, mGfx, weapon);
-        mGfx.registerWeapon(c);
-    }
-
-    static this() {
-        PluginFactory.register!(typeof(this))("weaponset");
-    }
-}
-
-//lua-based plugin; additionally contains a list of lua modules
-class LuaPlugin : Plugin {
-    protected {
-        char[][] mModules;
-    }
-
-    this(char[] a_name, GfxSet gfx, ConfigNode conf) {
-        super(a_name, gfx, conf);
-        mModules = conf.getValue("modules", mModules);
-        assert(!!mResources);
-    }
-
-    override void init(GameEngine eng) {
         //pass configuration as global "config"
-        eng.scripting().setGlobal("config", mConfig.getSubNode("config"), name);
+        eng.scripting().setGlobal("config", mConfigWhateverTheFuckThisIs, name);
         foreach (modf; mModules) {
             char[] filename = mResources.fixPath(modf);
 
@@ -151,25 +124,12 @@ class LuaPlugin : Plugin {
         //no GameObject? hmm
     }
 
-    static this() {
-        PluginFactory.register!(typeof(this))("lua");
-    }
-}
-
-//a plugin implemented in D; name has to match with GamePluginFactory
-class InternalPlugin : Plugin {
-    //factory constructor
-    this(char[] a_name, GfxSet gfx, ConfigNode conf) {
-        super(a_name, gfx, conf);
-        assert(GamePluginFactory.exists(name));
-    }
-
-    override void init(GameEngine eng) {
-        ConfigNode cfg = mConfig.getSubNode("config");
-        GamePluginFactory.instantiate(name, eng, cfg);
-    }
-
-    static this() {
-        PluginFactory.register!(typeof(this))("internal");
+    //a weapon subnode of weapons.conf
+    private void loadWeaponClass(ConfigNode weapon) {
+        char[] type = weapon.getStringValue("type", "action");
+        //xxx error handling
+        //hope you never need to debug this code!
+        WeaponClass c = WeaponClassFactory.instantiate(type, mGfx, weapon);
+        mGfx.registerWeapon(c);
     }
 }
