@@ -285,36 +285,6 @@ class GameLoader {
 
             assert(false, "savegames have been ditched");
 
-/+
-            SerializeContext ctx = mShell.mSerializeCtx;
-            auto saveGame = new SerializeInConfig(ctx, mGameData);
-
-            auto ts = saveGame.read!(TimeSettings)();
-
-            //meh time, not serialized anymore because it only causes problems
-            mShell.mMasterTime.initTime(timeNsecs(ts.time_ns));
-            auto gt = mShell.mGameTime;
-            gt.resetTime();
-            gt.paused = ts.paused;
-            gt.slowDown = ts.slowdown;
-            mShell.mTimeStamp = ts.game_ts;
-            //assert(gt.current == start_time);
-            assert(mShell.mTimeStamp*cFrameLength ==mShell.mMasterTime.current);
-
-            foreach (int n, LandscapeBitmap lb; mBitmaps) {
-                ctx.addExternal(lb, myformat("landscape_{}", n));
-            }
-            ctx.addExternal(mPersistence, "persistence");
-
-            //(actually deserialize the complete engine)
-            mShell.mEngine = saveGame.readObjectT!(GameEngine)();
-
-            foreach (LandscapeBitmap lb; mBitmaps) {
-                ctx.removeExternal(lb);
-            }
-            mBitmaps = null; //make GC-able, just in case
-            ctx.removeExternal(mPersistence);
-+/
         }
 
         auto it = new TimeSourceSimple("GameShell/Interpolated");
@@ -778,59 +748,6 @@ class GameShell {
 
     void saveGame(TarArchive file) {
         assert(false, "savegames have been ditched");
-/+
-        //------ gamedata.conf
-        ConfigNode savegame = new ConfigNode();
-
-        LandscapeBitmap[] bitmaps = mEngine.landscapeBitmaps();
-        savegame.setValue!(int)("bitmap_count", bitmaps.length);
-
-        //------ GameConfig & level
-        savegame.addNode("game_config", mGameConfig.save());
-        savegame.addNode("persistence", mEngine.persistentState.copy());
-
-        //------ bitmaps
-        foreach (int idx, LandscapeBitmap lb; bitmaps) {
-            Lexel[] lexels = lb.levelData();
-            auto zwriter = file.openWriteStream(myformat("lexels_{}", idx));
-            zwriter.write(cast(ubyte[])lexels);
-            zwriter.close();
-            Stream bmp = file.openUncompressed(myformat("bitmap_{}.png", idx));
-            //force png to guarantee lossless compression
-            lb.image.saveImage(bmp, "png");
-            bmp.close();
-        }
-
-        //------- game data
-        auto writer = new SerializeOutConfig(mSerializeCtx);
-
-        GameLoader.TimeSettings ts;
-        ts.time_ns = mGameTime.current.nsecs;
-        ts.paused = mGameTime.paused;
-        ts.slowdown = mGameTime.slowDown;
-        ts.game_ts = mTimeStamp;
-        writer.write(ts);
-
-        foreach (int n, LandscapeBitmap lb; bitmaps) {
-            mSerializeCtx.addExternal(lb, myformat("landscape_{}", n));
-        }
-        mSerializeCtx.addExternal(mEngine.persistentState, "persistence");
-
-        writer.writeObject(mEngine);
-
-        //sorry for the braindead
-        foreach (LandscapeBitmap lb; bitmaps) {
-            mSerializeCtx.removeExternal(lb);
-        }
-        mSerializeCtx.removeExternal(mEngine.persistentState);
-
-        ConfigNode g = writer.finish();
-        savegame.addNode("game_data", g);
-
-        auto zwriter = file.openWriteStream("gamedata.conf");
-        savegame.writeFile(zwriter);
-        zwriter.close();
-+/
     }
 
     GameEngine serverEngine() {

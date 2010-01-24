@@ -47,14 +47,7 @@ class GfxSet {
         //same for weapons (also such a two-stage factory, creates Shooters)
         WeaponClass[char[]] mWeaponClasses;
 
-        Object[char[]] mActionClasses;
-
         CollisionMap mCollisionMap;
-
-        struct Inherit {
-            char[] sup, sub;
-        }
-        Inherit[] mEventInheritance;
 
         bool mFinished;
         Font mFlashFont;
@@ -358,68 +351,6 @@ class GfxSet {
         return mWeaponClasses.values;
     }
 
-    //--
-    void registerActionClass(Object o, char[] name) {
-        assert(!(name in mActionClasses), "double action name: "~name);
-        mActionClasses[name] = o;
-    }
-
-/+ bye bye
-    void initSerialization(SerializeContext ctx) {
-        assert(mFinished, "must have called finishLoading()");
-
-        ctx.addExternal(this, "gfx");
-
-        foreach (char[] key, TeamTheme tt; teamThemes) {
-            ctx.addExternal(tt, "gfx_theme::" ~ key);
-        }
-
-        foreach (ResourceSet.Entry res; resources.resourceList()) {
-            //(no aliases... externals must be unique)
-            if (res.isAlias())
-                continue;
-            Object o = res.resource();
-            ctx.addExternal(o, "res::" ~ res.name());
-            //xxx: maybe generalize using an interface or so?
-            if (auto seq = cast(SequenceType)o) {
-                seq.initSerialization(ctx);
-            }
-        }
-
-        foreach (char[] key, SpriteClass s; mSpriteClasses) {
-            assert(key == s.name);
-            char[] name = "sprite::" ~ key;
-            ctx.addExternal(s, name);
-            //if it gets more complicated than this, add a
-            //  SpriteClass.initSerialization() method
-            auto ss = cast(StateSpriteClass)s;
-            if (!ss)
-                continue;
-            foreach (char[] key2, StaticStateInfo state; ss.states) {
-                assert(key2 == state.name);
-                ctx.addExternal(state, name ~ "::" ~ key2);
-            }
-        }
-
-        foreach (char[] key, WeaponClass w; mWeaponClasses) {
-            assert(key == w.name);
-            ctx.addExternal(w, "weapon::" ~ w.name);
-        }
-
-        foreach (char[] key, Object o; mActionClasses) {
-            ctx.addExternal(o, "action::" ~ key);
-        }
-
-        ctx.addExternal(collision_map, "collision_map");
-        foreach (CollisionType t; collision_map.collisionTypes()) {
-            ctx.addExternal(t, "collision_type::" ~ t.name);
-        }
-
-        ctx.addCustomSerializer!(FormattedText)(&textDeserialize, null,
-            &textSerialize);
-    }
-+/
-
     SpriteClass[] allSpriteClasses() {
         return mSpriteClasses.values;
     }
@@ -577,46 +508,3 @@ struct ExplosionSettings {
             sizeTreshold = st;
     }
 }
-
-/+ byebye
-
-private struct FTextData {
-    //there may be more FormattedText properties not covered here
-    char[] data;
-    bool as_markup;
-    FontProperties font;
-    BoxProperties border;
-
-    FormattedText createText() {
-        auto fmt = new FormattedText();
-        fmt.setBorder(border);
-        fmt.font = gFontManager.create(font);
-        fmt.setText(as_markup, data);
-        return fmt;
-    }
-
-    void copyFrom(FormattedText fmt) {
-        fmt.getText(as_markup, data);
-        font = fmt.font.properties;
-        border = fmt.border;
-    }
-}
-
-private void textSerialize(SerializeBase base, SafePtr p,
-    void delegate(SafePtr) writer)
-{
-    auto fmt = castStrict!(FormattedText)(p.toObject());
-    assert(fmt.classinfo is typeof(fmt).classinfo); //don't serialize subclasses
-    FTextData d;
-    d.copyFrom(fmt);
-    writer(base.types.ptrOf(d));
-}
-
-private Object textDeserialize(SerializeBase base,
-    void delegate(SafePtr) reader)
-{
-    FTextData d;
-    reader(base.types.ptrOf(d));
-    return d.createText();
-}
-+/

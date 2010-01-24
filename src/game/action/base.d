@@ -85,8 +85,6 @@ ActionClass actionFromConfig(GfxSet gfx, ConfigNode node, char[] name) {
     if (ActionClassFactory.exists(type)) {
         auto ac = ActionClassFactory.instantiate(type, gfx, node, name);
         assert(!!ac);
-        //???
-        gfx.registerActionClass(ac, ac.name);
         return ac;
     } else {
         registerLog("game.action.base")("Action type "~type~" not found.");

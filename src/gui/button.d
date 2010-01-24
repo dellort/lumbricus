@@ -188,7 +188,13 @@ class ButtonBase : Widget {
 
         if (auto label = getLabel(false)) {
             label.renderer.translator = loader.locale();
-            label.setTextFmt(true, r"\t({})", node.getStringValue("text"));
+            auto txt = node.getStringValue("text");
+            auto markup = node.getStringValue("markup");
+            if (txt.length) {
+                label.setTextFmt(true, r"\t({})", txt);
+            } else if (markup.length) {
+                label.textMarkup = markup;
+            }
         }
 
         autoRepeat = node.getBoolValue("auto_repeat", autoRepeat);

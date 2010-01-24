@@ -34,7 +34,8 @@ class LevelWidget : SimpleContainer {
     private {
         DropDownList mSavedLevels;
         LevelGenerator mCurrentLevel;
-        ImageButton mLevelBtn, mLevelSaveBtn;
+        ImageButton mLevelBtn;
+        Button mLevelSaveBtn;
         ImageButton[8] mLvlQuickGen;
         BoxContainer mLevelDDBox;
         LevelGeneratorShared mGenerator;
@@ -69,7 +70,7 @@ class LevelWidget : SimpleContainer {
         mSavedLevels.onEditEnd = &levelEditEnd;
         mSavedLevels.edit.onChange = &levelEditChange;
 
-        mLevelSaveBtn = loader.lookup!(ImageButton)("btn_savelevel");
+        mLevelSaveBtn = loader.lookup!(Button)("btn_savelevel");
         mLevelSaveBtn.onClick = &saveLevelClick;
         mLevelSaveBtn.remove();
 
