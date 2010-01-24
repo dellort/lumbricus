@@ -404,7 +404,7 @@ class GLCanvas : Canvas3DHelper {
         bool state_blend, state_alpha_test;
         GLuint state_bindtexid;
 
-        bool mBlendEnable;
+        Color mBlendColor;
 
         //lazy drawing; assuming reducing the number of glDrawArrays calls
         //  improves performance
@@ -505,13 +505,12 @@ class GLCanvas : Canvas3DHelper {
             surface.undirty();
         }
 
-        if (mBlendEnable) {
+        if (mBlendColor.valid) {
             //this would be infinitely faster with shaders
             //the fixed pipeline ("normal" GL) probably has something that we
             //  could use, but I wouldn't know
-            Color blend = currentBlend();
             foreach (ref v; mVertices[0..mVertexCount]) {
-                v.c = v.c * blend;
+                v.c = v.c * mBlendColor;
             }
         }
 
@@ -682,7 +681,7 @@ class GLCanvas : Canvas3DHelper {
         glScalef(scale.x, scale.y, 1);
         checkGLError("update transform", true);
 
-        mBlendEnable = currentBlend().valid;
+        mBlendColor = currentBlend();
     }
 
     override void updateClip(Vector2i p1, Vector2i p2) {

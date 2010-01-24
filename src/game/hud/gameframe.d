@@ -25,6 +25,7 @@ import game.hud.powerups;
 import game.hud.replaytimer;
 import game.hud.network;
 import game.hud.register;
+import game.hud.chatbox;
 import game.clientengine;
 import game.controller_events;
 import game.game;
@@ -56,6 +57,7 @@ class GameFrame : SimpleContainer {
 
         TeamWindow mTeamWindow;
         Label mPauseLabel;
+        Chatbox mChatbox;
 
         Time mLastFrameTime;
         bool mFirstFrame = true;
@@ -240,6 +242,10 @@ class GameFrame : SimpleContainer {
             || gTopLevel.consoleVisible() || game.shell.paused();
     }
 
+    private void toggleChat() {
+        mChatbox.activate();
+    }
+
     //hud elements requested by gamemode
     private void onHudAdd(GameObject sender, char[] id, Object link) {
         addHud(id, link);
@@ -266,6 +272,8 @@ class GameFrame : SimpleContainer {
         mGui.add(new MessageViewer(game), lay);
         mGui.add(new ReplayTimer(game),
             WidgetLayout.Aligned(-1, -1, Vector2i(10, 0)));
+        mChatbox = new Chatbox(globals.cmdLine);
+        mGui.add(mChatbox, WidgetLayout.Aligned(-1, -1, Vector2i(5, 5)));
 
         mTeamWindow = new TeamWindow(game);
         mGui.add(mTeamWindow);
@@ -275,6 +283,7 @@ class GameFrame : SimpleContainer {
         gameView.onSelectCategory = &selectCategory;
         gameView.onKeyHelp = &keyHelp;
         gameView.onToggleWeaponWindow = &toggleWeaponWindow;
+        gameView.onToggleChat = &toggleChat;
 
         mScroller = new MouseScroller();
         //changed after r845, was WidgetLayout.Aligned(0, -1)

@@ -188,7 +188,7 @@ class FTGlyphCache {
 
         GlyphData ret;
 
-        ret.tex = ftbitmapToTex(glyph_bmp, props.fore);
+        ret.tex = ftbitmapToTex(glyph_bmp, props.fore_color);
 
         //surface only contains the actual glyph
         ret.offset.x = glyph_bitmap.left;
@@ -319,8 +319,8 @@ class FTFont : DriverFont {
     }
 
     private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos) {
-        if (mProps.back.a > 0)
-            c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back);
+        if (mProps.back_color.a > 0)
+            c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back_color);
 
         if (glyph.shadow) {
             c.drawSprite(glyph.shadow, pos + glyph.border_offset
@@ -356,7 +356,7 @@ class FTFont : DriverFont {
             }
             //normal underline
             canvas.drawLine(Vector2i(orgx, u_y), Vector2i(pos.x, u_y),
-                mProps.fore, lh);
+                mProps.fore_color, lh);
         }
 
         return pos;
@@ -440,7 +440,7 @@ class FTFontDriver : FontDriver {
         FontProperties gc_props = props;
         gc_props.underline = false; //rendered by us, is not in glyph bitmaps
         //background is rendered separately, exclude from AA key
-        gc_props.back = Color.init;
+        gc_props.back_color = Color.init;
 
         FTGlyphCache gc = aaIfIn(mGlyphCaches, gc_props);
 

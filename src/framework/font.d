@@ -29,8 +29,8 @@ enum FaceStyle {
 struct FontProperties {
     char[] face = "default";
     int size = 14;
-    Color back = {0.0f,0.0f,0.0f,0.0f};
-    Color fore = {0.0f,0.0f,0.0f,1.0f};
+    Color back_color = {0.0f,0.0f,0.0f,0.0f};
+    Color fore_color = {0.0f,0.0f,0.0f,1.0f};
     bool bold;
     bool italic;
     bool underline;
@@ -39,7 +39,7 @@ struct FontProperties {
     Color border_color;
     //distance of the shadow from the real text in pixels (0 means disabled)
     int shadow_offset;
-    Color shadow_color;
+    Color shadow_color = {0.0f,0.0f,0.0f,0.7f};
 
     FaceStyle getFaceStyle() {
         if (bold && italic)  return FaceStyle.boldItalic;
@@ -218,10 +218,6 @@ class FontManager : ResourceManagerT!(FontDriver, Font) {
     /// fail_exception = if it couldn't be found, raise an exception
     ///   (else return a default)
     FontProperties getStyle(char[] id, bool fail_exception = false) {
-        FontProperties p;
-        p.back.a = 0;
-        char[] filename;
-
         assert(!!mNodes, "not initialized using readFontDefinitions()");
 
         ConfigNode font = mNodes.findNode(id);
@@ -232,24 +228,7 @@ class FontManager : ResourceManagerT!(FontDriver, Font) {
             font = mNodes.getSubNode("normal");
         }
 
-        p.back = font.getValue("backcolor", p.back);
-        p.border_color = font.getValue("bordercolor", p.back);
-        p.fore = font.getValue("forecolor", p.fore);
-
-        //xxx not needed anymore?
-        //p.back.a = font.getFloatValue("backalpha", p.back.a);
-        //p.fore.a = font.getFloatValue("forealpha", p.fore.a);
-
-        p.size = font.getIntValue("size", 12);
-        p.border_width = font.getIntValue("borderwidth", 0);
-
-        p.face = font.getStringValue("face", "default");
-
-        p.bold = font.getBoolValue("bold", p.bold);
-        p.italic = font.getBoolValue("italic", p.italic);
-        p.underline = font.getBoolValue("underline", p.underline);
-
-        return p;
+        return font.getCurValue!(FontProperties)();
     }
 
     //driver uses this

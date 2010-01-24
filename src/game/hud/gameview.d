@@ -403,6 +403,7 @@ class GameView : Widget {
     void delegate() onTeamChange;
     void delegate() onKeyHelp;
     void delegate() onToggleWeaponWindow;
+    void delegate() onToggleChat;
     void delegate(char[] category) onSelectCategory;
 
     //for setSettings()
@@ -548,6 +549,7 @@ class GameView : Widget {
         mCmds.register(Command("toggle_weaponwindow", &cmdToggleWeaponWnd, "-",
             []));
         mCmds.register(Command("toggle_scroll", &cmdToggleScroll, "-", []));
+        mCmds.register(Command("toggle_chat", &cmdToggleChat, "-", []));
         mCmds.bind(mCmd);
     }
 
@@ -652,6 +654,11 @@ class GameView : Widget {
     bool scrollOverride;
     private void cmdToggleScroll(MyBox[] args, Output write) {
         scrollOverride = !scrollOverride;
+    }
+    private void cmdToggleChat(MyBox[] args, Output write) {
+        //xxx this is stupid, rethink handling of ingame commands
+        if (onToggleChat)
+            onToggleChat();
     }
 
     //should be moved elsewhere etc.

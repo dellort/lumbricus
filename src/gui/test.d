@@ -506,15 +506,15 @@ class TestTask2 : Task {
         float getcolor(int n) {
             return mBars[n].curValue/255.0f;
         }
-        mFont.font.fore = Color(1,1,1,getcolor(0));
-        mFont.font.back.a = 0; //getcolor(1);
+        mFont.font.fore_color = Color(1,1,1,getcolor(0));
+        mFont.font.back_color.a = 0; //getcolor(1);
         mFont.font.border_color = Color(0.5,1.0,0.5,getcolor(1));
         mFont.font.border_width = mBars[4].curValue;
         mFont.font.shadow_offset = mBars[5].curValue;
         mFont.font.shadow_color = Color(0.5,0.5,0.5,0.5);
         mFont.updateFont();
         mBox.box.border = mFont.font.border_color;
-        mBox.box.back = mFont.font.fore;
+        mBox.box.back = mFont.font.fore_color;
         mBox.box.cornerRadius = mBars[3].curValue;
         mBox.box.borderWidth = mFont.font.border_width;
         Color clear = Color(1.0f,1.0-getcolor(2),1.0-getcolor(2));

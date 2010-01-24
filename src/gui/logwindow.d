@@ -12,21 +12,31 @@ import str = utils.string;
 public class LogWindow : Widget, Output {
     //maximum entries the backlog stores
     //if backlog would grow larger, old entries are thrown away
-    private const int BACKLOG_LENGTH = 100;
+    private {
+        const int BACKLOG_LENGTH = 100;
 
-    //output font (from constructor)
-    private Font mConsoleFont;
-    //height of a line of text (with space)
-    private int mLineHeight;
+        //output font (from constructor)
+        Font mConsoleFont;
+        //height of a line of text (with space)
+        int mLineHeight;
 
-    //backlog buffer
-    private char[][BACKLOG_LENGTH]  mBackLog;
-    //index into backlog pointing to next empty line
-    private int mBackLogIdx;
-    //number of valid entries
-    private int mBackLogLen;
-    //number of lines to scroll back
-    private int mScrollPos;
+        //backlog buffer
+        struct BufferEntry {
+            char[] text;
+            Time timestamp;
+        }
+        BufferEntry[BACKLOG_LENGTH] mBackLog;
+        //index into backlog pointing to next empty line
+        int mBackLogIdx;
+        //number of valid entries
+        int mBackLogLen;
+        //number of lines to scroll back
+        int mScrollPos;
+        //time after which old lines are faded out (0 to disable)
+        Time mFadeDelay;
+        //time over which to fade alpha from visible to invisible
+        const cFadeTime = timeSecs(1);
+    }
 
     //break lines on window width (primitive algorithm)
     //quite inefficient algorithm, which is why it can be deactivated here
@@ -46,7 +56,15 @@ public class LogWindow : Widget, Output {
         mLineHeight = fnt.properties.size + 3;
     }
 
+    void fadeDelay(Time delay) {
+        mFadeDelay = delay;
+    }
+    Time fadeDelay() {
+        return mFadeDelay;
+    }
+
     void onDraw(Canvas scrCanvas) {
+        //scope(exit) scrCanvas.setBlend(Color(1,1,1,1));
         Vector2i size = scrCanvas.clientSize;
 
         int renderWidth = size.x;
@@ -58,13 +76,30 @@ public class LogWindow : Widget, Output {
         int idx = mBackLogIdx-1-mScrollPos;
         int i = 0;
         auto cur = Vector2i(0, size.y);
+        Time curTime = timeCurrentTime();
         while (cur.y > 0) {
             if (idx < 0)
                 idx += BACKLOG_LENGTH;
-            auto text = mBackLog[idx];
+            auto entry = mBackLog[idx];
+            idx--;
+            if (mFadeDelay != Time.Null) {
+                //fade out (or hide entirely) old entries
+                //(if enabled by setting fadeDelay)
+                Time entryOverAge = curTime - entry.timestamp - mFadeDelay;
+                if (entryOverAge > cFadeTime) {
+                    //the entry is beyond display age, only older entries
+                    //can follow
+                    break;
+                } else if (entryOverAge > Time.Null) {
+                    //currently fading; entryOverAge is in [0; cFadeTime]
+                    float delta = entryOverAge.secsf / cFadeTime.secsf;
+                    //delta == 1.0f -> fully faded out
+                    scrCanvas.setBlend(Color(1,1,1,1.0f - delta));
+                }
+            }
             if (!breakLines) {
                 cur.y -= mLineHeight;
-                mConsoleFont.drawText(scrCanvas, cur, text);
+                mConsoleFont.drawText(scrCanvas, cur, entry.text);
             } else {
                 //hurf hurf use the stack to save the text positions
                 //(because we want to render the text from bottom to top, but
@@ -84,9 +119,8 @@ public class LogWindow : Widget, Output {
                     cur.y -= mLineHeight;
                     mConsoleFont.drawText(scrCanvas, cur, txt[0..n]);
                 }
-                bla(text, 0);
+                bla(entry.text, 0);
             }
-            idx--;
         }
     }
 
@@ -133,7 +167,8 @@ public class LogWindow : Widget, Output {
 
     private void println() {
         touchConsole();
-        mBackLog[mBackLogIdx] = mLineBuffer;
+        mBackLog[mBackLogIdx].text = mLineBuffer;
+        mBackLog[mBackLogIdx].timestamp = timeCurrentTime();
         mLineBuffer = null;
         mBackLogIdx = (mBackLogIdx + 1) % BACKLOG_LENGTH;
         mBackLogLen++;
@@ -149,6 +184,10 @@ public class LogWindow : Widget, Output {
             mScrollPos = 0;
         if (mScrollPos >= mBackLogLen)
             mScrollPos = mBackLogLen-1;
+        //reset entry visibility
+        foreach (ref entry; mBackLog) {
+            entry.timestamp = timeCurrentTime();
+        }
     }
 
     ///clear backlog and output display

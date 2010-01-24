@@ -113,7 +113,7 @@ private:
     KeyBindings keybindings;
 
     GUI mGui;
-    GuiConsole mGuiConsole;
+    SystemConsole mGuiConsole;
     GuiFps mFPS;
 
     TaskManager taskManager;
@@ -227,9 +227,13 @@ private:
         mFPS.visible = false;
         mGui.mainFrame.add(mFPS);
 
-        mGuiConsole = new GuiConsole(false);
+        mGuiConsole = new SystemConsole();
         mGuiConsole.zorder = GUIZOrder.Console;
-        mGui.mainFrame.add(mGuiConsole);
+        WidgetLayout clay;
+        clay.fill[1] = 1.0f/2;
+        clay.alignment[1] = 0;
+        clay.border = Vector2i(4);
+        mGui.mainFrame.add(mGuiConsole, clay);
 
         initConsole();
 
@@ -793,7 +797,7 @@ class ConsoleWindow : Task {
     this(TaskManager mgr, char[] args = "") {
         super(mgr);
         gWindowManager.createWindowFullscreen(this,
-            new GuiConsole(true, globals.cmdLine), "Console");
+            new GuiConsole(globals.cmdLine), "Console");
     }
 
     static this() {

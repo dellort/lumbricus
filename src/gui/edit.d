@@ -204,7 +204,7 @@ class EditLine : Widget {
                 auto offs = mFont.textSize(mCurline[0..mCursor]);
                 offs.x += promptsize;
                 c.drawFilledRect(offs.X, offs + Vector2i(1, 0),
-                    mFont.properties.fore);
+                    mFont.properties.fore_color);
             }
             mCursorTimer.update();
         } else {
@@ -256,8 +256,8 @@ class EditLine : Widget {
 
         //selected-text font; only the colors can be changed
         auto props = mFont.properties;
-        props.fore = mSelFore;
-        props.back = mSelBack;
+        props.fore_color = mSelFore;
+        props.back_color = mSelBack;
         mSelFont = new Font(props);
 
         needResize();

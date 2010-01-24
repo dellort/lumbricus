@@ -428,7 +428,7 @@ class TeamTheme {
         font = gFontManager.loadFont("wormfont");
         //set color; Font is immutable
         auto style = font.properties;
-        style.fore = color;
+        style.fore_color = color;
         font = new Font(style);
 
         font_flash = gFontManager.loadFont("wormfont_flash");

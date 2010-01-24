@@ -9,228 +9,185 @@ import gui.container;
 import gui.edit;
 import gui.logwindow;
 import gui.widget;
+import gui.styles;
 import utils.output;
 import utils.time;
+import utils.interpolate;
 
-//xxx the "global console" code (== standalone is false) should be moved out
-//    into a separate widget
-class GuiConsole : Container {
+//need to make this available to derived classes
+class ConsoleEditLine : EditLine {
     private {
-        CommandLine mRealCmdline;
         CommandLineInstance mCmdline;
-
         LogWindow mLogWindow;
-        EditLine mEdit;
-        BoxContainer mBox;
-        bool mDrawBackground;
-        //background color, if enabled
-        Color mBackColor;
-
-        bool mStandalone;
-        int mHeightDiv;
-
-        //currently showing (1) or hiding (-1)
-        int mShowFlag;
-        //current height, considering sliding
-        int mOffset, mHeight;
-        //time for a full slide
-        Time mFadeinTime;
-        Time mLastTime;
     }
 
-    class ConsoleEditLine : EditLine {
-        private void selHistory(int dir) {
-            text = mCmdline.selectHistory(text, dir);
-            cursorPos = text.length;
-        }
+    this(CommandLineInstance cmd, LogWindow logWin) {
+        mCmdline = cmd;
+        mLogWindow = logWin;
+    }
 
-        override protected bool handleKeyPress(KeyInfo infos) {
-            if (infos.code == Keycode.TAB) {
-                auto txt = text.dup;
-                mCmdline.tabCompletion(txt, cursorPos,
-                    (int start, int end, char[] ins) {
-                        txt = txt[0..start] ~ ins ~ txt[end..$];
-                        //set text and put cursor at end of completion
-                        text = txt;
-                        cursorPos = start + ins.length;
-                    }
-                );
-            } else if (infos.code == Keycode.UP) {
-                selHistory(-1);
-            } else if (infos.code == Keycode.DOWN) {
-                selHistory(+1);
-            } else if (infos.code == Keycode.PAGEUP) {
-                mLogWindow.scrollBack(+1);
-            } else if (infos.code == Keycode.PAGEDOWN) {
-                mLogWindow.scrollBack(-1);
-            } else if (infos.code == Keycode.RETURN) {
-                mCmdline.execute(text);
-                text = null;
-            } else {
-                return super.handleKeyPress(infos);
-            }
-            return true;
+    private void selHistory(int dir) {
+        text = mCmdline.selectHistory(text, dir);
+        cursorPos = text.length;
+    }
+
+    override protected bool handleKeyPress(KeyInfo infos) {
+        if (infos.code == Keycode.TAB) {
+            auto txt = text.dup;
+            mCmdline.tabCompletion(txt, cursorPos,
+                (int start, int end, char[] ins) {
+                    txt = txt[0..start] ~ ins ~ txt[end..$];
+                    //set text and put cursor at end of completion
+                    text = txt;
+                    cursorPos = start + ins.length;
+                }
+            );
+        } else if (infos.code == Keycode.UP) {
+            selHistory(-1);
+        } else if (infos.code == Keycode.DOWN) {
+            selHistory(+1);
+        } else if (infos.code == Keycode.PAGEUP) {
+            mLogWindow.scrollBack(+1);
+        } else if (infos.code == Keycode.PAGEDOWN) {
+            mLogWindow.scrollBack(-1);
+        } else if (infos.code == Keycode.RETURN) {
+            mCmdline.execute(text);
+            text = null;
+        } else {
+            return super.handleKeyPress(infos);
         }
+        return true;
+    }
+}
+
+//a generic console (basically just a LogWindow over an EditLine)
+class GuiConsole : BoxContainer {
+    private {
+        CommandLine mRealCmdline;
+    }
+    protected {
+        CommandLineInstance mCmdline;
+        LogWindow mLogWindow;
+        EditLine mEdit;
+    }
+
+    //cmdline: use that cmdline, if null create a new one
+    this(CommandLine cmdline = null) {
+        super(false);
+
+        mLogWindow = new LogWindow();
+
+        mRealCmdline = cmdline ? cmdline : new CommandLine(mLogWindow);
+        mCmdline = new CommandLineInstance(mRealCmdline, mLogWindow);
+
+        mEdit = createEdit();
+        add(mLogWindow);
+        add(mEdit, WidgetLayout.Expand(true));
+    }
+
+    protected EditLine createEdit() {
+        auto ret = new ConsoleEditLine(mCmdline, mLogWindow);
+        ret.prompt = "> ";
+        return ret;
     }
 
     final Output output() {
         return mLogWindow;
     }
     //"compatibility"
-    final Output console() {
-        return output();
-    }
+    alias output console;
     final CommandLine cmdline() {
         return mRealCmdline;
     }
 
-    private const cBorder = 4;
+    override void readStyles() {
+        super.readStyles();
+        auto props = styles.get!(FontProperties)("text-font");
+        auto newFont = gFontManager.create(props);
+        mLogWindow.font = newFont;
+        mEdit.font = newFont;
+        mLogWindow.fadeDelay = styles.get!(Time)("fade-delay");
+    }
 
-    //standalone: if false: hack to keep "old" behaviour of the system console
+    static this() {
+        styleRegisterTime("fade-delay");
+        WidgetFactory.register!(typeof(this))("console");
+    }
+}
+
+//the global console: can be slided away to the top, and will claim
+//  and release focus according to visibility
+class SystemConsole : GuiConsole {
+    private {
+        InterpolateExp!(float) mPosInterp;
+    }
+
     //cmdline: use that cmdline, if null create a new one
-    this(bool standalone = true, CommandLine cmdline = null) {
-        mStandalone = standalone;
-        mBackColor = Color(0.5,0.5,0.5,0.5); //freaking alpha transparency!!!
+    this(CommandLine cmdline = null) {
+        super(cmdline);
 
-        auto font = gFontManager.loadFont(standalone ? "sconsole" : "console");
-
-        mHeightDiv = standalone ? 1 : 2;
-
-        mLogWindow = new LogWindow();
-        mLogWindow.font = font;
-        mEdit = new ConsoleEditLine();
-        mEdit.font = font;
-        mEdit.prompt = "> ";
-        mBox = new BoxContainer(false);
-        mBox.add(mLogWindow);
-        mBox.add(mEdit, WidgetLayout.Expand(true));
-
-        //how much should be visible => modify fill value of layout
-        auto lay = mBox.layout();
-        lay.fill[1] = 1.0f/mHeightDiv;
-        lay.alignment[1] = 0;
-        lay.pad = cBorder;
-        mBox.setLayout(lay);
-
-        consoleVisible = standalone; //system console hidden by default
-        Color console_color;
-        if (!standalone) {
-            //(backcolor was once in anything.conf, if you want to make it
-            // configurable again, find a clean solution!)
-            mBackColor = Color(0.7, 0.7, 0.7, 0.7);
-            mDrawBackground = true;
-        }
-
-        mRealCmdline = cmdline ? cmdline : new CommandLine(mLogWindow);
-        mCmdline = new CommandLineInstance(mRealCmdline, mLogWindow);
-
-        mFadeinTime = timeMsecs(150);
-        mLastTime = timeCurrentTime();
+        consoleVisible = false; //system console hidden by default
     }
 
     private void changeHeight() {
-        //0: normal, -height: totally invisible
-        mBox.setAddToPos(Vector2i(0, -mOffset));
-        bool visible = (mOffset != mHeight);
-        if (visible != !!(mBox.parent)) {
-            if (visible) {
-                addChild(mBox);
-                mEdit.claimFocus();
-            } else {
-                removeChild(mBox);
-            }
-        }
+        int edge = findParentBorderDistance(0, -1, true);
+        setAddToPos(Vector2i(0, -cast(int)(mPosInterp.value*edge)));
     }
 
     override void simulate() {
-        //sliding console in/out
-        if ((mShowFlag < 0 && mOffset < mHeight) || ((mShowFlag > 0 &&
-            mOffset > 0)))
-        {
-            Time dt = timeCurrentTime() - mLastTime;
-            mOffset -= mShowFlag * (dt * mHeight).msecs / mFadeinTime.msecs;
-            if (mOffset > mHeight)
-                mOffset = mHeight;
-            if (mOffset < 0)
-                mOffset = 0;
-        }
-
         changeHeight();
 
-        mLastTime = timeCurrentTime();
-
         //make a global console go away if unfocused
-        if (!mStandalone) {
-            if (!subFocused() && consoleVisible())
-                toggle(); //consoleVisible = false;
-        }
+        if (!subFocused() && consoleVisible())
+            toggle(); //consoleVisible = false;
 
         super.simulate();
     }
 
-    override protected void layoutSizeAllocation() {
-        bool reset = (mShowFlag < 0) && (mOffset == mHeight);
-        mHeight = size.y/mHeightDiv; //similar height to mBox.size.y
-        if (reset)
-            mOffset = mHeight;
-        super.layoutSizeAllocation();
-    }
-
     ///show console
     public void show() {
-        mShowFlag = 1;
+        mPosInterp.setParams(1.0f, 0);
+        updateVisible();
     }
 
     ///hide console
     public void hide() {
-        mShowFlag = -1;
+        mPosInterp.setParams(0, 1.0f);
+        updateVisible();
     }
 
     ///toggle display of console
     public void toggle() {
-        mShowFlag = -mShowFlag;
+        mPosInterp.revert();
+        updateVisible();
     }
 
     public bool consoleVisible() {
-        return mShowFlag == 1;
+        return mPosInterp.target == 0;
     }
 
     ///force toggle/visibility state
     void consoleVisible(bool set) {
-        auto nShowFlag = set ? 1 : -1;
-        if (mShowFlag == nShowFlag)
-            return;
-        mShowFlag = nShowFlag;
-        mOffset = set ? 0 : mHeight;
+        mPosInterp.init_done(timeSecs(0.4), set ? 1 : 0, set ? 0 : 1);
         changeHeight();
-        focusable = set;
+        updateVisible();
     }
 
-    override bool onTestMouse(Vector2i p) {
-        return mShowFlag > 0 && p.y < mHeight;
-    }
-
-    override void onDraw(Canvas c) {
-        //draw background rect
-        bool ok = !!mBox.parent;
-        if (ok && mDrawBackground) {
-            auto rc = mBox.containedBounds();
-            rc.extendBorder(Vector2i(cBorder)); //add border back, looks better
-            rc += mBox.getAddToPos();
-            c.drawFilledRect(rc.p1,rc.p2,mBackColor);
+    //called when visibility changes
+    private void updateVisible() {
+        enabled = consoleVisible();
+        mEdit.pollFocusState();
+        if (consoleVisible()) {
+            mEdit.claimFocus();
         }
-        //draw children
-        super.onDraw(c);
     }
 
-    public Color backcolor() {
-        return mBackColor;
-    }
-    public void backcolor(Color col) {
-        mBackColor = col;
+    //no focus to edit when console is hidden
+    override bool allowSubFocus() {
+        return consoleVisible();
     }
 
     static this() {
-        WidgetFactory.register!(typeof(this))("console");
+        WidgetFactory.register!(typeof(this))("systemconsole");
     }
 }

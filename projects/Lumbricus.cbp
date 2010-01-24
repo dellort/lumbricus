@@ -146,6 +146,7 @@
 		<Unit filename="..\src\game\gui\weaponedit.d" />
 		<Unit filename="..\src\game\gui\welcome.d" />
 		<Unit filename="..\src\game\hud\camera.d" />
+		<Unit filename="..\src\game\hud\chatbox.d" />
 		<Unit filename="..\src\game\hud\gameframe.d" />
 		<Unit filename="..\src\game\hud\gameteams.d" />
 		<Unit filename="..\src\game\hud\gametimer.d" />

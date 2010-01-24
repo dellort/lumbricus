@@ -393,11 +393,11 @@ public class FormattedText {
             }
         } else if (tryeat("c")) {
             auto f = getfont();
-            if (readcolor(f.fore))
+            if (readcolor(f.fore_color))
                 setfont(f);
         } else if (tryeat("back")) {
             auto f = getfont();
-            if (readcolor(f.back))
+            if (readcolor(f.back_color))
                 setfont(f);
         } else if (tryeat("border-color")) {
             auto f = getfont();

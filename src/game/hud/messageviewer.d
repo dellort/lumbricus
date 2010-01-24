@@ -96,7 +96,7 @@ class MessageViewer : Label {
             auto team = curMsg.teamForColor;
             auto p = mStdFont;
             if (team) {
-                p.fore = team.color.color;
+                p.fore_color = team.color.color;
             }
             setStyleOverrideT!(FontProperties)("text-font", p);
             mInterp.init(timeSecs(1.5f),

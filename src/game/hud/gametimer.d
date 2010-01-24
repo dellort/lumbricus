@@ -20,7 +20,6 @@ class GameTimer : BoxContainer {
     private {
         GameInfo mGame;
         Label mTurnTime, mGameTime;
-        Time mLastTime;
         Font[5] mFont;
         //xxx load this from somewhere
         bool mShowGameTime, mShowTurnTime;
@@ -58,7 +57,6 @@ class GameTimer : BoxContainer {
 
         minSize = toVector2i(toVector2f(mTurnTime.font.textSize("99"))*1.5f);
 
-        mLastTime = timeCurrentTime();
         mPosInterp.init_done(timeSecs(0.4), 0, 1);
 
         hudBase.add(this, WidgetLayout.Aligned(-1, 1, Vector2i(5, 5)));

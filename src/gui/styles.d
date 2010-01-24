@@ -8,6 +8,7 @@ import utils.mybox;
 //doesn't really belong here
 import framework.font;
 import utils.color;
+import utils.time;
 
 import tango.core.Array : sort, find;
 import arr = utils.array;
@@ -490,7 +491,7 @@ MyBox parseFromStrScalar(T)(char[] src, MyBox prev) {
     if (!prev.empty())
         prevval = prev.unbox!(T)();
 
-    T value = 0;
+    T value;
 
     if (str.endsWith(src, "%")) {
         float scale = strparser.fromStr!(float)(src[0..$-1]) / 100.0f;
@@ -556,6 +557,9 @@ void styleRegisterBool(char[] name) {
 }
 void styleRegisterFont(char[] name) {
     styleRegisterValue(name, &parseFont);
+}
+void styleRegisterTime(char[] name) {
+    styleRegisterValue(name, &parseFromStrScalar!(Time));
 }
 
 void styleRegisterStrParser(T)(char[] name) {
