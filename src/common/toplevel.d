@@ -318,7 +318,6 @@ private:
         globals.cmdLine.registerCommand("terminate", &cmdTerminate,
             "", ["int"]);
         globals.cmdLine.registerCommand("help_spawn", &cmdSpawnHelp, "");
-        globals.cmdLine.registerCommand("grab", &cmdGrab, "", ["bool"]);
 
         globals.cmdLine.registerCommand("res_load", &cmdResLoad, "", ["text"]);
         globals.cmdLine.registerCommand("res_unload", &cmdResUnload, "", []);
@@ -450,12 +449,6 @@ private:
         } catch (Exception e) {
             write.writefln("failed: {}", e);
         }
-    }
-
-    private void cmdGrab(MyBox[] args, Output write) {
-        auto state = args[0].unbox!(bool)();
-        //gFramework.cursorVisible = !state;
-        gFramework.mouseLocked = state;
     }
 
     private void cmdPS(MyBox[] args, Output write) {

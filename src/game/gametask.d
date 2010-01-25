@@ -224,6 +224,8 @@ class GameTask : StatefulTask {
         wnd.properties = props;
 
         mCmds = new CommandBucket();
+        mCmds.helpTranslator = localeRoot.bindNamespace(
+            "console_commands.gametask");
         registerCommands();
         mCmds.bind(globals.cmdLine);
     }
@@ -472,29 +474,17 @@ class GameTask : StatefulTask {
     //game specific commands
     private void registerCommands() {
         if (!mConnection) {
-            mCmds.register(Command("slow", &cmdSlow, "set slowdown",
-                ["float:slow down",
-                 "text?:ani or game"]));
-            mCmds.register(Command("snap", &cmdSnapTest, "snapshot test",
-                ["int:1=store, 2=load, 3=store+load"]));
-            mCmds.register(Command("replay", &cmdReplay,
-                "start recording or replay from last snapshot",
-                ["text?:any text to start recording"]));
-            mCmds.register(Command("demo_stop", &cmdDemoStop,
-                "stop demo recorder"));
+            mCmds.register(Command("slow", &cmdSlow, "", ["float", "text?"]));
+            mCmds.register(Command("snap", &cmdSnapTest, "", ["int"]));
+            mCmds.register(Command("replay", &cmdReplay, "", ["text?"]));
+            mCmds.register(Command("demo_stop", &cmdDemoStop, ""));
         }
-        mCmds.register(Command("savelevelpng", &cmdSafeLevelPNG, "dump PNG",
-            ["text:filename"]));
-        mCmds.register(Command("show_collide", &cmdShowCollide, "show collision"
-            " bitmaps"));
-        mCmds.register(Command("server", &cmdExecServer,
-            "Run a command on the server", ["text...:command"]));
+        mCmds.register(Command("savelevelpng", &cmdSafeLevelPNG, "", ["text"]));
+        mCmds.register(Command("show_collide", &cmdShowCollide, ""));
+        mCmds.register(Command("server", &cmdExecServer, "", ["text..."]));
         //mCmds.register(Command("show_obj", &cmdShowObj, "", null));
-        mCmds.register(Command("game_res", &cmdGameRes, "show in-game resources"
-            " (doesn't include all global resources, but does include some"
-            " game-only stuff)", null));
-        mCmds.register(Command("lua", &cmdLua, "open separate window with lua"
-            " interpreter bound to the game engine"));
+        mCmds.register(Command("game_res", &cmdGameRes, "", null));
+        mCmds.register(Command("lua", &cmdLua, ""));
     }
 
     class ShowCollide : Container {
