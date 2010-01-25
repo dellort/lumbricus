@@ -125,6 +125,7 @@ class SystemConsole : GuiConsole {
     //cmdline: use that cmdline, if null create a new one
     this(CommandLine cmdline = null) {
         super(cmdline);
+        styles.addClass("systemconsole");
 
         consoleVisible = false; //system console hidden by default
     }
@@ -175,6 +176,7 @@ class SystemConsole : GuiConsole {
 
     //called when visibility changes
     private void updateVisible() {
+        //disable to let mouse-clicks through
         enabled = consoleVisible();
         mEdit.pollFocusState();
         if (consoleVisible()) {
@@ -185,9 +187,5 @@ class SystemConsole : GuiConsole {
     //no focus to edit when console is hidden
     override bool allowSubFocus() {
         return consoleVisible();
-    }
-
-    static this() {
-        WidgetFactory.register!(typeof(this))("systemconsole");
     }
 }

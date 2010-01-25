@@ -64,7 +64,7 @@ class FTGlyphCache {
         //will fall back to default style if specified was not found
         mFontStream = gFontManager.findFace(props.face, props.getFaceStyle);
         if (!mFontStream.length) {
-            throw new CustomException("Failed to load font '" ~ props.face
+            throw new FrameworkException("Failed to load font '" ~ props.face
                 ~ "': Face file not found.");
         }
         this.props = props;
@@ -72,13 +72,13 @@ class FTGlyphCache {
         if (FT_New_Memory_Face(driver.library, mFontStream.ptr,
             mFontStream.length, 0, &mFace))
         {
-            throw new CustomException("Freetype failed to load font '"
+            throw new FrameworkException("Freetype failed to load font '"
                 ~ props.face ~ "'.");
         }
 
         //only supports scalable fonts
         if (!FT_IS_SCALABLE(mFace))
-            throw new CustomException("Invalid font: Not scalable.");
+            throw new FrameworkException("Invalid font: Not scalable.");
         //using props.size as pointsize with default dpi (72)
         FT_Set_Char_Size(mFace, 0, props.size * 64, 0, 0);
         //calculate font metrics
@@ -155,8 +155,8 @@ class FTGlyphCache {
         //(also, I check allocating functions only)
         void ftcheck(char[] name) {
             if (ftres)
-                throw new CustomException(myformat("fontft.d failed: err={} in {}",
-                    ftres, name));
+                throw new FrameworkException(
+                    myformat("fontft.d failed: err={} in {}", ftres, name));
         }
 
         //Load the Glyph for our character.
@@ -398,7 +398,7 @@ class FTFontDriver : FontDriver {
         DerelictFT.load();
         Derelict_SetMissingProcCallback(null);
         if (FT_Init_FreeType(&library))
-            throw new CustomException("FT_Init_FreeType failed");
+            throw new FrameworkException("FT_Init_FreeType failed");
     }
 
     void destroy() {

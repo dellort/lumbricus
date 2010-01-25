@@ -20,7 +20,7 @@ void sdlInit() {
 
         //probably really needed, don't know
         if (SDL_Init(0) < 0) {
-            throw new CustomException(myformat("Could not init SDL: {}",
+            throw new FrameworkException(myformat("Could not init SDL: {}",
                 fromStringz(SDL_GetError())));
         }
     }

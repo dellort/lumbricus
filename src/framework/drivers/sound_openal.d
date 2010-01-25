@@ -20,7 +20,7 @@ import utils.log;
 private void checkALError(char[] msg) {
     int code = alGetError();
     if (code != AL_NO_ERROR) {
-        throw new CustomException("call of "~msg~" failed: "~fromStringz(
+        throw new FrameworkException("call of "~msg~" failed: "~fromStringz(
             alGetString(code)));
     }
 }
@@ -190,7 +190,8 @@ class ALSound : DriverSound {
         mSample = Sound_NewSample(ops,
             toStringz(VFSPath(data.filename).extNoDot()), null, bufs);
         if (!mSample) {
-            throw new CustomException("SDL_sound failed to load '"~data.filename~"'");
+            throw new FrameworkException("SDL_sound failed to load '"
+                ~ data.filename ~ "'");
         }
 
         //recent versions of SDL_sound support fast duration calculation
@@ -273,7 +274,7 @@ class ALSound : DriverSound {
             mStreamedBytes = cast(uint)(startAt.secsf * formatBps(mSample));
             //streamed, queue first 2 buffers
             if (!stream(mALBuffer[0]) || !stream(mALBuffer[1]))
-                throw new CustomException("ALSound streaming failed");
+                throw new FrameworkException("ALSound streaming failed");
             alSourceQueueBuffers(source, 2, mALBuffer.ptr);
             checkALError("alSourceQueueBuffers");
             mCurrentSource = source;

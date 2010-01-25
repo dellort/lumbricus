@@ -87,19 +87,25 @@ final class Font : FrameworkResourceT!(DriverFont) {
     }
 
     ///return length of text that fits into width w (size(text[0..return]) <= w)
+    ///atWhitespace = true to prefer including only whole words (by str.iswhite)
     //added long after findIndex, because findIndex seems to have quadratic
     //  complexity, and doesn't quite compute what we want
-    uint textFit(char[] text, int w) {
-        int i = 0;
+    uint textFit(char[] text, int w, bool atWhitespace = false) {
+        size_t i = 0;
+        size_t lastWhite = 0;
         while (i < text.length) {
-            int i2 = i + str.stride(text, i);
+            size_t i2 = i;
+            dchar ch = str.decode(text, i2);
+            if (atWhitespace && str.iswhite(ch)) {
+                lastWhite = i2;
+            }
             int cw = textSize(text[i..i2]).x;
             if (cw > w)
                 break;
             w -= cw;
             i = i2;
         }
-        return i;
+        return (lastWhite && i < text.length) ? lastWhite : i;
     }
 
     ///return the utf character index closest to posX

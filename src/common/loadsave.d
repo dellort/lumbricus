@@ -7,6 +7,7 @@ import common.common;
 import common.task;
 import framework.framework;
 import framework.commandline;
+import framework.i18n;
 import gui.wm;
 
 import utils.archive;
@@ -137,13 +138,17 @@ class SaveException : CustomException {
 ///This singleton class manages savegame files and handles task saving/loading
 class LoadSaveHandler {
     private TaskManager mManager;
+    private CommandBucket mCmds;
 
     this(TaskManager mgr) {
         assert(!gLoadSave, "singleton");
         gLoadSave = this;
 
         mManager = mgr;
+        mCmds = new CommandBucket();
+        mCmds.helpTranslator = localeRoot.bindNamespace("console_commands.loadsave");
         initCommands();
+        mCmds.bind(globals.cmdLine);
     }
 
     private char[][] listSavegames() {
@@ -156,15 +161,13 @@ class LoadSaveHandler {
     }
 
     private void initCommands() {
-        globals.cmdLine.registerCommand(Command("savetest", &cmdSaveTest,
-            "save and reload"));
-        globals.cmdLine.registerCommand(Command("save", &cmdSave, "save game",
-            ["text?...:name of the savegame (/savegames/<name>.conf)"]));
+        mCmds.register(Command("savetest", &cmdSaveTest, ""));
+        mCmds.register(Command("save", &cmdSave, "",
+            ["text?..."]));
 
-        Command load = Command("load", &cmdLoad, "load game",
-            ["text?...:name of the savegame, if none given, list all available"]);
+        Command load = Command("load", &cmdLoad, "", ["text?..."]);
         load.setCompletionHandler(0, &listSavegames);
-        globals.cmdLine.registerCommand(load);
+        mCmds.register(load);
     }
 
     //load a save file by its name (inside the info.conf)

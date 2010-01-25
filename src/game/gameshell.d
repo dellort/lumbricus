@@ -5,8 +5,8 @@ import common.resources;
 import common.resset;
 import common.scene;
 import framework.framework;
-import utils.timesource;
 import framework.commandline;
+import framework.i18n;
 
 import game.controller;
 import game.events;
@@ -32,6 +32,7 @@ import utils.random;
 import utils.strparser : boxToString;
 import utils.time;
 import utils.vector2;
+import utils.timesource;
 import str = utils.string;
 
 import utils.stream;
@@ -412,14 +413,12 @@ class GameShell {
     private this() {
         mCmd = new CommandLine(globals.defaultOut);
         mCmds = new CommandBucket();
+        mCmds.helpTranslator = localeRoot.bindNamespace(
+            "console_commands.gameshell");
 
-        mCmds.register(Command("pause", &cmdSetPaused, "set game pause state",
-            ["bool?:pause state; toggle if omitted"]));
-        mCmds.register(Command("slow_down", &cmdSetSlowdown, "-",
-            ["float:-"]));
-        mCmds.register(Command("single_step", &cmdSinglestep, "step one frame, "
-            "and then pause the game (unpause before stepping if needed)",
-            ["int?=1:amount of frames to step"]));
+        mCmds.register(Command("pause", &cmdSetPaused, "", ["bool?"]));
+        mCmds.register(Command("slow_down", &cmdSetSlowdown, "", ["float"]));
+        mCmds.register(Command("single_step", &cmdSinglestep, "", ["int?=1"]));
 
         mCmds.bind(mCmd);
     }

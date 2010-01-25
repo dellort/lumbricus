@@ -437,7 +437,7 @@ final class SurfaceData {
             //void* cptr = cstdlib.calloc(len, Color.RGBA32.sizeof);
             //xxx: what error to throw?
             if (!cptr)
-                throw new CustomException("can't allocate pixel memory");
+                throw new FrameworkException("can't allocate pixel memory");
             data = cast(Color.RGBA32[])cptr[0..csz];
         } else {
             data.length = len;

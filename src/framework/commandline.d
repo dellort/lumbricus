@@ -2,6 +2,7 @@ module framework.commandline;
 
 import framework.framework;
 import framework.event;
+import framework.i18n;
 
 import str = utils.string;
 
@@ -304,12 +305,14 @@ class CommandBucket {
         CommandBucket[] mSubs;
         CommandBucket[] mParent; //lol, don't ask...
         Entry[] mSorted;   //sorted list of commands, including subs
+        Translator mHelpTrans;
     }
 
     //entry for each command
     struct Entry {
         char[] alias_name;
         Command cmd;
+        private Translator mTrans;
 
         //NOTE: sorted() uses the fact that it's sorted by name to eliminate
         //      double entries
@@ -319,6 +322,51 @@ class CommandBucket {
 
         char[] toString() {
             return alias_name ~ " -> " ~ cmd.name;
+        }
+
+        //(possibly translated) help text for this command
+        char[] helpText() {
+            if (mTrans && mTrans.hasId(cmd.name)) {
+                return mTrans(cmd.name);
+            } else {
+                return cmd.helpText;
+            }
+        }
+
+        //(possibly translated) help text for parameter idx
+        char[] paramHelp(int idx) {
+            assert(idx < cmd.param_types.length);
+            char[] id = myformat("{}_arg{}", cmd.name, idx);
+            if (mTrans && mTrans.hasId(id)) {
+                return mTrans(id);
+            } else {
+                return cmd.param_help[idx];
+            }
+        }
+
+        void showShortHelp(Output write) {
+            write.writefln("   {}: {}", alias_name, helpText());
+        }
+
+        void showHelp(Output write) {
+            write.writefln("Command '{}' ('{}'): {}", alias_name,
+                cmd.name, helpText());
+            for (int n = 0; n < cmd.param_types.length; n++) {
+                //reverse lookup type
+                foreach (key, value; gCommandLineParsers) {
+                    if (value is cmd.param_types[n]) {
+                        write.writef("    {} ", key);
+                    }
+                }
+                if (n >= cmd.minArgCount) {
+                    write.writef("[opt] ");
+                }
+                write.writefln("{}", paramHelp(n));
+            }
+            if (cmd.textArgument) {
+                write.writefln("    [text-agument]");
+            }
+            write.writefln("{} arguments.", cmd.param_types.length);
         }
     }
 
@@ -369,12 +417,20 @@ class CommandBucket {
             p.invalidate();
     }
 
+    Translator helpTranslator() {
+        return mHelpTrans;
+    }
+    void helpTranslator(Translator tr) {
+        mHelpTrans = tr;
+        invalidate();
+    }
+
     Entry[] sorted() {
         if (mSorted.length == 0) {
             //recursively add from all sub-entries etc.
             void doAdd(CommandBucket b) {
                 foreach (m; b.mCommands) {
-                    mSorted ~= Entry(m.name, m);
+                    mSorted ~= Entry(m.name, m, b.helpTranslator);
                 }
                 foreach (s; b.mSubs) {
                     doAdd(s);
@@ -403,6 +459,19 @@ class CommandBucket {
             }
         }
         return mSorted;
+    }
+
+    //for quickly converting old to new help format; prints to stdout
+    //can also be used to change format of locale (in case "someone"
+    //  doesn't like it)
+    debug void convertHelpToLocales() {
+        foreach (e; sorted) {
+            Trace.formatln("{} = \"{}\"", e.cmd.name, e.helpText());
+            for (int n = 0; n < e.cmd.param_types.length; n++) {
+                Trace.formatln("{}_arg{} = \"{}\"", e.cmd.name, n,
+                    e.paramHelp(n));
+            }
+        }
     }
 }
 
@@ -477,12 +546,12 @@ class CommandLineInstance {
         mConsole = output;
         mCmdline = cmdline;
         mCommands = new CommandBucket;
+        mCommands.helpTranslator = localeRoot.bindNamespace(
+            "console_commands.generic");
         mCommands.addSub(mCmdline.mCommands);
-        mCommands.registerCommand(Command("help", &cmdHelp,
-            "Show all commands.", ["text?:specific help for a command"],
+        mCommands.registerCommand(Command("help", &cmdHelp, "", ["text?"],
             [&complete_command_list]));
-        mCommands.registerCommand(Command("history", &cmdHistory,
-            "Show the history.", null));
+        mCommands.registerCommand(Command("history", &cmdHistory, "", null));
     }
 
     private void cmdHelp(MyBox[] args, Output write) {
@@ -491,7 +560,7 @@ class CommandLineInstance {
             mConsole.writefln("List of commands: ");
             uint count = 0;
             foreach (c; mCommands.sorted) {
-                mConsole.writefln("   {}: {}", c.alias_name, c.cmd.helpText);
+                c.showShortHelp(mConsole);
                 count++;
             }
             mConsole.writefln("{} commands.", count);
@@ -505,7 +574,7 @@ class CommandLineInstance {
                 exact = reslist[0];
             }
             if (exact.cmd) {
-                show_cmd_help(exact);
+                exact.showHelp(mConsole);
                 return;
             } else if (reslist.length) {
                 mConsole.writefln("matches:");
@@ -516,28 +585,6 @@ class CommandLineInstance {
             }
             mConsole.writefln("Command '{}' not found.", foo);
         }
-    }
-
-    private void show_cmd_help(CommandEntry cmd) {
-        auto c = cmd.cmd;
-        mConsole.writefln("Command '{}' ('{}'): {}", cmd.alias_name,
-            c.name, c.helpText);
-        for (int n = 0; n < c.param_types.length; n++) {
-            //reverse lookup type
-            foreach (key, value; gCommandLineParsers) {
-                if (value is c.param_types[n]) {
-                    mConsole.writef("    {} ", key);
-                }
-            }
-            if (n >= c.minArgCount) {
-                mConsole.writef("[opt] ");
-            }
-            mConsole.writefln("{}", c.param_help[n]);
-        }
-        if (c.textArgument) {
-            mConsole.writefln("    [text-agument]");
-        }
-        mConsole.writefln("{} arguments.", c.param_types.length);
     }
 
     private void cmdHistory(MyBox[] args, Output write) {
@@ -655,7 +702,7 @@ class CommandLineInstance {
                 return false;
             } else {
                 if (!ccmd.cmd.parseAndInvoke(cmdline[argstart..$], mConsole)) {
-                    show_cmd_help(ccmd);
+                    ccmd.showHelp(mConsole);
                 }
                 return true;
             }

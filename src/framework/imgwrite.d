@@ -89,7 +89,7 @@ private void writePNG(Surface img, Stream stream) {
             write_alpha = true;
             break;
         default:
-            throw new CustomException("writing png: unknown transparency type");
+            throw new FrameworkException("writing png: unknown transparency type");
     }
 
     Marshaller(&marshw).write(ihdr);

@@ -280,6 +280,11 @@ public class Translator {
         assert(false);
     }
 
+    ///returns true if the passed id is available
+    bool hasId(char[] id) {
+        return mNode && mNode.getPath(id, false);
+    }
+
     //like formatfx, only the format string is loaded by id
     private char[] translatefx(char[] id, TypeInfo[] arguments,
         va_list argptr, uint rnd = 0)

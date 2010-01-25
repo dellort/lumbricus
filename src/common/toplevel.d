@@ -284,93 +284,70 @@ private:
 
     private void initConsole() {
         globals.cmdLine = mGuiConsole.cmdline;
+        globals.cmdLine.commands.helpTranslator = localeRoot.bindNamespace(
+            "console_commands.global");
 
         globals.setDefaultOutput(mGuiConsole.output);
 
-        globals.cmdLine.registerCommand("gc", &testGC, "timed GC run (+minimize)",
-            ["bool?=true:release framework caches before gc run"]);
-        globals.cmdLine.registerCommand("gcmin", &cmdGCmin, "call GC.minimize");
-        globals.cmdLine.registerCommand("gcstats", &testGCstats, "GC stats");
-        globals.cmdLine.registerCommand("show_stuff", &cmdShowStuff, "-");
+        globals.cmdLine.registerCommand("gc", &testGC, "", ["bool?=true"]);
+        globals.cmdLine.registerCommand("gcmin", &cmdGCmin, "");
+        globals.cmdLine.registerCommand("gcstats", &testGCstats, "");
+        globals.cmdLine.registerCommand("show_stuff", &cmdShowStuff, "");
 
-        globals.cmdLine.registerCommand("quit", &killShortcut, "kill it");
-        globals.cmdLine.registerCommand("toggle", &showConsole,
-            "toggle this console");
+        globals.cmdLine.registerCommand("quit", &killShortcut, "");
+        globals.cmdLine.registerCommand("toggle", &showConsole, "");
         //globals.cmdLine.registerCommand("log", &cmdShowLog,
           //  "List and modify log-targets");
         globals.cmdLine.registerCommand("bind", &cmdBind,
-            "display/edit key bindings", [
-                "text?:add/kill",
-                "text?:name",
-                "text...:bind to"
-            ]);
-        globals.cmdLine.registerCommand("nameit", &cmdNameit, "name a key");
-        globals.cmdLine.registerCommand("video", &cmdVideo, "set video", [
-            "int:width",
-            "int:height",
-            "int?=0:depth (bits)",
-            "bool?:fullscreen"]);
-        globals.cmdLine.registerCommand("fullscreen", &cmdFS, "toggle fs",
-            ["text?:pass 'desktop' to change to desktop resolution first"]);
+            "", ["text?", "text?", "text..."]);
+        globals.cmdLine.registerCommand("nameit", &cmdNameit, "");
+        globals.cmdLine.registerCommand("video", &cmdVideo, "",
+            ["int", "int", "int?=0", "bool?"]);
+        globals.cmdLine.registerCommand("fullscreen", &cmdFS, "", ["text?"]);
         globals.cmdLine.registerCommand("framerate", &cmdFramerate,
-            "set fixed framerate", ["int:framerate"]);
+            "", ["int"]);
         globals.cmdLine.registerCommand("screenshot", &cmdScreenshot,
-            "take a screenshot", ["text?:filename for saved image"]);
+            "", ["text?"]);
         globals.cmdLine.registerCommand("screenshotwnd", &cmdScreenshotWnd,
-            "take a screenshot of the active window",
-            ["text?:filename for saved image"]);
+            "", ["text?"]);
 
-        globals.cmdLine.registerCommand("ps", &cmdPS, "list tasks");
-        globals.cmdLine.registerCommand("spawn", &cmdSpawn, "create task",
-            ["text:task name (get available ones with 'help_spawn')",
-             "text?...:arguments for new task"],
-            [&complete_spawn]);
-        globals.cmdLine.registerCommand("kill", &cmdKill, "kill a task by ID",
-            ["int:task id"]);
+        globals.cmdLine.registerCommand("ps", &cmdPS, "");
+        globals.cmdLine.registerCommand("spawn", &cmdSpawn, "",
+            ["text", "text?..."], [&complete_spawn]);
+        globals.cmdLine.registerCommand("kill", &cmdKill, "", ["int"]);
         globals.cmdLine.registerCommand("terminate", &cmdTerminate,
-            "terminate a task by ID", ["int:task id"]);
-        globals.cmdLine.registerCommand("help_spawn", &cmdSpawnHelp,
-            "list tasks registered at task factory (use for spawn)");
-        globals.cmdLine.registerCommand("grab", &cmdGrab, "-", ["bool:onoff"]);
+            "", ["int"]);
+        globals.cmdLine.registerCommand("help_spawn", &cmdSpawnHelp, "");
+        globals.cmdLine.registerCommand("grab", &cmdGrab, "", ["bool"]);
 
-        globals.cmdLine.registerCommand("res_load", &cmdResLoad,
-            "load resources", ["text:filename"]);
-        globals.cmdLine.registerCommand("res_unload", &cmdResUnload,
-            "Unload unused resources", []);
-        globals.cmdLine.registerCommand("res_list", &cmdResList,
-            "List all resources", []);
+        globals.cmdLine.registerCommand("res_load", &cmdResLoad, "", ["text"]);
+        globals.cmdLine.registerCommand("res_unload", &cmdResUnload, "", []);
+        globals.cmdLine.registerCommand("res_list", &cmdResList, "", []);
 
         globals.cmdLine.registerCommand("release_caches", &cmdReleaseCaches,
-            "Release caches (temporary data)", ["bool?=true:force"]);
+            "", ["bool?=true"]);
         /+
         globals.cmdLine.registerCommand("caching", &cmdSetCaching,
             "Set if texture caching should be done", ["bool:if enabled"]);
         +/
 
-        globals.cmdLine.registerCommand("times", &cmdShowTimers,
-            "List timers", []);
-        globals.cmdLine.registerCommand("show_fps", &cmdShowFps,
-            "Enable/disable FPS display", ["bool:enable"]);
-        globals.cmdLine.registerCommand("show_deltas", &cmdShowDeltas,
-            "Toggle min/max frametime display", []);
+        globals.cmdLine.registerCommand("times", &cmdShowTimers, "", []);
+        globals.cmdLine.registerCommand("show_fps", &cmdShowFps, "", ["bool"]);
+        globals.cmdLine.registerCommand("show_deltas", &cmdShowDeltas, "", []);
 
         globals.cmdLine.registerCommand("fw_info", &cmdInfoString,
-            "Query a info string from the framework, with no argument: list "
-            "all info string names", ["text?:Name of the string or 'all'"],
-            [&complete_fw_info]);
+            "", ["text?"], [&complete_fw_info]);
         /+
         globals.cmdLine.registerCommand("fw_debug", &cmdSetFWDebug,
             "Switch some debugging stuff in Framework on/off", ["bool:Value"]);
         +/
 
         globals.cmdLine.registerCommand("fw_settings", &cmdFwSettings,
-            "Framework settings", null);
+            "", null);
 
         //more like a test
-        globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "-");
-        globals.cmdLine.registerCommand("locale", &cmdLocale,
-            "Change current locale (why are those help texts not translated??)",
-            ["text:Language ID"]);
+        globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "");
+        globals.cmdLine.registerCommand("locale", &cmdLocale, "", ["text"]);
     }
 
     private void cmdShowFps(MyBox[] args, Output write) {

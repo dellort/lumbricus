@@ -10,6 +10,7 @@ import common.common;
 
 import common.task;
 import framework.commandline;
+import framework.i18n;
 import gui.container;
 import gui.widget;
 import gui.window;
@@ -332,6 +333,7 @@ class WindowManager {
         mFrame.onSelectWindow = &onSelectWindow;
 
         mCmds = new CommandBucket();
+        mCmds.helpTranslator = localeRoot.bindNamespace("console_commands.wm");
         registerCommands();
         mCmds.bind(globals.cmdLine);
     }
@@ -507,8 +509,7 @@ class WindowManager {
     }
 
     private void registerCommands() {
-        mCmds.register(Command("windows", &cmdWindows, "list all active windows"
-            " by task"));
+        mCmds.register(Command("windows", &cmdWindows, ""));
     }
 
     private void cmdWindows(MyBox[] args, Output write) {

@@ -107,14 +107,18 @@ public class LogWindow : Widget, Output {
                 void bla(char[] txt, int frame) {
                     if (frame > 0 && (txt.length == 0 || cur.y < 0))
                         return;
-                    uint n = mConsoleFont.textFit(txt, renderWidth);
+                    uint n = mConsoleFont.textFit(txt, renderWidth, true);
                     if (n == 0) {
                         //pathologic case, avoid infinite recursion
                         if (txt.length)
                             n = str.stride(txt, 0);
                     }
                     //output the bottom lines first
-                    bla(txt[n..$], frame + 1);
+                    if (n < txt.length) {
+                        //the first part is the symbol "Rightwards Arrow
+                        //  With Hook" (0x21aa)
+                        bla("↪ " ~ txt[n..$], frame + 1);
+                    }
                     //then ours
                     cur.y -= mLineHeight;
                     mConsoleFont.drawText(scrCanvas, cur, txt[0..n]);

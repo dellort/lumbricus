@@ -31,6 +31,10 @@ class Chatbox : GuiConsole {
                 //hide on return (chat behavior)
                 visible = false;
             }
+            if (infos.code == Keycode.ESCAPE) {
+                //cancel on ESC
+                visible = false;
+            }
             return super.handleKeyPress(infos);
         }
     }
