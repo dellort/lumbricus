@@ -160,14 +160,15 @@ class GfxSet {
         }
 
         ConfigNode conf;
-        if (str.eatStart(pluginId, "ext:")) {
-            char[] confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
-            //load plugin.conf as gfx set (resources and sequences)
-            conf = gResources.loadConfigForRes(confFile);
-        } else {
+        if (GamePluginFactory.exists(pluginId)) {
             //internal plugin with no confignode
             conf = new ConfigNode();
             conf["internal_plugin"] = pluginId;
+        } else {
+            //normal case: plugin with plugin.conf
+            char[] confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
+            //load plugin.conf as gfx set (resources and sequences)
+            conf = gResources.loadConfigForRes(confFile);
         }
 
         //mixin dynamic configuration

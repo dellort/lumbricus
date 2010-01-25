@@ -224,8 +224,6 @@ class GameTask : StatefulTask {
         wnd.properties = props;
 
         mCmds = new CommandBucket();
-        mCmds.helpTranslator = localeRoot.bindNamespace(
-            "console_commands.gametask");
         registerCommands();
         mCmds.bind(globals.cmdLine);
     }
@@ -474,17 +472,29 @@ class GameTask : StatefulTask {
     //game specific commands
     private void registerCommands() {
         if (!mConnection) {
-            mCmds.register(Command("slow", &cmdSlow, "", ["float", "text?"]));
-            mCmds.register(Command("snap", &cmdSnapTest, "", ["int"]));
-            mCmds.register(Command("replay", &cmdReplay, "", ["text?"]));
-            mCmds.register(Command("demo_stop", &cmdDemoStop, ""));
+            mCmds.register(Command("slow", &cmdSlow, "set slowdown",
+                ["float:slow down",
+                 "text?:ani or game"]));
+            mCmds.register(Command("snap", &cmdSnapTest, "snapshot test",
+                ["int:1=store, 2=load, 3=store+load"]));
+            mCmds.register(Command("replay", &cmdReplay,
+                "start recording or replay from last snapshot",
+                ["text?:any text to start recording"]));
+            mCmds.register(Command("demo_stop", &cmdDemoStop,
+                "stop demo recorder"));
         }
-        mCmds.register(Command("savelevelpng", &cmdSafeLevelPNG, "", ["text"]));
-        mCmds.register(Command("show_collide", &cmdShowCollide, ""));
-        mCmds.register(Command("server", &cmdExecServer, "", ["text..."]));
+        mCmds.register(Command("savelevelpng", &cmdSafeLevelPNG, "dump PNG",
+            ["text:filename"]));
+        mCmds.register(Command("show_collide", &cmdShowCollide, "show collision"
+            " bitmaps"));
+        mCmds.register(Command("server", &cmdExecServer,
+            "Run a command on the server", ["text...:command"]));
         //mCmds.register(Command("show_obj", &cmdShowObj, "", null));
-        mCmds.register(Command("game_res", &cmdGameRes, "", null));
-        mCmds.register(Command("lua", &cmdLua, ""));
+        mCmds.register(Command("game_res", &cmdGameRes, "show in-game resources"
+            " (doesn't include all global resources, but does include some"
+            " game-only stuff)", null));
+        mCmds.register(Command("lua", &cmdLua, "open separate window with lua"
+            " interpreter bound to the game engine"));
     }
 
     class ShowCollide : Container {
@@ -577,22 +587,6 @@ class GameTask : StatefulTask {
             return c;
         }
     }
-
-/+ gone due to serialization removal
-    private void cmdShowObj(MyBox[] args, Output write) {
-        mWindow.do_capture = true;
-    }
-
-    private void show_obj(Vector2i pos) {
-        if (!mGameShell)
-            return;
-        Object o = mGameShell.serverEngine.debug_pickObject(pos);
-        if (!o)
-            return;
-        auto ctx = mGameShell.getSerializeContext;
-        ShowObject.CreateWindow(this, ctx, ctx.types.ptrOf(o));
-    }
-+/
 
     private void cmdGameRes(MyBox[] args, Output write) {
         if (!mGameShell)
@@ -703,366 +697,6 @@ class GameTask : StatefulTask {
         StatefulFactory.register!(typeof(this))(cSaveId);
     }
 }
-
-/+
-class ShowObject : Container {
-    private {
-        SafePtr mP; //watched
-        Task mTask;
-        Types mTypes;
-        SerializeContext mSCtx;
-        UpdateText[] mTexts;
-        Expand[] mExpanders;
-        Time mLastUpdate;
-        bool mEnableUpdate = true;
-
-        struct UpdateText {
-            Label lbl;
-            SafePtr ptr;
-            char[] delegate(SafePtr p) updater;
-        }
-
-        struct Expand {
-            Button btn;
-            SafePtr ptr;
-            void delegate(SafePtr p) expand;
-        }
-    }
-
-    static void CreateWindow(Task task, SerializeContext sctx, SafePtr p) {
-        p = p.deepestType();
-
-        char[] title;
-        if (p.type.hasToString()) {
-            title = p.type.dataToString(p);
-        } else {
-            title = myformat("{}", p.type.typeInfo);
-        }
-
-        auto wnd = gWindowManager.createWindow(task,
-            new ShowObject(task, sctx, p), title, Vector2i(0,0));
-        auto props = wnd.properties;
-        props.zorder = WindowZOrder.High;
-        wnd.properties = props;
-        wnd.onClose = (Window sender) {return true;};
-    }
-
-    this(Task tsk, SerializeContext sctx, SafePtr p) {
-        mP = p;
-        mTask = tsk;
-        mTypes = sctx.types;
-        mSCtx = sctx;
-
-        assert(mP.type && mP.ptr);
-
-        //if s is null, the type is not registered with serialization
-        //  or p.ptr is a class reference variable, that points to null
-        auto s = createTop(p);
-        if (s)
-            addChild(s);
-
-        update();
-    }
-
-    void update() {
-        foreach (t; mTexts) {
-            t.lbl.textMarkup = t.updater(t.ptr);
-        }
-    }
-
-    override void simulate() {
-        if (!mEnableUpdate)
-            return;
-
-        auto cur = timeCurrentTime();
-        if (cur - mLastUpdate > timeSecs(1.0)) {
-            mLastUpdate = cur;
-            update();
-        }
-    }
-
-    //for the top level element (which makes up the window)
-    private Widget createTop(SafePtr ptr) {
-        if (cast(StructuredType)ptr.type)
-            return createStructured(ptr);
-        if (cast(ArrayType)ptr.type)
-            return createArray(ptr);
-        if (cast(MapType)ptr.type)
-            return createMap(ptr);
-        //unsupported type, but we can try the sub element code
-        return createSub(ptr);
-    }
-
-    //for sub elements (inside top level elements)
-    private Widget createSub(SafePtr ptr) {
-        if (cast(StructType)ptr.type) {
-            //try to be smart, use toString() if it's implemented
-            if (!ptr.type.hasToString())
-                return createStructured(ptr);
-        }
-
-        Widget w = createDefault(ptr);
-
-        void delegate(SafePtr) expander;
-
-        /+if (cast(ReferenceType)ptr.type
-            || cast(ArrayType)ptr.type
-            || cast(MapType)ptr.type))
-        {
-            expander = &do_expand_any;
-        }+/
-        expander = &do_expand_any;
-
-        if (expander) {
-            auto b = new Button();
-            b.setLayout(WidgetLayout.Noexpand());
-            b.onClick = &expand_click;
-            b.textMarkup = "...";
-
-            mExpanders ~= Expand(b, ptr, expander);
-
-            auto box = new BoxContainer(true);
-            box.add(w);
-            box.add(b);
-
-            w = box;
-        }
-
-        return w;
-    }
-
-    private void do_expand_any(SafePtr p) {
-        CreateWindow(mTask, mSCtx, p);
-    }
-
-    private void expand_click(Button b) {
-        foreach (e; mExpanders) {
-            if (e.btn is b) {
-                e.expand(e.ptr);
-                return;
-            }
-        }
-    }
-
-    private Widget createDefault(SafePtr ptr) {
-        //default conversion, which uses the stdlib's format()
-        UpdateText t;
-        t.lbl = new Label();
-        //t.lbl.shrink = true;
-        t.ptr = ptr;
-        t.updater = &conv_def;
-        mTexts ~= t;
-        return t.lbl;
-    }
-
-    //prevent duplicated code...
-    struct RowBuilder {
-        TableContainer table;
-        bool line_ok; //false => line was just added
-        Color line_color = Color(1,0,0);
-        int side_start;
-        const Color side_color = Color(0.5);
-
-        void do_init() {
-            table = new TableContainer(3, 0, Vector2i(3, 0));
-            line_ok = false;
-            side_start = 0;
-        }
-
-        void add(Widget left, Widget right) {
-            int r = table.addRow();
-
-            if (left) {
-                left.setLayout(WidgetLayout.Aligned(-1, 0));
-                table.add(left, 0, r);
-            }
-
-            if (right) {
-                WidgetLayout lay;
-                lay.expand[] = [true, false];
-                right.setLayout(lay);
-                table.add(right, 2, r);
-            }
-
-            line_ok = true;
-        }
-
-        private void close_side(int at) {
-            auto end = at - 1;
-            auto start = side_start;
-            side_start = int.max;
-            if (end < start)
-                return;
-            auto line = new Spacer();
-            line.minSize = Vector2i(1,0);
-            //line.color = side_color;
-            WidgetLayout lay;
-            lay.expand[] = [false, true];
-            lay.padA.y = 2;
-            lay.padB.y = 2;
-            line.setLayout(lay);
-            table.add(line, 1, start, 1, end-start+1);
-        }
-
-        void line() {
-            if (!line_ok)
-                return;
-            int r = table.addRow();
-            close_side(r);
-            auto spacer = new Spacer();
-            spacer.minSize = Vector2i(0,1);
-            //spacer.color = line_color;
-            WidgetLayout lay;
-            lay.expand[] = [true, false];
-            spacer.setLayout(lay);
-            table.add(spacer, 0, r, 3, 1);
-            line_ok = false;
-            side_start = r+1;
-        }
-
-        void finish() {
-            close_side(table.height);
-        }
-    }
-
-    private void add_member(ref RowBuilder rows, char[] name, SafePtr p) {
-        Widget w = createSub(p);
-        if (!w) {
-            auto lbl = new Label();
-            lbl.textMarkup = "\\c(red)?";
-            w = lbl;
-        }
-        auto namelbl = new Label();
-        namelbl.text = name;
-
-        rows.add(namelbl, w);
-    }
-
-    private Widget createStructured(SafePtr ptr) {
-        auto curc = castStrict!(StructuredType)(ptr.type).klass();
-        if (!curc)
-            return null; //xxx: ?
-
-        if (curc.isClass()) {
-            //object reference SafePtrs are pointers to pointers
-            //check for null
-            if (!ptr.toObject())
-                return null;
-        }
-
-        RowBuilder rows;
-        rows.do_init();
-
-        foreach (int i, cur; curc.hierarchy) {
-            ptr.type = cur.type();
-
-            rows.line();
-
-            foreach (ClassMember m; cur.members) {
-                add_member(rows, m.name(), m.get(ptr));
-            }
-        }
-
-        rows.finish();
-
-        return rows.table;
-    }
-
-    private Widget createArray(SafePtr ptr) {
-        auto art = castStrict!(ArrayType)(ptr.type);
-        auto arr = art.getArray(ptr);
-
-        //doesn't make sense (or it should also track array length changes)
-        mEnableUpdate = false;
-
-        RowBuilder rows;
-        rows.do_init();
-
-        auto head = new Label();
-        head.textMarkup = myformat("length = {}", arr.length);
-        rows.add(head, null);
-
-        auto len = min(arr.length, 20);
-
-        for (int n = 0; n < len; n++) {
-            //rows.line();
-            add_member(rows, myformat("[{}]", n), arr.get(n));
-        }
-
-        if (len != arr.length) {
-            rows.line();
-            auto c = new Label();
-            c.textMarkup = "\\c(red)\\b(cut)";
-            rows.add(c, null);
-        }
-
-        rows.finish();
-
-        return rows.table;
-    }
-
-    private Widget createMap(SafePtr ptr) {
-        auto mapt = castStrict!(MapType)(ptr.type);
-
-        //really doesn't make sense (items are copied)
-        mEnableUpdate = false;
-
-        RowBuilder rows;
-        rows.do_init();
-
-        int n;
-        mapt.iterate(ptr, (SafePtr key, SafePtr value) {
-            rows.line();
-
-            //copy stuff, because pointers get invalid when the delegate is
-            //  exited (at least key is allocated on stack)
-            SafePtr copy(SafePtr p) {
-                p.ptr = p.box().data.dup.ptr;
-                return p;
-            }
-
-            add_member(rows, myformat("key[{}]", n), copy(key));
-            add_member(rows, myformat("value[{}]", n), copy(value));
-            n++;
-        });
-
-        rows.finish();
-
-        return rows.table;
-    }
-
-    private char[] conv_def(SafePtr p) {
-        if (cast(ReferenceType)p.type) {
-            Object o = p.toObject();
-            if (!o)
-                return "\\c(red)null";
-
-            //generally more useful than nothing or toString
-            char[] ext = mSCtx.lookupExternal(o);
-            if (ext.length)
-                return "\\[\\c(green)" ~ ext ~ "\\]";
-
-            //use a pointer with the "real" type of the object
-            //that helps with hasToString() not returning "shadowed" information
-            auto p2 = mTypes.objPtr(o, null, true);
-            if (!!p2.type)
-                p = p2;
-        }
-
-        if (!p.type.hasToString())
-            return myformat("\\c(grey)(no .toString for {})", p.type.typeInfo);
-
-        //the lit is for not making it interpreted as markup
-        char[] txt = p.type.dataToString(p);
-        const cMax = 50;
-        if (txt.length > cMax) {
-            return "\"\\lit\0" ~ txt[0..cMax] ~ "\0\\[\\c(red)...\\]\"";
-        } else {
-            return "\"\\lit\0" ~ txt ~ "\0\"";
-        }
-    }
-}
-+/
 
 class LuaInterpreter : Task {
     private {

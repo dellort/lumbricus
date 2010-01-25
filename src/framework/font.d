@@ -73,7 +73,7 @@ final class Font : FrameworkResourceT!(DriverFont) {
         return gFontManager.driver.createFont(mProps);
     }
 
-    /// draw UTF8 encoded text (use framework singleton to instantiate it)
+    /// draw UTF8 encoded text
     /// returns position beyond last drawn glyph
     Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
         return get().draw(canvas, pos, text);

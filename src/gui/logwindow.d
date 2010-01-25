@@ -104,24 +104,31 @@ public class LogWindow : Widget, Output {
                 //hurf hurf use the stack to save the text positions
                 //(because we want to render the text from bottom to top, but
                 //  break from top to bottom)
+                //the first part is the symbol "Rightwards Arrow With Hook"
+                const cBreaker = "\u21aa ";
+                int breaker_w = mConsoleFont.textSize(cBreaker).x;
                 void bla(char[] txt, int frame) {
                     if (frame > 0 && (txt.length == 0 || cur.y < 0))
                         return;
-                    uint n = mConsoleFont.textFit(txt, renderWidth, true);
+                    int w = renderWidth;
+                    if (frame > 0)
+                        w -= breaker_w;
+                    uint n = mConsoleFont.textFit(txt, w, true);
                     if (n == 0) {
                         //pathologic case, avoid infinite recursion
                         if (txt.length)
                             n = str.stride(txt, 0);
                     }
                     //output the bottom lines first
-                    if (n < txt.length) {
-                        //the first part is the symbol "Rightwards Arrow
-                        //  With Hook" (0x21aa)
-                        bla("↪ " ~ txt[n..$], frame + 1);
-                    }
+                    bla(txt[n..$], frame + 1);
                     //then ours
                     cur.y -= mLineHeight;
-                    mConsoleFont.drawText(scrCanvas, cur, txt[0..n]);
+                    auto pos = cur;
+                    //possibly prepend wrap-around symbol
+                    if (frame > 0) {
+                        pos = mConsoleFont.drawText(scrCanvas, pos, cBreaker);
+                    }
+                    mConsoleFont.drawText(scrCanvas, pos, txt[0..n]);
                 }
                 bla(entry.text, 0);
             }

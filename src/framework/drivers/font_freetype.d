@@ -141,6 +141,7 @@ class FTGlyphCache {
         if (!sptr) {
             loadGlyph(c);
             sptr = c in mFrags;
+            assert(!!sptr);
         }
         return sptr;
     }
