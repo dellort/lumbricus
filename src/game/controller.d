@@ -271,6 +271,7 @@ class Team : GameObject {
             }
             mAllowSelect = false;
         }
+        OnTeamSetActive.raise(this, act);
     }
 
     bool active() {
@@ -291,6 +292,18 @@ class Team : GameObject {
     ///returns null if none left
     TeamMember nextActive() {
         return findNext(mLastActive, true);
+    }
+
+    //returns true if a next-active worm was found and did not move for idleTime
+    //(helper function for gamemodes)
+    bool nextWasIdle(Time idleTime) {
+        auto next = nextActive();
+        if (next && engine.gameTime.current
+            - next.control.lastActivity > idleTime)
+        {
+            return true;
+        }
+        return false;
     }
 
     ///choose next in reaction to user keypress
@@ -574,11 +587,8 @@ class TeamMember : GameObject {
         mActive = act;
         if (act) {
             mLastKnownLifepower = health;
-
-            OnTeamMemberActivate.raise(this);
-        } else {
-            OnTeamMemberDeactivate.raise(this);
         }
+        OnTeamMemberSetActive.raise(this, act);
     }
 
     override void simulate(float deltaT) {
@@ -694,7 +704,6 @@ class GameController {
         //nothing happening? start a round
 
         deactivateAll();
-        //lol, see gamemode comments for how this should really be used
         OnGameStart.raise(engine.globalEvents);
     }
 
@@ -807,44 +816,55 @@ class GameController {
         return TeamTheme.cTeamColors[colId];
     }
 
-    WeaponSet initWeaponSet(char[] id, bool forCrate = false) {
+    WeaponSet initWeaponSet(char[] id, bool forCrate = false,
+        bool noError = false)
+    {
         ConfigNode ws;
         if (id in mWeaponSets)
             ws = mWeaponSets[id];
-        else
+        else {
+            if (!noError) {
+                engine.error("Weapon set {} not found.", id);
+            }
             ws = mWeaponSets["default"];
-        if (!ws)
-            throw new CustomException("Weapon set " ~ id ~ " not found.");
+        }
+        //at least the "default" set has to exist
+        assert(!!ws);
         return new WeaponSet(mEngine, ws, forCrate);
     }
 
     //like "weapon_sets" in gamemode.conf, but renamed according to game config
     private void loadWeaponSets(ConfigNode config) {
         //1. complete sets
-        char[] firstId;
+        ConfigNode firstSet;
         foreach (ConfigNode item; config) {
-            if (firstId.length == 0)
-                firstId = item.name;
-            if (item.value.length == 0)
+            if (item.value.length == 0) {
+                if (!firstSet)
+                    firstSet = item;
                 mWeaponSets[item.name] = item;
+            }
+        }
+        if (!firstSet) {
+            engine.error("No weapon sets defined.");
+            //create empty default set
+            firstSet = new ConfigNode();
         }
         //2. referenced sets
         foreach (ConfigNode item; config) {
             if (item.value.length > 0) {
-                if (!(item.value in mWeaponSets))
-                    throw new CustomException("Weapon set " ~ item.value
-                        ~ " not found.");
+                if (!(item.value in mWeaponSets)) {
+                    engine.error("Weapon set {} not found.", item.value);
+                    continue;
+                }
                 mWeaponSets[item.name] = mWeaponSets[item.value];
             }
         }
-        if (mWeaponSets.length == 0)
-            throw new CustomException("No weapon sets defined.");
         //we always need a default set
-        assert(firstId in mWeaponSets);
+        assert(!!firstSet);
         if (!("default" in mWeaponSets))
-            mWeaponSets["default"] = mWeaponSets[firstId];
+            mWeaponSets["default"] = firstSet;
         //crate weapon set is named "crate_set" (will fall back to "default")
-        mCrateSet = initWeaponSet("crate_set", true);
+        mCrateSet = initWeaponSet("crate_set", true, true);
     }
 
     //create and place worms when necessary
@@ -865,17 +885,19 @@ class GameController {
             if (mode == "random") {
                 auto cnt = sub.getIntValue("count");
                 log("count {} type {}", cnt, sub["type"]);
-                for (int n = 0; n < cnt; n++) {
-                    try {
+                try {
+                    for (int n = 0; n < cnt; n++) {
                         mEngine.queuePlaceOnLandscape(
                             mEngine.createSprite(sub["type"]));
-                    } catch (ClassNotRegisteredException e) {
-                        log("Warning: Placing {} objects failed", sub["type"]);
-                        continue;
                     }
+                } catch (ClassNotRegisteredException e) {
+                    engine.error("Warning: Placing {} objects failed",
+                        sub["type"]);
+                    continue;
                 }
             } else {
-                log("warning: unknown placing mode: '{}'", sub["mode"]);
+                engine.error("Warning: unknown placing mode: '{}'",
+                    sub["mode"]);
             }
         }
         log("done placing level objects");

@@ -44,8 +44,7 @@ class ControllerMsgs : GamePlugin {
         OnSuddenDeath.handler(ev, &onSuddenDeath);
         OnSpriteDie.handler(ev, &onSpriteDie);
         OnTeamMemberStartDie.handler(ev, &onTeamMemberStartDie);
-        OnTeamMemberActivate.handler(ev, &onTeamMemberActivate);
-        OnTeamMemberDeactivate.handler(ev, &onTeamMemberDeactivate);
+        OnTeamMemberSetActive.handler(ev, &onTeamMemberSetActive);
         OnTeamSkipTurn.handler(ev, &onTeamSkipTurn);
         OnTeamSurrender.handler(ev, &onTeamSurrender);
         OnCrateDrop.handler(ev, &onCrateDrop);
@@ -57,12 +56,12 @@ class ControllerMsgs : GamePlugin {
         messageAdd("msggamestart", null);
     }
 
-    private void onTeamMemberActivate(TeamMember m) {
-        messageAdd("msgwormstartmove", [m.name], m.team, m.team);
-    }
-
-    private void onTeamMemberDeactivate(TeamMember m) {
-        mLastMember = m;
+    private void onTeamMemberSetActive(TeamMember m, bool active) {
+        if (active) {
+            messageAdd("msgwormstartmove", [m.name], m.team, m.team);
+        } else {
+            mLastMember = m;
+        }
     }
 
     private void onSpriteDie(Sprite sprite) {

@@ -11,6 +11,7 @@ import game.gobject;
 import game.sequence;
 import game.sprite;
 import game.worm;
+import game.wcontrol;
 import game.gamemodes.shared;
 import game.levelgen.level;
 import game.levelgen.renderer;
@@ -80,11 +81,16 @@ static this() {
     gScripting.properties!(TeamMember, "active");
     gScripting.methods!(Team, "name", "id", "alive", "totalHealth",
         "getMembers", "hasCrateSpy", "hasDoubleDamage", "setOnHold",
-        "nextActive", "teamAction", "isIdle", "checkDyingMembers",
+        "nextActive","nextWasIdle", "teamAction", "isIdle", "checkDyingMembers",
         "youWinNow", "updateHealth", "needUpdateHealth", "addWeapon",
         "skipTurn", "surrenderTeam", "addDoubleDamage", "addCrateSpy");
     gScripting.properties!(Team, "current", "allowSelect", "globalWins",
         "active", "crateSpy", "doubleDmg");
+
+    gScripting.methods!(WormControl, "isAlive", "sprite", "controlledSprite",
+        "setLimitedMode", "weaponUsed", "resetActivity", "lastAction",
+        "lastActivity", "actionPerformed", "forceAbort", "pushControllable",
+        "releaseControllable");
 
     //no thanks -- gScripting.setClassPrefix!(GameObject)("Obj");
     gScripting.methods!(GameObject, "activity");

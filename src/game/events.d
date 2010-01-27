@@ -157,6 +157,7 @@ final class Events {
     GenericEventHandler[] generic_handlers;
     //send all events to these objects as well
     Events[] cascade;
+    void delegate(char[] event, char[] msg) onScriptingError;
 
     this() {
     }
@@ -283,7 +284,15 @@ final class Events {
         //mScripting.stack0();
         lua_getglobal(state, mScriptingEventsNamespace.ptr);
         lua_getfield(state, -1, ev.name.ptr);
-        ev.marshal_d2s(mScripting, sender, params);
+        try {
+            ev.marshal_d2s(mScripting, sender, params);
+        } catch (LuaException e) {
+            if (onScriptingError) {
+                onScriptingError(ev.name, e.msg);
+            } else {
+                throw e;
+            }
+        }
         lua_pop(state, 1);
         //mScripting.stack0();
     }

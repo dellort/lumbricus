@@ -446,7 +446,7 @@ class WormControl : WormController {
 
     //called if any action is issued, i.e. key pressed to control worm
     //or if it was moved by sth. else
-    void wormAction() {
+    private void wormAction() {
         mWormAction = true;
         mLastAction = mEngine.gameTime.current;
     }

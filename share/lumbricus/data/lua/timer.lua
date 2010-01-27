@@ -56,7 +56,13 @@ end
 -- calling this activates the timer
 -- if duration is 0 or negative, the cb will be called right on the next frame
 -- when the wait time has elapsed, the timer is deactivated again
-function Timer:start(duration)
+--
+-- the periodic option causes the timer to be restarted when it is triggered
+-- after the cb is run, start(duration) is called again (with the same duration)
+-- this implies that the periodic timer is quantized to game frames (e.g. if the
+--  time is smaller than a game frame, the timer will be triggered exactly once
+--  per game frame)
+function Timer:start(duration, periodic)
     self:_remove()
     self._paused = false
     if duration < Time.Null then
@@ -64,6 +70,7 @@ function Timer:start(duration)
     end
     self._destTime = currentTime() + duration
     self._last_duration = duration
+    self._periodic = ifnil(periodic, false)
     self:_insert()
 end
 
@@ -72,20 +79,10 @@ function Timer:setCallback(cb)
     self.cb = cb
 end
 
--- the periodic option causes the timer to be restarted when it is triggered
--- after the cb is run, start(duration) is called again (with the same duration)
--- this implies that the periodic timer is quantized to game frames (e.g. if the
---  time is smaller than a game frame, the timer will be triggered exactly once
---  per game frame)
--- xxx maybe periodic should be automatically set to false in some situations,
---  and/or be a parameter for start()?
-function Timer:setPeriodic(periodic)
-    self._periodic = ifnil(periodic, true)
-end
-
 -- deactivate the timer
 function Timer:cancel()
     self:_remove()
+    self._periodic = false
 end
 
 -- if the Timer is active, make it inactive and set paused state
@@ -186,10 +183,10 @@ end
 function Timer:_trigger()
     assert(not self._added)
     if self.cb then
-        self.cb()
+        self:cb()
     end
     if self._periodic and self._last_duration and not self._added then
-        self:start(self._last_duration)
+        self:start(self._last_duration, self._periodic)
     end
 end
 
@@ -197,17 +194,15 @@ end
 -- time is a relative Time
 -- cb is an optional callback
 -- returns a Timer with the time set
-function addTimer(time, cb)
+function addTimer(time, cb, periodic)
     local tr = Timer.new()
     tr:setCallback(cb)
-    tr:start(time)
+    tr:start(time, periodic)
     return tr
 end
 
 function addPeriodicTimer(time, cb)
-    local t = addTimer(time, cb)
-    t:setPeriodic()
-    return t
+    return addTimer(time, cb, true)
 end
 
 -- call cb in the next game engine frame
@@ -237,12 +232,9 @@ function timertest()
     local c = 0
     local c2 = 0
     local c3 = 0
-    local always = addTimer(timeSecs(0), function() c = c + 1 end)
-    local always2 = addTimer(timeSecs(-1), function() c2 = c2 + 1 end)
-    local always3 = addTimer(timeSecs(1), function() c3 = c3 + 1 end)
-    always:setPeriodic(true)
-    always2:setPeriodic(true)
-    always3:setPeriodic(true)
+    local always = addPeriodicTimer(timeSecs(0), function() c = c + 1 end)
+    local always2 = addPeriodicTimer(timeSecs(-1), function() c2 = c2 + 1 end)
+    local always3 = addPeriodicTimer(timeSecs(1), function() c3 = c3 + 1 end)
     addTimer(timeSecs(1), function() printf("1 sec") always2:pause() end)
     local p = addTimer(timeSecs(2), function() printf("2+6.5 sec") end)
     addTimer(timeSecs(0.5), function() printf("0.5 sec") p:pause() end)

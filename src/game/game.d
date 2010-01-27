@@ -117,24 +117,17 @@ class GameEngine {
         const cPlaceIncDistance = 55.0f;
         //distance when creating a platform in empty space
         const cPlacePlatformDistance = 90.0f;
-
-        bool mSavegameHack;
     }
 
-    this(GameConfig config, GfxSet a_gfx, TimeSourcePublic a_gameTime) {
-        mSavegameHack = true;
-
+    //config- and gametype-independant initialization
+    //(stuff that every possible game always needs)
+    this(GfxSet a_gfx, TimeSourcePublic a_gameTime) {
         rnd = new Random();
-        //game initialization must be deterministic; so unless GameConfig
-        //contains a good pre-generated seed, use a fixed seed
-        if (config.randomSeed.length > 0) {
-            rnd.seed(to!(uint)(config.randomSeed));
-        } else {
-            rnd.seed(1);
-        }
+        rnd.seed(1);
+
         mGfx = a_gfx;
         events = mGfx.events;
-        gameConfig = config;
+        events.onScriptingError = &eventScriptError;
         mGameTime = a_gameTime;
         createCmd();
         mCallbacks = new GameEngineCallback();
@@ -143,31 +136,49 @@ class GameEngine {
         mKillList = new typeof(mKillList)();
         mActiveObjects = new typeof(mActiveObjects)();
 
-        mScripting = createScriptingObj(this);
+        globalEvents = new GlobalEvents(this);
 
+        scene = new Scene();
+
+        auto gameConf = loadConfig("game");
+
+        mPhysicWorld = new PhysicWorld(rnd);
+        mPhysicWorld.collide = gfx.collision_map;
+        mPhysicWorld.gravity = Vector2f(0, gameConf.getFloatValue("gravity",
+            100));
+        //hm!?!?
+        mPhysicWorld.onCollide = &onPhysicHit;
+
+        OnHudAdd.handler(events, &onHudAdd);
+
+        //scripting initialization
+        //code loaded here can be considered "internal" and should explode
+        //  on errors
+        mScripting = createScriptingObj(this);
         mScripting.addSingleton(this);
         mScripting.addSingleton(gfx);
         mScripting.addSingleton(rnd);
+        mScripting.addSingleton(mPhysicWorld);
 
-        globalEvents = new GlobalEvents(this);
         events.setScripting(mScripting, "eventhandlers_global");
-        loadScript("events.lua");
+        foreach (char[] name, char[] value; gameConf.getSubNode("scripts")) {
+            loadScript(value);
+        }
+    }
 
-        loadScript("timer.lua");
+    void init(GameConfig config) {
+        //game initialization must be deterministic; so unless GameConfig
+        //contains a good pre-generated seed, use a fixed seed (see above)
+        if (config.randomSeed.length > 0) {
+            rnd.seed(to!(uint)(config.randomSeed));
+        }
+        gameConfig = config;
 
         persistentState = config.gamestate.copy();
 
         assert(config.level !is null);
         mLevel = config.level;
         scripting.addSingleton(mLevel);
-
-        scene = new Scene();
-
-        OnHudAdd.handler(events, &onHudAdd);
-
-        mPhysicWorld = new PhysicWorld(rnd);
-        mPhysicWorld.collide = gfx.collision_map;
-        scripting.addSingleton(mPhysicWorld);
 
         foreach (o; level.objects) {
             if (auto ls = cast(LevelLandscape)o) {
@@ -229,18 +240,16 @@ class GameEngine {
         mWaterChanger.changePerSec = cWaterRaisingSpeed;
         physicworld.add(mWaterChanger);
 
-
-        loadLevelStuff();
-
-        //lol.
-        loadScript("gameutils.lua");
-        loadScript("game_cheats.lua");
         //initialize loaded plugins
         foreach (plg; gfx.plugins) {
             //xxx controller is not yet available; plugins have to be careful
             //    best way around: add more events for different states of
             //    game initialization
-            plg.init(this);
+            try {
+                plg.init(this);
+            } catch (CustomException e) {
+                error("Plugin '{}' failed  to init(): {}", plg.name, e.msg);
+            }
         }
 
         OnGameInit.raise(globalEvents);
@@ -350,16 +359,6 @@ class GameEngine {
         mWaterBouncer.updatePos(val - 5);
     }
 
-    //one time initialization, where levle objects etc. should be loaded (?)
-    private void loadLevelStuff() {
-        auto conf = loadConfig("game");
-
-        mPhysicWorld.gravity = Vector2f(0, conf.getFloatValue("gravity",100));
-
-        //hm!?!?
-        mPhysicWorld.onCollide = &onPhysicHit;
-    }
-
     //called when a and b touch in physics
     private void onPhysicHit(ref Contact c) {
         if (c.source == ContactSource.generator)
@@ -463,7 +462,11 @@ class GameEngine {
         //xxx not sure where script functions should be called
         //  this will handle all script timers and per-frame functions
         //null termination for efficient toStringz
-        scripting().call("game_per_frame\0");
+        try {
+            scripting().call("game_per_frame\0");
+        } catch (ScriptingException e) {
+            error("Scripting error: {}", e.msg);
+        }
 
         cleanup_objects();
 
@@ -735,7 +738,7 @@ class GameEngine {
                 {
                     log("placing '{}' in air!", sprite);
                 } else {
-                    log("couldn't place '{}'!", sprite);
+                    error("couldn't place '{}'!", sprite);
                     //xxx
                     npos = toVector2f(mLevel.worldSize)/2;
                 }
@@ -1069,6 +1072,20 @@ class GameEngine {
             }
         }
         return best;
+    }
+
+    //output an error message
+    //in contrast to logging, the user will (usually) see this on the screen
+    void error(char[] fmt, ...) {
+        char[] msg = formatfx(fmt, _arguments, _argptr);
+        //log all errors
+        log(msg);
+        //xxx I don't know if an event is the right way
+        OnGameError.raise(globalEvents, msg);
+    }
+
+    private void eventScriptError(char[] event, char[] msg) {
+        error("Scripting error while handling event '{}': {}", msg);
     }
 
     //--------------- client commands

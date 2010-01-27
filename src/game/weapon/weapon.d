@@ -358,8 +358,7 @@ class WeaponSet : GameObject {
                 w = engine.gfx.findWeaponClass(wname);
                 assert(!!w);
             } catch (ClassNotRegisteredException e) {
-                registerLog("game.controller")
-                    ("Error in weapon set '"~wname~"': "~e.msg);
+                engine.error("Error in weapon set '{}': {}", wname, e.msg);
                 continue;
             }
             if (node.value == "inf") {

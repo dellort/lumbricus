@@ -194,7 +194,7 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         //I don't think we will ever need that, but better catch the special case
         //see luaPush() for the format
         static assert(false, "Implement me: ConfigNode");
-    } else static if (is(T == class)) {
+    } else static if (is(T == class) || is(T == interface)) {
         //allow userdata and nil, nothing else
         if (!lua_islightuserdata(state, stackIdx) && !lua_isnil(state,stackIdx))
             expected("class reference of type "~T.stringof);
@@ -293,7 +293,7 @@ int luaPush(T)(lua_State *state, T value) {
             }
             lua_settable(state, -3);
         }
-    } else static if (is(T == class)) {
+    } else static if (is(T == class) || is(T == interface)) {
         if (value is null) {
             lua_pushnil(state);
         } else {

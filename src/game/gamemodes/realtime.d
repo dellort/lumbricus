@@ -144,10 +144,7 @@ class ModeRealtime : Gamemode {
                     || (modeTime.current - mTeamDeactivateTime[t] > cHitDelay))
                 {
                     //only activate worms that are not currently moving
-                    auto next = t.nextActive();
-                    if (next && engine.gameTime.current
-                        - next.control.lastActivity > cActivateDelay)
-                    {
+                    if (t.nextWasIdle(cActivateDelay)) {
                         t.active = true;
                     }
                 }

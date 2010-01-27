@@ -54,6 +54,8 @@ alias DeclareEvent!("game_hud_add", GameObject, char[], Object) OnHudAdd;
 //called when the game is loaded from savegame
 //xxx this event is intederministic and must not have influence on game state
 alias DeclareEvent!("game_reload", GameObject) OnGameReload;
+//called on a non-fatal game error, with a message for the gui
+alias DeclareEvent!("game_error", GameObject, char[]) OnGameError;
 //victim, cause, type, damage
 //  cause can be null (e.g. for fall damage)
 alias DeclareEvent!("sprite_damage", Sprite, GameObject, DamageCause,
@@ -79,8 +81,9 @@ alias DeclareEvent!("sprite_gluechanged", Sprite) OnSpriteGlueChanged;
 //starting to blow itself up
 //xxx is this really needed
 alias DeclareEvent!("team_member_start_die", TeamMember) OnTeamMemberStartDie;
-alias DeclareEvent!("team_member_activate", TeamMember) OnTeamMemberActivate;
-alias DeclareEvent!("team_member_deactivate", TeamMember) OnTeamMemberDeactivate;
+alias DeclareEvent!("team_member_set_active", TeamMember, bool)
+    OnTeamMemberSetActive;
+alias DeclareEvent!("team_set_active", Team, bool) OnTeamSetActive;
 //sprite firing the weapon, used weapon, refired
 alias DeclareEvent!("shooter_fire", Shooter, bool) OnFireWeapon;
 alias DeclareEvent!("team_skipturn", Team) OnTeamSkipTurn;

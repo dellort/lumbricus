@@ -9,6 +9,7 @@ import framework.commandline;
 import framework.i18n;
 
 import game.controller;
+import game.controller_events;
 import game.events;
 import game.glue;
 import game.game;
@@ -33,6 +34,7 @@ import utils.strparser : boxToString;
 import utils.time;
 import utils.vector2;
 import utils.timesource;
+import utils.queue;
 import str = utils.string;
 
 import utils.stream;
@@ -267,6 +269,7 @@ class GameLoader {
         mShell.mGameTime.paused = mStartPaused;
 
         mShell.mCEvents = new Events();
+        OnGameError.handler(mShell.mCEvents, &mShell.onGameError);
 
         //registers many objects referenced from mShell for serialization
         //-- mShell.initSerialization();
@@ -277,10 +280,10 @@ class GameLoader {
 
         if (!mGameData) {
             //for creation of a new game
-            mShell.mEngine = new GameEngine(mGameConfig, mGfx,
-                mShell.mGameTime);
-
+            mShell.mEngine = new GameEngine(mGfx, mShell.mGameTime);
             mShell.mEngine.events.cascade ~= mShell.mCEvents;
+
+            mShell.mEngine.init(mGameConfig);
         } else {
             //code for loading a savegame
 
@@ -373,6 +376,7 @@ class GameShell {
         bool mSOMETHINGISWRONG; //good variable names are an art
     }
     bool terminated;  //set to exit the game instantly
+    Queue!(char[]) errorQueue;
 
     void delegate() OnRestoreGuiAfterSnapshot;
 
@@ -421,6 +425,8 @@ class GameShell {
         mCmds.register(Command("single_step", &cmdSinglestep, "", ["int?=1"]));
 
         mCmds.bind(mCmd);
+
+        errorQueue = new typeof(errorQueue);
     }
 
     private void execEntry(LogEntry e) {
@@ -816,6 +822,10 @@ class GameShell {
     //only closes the demo file for now
     void terminate() {
         stopDemoRecorder();
+    }
+
+    private void onGameError(GameObject sender, char[] msg) {
+        errorQueue.push(msg);
     }
 
     //xxx: not networking save, I guess

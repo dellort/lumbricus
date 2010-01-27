@@ -184,6 +184,10 @@ class GameFrame : SimpleContainer {
         game.shell.pauseBlock(!gFramework.appFocused, gFramework);
 
         mPauseLabel.visible = game.shell.paused;
+
+        while (!game.shell.errorQueue.empty) {
+            showError(game.shell.errorQueue.pop);
+        }
     }
 
     override bool doesCover() {
@@ -255,6 +259,10 @@ class GameFrame : SimpleContainer {
         HudFactory.instantiate(id, mGui, game, link);
     }
 
+    private void showError(char[] msg) {
+        mChatbox.output.writefln(msg);
+    }
+
     this(GameInfo g) {
         game = g;
 
@@ -272,7 +280,9 @@ class GameFrame : SimpleContainer {
         mGui.add(new MessageViewer(game), lay);
         mGui.add(new ReplayTimer(game),
             WidgetLayout.Aligned(-1, -1, Vector2i(10, 0)));
-        mChatbox = new Chatbox(globals.cmdLine);
+        mChatbox = new Chatbox();
+        mChatbox.cmdline.commands.addSub(globals.cmdLine.commands);
+        mChatbox.cmdline.setPrefix("/", "say");
         mGui.add(mChatbox, WidgetLayout.Aligned(-1, -1, Vector2i(5, 5)));
 
         mTeamWindow = new TeamWindow(game);
