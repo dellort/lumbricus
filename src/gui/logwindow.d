@@ -106,13 +106,13 @@ public class LogWindow : Widget, Output {
                 //  break from top to bottom)
                 //the first part is the symbol "Rightwards Arrow With Hook"
                 const cBreaker = "\u21aa ";
-                int breaker_w = mConsoleFont.textSize(cBreaker).x;
                 void bla(char[] txt, int frame) {
                     if (frame > 0 && (txt.length == 0 || cur.y < 0))
                         return;
                     int w = renderWidth;
+                    //possibly prepend wrap-around symbol
                     if (frame > 0)
-                        w -= breaker_w;
+                        w -= mConsoleFont.textSize(cBreaker).x;
                     uint n = mConsoleFont.textFit(txt, w, true);
                     if (n == 0) {
                         //pathologic case, avoid infinite recursion
@@ -124,10 +124,8 @@ public class LogWindow : Widget, Output {
                     //then ours
                     cur.y -= mLineHeight;
                     auto pos = cur;
-                    //possibly prepend wrap-around symbol
-                    if (frame > 0) {
+                    if (frame > 0)
                         pos = mConsoleFont.drawText(scrCanvas, pos, cBreaker);
-                    }
                     mConsoleFont.drawText(scrCanvas, pos, txt[0..n]);
                 }
                 bla(entry.text, 0);

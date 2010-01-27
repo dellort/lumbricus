@@ -237,6 +237,57 @@ final class ObjectList(T, char[] member) {
             return null;
         return n.prev;
     }
+
+    //naive in-place, stable merge sort
+    //not sure about complexity (has to do something stupid for partition)
+    //due to all that messy code that's called for removing and reinserting in
+    //  the merge phase it's probably rather slow anyway
+    void mergeSort(Pred2E = array.IsLess!(T))(Pred2E pred = Pred2E.init) {
+        void recurse(ref T first, ref T last, int lcount) {
+            if (lcount < 2)
+                return;
+
+            //partition
+            T cur = first;
+            int mid = lcount/2;
+            for (int n = 0; n < mid-1; n++) {
+                cur = next(cur);
+            }
+            assert(cur !is null);
+            assert(next(cur) !is null);
+
+            //sort
+            recurse(first, cur, mid);
+            T first_hi = next(cur);
+            recurse(first_hi, last, lcount - mid);
+
+            //merge
+            T lo = first;
+            T hi = last;
+            while (lo && first_hi && lo !is first_hi) {
+                if (pred(first_hi, lo)) {
+                    //move first_hi to lo's position
+                    T new_first_hi = next(first_hi);
+                    if (first_hi is last) {
+                        last = prev(first_hi);
+                        new_first_hi = null;
+                    }
+                    remove(first_hi);
+                    insert_before(first_hi, lo);
+                    if (first is lo)
+                        first = first_hi;
+                    first_hi = new_first_hi;
+                    continue;
+                }
+                lo = next(lo);
+            }
+        }
+
+        T h = head, t = tail;
+        recurse(h, t, count);
+        assert(h is head());
+        assert(t is tail());
+    }
 }
 
 unittest {
@@ -287,4 +338,30 @@ unittest {
     testList.add(i2);
     testList.clear();
     assert(testList.empty());
+
+    void sorttest(float[] arr) {
+        class X {
+            ObjListNode!(X) node;
+            float i;
+            this(float a_i) { i = a_i; }
+        }
+        auto lst = new ObjectList!(X, "node")();
+        foreach (i; arr) {
+            lst.add(new X(i));
+        }
+        lst.mergeSort((X a, X b) { return cast(int)a.i < cast(int)b.i; });
+        arr[] = 666;
+        X c = lst.head;
+        foreach (ref i; arr) {
+            i = c.i;
+            c = lst.next(c);
+        }
+    }
+
+    float[] t = [2.0f, 6, 3, 5, 7.2, 7.1, 4];
+    sorttest(t);
+    assert(t == [2.0f, 3, 4, 5, 6, 7.2, 7.1]);
+    float[] t2 = [1.2f, 2.3f, 2.1f, 0.6f, 1.8f, 1.7f];
+    sorttest(t2);
+    assert(t2 == [0.6f, 1.2f, 1.8f, 1.7f, 2.3f, 2.1f]);
 }

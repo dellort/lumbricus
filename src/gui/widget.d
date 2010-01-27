@@ -16,6 +16,7 @@ import utils.vector2;
 import utils.rect2;
 import utils.output;
 import utils.log;
+import utils.misc;
 import utils.mybox;
 import str = utils.string;
 import array = tango.core.Array;
@@ -189,6 +190,9 @@ class Widget {
         Surface mBmpBackground;
 
         MyBox[char[]] mStyleOverrides;
+
+        //only used by keynavFocus()
+        Vector2i mKeynavPosition;
     }
 
     ///clip graphics to the inside
@@ -2066,12 +2070,24 @@ final class GUI {
         assert(axis == 0 || axis == 1);
         assert(dir == -1 || dir == +1);
 
-        Vector2i edge_point(Rect2i rc, bool other) {
-            int[2] d;
-            d[axis] = other ? -dir : dir;
-            int x = d[0] < 0 ? rc.p1.x : (d[0] > 0 ? rc.p2.x : rc.center.x);
-            int y = d[1] < 0 ? rc.p1.y : (d[1] > 0 ? rc.p2.y : rc.center.y);
-            return Vector2i(x, y);
+        struct RectSides {
+            Vector2f a, b; //edge points of one side of the rect
+            int xa, xb; //==a[!axis],b[!axis]
+            int h; //coordinate in the given axis/dir
+        }
+        RectSides get_sides(Rect2i rc, bool other) {
+            RectSides r;
+            int ldir = other ? -dir : dir;
+            r.h = ldir > 0 ? rc.p2[axis] : rc.p1[axis];
+            r.a[axis] = r.h;
+            r.b[axis] = r.h;
+            r.xa = rc.p1[!axis];
+            r.xb = rc.p2[!axis];
+            if (r.xa > r.xb)
+                swap(r.xa, r.xb);
+            r.a[!axis] = r.xa;
+            r.b[!axis] = r.xb;
+            return r;
         }
 
         if (!mFocus)
@@ -2098,10 +2114,13 @@ final class GUI {
         Rect2i rel = getrc(mFocus);
         if (!rel.isNormal())
             return false;
-        Vector2i ep = edge_point(rel, false);
+        RectSides es = get_sides(rel, false);
+        Vector2i pos = mFocus.widgetBounds.clip(mFocus.mKeynavPosition);
+        mRoot.translateCoords(mFocus, pos);
 
         Widget best;
         float best_dist;
+        bool best_direct;
 
         void widget(Widget cur) {
             //code duplication with nextFocus() for focusable check
@@ -2115,14 +2134,24 @@ final class GUI {
                 return;
             //see if it's in the correct direction
             auto area = getrc(cur);
-            auto p = edge_point(area, true);
-            if ((ep[axis] - p[axis])*dir > 0)
+            RectSides s = get_sides(area, true);
+            if ((es.h - s.h)*dir > 0)
+                return;
+            //prefer widgets "directly" on the way (catches some stupid corner
+            //  cases, where it jumps to a widget on the "side", instead to a
+            //  farther away widget directly on the way)
+            bool direct = (s.xa >= es.xa && s.xa <= es.xb)
+                || (s.xb >= es.xa && s.xb <= es.xb)
+                || (s.xa <= es.xa && s.xb >= es.xb);
+            if (best_direct && !direct)
                 return;
             //distance, nearest wins
-            float dist = (toVector2f(p) - toVector2f(ep)).length;
-            if (!best || dist < best_dist) {
+            //distance from pos to the line segment that makes up one rect side
+            float dist = toVector2f(pos).distance_from_clipped(s.a, s.b-s.a);
+            if (!best || (direct && !best_direct) || dist < best_dist) {
                 best = cur;
                 best_dist = dist;
+                best_direct = direct;
             }
         }
 
@@ -2140,6 +2169,8 @@ final class GUI {
 
         log("keynav focus: dist={} widget={}", best_dist, best);
 
+        best.translateCoords(mRoot, pos);
+        best.mKeynavPosition = best.widgetBounds.clip(pos);
         best.claimFocus();
 
         return true;
