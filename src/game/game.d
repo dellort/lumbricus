@@ -1085,7 +1085,7 @@ class GameEngine {
     }
 
     private void eventScriptError(char[] event, char[] msg) {
-        error("Scripting error while handling event '{}': {}", msg);
+        error("Scripting error while handling event '{}': {}", event, msg);
     }
 
     //--------------- client commands

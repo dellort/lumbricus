@@ -1197,7 +1197,9 @@ class LuaState {
     }
 
     void stack0() {
-        assert(lua_gettop(mLua) == 0);
+        int stackSize = lua_gettop(mLua);
+        assert(stackSize == 0, myformat("Stack size: 0 expected, not {}",
+            stackSize));
     }
 
     //assign a lua-defined metatable tableName to a D struct type

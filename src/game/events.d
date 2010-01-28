@@ -284,6 +284,7 @@ final class Events {
         //mScripting.stack0();
         lua_getglobal(state, mScriptingEventsNamespace.ptr);
         lua_getfield(state, -1, ev.name.ptr);
+        lua_replace(state, -2);
         try {
             ev.marshal_d2s(mScripting, sender, params);
         } catch (LuaException e) {
@@ -293,7 +294,6 @@ final class Events {
                 throw e;
             }
         }
-        lua_pop(state, 1);
         //mScripting.stack0();
     }
 
