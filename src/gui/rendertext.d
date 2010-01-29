@@ -86,6 +86,9 @@ enum ShrinkMode {
  +  \imgres(name)
  +    Same as \imgref, but load the image with
  +    FormattedText.resources.get!(Surface)(name).
+ +  \nop
+ +    No operation; for testing (e.g. split parts to see if shrinking or
+ +    word-wrapping still works).
  + Extension ideas: (not implemented!)
  +  \include(ref)  \literal-include(ref)
  +    User can set external text by ColoredText.setRef(123, "text"), and this
@@ -112,9 +115,11 @@ public class FormattedText {
             Image,
         }
         struct Part {
+            Part* next;
             PartType type;
             Style style;
             Vector2i pos, size;
+            bool nowrap; //hack for wrap arrow
             //validity depends from PartType
             char[] text;
             Surface image;
@@ -126,7 +131,8 @@ public class FormattedText {
         ResourceSet mResources;
         Surface[] mImages;
         Style mRootStyle; //style at start
-        Part[] mParts;
+        Part* mParts;
+        Part[] mPartsAlloc; //for "saturating" memory allocation
         Vector2i mSize;
         BoxProperties mBorder;
         ShrinkMode mShrink = ShrinkMode.shrink;
@@ -221,7 +227,7 @@ public class FormattedText {
         mAlign[1] = align_y;
         mArea = size;
         mAreaValid = true;
-        if (mShrink)
+        if (mShrink != ShrinkMode.none)
             update();
     }
 
@@ -233,15 +239,33 @@ public class FormattedText {
     private void doInit() {
         mStyleStack.length = 1;
         mStyleStack[0] = mRootStyle;
-        mParts.length = 0;
+        mPartsAlloc.length = 0;
+        mParts = null;
     }
 
+    //allocate default initialized Part
+    private Part* allocpart() {
+        //allocpart() allocates from an array so that after doInit, it will
+        //  reuse the same memory, instead of thrashing the GC ("saturating"
+        //  memory allocation => actual memory allocations only until the max.
+        //  working set size is reached, then the GC isn't called anymore)
+        mPartsAlloc.length = mPartsAlloc.length + 1;
+        return &mPartsAlloc[$-1];
+    }
+
+    //alloc a part, init with the current style, and append to mParts
     private Part* addpart(PartType type) {
-        mParts.length = mParts.length + 1;
-        Part* pres = &mParts[$-1];
-        pres.type = type;
-        pres.style = mStyleStack[$-1];
-        return pres;
+        Part* p = allocpart();
+        p.type = type;
+        p.style = mStyleStack[$-1];
+        //append to end of singly linked list
+        //xxx slow if part count high (but usually, it's very low)
+        Part** cur = &mParts;
+        while (*cur) {
+            cur = &(*cur).next;
+        }
+        *cur = p;
+        return p;
     }
 
     //utf-8 and line breaks
@@ -374,6 +398,8 @@ public class FormattedText {
         // like "back" - "b")
         if (tryeat("\\")) {
             parseLiteral("\\");
+        } else if (tryeat("nop")) {
+            //no operation
         } else if (tryeat("n")) {
             parseLiteral("\n");
         } else if (tryeat("lit")) {
@@ -580,10 +606,25 @@ public class FormattedText {
         return 0;
     }
 
+    //find the position of the first char after the last whitespace
+    //e.g. find_after_ws_pos("a  b cd") == 5
+    //return -1 if no white space found
+    private static int find_after_ws_pos(char[] s) {
+        int at = -1;
+        foreach (uint idx, dchar c; s) {
+            if (str.iswhite(c)) {
+                at = idx;
+            }
+        }
+        if (at >= 0)
+            at += str.stride(s, at);
+        return at;
+    }
+
     //handle: break on newlines, text part positions, alignment, shrinking
     //the way it works on mParts is destructive (shrinking...)
     private void layout() {
-        foreach (ref p; mParts) {
+        for (Part* p = mParts; !!p; p = p.next) {
             if (p.type == PartType.Text) {
                 p.size = p.style.font.textSize(p.text);
             }
@@ -591,188 +632,293 @@ public class FormattedText {
 
         Vector2i pos;
         int max_x;
-        int max_w = mShrink && mAreaValid ? mArea.x : int.max;
+        int max_w = (mShrink != ShrinkMode.none && mAreaValid)
+            ? mArea.x : int.max;
 
-        //return height
-        int layoutLine(uint p_start, ref uint p_end) {
-            Part[] parts = mParts[p_start..p_end];
+        //list of parts produced by layoutLine()
+        Part* newparts;
+        Part** pnewparts = &newparts;
 
-            //height
-            int height = 0;
-            foreach (p; parts) {
-                assert(p.type != PartType.Newline);
-                height = max(height, p.size.y);
-            }
-
-            //actually place
-            Part* prev;
-            foreach (ref p; parts) {
+        //p_start = first Part of the line (may be null => empty line); it is a
+        //  singly linked list, terminated before the next line break
+        //line_style = fallback style for lines with no parts
+        //if this function splits off a new line, it returns the pointer to
+        //  the first part of it
+        Part* layoutLine(Part* p_start, Style line_style) {
+            //place x coords
+            Part* spc_prev;
+            for (Part* p = p_start; !!p; p = p.next) {
                 p.pos.x = pos.x;
-                p.pos.y = pos.y + doalign(p.style.align_y, height, p.size.y);
                 pos.x += p.size.x;
-                if (prev)
-                    pos.x += parts_spacing(prev, &p);
-                prev = &p;
+                if (spc_prev)
+                    pos.x += parts_spacing(spc_prev, p);
+                spc_prev = p;
+
+                assert(p.type != PartType.Newline);
             }
+
+            //if text gets cut with "shrink", point to the first part that's not
+            //  visible anymore; the range first_invisible..p_end is the cut
+            //  part (won't include the second part of the split text)
+            Part* first_invisible;
+
+            //if the text gets wrapped, the remaining parts will be formatted
+            //  as a new line
+            Part* split_new_line;
 
             //shrinking: if text too wide, break with "..." before overflow
-            if (pos.x > max_w) {
+            if (mShrink == ShrinkMode.shrink && pos.x > max_w) {
                 bool toowide = false;
-                foreach_reverse (uint index, ref p; parts) {
+                //iterate backwards from end-of-list .. p_start
+                //includes p_start
+                Part* cur = null;
+                for (;;) {
+                    //find element before cur; messy because cur may be null
+                    //in this case, null=end of the list => return last item
+                    Part* nextcur = p_start;
+                    while (nextcur) {
+                        if (nextcur.next is cur)
+                            break;
+                        nextcur = nextcur.next;
+                    }
+                    cur = nextcur;
+                    if (!cur)
+                        break;
+                    Part* p = cur;
                     if (p.pos.x + p.size.x > max_w)
                         toowide = true;
                     if (!toowide || p.pos.x >= max_w)
                         continue;
-                    uint tail = p_start + index + 1;
-                    if (mShrink == ShrinkMode.shrink) {
-                        //if there's an image and it is too wide, it will be
-                        //  removed, and the text before it will have ... even
-                        //  if the text fits (that's how it's supposed to work)
-                        if (p.type != PartType.Text)
+                    //if there's an image and it is too wide, it will be
+                    //  removed, and the text before it will have ... even
+                    //  if the text fits (that's how it's supposed to work)
+                    if (p.type != PartType.Text)
+                        continue;
+                    Font f = p.style.font;
+                    Vector2i s = f.textSize(cDotDot);
+                    uint at = f.textFit(p.text, max_w - s.x - p.pos.x);
+                    //breaking here may look stupid ("..." in different
+                    //  style)
+                    if (at == 0) {
+                        if (cur !is p_start) {
                             continue;
-                        Font f = p.style.font;
-                        Vector2i s = f.textSize(cDotDot);
-                        uint at = f.textFit(p.text, max_w - s.x - p.pos.x);
-                        //breaking here may look stupid ("..." in different
-                        //  style)
-                        if (at == 0)
-                            continue;
-                        p.text = p.text[0..at];
-                        p.size = f.textSize(p.text);
-                        //remove the tailing parts for this line
-                        int cnt = p_end - tail;
-                        assert(cnt >= 0);
-                        marray.arrayRemoveN(mParts, tail, cnt);
-                        p_end -= cnt;
-                        //insert "..."
-                        marray.arrayInsertN(mParts, tail, 1);
-                        p_end += 1;
-                        Part* pdots = &mParts[tail];
-                        *pdots = Part.init;
-                        pdots.type = PartType.Text;
-                        pdots.style = p.style;
-                        pdots.text = cDotDot;
-                        pdots.size = s;
-                        pdots.pos = p.pos+Vector2i(p.size.x,0);
-                    } else {
-                        assert(mShrink == ShrinkMode.wrap);
-                        //true afterwards if a new line was created;
-                        //  p_end will point to the newline part
-                        bool wrapped = false;
-                        switch (p.type) {
-                            case PartType.Space:
-                                //space at the border, replace by newline
-                                if (index != parts.length-1) {
-                                    p = Part.init;
-                                    p.type = PartType.Newline;
-                                    p_end = tail - 1;
-                                    wrapped = true;
-                                }
-                                break;
-                            case PartType.Text:
-                                //text part, do word wrapping
-                                Font f = p.style.font;
-                                uint at = f.textFit(p.text, max_w - p.pos.x,
-                                    true);
-                                if (at == p.text.length) {
-                                    //xxx can this happen?
-                                    //text fits entirely, although code above
-                                    //detected a splitpoint -> newline after
-                                    if (index == parts.length-1) {
-                                        //no part after current, abort
-                                        break;
-                                    }
-                                    tail++;
-                                    //switch fall-through
-                                } else if (at > 0) {
-                                    //insert newline and text for next line
-                                    marray.arrayInsertN(mParts, tail, 2);
-                                    mParts[tail] = Part.init;
-                                    mParts[tail].type = PartType.Newline;
-                                    //init next part with wrapped text
-                                    Part* pNext = &mParts[tail + 1];
-                                    *pNext = Part.init;
-                                    pNext.type = PartType.Text;
-                                    pNext.style = p.style;
-                                    pNext.text = p.text[at..$];
-                                    //pos will be set with next layoutLine()
-                                    pNext.size = f.textSize(pNext.text);
-                                    //cur off current text
-                                    Part* pCur = &mParts[tail-1];
-                                    pCur.text = p.text[0..at];
-                                    pCur.size = f.textSize(p.text);
-                                    p_end = tail;
-                                    wrapped = true;
-                                    break;
-                                }
-                                //fall-through for "at" special cases
-                            default:
-                                //non-splittable part, insert newline before
-                                tail--;
-                                marray.arrayInsertN(mParts, tail, 1);
-                                Part* pNL = &mParts[tail];
-                                *pNL = Part.init;
-                                pNL.type = PartType.Newline;
-                                p_end = tail;
-                                wrapped = true;
-                        }
-                        if (wrapped) {
-                            //insert "wrapping arrow"
-                            marray.arrayInsertN(mParts, p_end+1, 1);
-                            Part* pWrap = &mParts[p_end+1];
-                            *pWrap = Part.init;
-                            pWrap.type = PartType.Text;
-                            pWrap.style = mRootStyle;
-                            pWrap.text = cWrapSymbol;
-                            //pos will be set with next layoutLine()
-                            pWrap.size = mRootStyle.font.textSize(pWrap.text);
+                        } else {
+                            //but if it's the first Part, not breaking would
+                            //  also look stupid, so cut it down to 1 char
+                            if (p.text.length) {
+                                at = str.stride(p.text, 0);
+                            }
                         }
                     }
-                    //just make sure...
-                    parts = mParts[p_start..p_end];
+                    p.text = p.text[0..at];
+                    p.size = f.textSize(p.text);
+                    //move the trailing parts of the line to first_invisible
+                    first_invisible = p.next;
+                    p.next = null;
+                    //append "..."
+                    Part* pdots = allocpart();
+                    pdots.type = PartType.Text;
+                    pdots.style = p.style;
+                    pdots.text = cDotDot;
+                    pdots.size = s;
+                    pdots.pos = p.pos+Vector2i(p.size.x,0);
+                    p.next = pdots;
                     break;
                 }
-                //xxx would need to redo height and placement here, because
-                //    line contents changed; although in the "shrink" case,
-                //    it may be intentional to keep the old height
             }
+
+            //or wrapping: text too wide => split into a new line
+            if (mShrink == ShrinkMode.wrap && pos.x > max_w && p_start) {
+                //scan for the last part that might be wrapable
+                Part* last_white; //Part that is/contains whitespace
+                Part* last = p_start; //Part that is cut by the right border
+                for (Part* p = p_start; !!p; p = p.next) {
+                    if (p.pos.x > max_w)
+                        break;
+                    last = p;
+                    if (p.nowrap)
+                        continue;
+                    if (p.type == PartType.Text) {
+                        if (find_after_ws_pos(p.text) >= 0) {
+                            //see if the white space position fits into max_w
+                            if (p.pos.x + p.size.x <= max_w
+                                || p.style.font.textFit(p.text,
+                                    max_w - p.pos.x, true, true) > 0)
+                            {
+                                last_white = p;
+                            }
+                        }
+                    } else {
+                        //all parts other than text can be considered to
+                        //  contain whitespace (images, spaces)
+                        last_white = p;
+                    }
+                }
+                assert(!!last);
+                //skip to first no-wrap
+                while (last.next && last.nowrap)
+                    last = last.next;
+                //non-null afterwards if a new line was created; points to
+                //  first part of the new line
+                Part* wrapped = null;
+                Part* break_on = last_white ? last_white : last;
+                bool toowide = break_on.pos.x + break_on.size.x > max_w;
+                if (break_on.type == PartType.Text) {
+                    //text part, do word wrapping
+                    Font f = break_on.style.font;
+                    uint at;
+                    if (toowide) {
+                        //break on width
+                        at = f.textFit(break_on.text,
+                            max_w - break_on.pos.x, true);
+                    } else {
+                        //break on last whitespace
+                        int p = find_after_ws_pos(break_on.text);
+                        at = p >= 0 ? p : break_on.text.length;
+                    }
+                    if (at == 0) {
+                        //meh, leave at least one char on the line
+                        //else there may be an infinite loop on small max_w's
+                        if (break_on.text.length)
+                            at = str.stride(break_on.text, 0);
+                    }
+                    if (at == 0 || at == break_on.text.length) {
+                        //special cases for empty text or no-text-wrapped
+                        //xxx: not sure when they happen, but don't split off a
+                        //  new line to be safe from infinite recursions etc.
+                    } else {
+                        //split part into trailling text + new line text
+                        //pos will be set with next layoutLine()
+                        Part* pNext = allocpart();
+                        *pNext = *break_on;
+                        pNext.text = str.stripl(pNext.text[at..$]);
+                        pNext.size = f.textSize(pNext.text);
+                        //cut off current text
+                        break_on.text = break_on.text[0..at];
+                        break_on.size = f.textSize(break_on.text);
+                        break_on.next = null;
+                        wrapped = pNext;
+                    }
+                } else {
+                    //non-splittable part, insert newline
+                    //in both cases, must consider nowrap
+                    if (break_on.nowrap) {
+                        //don't do anything (danger of infinite loops)
+                    } else if (toowide) {
+                        //move break_on to next line
+                        if (break_on !is p_start) {
+                            //find prev to remove break_on from p_start list
+                            Part* prev = p_start;
+                            while (prev && prev.next !is break_on)
+                                prev = prev.next;
+                            if (prev && !prev.nowrap) {
+                                prev.next = null;
+                                wrapped = break_on;
+                            }
+                        }
+                    } else {
+                        //move stuff after break_on to next line
+                        if (!break_on.nowrap) {
+                            wrapped = break_on.next;
+                            break_on.next = null;
+                        }
+                    }
+                }
+                if (wrapped) {
+                    //insert "wrapping arrow"
+                    Part* pWrap = allocpart();
+                    pWrap.type = PartType.Text;
+                    pWrap.style = mRootStyle;
+                    pWrap.text = cWrapSymbol;
+                    pWrap.nowrap = true;
+                    //pos will be set with next layoutLine()
+                    pWrap.size = pWrap.style.font.textSize(pWrap.text);
+                    pWrap.next = wrapped;
+                    split_new_line = pWrap;
+                }
+            }
+
+            //height of the line
+            int height = 0;
+            //visible text
+            for (Part* p = p_start; !!p; p = p.next) {
+                assert(p.type != PartType.Newline);
+                height = max(height, p.size.y);
+            }
+            //consider the cut/invisible text when ShrinkMode.shrink
+            for (Part* p = first_invisible; !!p; p = p.next) {
+                assert(p.type != PartType.Newline);
+                height = max(height, p.size.y);
+            }
+
+            //empty line => apply v-spacing
+            if (height == 0) {
+                height = line_style.font.textSize("", true).y;
+            }
+
+            //actually place (y)
+            for (Part* p = p_start; !!p; p = p.next) {
+                p.pos.y = pos.y + doalign(p.style.align_y, height, p.size.y);
+            }
+
+            //re-add visible parts to global list
+            *pnewparts = p_start;
+            while (*pnewparts)
+                pnewparts = &(*pnewparts).next;
 
             //prepare next line / end
             max_x = max(max_x, pos.x);
             pos.x = 0;
-            return height;
+            pos.y += height;
+
+            return split_new_line;
         }
 
         //break at newlines
-        uint prev = 0;
-        uint cur = 0;
-        for (;;) {
-            bool end = cur == mParts.length;
-            if (end || mParts[cur].type == PartType.Newline) {
-                uint old = cur;
-                int height = layoutLine(prev, cur);
-                if (height == 0 && !end) {
-                    //spacing for empty lines
-                    height = mParts[old].style.font.textSize("", true).y;
+        //if forceHeight is true, at least force layout of an empty line
+        Part* cur = mParts;
+        mParts = null; //parts get re-added in layoutLine()
+        bool force_next = forceHeight;
+        Style line_style = mRootStyle;
+        while (cur || force_next) {
+            force_next = false;
+            //cut off the list before next line break (simplifies layoutLine())
+            //after the following loop:
+            //  tail = everything after the newline (or null)
+            //  cur = list from old cur until (excluding) the newline
+            //if cur is the newline, it gets set to null
+            Part* tail = null;
+            Part* newline = null;
+            Part** pprev = &cur;
+            while (*pprev) {
+                if ((*pprev).type == PartType.Newline) {
+                    newline = *pprev;
+                    *pprev = null;
+                    tail = newline.next;
+                    force_next = true; //don't swallow trailing \n
+                    line_style = newline.style;
+                    break;
                 }
-                pos.y += height;
-                prev = cur + 1;
+                pprev = &(*pprev).next;
             }
-            cur++;
-            if (cur > mParts.length)
-                break;
+            //do a single logical line and all physical lines produced by
+            //  wrapping (i.e. do the remainder returned by layoutLine())
+            for (;;) {
+                Part* tail2 = layoutLine(cur, line_style);
+                if (!tail2)
+                    break;
+                cur = tail2;
+            }
+            cur = tail;
         }
 
-        if (forceHeight && pos.y == 0) {
-            //probably broken; should use height of first or last Part?
-            pos.y = mRootStyle.font.textSize("", true).y;
-        }
+        mParts = newparts;
 
         mSize = Vector2i(max_x, pos.y);
 
         if (mBorder.enabled) {
             auto borderw = Vector2i(mBorder.effectiveBorderWidth);
-            foreach (ref p; mParts) {
+            for (Part* p = mParts; !!p; p = p.next) {
                 p.pos += borderw;
             }
             mSize += borderw*2;
@@ -802,11 +948,14 @@ public class FormattedText {
         }
 
         bool blinkphase = cast(int)(time.timeCurrentTime.secsf*2)%2 == 0;
-        foreach (ref p; mParts) {
+        for (Part* p = mParts; !!p; p = p.next) {
             if (p.style.blink && blinkphase)
                 continue;
             PartType t = p.type;
+            //c.drawRect(Rect2i.Span(p.pos+pos, p.size), Color(0,1,0));
             if (t == PartType.Text) {
+                //if (p.debug_mark)
+                //    c.drawRect(Rect2i.Span(p.pos+pos, p.size), Color(1,0,0));
                 p.style.font.drawText(c, p.pos + pos, p.text);
             } else if (t == PartType.Image) {
                 c.draw(p.image, p.pos + pos);

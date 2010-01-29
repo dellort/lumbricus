@@ -916,22 +916,31 @@ class TextColorTest : Task {
         mText.setMarkup(sender.text);
     }
 
+    private void wrapChange(CheckBox sender) {
+        mText.shrink = sender.checked ? ShrinkMode.wrap : ShrinkMode.shrink;
+    }
+
     this(TaskManager tm, char[] args = "") {
         super(tm);
 
         mText = new FormattedText();
+        mText.shrink = ShrinkMode.shrink;
 
         auto box = new BoxContainer(false);
         auto e = new EditLine();
         e.onChange = &editChange;
         mText.setImage(0, gGuiResources.get!(Surface)("window_maximize"));
-        e.text = r"hi\c(a=0.5)half alpha \r\[\bbold\] \t(gui.cancel)\n\s(800 %)\blink\c(red)\border-color(blue)\shadow-color(grey,a=0.5)\shadow-offset(-90%)\border-width(10)LOL\imgref(0)\r\s(-10 %)\imgres(checkbox_on)oh god wtf";
+        e.text = r"hi\c(a=0.5)half alpha \r\[\bbold\] \t(gui.cancel)\n\s(800 %)\blink\c(red)\border-color(blue)\shadow-color(grey,a=0.5)\shadow-offset(-90%)\border-width(10)LOL\imgref(0)\r\s(-10 %)\imgres(checkbox_on)oh god wtf\s(1300 %)X";
         editChange(e);
         box.add(e, WidgetLayout.Expand(true));
+        auto wrap = new CheckBox();
+        wrap.text = "wrap line";
+        wrap.onClick = &wrapChange;
+        box.add(wrap, WidgetLayout.Expand(true));
         box.add(new W());
 
         gWindowManager.createWindow(this, box, "Colored text",
-            Vector2i(400, 200));
+            Vector2i(600, 900));
     }
     static this() {
         TaskFactory.register!(typeof(this))("colortext");
