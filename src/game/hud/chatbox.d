@@ -43,6 +43,7 @@ class Chatbox : GuiConsole {
         super(cmdline);
 
         mEdit.visible = false;
+        mLogWindow.formatted = true;
         styles.addClass("chatbox");
         minSize = Vector2i(400, 175);
     }

@@ -347,6 +347,7 @@ private:
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "");
         globals.cmdLine.registerCommand("locale", &cmdLocale, "", ["text"]);
+        globals.cmdLine.registerCommand("echo", &cmdEcho, "", ["text..."]);
     }
 
     private void cmdShowFps(MyBox[] args, Output write) {
@@ -635,6 +636,11 @@ private:
     private void cmdLocale(MyBox[] args, Output write) {
         char[] lid = args[0].unbox!(char[]);
         globals.initLocale(lid);
+    }
+
+    private void cmdEcho(MyBox[] args, Output write) {
+        char[] msg = args[0].unbox!(char[]);
+        write.writefln("{}", msg);
     }
 
     private void showConsole(MyBox[], Output) {

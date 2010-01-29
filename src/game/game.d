@@ -801,7 +801,7 @@ class GameEngine {
         } else {
             res = GfxSet.textCreate();
         }
-        res.shrink = false;
+        res.shrink = ShrinkMode.none;
         mTempTextThemed[idx] = res;
         return res;
     }

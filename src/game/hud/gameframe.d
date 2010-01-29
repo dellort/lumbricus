@@ -260,7 +260,8 @@ class GameFrame : SimpleContainer {
     }
 
     private void showError(char[] msg) {
-        mChatbox.output.writefln(msg);
+        //red text (if chatbox formatting enabled)
+        mChatbox.output.writefln("\\c(ff0000){}", msg);
     }
 
     this(GameInfo g) {

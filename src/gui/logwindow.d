@@ -3,16 +3,18 @@ module gui.logwindow;
 import framework.framework;
 import framework.font;
 import gui.widget;
+import gui.rendertext;
 import utils.time;
 import utils.output;
 import utils.misc : min, max, va_list, formatfx;
+import utils.ringbuffer;
 
 import str = utils.string;
 
 public class LogWindow : Widget, Output {
-    //maximum entries the backlog stores
-    //if backlog would grow larger, old entries are thrown away
     private {
+        //maximum entries the backlog stores
+        //if backlog would grow larger, old entries are thrown away
         const int BACKLOG_LENGTH = 100;
 
         //output font (from constructor)
@@ -23,19 +25,16 @@ public class LogWindow : Widget, Output {
         //backlog buffer
         struct BufferEntry {
             char[] text;
+            FormattedText fmtText;
             Time timestamp;
         }
-        BufferEntry[BACKLOG_LENGTH] mBackLog;
-        //index into backlog pointing to next empty line
-        int mBackLogIdx;
-        //number of valid entries
-        int mBackLogLen;
-        //number of lines to scroll back
-        int mScrollPos;
+        RingBuffer!(BufferEntry) mBackLog;
         //time after which old lines are faded out (0 to disable)
         Time mFadeDelay;
         //time over which to fade alpha from visible to invisible
         const cFadeTime = timeSecs(1);
+        //if true, will use FormattedText for drawing
+        bool mTextFormatted;
     }
 
     //break lines on window width (primitive algorithm)
@@ -46,14 +45,27 @@ public class LogWindow : Widget, Output {
     public this(Font consoleFont = null) {
         focusable = false;
         font = consoleFont ? consoleFont : gFontManager.loadFont("console");
-        mBackLogIdx = 0;
-        mBackLogLen = 0;
-        mScrollPos = 0;
+        mBackLog = new typeof(mBackLog)(BACKLOG_LENGTH);
     }
 
     void font(Font fnt) {
         mConsoleFont = fnt;
         mLineHeight = fnt.properties.size + 3;
+        if (mTextFormatted) {
+            foreach (ref entry; mBackLog) {
+                assert(!!entry.fmtText);
+                entry.fmtText.font = fnt;
+            }
+        }
+    }
+
+    ///true to enable text markup (more memory usage, slower drawing, no
+    ///  line breaking)
+    void formatted(bool fmt) {
+        if (fmt != mTextFormatted) {
+            mTextFormatted = fmt;
+            clear();
+        }
     }
 
     void fadeDelay(Time delay) {
@@ -64,24 +76,17 @@ public class LogWindow : Widget, Output {
     }
 
     void onDraw(Canvas scrCanvas) {
-        //scope(exit) scrCanvas.setBlend(Color(1,1,1,1));
         Vector2i size = scrCanvas.clientSize;
 
         int renderWidth = size.x;
 
         //draw output backlog
-        //xxx if BACKLOG_LENGTH is less than the number of lines that can be
-        //  displayed on the screen, bad wrap-around occurs (looks fugly)
-        auto height = size.y;
-        int idx = mBackLogIdx-1-mScrollPos;
-        int i = 0;
         auto cur = Vector2i(0, size.y);
         Time curTime = timeCurrentTime();
-        while (cur.y > 0) {
-            if (idx < 0)
-                idx += BACKLOG_LENGTH;
-            auto entry = mBackLog[idx];
-            idx--;
+        foreach_reverse(ref entry; mBackLog) {
+            if (cur.y <= 0) {
+                break;
+            }
             if (mFadeDelay != Time.Null) {
                 //fade out (or hide entirely) old entries
                 //(if enabled by setting fadeDelay)
@@ -97,7 +102,13 @@ public class LogWindow : Widget, Output {
                     scrCanvas.setBlend(Color(1,1,1,1.0f - delta));
                 }
             }
-            if (!breakLines) {
+            if (mTextFormatted) {
+                //formatted output (line breaking handled by FormattedText)
+                assert(!!entry.fmtText);
+                cur.y -= entry.fmtText.textSize.y;
+                entry.fmtText.draw(scrCanvas, cur);
+            } else if (!breakLines) {
+                //simple output
                 cur.y -= mLineHeight;
                 mConsoleFont.drawText(scrCanvas, cur, entry.text);
             } else {
@@ -135,7 +146,7 @@ public class LogWindow : Widget, Output {
 
     public void touchConsole() {
         //reset scroll state
-        mScrollPos = 0;
+        mBackLog.setOffset(0);
     }
 
     override void writef(char[] fmt, ...) {
@@ -176,23 +187,25 @@ public class LogWindow : Widget, Output {
 
     private void println() {
         touchConsole();
-        mBackLog[mBackLogIdx].text = mLineBuffer;
-        mBackLog[mBackLogIdx].timestamp = timeCurrentTime();
+        auto newEntry = mBackLog.put();
+        if (mTextFormatted) {
+            if (!newEntry.fmtText) {
+                newEntry.fmtText = new FormattedText(mConsoleFont);
+                newEntry.fmtText.setArea(size, -1, -1);
+                newEntry.fmtText.shrink = ShrinkMode.wrap;
+            }
+            newEntry.fmtText.setMarkup(mLineBuffer);
+        } else {
+            newEntry.text = mLineBuffer;
+        }
+        newEntry.timestamp = timeCurrentTime();
         mLineBuffer = null;
-        mBackLogIdx = (mBackLogIdx + 1) % BACKLOG_LENGTH;
-        mBackLogLen++;
-        if (mBackLogLen > BACKLOG_LENGTH)
-            mBackLogLen = BACKLOG_LENGTH;
     }
 
     ///scroll backlog display back dLines > 0 lines
     ///dLines < 0 to scroll forward
     public void scrollBack(int dLines) {
-        mScrollPos += dLines;
-        if (mScrollPos < 0)
-            mScrollPos = 0;
-        if (mScrollPos >= mBackLogLen)
-            mScrollPos = mBackLogLen-1;
+        mBackLog.addOffset(dLines);
         //reset entry visibility
         foreach (ref entry; mBackLog) {
             entry.timestamp = timeCurrentTime();
@@ -203,9 +216,7 @@ public class LogWindow : Widget, Output {
     ///input line is not touched
     public void clear() {
         touchConsole();
-        mBackLogIdx = 0;
-        mBackLogLen = 0;
-        mBackLog[] = null;
+        mBackLog.clear();
     }
 
     override Vector2i layoutSizeRequest() {

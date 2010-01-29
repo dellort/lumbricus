@@ -18,6 +18,13 @@ import str = utils.string;
 import math = tango.math.Math;
 import marray = utils.array;
 
+//line breaking mode for FormattedText
+enum ShrinkMode {
+    none,     //don't care
+    shrink,   //add "..." at the end of too long lines
+    wrap,     //break long lines at word boundaries
+}
+
 /++
  + Parses a string like
  +  Black\c(ff0000)Red\rBlack,
@@ -122,7 +129,7 @@ public class FormattedText {
         Part[] mParts;
         Vector2i mSize;
         BoxProperties mBorder;
-        bool mShrink = true;
+        ShrinkMode mShrink = ShrinkMode.shrink;
         bool mForceHeight = true;
         bool mAreaValid;
         Vector2i mArea;
@@ -132,10 +139,12 @@ public class FormattedText {
 
         //text used to break overlong text (with shrink option)
         const char[] cDotDot = "...";
+        //inserted at the beginning of a wrapped line (right arrow with hook)
+        const char[] cWrapSymbol = "\u21aa ";
     }
 
-    this() {
-        mRootStyle.font = gFontManager.loadFont("default");
+    this(Font f = null) {
+        mRootStyle.font = f ? f : gFontManager.loadFont("default");
         mTranslator = localeRoot();
         mResources = gGuiResources;
         mBorder.enabled = false;
@@ -182,14 +191,14 @@ public class FormattedText {
     }
 
     //if true, cut too wide text with "..." (needs setArea())
-    void shrink(bool s) {
+    void shrink(ShrinkMode s) {
         if (mShrink == s)
             return;
         mShrink = s;
         if (mAreaValid)
             update();
     }
-    bool shrink() {
+    ShrinkMode shrink() {
         return mShrink;
     }
 
@@ -614,39 +623,118 @@ public class FormattedText {
                         toowide = true;
                     if (!toowide || p.pos.x >= max_w)
                         continue;
-                    //if there's an image and it is too wide, it will be
-                    //  removed, and the text before it will have ... even if
-                    //  the text fits (that's how it's supposed to work)
-                    if (p.type != PartType.Text)
-                        continue;
-                    Font f = p.style.font;
-                    Vector2i s = f.textSize(cDotDot);
-                    uint at = f.textFit(p.text, max_w - s.x - p.pos.x);
-                    //breaking here may look stupid ("..." in different style)
-                    if (at == 0)
-                        continue;
-                    p.text = p.text[0..at];
-                    p.size = f.textSize(p.text);
-                    //remove the tailing parts for this line
                     uint tail = p_start + index + 1;
-                    int cnt = p_end - tail;
-                    assert(cnt >= 0);
-                    marray.arrayRemoveN(mParts, tail, cnt);
-                    p_end -= cnt;
-                    //insert "..."
-                    marray.arrayInsertN(mParts, tail, 1);
-                    p_end += 1;
-                    Part* pdots = &mParts[tail];
-                    *pdots = Part.init;
-                    pdots.type = PartType.Text;
-                    pdots.style = p.style;
-                    pdots.text = cDotDot;
-                    pdots.size = s;
-                    pdots.pos = p.pos+Vector2i(p.size.x,0);
+                    if (mShrink == ShrinkMode.shrink) {
+                        //if there's an image and it is too wide, it will be
+                        //  removed, and the text before it will have ... even
+                        //  if the text fits (that's how it's supposed to work)
+                        if (p.type != PartType.Text)
+                            continue;
+                        Font f = p.style.font;
+                        Vector2i s = f.textSize(cDotDot);
+                        uint at = f.textFit(p.text, max_w - s.x - p.pos.x);
+                        //breaking here may look stupid ("..." in different
+                        //  style)
+                        if (at == 0)
+                            continue;
+                        p.text = p.text[0..at];
+                        p.size = f.textSize(p.text);
+                        //remove the tailing parts for this line
+                        int cnt = p_end - tail;
+                        assert(cnt >= 0);
+                        marray.arrayRemoveN(mParts, tail, cnt);
+                        p_end -= cnt;
+                        //insert "..."
+                        marray.arrayInsertN(mParts, tail, 1);
+                        p_end += 1;
+                        Part* pdots = &mParts[tail];
+                        *pdots = Part.init;
+                        pdots.type = PartType.Text;
+                        pdots.style = p.style;
+                        pdots.text = cDotDot;
+                        pdots.size = s;
+                        pdots.pos = p.pos+Vector2i(p.size.x,0);
+                    } else {
+                        assert(mShrink == ShrinkMode.wrap);
+                        //true afterwards if a new line was created;
+                        //  p_end will point to the newline part
+                        bool wrapped = false;
+                        switch (p.type) {
+                            case PartType.Space:
+                                //space at the border, replace by newline
+                                if (index != parts.length-1) {
+                                    p = Part.init;
+                                    p.type = PartType.Newline;
+                                    p_end = tail - 1;
+                                    wrapped = true;
+                                }
+                                break;
+                            case PartType.Text:
+                                //text part, do word wrapping
+                                Font f = p.style.font;
+                                uint at = f.textFit(p.text, max_w - p.pos.x,
+                                    true);
+                                if (at == p.text.length) {
+                                    //xxx can this happen?
+                                    //text fits entirely, although code above
+                                    //detected a splitpoint -> newline after
+                                    if (index == parts.length-1) {
+                                        //no part after current, abort
+                                        break;
+                                    }
+                                    tail++;
+                                    //switch fall-through
+                                } else if (at > 0) {
+                                    //insert newline and text for next line
+                                    marray.arrayInsertN(mParts, tail, 2);
+                                    mParts[tail] = Part.init;
+                                    mParts[tail].type = PartType.Newline;
+                                    //init next part with wrapped text
+                                    Part* pNext = &mParts[tail + 1];
+                                    *pNext = Part.init;
+                                    pNext.type = PartType.Text;
+                                    pNext.style = p.style;
+                                    pNext.text = p.text[at..$];
+                                    //pos will be set with next layoutLine()
+                                    pNext.size = f.textSize(pNext.text);
+                                    //cur off current text
+                                    Part* pCur = &mParts[tail-1];
+                                    pCur.text = p.text[0..at];
+                                    pCur.size = f.textSize(p.text);
+                                    p_end = tail;
+                                    wrapped = true;
+                                    break;
+                                }
+                                //fall-through for "at" special cases
+                            default:
+                                //non-splittable part, insert newline before
+                                tail--;
+                                marray.arrayInsertN(mParts, tail, 1);
+                                Part* pNL = &mParts[tail];
+                                *pNL = Part.init;
+                                pNL.type = PartType.Newline;
+                                p_end = tail;
+                                wrapped = true;
+                        }
+                        if (wrapped) {
+                            //insert "wrapping arrow"
+                            marray.arrayInsertN(mParts, p_end+1, 1);
+                            Part* pWrap = &mParts[p_end+1];
+                            *pWrap = Part.init;
+                            pWrap.type = PartType.Text;
+                            pWrap.style = mRootStyle;
+                            pWrap.text = cWrapSymbol;
+                            //pos will be set with next layoutLine()
+                            pWrap.size = mRootStyle.font.textSize(pWrap.text);
+                        }
+                    }
                     //just make sure...
                     parts = mParts[p_start..p_end];
                     break;
                 }
+                //xxx would need to redo height and placement here, because
+                //    line contents changed; although in the "shrink" case,
+                //    it may be intentional to keep the old height
             }
 
             //prepare next line / end
@@ -671,7 +759,7 @@ public class FormattedText {
                 prev = cur + 1;
             }
             cur++;
-            if (end)
+            if (cur > mParts.length)
                 break;
         }
 

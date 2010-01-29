@@ -285,6 +285,7 @@
 		<Unit filename="..\src\utils\reflect\type.d" />
 		<Unit filename="..\src\utils\reflect\types.d" />
 		<Unit filename="..\src\utils\reflection.d" />
+		<Unit filename="..\src\utils\ringbuffer.d" />
 		<Unit filename="..\src\utils\rndkiss.d" />
 		<Unit filename="..\src\utils\serialize.d" />
 		<Unit filename="..\src\utils\stream.d" />
