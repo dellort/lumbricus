@@ -13,14 +13,7 @@ static this() {
     gGuiResources = new ResourceSet();
 
     styleRegisterFloat("highlight-alpha");
-    styleRegisterColor("border-color");
-    styleRegisterColor("border-back-color");
-    styleRegisterColor("border-bevel-color");
-    styleRegisterInt("border-corner-radius");
-    styleRegisterInt("border-width");
-    styleRegisterBool("border-enable");
-    styleRegisterBool("border-bevel-enable");
-    styleRegisterBool("border-not-rounded");
+    styleRegisterBorder("border");
     styleRegisterColor("widget-background");
     styleRegisterString("bitmap-background-res");
     enumStrings!(ImageDrawStyle, "center,tile,stretch,stretchx,stretchy,fitInner,fitOuter");

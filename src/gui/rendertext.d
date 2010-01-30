@@ -786,6 +786,17 @@ public class FormattedText {
                         //special cases for empty text or no-text-wrapped
                         //xxx: not sure when they happen, but don't split off a
                         //  new line to be safe from infinite recursions etc.
+                        //oookay.... if there's a text part of whitespace only
+                        //  before a non-breakable part, last_white will be the
+                        //  white-space only part, and find_after_ws_pos above
+                        //  will return the length of the string
+                        //but you really want to break here
+                        if (at == break_on.text.length
+                            && break_on is last_white)
+                        {
+                            wrapped = break_on.next;
+                            break_on.next = null;
+                        }
                     } else {
                         //split part into trailling text + new line text
                         //pos will be set with next layoutLine()

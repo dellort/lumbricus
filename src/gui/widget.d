@@ -1460,13 +1460,7 @@ class Widget {
     //  would be too complicated)
     //can be overridden by derived widget classes
     protected void readStyles() {
-        mBorderStyle.border = styles.get!(Color)("border-color");
-        mBorderStyle.back = styles.get!(Color)("border-back-color");
-        mBorderStyle.bevel = styles.get!(Color)("border-bevel-color");
-        mBorderStyle.drawBevel = styles.get!(bool)("border-bevel-enable");
-        mBorderStyle.noRoundedCorners = styles.get!(bool)("border-not-rounded");
-        mBorderStyle.borderWidth = styles.get!(int)("border-width");
-        mBorderStyle.cornerRadius = styles.get!(int)("border-corner-radius");
+        mBorderStyle = styles.get!(BoxProperties)("border");
         mWidgetPad = styles.get!(int)("widget-pad");
         mBorderMin = styles.get!(int)("border-min");
 

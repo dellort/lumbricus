@@ -6,7 +6,9 @@ import utils.misc;
 import utils.mybox;
 
 //doesn't really belong here
+//they are just to import the types for some default style property handlers
 import framework.font;
+import gui.renderbox;
 import utils.color;
 import utils.time;
 
@@ -144,6 +146,14 @@ private {
     //  "relative" values (empty box is passed for top-level ones)
     alias MyBox function(char[], MyBox) ParserFn;
     ParserFn[char[]] gParserFns;
+
+    alias MyBox function(char[], MyBox[char[]]) SummarizerFn;
+    //not using an AA, because the order may (possibly) be important
+    struct Summarizer {
+        char[] name;
+        SummarizerFn fn;
+    }
+    Summarizer[] gSummarizers;
 }
 
 class StylesPseudoCSS : StylesBase {
@@ -352,6 +362,13 @@ class StylesPseudoCSS : StylesBase {
             }
         }
 
+        //create summaries (values purely based on other values)
+        foreach (cur; res.mSortedProperties) {
+            foreach (s; gSummarizers) {
+                cur.mProperties[s.name] = s.fn(s.name, cur.mProperties);
+            }
+        }
+
 /+
         Trace.formatln("create prop...");
         Trace.formatln("classes: {}", res.mSortedClasses);
@@ -533,10 +550,32 @@ MyBox parseStrparser(T)(char[] src, MyBox prev) {
     return v;
 }
 
+//only here because dmd is too dumb to put templates inside of functions
+//only reason for this function is that I was too lazy to rearrange stuff
+private T getprop(T)(MyBox[char[]] props, char[] base, char[] name) {
+    return props[base~name].unbox!(T)();
+}
+
+MyBox summarizeBorder(char[] base, MyBox[char[]] props) {
+    BoxProperties p;
+    p.border = getprop!(Color)(props, base, "-color");
+    p.back = getprop!(Color)(props, base, "-back-color");
+    p.bevel = getprop!(Color)(props, base, "-bevel-color");
+    p.drawBevel = getprop!(bool)(props, base, "-bevel-enable");
+    p.noRoundedCorners = getprop!(bool)(props, base, "-not-rounded");
+    p.borderWidth = getprop!(int)(props, base, "-width");
+    p.cornerRadius = getprop!(int)(props, base, "-corner-radius");
+    return MyBox.Box!(BoxProperties)(p);
+}
+
 //register a style property with the given name and parser function
 //see ParserFn for what it does
 void styleRegisterValue(char[] name, ParserFn parser) {
     gParserFns[name] = parser;
+}
+
+void styleRegisterSummarizer(char[] name, SummarizerFn summ) {
+    gSummarizers ~= Summarizer(name, summ);
 }
 
 //convencience functions blergh (oh god why)
@@ -564,6 +603,18 @@ void styleRegisterTime(char[] name) {
 
 void styleRegisterStrParser(T)(char[] name) {
     styleRegisterValue(name, &parseStrparser!(T));
+}
+
+void styleRegisterBorder(char[] basename) {
+    styleRegisterColor(basename~"-color");
+    styleRegisterColor(basename~"-back-color");
+    styleRegisterColor(basename~"-bevel-color");
+    styleRegisterInt(basename~"-corner-radius");
+    styleRegisterInt(basename~"-width");
+    styleRegisterBool(basename~"-enable");
+    styleRegisterBool(basename~"-bevel-enable");
+    styleRegisterBool(basename~"-not-rounded");
+    styleRegisterSummarizer(basename, &summarizeBorder);
 }
 
 /+
