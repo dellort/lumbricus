@@ -32,17 +32,14 @@ abstract class StylesLookup {
         char[][] mSortedEnabledStates;
     }
 
+    protected MyBox[char[]] mStyleOverrides;
+
     //user can set a callback; the callback will then be called everytime the
     //  value returned by get/getBox possibly has changed
     //void delegate() onChange;
     //using a flag, GUI code becomes easier (doesn't need to be able to handle
     //  change callbacks at any time)
     bool didChange;
-
-    //provides a simplistic way to override a specific property with a
-    //  user-defined value
-    MyBox delegate(StylesLookup sender, char[] name, MyBox orig)
-        onStyleOverride;
 
     final void triggerChange() {
         //if (onChange)
@@ -66,6 +63,9 @@ abstract class StylesLookup {
 
         //must call triggerChange on its own (if needed)
         protected void updateState(char[] name, bool val);
+
+        //style override change (value is in mStyleOverrides)
+        protected void changed_style_override(char[] name);
     }
 
     //treat return value as const etc.
@@ -119,15 +119,34 @@ abstract class StylesLookup {
     //the style value depends from the theme config file, the enabled/disabled
     //  states, the set of added classes
     final MyBox getBox(char[] name) {
-        MyBox val = doGetBox(name);
-        if (onStyleOverride)
-            val = onStyleOverride(this, name, val);
-        return val;
+        return doGetBox(name);
     }
 
     //return the actual value for a property with the current state
     final T get(T)(char[] name) {
         return getBox(name).unbox!(T)();
+    }
+
+    //override a specific style property (name) with a constant value
+    //box must have the correct type
+    //exception: an empty box resets the style override
+    //unknown/mistyped names will be silently ignored
+    final void setStyleOverride(char[] name, MyBox value) {
+        if (value.empty) {
+            mStyleOverrides.remove(name);
+        } else {
+            mStyleOverrides[name] = value;
+        }
+        changed_style_override(name);
+        didChange = true;
+    }
+
+    //helper
+    final void setStyleOverrideT(T)(char[] name, T val) {
+        setStyleOverride(name, MyBox.Box(val));
+    }
+    final void clearStyleOverride(char[] name) {
+        setStyleOverride(name, MyBox());
     }
 }
 
@@ -147,7 +166,7 @@ private {
     alias MyBox function(char[], MyBox) ParserFn;
     ParserFn[char[]] gParserFns;
 
-    alias MyBox function(char[], MyBox[char[]]) SummarizerFn;
+    alias MyBox function(char[], MyBox delegate(char[])) SummarizerFn;
     //not using an AA, because the order may (possibly) be important
     struct Summarizer {
         char[] name;
@@ -365,7 +384,10 @@ class StylesPseudoCSS : StylesBase {
         //create summaries (values purely based on other values)
         foreach (cur; res.mSortedProperties) {
             foreach (s; gSummarizers) {
-                cur.mProperties[s.name] = s.fn(s.name, cur.mProperties);
+                MyBox get(char[] name) {
+                    return cur.mProperties[name];
+                }
+                cur.mProperties[s.name] = s.fn(s.name, &get);
             }
         }
 
@@ -418,6 +440,8 @@ final class StylesLookupImpl : StylesLookup {
         PropertiesSet mCurrentSet;
         //if the states get changed, must (possibly) looked up again
         PropertiesSet.List mCurrentList;
+        bool mSummaryHack;
+        MyBox[char[]] mLocalSummaries;
     }
 
     override void parent(StylesBase p) {
@@ -458,7 +482,23 @@ final class StylesLookupImpl : StylesLookup {
                 }
             }
             assert(!!mCurrentList, "this shouldn't happen!");
+            if (mSummaryHack) {
+                //recreate summaries locally
+                foreach (Summarizer s; gSummarizers) {
+                    MyBox get(char[] xname) {
+                        if (auto pb = xname in mStyleOverrides)
+                            return *pb;
+                        return mCurrentList.mProperties[xname];
+                    }
+                    mLocalSummaries[s.name] = s.fn(s.name, &get);
+                }
+            }
         }
+        //3 AA lookups just because of this style override crap...
+        if (auto poverride = name in mStyleOverrides)
+            return *poverride;
+        if (auto plocal = name in mLocalSummaries)
+            return *plocal;
         auto pprop = name in mCurrentList.mProperties;
         if (!pprop) {
             assert(false, "property '"~name~"' wasn't declared in styles-root?");
@@ -477,6 +517,22 @@ final class StylesLookupImpl : StylesLookup {
             return;
         mCurrentList = null;
         triggerChange();
+    }
+
+    override void changed_style_override(char[] name) {
+        //problem: if a property is overridden, that is read by a "summarizer"
+        //  (e.g. "border-color" and "border"), the precomputed summarizer-
+        //  values will be invalid
+        //thus, if a property gets overridden, re-evaluate all summarizers
+        //  locally to guarantee they have the right value
+        //only do this if a property was overridden; in the general case, use
+        //  the cached summaries, because that's more efficient (esp. on
+        //  frequent state changes and so on)
+        if (!mSummaryHack) {
+            mSummaryHack = true;
+            mAge = -1;
+            checkChanges();
+        }
     }
 }
 
@@ -535,6 +591,7 @@ MyBox parseFromStrScalar(T)(char[] src, MyBox prev) {
     return MyBox.Box!(T)(value);
 }
 
+/+
 MyBox parseFont(char[] src, MyBox prev) {
     FontProperties props;
     if (!prev.empty())
@@ -542,6 +599,7 @@ MyBox parseFont(char[] src, MyBox prev) {
     props = gFontManager.getStyle(src, false);
     return MyBox.Box!(FontProperties)(props);
 }
++/
 
 MyBox parseStrparser(T)(char[] src, MyBox prev) {
     MyBox v = strparser.stringToBox!(T)(src);
@@ -552,11 +610,11 @@ MyBox parseStrparser(T)(char[] src, MyBox prev) {
 
 //only here because dmd is too dumb to put templates inside of functions
 //only reason for this function is that I was too lazy to rearrange stuff
-private T getprop(T)(MyBox[char[]] props, char[] base, char[] name) {
-    return props[base~name].unbox!(T)();
+private T getprop(T)(MyBox delegate(char[]) props, char[] base, char[] name) {
+    return props(base~name).unbox!(T)();
 }
 
-MyBox summarizeBorder(char[] base, MyBox[char[]] props) {
+MyBox summarizeBorder(char[] base, MyBox delegate(char[]) props) {
     BoxProperties p;
     p.border = getprop!(Color)(props, base, "-color");
     p.back = getprop!(Color)(props, base, "-back-color");
@@ -567,6 +625,25 @@ MyBox summarizeBorder(char[] base, MyBox[char[]] props) {
     p.cornerRadius = getprop!(int)(props, base, "-corner-radius");
     return MyBox.Box!(BoxProperties)(p);
 }
+
+MyBox summarizeFont(char[] base, MyBox delegate(char[]) props) {
+    FontProperties p;
+    p.face = getprop!(char[])(props, base, "-face");
+    p.back_color = getprop!(Color)(props, base, "-back-color");
+    p.fore_color = getprop!(Color)(props, base, "-fore-color");
+    p.border_color = getprop!(Color)(props, base, "-border-color");
+    p.shadow_color = getprop!(Color)(props, base, "-shadow-color");
+    p.size = getprop!(int)(props, base, "-size");
+    p.border_width = getprop!(int)(props, base, "-border-width");
+    p.shadow_offset = getprop!(int)(props, base, "-shadow-offset");
+    p.bold = getprop!(bool)(props, base, "-bold");
+    p.italic = getprop!(bool)(props, base, "-italic");
+    p.underline = getprop!(bool)(props, base, "-underline");
+    return MyBox.Box!(Font)(gFontManager.create(p));
+}
+
+
+
 
 //register a style property with the given name and parser function
 //see ParserFn for what it does
@@ -594,9 +671,6 @@ void styleRegisterColor(char[] name) {
 void styleRegisterBool(char[] name) {
     styleRegisterValue(name, &parseFromStr!(bool));
 }
-void styleRegisterFont(char[] name) {
-    styleRegisterValue(name, &parseFont);
-}
 void styleRegisterTime(char[] name) {
     styleRegisterValue(name, &parseFromStrScalar!(Time));
 }
@@ -615,6 +689,21 @@ void styleRegisterBorder(char[] basename) {
     styleRegisterBool(basename~"-bevel-enable");
     styleRegisterBool(basename~"-not-rounded");
     styleRegisterSummarizer(basename, &summarizeBorder);
+}
+
+void styleRegisterFont(char[] basename) {
+    styleRegisterString(basename~"-face");
+    styleRegisterColor(basename~"-back-color");
+    styleRegisterColor(basename~"-fore-color");
+    styleRegisterColor(basename~"-border-color");
+    styleRegisterColor(basename~"-shadow-color");
+    styleRegisterInt(basename~"-size");
+    styleRegisterInt(basename~"-border-width");
+    styleRegisterInt(basename~"-shadow-offset");
+    styleRegisterBool(basename~"-bold");
+    styleRegisterBool(basename~"-italic");
+    styleRegisterBool(basename~"-underline");
+    styleRegisterSummarizer(basename, &summarizeFont);
 }
 
 /+

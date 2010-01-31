@@ -119,9 +119,8 @@ class Label : Widget {
     override void readStyles() {
         super.readStyles();
         if (!mFontOverride) {
-            auto props = styles.get!(FontProperties)("text-font");
             //NOTE: not assigning to "font", because that triggers a resize
-            mText.font = gFontManager.create(props);
+            mText.font = styles.get!(Font)("text-font");
         }
     }
 

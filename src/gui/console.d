@@ -102,8 +102,7 @@ class GuiConsole : BoxContainer {
 
     override void readStyles() {
         super.readStyles();
-        auto props = styles.get!(FontProperties)("text-font");
-        auto newFont = gFontManager.create(props);
+        auto newFont = styles.get!(Font)("text-font");
         mLogWindow.font = newFont;
         mEdit.font = newFont;
         mLogWindow.fadeDelay = styles.get!(Time)("fade-delay");

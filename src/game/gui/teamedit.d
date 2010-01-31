@@ -9,6 +9,7 @@ import gui.widget;
 import gui.edit;
 import gui.dropdownlist;
 import gui.button;
+import gui.renderbox;
 import gui.wm;
 import gui.loader;
 import gui.list;
@@ -105,7 +106,7 @@ class TeamEditorTask : Task {
 
     //set color button to passed team color
     private void showColor(char[] teamCol) {
-        mColorButton.setStyleOverrideT!(Color)("border-back-color",
+        mColorButton.styles.setStyleOverrideT!(Color)("border-back-color",
             Color.fromString("team_"~teamCol));
     }
 

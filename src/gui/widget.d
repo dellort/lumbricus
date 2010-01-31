@@ -189,8 +189,6 @@ class Widget {
         //tentative useless feature
         Surface mBmpBackground;
 
-        MyBox[char[]] mStyleOverrides;
-
         //only used by keynavFocus()
         Vector2i mKeynavPosition;
     }
@@ -1483,42 +1481,6 @@ class Widget {
         styles.didChange = false;
         readStyles();
         needResize();
-    }
-
-    //like updateStyles(), but disregard change-check; needed by style overrides
-    final void forceUpdateStyles() {
-        styles.didChange = true;
-        updateStyles();
-    }
-
-    //override a specific style property (name) with a constant value
-    //box must have the correct type
-    //exception: an empty box resets the style override
-    //unknown/mistyped names will be silently ignored
-    final void setStyleOverride(char[] name, MyBox value) {
-        if (value.empty) {
-            mStyleOverrides.remove(name);
-        } else {
-            if (!styles.onStyleOverride)
-                styles.onStyleOverride = &styleOverrideCb;
-            mStyleOverrides[name] = value;
-        }
-        forceUpdateStyles();
-    }
-
-    //helper
-    final void setStyleOverrideT(T)(char[] name, T val) {
-        setStyleOverride(name, MyBox.Box(val));
-    }
-    final void clearStyleOverride(char[] name) {
-        setStyleOverride(name, MyBox());
-    }
-
-    private MyBox styleOverrideCb(StylesLookup sender, char[] name, MyBox orig)
-    {
-        if (auto pval = name in mStyleOverrides)
-            return *pval;
-        return orig;
     }
 
     //xxx make final, after removing SOMEONE's hack in gameframe.d

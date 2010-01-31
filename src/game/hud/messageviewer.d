@@ -98,7 +98,8 @@ class MessageViewer : Label {
             if (team) {
                 p.fore_color = team.color.color;
             }
-            setStyleOverrideT!(FontProperties)("text-font", p);
+            styles.setStyleOverrideT!(Font)("text-font",
+                gFontManager.create(p));
             mInterp.init(timeSecs(1.5f),
                 -containedBorderBounds.p1.y - containedBorderBounds.size.y, 0);
         }

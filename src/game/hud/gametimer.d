@@ -10,6 +10,7 @@ import game.gamemodes.shared;
 import gui.container;
 import gui.boxcontainer;
 import gui.label;
+import gui.renderbox;
 import gui.widget;
 import utils.time;
 import utils.misc;
@@ -142,9 +143,9 @@ class GameTimer : BoxContainer {
         if (bordercolor != mOldBordercolor) {
             mOldBordercolor = bordercolor;
             if (bordercolor.valid()) {
-                setStyleOverrideT!(Color)("border-color", bordercolor);
+                styles.setStyleOverrideT!(Color)("border-color", bordercolor);
             } else {
-                clearStyleOverride("border-color");
+                styles.clearStyleOverride("border-color");
             }
         }
 

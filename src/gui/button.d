@@ -87,9 +87,9 @@ class ButtonBase : Widget {
         //whatever
         //hack can be removed when styles stuff is improved
         if (auto label = getLabel(false)) {
-            auto props = styles.get!(FontProperties)("text-font");
+            auto f = styles.get!(Font)("text-font");
             //xxx possibly triggering resize
-            label.font = gFontManager.create(props);
+            label.font = f;
         }
     }
 

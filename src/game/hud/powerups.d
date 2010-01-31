@@ -6,6 +6,7 @@ import game.clientengine;
 import game.hud.teaminfo;
 import gui.boxcontainer;
 import gui.label;
+import gui.renderbox;
 import gui.widget;
 import utils.time;
 import utils.misc;
@@ -45,13 +46,13 @@ class PowerupDisplay : BoxContainer {
                 removeChild(w);
         }
 
-        if (myTeam) {
+        if (myTeam && isLinked) {
             //I assume the color is only used if the label is visible
             auto col = myTeam.color.color;
             if (col != mOldColor) {
                 mOldColor = col;
                 foreach (s; [mLblDouble, mLblCrate]) {
-                    s.setStyleOverrideT!(Color)("border-color", col);
+                    s.styles.setStyleOverrideT!(Color)("border-color", col);
                 }
             }
         }

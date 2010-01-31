@@ -300,7 +300,8 @@ class TestFrame9 : Container {
             x.text = myformat("{}", r);
             auto props = gFontManager.loadFont("normal").properties();
             props.size += r*10; //just to have different request sizes
-            x.setStyleOverrideT!(FontProperties)("text-font", props);
+            x.styles.setStyleOverrideT!(Font)("text-font",
+                gFontManager.create(props));
             addChild(x);
         }
         override void onDraw(Canvas c) {
@@ -361,7 +362,8 @@ class TestFrame10 : Container {
         fp.size = 70;
         fp.border_width = 3;
         fp.border_color = Color(1, 0, 0);
-        c2.setStyleOverrideT!(FontProperties)("text-font", fp);
+        c2.styles.setStyleOverrideT!(Font)("text-font",
+            gFontManager.create(fp));
         tabs.addTab(c2, "Tab 2");
         auto c3 = new Label();
         c3.text = "tab 3";
