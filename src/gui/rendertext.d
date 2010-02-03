@@ -543,6 +543,9 @@ public class FormattedText {
     void setText(bool as_markup, char[] txt) {
         mTextIsFormatted = as_markup;
         //copy the text instead of doing txt.dup to prevent memory re-allocation
+        //known places that use setText() with txt pointing to temp memory:
+        //- scripting (Lua wrapper only copies strings for property-sets)
+        //- setTextFmt()
         mText.length = txt.length;
         mText[] = txt;
         update();

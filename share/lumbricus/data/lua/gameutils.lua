@@ -142,3 +142,80 @@ function relay(table)
     setmetatable(table, _RelayMetaTable)
     return table
 end
+
+-- this adds a timer to a sprite, that shows a countdown time
+-- the countdown time is linked to the passed Timer, and is synchronous even if
+--  the timer gets restarted or paused/resumed
+-- sprite = Sprite D instance
+-- timer = Timer instance from timer.lua
+-- unit = sets the "quantum" per displayed unit; if nil, defaults to Time.Second
+-- time_visible = a number; unit at which time display is visible
+--                or nil, then time is always displayed (if timer started)
+-- time_red = a number; unit at which the time display becomes red
+--            or nil, then it's never shown in red
+function addCountdownDisplay(sprite, timer, unit, time_visible, time_red)
+    local unit = unit or Time.Second
+    local txt = Gfx_textCreate()
+    local last_visible = false
+    local function setVisible(visible)
+        if visible == last_visible then
+            return
+        end
+        local gr = Sprite_graphic(sprite)
+        -- gr can be null if the sprite died or so, no idea *shrug*
+        if not gr then return end
+        Sequence_set_attachText(gr, iif(visible, txt, nil))
+        last_visible = visible
+    end
+    -- the Timer updater is invoked every second to change the time display
+    -- the "link" is used to make the timer run synchronously
+    local updater = Timer.new()
+    local function updateTime()
+        local left
+        if timer:isStarted() then
+            left = timer:timeLeft():unitsf(unit)
+        end
+        local visible = left and ((not time_visible) or (left <= time_visible))
+        setVisible(visible)
+        if not visible then
+            updater:cancel()
+            if timer:isActive() then
+                -- call next when timer really needs to be displayed
+                updater:start(timer:timeLeft() - unit*time_visible)
+            end
+            return
+        end
+        local disp = math.ceil(left)
+        local fraction = disp - left
+        local prefix = ""
+        if time_red and (disp <= time_red) then
+            prefix = "\\c(team_red)"
+        end
+        -- the ".." converts the number disp to a string (welcome to Lua)
+        FormattedText_setText(txt, true, prefix .. disp)
+        -- set timer for next change of displayed time
+        -- the fraction thing is needed if the timer was activated in an
+        --  "between" time (e.g. timeLeft is 4.5 secs => display "5", update in
+        --  0.5 sec to show "4" on 4.0 secs)
+        -- special cased because time calculation allocates memory (LOL)
+        if fraction > 0 then
+            updater:start(unit*(1.0 - fraction))
+        else
+            updater:start(unit)
+        end
+    end
+    updater:setCallback(updateTime)
+    local link = {
+        onPauseState = function()
+            updater:setPaused(timer:paused())
+        end,
+        -- keep in mind that those callback functions are called with the
+        --  arguments (link_table, linked_timer)
+        onStart = updateTime,
+        onTrigger = updateTime,
+        onCancel = updateTime,
+    }
+    timer:setLink(link)
+    -- initial stuff
+    updateTime()
+end

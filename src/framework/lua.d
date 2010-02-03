@@ -552,6 +552,7 @@ class LuaRegistry {
 
     enum MethodType {
         Method,
+        StaticMethod,
         Property_R,
         Property_W,
         Ctor,
@@ -563,7 +564,7 @@ class LuaRegistry {
         char[] name;
         char[] prefix;
         char[] fname;
-        bool is_static;
+        //bool is_static;
         lua_CFunction demarshal;
         MethodType type;
     }
@@ -639,6 +640,22 @@ class LuaRegistry {
 
         registerDMethod(Class.classinfo, rename.length ? rename : name,
             &demarshal, MethodType.Method);
+    }
+
+    //register a static method for a class
+    //not strictly necessary (redundant to func()), but here for more uniformity
+    //  in the scripting and binding code (especially in combination with the
+    //  singleton crap)
+    void static_method(Class, char[] name)(char[] rename = null) {
+        extern(C) static int demarshal(lua_State* state) {
+            const methodName = Class.stringof ~ '.' ~ name;
+            alias Class C;
+            auto fn = mixin("&C."~name);
+            return callFromLua(fn, state, 0, methodName);
+        }
+
+        registerDMethod(Class.classinfo, rename.length ? rename : name,
+            &demarshal, MethodType.StaticMethod);
     }
 
     //a constructor for a given class
@@ -963,6 +980,7 @@ class LuaState {
         MetaData d;
         switch (m.type) {
             case MT.Method: d.type = "Method"; break;
+            case MT.StaticMethod: d.type = "StaticMethod"; break;
             case MT.Property_R: d.type = "Property_R"; break;
             case MT.Property_W: d.type = "Property_W"; break;
             case MT.Ctor: d.type = "Ctor"; break;
@@ -994,7 +1012,7 @@ class LuaState {
         foreach (m; mMethods) {
             if (m.classinfo !is ci)
                 continue;
-            if (m.is_static)
+            if (m.type == LuaRegistry.MethodType.StaticMethod) //is_static)
                 continue;
             //the method name is the same, just that the singleton is now
             //  automagically added on a call (not sure if that's a good idea)

@@ -55,6 +55,13 @@ function Time:mins()
     return self:msecs()/60000
 end
 
+-- like the functions above, but use the passed Time as unit
+-- essentially divides and returns a lua number
+-- (why does __div return a Time anyway???)
+function Time:unitsf(unit)
+    return self.timeVal/unit.timeVal
+end
+
 function timeMusecs(v)
     return Time(v*1000)
 end
@@ -67,3 +74,6 @@ end
 function timeMins(v)
     return timeMsecs(v*60000)
 end
+
+-- (similar to Time.Null)
+Time.Second = timeSecs(1)

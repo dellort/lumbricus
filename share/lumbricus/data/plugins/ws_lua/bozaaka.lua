@@ -81,6 +81,15 @@ do
         Game_explosionAt(Phys_pos(Sprite_physics(sender)), 75, sender)
     end)
     enableDrown(sprite_class)
+    -- disable blow-up timer on drown (prevent blowup, remove time display)
+    addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
+        local ctx = get_context(sender, true)
+        if ctx and ctx.timer and
+            (not Sprite_visible(sender) or Sprite_isUnderWater(sender))
+        then
+            ctx.timer:cancel()
+        end
+    end)
 
     Gfx_registerSpriteClass(sprite_class)
     local w = createWeapon(name, {
@@ -89,10 +98,7 @@ do
             local s = spawnSprite(sprite_class_name, info.pos + info.dir * dist, info.dir * info.strength)
             local ctx = get_context(s)
             ctx.main = true
-            addTimer(info.timer, function()
-                if not Sprite_visible(s) or Sprite_isUnderWater(s) then
-                    return
-                end
+            ctx.timer = addTimer(info.timer, function()
                 local spos = Phys_pos(Sprite_physics(s))
                 Game_explosionAt(spos, 75, s)
                 for i = 1,6 do
@@ -103,6 +109,7 @@ do
                 end
                 Sprite_die(s)
             end)
+            addCountdownDisplay(s, ctx.timer, Time.Second, 5, 3)
         end,
         category = "throw",
         value = 0,

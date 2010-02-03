@@ -18,6 +18,7 @@ import game.levelgen.renderer;
 import game.weapon.projectile;
 import game.weapon.weapon;
 import game.weapon.luaweapon;
+import gui.rendertext; //: FormattedText
 import physics.world;
 import utils.vector2;
 import utils.rect2;
@@ -61,6 +62,7 @@ static this() {
     gScripting.setClassPrefix!(GfxSet)("Gfx");
     gScripting.methods!(GfxSet, "findSpriteClass", "findWeaponClass",
         "weaponList", "registerWeapon", "registerSpriteClass");
+    gScripting.static_method!(GfxSet, "textCreate");
     gScripting.method!(GfxSet, "scriptGetRes")("resource");
 
     gScripting.methods!(Level, "worldCenter");
@@ -116,6 +118,7 @@ static this() {
     gScripting.methods!(SequenceType, "findState");
 
     gScripting.methods!(Sequence, "setState");
+    gScripting.properties!(Sequence, "attachText");
 
     gScripting.setClassPrefix!(PhysicWorld)("World");
 
@@ -165,6 +168,10 @@ static this() {
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
     gScripting.properties!(LuaWeaponClass, "onFire",
         "onCreateSelector");
+
+    gScripting.ctor!(FormattedText)();
+    //xxx getText is problematic because of out params
+    gScripting.methods!(FormattedText, "setText");
 
     //internal functions
     gScripting.properties_ro!(EventTarget, "eventTargetType");

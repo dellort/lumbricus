@@ -72,6 +72,7 @@ function Timer:start(duration, periodic)
     self._last_duration = duration
     self._periodic = ifnil(periodic, false)
     self:_insert()
+    self:_dolink("onStart")
 end
 
 -- what is called when waiting time has elapsed
@@ -79,14 +80,16 @@ function Timer:setCallback(cb)
     self.cb = cb
 end
 
--- deactivate the timer
+-- deactivate the timer (also resets pause state)
 function Timer:cancel()
     self:_remove()
     self._periodic = false
+    self._paused = false
+    self:_dolink("onCancel")
 end
 
 -- if the Timer is active, make it inactive and set paused state
--- note that the pause state is reset and lost with :start()
+-- note that the pause state is reset and lost with :start() and :cancel()
 function Timer:pause()
     if self._paused or not self._added then
         return
@@ -94,6 +97,14 @@ function Timer:pause()
     self._paused = true
     self._pause_time = currentTime()
     self:_remove()
+    self:_dolink("onPauseState")
+end
+
+function Timer:paused()
+    return self._paused
+end
+function Timer:setPaused(state)
+    if state then self:pause() else self:resume() end
 end
 
 -- if the Timer is in pause state, re-activate the timer again
@@ -107,6 +118,7 @@ function Timer:resume()
     self._pause_time = nil
     self._destTime = self._destTime + diff
     self:_insert()
+    self:_dolink("onPauseState")
 end
 
 -- if active, return destTime - currentTime
@@ -176,17 +188,51 @@ function Timer:_remove()
     self._added = false
 end
 
+-- if timer is actually running (started and not paused)
 function Timer:isActive()
     return self._added
+end
+-- if timer has been started (even if it is paused right now)
+function Timer:isStarted()
+    return self._added or self._paused
 end
 
 function Timer:_trigger()
     assert(not self._added)
+    self:_dolink("onTrigger")
     if self.cb then
         self:cb()
     end
     if self._periodic and self._last_duration and not self._added then
         self:start(self._last_duration, self._periodic)
+    end
+end
+
+-- rather specialized function to hook all actions on this timer
+-- link = arbitrary table, the following entries will be called if they exist:
+--  link.onStart(link, timer): after the Timer has been started
+--  link.onPauseState(link, timer): called after both pausing and resuming
+--  link.onCancel(link, timer): Timer got stopped with Timer:cancel()
+--  link.onTrigger(link, timer): Timer ellapsed; called before the user code
+-- also, before of each of that callback, onUpdate(link, timer) is called
+function Timer:setLink(link)
+    assert(link)
+    -- right now, only at most one link per instance
+    -- feel free to extend it to more if you need
+    assert(not self._link, "only up to 1 link per Timer")
+    self._link = link
+end
+
+function Timer:_dolink(name)
+    local link = self._link
+    if not link then
+        return
+    end
+    if link.onUpdate then
+        link.onUpdate(link, self)
+    end
+    if link[name] then
+        link[name](link, self)
     end
 end
 
