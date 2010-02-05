@@ -16,12 +16,15 @@ static this() {
     styleRegisterBorder("border");
     styleRegisterColor("widget-background");
     styleRegisterString("bitmap-background-res");
+    styleRegisterString("bitmap-cursor-res");
     enumStrings!(ImageDrawStyle, "center,tile,stretch,stretchx,stretchy,fitInner,fitOuter");
     styleRegisterStrParser!(ImageDrawStyle)("bitmap-background-tile");
     styleRegisterInt("widget-pad");
     styleRegisterInt("border-min");
 
     styleRegisterFont("text-font");
+    styleRegisterColor("selection-foreground");
+    styleRegisterColor("selection-background");
     styleRegisterColor("window-fullscreen-color");
 
     styleRegisterColor("cooldown-color");

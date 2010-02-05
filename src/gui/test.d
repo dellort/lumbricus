@@ -310,7 +310,7 @@ class TestFrame9 : Container {
         }
     }
     this() {
-        auto s = new Splitter(false);
+        auto s = new VSplitter();
         s.setChild(0, new T(0));
         s.setChild(1, new T(1));
         addChild(s);
@@ -390,7 +390,6 @@ class TestTask : Task {
         createWindow("Visibility Test", new TestFrame4);
         createWindow("List", new TestFrame5);
         auto editl = new EditLine;
-        editl.prompt = "> ";
         createWindow("EditLine", editl);
         createWindow("Console", new TestFrame6);
         auto checkbox = new CheckBox();
@@ -946,6 +945,22 @@ class TextColorTest : Task {
     }
     static this() {
         TaskFactory.register!(typeof(this))("colortext");
+    }
+}
+
+class MultiLineTest : Task {
+    MultilineEdit mEdit;
+
+    this(TaskManager tm, char[] args = "") {
+        super(tm);
+
+        mEdit = new typeof(mEdit)();
+
+        gWindowManager.createWindow(this, mEdit, "multine edit",
+            Vector2i(300, 200));
+    }
+    static this() {
+        TaskFactory.register!(typeof(this))("multilinetest");
     }
 }
 

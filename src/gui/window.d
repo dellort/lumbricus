@@ -71,9 +71,6 @@ class WindowWidget : Widget {
         //last recorded real minimum size for the client
         Vector2i mLastMinSize;
 
-        //size of the window border and the resize boxes
-        const cCornerSize = 5;
-
         bool mCanResize = true;
         bool mCanMove = true;
 
@@ -147,29 +144,20 @@ class WindowWidget : Widget {
                     drag_active = false;
             }
 
-            Vector2i layoutSizeRequest() {
-                return Vector2i(cCornerSize);
-            }
-
-            override MouseCursor mouseCursor() {
-                MouseCursor res;
-                char[] resid;
-                if (x == 0)
-                    resid = "size_ns";
-                else if (y == 0)
-                    resid = "size_we";
-                else if (x != y)
-                    resid = "size_nesw";
-                else
-                    resid = "size_nwse";
-                res.graphic = gGuiResources.get!(Surface)(resid);
-                res.graphic_spot = res.graphic.size/2;
-                return res;
-            }
-
             this(int a_x, int a_y) {
                 focusable = false;
                 x = a_x; y = a_y;
+                styles.addClass("window-sizer");
+                char[] spc;
+                if (x == 0)
+                    spc = "ns";
+                else if (y == 0)
+                    spc = "we";
+                else if (x != y)
+                    spc = "nesw";
+                else
+                    spc = "nwse";
+                styles.addClass("window-sizer-" ~ spc);
                 //sizers fill the whole border on the sides
                 WidgetLayout lay;
                 lay.expand[0] = (a_x == 0);

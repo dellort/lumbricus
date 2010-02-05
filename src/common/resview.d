@@ -667,7 +667,7 @@ class ResViewerTask : Task {
             }
             addLabel(mName, "Name");
 
-            auto all = new Splitter(true);
+            auto all = new HSplitter();
             //side.setLayout(WidgetLayout.Expand(false));
             all.setChild(0, side);
             all.setChild(1, otherside);

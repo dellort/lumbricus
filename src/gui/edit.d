@@ -3,6 +3,7 @@ module gui.edit;
 import framework.font;
 import framework.framework;
 import gui.global;
+import gui.rendertext;
 import gui.widget;
 import utils.array;
 import utils.misc: swap, min, max;
@@ -17,30 +18,30 @@ import str = utils.string;
 ///simple editline
 class EditLine : Widget {
     private {
-        char[] mCurline, mPrompt;
+        char[] mCurline;
         uint mCursor;
+        FormattedText mRender;
+        FormattedText.StyleRange* mRenderSel; //render text selection
         //not necessarily mSelStart >= mSelEnd, can also be backwards
         //if they're equal, there's no selection
         //must always be valid indices into mCurline (or be == mCurline.length)
         uint mSelStart, mSelEnd;
         bool mMouseDown;
-        Font mFont, mSelFont;
+        Font mSelFont;
         bool mCursorVisible = true;
         Timer mCursorTimer;
-        //colors for text selection, other font props remain unchanged
-        Color mSelFore = Color(1.0, 1.0, 1.0),mSelBack = Color(0.05, 0.15, 0.4);
     }
 
     ///text line has changed (not called when assigned to text)
     void delegate(EditLine sender) onChange;
 
     this() {
-        font = gFontManager.loadFont("editline");
+        mRender = new FormattedText();
         mCursorTimer = new Timer(timeMsecs(500), &onTimer);
         focusable = true;
     }
 
-    override bool greedyFocus() { return true; } //yyy
+    override bool greedyFocus() { return true; }
 
     protected bool handleKeyPress(KeyInfo infos) {
         bool ctrl = modifierIsSet(infos.mods, Modifier.Control);
@@ -53,6 +54,7 @@ class EditLine : Widget {
                 mSelEnd = mCursor;
                 if (!had_sel)
                     mSelStart = oldcursor;
+                updateSelection();
             } else {
                 killSelection();
             }
@@ -83,10 +85,8 @@ class EditLine : Widget {
                 deleteSelection();
                 doOnChange();
             } else if (mCursor > 0) {
-                killSelection();
                 int del = mCursor - str.charPrev(mCurline, mCursor);
-                mCurline = mCurline[0 .. mCursor-del] ~ mCurline[mCursor .. $];
-                mCursor -= del;
+                editText(mCursor - del, mCursor, "");
                 doOnChange();
             }
             return true;
@@ -95,9 +95,8 @@ class EditLine : Widget {
                 deleteSelection();
                 doOnChange();
             } else if (mCursor < mCurline.length) {
-                killSelection();
                 int del = str.stride(mCurline, mCursor);
-                mCurline = mCurline[0 .. mCursor] ~ mCurline[mCursor+del .. $];
+                editText(mCursor, mCursor + del, "");
                 doOnChange();
             }
             return true;
@@ -116,40 +115,84 @@ class EditLine : Widget {
             } else {
                 str.encode(append, infos.unicode);
             }
-            deleteSelection();
-            mCurline = mCurline[0 .. mCursor] ~ append ~ mCurline[mCursor .. $];
-            mCursor += str.stride(mCurline, mCursor);
-            doOnChange();
+            insertEvent(append);
             return true;
         }
         return false;
     }
 
-    private void doOnChange() {
+    protected void doOnChange() {
         if (onChange)
             onChange(this);
     }
 
+    //sets mCurline[start...end-start] to replace
+    //if mCursor was between start and end, it's set to end; if mCursor was
+    //  after end, its value is fixed
+    //onChange is not emitted
+    void editText(int start, int end, char[] replace) {
+        assert(start >= 0 && start <= end && end <= mCurline.length);
+        debug str.validate(replace);
+        killSelection();
+        //xxx could be changed to inplace editing to waste less memory
+        //  (but then, EditLine.text() should return a copy)
+        mCurline = mCurline[0..start] ~ replace ~ mCurline[end..$];
+        if (mCursor >= start) {
+            mCursor = mCursor < end ? start : mCursor - (end - start);
+        }
+        mRender.setLiteral(mCurline);
+    }
+
+    //do everything what's typically done when text is entered by the user
+    void insertEvent(char[] text) {
+        deleteSelection();
+        editText(mCursor, mCursor, text);
+        mCursor += text.length;
+        doOnChange();
+    }
+
     ///deselect
     void killSelection() {
+        if (mSelStart == 0 && mSelEnd == mSelStart)
+            return;
         mSelStart = mSelEnd = 0;
+        updateSelection();
+    }
+
+    //mSelStart can be higher than mSelEnd for backwards selection
+    //return properly ordered selection indices
+    TextRange orderedSelection() {
+        auto sstart = min(mSelStart, mSelEnd);
+        auto ssend = max(mSelStart, mSelEnd);
+        return TextRange(sstart, ssend);
+    }
+
+    //call whenever mSelStart/mSelEnd change to update the display
+    private void updateSelection() {
+        //create/destroy/recreate mRenderSel as necessary
+        auto sel = orderedSelection();
+        bool want_sel = sel.start != sel.end;
+        bool sel_ok = mRenderSel && mRenderSel.range == sel;
+        if (!sel_ok || (mRenderSel && !want_sel)) {
+            mRender.removeStyleRange(mRenderSel);
+            mRenderSel = null;
+        }
+        if (!sel_ok && want_sel) {
+            mRenderSel = mRender.addStyleRange(sel, mSelFont);
+        }
     }
 
     //deselect and remove selected text + fixup cursor
     //private because it doesn't call doOnChange() (this is done later)
     private void deleteSelection() {
-        auto sstart = min(mSelStart, mSelEnd);
-        auto ssend = max(mSelStart, mSelEnd);
-        mCurline = mCurline[0..sstart] ~ mCurline[ssend..$];
-        if (mCursor >= sstart) {
-            mCursor = mCursor < ssend ? sstart : mCursor - (ssend - sstart);
-        }
-        mSelEnd = mSelStart = 0;
+        auto sel = orderedSelection();
+        editText(sel.start, sel.end, "");
+        killSelection();
     }
 
-    ///byteindex into text at pixel pos x
-    uint indexAtX(int x) {
-        return mFont.findIndex(mCurline, x - mFont.textSize(mPrompt).x);
+    ///byteindex into text at the given pixel pos
+    private uint indexAt(Vector2i pos) {
+        return mRender.indexFromPosFuzzy(pos);
     }
 
     override bool onKeyDown(KeyInfo info) {
@@ -162,8 +205,9 @@ class EditLine : Widget {
         if (info.isMouseButton && info.code == Keycode.MOUSE_LEFT) {
             mMouseDown = true;
             //set cursor pos according to click
-            mCursor = indexAtX(mousePos.x);
+            mCursor = indexAt(mousePos);
             mSelStart = mSelEnd = mCursor;
+            updateSelection();
             //make cursor visible
             mCursorVisible = true;
             mCursorTimer.reset();
@@ -179,32 +223,31 @@ class EditLine : Widget {
 
     override void onMouseMove(MouseInfo info) {
         if (mMouseDown) {
-            mSelEnd = indexAtX(mousePos.x);
+            mSelEnd = indexAt(mousePos);
             mCursor = mSelEnd;
+            updateSelection();
         }
     }
 
     override Vector2i layoutSizeRequest() {
-        return mFont.textSize("hallo");
+        //return Vector2i(0, mRender.textSize().y);
+        return Vector2i(0, mRender.font.textSize("W").y);
+    }
+
+    override void layoutSizeAllocation() {
+        super.layoutSizeAllocation();
+        mRender.setArea(size, -1, -1);
     }
 
     override void onDraw(Canvas c) {
-        auto pos = mFont.drawText(c, Vector2i(0), mPrompt);
-        auto promptsize = pos.x;
-
-        auto sstart = min(mSelStart, mSelEnd);
-        auto ssend = max(mSelStart, mSelEnd);
-        pos = mFont.drawText(c, pos, mCurline[0..sstart]);
-        pos = mSelFont.drawText(c, pos, mCurline[sstart..ssend]);
-        pos = mFont.drawText(c, pos, mCurline[ssend..$]);
+        mRender.draw(c, Vector2i(0));
 
         if (focused) {
             mCursorTimer.enabled = true;
             if (mCursorVisible && !mMouseDown) {
-                auto offs = mFont.textSize(mCurline[0..mCursor]);
-                offs.x += promptsize;
-                c.drawFilledRect(offs.X, offs + Vector2i(1, 0),
-                    mFont.properties.fore_color);
+                Rect2i rc = mRender.getCursorPos(mCursor);
+                c.drawFilledRect(rc.p1, Vector2i(rc.p1.x+1, rc.p2.y),
+                    mRender.font.properties.fore_color);
             }
             mCursorTimer.update();
         } else {
@@ -214,7 +257,7 @@ class EditLine : Widget {
     }
 
     override void onDrawFocus(Canvas c) {
-        //don't draw anything; there's the blinkign cursor to show focus
+        //don't draw anything; there's the blinking cursor to show focus
     }
 
     private void onTimer(Timer sender) {
@@ -225,17 +268,7 @@ class EditLine : Widget {
         return mCurline;
     }
     public void text(char[] newtext) {
-        debug str.validate(newtext); //only valid utf plz
-        mCurline = newtext.dup;
-        mCursor = 0;
-        mSelStart = mSelEnd = 0;
-    }
-
-    public char[] prompt() {
-        return mPrompt;
-    }
-    public void prompt(char[] newprompt) {
-        mPrompt = newprompt;
+        editText(0, mCurline.length, newtext);
     }
 
     public uint cursorPos() {
@@ -247,44 +280,44 @@ class EditLine : Widget {
             mCursor = mCurline.length;
     }
 
-    Font font() {
-        return mFont;
-    }
-    void font(Font nfont) {
-        assert(!!nfont);
-        mFont = nfont;
+    override void readStyles() {
+        super.readStyles();
+
+        mRender.font = styles.get!(Font)("text-font");
 
         //selected-text font; only the colors can be changed
-        auto props = mFont.properties;
-        props.fore_color = mSelFore;
-        props.back_color = mSelBack;
-        mSelFont = new Font(props);
-
-        needResize();
-    }
-
-    override MouseCursor mouseCursor() {
-        MouseCursor res;
-        res.graphic = gGuiResources.get!(Surface)("text_cursor");
-        res.graphic_spot = res.graphic.size/2;
-        return res;
+        auto props = mRender.font.properties;
+        props.fore_color = styles.get!(Color)("selection-foreground");
+        props.back_color = styles.get!(Color)("selection-background");
+        mSelFont = gFontManager.create(props);
     }
 
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
-        auto fnt = gFontManager.loadFont(node.getStringValue("font"), false);
-        if (fnt)
-            font = fnt;
-
         mCurline = loader.locale()(node.getStringValue("text", mCurline));
-        mPrompt = node.getStringValue("prompt", mPrompt);
 
         super.loadFrom(loader);
     }
 
     static this() {
         WidgetFactory.register!(typeof(this))("editline");
+    }
+}
+
+//xxx this should actually do scrolling or something
+class MultilineEdit : EditLine {
+    this() {
+        //just for fun
+        mRender.shrink = ShrinkMode.wrap;
+    }
+
+    override bool handleKeyPress(KeyInfo infos) {
+        if (infos.code == Keycode.RETURN) {
+            insertEvent("\n");
+            return true;
+        }
+        return super.handleKeyPress(infos);
     }
 }
 

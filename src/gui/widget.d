@@ -1450,8 +1450,16 @@ class Widget {
 
     //what cursor should be displayed when the mouse is over this Widget
     //(GUI picks the deepest Widget in the hierarchy where mouse events go to)
+    //by default, the styles stuff (= GUI theme) selects the cursor
     MouseCursor mouseCursor() {
-        return MouseCursor.Standard;
+        MouseCursor cursor = MouseCursor.Standard;
+        auto bmpres = styles.get!(char[])("bitmap-cursor-res");
+        if (bmpres.length) {
+            cursor.graphic = gGuiResources.get!(Surface)(bmpres);
+            //xxx maybe make configurable as well
+            cursor.graphic_spot = cursor.graphic.size/2;
+        }
+        return cursor;
     }
 
     //re-read all style properties (doing fine-grained per-properties updates

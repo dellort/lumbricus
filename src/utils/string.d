@@ -142,6 +142,18 @@ size_t stride(char[] txt, size_t idx) {
     return idx2 - idx;
 }
 
+//decode one char; if txt.length==0, return dchar.init
+dchar decode_first(char[] txt) {
+    if (txt.length == 0)
+        return dchar.init;
+    size_t idx = 0;
+    return decode(txt, idx);
+}
+//probably badly named; make it better
+char[] utf8_get_first(char[] txt) {
+    return txt.length ? txt[0..stride(txt, 0)] : "";
+}
+
 unittest {
     size_t x = 2;
     dchar x2 = decode("äöü", x);

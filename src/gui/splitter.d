@@ -12,7 +12,8 @@ import utils.configfile;
 ///the Splitter contains two children and a splitter-bar
 ///this widget is like a BoxContainer with at most two children, where the user
 ///can control how much space each child gets
-class Splitter : Container {
+///instantiate as VSplitter or HSplitter
+abstract class Splitter : Container {
     private {
         int mDir; //0 = horiz, 1 = vert
         Widget[2] mChildren;
@@ -24,7 +25,6 @@ class Splitter : Container {
         //is equal to the middle of it
         int mSplitPos;
         int mSplitFix; //offset from beginning of splitter-widget to pos
-        const cCursorId = ["size_we", "size_ns"]; //horiz, vert cursor resource
 
         //the real splitter; this is used for mSplit
         class Split : Spacer {
@@ -34,6 +34,7 @@ class Splitter : Container {
             this() {
                 minSize = Vector2i(5);
                 styles.addClass("w-splitbar");
+                styles.addClass(mDir ? "w-splitbar-v" : "w-splitbar-h");
             }
 
             override bool onKeyDown(KeyInfo info) {
@@ -58,26 +59,15 @@ class Splitter : Container {
                     splitPos = p;
                 }
             }
-
-            override MouseCursor mouseCursor() {
-                MouseCursor res;
-                res.graphic = gGuiResources.get!(Surface)(cCursorId[mDir]);
-                res.graphic_spot = res.graphic.size/2;
-                return res;
-            }
         }
     }
 
     ///horiz = false: vertical splitter (move splitter along x axis),
     ///        true: horizontal (along y)
-    this (bool horiz) {
+    private this (bool horiz) {
         mDir = horiz ? 0 : 1;
         mSplit = new Split();
         addChild(mSplit);
-    }
-
-    this() {
-        this(true);
     }
 
     ///set one of the children, if there's an old one it's removed first
@@ -99,15 +89,8 @@ class Splitter : Container {
     }
 
     ///what was passed to the constructor
-    int dir() {
+    final int dir() {
         return mDir;
-    }
-    void dir(int set) {
-        assert(set == 0 || set == 1);
-        if (mDir == set)
-            return;
-        mDir = set;
-        needRelayout();
     }
 
     ///set/get the splitter position in absolute units (range [0..size[dir]])
@@ -169,8 +152,6 @@ class Splitter : Container {
     void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
-        //x or y
-        dir = node["direction"] == "x" ? 0 : 1;
         //left or right
         mGravityRight = node["gravity"] == "right";
         mSplitPos = node.getValue("split_pos", mSplitPos);
@@ -186,8 +167,22 @@ class Splitter : Container {
 
         super.loadFrom(loader);
     }
+}
 
+class VSplitter : Splitter {
+    this() {
+        super(false);
+    }
     static this() {
-        WidgetFactory.register!(typeof(this))("splitter");
+        WidgetFactory.register!(typeof(this))("vsplitter");
+    }
+}
+
+class HSplitter : Splitter {
+    this() {
+        super(true);
+    }
+    static this() {
+        WidgetFactory.register!(typeof(this))("hsplitter");
     }
 }

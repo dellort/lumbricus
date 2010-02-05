@@ -25,6 +25,11 @@ enum ShrinkMode {
     wrap,     //break long lines at word boundaries
 }
 
+struct TextRange {
+    //start and end indices
+    int start, end;
+}
+
 /++
  + Parses a string like
  +  Black\c(ff0000)Red\rBlack,
@@ -120,8 +125,10 @@ public class FormattedText {
             Style style;
             Vector2i pos, size;
             bool nowrap; //hack for wrap arrow
+            bool startline; //hack for indexFromPosFuzzy()
             //validity depends from PartType
             char[] text;
+            int text_start = -1; //if >=0, start index into mText
             Surface image;
         }
         //NOTE: the memory for mText is always owned by us
@@ -133,6 +140,7 @@ public class FormattedText {
         Style mRootStyle; //style at start
         Part* mParts;
         Part[] mPartsAlloc; //for "saturating" memory allocation
+        StyleRange*[] mStyles;
         Vector2i mSize;
         BoxProperties mBorder;
         ShrinkMode mShrink = ShrinkMode.shrink;
@@ -147,6 +155,12 @@ public class FormattedText {
         const char[] cDotDot = "...";
         //inserted at the beginning of a wrapped line (right arrow with hook)
         const char[] cWrapSymbol = "\u21aa ";
+    }
+
+    //put a part of a text under a specific style, for addStyleRange()
+    struct StyleRange {
+        Style style;
+        TextRange range;
     }
 
     this(Font f = null) {
@@ -193,6 +207,46 @@ public class FormattedText {
         if (mImages[idx] is s)
             return;
         mImages[idx] = s;
+        update();
+    }
+
+    //force a given range of text to a specific style
+    //this overrides any style commands when markup is used
+    //xxx GTK's Pango has a better way:
+    //  - for each style attribute, there's a separate attribute "class"
+    //  - e.g. you can instantiate a PangoAttribute to set the foreground
+    //    color to pango_attr_foreground_new(), and this attribute is applied
+    //    to a range of text (start and end index)
+    //  - selection probably works by adding an additional attribute for
+    //    foreground/background colors
+    //  - it probably doesn't conflict with other styles, because later added
+    //    attributes (such as the text selection color) take priority over the
+    //    text formatting itself
+    //  - because for each style aspect there's separate style instances, it
+    //    can't happen that text selection destroys attributes such as the font
+    //    size of the original text
+    //so, Pango has much better ideas, but they also require you to have
+    //  separate attribute classes/instances and so on for each styling aspect,
+    //  which would inflate the code; plus we don't really need this feature
+    //  (lol), so I'm not doing this
+    //xxx 2: if markup is used, some ranges of text may not be styled (e.g.
+    //  \lit or text translated by \t()); look for parseLiteral(..., -1) calls
+    StyleRange* addStyleRange(TextRange range, Font f) {
+        StyleRange* res = new StyleRange;
+        res.range = range;
+        res.style.font = f;
+        mStyles ~= res;
+        update();
+        return res;
+    }
+
+    //remove a style range added by addStyleRange()
+    //the text will then look as if that specific addStyleRange was never called
+    //style must have been added (though sr is null is allowed)
+    void removeStyleRange(StyleRange* sr) {
+        if (!sr)
+            return;
+        marray.arrayRemove(mStyles, sr);
         update();
     }
 
@@ -269,16 +323,29 @@ public class FormattedText {
     }
 
     //utf-8 and line breaks
-    private void parseLiteral(char[] txt) {
+    //the start_index is the offset of txt into mText, use -1 for invalid
+    //  (only pass a valid index if txt has not been modified etc.)
+    private void parseLiteral(char[] txt, int start_index) {
+        //assumes that t is a slice of txt, and that nothing of txt is skipped
+        void add(PartType type, char[] t) {
+            if (t.length == 0)
+                return;
+            Part* p = addpart(type);
+            p.text_start = start_index;
+            p.text = t;
+            debug if (start_index >= 0) {
+                assert(mText[start_index..start_index+p.text.length]
+                    == p.text);
+            }
+            start_index += t.length;
+        }
+
         while (txt.length) {
             auto breaks = str.split2(txt, '\n');
-            if (breaks[0].length) {
-                Part* p = addpart(PartType.Text);
-                p.text = breaks[0];
-            }
+            add(PartType.Text, breaks[0]);
             txt = null;
             if (breaks[1].length) {
-                addpart(PartType.Newline);
+                add(PartType.Newline, breaks[1][0..1]);
                 txt = breaks[1][1..$];
             }
         }
@@ -397,11 +464,11 @@ public class FormattedText {
         //(be sure to put longer commands before shorter ones if ambiguous,
         // like "back" - "b")
         if (tryeat("\\")) {
-            parseLiteral("\\");
+            parseLiteral("\\", -1);
         } else if (tryeat("nop")) {
             //no operation
         } else if (tryeat("n")) {
-            parseLiteral("\n");
+            parseLiteral("\n", -1);
         } else if (tryeat("lit")) {
             if (!txt.length) {
                 error("\\lit on end of string");
@@ -410,7 +477,7 @@ public class FormattedText {
                 txt = txt[1..$];
                 char[] x;
                 if (readdelim(x, delim))
-                    parseLiteral(x);
+                    parseLiteral(x, -1);
             }
         } else if (tryeat("r")) {
             Style s = mRootStyle;
@@ -503,7 +570,7 @@ public class FormattedText {
         } else if (tryeat("t")) {
             char[] t;
             if (readbracket(t))
-                parseLiteral(mTranslator(t));
+                parseLiteral(mTranslator(t), -1);
         } else {
             error("unknown command");
         }
@@ -515,40 +582,95 @@ public class FormattedText {
     final void update() {
         doInit();
         if (!mTextIsFormatted) {
-            parseLiteral(mText);
+            parseLiteral(mText, 0);
         } else {
             char[] txt = mText;
+            int idx = 0;
             while (txt.length > 0) {
                 auto stuff = str.split2(txt, '\\');
                 txt = null;
-                parseLiteral(stuff[0]);
+                parseLiteral(stuff[0], idx);
+                idx += stuff[0].length;
                 if (stuff[1].length) {
-                    txt = parseCmd(stuff[1][1..$]);
+                    idx += 1;
+                    char[] next = stuff[1][1..$];
+                    txt = parseCmd(next);
+                    //find out how much text was eaten
+                    idx += next.length - txt.length;
                 }
             }
         }
+        applyStyles();
         layout();
     }
 
+    private TextRange part_range(Part* p) {
+        return TextRange(p.text_start, p.text_start + p.text.length);
+    }
+
+    //apply mStyles on mParts
+    //mParts already contain styling (from markup), but mStyles overrides it
+    //works destructively on mParts (if mStyles is not empty)
+    private void applyStyles() {
+        //note that style-ranges can overlap, and that later added style-ranges
+        //  override earlier ones
+        foreach (StyleRange* style; mStyles) {
+            TextRange r = style.range;
+            if (r.start >= r.end)
+                continue;
+            for (Part* cur = mParts; !!cur; cur = cur.next) {
+                if (cur.type != PartType.Text || cur.text_start < 0)
+                    continue;
+                //split off a part from cur, and add it after cur
+                void split(int at) {
+                    assert(at > 0 && at < cur.text.length);
+                    Part* n = allocpart();
+                    *n = *cur;
+                    cur.next = n;
+                    cur.text = cur.text[0..at];
+                    n.text = n.text[at..$];
+                    n.text_start += at;
+                }
+                //note that each Part can be split up into 3 parts (iteratively)
+                TextRange p = part_range(cur);
+                if (r.start > p.start && r.start < p.end) {
+                    //"unaffected" part is first, set styling in next iteration
+                    split(r.start - p.start);
+                } else if (p.start >= r.start && p.start < r.end) {
+                    //style first part; possibly split "unaffected" second part
+                    if (r.end < p.end) {
+                        split(r.end - p.start);
+                    }
+                    cur.style = style.style;
+                }
+            }
+        }
+    }
+
     //set text, that can contain commands as described in the class doc
-    void setMarkup(char[] txt) {
-        setText(true, txt);
+    bool setMarkup(char[] txt) {
+        return setText(true, txt);
     }
 
     //normal text rendering, no parsing at all (just utf8 and raw line breaks)
-    void setLiteral(char[] txt) {
-        setText(false, txt);
+    bool setLiteral(char[] txt) {
+        return setText(false, txt);
     }
 
-    void setText(bool as_markup, char[] txt) {
+    //return if text was actually changed (or if it was the same)
+    //note that txt can point to temporary memory (it will always be copied)
+    bool setText(bool as_markup, char[] txt) {
+        if (mTextIsFormatted == as_markup && mText == txt)
+            return false;
         mTextIsFormatted = as_markup;
         //copy the text instead of doing txt.dup to prevent memory re-allocation
         //known places that use setText() with txt pointing to temp memory:
         //- scripting (Lua wrapper only copies strings for property-sets)
-        //- setTextFmt()
+        //- setTextFmt[_fx]()
         mText.length = txt.length;
         mText[] = txt;
         update();
+        return true;
     }
 
     //like setText(), but build the string with format()
@@ -567,20 +689,24 @@ public class FormattedText {
 
         char[80] buffer = void;
         char[] res = formatfx_s(buffer, fmt, arguments, argptr);
-        if (mTextIsFormatted == as_markup && mText == res)
-            return false;
-        setText(as_markup, res);
+        bool r = setText(as_markup, res);
         //formatfx_s allocates on the heap if buffer isn't big enough
         //delete the buffer if it was heap-allocated
         if (res.ptr !is buffer.ptr)
             delete res;
-        return true;
+        return r;
     }
 
     void getText(out bool as_markup, out char[] data) {
         as_markup = mTextIsFormatted;
         //text is copied because mText may change on next set-text
         data = mText.dup;
+    }
+
+    //return pointer to internal text string
+    //this string may change arbitrarily as setText* is called
+    char[] volatileText() {
+        return mText;
     }
 
     private static int doalign(int a, int container, int element) {
@@ -807,6 +933,8 @@ public class FormattedText {
                         *pNext = *break_on;
                         pNext.text = str.stripl(pNext.text[at..$]);
                         pNext.size = f.textSize(pNext.text);
+                        if (pNext.text_start >= 0)
+                            pNext.text_start += at;
                         //cut off current text
                         break_on.text = break_on.text[0..at];
                         break_on.size = f.textSize(break_on.text);
@@ -876,6 +1004,9 @@ public class FormattedText {
             }
 
             //re-add visible parts to global list
+            if (p_start) {
+                p_start.startline = true;
+            }
             *pnewparts = p_start;
             while (*pnewparts)
                 pnewparts = &(*pnewparts).next;
@@ -982,6 +1113,111 @@ public class FormattedText {
     }
     Vector2i size() {
         return mAreaValid ? mArea : textSize();
+    }
+
+    //return the bounds of the glyph at the given index
+    //index = byte index into the text
+    //fuzzy = if true, return the right border (width==0) of the last valid (as
+    //  in references actual text) glyph
+    //you'll have to add whatever you've passed to draw() to the result to get
+    //  the rect in your drawing coordinate system
+    //Rect2i.Abnormal() is returned on error (e.g. index out of bounds, or
+    //  points into formatting commands)
+    Rect2i getGlyphRect(int index, bool fuzzy) {
+        //assumes that parts have the same order as the referenced text
+        //(valid Part.text_start values monotonically increase)
+        Part* last;
+        for (Part* p = mParts; !!p; p = p.next) {
+            if (p.type != PartType.Text || p.text_start < 0)
+                continue;
+            if (index >= p.text_start && index < p.text_start + p.text.length) {
+                index -= p.text_start;
+                assert(index >= 0 && index < p.text.length);
+                //it's in p; position inside string...
+                Font f = p.style.font;
+                Rect2i rc;
+                rc.p1 = innerOffset() + p.pos;
+                Vector2i pre = f.textSize(p.text[0..index]);
+                rc.p1.x += pre.x;
+                rc.p2 = rc.p1
+                    + f.textSize(str.utf8_get_first(p.text[index..$]));
+                return rc;
+            }
+            //no match yet => if parts are sorted, there won't be any matches
+            if (fuzzy && last && p.text_start > index) {
+                Rect2i rc;
+                rc.p1 = last.pos + Vector2i(last.size.x, 0);
+                rc.p2 = rc.p1 + Vector2i(0, last.size.y);
+                return rc;
+            }
+            last = p;
+        }
+        return Rect2i.Abnormal();
+    }
+    //similar to getGlyphRect(), but has some handling for nasty special cases:
+    //- if index points at the end of the string, the right side of the last
+    //  char is returned (just a line, width 0)
+    //- if text has length 0, return a line (width 0) at the beginning in the
+    //  default style
+    Rect2i getCursorPos(int index) {
+        Rect2i rc = Rect2i.Abnormal();
+        bool rightline = false;
+        if (index >= mText.length && mText.length > 0) {
+            rc = getGlyphRect(str.charPrev(mText, mText.length), true);
+            if (rc.isNormal()) {
+                //right line
+                rc.p1.x = rc.p2.x;
+                return rc;
+            }
+        }
+        rc = getGlyphRect(index, true);
+        if (rc.isNormal()) {
+            return rc;
+        }
+        //fallback: where the first char would be if there were text
+        int h = mRootStyle.font.textSize("W").y;
+        rc.p1 = Vector2i(0);
+        rc.p2 = Vector2i(0, h);
+        rc += innerOffset(); //xxx border? alignment?
+        return rc;
+    }
+
+    //find the text index for the given point (range [0, text.length] )
+    //to get the correct pos, don't forget to add whatever you pass to draw()
+    //the "Fuzzy" means it returns the nearest match, even if not exact
+    int indexFromPosFuzzy(Vector2i pos) {
+        pos -= innerOffset();
+        int def = 0;
+        int def_x = int.max;
+        Part* first, last;
+        for (Part* p = mParts; !!p; p = p.next) {
+            if (p.startline)
+                def_x = int.max;
+            if (p.type != PartType.Text || p.text_start < 0)
+                continue;
+            int x1 = p.pos.x, x2 = p.pos.x + p.size.x;
+            //the y part is slightly annoying (if y is out of bounds, you'd
+            //  want it to select text on the first/last line), but for now it's
+            //  needed for multiline stuff
+            if (pos.x >= x1 && pos.x < x2
+                && pos.y >= p.pos.y && pos.y <= p.pos.y + p.size.y)
+            {
+                return p.text_start + p.style.font.findIndex(p.text,
+                    pos.x - x1);
+            }
+            //handling when clicking "beside" the text (if no exact hit)
+            //nearest part (in correct directon) wins
+            int d1 = x1 - pos.x, d2 = pos.x - x2;
+            if (d1 >= 0 && d1 < def_x) {
+                def = p.text_start;
+                def_x = d1;
+            } else if (d2 >= 0 && d2 < def_x) {
+                def = p.text_start + p.text.length;
+                def_x = d2;
+            }
+        }
+        //not-exact hit; return best result
+        return def;
     }
 
     BoxProperties border() {

@@ -7,6 +7,7 @@ import framework.event;
 import gui.boxcontainer;
 import gui.container;
 import gui.edit;
+import gui.label;
 import gui.logwindow;
 import gui.widget;
 import gui.styles;
@@ -61,7 +62,7 @@ class ConsoleEditLine : EditLine {
 }
 
 //a generic console (basically just a LogWindow over an EditLine)
-class GuiConsole : BoxContainer {
+class GuiConsole : VBoxContainer {
     private {
         CommandLine mRealCmdline;
     }
@@ -69,26 +70,39 @@ class GuiConsole : BoxContainer {
         CommandLineInstance mCmdline;
         LogWindow mLogWindow;
         EditLine mEdit;
+        Label mPrompt;
     }
 
     //cmdline: use that cmdline, if null create a new one
     this(CommandLine cmdline = null) {
-        super(false);
-
         mLogWindow = new LogWindow();
 
         mRealCmdline = cmdline ? cmdline : new CommandLine(mLogWindow);
         mCmdline = new CommandLineInstance(mRealCmdline, mLogWindow);
 
         mEdit = createEdit();
+        mEdit.styles.addClass("console-edit");
         add(mLogWindow);
-        add(mEdit, WidgetLayout.Expand(true));
+        auto hbox = new HBoxContainer();
+        mPrompt = new Label();
+        mPrompt.text = "> ";
+        mPrompt.styles.addClass("console-prompt");
+        hbox.add(mPrompt, WidgetLayout.Noexpand());
+        hbox.add(mEdit, WidgetLayout.Expand(true));
+        add(hbox, WidgetLayout.Expand(true));
+    }
+
+    //needed by chatbox (whatever)
+    bool editVisible() {
+        return mEdit.visible;
+    }
+    void editVisible(bool s) {
+        mEdit.visible = s;
+        mPrompt.visible = s;
     }
 
     protected EditLine createEdit() {
-        auto ret = new ConsoleEditLine(mCmdline, mLogWindow);
-        ret.prompt = "> ";
-        return ret;
+        return new ConsoleEditLine(mCmdline, mLogWindow);
     }
 
     final Output output() {
@@ -104,7 +118,6 @@ class GuiConsole : BoxContainer {
         super.readStyles();
         auto newFont = styles.get!(Font)("text-font");
         mLogWindow.font = newFont;
-        mEdit.font = newFont;
         mLogWindow.fadeDelay = styles.get!(Time)("fade-delay");
     }
 
@@ -125,6 +138,8 @@ class SystemConsole : GuiConsole {
     this(CommandLine cmdline = null) {
         super(cmdline);
         styles.addClass("systemconsole");
+        mEdit.styles.addClass("s-console-edit");
+        mPrompt.styles.addClass("s-console-prompt");
 
         consoleVisible = false; //system console hidden by default
     }

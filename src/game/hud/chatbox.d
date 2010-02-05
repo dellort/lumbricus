@@ -23,17 +23,17 @@ class Chatbox : GuiConsole {
         override void onFocusChange() {
             //hide on unfocus
             if (!focused() && visible()) {
-                visible = false;
+                editVisible = false;
             }
         }
         override protected bool handleKeyPress(KeyInfo infos) {
             if (infos.code == Keycode.RETURN) {
                 //hide on return (chat behavior)
-                visible = false;
+                editVisible = false;
             }
             if (infos.code == Keycode.ESCAPE) {
                 //cancel on ESC
-                visible = false;
+                editVisible = false;
             }
             return super.handleKeyPress(infos);
         }
@@ -42,16 +42,16 @@ class Chatbox : GuiConsole {
     this(CommandLine cmdline = null) {
         super(cmdline);
 
-        mEdit.visible = false;
+        editVisible = false;
         mLogWindow.formatted = true;
         styles.addClass("chatbox");
+        mEdit.styles.addClass("chatbox-edit");
+        mPrompt.styles.addClass("chatbox-prompt");
         minSize = Vector2i(400, 175);
     }
 
     override EditLine createEdit() {
-        auto ret = new ChatEditLine(mCmdline, mLogWindow);
-        ret.prompt = "> ";
-        return ret;
+        return new ChatEditLine(mCmdline, mLogWindow);
     }
 
     override bool handleChildInput(InputEvent event) {
@@ -59,15 +59,13 @@ class Chatbox : GuiConsole {
         //otherwise allow "clicking through"
         //xxx could disable mouse input entirely, but maybe we add selecting
         //    and copying to LogWindow at some time
-        if (!mEdit.visible)
+        if (!editVisible)
             return false;
         return super.handleChildInput(event);
     }
 
     void activate() {
-        if (!mEdit.visible()) {
-            mEdit.visible = true;
-        }
+        editVisible = true;
         mEdit.claimFocus();
     }
 }
