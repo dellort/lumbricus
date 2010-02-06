@@ -129,7 +129,6 @@ void funcBlub(char[] arg) {
 }
 
 void main(char[][] args) {
-    scope(exit) gMainTerminated = true;
     cinit.init(args);
     LuaState s = new LuaState();
     s.register(scripting);
@@ -303,4 +302,16 @@ void main(char[][] args) {
     fail(`invalid code`);
     fail(`error("Thrown from Lua")`);
     fail(`math.cos("Hello")`);
+    //lolwut fail(`math.cos("1")`);
+    //invalid index, because Vector2 has only 2 items
+    fail(`Foo_vector({4, 5, 6})`);
+    //mixed by-name/by-index access
+    fail(`Foo_vector({4, y=5})`);
+    fail(`Foo_vector({x=4, 5})`);
+    //'z' doesn't exist
+    fail(`Foo_vector({x=1, z=4})`);
+    //using non-integer as index
+    fail(`Foo_vector({[1]=1, [2.4]=4})`);
+    //this shouldn't work either (it's stupid)
+    fail(`Foo_vector({[1]=1, ["2"]=4})`);
 }

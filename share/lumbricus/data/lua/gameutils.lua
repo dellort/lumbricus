@@ -18,6 +18,21 @@ function get_context(d_game_object, dont_init)
     return res
 end
 
+-- helpers for using get_context()
+function get_context_val(d_game_object, value_name, def)
+    local ctx = get_context(d_game_object, true)
+    if ctx then
+        local x = ctx[value_name]
+        if x then
+            return x
+        end
+    end
+    return def
+end
+function set_context_val(d_game_object, value_name, value)
+    get_context(d_game_object)[value_name] = value
+end
+
 -- called by game.d as objects are removed
 function game_kill_object(d_game_object)
     _dgo_contexts[d_game_object] = nil
@@ -25,9 +40,37 @@ end
 
 -- random helper functions
 
-function spawnSprite(name, pos, velocity)
+-- sprite_class_ref is...
+--  - a string referencing a SpriteClass
+--  - a SpriteClass instance
+--  - a Lua function to instantiate a sprite
+function createSpriteFromRef(sprite_class_ref)
+    local t = type(sprite_class_ref)
+    if t == "string" then
+        return Game_createSprite(sprite_class_ref)
+    elseif t == "function" then
+        return sprite_class_ref()
+    elseif t == "userdata" then
+        return SpriteClass_createSprite(sprite_class_ref, Game)
+    else
+        assert(false)
+    end
+end
+
+--[[
+stuff that needs to be done:
+- fix createdBy crap
+- fix double damage (d0c needs to make up his mind)
+- add different functions for spawning from airstrike/sprite
+- for spawning from sprite, having something to specify the emit-position would
+  probably be useful (instead of just using weapon-angle and radius); every
+  decent shooter with more complex sprites has this
+  (actually, FireInfo.pos fulfills this role right now)
+- there's spawnFromFireInfo, but this concept sucks hard and should be replaced
+]]
+function spawnSprite(sprite_class_ref, pos, velocity)
     -- the way createdBy is set doesn't really work?
-    local s = Game_createSprite(name)
+    local s = createSpriteFromRef(sprite_class_ref)
     local t = Game_ownedTeam()
     if (t) then
         GameObject_set_createdBy(s, Member_sprite(Team_current(t)))
@@ -39,6 +82,23 @@ function spawnSprite(name, pos, velocity)
     return s
 end
 
+function spawnFromFireInfo(sprite_class_ref, fireinfo)
+    -- copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
+    -- eh, and why not use those values directly?
+    local dist = (fireinfo.shootbyRadius + 5) * 1.5 + 2
+    local s = spawnSprite(sprite_class_ref, fireinfo.pos + fireinfo.dir * dist,
+        fireinfo.dir * fireinfo.strength)
+    return s
+end
+
+-- create and return a function that does what most onFire functions will do
+-- incidentally, this just calls spawnFromFireInfo()
+function getStandardOnFire(sprite_class_ref)
+    return function(shooter, info)
+        spawnFromFireInfo(sprite_class_ref, info)
+    end
+end
+
 -- simple shortcut
 function addSpriteClassEvent(sprite_class, event_name, handler)
     local sprite_class_name = SpriteClass_name(sprite_class)
@@ -48,8 +108,7 @@ end
 -- if a sprite "impacts" (whatever this means), explode and die
 function enableExplosionOnImpact(sprite_class, damage)
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
-        Sprite_die(sender)
-        Game_explosionAt(Phys_pos(Sprite_physics(sender)), damage, sender)
+        spriteExplode(sender, damage)
     end)
 end
 
@@ -96,6 +155,26 @@ function enableSpriteCrateBlowup(weapon_class, sprite_class, count)
     end
     addClassEventHandler(EventTarget_eventTargetType(weapon_class),
         "weapon_crate_blowup", blowup)
+end
+
+-- call fn(sprite) everytime it has been glued for the given time
+function enableOnTimedGlue(sprite_class, time, fn)
+    addSpriteClassEvent(sprite_class, "sprite_gluechanged", function(sender)
+        local state = Phys_isGlued(Sprite_physics(sender))
+        local ctx = get_context(sender)
+        local timer = ctx.glue_timer
+        if not timer then
+            timer = Timer.new()
+            timer:setCallback(function()
+                fn(sender)
+            end)
+        end
+        if not state then
+            timer:cancel()
+        elseif not timer:isActive() then
+            timer:start(time)
+        end
+    end)
 end
 
 -- this is magic
@@ -148,12 +227,12 @@ end
 --  the timer gets restarted or paused/resumed
 -- sprite = Sprite D instance
 -- timer = Timer instance from timer.lua
--- unit = sets the "quantum" per displayed unit; if nil, defaults to Time.Second
 -- time_visible = a number; unit at which time display is visible
 --                or nil, then time is always displayed (if timer started)
 -- time_red = a number; unit at which the time display becomes red
 --            or nil, then it's never shown in red
-function addCountdownDisplay(sprite, timer, unit, time_visible, time_red)
+-- unit = sets the "quantum" per displayed unit; if nil, defaults to Time.Second
+function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
     local unit = unit or Time.Second
     local txt = Gfx_textCreate()
     local last_visible = false
@@ -218,4 +297,10 @@ function addCountdownDisplay(sprite, timer, unit, time_visible, time_red)
     timer:setLink(link)
     -- initial stuff
     updateTime()
+end
+
+function spriteExplode(sprite, damage)
+    local spos = Phys_pos(Sprite_physics(sprite))
+    Sprite_die(sprite)
+    Game_explosionAt(spos, damage, sprite)
 end

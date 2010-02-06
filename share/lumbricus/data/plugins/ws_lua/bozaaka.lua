@@ -7,17 +7,8 @@ function createWeapon(name, props)
     return w
 end
 
-function getstdonfire(sprite_class_name)
-    local function fire(shooter, info)
-        -- copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
-        -- eh, and why not use those values directly?
-        local dist = (info.shootbyRadius + 5) * 1.5 + 2
-        spawnSprite(sprite_class_name, info.pos + info.dir * dist, info.dir * info.strength)
-    end
-    return fire
-end
-
-function createTestWeapon(name)
+do
+    local name = "bozaaka"
     local sprite_class_name = name .. "_sprite"
     local sprite_class = SpriteClass_ctor(Gfx, sprite_class_name)
     setProperties(sprite_class, {
@@ -37,7 +28,7 @@ function createTestWeapon(name)
 
     Gfx_registerSpriteClass(sprite_class)
     local w = createWeapon(name, {
-        onFire = getstdonfire(sprite_class_name),
+        onFire = getStandardOnFire(sprite_class),
         category = "fly",
         value = 0,
         animation = "weapon_bazooka",
@@ -45,16 +36,12 @@ function createTestWeapon(name)
         fireMode = {
             direction = "any",
             variableThrowStrength = true,
-            strengthMode = "variable",
             throwStrengthFrom = 200,
             throwStrengthTo = 1200,
         }
     })
     enableSpriteCrateBlowup(w, sprite_class)
-    return w
 end
-
-createTestWeapon("bozaaka")
 
 do
     local name = "nabana"
@@ -94,8 +81,7 @@ do
     Gfx_registerSpriteClass(sprite_class)
     local w = createWeapon(name, {
         onFire = function (shooter, info)
-            local dist = (info.shootbyRadius + 5) * 1.5 + 2
-            local s = spawnSprite(sprite_class_name, info.pos + info.dir * dist, info.dir * info.strength)
+            local s = spawnFromFireInfo(sprite_class, info)
             local ctx = get_context(s)
             ctx.main = true
             ctx.timer = addTimer(info.timer, function()
@@ -105,11 +91,11 @@ do
                     local strength = Random_rangei(400, 600)
                     local theta = (Random_rangef(-0.5, 0.5)*30 - 90) * math.pi/180
                     local dir = Vector2.FromPolar(strength, theta)
-                    spawnSprite(sprite_class_name, spos, dir)
+                    spawnSprite(sprite_class, spos, dir)
                 end
                 Sprite_die(s)
             end)
-            addCountdownDisplay(s, ctx.timer, Time.Second, 5, 3)
+            addCountdownDisplay(s, ctx.timer, 5, 2)
         end,
         category = "throw",
         value = 0,
@@ -118,14 +104,52 @@ do
         fireMode = {
             direction = "any",
             variableThrowStrength = true,
-            strengthMode = "variable",
             throwStrengthFrom = 200,
             throwStrengthTo = 1200,
-            timer = true,
             timerFrom = timeSecs(1),
             timerTo = timeSecs(5),
         }
     })
     enableSpriteCrateBlowup(w, sprite_class, 2)
-    return w
+end
+
+do
+    local name = "unholy_granade"
+    local sprite_class_name = name .. "_sprite"
+    local sprite_class = SpriteClass_ctor(Gfx, sprite_class_name)
+    setProperties(sprite_class, {
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 20,
+            radius = 2,
+            explosionInfluence = 0,
+            windInfluence = 0,
+            elasticity = 0.4,
+            glueForce = 20,
+            rotation = "distance"
+        },
+        sequenceType = Gfx_resource("s_holy"),
+        initParticle = Gfx_resource("p_holy")
+    })
+    enableDrown(sprite_class)
+    enableOnTimedGlue(sprite_class, timeSecs(2), function(sender)
+        spriteExplode(sender, 75)
+    end)
+
+    Gfx_registerSpriteClass(sprite_class)
+    local w = createWeapon(name, {
+        onFire = getStandardOnFire(sprite_class),
+        category = "throw",
+        value = 0,
+        animation = "weapon_holy",
+        icon = Gfx_resource("icon_holy"),
+        fireMode = {
+            direction = "any",
+            variableThrowStrength = true,
+            throwStrengthFrom = 20,
+            throwStrengthTo = 1200,
+            relaxtime = timeSecs(1)
+        }
+    })
+    enableSpriteCrateBlowup(w, sprite_class)
 end

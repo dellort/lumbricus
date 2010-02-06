@@ -46,6 +46,22 @@ class Trace {
     }
 }
 
+//marker type for temporary string
+//possibly use cases:
+//- the Lua interface doesn't allocate+copy a new string if TempString instead
+//  of char[] is demarshalled from Lua->D
+//- other functions that copy the string anyway
+//basically, this reinforces the normal D protocol of treating a string like a
+//  garbage collected, immutable string by providing a separate string type for
+//  manually managed or stack allocated strings
+//NOTE: one can always pass a normal string (char[]) as TempString; it's just
+//  that converting a TempString to char[] requires a .dup
+//  => char[] should be implicitly conversible to TempString
+struct TempString {
+    char[] raw;
+    //for the dumb
+    char[] get() { return raw.dup; }
+}
 
 T realmod(T)(T a, T m) {
     T res = a % m;

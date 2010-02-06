@@ -231,9 +231,19 @@ class GameFrame : SimpleContainer {
         dlg.lock();
     }
 
+    bool scrollOverride;
+
     private void toggleWeaponWindow() {
-        if (game.control.getControlledMember())
+        if (game.control.getControlledMember()) {
+            scrollOverride = false;
             mWeaponInterp.revert();
+        } else {
+            //if right click wouldn't do anything
+            toggleScroll();
+        }
+    }
+    private void toggleScroll() {
+        scrollOverride = !scrollOverride;
     }
     private bool isWeaponWindowVisible() {
         return mWeaponInterp.target == 0;
@@ -242,7 +252,7 @@ class GameFrame : SimpleContainer {
     private bool hudNeedMouseInput() {
         //currently just the weapon window; maybe others will be added later
         //  (e.g. pause window)
-        return isWeaponWindowVisible() || gameView.scrollOverride
+        return isWeaponWindowVisible() || scrollOverride
             || gTopLevel.consoleVisible() || game.shell.paused();
     }
 
@@ -294,6 +304,7 @@ class GameFrame : SimpleContainer {
         gameView.onSelectCategory = &selectCategory;
         gameView.onKeyHelp = &keyHelp;
         gameView.onToggleWeaponWindow = &toggleWeaponWindow;
+        gameView.onToggleScroll = &toggleScroll;
         gameView.onToggleChat = &toggleChat;
 
         mScroller = new MouseScroller();

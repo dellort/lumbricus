@@ -175,7 +175,7 @@ final class Events {
         if (pevents)
             return *pevents;
         auto ev = new Events(target_type);
-        mPerClassEvents[target_type] = ev;
+        mPerClassEvents[ev.mTargetType] = ev;
         if (mScripting)
             subevents_init_scripting(ev);
         return ev;

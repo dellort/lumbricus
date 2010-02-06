@@ -658,7 +658,6 @@ public class FormattedText {
     }
 
     //return if text was actually changed (or if it was the same)
-    //note that txt can point to temporary memory (it will always be copied)
     bool setText(bool as_markup, char[] txt) {
         if (mTextIsFormatted == as_markup && mText == txt)
             return false;
@@ -667,10 +666,23 @@ public class FormattedText {
         //known places that use setText() with txt pointing to temp memory:
         //- scripting (Lua wrapper only copies strings for property-sets)
         //- setTextFmt[_fx]()
+        //all those should actually call setTextCopy()
         mText.length = txt.length;
         mText[] = txt;
         update();
         return true;
+    }
+
+    //this means the caller may make txt invalid (e.g. by deallocating it) after
+    //  the function has returned; this function will always copy it
+    //  => can avoid unneeded memory allocations
+    //the actual reason for providing this separate function is:
+    //- you somehow need to pass a hint to the Lua demarshaller/binding code,
+    //  that it doesn't need to copy the Lua string => use a marker type
+    //- D doesn't allow implicitly converting char[] -> TempString, so setText
+    //  has to stay, even though it does exactly the same
+    bool setTextCopy(bool as_markup, TempString txt) {
+        return setText(as_markup, txt.raw);
     }
 
     //like setText(), but build the string with format()
@@ -689,7 +701,7 @@ public class FormattedText {
 
         char[80] buffer = void;
         char[] res = formatfx_s(buffer, fmt, arguments, argptr);
-        bool r = setText(as_markup, res);
+        bool r = setTextCopy(as_markup, TempString(res));
         //formatfx_s allocates on the heap if buffer isn't big enough
         //delete the buffer if it was heap-allocated
         if (res.ptr !is buffer.ptr)

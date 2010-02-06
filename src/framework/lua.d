@@ -96,13 +96,14 @@ private extern(C) int lua_WriteStream(lua_State* L, void* p, size_t sz,
 //panic function: called on unprotected lua error (message is on the stack)
 private extern(C) int my_lua_panic(lua_State *L) {
     scope (exit) lua_pop(L, 1);
-    char[] err = lua_todstring(L, -1).dup;
+    char[] err = lua_todstring(L, -1);
     throw new LuaException(err);
 }
 
 //if the string is going to be used after the Lua value is popped from the
 //  stack, you must .dup it (Lua may GC and reuse the string memory)
-private char[] lua_todstring(lua_State* L, int i) {
+//this is an optimization; if unsure, use lua_todstring()
+private char[] lua_todstring_unsafe(lua_State* L, int i) {
     size_t len;
     char* s = lua_tolstring(L, i, &len);
     if (!s)
@@ -117,6 +118,11 @@ private char[] lua_todstring(lua_State* L, int i) {
         }
     }
     return res;
+}
+
+//always allocates memory (except if string has len 0)
+private char[] lua_todstring(lua_State* L, int i) {
+    return lua_todstring_unsafe(L, i).dup;
 }
 
 //if index is a relative stack index, convert it to an absolute one
@@ -169,7 +175,8 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
             auto pconvert = typeid(T) in gBoxParsers;
             if (!pconvert)
                 expected("enum "~T.stringof);
-            return (*pconvert)(lua_todstring(state, stackIdx)).unbox!(T)();
+            return (*pconvert)(lua_todstring_unsafe(state, stackIdx))
+                .unbox!(T)();
         } else {
             //try base type
             return cast(T)luaStackValue!(Base)(state, stackIdx);
@@ -178,6 +185,10 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         //accepts everything, true for anything except 'false' and 'nil'
         return !!lua_toboolean(state, stackIdx);
     } else static if (is(T : char[])) {
+        //TempString just means that the string may be deallocated later
+        //Lua will keep the string as long as it is on the Lua script's stack
+        return luaStackValue!(TempString)(state, stackIdx).raw.dup;
+    } else static if (is(T == TempString)) {
         //there is the strange behaviour that tolstring may change the stack
         //  value, if the value is a number, and that can cause trouble with
         //  other functions - thus, better reject numbers
@@ -186,13 +197,17 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         //  to string), but I'd say "fuck implicit conversion to string"
         try {
             if (lua_type(state, stackIdx) == LUA_TSTRING)
-                return lua_todstring(state, stackIdx);
+                return TempString(lua_todstring_unsafe(state, stackIdx));
         } catch (LuaException e) {
         }
         expected("string");
     } else static if (is(T == ConfigNode)) {
         //I don't think we will ever need that, but better catch the special case
         //see luaPush() for the format
+        //also, having ConfigNode here is the MOST RETARDED IDEA EVER
+        //at least the one adding this hack could have simply implemented the
+        //  ConfigNode -> Lua table conversion in Lua
+        //leaving it in as long as that other hack is active
         static assert(false, "Implement me: ConfigNode");
     } else static if (is(T == class) || is(T == interface)) {
         //allow userdata and nil, nothing else
@@ -213,27 +228,85 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
             expected("struct table");
         T ret;
         int tablepos = luaRelToAbsIndex(state, stackIdx);
-        foreach (int idx, x; ret.tupleof) {
-            //goddamn dmd crap
-            //dmd bug http://d.puremagic.com/issues/show_bug.cgi?id=2881
-            //  will strike here; see end of this file for a test
-            //xxx we now require a patched compiler; I hope the fix
-            //    gets accepted soon
-            //first try named access
-            static assert(ret.tupleof[idx].stringof[0..4] == "ret.");
-            luaPush(state, (ret.tupleof[idx].stringof)[4..$]);
-            lua_gettable(state, tablepos);   //replaces key by value
-            if (lua_isnil(state, -1)) {
-                //named access failed, try indexed
+        version (none) {
+        //the code below works well, but it can't detect table entries that
+        //  are not part of the struct (changing this would make it very
+        //  inefficient)
+            foreach (int idx, x; ret.tupleof) {
+                //first try named access
+                static assert(ret.tupleof[idx].stringof[0..4] == "ret.");
+                luaPush(state, (ret.tupleof[idx].stringof)[4..$]);
+                lua_gettable(state, tablepos);   //replaces key by value
+                if (lua_isnil(state, -1)) {
+                    //named access failed, try indexed
+                    lua_pop(state, 1);
+                    luaPush(state, idx+1);
+                    lua_gettable(state, tablepos);
+                }
+                if (!lua_isnil(state, -1)) {
+                    ret.tupleof[idx] = luaStackValue!(typeof(ret.tupleof[idx]))(
+                        state, -1);
+                }
                 lua_pop(state, 1);
-                luaPush(state, idx+1);
-                lua_gettable(state, tablepos);
             }
-            if (!lua_isnil(state, -1)) {
-                ret.tupleof[idx] = luaStackValue!(typeof(ret.tupleof[idx]))(
-                    state, -1);
+        } else {
+        //alternative marshaller, which doesn't allow passing unused entries
+        //it may be slightly slower if there are many struct items
+        //actually, I'm not so sure; at least this version doesn't need to
+        //  rehash the string for the name of each struct item
+        //in any case, the code is more complicated, but I wanted to have it
+        //  for debugging
+        //it also detects mixed by-name/by-index access
+            const cTName = "'struct " ~ T.stringof ~ "'";
+            int mode = 0; //0: not known yet, 1: by-name, 2: by-index
+            lua_pushnil(state);  //first key
+            while (lua_next(state, tablepos) != 0) {
+                //lua_next pushes: -2 = key, -1 = value
+                auto keytype = lua_type(state, -2);
+                if (keytype == LUA_TNUMBER) {
+                    //array mode
+                    if (mode != 0 && mode != 2)
+                        luaExpected(state, -2, "string key");
+                    mode = 2;
+                    auto idx = lua_tonumber(state, -2);
+                    int iidx = cast(int)idx;
+                    if (iidx < 1 || iidx > ret.tupleof.length || iidx != idx) {
+                        luaExpected("valid integer index for " ~ cTName,
+                            myformat("invalid index {}", idx));
+                    }
+                    iidx -= 1; //lua arrays are 1-based
+                    //this loop must be a major WTF for people who don't know D
+                    foreach (int sidx, x; ret.tupleof) {
+                        if (sidx == iidx) {
+                            ret.tupleof[sidx] =
+                                luaStackValue!(typeof(x))(state, -1);
+                            break;
+                        }
+                    }
+                } else if (keytype == LUA_TSTRING) {
+                    //named access mode
+                    if (mode != 0 && mode != 1)
+                        luaExpected(state, -2, "integer index");
+                    mode = 1;
+                    char[] name = lua_todstring_unsafe(state, -2);
+                    bool ok = false;
+                    foreach (int sidx, x; ret.tupleof) {
+                        static assert(ret.tupleof[sidx].stringof[0..4] == "ret.");
+                        const sname = (ret.tupleof[sidx].stringof)[4..$];
+                        if (sname == name) {
+                            ret.tupleof[sidx] =
+                                luaStackValue!(typeof(x))(state, -1);
+                            ok = true;
+                            break;
+                        }
+                    }
+                    if (!ok)
+                        luaExpected("valid member for "~cTName, "'"~name~"'");
+                } else {
+                    expected("string or integer number as key in struct table");
+                }
+                lua_pop(state, 1);   //pop value, leave key
             }
-            lua_pop(state, 1);
         }
         return ret;
     } else static if (isArrayType!(T) || isAssocArrayType!(T)) {
@@ -530,7 +603,10 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
             }
         }
         assert(false);
-    } catch (AssertException e) {
+    } catch (Exception e) {
+    //this was supposed to filter on all "internal" runtime exceptions like asserts
+    //but error handling is completely and utterly fucked, and catching all
+    /// exceptions here willö save you much pain
         //go boom immediately to avoid confusion
         //this should also be done for other "runtime" exceptions, but at least
         //  in D1, the exception class hierarchy is too retarded and you have
@@ -539,8 +615,8 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
         e.writeOut((char[] s) { Trace.format("{}", s); });
         Trace.formatln("done, will die now.");
         asm { hlt; }
-    } catch (Exception e) {
-        raiseLuaError(state, e.msg);
+    //} catch (Exception e) {
+    //    raiseLuaError(state, e.msg);
     }
 }
 
@@ -722,7 +798,6 @@ class LuaRegistry {
                     //but the parser messes it up, we don't get an expression
                     //make use of the glorious comma operator to make it one
                     //"I can't believe this works"
-                    static if (is(Type == char[])) t = t.dup;
                     1, mixin("o." ~ name) = t;
                 }
                 return callFromLua(&set, state, 0, cDebugName);
@@ -1041,7 +1116,7 @@ class LuaState {
         int res = lua_load(mLua, reader, d, czstr.toStringz('='~chunkname));
         if (res != 0) {
             scope (exit) lua_pop(mLua, 1);  //remove error message
-            char[] err = lua_todstring(mLua, -1);
+            char[] err = lua_todstring_unsafe(mLua, -1);
             throw new LuaException("Parse error: " ~ err);
         }
     }

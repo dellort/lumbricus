@@ -63,8 +63,7 @@ end
 --  time is smaller than a game frame, the timer will be triggered exactly once
 --  per game frame)
 function Timer:start(duration, periodic)
-    self:_remove()
-    self._paused = false
+    self:cancel()
     if duration < Time.Null then
         duration = Time.Null
     end
@@ -82,10 +81,22 @@ end
 
 -- deactivate the timer (also resets pause state)
 function Timer:cancel()
+    if not self:isStarted() then
+        return
+    end
     self:_remove()
     self._periodic = false
     self._paused = false
     self:_dolink("onCancel")
+end
+
+-- restart with last passed duration
+-- if the Timer hasn't been started before, nothing happens
+function Timer:restart()
+    if not self._last_duration then
+        return
+    end
+    self:start(self._last_duration, self._periodic)
 end
 
 -- if the Timer is active, make it inactive and set paused state
@@ -203,8 +214,8 @@ function Timer:_trigger()
     if self.cb then
         self:cb()
     end
-    if self._periodic and self._last_duration and not self._added then
-        self:start(self._last_duration, self._periodic)
+    if self._periodic and not self._added then
+        self:restart()
     end
 end
 

@@ -402,7 +402,7 @@ class GameView : Widget {
     //these are all evil hacks and should go away
     void delegate() onTeamChange;
     void delegate() onKeyHelp;
-    void delegate() onToggleWeaponWindow;
+    void delegate() onToggleWeaponWindow, onToggleScroll;
     void delegate() onToggleChat;
     void delegate(char[] category) onSelectCategory;
 
@@ -645,15 +645,14 @@ class GameView : Widget {
     }
 
     private void cmdToggleWeaponWnd(MyBox[] args, Output write) {
-        scrollOverride = false;
         if (onToggleWeaponWindow)
             onToggleWeaponWindow();
     }
 
     //xxx for debugging, so you can force to show the cursor
-    bool scrollOverride;
     private void cmdToggleScroll(MyBox[] args, Output write) {
-        scrollOverride = !scrollOverride;
+        if (onToggleScroll)
+            onToggleScroll();
     }
     private void cmdToggleChat(MyBox[] args, Output write) {
         //xxx this is stupid, rethink handling of ingame commands

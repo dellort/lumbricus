@@ -171,7 +171,7 @@ static this() {
 
     gScripting.ctor!(FormattedText)();
     //xxx getText is problematic because of out params
-    gScripting.methods!(FormattedText, "setText");
+    gScripting.method!(FormattedText, "setTextCopy")("setText");
 
     //internal functions
     gScripting.properties_ro!(EventTarget, "eventTargetType");
