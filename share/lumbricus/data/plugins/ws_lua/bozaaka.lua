@@ -114,7 +114,7 @@ do
 end
 
 do
-    local name = "unholy_granade"
+    local name = "holy_graneda"
     local sprite_class_name = name .. "_sprite"
     local sprite_class = SpriteClass_ctor(Gfx, sprite_class_name)
     setProperties(sprite_class, {
@@ -132,7 +132,7 @@ do
         initParticle = Gfx_resource("p_holy")
     })
     enableDrown(sprite_class)
-    enableOnTimedGlue(sprite_class, timeSecs(2), function(sender)
+    enableOnTimedGlue(sprite_class, timeSecs(5), function(sender)
         spriteExplode(sender, 75)
     end)
 

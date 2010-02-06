@@ -165,8 +165,11 @@ function enableOnTimedGlue(sprite_class, time, fn)
         local timer = ctx.glue_timer
         if not timer then
             timer = Timer.new()
+            ctx.glue_timer = timer
             timer:setCallback(function()
-                fn(sender)
+                if Sprite_visible(sender) then
+                    fn(sender)
+                end
             end)
         end
         if not state then
