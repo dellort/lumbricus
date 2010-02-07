@@ -15,6 +15,7 @@ import game.wcontrol;
 import game.gamemodes.shared;
 import game.levelgen.level;
 import game.levelgen.renderer;
+import game.weapon.girder;
 import game.weapon.projectile;
 import game.weapon.weapon;
 import game.weapon.luaweapon;
@@ -164,6 +165,11 @@ static this() {
     gScripting.properties!(WeaponClass, "value", "category", "isAirstrike",
         "allowSecondary", "dontEndRound", "deselectAfterFire",
         "cooldown", "crateAmount", "icon", "fireMode", "animation");
+
+    gScripting.properties!(Shooter, "selector");
+
+    gScripting.ctor!(GirderControl, WeaponClass, Sprite);
+    gScripting.methods!(GirderControl, "fireCheck");
 
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
     gScripting.properties!(LuaWeaponClass, "onFire",

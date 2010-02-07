@@ -7,11 +7,16 @@ function createWeapon(name, props)
     return w
 end
 
+function createSpriteClass(name, props)
+    local s = SpriteClass_ctor(Gfx, name)
+    setProperties(s, props)
+    Gfx_registerSpriteClass(s)
+    return s
+end
+
 do
     local name = "bozaaka"
-    local sprite_class_name = name .. "_sprite"
-    local sprite_class = SpriteClass_ctor(Gfx, sprite_class_name)
-    setProperties(sprite_class, {
+    local sprite_class = createSpriteClass(name .. "_sprite", {
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10, -- 10 whatevertheffffunitthisis
@@ -26,7 +31,6 @@ do
     enableExplosionOnImpact(sprite_class, 50)
     enableDrown(sprite_class)
 
-    Gfx_registerSpriteClass(sprite_class)
     local w = createWeapon(name, {
         onFire = getStandardOnFire(sprite_class),
         category = "fly",
@@ -45,9 +49,7 @@ end
 
 do
     local name = "nabana"
-    local sprite_class_name = name .. "_sprite"
-    local sprite_class = SpriteClass_ctor(Gfx, sprite_class_name)
-    setProperties(sprite_class, {
+    local sprite_class = createSpriteClass(name .. "_sprite", {
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10, -- 10 whatevertheffffunitthisis
@@ -78,7 +80,6 @@ do
         end
     end)
 
-    Gfx_registerSpriteClass(sprite_class)
     local w = createWeapon(name, {
         onFire = function (shooter, info)
             local s = spawnFromFireInfo(sprite_class, info)
@@ -115,9 +116,7 @@ end
 
 do
     local name = "holy_graneda"
-    local sprite_class_name = name .. "_sprite"
-    local sprite_class = SpriteClass_ctor(Gfx, sprite_class_name)
-    setProperties(sprite_class, {
+    local sprite_class = createSpriteClass(name .. "_sprite", {
         initPhysic = relay {
             collisionID = "projectile",
             mass = 20,
@@ -132,11 +131,10 @@ do
         initParticle = Gfx_resource("p_holy")
     })
     enableDrown(sprite_class)
-    enableOnTimedGlue(sprite_class, timeSecs(5), function(sender)
+    enableOnTimedGlue(sprite_class, timeSecs(2), function(sender)
         spriteExplode(sender, 75)
     end)
 
-    Gfx_registerSpriteClass(sprite_class)
     local w = createWeapon(name, {
         onFire = getStandardOnFire(sprite_class),
         category = "throw",
@@ -152,4 +150,94 @@ do
         }
     })
     enableSpriteCrateBlowup(w, sprite_class)
+end
+
+do
+    local name = "graneda"
+    local sprite_class = createSpriteClass(name .. "_sprite", {
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = "10",
+            radius = "2",
+            explosionInfluence = "0",
+            windInfluence = "0.0",
+            elasticity = "0.4",
+            rotation = "distance",
+        },
+        sequenceType = Gfx_resource("s_grenade"),
+    })
+    enableDrown(sprite_class)
+    -- xxx need a better way to "cleanup" stuff like timers
+    addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
+        local ctx = get_context(sender, true)
+        if ctx and ctx.timer and
+            (not Sprite_visible(sender) or Sprite_isUnderWater(sender))
+        then
+            ctx.timer:cancel()
+        end
+    end)
+    -- this is done so that it works when spawned by a crate
+    -- xxx probably it's rather stupid this way; need better way
+    --  plus I don't even know what should happen if a grenade is spawned by
+    --  blowing up a crate (right now it sets the timer to a default)
+    addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
+        local ctx = get_context(sender)
+        local fi = ctx.fireinfo
+        local t
+        if fi then
+            t = fi.timer
+        else
+            -- spawned from crate or so
+            t = time(3)
+        end
+        ctx.timer = addTimer(t, function()
+            spriteExplode(sender, 50)
+        end)
+        addCountdownDisplay(sender, ctx.timer, 5, 2)
+    end)
+
+    local w = createWeapon(name, {
+        onFire = getStandardOnFire(sprite_class),
+        value = 0,
+        category = "throw",
+        animation = "weapon_grenade",
+        icon = Gfx_resource("icon_grenade"),
+        crateAmount = 3,
+        fireMode = {
+            direction = "any",
+            variableThrowStrength = true,
+            throwStrengthFrom = 20,
+            throwStrengthTo = 1200,
+            timerFrom = time(1),
+            timerTo = time(5),
+            relaxtime = timeSecs(1),
+        }
+    })
+    enableSpriteCrateBlowup(w, sprite_class)
+end
+
+
+do
+    local w = createWeapon("gerdir", {
+        onFire = function(shooter, fireinfo)
+            local sel = Shooter_selector(shooter)
+            if not sel then return end
+            GirderControl_fireCheck(sel, fireinfo, true)
+        end,
+        value = 0,
+        category = "worker",
+        icon = Gfx_resource("icon_girder"),
+        animation = "weapon_helmet",
+        crateAmount = 3,
+        fireMode = {
+            point = "instant",
+        }
+    })
+    -- using that selector factory would look nicer, but if you think about it,
+    --  it doesn't really have any value to use a factory
+    setProperties(w, {
+        onCreateSelector = function(sprite)
+            return GirderControl_ctor(w, sprite)
+        end
+    })
 end

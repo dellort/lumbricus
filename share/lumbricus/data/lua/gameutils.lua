@@ -69,7 +69,6 @@ stuff that needs to be done:
 - there's spawnFromFireInfo, but this concept sucks hard and should be replaced
 ]]
 function spawnSprite(sprite_class_ref, pos, velocity)
-    -- the way createdBy is set doesn't really work?
     local s = createSpriteFromRef(sprite_class_ref)
     local t = Game_ownedTeam()
     if (t) then
@@ -82,11 +81,21 @@ function spawnSprite(sprite_class_ref, pos, velocity)
     return s
 end
 
+-- this also ensures that you can do get_context(sprite).fireinfo in the
+--  sprite_activate event
 function spawnFromFireInfo(sprite_class_ref, fireinfo)
+    -- xxx creating a closure (and the context table etc.) all the time is
+    --  probably not so good if it gets called often (like with the
+    --  flamethrower), but maybe it doesn't really matter
+    local function create()
+        local s = createSpriteFromRef(sprite_class_ref)
+        get_context(s).fireinfo = fireinfo
+        return s
+    end
     -- copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
     -- eh, and why not use those values directly?
     local dist = (fireinfo.shootbyRadius + 5) * 1.5 + 2
-    local s = spawnSprite(sprite_class_ref, fireinfo.pos + fireinfo.dir * dist,
+    local s = spawnSprite(create, fireinfo.pos + fireinfo.dir * dist,
         fireinfo.dir * fireinfo.strength)
     return s
 end
@@ -279,12 +288,7 @@ function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
         -- the fraction thing is needed if the timer was activated in an
         --  "between" time (e.g. timeLeft is 4.5 secs => display "5", update in
         --  0.5 sec to show "4" on 4.0 secs)
-        -- special cased because time calculation allocates memory (LOL)
-        if fraction > 0 then
-            updater:start(unit*(1.0 - fraction))
-        else
-            updater:start(unit)
-        end
+        updater:start(unit*(1.0 - fraction))
     end
     updater:setCallback(updateTime)
     local link = {
@@ -303,6 +307,10 @@ function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
 end
 
 function spriteExplode(sprite, damage)
+    -- don't explode if not visible (this is almost always what you want)
+    if not Sprite_visible(sprite) then
+        return
+    end
     local spos = Phys_pos(Sprite_physics(sprite))
     Sprite_die(sprite)
     Game_explosionAt(spos, damage, sprite)

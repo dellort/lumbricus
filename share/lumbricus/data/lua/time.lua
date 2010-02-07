@@ -7,8 +7,6 @@ setmetatable(Time, {__call = function(self, timeVal)
     return setmetatable({timeVal = timeVal}, Time)
 end})
 
-Time.Null = Time(0)
-
 function Time:__add(v)
     return Time(self.timeVal + v.timeVal)
 end
@@ -75,5 +73,22 @@ function timeMins(v)
     return timeMsecs(v*60000)
 end
 
--- (similar to Time.Null)
+Time.Null = Time(0)
 Time.Second = timeSecs(1)
+
+-- convert x to Time
+-- x is either...
+--  - a number => interpreted as seconds
+--  - a string => parsed by D code
+--  - a Time => passed through
+function time(x)
+    if type(x) == "number" then
+        return timeSecs(x)
+    elseif type(x) == "string" then
+        return timeParse(x)
+    elseif getmetatable(x) == Time then
+        return x
+    end
+    assert(false)
+end
+
