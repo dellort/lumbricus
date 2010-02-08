@@ -122,7 +122,6 @@ class GuiConsole : VBoxContainer {
     }
 
     static this() {
-        styleRegisterTime("fade-delay");
         WidgetFactory.register!(typeof(this))("console");
     }
 }

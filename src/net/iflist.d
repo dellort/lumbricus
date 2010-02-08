@@ -78,7 +78,8 @@ version (Win32) {
                 sockaddr_in mask = interfaceList[i].iiNetmask.AddressIn;
                 ia.sin_addr = ia.sin_addr | (~mask.sin_addr);
 
-                addr.sin = ia;
+                //nice work tango guys...(could use inet_ntoa, but it's private)
+                *cast(sockaddr_in*)addr.name = ia;
                 res ~= addr.toAddrString();
             }
         }
@@ -144,7 +145,7 @@ version (linux) {
                 sockaddr_in mask = *cast(sockaddr_in*)(cur.ifa_netmask);
                 ia.sin_addr = ia.sin_addr | (~mask.sin_addr);
 
-                addr.sin = ia;
+                *cast(sockaddr_in*)addr.name = ia;
                 res ~= addr.toAddrString();
             }
             cur = cur.ifa_next;

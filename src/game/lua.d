@@ -31,19 +31,8 @@ public import framework.lua : ScriptingException;
 
 LuaRegistry gScripting;
 
-char[] className(Object o) {
-    char[] ret = o.classinfo.name;
-    return ret[str.rfind(ret, '.')+1..$];
-}
-
-char[] fullClassName(Object o) {
-    return o.classinfo.name;
-}
-
 static this() {
     gScripting = new typeof(gScripting)();
-    gScripting.func!(className);
-    gScripting.func!(fullClassName);
     //I'm not gonna rewrite that
     gScripting.func!(Time.fromString)("timeParse");
 

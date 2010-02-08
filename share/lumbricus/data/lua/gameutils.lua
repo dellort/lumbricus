@@ -148,7 +148,7 @@ function enableDrown(sprite_class, drown_phys)
         if not Sprite_isUnderWater(sender) then
             return
         end
-        Phys_set_posp(Sprite_physics(sender), nil)
+        Phys_set_posp(Sprite_physics(sender), drown_phys)
         Sprite_setParticle(sender, particle)
         if drown_graphic then
             Sequence_setState(Sprite_graphic(sender), drown_graphic)

@@ -146,8 +146,29 @@ alias LuaException ScriptingException;
 
 //create an error message if the error is caused by a wrong script
 void raiseLuaError(lua_State *state, char[] msg) {
+    luaL_where(state, 1);
     lua_pushstring(state, czstr.toStringz(msg));
+    lua_concat(state, 2);
     lua_error(state);
+}
+
+//same as above, after a D exception
+void raiseLuaError(lua_State *state, Exception e) {
+    debug {
+        Trace.formatln("-- Begin trace of caught exception");
+        e.writeOut((char[] s) { Trace.format("{}", s); });
+        Trace.formatln("-- End trace of caught exception");
+    }
+    raiseLuaError(state, myformat("{}: {}", className(e), e.msg));
+}
+
+private char[] className(Object o) {
+    char[] ret = o.classinfo.name;
+    return ret[str.rfind(ret, '.')+1..$];
+}
+
+private char[] fullClassName(Object o) {
+    return o.classinfo.name;
 }
 
 private void luaExpected(lua_State* state, int stackIdx, char[] expected) {
@@ -616,10 +637,14 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
             }
         }
         assert(false);
-    /+} catch (Exception e) {
-    //this was supposed to filter on all "internal" runtime exceptions like asserts
-    //but error handling is completely and utterly fucked, and catching all
-    /// exceptions here willö save you much pain
+    } catch (CustomException e) {
+        raiseLuaError(state, e);
+    } catch (ParameterException e) {
+        raiseLuaError(state, e);
+    } catch (Exception e) {
+    //trace-and-die for all other (internal) exceptions, including asserts
+    //error handling is completely and utterly fucked, and catching all
+    // exceptions here will save you much pain
         //go boom immediately to avoid confusion
         //this should also be done for other "runtime" exceptions, but at least
         //  in D1, the exception class hierarchy is too retarded and you have
@@ -627,9 +652,7 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
         Trace.formatln("catching failing assert before returning to Lua:");
         e.writeOut((char[] s) { Trace.format("{}", s); });
         Trace.formatln("done, will die now.");
-        asm { hlt; }+/
-    } catch (Exception e) {
-        raiseLuaError(state, myformat("{} ({}): {}", e.file, e.line, e.msg));
+        asm { hlt; }
     }
 }
 
@@ -960,6 +983,8 @@ class LuaState {
         //own std stuff
         auto reg = new LuaRegistry();
         reg.func!(ObjectToString)();
+        reg.func!(className);
+        reg.func!(fullClassName);
         register(reg);
 
         //passing a userdata as light userdata causes a demarshal error

@@ -258,3 +258,20 @@ class CustomException : Exception {
         super(msg);
     }
 }
+
+//for parameter checks in "public" api (instead of Assertion)
+//special class because it is fatal for D code, but non-fatal for scripts
+class ParameterException : Exception {
+    this(char[] msg) {
+        super(msg);
+    }
+}
+void argcheck(bool condition, char[] msg = "") {
+    if (!condition) {
+        char[] err = "Invalid parameter";
+        if (msg.length) {
+            err ~= " (" ~ msg ~ ")";
+        }
+        throw new ParameterException(err);
+    }
+}

@@ -4,7 +4,7 @@ import tango.math.Math : PI, abs, isNaN;
 import tango.math.IEEE : copysign;
 import utils.list2;
 import utils.vector2;
-import utils.misc: min, max, myformat;
+import utils.misc: min, max, myformat, argcheck;
 import utils.log;
 
 import physics.base;
@@ -30,7 +30,7 @@ class PhysicObject : PhysicBase {
         return mPosp;
     }
     void posp(POSP p) {
-        assert(!!p);
+        argcheck(!!p);
         mPosp = p;
         //new POSP -> check values
         collision = world.collide.findCollisionID(mPosp.collisionID);
