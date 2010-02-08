@@ -236,3 +236,28 @@ createWeapon {
     }
 }
 
+createWeapon {
+    name = "baemer",
+    value = 0,
+    category = "tools",
+    icon = "icon_beamer",
+    dontEndRound = true,
+    deselectAfterFire = true,
+    fireMode = {
+        point = "instantFree"
+    },
+    animation = "weapon_beamer",
+    onFire = function(shooter, fireinfo)
+        -- note there were some more checks in weaponactions.d/beam():
+        --  - position nan check (?)
+        --  - check if it's really a worm (but we need to change that anyway,
+        --    the player shouldn't be required to be a WormSprite)
+        -- also:
+        --  - BeamHandler is missing (aborting the beaming on interruption)
+        --  - pointto is a WeaponTarget, which has a currentPos() method
+        --    we just use .pos here, which is wrong
+        Shooter_reduceAmmo(shooter)
+        Shooter_finished(shooter) -- probably called by BeamHandler on the end?
+        Worm_beamTo(Shooter_owner(shooter), fireinfo.pointto.pos)
+    end
+}

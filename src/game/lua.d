@@ -156,7 +156,7 @@ static this() {
         "cooldown", "crateAmount", "icon", "fireMode", "animation");
 
     gScripting.methods!(Shooter, "finished", "reduceAmmo");
-    gScripting.properties!(Shooter, "selector");
+    gScripting.properties!(Shooter, "selector", "owner");
 
     gScripting.ctor!(GirderControl, Sprite);
     gScripting.methods!(GirderControl, "fireCheck");

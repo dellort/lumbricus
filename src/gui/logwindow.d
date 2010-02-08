@@ -171,7 +171,7 @@ public class LogWindow : Widget, Output {
         foreach (char c; s) {
             if (c == '\n') {
                 println();
-            } else if (c == '\t') {
+            } else if (c == '\t' && !mTextFormatted) {
                 //wrap to next tab; fill with space
                 int md = mLineBuffer.length % 8;
                 md = md ? 8 - md : 1;

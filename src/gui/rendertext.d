@@ -77,6 +77,9 @@ struct TextRange {
  +    Output a \
  +  \n
  +    Output a line break. (But the string can contain raw line breaks, too.)
+ +  \tab
+ +    Advance output position to next tab-stop.
+ +    (A raw \t as in string literal escape does the same thing.)
  +  \t(text)
  +    Translate the text using i18n stuff. No parameters yet...
  +    Resulting translation is included literally.
@@ -327,9 +330,10 @@ public class FormattedText {
     //  (only pass a valid index if txt has not been modified etc.)
     private void parseLiteral(char[] txt, int start_index) {
         //assumes that t is a slice of txt, and that nothing of txt is skipped
-        void add(PartType type, char[] t) {
+        Part* add(PartType type, int stop) {
+            char[] t = txt[0..stop];
             if (t.length == 0)
-                return;
+                return null;
             Part* p = addpart(type);
             p.text_start = start_index;
             p.text = t;
@@ -338,16 +342,24 @@ public class FormattedText {
                     == p.text);
             }
             start_index += t.length;
+            txt = txt[t.length..$];
+            return p;
         }
 
+        //split text on \n or other escape sequences
         while (txt.length) {
-            auto breaks = str.split2(txt, '\n');
-            add(PartType.Text, breaks[0]);
-            txt = null;
-            if (breaks[1].length) {
-                add(PartType.Newline, breaks[1][0..1]);
-                txt = breaks[1][1..$];
+            foreach (int idx, char c; txt) {
+                if (c == '\n') {
+                    add(PartType.Text, idx);
+                    add(PartType.Newline, 1);
+                    break;
+                } else if (c == '\t') {
+                    add(PartType.Text, idx);
+                    auto p = add(PartType.Space, 1);
+                    break;
+                }
             }
+            add(PartType.Text, txt.length);
         }
     }
 
@@ -469,6 +481,8 @@ public class FormattedText {
             //no operation
         } else if (tryeat("n")) {
             parseLiteral("\n", -1);
+        } else if (tryeat("tab")) { //\t is already the translate command
+            parseLiteral("\t", -1);
         } else if (tryeat("lit")) {
             if (!txt.length) {
                 error("\\lit on end of string");
@@ -790,6 +804,13 @@ public class FormattedText {
             Part* spc_prev;
             for (Part* p = p_start; !!p; p = p.next) {
                 p.pos.x = pos.x;
+                if (p.type == PartType.Space && p.text == "\t") {
+                    //it's a tab! tabs jump to the next tab-stop
+                    //tabstopw = distance between tabstops
+                    int tabstopw = max(mRootStyle.font.textSize("xxxx").x, 1);
+                    int tw = p.pos.x / tabstopw;
+                    p.size.x = (tw+1)*tabstopw - p.pos.x;
+                }
                 pos.x += p.size.x;
                 if (spc_prev)
                     pos.x += parts_spacing(spc_prev, p);

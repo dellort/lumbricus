@@ -223,7 +223,7 @@ struct WeaponTarget {
 //projectiles can work completely independend from this class
 abstract class Shooter : GameObject {
     protected WeaponClass mClass;
-    protected Sprite owner;
+    Sprite owner;
     private bool mWorking;   //only for finishCb event
 
     //shooters should call this to reduce owner's ammo by 1
