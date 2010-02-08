@@ -166,9 +166,10 @@ static this() {
         "allowSecondary", "dontEndRound", "deselectAfterFire",
         "cooldown", "crateAmount", "icon", "fireMode", "animation");
 
+    gScripting.methods!(Shooter, "finished", "reduceAmmo");
     gScripting.properties!(Shooter, "selector");
 
-    gScripting.ctor!(GirderControl, WeaponClass, Sprite);
+    gScripting.ctor!(GirderControl, Sprite);
     gScripting.methods!(GirderControl, "fireCheck");
 
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();

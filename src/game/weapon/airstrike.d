@@ -36,8 +36,8 @@ class AirstrikeControl : WeaponSelector, Controllable {
         const cMouseAngles = [230, 310]; //how the cursor animation is rotated
     }
 
-    this(WeaponClass wc, Sprite a_owner) {
-        super(wc, a_owner);
+    this(Sprite a_owner) {
+        super(a_owner);
         mOwner = a_owner;
         mEngine = mOwner.engine;
 

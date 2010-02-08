@@ -1,22 +1,9 @@
 -- this is just a test
 
-function createWeapon(name, props)
-    local w = LuaWeaponClass_ctor(Gfx, name)
-    setProperties(w, props)
-    Gfx_registerWeapon(w)
-    return w
-end
-
-function createSpriteClass(name, props)
-    local s = SpriteClass_ctor(Gfx, name)
-    setProperties(s, props)
-    Gfx_registerSpriteClass(s)
-    return s
-end
-
 do
     local name = "bozaaka"
-    local sprite_class = createSpriteClass(name .. "_sprite", {
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10, -- 10 whatevertheffffunitthisis
@@ -25,31 +12,33 @@ do
             windInfluence = 1.0,
             elasticity = 0.4,
         },
-        sequenceType = Gfx_resource("s_bazooka"),
-        initParticle = Gfx_resource("p_rocket")
-    })
+        sequenceType = "s_bazooka",
+        initParticle = "p_rocket"
+    }
     enableExplosionOnImpact(sprite_class, 50)
     enableDrown(sprite_class)
 
-    local w = createWeapon(name, {
+    local w = createWeapon {
+        name = name,
         onFire = getStandardOnFire(sprite_class),
         category = "fly",
         value = 0,
         animation = "weapon_bazooka",
-        icon = Gfx_resource("icon_bazooka"),
+        icon = "icon_bazooka",
         fireMode = {
             direction = "any",
             variableThrowStrength = true,
             throwStrengthFrom = 200,
             throwStrengthTo = 1200,
         }
-    })
+    }
     enableSpriteCrateBlowup(w, sprite_class)
 end
 
 do
     local name = "nabana"
-    local sprite_class = createSpriteClass(name .. "_sprite", {
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10, -- 10 whatevertheffffunitthisis
@@ -60,7 +49,7 @@ do
             rotation = "distance"
         },
         sequenceType = Gfx_resource("s_banana")
-    })
+    }
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
         local ctx = get_context(sender, true)
         if ctx and ctx.main then
@@ -80,8 +69,11 @@ do
         end
     end)
 
-    local w = createWeapon(name, {
+    local w = createWeapon {
+        name = name,
         onFire = function (shooter, info)
+            Shooter_reduceAmmo(shooter)
+            Shooter_finished(shooter)
             local s = spawnFromFireInfo(sprite_class, info)
             local ctx = get_context(s)
             ctx.main = true
@@ -110,13 +102,14 @@ do
             timerFrom = timeSecs(1),
             timerTo = timeSecs(5),
         }
-    })
+    }
     enableSpriteCrateBlowup(w, sprite_class, 2)
 end
 
 do
     local name = "holy_graneda"
-    local sprite_class = createSpriteClass(name .. "_sprite", {
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
         initPhysic = relay {
             collisionID = "projectile",
             mass = 20,
@@ -127,20 +120,21 @@ do
             glueForce = 20,
             rotation = "distance"
         },
-        sequenceType = Gfx_resource("s_holy"),
-        initParticle = Gfx_resource("p_holy")
-    })
+        sequenceType = "s_holy",
+        initParticle = "p_holy"
+    }
     enableDrown(sprite_class)
     enableOnTimedGlue(sprite_class, timeSecs(2), function(sender)
         spriteExplode(sender, 75)
     end)
 
-    local w = createWeapon(name, {
+    local w = createWeapon {
+        name = name,
         onFire = getStandardOnFire(sprite_class),
         category = "throw",
         value = 0,
         animation = "weapon_holy",
-        icon = Gfx_resource("icon_holy"),
+        icon = "icon_holy",
         fireMode = {
             direction = "any",
             variableThrowStrength = true,
@@ -148,13 +142,14 @@ do
             throwStrengthTo = 1200,
             relaxtime = timeSecs(1)
         }
-    })
+    }
     enableSpriteCrateBlowup(w, sprite_class)
 end
 
 do
     local name = "graneda"
-    local sprite_class = createSpriteClass(name .. "_sprite", {
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
         initPhysic = relay {
             collisionID = "projectile",
             mass = "10",
@@ -164,8 +159,8 @@ do
             elasticity = "0.4",
             rotation = "distance",
         },
-        sequenceType = Gfx_resource("s_grenade"),
-    })
+        sequenceType = "s_grenade",
+    }
     enableDrown(sprite_class)
     -- xxx need a better way to "cleanup" stuff like timers
     addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
@@ -196,12 +191,13 @@ do
         addCountdownDisplay(sender, ctx.timer, 5, 2)
     end)
 
-    local w = createWeapon(name, {
+    local w = createWeapon {
+        name = name,
         onFire = getStandardOnFire(sprite_class),
         value = 0,
         category = "throw",
         animation = "weapon_grenade",
-        icon = Gfx_resource("icon_grenade"),
+        icon = "icon_grenade",
         crateAmount = 3,
         fireMode = {
             direction = "any",
@@ -212,32 +208,31 @@ do
             timerTo = time(5),
             relaxtime = timeSecs(1),
         }
-    })
+    }
     enableSpriteCrateBlowup(w, sprite_class)
 end
 
 
-do
-    local w = createWeapon("gerdir", {
-        onFire = function(shooter, fireinfo)
-            local sel = Shooter_selector(shooter)
-            if not sel then return end
-            GirderControl_fireCheck(sel, fireinfo, true)
-        end,
-        value = 0,
-        category = "worker",
-        icon = Gfx_resource("icon_girder"),
-        animation = "weapon_helmet",
-        crateAmount = 3,
-        fireMode = {
-            point = "instant",
-        }
-    })
-    -- using that selector factory would look nicer, but if you think about it,
-    --  it doesn't really have any value to use a factory
-    setProperties(w, {
-        onCreateSelector = function(sprite)
-            return GirderControl_ctor(w, sprite)
+createWeapon {
+    name = "gerdir",
+    onCreateSelector = function(sprite)
+        return GirderControl_ctor(sprite)
+    end,
+    onFire = function(shooter, fireinfo)
+        local sel = Shooter_selector(shooter)
+        if not sel then return end
+        if GirderControl_fireCheck(sel, fireinfo, true) then
+            Shooter_reduceAmmo(shooter)
         end
-    })
-end
+        Shooter_finished(shooter)
+    end,
+    value = 0,
+    category = "worker",
+    icon = "icon_girder",
+    animation = "weapon_helmet",
+    crateAmount = 3,
+    fireMode = {
+        point = "instant",
+    }
+}
+

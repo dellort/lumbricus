@@ -1084,8 +1084,8 @@ class GameEngine {
         OnGameError.raise(globalEvents, msg);
     }
 
-    private void eventScriptError(char[] event, char[] msg) {
-        error("Scripting error while handling event '{}': {}", event, msg);
+    private void eventScriptError(char[] event, Exception e) {
+        error("Scripting error while handling event '{}': {}", event, e.msg);
     }
 
     //--------------- client commands

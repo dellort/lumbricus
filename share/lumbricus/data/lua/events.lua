@@ -8,8 +8,8 @@
 
 EventHandlerMeta = {
     __call = function(self, ...)
-        for i, h in ipairs(self) do
-            h(...)
+        for i, event_dispatcher in ipairs(self) do
+            event_dispatcher(...)
         end
     end
 }

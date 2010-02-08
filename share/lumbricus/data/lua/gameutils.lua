@@ -104,6 +104,8 @@ end
 -- incidentally, this just calls spawnFromFireInfo()
 function getStandardOnFire(sprite_class_ref)
     return function(shooter, info)
+        Shooter_reduceAmmo(shooter)
+        Shooter_finished(shooter)
         spawnFromFireInfo(sprite_class_ref, info)
     end
 end
@@ -146,7 +148,7 @@ function enableDrown(sprite_class, drown_phys)
         if not Sprite_isUnderWater(sender) then
             return
         end
-        Phys_set_posp(Sprite_physics(sender), drown_phys)
+        Phys_set_posp(Sprite_physics(sender), nil)
         Sprite_setParticle(sender, particle)
         if drown_graphic then
             Sequence_setState(Sprite_graphic(sender), drown_graphic)
@@ -189,6 +191,18 @@ function enableOnTimedGlue(sprite_class, time, fn)
     end)
 end
 
+autoProperties = {
+    WeaponClass_set_icon = {
+        string = Gfx_resource
+    },
+    SpriteClass_set_sequenceType = {
+        string = Gfx_resource
+    },
+    SpriteClass_set_initParticle = {
+        string = Gfx_resource
+    }
+}
+
 -- this is magic
 -- d_object = a D object, that was bound with framework.lua
 -- data = a Lua table of name-value pairs
@@ -213,6 +227,13 @@ function setProperties(d_object, data)
             setProperties(relayed, value)
         elseif (not is_relay) and value and v.type == "Property_W" then
             data[v.name] = nil -- delete for later check for completeness
+            local autoprop = autoProperties[v.lua_g_name]
+            if autoprop then
+                local converter = autoprop[type(value)]
+                if converter then
+                    value = converter(value)
+                end
+            end
             _G[v.lua_g_name](d_object, value)
         end
     end
@@ -314,4 +335,20 @@ function spriteExplode(sprite, damage)
     local spos = Phys_pos(Sprite_physics(sprite))
     Sprite_die(sprite)
     Game_explosionAt(spos, damage, sprite)
+end
+
+function createWeapon(props)
+    local w = LuaWeaponClass_ctor(Gfx, props.name)
+    props.name = nil
+    setProperties(w, props)
+    Gfx_registerWeapon(w)
+    return w
+end
+
+function createSpriteClass(props)
+    local s = SpriteClass_ctor(Gfx, props.name)
+    props.name = nil
+    setProperties(s, props)
+    Gfx_registerSpriteClass(s)
+    return s
 end

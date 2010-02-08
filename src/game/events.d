@@ -43,7 +43,7 @@ class EventTarget {
     //is created on demand (to save memory, assuming it is seldomly used)
     final Events instanceLocalEvents() {
         if (!mPerInstance)
-            mPerInstance = new Events();
+            mPerInstance = new Events(mEvents);
         return mPerInstance;
     }
 
@@ -151,19 +151,22 @@ final class Events {
         //hack
         Events[char[]] mPerClassEvents;
         char[] mTargetType;
+        Events mParent;
     }
 
     //catch all events
     GenericEventHandler[] generic_handlers;
     //send all events to these objects as well
     Events[] cascade;
-    void delegate(char[] event, char[] msg) onScriptingError;
+    void delegate(char[] event, Exception e) onScriptingError;
 
-    this() {
+    this(Events parent = null) {
+        mParent = parent;
     }
 
     //for Events that are for per-class handlers
-    this(char[] target_type) {
+    this(char[] target_type, Events parent = null) {
+        mParent = parent;
         mTargetType = target_type;
     }
 
@@ -174,7 +177,7 @@ final class Events {
         auto pevents = target_type in mPerClassEvents;
         if (pevents)
             return *pevents;
-        auto ev = new Events(target_type);
+        auto ev = new Events(target_type, this);
         mPerClassEvents[ev.mTargetType] = ev;
         if (mScripting)
             subevents_init_scripting(ev);
@@ -288,8 +291,11 @@ final class Events {
         try {
             ev.marshal_d2s(mScripting, sender, params);
         } catch (LuaException e) {
-            if (onScriptingError) {
-                onScriptingError(ev.name, e.msg);
+            auto del = onScriptingError;
+            if (mParent)
+                del = mParent.onScriptingError;
+            if (del) {
+                del(ev.name, e);
             } else {
                 throw e;
             }
@@ -378,7 +384,8 @@ extern(C) private int scriptEventsRaise(lua_State* state) {
     EventTarget target = luaStackValue!(EventTarget)(state, 1);
     if (!target)
         raiseLuaError(state, "event target is null");
-    char[] event = luaStackValue!(char[])(state, 2);
+    //xxx event string memory managment
+    char[] event = luaStackValue!(TempString)(state, 2).raw;
     //xxx this is awkward and slow too
     //  main problem is that all events in the program with same name must
     //  have the same argument types (even for completely unrelated parts of

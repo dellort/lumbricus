@@ -23,8 +23,8 @@ import tango.util.Convert : to;
 alias StaticFactory!("WeaponClasses", ConfWeaponClass, GfxSet, ConfigNode)
     WeaponClassFactory;
 
-alias StaticFactory!("WeaponSelectors", WeaponSelector, WeaponClass,
-    Sprite) WeaponSelectorFactory;
+alias StaticFactory!("WeaponSelectors", WeaponSelector, Sprite)
+    WeaponSelectorFactory;
 
 alias void delegate(Shooter sh) ShooterCallback;
 
@@ -133,7 +133,7 @@ class ConfWeaponClass : WeaponClass {
     override WeaponSelector createSelector(Sprite selected_by) {
         if (!onSelect.length)
             return null;
-        return WeaponSelectorFactory.instantiate(onSelect, this, selected_by);
+        return WeaponSelectorFactory.instantiate(onSelect, selected_by);
     }
 }
 
@@ -148,7 +148,7 @@ abstract class WeaponSelector {
         bool mIsSelected;
     }
 
-    this(WeaponClass wc, Sprite owner) {
+    this(Sprite owner) {
     }
 
     final bool isSelected() {
@@ -242,12 +242,12 @@ abstract class Shooter : GameObject {
         createdBy = a_owner;
     }
 
-    protected void reduceAmmo() {
+    final void reduceAmmo() {
         if (ammoCb)
             ammoCb(this);
     }
 
-    protected void finished() {
+    final void finished() {
         if (!mWorking)
             return;
         mWorking = false;

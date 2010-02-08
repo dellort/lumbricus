@@ -34,6 +34,7 @@ private char* envMangle(char[] envName) {
 }
 
 const cLuaDelegateTable = "D_delegates";
+const cGlobalErrorFuncIdx = 1;
 
 //--- Lua "Registry" stuff end
 
@@ -95,6 +96,7 @@ private extern(C) int lua_WriteStream(lua_State* L, void* p, size_t sz,
 
 //panic function: called on unprotected lua error (message is on the stack)
 private extern(C) int my_lua_panic(lua_State *L) {
+    assert(false, "(should be) unused");
     scope (exit) lua_pop(L, 1);
     char[] err = lua_todstring(L, -1);
     throw new LuaException(err);
@@ -144,9 +146,7 @@ alias LuaException ScriptingException;
 
 //create an error message if the error is caused by a wrong script
 void raiseLuaError(lua_State *state, char[] msg) {
-    luaL_where(state, 1);
     lua_pushstring(state, czstr.toStringz(msg));
-    lua_concat(state, 2);
     lua_error(state);
 }
 
@@ -530,12 +530,25 @@ private T luaStackDelegate(T)(lua_State* state, int stackIdx) {
 
 //call the function on top of the stack
 private RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
+    lua_rawgeti(state, LUA_REGISTRYINDEX, cGlobalErrorFuncIdx);
+    lua_insert(state, -2);
     int argc;
     foreach (int idx, x; args) {
         argc += luaPush(state, args[idx]);
     }
     const bool ret_void = is(RetType == void);
-    lua_call(state, argc, ret_void ? 0 : 1);
+    const int retc = ret_void ? 0 : 1;
+    if (lua_pcall(state, argc, retc, -argc - 2) != 0) {
+        //error case
+        struct ErrorData {
+            char[] errMsg;
+            char[] traceback;
+        }
+        auto info = luaStackValue!(ErrorData)(state, -1);
+        lua_pop(state, 2);
+        throw new LuaException(myformat("{}\n{}", info.errMsg, info.traceback));
+    }
+    lua_remove(state, -retc - 1);
     static if (!ret_void) {
         RetType res = luaStackValue!(RetType)(state, -1);
         lua_pop(state, 1);
@@ -603,7 +616,7 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
             }
         }
         assert(false);
-    } catch (Exception e) {
+    /+} catch (Exception e) {
     //this was supposed to filter on all "internal" runtime exceptions like asserts
     //but error handling is completely and utterly fucked, and catching all
     /// exceptions here willö save you much pain
@@ -614,9 +627,9 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
         Trace.formatln("catching failing assert before returning to Lua:");
         e.writeOut((char[] s) { Trace.format("{}", s); });
         Trace.formatln("done, will die now.");
-        asm { hlt; }
-    //} catch (Exception e) {
-    //    raiseLuaError(state, e.msg);
+        asm { hlt; }+/
+    } catch (Exception e) {
+        raiseLuaError(state, myformat("{} ({}): {}", e.file, e.line, e.msg));
     }
 }
 
@@ -975,6 +988,15 @@ class LuaState {
         stack0();
 
         scriptExec(`_G.d_get_obj_metadata = ...`, &script_get_obj_metadata);
+
+        scriptExec(`
+            local idx, stackTrace = ...
+            local reg = debug.getregistry()
+            reg[idx] = function(errormessage)
+                return {errormessage, stackTrace(2)}
+            end
+        `, cGlobalErrorFuncIdx, &stackTrace);
+        //xxx don't forget to disable the debug library later for security
     }
 
     void destroy() {
@@ -1000,9 +1022,10 @@ class LuaState {
     void loadStdLibs(int stdlibFlags) {
         foreach (lib; luaLibs) {
             if (stdlibFlags & lib.flag) {
+                stack0();
                 lua_pushcfunction(mLua, *lib.func);
-                lua_pushstring(mLua, czstr.toStringz(lib.name));
-                lua_call(mLua, 1, 0);
+                luaCall!(void, char[])(lib.name);
+                stack0();
             }
         }
     }
@@ -1300,6 +1323,48 @@ class LuaState {
         //get the metatable from the global scope and write it into the registry
         lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(tableName));
         lua_setfield(mLua, LUA_REGISTRYINDEX, C_Mangle!(T).ptr);
+    }
+
+    //Source: http://www.lua.org/source/5.1/ldblib.c.html#db_errorfb
+    //License: MIT
+    const LEVELS1 = 12;      /* size of the first part of the stack */
+    const LEVELS2 = 10;      /* size of the second part of the stack */
+    char[] stackTrace(int level = 1) {
+        char[] ret;
+        int firstpart = 1;  /* still before eventual `...' */
+        lua_Debug ar;
+        while (lua_getstack(mLua, level++, &ar)) {
+            if (level > LEVELS1 && firstpart) {
+                /* no more than `LEVELS2' more levels? */
+                if (!lua_getstack(mLua, level+LEVELS2, &ar))
+                    level--;  /* keep going */
+                else {
+                    ret ~= "\n\t...";  /* too many levels */
+                    while (lua_getstack(mLua, level+LEVELS2, &ar))  /* find last levels */
+                        level++;
+                }
+                firstpart = 0;
+                continue;
+            }
+            ret ~= "\t";
+            lua_getinfo(mLua, "Snl", &ar);
+            ret ~= czstr.fromStringz(ar.short_src.ptr) ~ ":";
+            if (ar.currentline > 0)
+                ret ~= myformat("{}:", ar.currentline);
+            if (*ar.namewhat != '\0')  /* is there a name? */
+                ret ~= myformat(" in function '{}'", czstr.fromStringz(ar.name));
+            else {
+                if (*ar.what == 'm')  /* main? */
+                    ret ~= " in main chunk";
+                else if (*ar.what == 'C' || *ar.what == 't')
+                    ret ~= " ?";  /* C function or tail call */
+                else
+                    ret ~= myformat(" in function <{}:{}>",
+                        czstr.fromStringz(ar.short_src.ptr), ar.linedefined);
+            }
+            ret ~= "\n";
+        }
+        return ret.length ? ret[0..$-1] : ret;
     }
 }
 

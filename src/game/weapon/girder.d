@@ -56,8 +56,8 @@ class GirderControl : WeaponSelector, Controllable {
         const cMaxDistance = 500;  //in pixels from worm position
     }
 
-    this(WeaponClass wc, Sprite a_owner) {
-        super(wc, a_owner);
+    this(Sprite a_owner) {
+        super(a_owner);
         mOwner = a_owner;
         mEngine = mOwner.engine;
 
@@ -65,10 +65,7 @@ class GirderControl : WeaponSelector, Controllable {
 
         Surface girder = mEngine.level.theme.girder;
         mBaseSize = girder.size;
-    }
 
-    void initGirderSurfaces() {
-        Surface girder = mEngine.level.theme.girder;
         //xxx this should really be cached
         mGirders = create_girders(girder, cRotateSteps);
 
@@ -93,11 +90,6 @@ class GirderControl : WeaponSelector, Controllable {
     }
 
     Surface girderSurface() {
-        if (mGirders.length < cRotateSteps
-            || mGirdersLong.length < cRotateSteps)
-        {
-            initGirderSurfaces();
-        }
         return mDoubleLen ? mGirdersLong[mGirderAnimSel]
             : mGirders[mGirderAnimSel];
     }
