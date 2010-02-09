@@ -37,63 +37,42 @@ end
 
 do
     local name = "nabana"
-    local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
-        initPhysic = relay {
-            collisionID = "projectile",
-            mass = 10, -- 10 whatevertheffffunitthisis
-            radius = 2,
-            explosionInfluence = 0,
-            windInfluence = 0,
-            elasticity = 0.4,
-            rotation = "distance"
-        },
-        sequenceType = Gfx_resource("s_banana")
-    }
-    addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
-        local ctx = get_context(sender, true)
-        if ctx and ctx.main then
-            return
+    local function createSprite(name)
+        local s = createSpriteClass {
+            name = name .. "_sprite",
+            initPhysic = relay {
+                collisionID = "projectile",
+                mass = 10, -- 10 whatevertheffffunitthisis
+                radius = 2,
+                explosionInfluence = 0,
+                windInfluence = 0,
+                elasticity = 0.4,
+                rotation = "distance"
+            },
+            sequenceType = "s_banana"
+        }
+        enableDrown(s)
+        return s
+    end
+    local main = createSprite(name)
+    local shard = createSprite(name .. "shard")
+
+    enableExplosionOnImpact(shard, 75)
+    enableSpriteTimer(main, {
+        showDisplay = true,
+        callback = function(sender)
+            spriteExplode(sender, 75)
+            spawnCluster(shard, sender, 6, 400, 600, 30)
         end
-        Sprite_die(sender)
-        Game_explosionAt(Phys_pos(Sprite_physics(sender)), 75, sender)
-    end)
-    enableDrown(sprite_class)
-    -- disable blow-up timer on drown (prevent blowup, remove time display)
-    addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
-        local ctx = get_context(sender, true)
-        if ctx and ctx.timer and
-            (not Sprite_visible(sender) or Sprite_isUnderWater(sender))
-        then
-            ctx.timer:cancel()
-        end
-    end)
+    })
 
     local w = createWeapon {
         name = name,
-        onFire = function (shooter, info)
-            Shooter_reduceAmmo(shooter)
-            Shooter_finished(shooter)
-            local s = spawnFromFireInfo(sprite_class, info)
-            local ctx = get_context(s)
-            ctx.main = true
-            ctx.timer = addTimer(info.timer, function()
-                local spos = Phys_pos(Sprite_physics(s))
-                Game_explosionAt(spos, 75, s)
-                for i = 1,6 do
-                    local strength = Random_rangei(400, 600)
-                    local theta = (Random_rangef(-0.5, 0.5)*30 - 90) * math.pi/180
-                    local dir = Vector2.FromPolar(strength, theta)
-                    spawnSprite(sprite_class, spos, dir)
-                end
-                Sprite_die(s)
-            end)
-            addCountdownDisplay(s, ctx.timer, 5, 2)
-        end,
+        onFire = getStandardOnFire(main),
         category = "throw",
         value = 0,
         animation = "weapon_banana",
-        icon = Gfx_resource("icon_banana"),
+        icon = "icon_banana",
         fireMode = {
             direction = "any",
             variableThrowStrength = true,
@@ -103,7 +82,7 @@ do
             timerTo = timeSecs(5),
         }
     }
-    enableSpriteCrateBlowup(w, sprite_class, 2)
+    enableSpriteCrateBlowup(w, shard, 2)
 end
 
 do
@@ -162,34 +141,14 @@ do
         sequenceType = "s_grenade",
     }
     enableDrown(sprite_class)
-    -- xxx need a better way to "cleanup" stuff like timers
-    addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
-        local ctx = get_context(sender, true)
-        if ctx and ctx.timer and
-            (not Sprite_visible(sender) or Sprite_isUnderWater(sender))
-        then
-            ctx.timer:cancel()
-        end
-    end)
-    -- this is done so that it works when spawned by a crate
-    -- xxx probably it's rather stupid this way; need better way
-    --  plus I don't even know what should happen if a grenade is spawned by
-    --  blowing up a crate (right now it sets the timer to a default)
-    addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
-        local ctx = get_context(sender)
-        local fi = ctx.fireinfo
-        local t
-        if fi then
-            t = fi.timer
-        else
-            -- spawned from crate or so
-            t = time(3)
-        end
-        ctx.timer = addTimer(t, function()
+    enableSpriteTimer(sprite_class, {
+        defTimer = timeSecs(3),
+        useUserTimer = true,
+        showDisplay = true,
+        callback = function(sender)
             spriteExplode(sender, 50)
-        end)
-        addCountdownDisplay(sender, ctx.timer, 5, 2)
-    end)
+        end
+    })
 
     local w = createWeapon {
         name = name,
@@ -248,16 +207,139 @@ createWeapon {
     },
     animation = "weapon_beamer",
     onFire = function(shooter, fireinfo)
-        -- note there were some more checks in weaponactions.d/beam():
-        --  - position nan check (?)
-        --  - check if it's really a worm (but we need to change that anyway,
-        --    the player shouldn't be required to be a WormSprite)
-        -- also:
-        --  - BeamHandler is missing (aborting the beaming on interruption)
-        --  - pointto is a WeaponTarget, which has a currentPos() method
-        --    we just use .pos here, which is wrong
         Shooter_reduceAmmo(shooter)
         Shooter_finished(shooter) -- probably called by BeamHandler on the end?
         Worm_beamTo(Shooter_owner(shooter), fireinfo.pointto.pos)
     end
 }
+
+
+do
+    local name = "dinamite"
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            radius = 2,
+            explosionInfluence = 0.0,
+            windInfluence = 0.0,
+            elasticity = 0.0,
+            glueForce = 500
+        },
+        sequenceType = "s_dynamite",
+        initParticle = "p_dynamite",
+    }
+    enableDrown(sprite_class)
+    enableSpriteTimer(sprite_class, {
+        defTimer = timeSecs(5),
+        callback = function(sender)
+            spriteExplode(sender, 75)
+        end
+    })
+
+    local w = createWeapon {
+        name = name,
+        onFire = getStandardOnFire(sprite_class),
+        value = 0,
+        category = "sheep",
+        icon = "icon_dynamite",
+        animation = "weapon_dynamite",
+        fireMode = {
+            direction = "fixed",
+            throwStrengthFrom = 40,
+            throwStrengthTo = 40,
+        }
+    }
+    enableSpriteCrateBlowup(w, sprite_class)
+end
+
+
+do
+    local name = "clestur"
+    local phys = relay {
+        collisionID = "projectile",
+        mass = 10,
+        radius = 2,
+        explosionInfluence = 0,
+        windInfluence = 0.0,
+        elasticity = 0.4,
+        rotation = "distance",
+    }
+    local main = createSpriteClass {
+        name = name .. "_sprite",
+        sequenceType = "s_cluster",
+        initPhysic = phys,
+    }
+    local shard = createSpriteClass {
+        name = name .. "_shard",
+        sequenceType = "s_clustershard",
+        initPhysic = phys,
+    }
+
+    enableExplosionOnImpact(shard, 25)
+    enableSpriteTimer(main, {
+        showDisplay = true,
+        callback = function(sender)
+            spriteExplode(sender, 25)
+            spawnCluster(shard, sender, 5, 300, 400, 45)
+        end
+    })
+
+    local w = createWeapon {
+        name = name,
+        onFire = getStandardOnFire(main),
+        value = 0,
+        category = "throw",
+        icon = "icon_cluster",
+        crateAmount = 3,
+        animation = "weapon_cluster",
+        fireMode = {
+            direction = "any",
+            variableThrowStrength = true,
+            throwStrengthFrom = 20,
+            throwStrengthTo = 1200,
+            timerFrom = time(1),
+            timerTo = time(5),
+        }
+    }
+    enableSpriteCrateBlowup(w, shard, 5)
+end
+
+do
+    local name = "iarstrake"
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            radius = 2,
+            explosionInfluence = 0.0,
+            windInfluence = 0.0,
+        },
+        sequenceType = "s_airstrike",
+        initParticle = "p_rocket",
+    }
+    enableDrown(sprite_class)
+    enableExplosionOnImpact(sprite_class, 35)
+
+    local w = createWeapon {
+        name = name,
+        onFire = getAirstrikeOnFire(sprite_class),
+        onCreateSelector = function(sprite)
+            return AirstrikeControl_ctor(sprite)
+        end,
+        value = 0,
+        category = "air",
+        isAirstrike = true,
+        icon = "icon_airstrike",
+        animation = "weapon_airstrike",
+        fireMode = {
+            point = "instant",
+            throwStrengthFrom = 300,
+            throwStrengthTo = 300,
+        }
+    }
+    enableSpriteCrateBlowup(w, sprite_class, 4)
+end
+

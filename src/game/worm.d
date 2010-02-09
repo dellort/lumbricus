@@ -840,6 +840,7 @@ class WormSprite : StateSprite {
             mShooterSec.interruptFiring();
         if (mShooterMain && mShooterMain.activity)
             mShooterMain.interruptFiring();
+        abortBeaming();
         weapon_unselect();
     }
 

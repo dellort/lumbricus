@@ -12,9 +12,11 @@ import game.sequence;
 import game.sprite;
 import game.worm;
 import game.wcontrol;
+import game.action.spawn;
 import game.gamemodes.shared;
 import game.levelgen.level;
 import game.levelgen.renderer;
+import game.weapon.airstrike;
 import game.weapon.girder;
 import game.weapon.projectile;
 import game.weapon.weapon;
@@ -35,6 +37,7 @@ static this() {
     gScripting = new typeof(gScripting)();
     //I'm not gonna rewrite that
     gScripting.func!(Time.fromString)("timeParse");
+    gScripting.func!(spawnAirstrike)();
 
     gScripting.setClassPrefix!(TimeSourcePublic)("Time");
     gScripting.methods!(TimeSourcePublic, "current", "difference");
@@ -160,6 +163,8 @@ static this() {
 
     gScripting.ctor!(GirderControl, Sprite);
     gScripting.methods!(GirderControl, "fireCheck");
+
+    gScripting.ctor!(AirstrikeControl, Sprite);
 
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
     gScripting.properties!(LuaWeaponClass, "onFire",

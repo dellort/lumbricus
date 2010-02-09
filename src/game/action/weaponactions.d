@@ -84,7 +84,6 @@ void beam(WeaponContext wx, bool usePos) {
     //WormSprite.beamTo does all the work, just wait for it to finish
     log("start beaming");
     worm.beamTo(dest);
-    wx.putObj(new BeamHandler(wx.engine, worm));
 }
 
 void die(WeaponContext wx) {
@@ -151,38 +150,6 @@ void kill_everyone_but_me(WeaponContext wx) {
     }
 }
 
-
-//------------------------------------------------------------------------
-
-//waits until a worm has finished beaming (-> to abort when the worm was hit)
-class BeamHandler : GameObject {
-    WormSprite worm;
-    this(GameEngine eng, WormSprite w) {
-        super(eng, "beamhandler");
-        internal_active = true;
-        worm = w;
-    }
-
-    bool activity() {
-        return internal_active;
-    }
-
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
-        if (!worm.isBeaming) {
-            //beaming is over, finish
-            log("end beaming");
-            worm = null;
-            kill();
-        }
-    }
-
-    override protected void updateInternalActive() {
-        //aborted
-        if (!internal_active && worm && worm.isBeaming())
-            worm.abortBeaming();
-    }
-}
 
 //------------------------------------------------------------------------
 

@@ -42,7 +42,7 @@ struct FireMode {
     bool hasTimer; //user can select a timer
     Time timerFrom; //minimal time chooseable, only used if hasTimer==true
     Time timerTo;   //maximal time
-    Time relaxtime;
+    Time relaxtime = timeSecs(1);
 
 
     void loadFromConfig(ConfigNode node) {

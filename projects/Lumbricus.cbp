@@ -41,6 +41,15 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="..\share\lumbricus\data\lua\events.lua" />
+		<Unit filename="..\share\lumbricus\data\lua\game_cheats.lua" />
+		<Unit filename="..\share\lumbricus\data\lua\gameutils.lua" />
+		<Unit filename="..\share\lumbricus\data\lua\rect2.lua" />
+		<Unit filename="..\share\lumbricus\data\lua\time.lua" />
+		<Unit filename="..\share\lumbricus\data\lua\timer.lua" />
+		<Unit filename="..\share\lumbricus\data\lua\utils.lua" />
+		<Unit filename="..\share\lumbricus\data\lua\vector2.lua" />
+		<Unit filename="..\share\lumbricus\data\plugins\ws_lua\bozaaka.lua" />
 		<Unit filename="..\src\common\allres.d" />
 		<Unit filename="..\src\common\animation.d" />
 		<Unit filename="..\src\common\common.d" />

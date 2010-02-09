@@ -100,6 +100,16 @@ function spawnFromFireInfo(sprite_class_ref, fireinfo)
     return s
 end
 
+function spawnCluster(sprite_class_ref, parentSprite, count, strengthMin, strengthMax, randomRange)
+    local spos = Phys_pos(Sprite_physics(parentSprite))
+    for i = 1,count do
+        local strength = Random_rangei(strengthMin, strengthMax)
+        local theta = (Random_rangef(-0.5, 0.5)*randomRange - 90) * math.pi/180
+        local dir = Vector2.FromPolar(strength, theta)
+        spawnSprite(sprite_class_ref, spos, dir)
+    end
+end
+
 -- create and return a function that does what most onFire functions will do
 -- incidentally, this just calls spawnFromFireInfo()
 function getStandardOnFire(sprite_class_ref)
@@ -107,6 +117,14 @@ function getStandardOnFire(sprite_class_ref)
         Shooter_reduceAmmo(shooter)
         Shooter_finished(shooter)
         spawnFromFireInfo(sprite_class_ref, info)
+    end
+end
+
+function getAirstrikeOnFire(sprite_class_ref)
+    return function(shooter, info)
+        Shooter_reduceAmmo(shooter)
+        Shooter_finished(shooter)
+        spawnAirstrike(sprite_class_ref, 6, shooter, info, 40)
     end
 end
 
@@ -160,9 +178,7 @@ end
 function enableSpriteCrateBlowup(weapon_class, sprite_class, count)
     count = count or 1
     function blowup(weapon, crate_sprite)
-        local dir = Vector2.FromPolar(1, Random_rangef(-3*math.pi/4, -math.pi/4))
-        spawnSprite(SpriteClass_name(sprite_class),
-            Phys_pos(Sprite_physics(crate_sprite)) + dir*12, dir * Random_rangei(350, 550))
+        spawnCluster(sprite_class, crate_sprite, count, 350, 550, 90)
     end
     addClassEventHandler(EventTarget_eventTargetType(weapon_class),
         "weapon_crate_blowup", blowup)
@@ -187,6 +203,46 @@ function enableOnTimedGlue(sprite_class, time, fn)
             timer:cancel()
         elseif not timer:isActive() then
             timer:start(time)
+        end
+    end)
+end
+
+function enableSpriteTimer(sprite_class, args)
+    local useUserTimer = args.useUserTimer
+    if not args.defTimer then
+        useUserTimer = true
+    end
+    local showDisplay = args.showDisplay
+    local defTimer = args.defTimer or timeSecs(3)
+    local callback = assert(args.callback)
+    -- xxx need a better way to "cleanup" stuff like timers
+    addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
+        local ctx = get_context(sender, true)
+        if ctx and ctx.timer and
+            (not Sprite_visible(sender) or Sprite_isUnderWater(sender))
+        then
+            ctx.timer:cancel()
+        end
+    end)
+    -- this is done so that it works when spawned by a crate
+    -- xxx probably it's rather stupid this way; need better way
+    --  plus I don't even know what should happen if a grenade is spawned by
+    --  blowing up a crate (right now it sets the timer to a default)
+    addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
+        local ctx = get_context(sender)
+        local fi = ctx.fireinfo
+        local t
+        if fi and useUserTimer then
+            t = fi.timer
+        else
+            -- spawned from crate or so
+            t = defTimer
+        end
+        ctx.timer = addTimer(t, function()
+            callback(sender)
+        end)
+        if showDisplay then
+            addCountdownDisplay(sender, ctx.timer, 5, 2)
         end
     end)
 end

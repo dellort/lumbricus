@@ -13,6 +13,7 @@ import utils.configfile;
 import utils.vector2;
 import utils.random;
 import utils.randval;
+import utils.misc;
 
 import math = tango.math.Math;
 
@@ -182,6 +183,49 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
 
     //set fire to it
     sprite.activate(pos);
+}
+
+//classic airstrike in-a-row positioning, facing down
+void spawnAirstrike(SpriteClass sclass, int count, GameObject shootbyObject,
+    FireInfo about, int spawnDist)
+{
+    argcheck(!!shootbyObject);
+    auto engine = shootbyObject.engine;
+
+    //direct into gravity direction
+    if (about.dir.isNaN() || about.strength < float.epsilon)
+        about.dir = Vector2f(0, 1);
+    Vector2f destPos = about.pos;
+    if (about.pointto.valid)
+        destPos = about.pointto.currentPos;
+    //y travel distance (spawn -> clicked point)
+    float dy = destPos.y - engine.level.airstrikeY;
+    if (dy > float.epsilon && math.abs(about.dir.x) > float.epsilon
+        && about.strength > float.epsilon)
+    {
+        //correct spawn position, so airstrikes thrown at an angle
+        //will still hit the clicked position
+        float a = engine.physicworld.gravity.y;
+        float v = about.dir.y*about.strength;
+        //elementary physics ;)
+        float t = (-v + math.sqrt(v*v+2.0f*a*dy))/a;  //time for drop
+        float dx = t*about.dir.x*about.strength; //x movement while drop
+        destPos.x -= dx;          //correct for x movement
+    }
+    //center around pointed
+    float width = spawnDist * (count-1);
+
+    for (int n = 0; n < count; n++) {
+        Sprite sprite = sclass.createSprite(engine);
+        sprite.createdBy = shootbyObject;
+
+        Vector2f pos;
+        pos.x = destPos.x - width/2 + spawnDist * n;
+        pos.y = engine.level.airstrikeY;
+
+        sprite.physics.setInitialVelocity(about.dir*about.strength);
+        sprite.activate(pos);
+    }
 }
 
 //action classes for spawning stuff
