@@ -189,7 +189,8 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
 void spawnAirstrike(SpriteClass sclass, int count, GameObject shootbyObject,
     FireInfo about, int spawnDist)
 {
-    argcheck(!!shootbyObject);
+    argcheck(sclass);
+    argcheck(shootbyObject);
     auto engine = shootbyObject.engine;
 
     //direct into gravity direction

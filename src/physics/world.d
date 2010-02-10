@@ -51,6 +51,7 @@ class PhysicWorld {
     CollideDelegate onCollide;
 
     public void add(PhysicBase obj) {
+        argcheck(obj);
         obj.world = this;
         mAllObjects.insert_tail(obj);
         if (auto o = cast(PhysicForce)obj)
@@ -324,6 +325,7 @@ class PhysicWorld {
     bool collideObjectWithGeometry(PhysicObject o, out GeomContact contact,
         bool extendRadius = false)
     {
+        argcheck(o);
         bool collided = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
             GeomContact ncont;
@@ -491,7 +493,7 @@ class PhysicWorld {
         bool delegate(PhysicObject obj) del,
         bool delegate(PhysicObject obj) match = null)
     {
-        assert(!!del);
+        argcheck(!!del);
         foreach (PhysicObject me; mObjects) {
             if (!match || match(me)) {
                 Vector2f d = me.pos - pos;

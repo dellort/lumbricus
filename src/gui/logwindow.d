@@ -223,6 +223,15 @@ public class LogWindow : Widget, Output {
         return Vector2i(0);
     }
 
+    override void layoutSizeAllocation() {
+        if (mTextFormatted) {
+            foreach (ref entry; mBackLog) {
+                assert(!!entry.fmtText);
+                entry.fmtText.setArea(size, -1, -1);
+            }
+        }
+    }
+
     override bool onKeyDown(KeyInfo infos) {
         bool wd = infos.code == Keycode.MOUSE_WHEELDOWN;
         bool wu = infos.code == Keycode.MOUSE_WHEELUP;

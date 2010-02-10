@@ -275,3 +275,7 @@ void argcheck(bool condition, char[] msg = "") {
         throw new ParameterException(err);
     }
 }
+//value must not be null
+void argcheck(Object value) {
+    argcheck(!!value, "object expected, got null");
+}

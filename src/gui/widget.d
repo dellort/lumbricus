@@ -710,7 +710,6 @@ class Widget {
         mContainerBounds = rect;
         layoutCalculateSubAllocation(rect);
         auto oldsize = mContainedWidgetBounds.size;
-        adjustMousePos(rect.p1);
         mContainedWidgetBounds = rect;
         if (!mLayoutNeedReallocate && oldsize == rect.size) {
             //huh, no need to reallocate, because only the size matters.
@@ -720,13 +719,11 @@ class Widget {
             //log("realloc {} {}/{}", this, mContainerBounds, rect);
             layoutSizeAllocation();
         }
-    }
-
-    //when mContainedWidgetBounds is changed, update mMousePos accordingly, so
-    //  the scrolled widget still has an up-to-date mouse position
-    private void adjustMousePos(Vector2i newBoundsP1) {
-        Vector2i delta = newBoundsP1 - mContainedWidgetBounds.p1;
-        mMousePos -= delta;
+        if (mGUI && mouseIsInside()) {
+            //widget position/size is changing while the mouse cursor is over it
+            //  -> need to correct mouse pos, as it's relative to the widget pos
+            mGUI.fixMouse();
+        }
     }
 
     /// Override this to actually do Widget-internal layouting.

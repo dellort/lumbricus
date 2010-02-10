@@ -30,7 +30,7 @@ class PhysicObject : PhysicBase {
         return mPosp;
     }
     void posp(POSP p) {
-        argcheck(!!p);
+        argcheck(p);
         mPosp = p;
         //new POSP -> check values
         collision = world.collide.findCollisionID(mPosp.collisionID);

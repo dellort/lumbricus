@@ -923,6 +923,7 @@ class GameEngine {
     //insert bitmap into the landscape
     //(bitmap is a Resource for the network mode, if we'll ever have one)
     void insertIntoLandscape(Vector2i pos, Surface bitmap, Lexel bits) {
+        argcheck(bitmap);
         Rect2i newrc = Rect2i.Span(pos, bitmap.size);
 
         //this is if the objects is inserted so that the landscape doesn't
@@ -1035,9 +1036,10 @@ class GameEngine {
             scripting.scriptExec(cmd);
             write.writefln("OK");
         } catch (ScriptingException e) {
-            write.writefln(e.msg);
-        } catch (ClassNotRegisteredException e) {
-            write.writefln(e.msg);
+            //xxx write is not the console where the command came from,
+            //    but the global output
+            error("{}", e.msg);
+            write.writefln("{}", e.msg);
         }
     }
 

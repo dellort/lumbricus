@@ -385,6 +385,15 @@ class Rope : Shooter {
     }
 
     private void draw(Canvas c) {
+        Vector2f wormPos = toVector2f(mWorm.graphic.interpolated_position);
+        Vector2f anchorPos = mAnchorPosition;
+        if (mShooting) {
+            //interpolate anchor
+            float t = (engine.callbacks.interpolateTime.current
+                - mShootStart).secsf;
+            anchorPos = wormPos + mShootDir*myclass.shootSpeed*t;
+        }
+
         int texoffs = 0;
 
         void line(Vector2f s, Vector2f d) {
@@ -397,19 +406,18 @@ class Rope : Shooter {
         }
 
         if (mShooting) {
-            line(toVector2f(mWorm.graphic.interpolated_position),
-                mAnchorPosition);
+            line(wormPos, anchorPos);
         }
 
         texoffs = 0;
         foreach (int idx, ref seg; ropeSegments) {
             line(seg.start, (idx == ropeSegments.length-1)
-                ? toVector2f(mWorm.graphic.interpolated_position) : seg.end);
+                ? wormPos : seg.end);
         }
 
         AnimationParams ap;
         ap.p1 = cast(int)(mAnchorAngle/math.PI*180);
-        myclass.anchorAnim.draw(c, toVector2i(mAnchorPosition), ap,
+        myclass.anchorAnim.draw(c, toVector2i(anchorPos), ap,
             mShootStart);
     }
 }

@@ -33,7 +33,7 @@ private char* envMangle(char[] envName) {
     return czstr.toStringz("chunk_env_" ~ envName);
 }
 
-const cLuaDelegateTable = "D_delegates";
+const cLuaReferenceTable = "D_references";
 const cGlobalErrorFuncIdx = 1;
 
 //--- Lua "Registry" stuff end
@@ -163,11 +163,17 @@ void raiseLuaError(lua_State *state, Exception e) {
 }
 
 private char[] className(Object o) {
+    if (!o) {
+        return "null";
+    }
     char[] ret = o.classinfo.name;
     return ret[str.rfind(ret, '.')+1..$];
 }
 
 private char[] fullClassName(Object o) {
+    if (!o) {
+        return "null";
+    }
     return o.classinfo.name;
 }
 
@@ -473,43 +479,68 @@ private void luaPushDelegate(T)(lua_State* state, T del) {
     lua_pushcclosure(state, &demarshal, 2);
 }
 
-//same as "Wrapper" and same idea from before
-//garbage collection: maybe put all wrapper objects into a weaklist, and do
-//  regular cleanups (e.g. each game frame); the weaklist would return the set
-//  of dead objects free'd since the last query, and the Lua delegate table
-//  entry could be removed without synchronization problems
-private abstract class LuaDelegateWrapper {
+//holds a persistent reference to an arbitrary Lua value
+private struct LuaReference {
     private {
         lua_State* mState;
         int mLuaRef = LUA_NOREF;
     }
 
-    private this(lua_State* state, int stackIdx) {
+    lua_State* state() {
+        return mState;
+    }
+
+    //create a reference to the value at stackIdx; the stack is not changed
+    void set(lua_State* state, int stackIdx) {
         mState = state;
 
-        //put a "Lua ref" to the closure into the delegate table
-        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaDelegateTable.ptr);
+        //put a "Lua ref" to the value into the reference table
+        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaReferenceTable.ptr);
         lua_pushvalue(mState, stackIdx);
         mLuaRef = luaL_ref(mState, -2);
         assert(mLuaRef != LUA_REFNIL);
+        lua_pop(mState, 1);
+    }
+
+    //push the referenced value on the stack
+    void get() {
+        assert(mLuaRef != LUA_NOREF, "call .get() after .release()");
+        //get ref'ed value from the reference table
+        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaReferenceTable.ptr);
+        lua_rawgeti(mState, -1, mLuaRef);
+        //replace ref to delegate table by value (stack cleanup)
+        lua_replace(mState, -2);
     }
 
     void release() {
         if (mLuaRef == LUA_NOREF)
             return;
-        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaDelegateTable.ptr);
+        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaReferenceTable.ptr);
         luaL_unref(mState, -1, mLuaRef);
         mLuaRef = LUA_NOREF;
+        lua_pop(mState, 1);
+    }
+
+    bool valid() {
+        return mLuaRef != LUA_NOREF;
     }
 }
 
-private class LuaDelegateWrapperT(T) : LuaDelegateWrapper {
+//same as "Wrapper" and same idea from before
+//garbage collection: maybe put all wrapper objects into a weaklist, and do
+//  regular cleanups (e.g. each game frame); the weaklist would return the set
+//  of dead objects free'd since the last query, and the Lua delegate table
+//  entry could be removed without synchronization problems
+private class LuaDelegateWrapper(T) {
+    private lua_State* mState;
+    private LuaReference mRef;
     alias ParameterTupleOf!(T) Params;
     alias ReturnTypeOf!(T) RetType;
 
     //only to be called from luaStackDelegate()
     private this(lua_State* state, int stackIdx) {
-        super(state, stackIdx);
+        mState = state;
+        mRef.set(state, stackIdx);
     }
 
     ~this() {
@@ -522,12 +553,7 @@ private class LuaDelegateWrapperT(T) : LuaDelegateWrapper {
 
     //delegate to this is returned by luaStackDelegate/luaStackValue!(T)
     RetType cbfunc(Params args) {
-        assert(mLuaRef != LUA_NOREF, "call delegate after .release()");
-        //get callee from the registry and call
-        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaDelegateTable.ptr);
-        lua_rawgeti(mState, -1, mLuaRef);
-        //replace ref to delegate table by closure (stack cleanup)
-        lua_replace(mState, -2);
+        mRef.get();
         assert(lua_isfunction(mState, -1));
         //will pop function from the stack
         return doLuaCall!(RetType, Params)(mState, args);
@@ -545,7 +571,7 @@ private T luaStackDelegate(T)(lua_State* state, int stackIdx) {
 
     //xxx: could cache wrappers (Lua can do the Lua closure => unique int key
     //  mapping), but D has no such thing as weak hashtables
-    auto pwrap = new LuaDelegateWrapperT!(T)(state, stackIdx);
+    auto pwrap = new LuaDelegateWrapper!(T)(state, stackIdx);
     return &pwrap.cbfunc;
 }
 
@@ -976,9 +1002,9 @@ class LuaState {
         //this is security relevant; allow only in debug code
         debug loadStdLibs(LuaLib.debuglib);
 
-        //list of active delegates
+        //list of D->Lua references
         lua_newtable(mLua);
-        lua_setfield(mLua, LUA_REGISTRYINDEX, cLuaDelegateTable.ptr);
+        lua_setfield(mLua, LUA_REGISTRYINDEX, cLuaReferenceTable.ptr);
 
         //own std stuff
         auto reg = new LuaRegistry();

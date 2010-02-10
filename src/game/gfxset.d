@@ -293,6 +293,7 @@ class GfxSet {
 
     //called by sprite.d/SpriteClass.this() only
     void registerSpriteClass(SpriteClass sc) {
+        argcheck(sc);
         if (findSpriteClass(sc.name, true)) {
             assert(false, "Sprite class "~sc.name~" already registered");
         }
@@ -325,6 +326,7 @@ class GfxSet {
 
     //mainly for scripts
     void registerWeapon(WeaponClass c) {
+        argcheck(c);
         assert(findWeaponClass(c.name, true) is null);
         mWeaponClasses[c.name] = c;
     }
