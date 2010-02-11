@@ -67,14 +67,11 @@ function utils.sformat_r(done, fmt, ...)
         local ptype = type(param)
         if ptype == "userdata" then
             -- these functions need to be regged by D code
-            if ObjectToString == nil then
-                out("<userdata>")
+            if ObjectToString and d_islightuserdata and d_islightuserdata(param)
+            then
+                out(ObjectToString(param))
             else
-                if d_islightuserdata(param) then
-                    out(ObjectToString(param))
-                else
-                    out("<unknown userdata>")
-                end
+                out("<unknown userdata>")
             end
         elseif ptype == "table" then
             out(utils.table2string(param, done))
@@ -248,8 +245,22 @@ end
 -- return true or false whether the table is empty
 -- I have no clue how to do this "right" (#table obviously doesn't always work)
 function table_empty(table)
-    for k, v in pairs(table) do
+    local key, value = next(table)
+    return not key
+end
+
+-- a1 and a2 are expected to be arrays (basically means '#' should work)
+-- items are compared with ==
+function array_equal(a1, a2)
+    local len1 = #a1
+    local len2 = #a2
+    if len1 ~= len2 then
         return false
+    end
+    for i = 1, len1 do
+        if a1[i] ~= a2[i] then
+            return false
+        end
     end
     return true
 end

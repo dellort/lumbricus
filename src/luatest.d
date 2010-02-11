@@ -86,8 +86,9 @@ class Foo {
         Trace.formatln("vectors: {}", v);
     }
 
-    void array(int[] a) {
+    int[] array(int[] a) {
         Trace.formatln("{}", a);
+        return a;
     }
 
     void aarray(int[char[]] a) {
@@ -107,6 +108,10 @@ class Foo {
     Time makeTime(long msecs) {
         return timeMsecs(msecs);
     }
+
+    void arg(bool check) {
+        argcheck(check);
+    }
 }
 
 LuaRegistry scripting;
@@ -115,7 +120,7 @@ static this() {
     scripting = new typeof(scripting)();
     scripting.methods!(Foo, "test", "createBar", "createEvul", "passBar");
     scripting.methods!(Foo, "vector", "makeVector", "vectors", "array", "aarray",
-        "makeArray", "callCb", "makeTime");
+        "makeArray", "callCb", "makeTime", "arg");
     scripting.properties!(Foo, "bla", "muh");
     auto bar = scripting.defClass!(Bar)();
     bar.properties!("blu", "blo", "something")();
@@ -237,6 +242,19 @@ void main(char[][] args) {
         utils.formatln("something={}", Bar_something(b))
 
         Foo_vectors({Vector2(1,0), Vector2(5,7)})
+
+        -- the table x is constructed so, that iteration with pairs()/lua_next
+        --  returns the (key,value) pair (2,2) first
+        local x = {}
+        x[100] = 4
+        x[400] = 5
+        x[2] = 2
+        x[1] = 1
+        x[100] = nil
+        x[400] = nil
+        -- this failed with the old marshaller code, because it assumed lua_next
+        --  would iterate the indices in a sorted way
+        assert(array_equal(Foo_array(x), {1, 2}))
     `);
 
     s.call("test", "Blubber");
@@ -314,4 +332,7 @@ void main(char[][] args) {
     fail(`Foo_vector({[1]=1, [2.4]=4})`);
     //this shouldn't work either (it's stupid)
     fail(`Foo_vector({[1]=1, ["2"]=4})`);
+    fail(`Foo_arg(false)`);
+    fail("assert(false)");
+    //loadexec(`Foo_vector({[1]=1, ["2"]=4})`);
 }

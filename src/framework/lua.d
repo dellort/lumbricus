@@ -5,7 +5,7 @@ import derelict.util.exception : SharedLibLoadException;
 import czstr = tango.stdc.stringz;
 import tango.core.Traits : ParameterTupleOf, isIntegerType, isFloatingPointType,
     ElementTypeOfArray, isArrayType, isAssocArrayType, KeyTypeOfAA, ValTypeOfAA,
-    ReturnTypeOf;
+    ReturnTypeOf, isStaticArrayType;
 import cstd = tango.stdc.stdlib;
 import rtraits = tango.core.RuntimeTraits;
 import str = utils.string;
@@ -34,6 +34,8 @@ private char* envMangle(char[] envName) {
 }
 
 const cLuaReferenceTable = "D_references";
+// Lua 5.2-work2: they introduce LUA_RIDX_*, which are reserved integer indices
+//                into the Lua registry; then we have to change this
 const cGlobalErrorFuncIdx = 1;
 
 //--- Lua "Registry" stuff end
@@ -97,9 +99,11 @@ private extern(C) int lua_WriteStream(lua_State* L, void* p, size_t sz,
 //panic function: called on unprotected lua error (message is on the stack)
 private extern(C) int my_lua_panic(lua_State *L) {
     assert(false, "(should be) unused");
+/+
     scope (exit) lua_pop(L, 1);
     char[] err = lua_todstring(L, -1);
     throw new LuaException(err);
++/
 }
 
 //if the string is going to be used after the Lua value is popped from the
@@ -109,15 +113,17 @@ private char[] lua_todstring_unsafe(lua_State* L, int i) {
     size_t len;
     char* s = lua_tolstring(L, i, &len);
     if (!s)
-        throw new LuaException("no string at given stack index");
+        throw new LuaException(L, 1, "no string at given stack index", null);
     char[] res = s[0..len];
-    debug {
-        try {
-            str.validate(res);
-        } catch (str.UnicodeException s) {
-            //not sure if it should be this exception
-            throw new LuaException("invalid utf-8 string from Lua");
-        }
+    //as long as the D program is rather fragile about utf-8 errors (anything
+    //  parsing utf-8 will throw UnicodeException on invalid utf-8 => basically
+    //  that exception may be thrown from random parts of the program), always
+    //  disallow Lua to pass invalid utf-8
+    try {
+        str.validate(res);
+    } catch (str.UnicodeException s) {
+        //not sure if it should be this exception
+        throw new LuaException(L, 1, "invalid utf-8 string from Lua", null);
     }
     return res;
 }
@@ -139,27 +145,96 @@ private int luaRelToAbsIndex(lua_State* state, int index) {
     return index;
 }
 
-class LuaException : CustomException { this(char[] msg) { super(msg); } }
+//version of luaL_where() that rerturns the result directly (no Lua stack)
+//code taken from http://www.lua.org/source/5.1/lauxlib.c.html#luaL_where (MIT)
+private char[] luaWhere(lua_State* L, int level) {
+    lua_Debug ar;
+    if (lua_getstack(L, level, &ar)) {  /* check function at level */
+        lua_getinfo(L, "Sl", &ar);  /* get info about it */
+        if (ar.currentline > 0) {  /* is there info? */
+            return myformat("{}:{}: ", czstr.fromStringz(ar.short_src.ptr),
+                ar.currentline);
+        }
+    }
+    /* else, no information available... */
+    return "";
+}
+
+//call code() in a more or less "protected" environment:
+//- catch Lua errors (lua_error()/error()) properly
+//- if there are stray D exceptions, clean up the Lua stack
+T luaProtected(T)(lua_State* state, T delegate() code) {
+    //xxx I have no idea how to implement this
+    //    for now, just verify stack use
+    int stack = lua_gettop(state);
+    scope(success) assert(stack == lua_gettop(state));
+    return code();
+}
+
+class LuaException : CustomException {
+    //NOTE: the member next (from Exception) is used if a D exception caused
+    //  this exception (e.g. Lua calls D code, D code throws ParameterException,
+    //  wrapper glue catches the exception, and throws a new LuaException with
+    //  LuaException.next = ParameterException)
+    //lua_message and lua_traceback are from the first lua_pcall error handler
+    //  function (lua_message is empty if a D exception was the cause)
+    //the wrapper code doesn't handle the case when there are multiple lua
+    //  states, so there's only one lua_traceback (even if the Lua code jumps
+    //  between nested Lua and D code multiple times)
+    char[] lua_message;
+    char[] lua_traceback;
+
+    //state, level are passed to stackTrace
+    this(lua_State* state, int level, char[] msg, Exception next) {
+        auto nmsg = msg;
+        auto trace = LuaState.stackTrace(state, level);
+        if (!next) {
+            nmsg = luaWhere(state, level) ~ nmsg;
+        } else {
+            nmsg = nmsg ~ " [" ~ next.msg ~ "]";
+        }
+        //also append the trace like it used to be
+        //but I think this should be changed
+        nmsg ~= ", Lua backtrace:\n" ~ trace;
+        super(nmsg, next);
+        if (!next) { //stupid ctor rules make me write stupid code
+            lua_message = msg;
+        }
+        lua_traceback = trace;
+    }
+
+    //true: caused by lua_error() or Lua error() function
+    //false: caused by a recoverable D exception when Lua called D code
+    bool isNativeLuaError() {
+        return !!next;
+    }
+}
 
 //this alias is just so that we can pretend our scripting interface is generic
 alias LuaException ScriptingException;
 
-//create an error message if the error is caused by a wrong script
-void raiseLuaError(lua_State *state, char[] msg) {
-    luaL_where(state, 1);
-    lua_pushstring(state, czstr.toStringz(msg));
-    lua_concat(state, 2);
+//this can be used in 2 cases:
+//- Lua calls user D code, and the user raised some recoverable exception
+//  => e is that (catched) exception, and it is not a LuaException
+//- Lua calls D code, and the binding code detects a marshalling error
+//  => e is a newly created LuaException, describing the error
+//there's a 3rd case, that takes a different code path: if Lua raises an error
+//  via lua_error()/error(), lua_pcall's error handler will catch that and
+//  create a new LuaException accordingly
+void raiseLuaError(lua_State* state, Exception e) {
+    assert(!!e);
+    if (!cast(LuaException)e) {
+        e = new LuaException(state, 1, "D exception in Lua", e);
+    }
+    lua_pushlightuserdata(state, cast(void*)e);
     lua_error(state);
 }
 
-//same as above, after a D exception
-void raiseLuaError(lua_State *state, Exception e) {
-    debug {
-        Trace.formatln("-- Begin trace of caught exception");
-        e.writeOut((char[] s) { Trace.format("{}", s); });
-        Trace.formatln("-- End trace of caught exception");
-    }
-    raiseLuaError(state, myformat("{}: {}", className(e), e.msg));
+void raiseLuaError(lua_State* state, char[] msg) {
+    //the exception gets us a backtrace
+    //xxx: if the backtracer isn't able to get through the Lua VM functions
+    //  in all cases (Windows?), we have to think of something else
+    raiseLuaError(state, new LuaException(state, 1, msg, null));
 }
 
 private char[] className(Object o) {
@@ -178,11 +253,12 @@ private char[] fullClassName(Object o) {
 }
 
 private void luaExpected(lua_State* state, int stackIdx, char[] expected) {
-    throw new LuaException(expected ~ " expected, got "
-        ~ czstr.fromStringz(luaL_typename(state, stackIdx)));
+    luaExpected(state, expected,
+        czstr.fromStringz(luaL_typename(state, stackIdx)));
 }
-private void luaExpected(char[] expected, char[] got) {
-    throw new LuaException(myformat("{} expected, got {}", expected, got));
+private void luaExpected(lua_State* state, char[] expected, char[] got) {
+    throw new LuaException(state, 1, myformat("{} expected, got {}", expected,
+        got), null);
 }
 
 //if this returns a string, you can use it only until you pop the corresponding
@@ -245,7 +321,7 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         Object o = cast(Object)lua_touserdata(state, stackIdx);
         T res = cast(T)o;
         if (o && !res) {
-            luaExpected(T.classinfo.name, o.classinfo.name);
+            luaExpected(state, T.classinfo.name, o.classinfo.name);
         }
         return res;
     } else static if (is(T == struct)) {
@@ -298,7 +374,7 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
                     auto idx = lua_tonumber(state, -2);
                     int iidx = cast(int)idx;
                     if (iidx < 1 || iidx > ret.tupleof.length || iidx != idx) {
-                        luaExpected("valid integer index for " ~ cTName,
+                        luaExpected(state, "valid integer index for " ~ cTName,
                             myformat("invalid index {}", idx));
                     }
                     iidx -= 1; //lua arrays are 1-based
@@ -328,7 +404,8 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
                         }
                     }
                     if (!ok)
-                        luaExpected("valid member for "~cTName, "'"~name~"'");
+                        luaExpected(state, "valid member for "~cTName,
+                            "'"~name~"'");
                 } else {
                     expected("string or integer number as key in struct table");
                 }
@@ -337,18 +414,34 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         }
         return ret;
     } else static if (isArrayType!(T) || isAssocArrayType!(T)) {
+        const is_assoc = isAssocArrayType!(T);
         if (!lua_istable(state, stackIdx))
             expected("array table");
         T ret;
         int tablepos = luaRelToAbsIndex(state, stackIdx);
+        static if (!is_assoc) {
+            //static arrays would check if the size is the same
+            //but this function will never support static arrays (in D1)
+            auto tlen = lua_objlen(state, tablepos);
+            //xxx evil Lua scripts could easily cause an out of memory error
+            //  due to '#' not returning the array length, but something
+            //  along the last integer key (see Lua manual)
+            ret.length = tlen;
+        }
         lua_pushnil(state);  //first key
         while (lua_next(state, tablepos) != 0) {
             //lua_next pushes key, then value
-            static if(isAssocArrayType!(T)) {
+            static if(is_assoc) {
                 auto curVal = luaStackValue!(ValTypeOfAA!(T))(state, -1);
                 ret[luaStackValue!(KeyTypeOfAA!(T))(state, -2)] = curVal;
             } else {
-                ret ~= luaStackValue!(ElementTypeOfArray!(T))(state, -1);
+                auto index = luaStackValue!(int)(state, -2);
+                if (index < 1 || index > ret.length)
+                    throw new LuaException(state, 1,
+                        myformat("invalid key in lua table:"
+                        " got {} in range 1-{}", index, ret.length+1), null);
+                index -= 1; //1-based arrays
+                ret[index] = luaStackValue!(ElementTypeOfArray!(T))(state, -1);
             }
             lua_pop(state, 1);   //pop value, leave key
         }
@@ -562,6 +655,7 @@ private class LuaDelegateWrapper(T) {
 
 //convert a Lua function on that stack index to a D delegate
 private T luaStackDelegate(T)(lua_State* state, int stackIdx) {
+    static assert(is(T == delegate));
     //the lua function to call is at stackIdx and must be stored for later
     //  calling.
     if (lua_isnil(state, stackIdx))
@@ -576,6 +670,8 @@ private T luaStackDelegate(T)(lua_State* state, int stackIdx) {
 }
 
 //call the function on top of the stack
+//xxx I'm not sure, but I think caller will have to call this inside
+//    luaProtected() to ensure stack cleanup when a (de-)marshaller fails?
 private RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
     lua_rawgeti(state, LUA_REGISTRYINDEX, cGlobalErrorFuncIdx);
     lua_insert(state, -2);
@@ -587,13 +683,16 @@ private RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
     const int retc = ret_void ? 0 : 1;
     if (lua_pcall(state, argc, retc, -argc - 2) != 0) {
         //error case
-        struct ErrorData {
-            char[] errMsg;
-            char[] traceback;
-        }
-        auto info = luaStackValue!(ErrorData)(state, -1);
+        //xxx what if lua_pcall doesn't return LUA_ERRRUN, will there also be
+        //  some error message value on the stack?
+        //our error handler function always returns a LuaException
+        if (lua_type(state, -1) != LUA_TLIGHTUSERDATA)
+            assert(false);
+        Object o_e = cast(Object)(lua_touserdata(state, -1));
+        LuaException e = cast(LuaException)o_e;
+        assert(!!e);
         lua_pop(state, 2);
-        throw new LuaException(myformat("{}\n{}", info.errMsg, info.traceback));
+        throw e;
     }
     lua_remove(state, -retc - 1);
     static if (!ret_void) {
@@ -601,6 +700,23 @@ private RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
         lua_pop(state, 1);
         return res;
     }
+}
+
+//unrecoverable exception encountered
+//print out trace and die on internal exceptions
+private void internalError(lua_State* state, Exception e) {
+    //go boom immediately to avoid confusion
+    //this should also be done for other "runtime" exceptions, but at least
+    //  in D1, the exception class hierarchy is too retarded and you have
+    //  to catch every single specialized exception type (got fixed in D2)
+    Trace.formatln("catching failing irrecoverable error instead of returning"
+        " to Lua:");
+    e.writeOut((char[] s) { Trace.format("{}", s); });
+    Trace.formatln("responsible Lua backtrace:");
+    Trace.formatln("{}", LuaState.stackTrace(state, 1));
+    Trace.formatln("done, will die now.");
+    //this is really better than trying to continue the program
+    asm { hlt; }
 }
 
 //Execute the callable del, taking parameters from the lua stack
@@ -613,7 +729,7 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
     //eh static assert(is(T == delegate) || is(T == function));
 
     void error(char[] msg) {
-        throw new LuaException(msg);
+        throw new LuaException(state, 1, msg, null);
     }
 
     try {
@@ -663,23 +779,36 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
             }
         }
         assert(false);
-    } catch (CustomException e) {
-        raiseLuaError(state, e);
-    } catch (ParameterException e) {
-        raiseLuaError(state, e);
     } catch (Exception e) {
-    //trace-and-die for all other (internal) exceptions, including asserts
-    //error handling is completely and utterly fucked, and catching all
-    // exceptions here will save you much pain
-        //go boom immediately to avoid confusion
-        //this should also be done for other "runtime" exceptions, but at least
-        //  in D1, the exception class hierarchy is too retarded and you have
-        //  to catch every single specialized exception type (got fixed in D2)
-        Trace.formatln("catching failing assert before returning to Lua:");
-        e.writeOut((char[] s) { Trace.format("{}", s); });
-        Trace.formatln("done, will die now.");
-        asm { hlt; }
+        if (isLuaRecoverableException(e)) {
+            raiseLuaError(state, e);
+        } else {
+            internalError(state, e);
+        }
     }
+}
+
+bool isLuaRecoverableException(Exception e) {
+    //recoverable exceptions
+    if (cast(CustomException)e
+        || cast(ParameterException)e
+        || cast(LuaException)e)
+        return true;
+    //"internal" runtime exceptions
+    //in D2, these are all derived from the same type, but not in D1
+    //list of types from tango/core/Exception.d
+    //add missing types as needed (e.g. I didn't find AccessViolation)
+    if (cast(OutOfMemoryException)e
+        || cast(SwitchException)e
+        || cast(AssertException)e
+        || cast(ArrayBoundsException)e
+        || cast(FinalizeException)e)
+        return false;
+    //other exceptions
+    //not sure about this *shrug*
+    //apparently, we decided that only CustomExceptions are recoverable, which
+    //  means all other exception types are non-recoverable
+    return false;
 }
 
 class LuaRegistry {
@@ -751,12 +880,12 @@ class LuaRegistry {
         mMethods ~= m;
     }
 
-    private static char[] methodThisError(char[] name, ClassInfo expected,
-        Object got)
+    private static void methodThisError(lua_State* state, char[] name,
+        ClassInfo expected, Object got)
     {
-        return myformat("method call to '{}' requires non-null "
+        raiseLuaError(state, myformat("method call to '{}' requires non-null "
             "this pointer of type {} as first argument, but got: {}", name,
-            expected.name, got ? got.classinfo.name : "*null");
+            expected.name, got ? got.classinfo.name : "*null"));
     }
 
     //Register a class method
@@ -768,8 +897,8 @@ class LuaRegistry {
             Class c = cast(Class)(o);
 
             if (!c) {
-                raiseLuaError(state, methodThisError(methodName,
-                    Class.classinfo, o));
+                methodThisError(state, methodName,
+                    Class.classinfo, o);
             }
 
             auto del = mixin("&c."~name);
@@ -834,10 +963,9 @@ class LuaRegistry {
 
         extern(C) static int demarshal_get(lua_State* state) {
             const cDebugName = "property get " ~ name;
-            static Type get(Class o) {
+            Type get(Class o) {
                 if (!o) {
-                    throw new LuaException(methodThisError(cDebugName,
-                        Class.classinfo, null));
+                    methodThisError(state, cDebugName, Class.classinfo, null);
                 }
                 return mixin("o." ~ name);
             }
@@ -851,10 +979,10 @@ class LuaRegistry {
             //     at compile time...
             extern(C) static int demarshal_set(lua_State* state) {
                 const cDebugName = "property set " ~ name;
-                static void set(Class o, Type t) {
+                void set(Class o, Type t) {
                     if (!o) {
-                        throw new LuaException(methodThisError(cDebugName,
-                            Class.classinfo, null));
+                        methodThisError(state, cDebugName,
+                            Class.classinfo, null);
                     }
                     //mixin() must be an expression here, not a statement
                     //but the parser messes it up, we don't get an expression
@@ -1040,13 +1168,42 @@ class LuaState {
 
         scriptExec(`_G.d_get_obj_metadata = ...`, &script_get_obj_metadata);
 
-        scriptExec(`
-            local idx, stackTrace = ...
-            local reg = debug.getregistry()
-            reg[idx] = function(errormessage)
-                return {errormessage, stackTrace(2)}
-            end
-        `, cGlobalErrorFuncIdx, &stackTrace);
+        //install the pcall error handler
+        //I'm using plain Lua API calls to avoid bad interactions with the
+        //  marshaller code and all that
+        extern (C) static int pcall_err_handler(lua_State* state) {
+            //two cases for the error message value:
+            //1. Lua code raised this error and may have passed any value
+            //2. a LuaException was passed through by other error handling code
+            LuaException e = null;
+            if (lua_islightuserdata(state, 1)) {
+                //note that a Lua script could have used a random D object
+                //in that case e would remain null
+                Object o = cast(Object)lua_touserdata(state, 1);
+                e = cast(LuaException)o;
+            }
+            if (!e) {
+                char[] msg;
+                if (lua_type(state, 1) == LUA_TSTRING) {
+                    try {
+                        msg = lua_todstring(state, 1);
+                    } catch (LuaException e) {
+                        msg = "<invalid utf-8 string>";
+                    }
+                } else {
+                    msg = "<non-string type>";
+                }
+                //this also gets the Lua and D backtraces
+                e = new LuaException(state, 1, msg, null);
+            }
+            //return e
+            lua_pop(state, 1);
+            lua_pushlightuserdata(state, cast(void*)e);
+            return 1;
+        }
+        lua_pushcfunction(mLua, &pcall_err_handler);
+        lua_rawseti(mLua, LUA_REGISTRYINDEX, cGlobalErrorFuncIdx);
+
         //xxx don't forget to disable the debug library later for security
     }
 
@@ -1191,7 +1348,7 @@ class LuaState {
         if (res != 0) {
             scope (exit) lua_pop(mLua, 1);  //remove error message
             char[] err = lua_todstring_unsafe(mLua, -1);
-            throw new LuaException("Parse error: " ~ err);
+            throw new LuaException(mLua, 0, "Parse error: " ~ err, null);
         }
     }
 
@@ -1267,9 +1424,6 @@ class LuaState {
             //xxx should avoid memory allocation (czstr.toStringz)
             stack0();
             lua_getglobal(mLua, czstr.toStringz(funcName));
-            if (!lua_isfunction(mLua, 1)) {
-                throw new LuaException(funcName ~ ": not a function.");
-            }
             scope(success)
                 stack0();
             return doLuaCall!(RetType, T)(mLua, args);
@@ -1297,48 +1451,48 @@ class LuaState {
     //store a value as global Lua variable
     //slightly inefficient (because of toStringz heap activity)
     void setGlobal(T)(char[] name, T value, char[] environmentId = null) {
-        stack0();
-        int stackIdx = LUA_GLOBALSINDEX;
-        if (environmentId.length) {
-            luaGetEnvironment(environmentId);
-            stackIdx = -2;
-        }
-        luaPush(mLua, value);
-        lua_setfield(mLua, stackIdx, czstr.toStringz(name));
-        if (environmentId.length) {
-            lua_pop(mLua, 1);
-        }
-        stack0();
+        luaProtected!(void)(mLua, {
+            int stackIdx = LUA_GLOBALSINDEX;
+            if (environmentId.length) {
+                luaGetEnvironment(environmentId);
+                stackIdx = -2;
+            }
+            luaPush(mLua, value);
+            lua_setfield(mLua, stackIdx, czstr.toStringz(name));
+            if (environmentId.length) {
+                lua_pop(mLua, 1);
+            }
+        });
     }
     T getGlobal(T)(char[] name, char[] environmentId = null) {
-        stack0();
-        int stackIdx = LUA_GLOBALSINDEX;
-        if (environmentId.length) {
-            luaGetEnvironment(environmentId);
-            stackIdx = -1;
-        }
-        lua_getfield(mLua, stackIdx, czstr.toStringz(name));
-        T res = luaStackValue!(T)(mLua, -1);
-        lua_pop(mLua, environmentId.length ? 2 : 1);
-        stack0();
-        return res;
+        return luaProtected!(T)(mLua, {
+            int stackIdx = LUA_GLOBALSINDEX;
+            if (environmentId.length) {
+                luaGetEnvironment(environmentId);
+                stackIdx = -1;
+            }
+            lua_getfield(mLua, stackIdx, czstr.toStringz(name));
+            T res = luaStackValue!(T)(mLua, -1);
+            lua_pop(mLua, environmentId.length ? 2 : 1);
+            return res;
+        });
     }
 
     //copy symbol name1 from env1 to the global name2 in env2
     //if env2 is null, the symbol is copied to the global environment
     void copyEnvSymbol(char[] env1, char[] name1, char[] env2, char[] name2) {
         assert(env1.length && name1.length && name2.length);
-        stack0();
-        luaGetEnvironment(env1);
-        int stackIdx = LUA_GLOBALSINDEX;
-        if (env2.length) {
-            luaGetEnvironment(env2);
-            stackIdx = -2;
-        }
-        lua_getfield(mLua, -2, czstr.toStringz(name1));
-        lua_setfield(mLua, stackIdx, czstr.toStringz(name2));
-        lua_pop(mLua, env2.length ? 2 : 1);
-        stack0();
+        luaProtected!(void)(mLua, {
+            luaGetEnvironment(env1);
+            int stackIdx = LUA_GLOBALSINDEX;
+            if (env2.length) {
+                luaGetEnvironment(env2);
+                stackIdx = -2;
+            }
+            lua_getfield(mLua, -2, czstr.toStringz(name1));
+            lua_setfield(mLua, stackIdx, czstr.toStringz(name2));
+            lua_pop(mLua, env2.length ? 2 : 1);
+        });
     }
 
     //this redirects the print() function from stdio to cb(); the string passed
@@ -1380,7 +1534,8 @@ class LuaState {
     //License: MIT
     const LEVELS1 = 12;      /* size of the first part of the stack */
     const LEVELS2 = 10;      /* size of the second part of the stack */
-    char[] stackTrace(int level = 1) {
+    static char[] stackTrace(lua_State* state, int level = 1) {
+        auto mLua = state; //move this function and fix names if you care
         char[] ret;
         int firstpart = 1;  /* still before eventual `...' */
         lua_Debug ar;

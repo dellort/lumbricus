@@ -254,8 +254,8 @@ unittest {
 ///  (to discern from system errors)
 ///if you expect a system error, wrap it with this (or a derived class)
 class CustomException : Exception {
-    this(char[] msg) {
-        super(msg);
+    this(char[] msg, Exception n = null) {
+        super(msg, n);
     }
 }
 
