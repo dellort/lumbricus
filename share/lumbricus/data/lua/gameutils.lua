@@ -393,10 +393,29 @@ function spriteExplode(sprite, damage)
     Game_explosionAt(spos, damage, sprite)
 end
 
+-- props will be used with setProperties(), except for:
+--  name = string used as symbolic/translateable weapon name
+--  ctor = if non-nil, a constuctor function for the weapon
+--         (if it's a string, it's taken as global fucntion name)
+-- onBlowup = removed and registered as event handler
+--         (onFire has to follow different rules because it returns something)
 function createWeapon(props)
-    local w = LuaWeaponClass_ctor(Gfx, props.name)
+    local ctor = props.ctor or LuaWeaponClass_ctor
+    props.ctor = nil
+    if type(ctor) == "string" then
+        ctor = _G[ctor]
+    end
+    local name = props.name
     props.name = nil
+    local onblowup = props.onBlowup
+    props.onBlowup = nil
+    --
+    local w = ctor(Gfx, name)
     setProperties(w, props)
+    if onblowup then
+        addClassEventHandler(EventTarget_eventTargetType(w),
+            "weapon_crate_blowup", onblowup)
+    end
     Gfx_registerWeapon(w)
     return w
 end
@@ -407,4 +426,14 @@ function createSpriteClass(props)
     setProperties(s, props)
     Gfx_registerSpriteClass(s)
     return s
+end
+
+-- return the currently active (team, member) from a D Shooter
+function currentTeamFromShooter(shooter)
+    local member = Control_memberFromGameObject(Shooter_owner(shooter), false)
+    local team = nil
+    if member then
+        team = Member_team(member)
+    end
+    return team, member
 end

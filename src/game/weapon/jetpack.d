@@ -21,17 +21,14 @@ import tango.math.Math : abs;
 
 
 //jetpack for a worm (special because it changes worm state)
-class JetpackClass : ConfWeaponClass {
+class JetpackClass : WeaponClass {
     //maximum active time, i.e. fuel
     Time maxTime = Time.Never;
     Vector2f jetpackThrust = {0f, 0f};
     bool stopOnDisable = true;
 
-    this(GfxSet gfx, ConfigNode node) {
-        super(gfx, node);
-        maxTime = node.getValue("max_time", maxTime);
-        jetpackThrust = node.getValue("jet_thrust", jetpackThrust);
-        stopOnDisable = node.getValue("stop_on_disable", stopOnDisable);
+    this(GfxSet gfx, char[] name) {
+        super(gfx, name);
     }
 
     override Shooter createShooter(Sprite go, GameEngine engine) {
@@ -41,10 +38,6 @@ class JetpackClass : ConfWeaponClass {
         if (!worm)
             throw new CustomException(myformat("not a worm: {}", go));
         return new Jetpack(this, worm);
-    }
-
-    static this() {
-        WeaponClassFactory.register!(typeof(this))("jetpack");
     }
 }
 

@@ -24,7 +24,7 @@ import math = tango.math.Math;
 import tango.math.IEEE : signbit;
 
 
-class RopeClass : ConfWeaponClass {
+class RopeClass : WeaponClass {
     int shootSpeed = 1000;     //speed when firing
     int maxLength = 1000;      //max full rope length
     int moveSpeed = 200;       //up/down speed along rope
@@ -35,20 +35,8 @@ class RopeClass : ConfWeaponClass {
 
     Animation anchorAnim;
 
-    this(GfxSet gfx, ConfigNode node) {
-        super(gfx, node);
-        shootSpeed = node.getIntValue("shoot_speed", shootSpeed);
-        maxLength = node.getIntValue("max_length", maxLength);
-        moveSpeed = node.getIntValue("move_speed", moveSpeed);
-        swingForce = node.getIntValue("swing_force", swingForce);
-        swingForceUp = node.getIntValue("swing_force_up", swingForceUp);
-
-        ropeColor = node.getValue("rope_color", ropeColor);
-        auto resseg = node["rope_segment"];
-        if (resseg.length)
-            ropeSegment = gfx.resources.get!(Surface)(resseg);
-
-        anchorAnim = gfx.resources.get!(Animation)(node["anchor_anim"]);
+    this(GfxSet gfx, char[] name) {
+        super(gfx, name);
     }
 
     override Shooter createShooter(Sprite go, GameEngine engine) {
@@ -58,10 +46,6 @@ class RopeClass : ConfWeaponClass {
         if (!worm)
             throw new CustomException(myformat("not a worm: {}", go));
         return new Rope(this, worm);
-    }
-
-    static this() {
-        WeaponClassFactory.register!(typeof(this))("rope");
     }
 }
 

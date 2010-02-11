@@ -417,7 +417,7 @@ class GameEngine {
     //  degrade = true for exponential degrade
     //this function never overwrites the settings, but adds both values to the
     //existing ones
-    void addEarthQuake(float strength, Time duration, bool degrade,
+    void addEarthQuake(float strength, Time duration, bool degrade = true,
         bool bounceObjects = false)
     {
         auto ef = mEarthquakeForceVis;
@@ -427,6 +427,10 @@ class GameEngine {
             ef));
         log("created earth quake, strength={}, duration={}, degrade={}",
             strength, duration, degrade);
+    }
+
+    void nukeSplatEffect() {
+        callbacks.nukeSplatEffect();
     }
 
     void ensureAdded(GameObject obj) {

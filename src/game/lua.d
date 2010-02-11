@@ -13,14 +13,19 @@ import game.sprite;
 import game.worm;
 import game.wcontrol;
 import game.action.spawn;
+import game.action.weaponactions;
 import game.gamemodes.shared;
 import game.levelgen.level;
 import game.levelgen.renderer;
 import game.weapon.airstrike;
+import game.weapon.drill;
 import game.weapon.girder;
-import game.weapon.projectile;
-import game.weapon.weapon;
+import game.weapon.jetpack;
 import game.weapon.luaweapon;
+import game.weapon.parachute;
+import game.weapon.projectile;
+import game.weapon.rope;
+import game.weapon.weapon;
 import gui.rendertext; //: FormattedText
 import physics.world;
 import utils.vector2;
@@ -37,7 +42,6 @@ static this() {
     gScripting = new typeof(gScripting)();
     //I'm not gonna rewrite that
     gScripting.func!(Time.fromString)("timeParse");
-    gScripting.func!(spawnAirstrike)();
 
     gScripting.setClassPrefix!(TimeSourcePublic)("Time");
     gScripting.methods!(TimeSourcePublic, "current", "difference");
@@ -47,7 +51,7 @@ static this() {
     gScripting.methods!(GameEngine, "createSprite", "gameTime", "waterOffset",
         "windSpeed", "setWindSpeed", "randomizeWind", "gravity", "raiseWater",
         "addEarthQuake", "explosionAt", "damageLandscape",
-        "insertIntoLandscape", "countSprites", "ownedTeam");
+        "insertIntoLandscape", "countSprites", "ownedTeam", "nukeSplatEffect");
     gScripting.properties_ro!(GameEngine, "events", "globalEvents");
 
     gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder", "size");
@@ -161,10 +165,33 @@ static this() {
     gScripting.methods!(Shooter, "finished", "reduceAmmo");
     gScripting.properties!(Shooter, "selector", "owner");
 
+    //------- specific weapons implemented in D
+
+    gScripting.func!(spawnAirstrike)();
+
     gScripting.ctor!(GirderControl, Sprite);
     gScripting.methods!(GirderControl, "fireCheck");
 
     gScripting.ctor!(AirstrikeControl, Sprite);
+
+    gScripting.ctor!(DrillClass, GfxSet, char[]);
+    gScripting.properties!(DrillClass, "duration", "tunnelRadius", "interval",
+        "blowtorch");
+
+    gScripting.ctor!(ParachuteClass, GfxSet, char[]);
+    gScripting.properties!(ParachuteClass, "sideForce");
+
+    gScripting.ctor!(JetpackClass, GfxSet, char[]);
+    gScripting.properties!(JetpackClass, "maxTime", "jetpackThrust",
+        "stopOnDisable");
+
+    gScripting.ctor!(RopeClass, GfxSet, char[]);
+    gScripting.properties!(RopeClass, "shootSpeed", "maxLength", "moveSpeed",
+        "swingForce", "swingForceUp", "ropeColor", "ropeSegment", "anchorAnim");
+
+    gScripting.ctor!(WormSelectHelper, GameEngine, TeamMember);
+
+    //-----
 
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
     gScripting.properties!(LuaWeaponClass, "onFire",

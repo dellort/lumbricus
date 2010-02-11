@@ -72,7 +72,9 @@ abstract class WeaponClass : EventTarget {
     //  a weapon is _prepared_ to fire
     //may return null (actually, it returns null in the most cases)
     //xxx: and actually, the hardcoded FireMode thing sucks a bit
-    abstract WeaponSelector createSelector(Sprite selected_by);
+    WeaponSelector createSelector(Sprite selected_by) {
+        return null;
+    }
 
     //just a factory
     //users call fire() on them to actually activate them

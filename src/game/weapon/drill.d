@@ -17,18 +17,14 @@ import utils.misc;
 import utils.randval;
 
 //drill (changes worm state etc.)
-class DrillClass : ConfWeaponClass {
+class DrillClass : WeaponClass {
     Time duration = timeSecs(5);
     int tunnelRadius = 8;
     RandomValue!(Time) interval = {timeMsecs(150), timeMsecs(250)};
     bool blowtorch = false;
 
-    this(GfxSet gfx, ConfigNode node) {
-        super(gfx, node);
-        duration = node.getValue("duration", duration);
-        tunnelRadius = node.getValue("tunnel_radius", tunnelRadius);
-        blowtorch = node.getValue("blowtorch", blowtorch);
-        interval = node.getValue("interval", interval);
+    this(GfxSet gfx, char[] name) {
+        super(gfx, name);
     }
 
     override Shooter createShooter(Sprite go, GameEngine engine) {
@@ -38,10 +34,6 @@ class DrillClass : ConfWeaponClass {
         if (!worm)
             throw new CustomException(myformat("not a worm: {}", go));
         return new Drill(this, worm);
-    }
-
-    static this() {
-        WeaponClassFactory.register!(typeof(this))("drill");
     }
 }
 

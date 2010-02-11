@@ -19,12 +19,11 @@ import utils.misc;
 import tango.math.Math : abs;
 
 
-class ParachuteClass : ConfWeaponClass {
+class ParachuteClass : WeaponClass {
     float sideForce = 0f;
 
-    this(GfxSet gfx, ConfigNode node) {
-        super(gfx, node);
-        sideForce = node.getValue("side_force", sideForce);
+    this(GfxSet gfx, char[] name) {
+        super(gfx, name);
     }
 
     override Shooter createShooter(Sprite go, GameEngine engine) {
@@ -34,10 +33,6 @@ class ParachuteClass : ConfWeaponClass {
         if (!worm)
             throw new CustomException(myformat("not a worm: {}", go));
         return new Parachute(this, worm);
-    }
-
-    static this() {
-        WeaponClassFactory.register!(typeof(this))("parachute");
     }
 }
 

@@ -171,49 +171,6 @@ do
     enableSpriteCrateBlowup(w, sprite_class)
 end
 
-
-createWeapon {
-    name = "gerdir",
-    onCreateSelector = function(sprite)
-        return GirderControl_ctor(sprite)
-    end,
-    onFire = function(shooter, fireinfo)
-        local sel = Shooter_selector(shooter)
-        if not sel then return end
-        if GirderControl_fireCheck(sel, fireinfo, true) then
-            Shooter_reduceAmmo(shooter)
-        end
-        Shooter_finished(shooter)
-    end,
-    value = 0,
-    category = "worker",
-    icon = "icon_girder",
-    animation = "weapon_helmet",
-    crateAmount = 3,
-    fireMode = {
-        point = "instant",
-    }
-}
-
-createWeapon {
-    name = "baemer",
-    value = 0,
-    category = "tools",
-    icon = "icon_beamer",
-    dontEndRound = true,
-    deselectAfterFire = true,
-    fireMode = {
-        point = "instantFree"
-    },
-    animation = "weapon_beamer",
-    onFire = function(shooter, fireinfo)
-        Shooter_reduceAmmo(shooter)
-        Shooter_finished(shooter) -- probably called by BeamHandler on the end?
-        Worm_beamTo(Shooter_owner(shooter), fireinfo.pointto.pos)
-    end
-}
-
-
 do
     local name = "dinamite"
     local sprite_class = createSpriteClass {

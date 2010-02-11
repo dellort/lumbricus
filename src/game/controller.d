@@ -823,7 +823,7 @@ class GameController {
         if (id in mWeaponSets)
             ws = mWeaponSets[id];
         else {
-            if (!noError) {
+            if (!noError && id.length) {
                 engine.error("Weapon set {} not found.", id);
             }
             ws = mWeaponSets["default"];
