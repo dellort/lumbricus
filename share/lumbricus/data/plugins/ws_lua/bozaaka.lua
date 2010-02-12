@@ -496,7 +496,7 @@ do
 
     local seq = SpriteClass_sequenceType(mine_class)
     assert(seq)
-    flash_graphic = SequenceType_findState(seq, "flashing", true)
+    local flash_graphic = SequenceType_findState(seq, "flashing", true)
     -- timer for initial delay
     enableSpriteTimer(mine_class, {
         defTimer = timeSecs(3),
@@ -509,7 +509,7 @@ do
                     -- blow up after 1s
                     addSpriteTimer(sender, "explodeT", time(1), false, function(sender)
                         spriteExplode(sender, 50)
-                    end) 
+                    end)
                 end
                 Phys_kill(trig)
             end)
@@ -550,7 +550,7 @@ do
             throwStrengthTo = 300,
         }
     }
-    enableSpriteCrateBlowup(w, sprite_class, 5)
+    enableSpriteCrateBlowup(w, mine_class, 5)
 end
 
 do -- depends from napalm
@@ -612,14 +612,8 @@ do
         },
         sequenceType = "s_carpetstrike",
     }
-    addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
+    enableBouncer(sprite_class, 3, function(sender)
         spriteExplode(sender, 40, false)
-        -- change 3rd param for number of bounces
-        local bounce = get_context_val(sender, "bounce", 3)
-        if bounce <= 0 then
-            Sprite_die(sender)
-        end
-        set_context_val(sender, "bounce", bounce - 1)
     end)
 
     local w = createWeapon {
@@ -632,6 +626,46 @@ do
         category = "air",
         isAirstrike = true,
         icon = "icon_carpetstrike",
+        animation = "weapon_airstrike",
+        fireMode = {
+            point = "instant",
+            throwStrengthFrom = 300,
+            throwStrengthTo = 300,
+        }
+    }
+    enableSpriteCrateBlowup(w, sprite_class, 3)
+end
+
+do -- depends on napalm
+    local name = "peeshstrake"
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            radius = 10,
+            explosionInfluence = 0.0,
+            windInfluence = 0.0,
+            elasticity = 0.6,    -- by experiment
+            rotation = "distance",
+        },
+        sequenceType = "s_sheepstrike",
+    }
+    enableBouncer(sprite_class, 1, function(sender)
+        spawnCluster(napalm, sender, 10, 0, 0, 60)
+        spriteExplode(sender, 40, false)
+    end)
+
+    local w = createWeapon {
+        name = name,
+        onFire = getAirstrikeOnFire(sprite_class, 6, 45),
+        onCreateSelector = function(sprite)
+            return AirstrikeControl_ctor(sprite)
+        end,
+        value = 0,
+        category = "air",
+        isAirstrike = true,
+        icon = "icon_sheepstrike",
         animation = "weapon_airstrike",
         fireMode = {
             point = "instant",
@@ -709,4 +743,117 @@ do
             point = "instant"
         }
     }
+end
+
+do -- this is a bit pointless, as it still requires "napalm" from the old conf file
+    local name = "lotomov"
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = "10",
+            radius = "2",
+            explosionInfluence = "0",
+            windInfluence = "0.0",
+            elasticity = "0.4",
+            rotation = "distance",
+        },
+        sequenceType = "s_molotov",
+    }
+    addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
+        if spriteIsGone(sender) then
+            return
+        end
+        spawnCluster(napalm, sender, 40, 0, 0, 60)
+        spriteExplode(sender, 20)
+    end)
+
+    local w = createWeapon {
+        name = name,
+        onFire = getStandardOnFire(sprite_class),
+        value = 0,
+        category = "misc2",
+        animation = "weapon_molotov",
+        icon = "icon_molotov",
+        crateAmount = 2,
+        fireMode = {
+            direction = "any",
+            variableThrowStrength = true,
+            throwStrengthFrom = 20,
+            throwStrengthTo = 1200,
+        }
+    }
+    enableSpriteCrateBlowup(w, sprite_class)
+end
+
+do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in old set
+    local name = "whitehole_bomb"
+    local nuke = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            radius = 2,
+            explosionInfluence = 0,
+            windInfluence = 0,
+            elasticity = 0.4,
+            glueForce = 20,
+            rotation = "distance"
+        },
+        sequenceType = "s_antimatter_nuke",
+    }
+    local blackhole = createSpriteClass {
+        name = name .. "_sprite2",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            fixate = Vector2(0, 0),
+            radius = 2,
+            explosionInfluence = 0,
+            windInfluence = 0,
+        },
+        sequenceType = "s_blackhole_active",
+    }
+
+    enableSpriteTimer(nuke, {
+        showDisplay = true,
+        callback = function(sender)
+            spawnSprite(blackhole, Phys_pos(Sprite_physics(sender)), Vector2(0, 0))
+            Sprite_die(sender)
+        end
+    })
+
+    addSpriteClassEvent(blackhole, "sprite_activate", function(sender)
+        local grav = GravityCenter_ctor(Sprite_physics(sender), 5000, 300)
+        World_add(grav)
+        set_context_val(sender, "gravcenter", grav)
+    end)
+    addSpriteClassEvent(blackhole, "sprite_die", function(sender)
+        local grav = get_context_val(sender, "gravcenter")
+        Phys_kill(grav)
+    end)
+    enableSpriteTimer(blackhole, {
+        defTimer = timeSecs(1.3),
+        callback = function(sender)
+            spriteExplode(sender, 60)
+        end
+    })
+
+    local w = createWeapon {
+        name = name,
+        onFire = getStandardOnFire(nuke),
+        category = "misc1",
+        value = 0,
+        animation = "weapon_holy",
+        icon = "icon_blackhole",
+        fireMode = {
+            direction = "any",
+            variableThrowStrength = true,
+            throwStrengthFrom = 20,
+            throwStrengthTo = 1200,
+            timerFrom = time(1),
+            timerTo = time(5),
+        }
+    }
+    enableSpriteCrateBlowup(w, blackhole)
 end

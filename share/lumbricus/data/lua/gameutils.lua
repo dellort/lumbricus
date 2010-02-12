@@ -103,19 +103,15 @@ end
 -- custom_dir is optional
 function spawnCluster(sprite_class_ref, parentSprite, count, strengthMin, strengthMax, randomRange, custom_dir)
     local spos = Phys_pos(Sprite_physics(parentSprite))
+    -- default up
+    custom_dir = custom_dir or Vector2(0, -1)
     for i = 1,count do
         local strength = Random_rangei(strengthMin, strengthMax)
-        local dir
-        if not custom_dir then
-            local theta = (Random_rangef(-0.5, 0.5)*randomRange - 90)
-                * math.pi/180
-            dir = Vector2.FromPolar(strength, theta)
-        else
-            local theta = (Random_rangef(-0.5, 0.5)*randomRange)
-                * math.pi/180
-            dir = custom_dir:rotated(theta) * strength
-        end
-        spawnSprite(sprite_class_ref, spos, dir)
+        local theta = (Random_rangef(-0.5, 0.5)*randomRange) * math.pi/180
+        local dir = custom_dir:rotated(theta)
+        -- dir * 15: add some distance from parent to clusters
+        --           (see above, I'm too lazy to do this properly now)
+        spawnSprite(sprite_class_ref, spos + dir * 15, dir * strength)
     end
 end
 
@@ -185,6 +181,7 @@ end
 
 -- when a create with the weapon is blown up, the sprite gets spawned somehow
 function enableSpriteCrateBlowup(weapon_class, sprite_class, count)
+    assert(sprite_class)
     count = count or 1
     function blowup(weapon, crate_sprite)
         spawnCluster(sprite_class, crate_sprite, count, 350, 550, 90)
@@ -213,6 +210,18 @@ function enableOnTimedGlue(sprite_class, time, fn)
         elseif not timer:isActive() then
             timer:start(time)
         end
+    end)
+end
+
+-- sprite will bounce back nbounces times and call onHit every impact, then die
+function enableBouncer(sprite_class, nbounces, onHit)
+    addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
+        onHit(sender)
+        local bounce = get_context_val(sender, "bounce", nbounces)
+        if bounce <= 0 then
+            Sprite_die(sender)
+        end
+        set_context_val(sender, "bounce", bounce - 1)
     end)
 end
 

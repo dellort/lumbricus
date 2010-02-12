@@ -149,6 +149,8 @@ static this() {
     gScripting.properties!(PhysicTrigger, "inverse", "onTrigger");
     gScripting.property!(ZoneTrigger, "zone");
 
+    gScripting.ctor!(GravityCenter, PhysicObject, float, float)();
+
     gScripting.method!(CollisionMap, "findCollisionID");
 
     //oh my

@@ -295,7 +295,8 @@ class GfxSet {
     void registerSpriteClass(SpriteClass sc) {
         argcheck(sc);
         if (findSpriteClass(sc.name, true)) {
-            assert(false, "Sprite class "~sc.name~" already registered");
+            throw new CustomException("Sprite class " ~ sc.name
+                ~ " already registered");
         }
         assert(!!sc);
         mSpriteClasses[sc.name] = sc;

@@ -109,12 +109,22 @@ class ExplosiveForce : PhysicForce {
 class GravityCenter : PhysicForce {
     float accel, radius;
     Vector2f pos;
+    PhysicObject attach;
 
     this() {
+    }
+    this(PhysicObject attach, float acc, float rad) {
+        argcheck(attach);
+        this.attach = attach;
+        accel = acc;
+        radius = rad;
     }
 
     private float cDistDelta = 0.01f;
     void applyTo(PhysicObject o, float deltaT) {
+        if (attach) {
+            pos = attach.pos;
+        }
         Vector2f v = (pos-o.pos);
         float dist = v.length;
         if (dist > cDistDelta) {
