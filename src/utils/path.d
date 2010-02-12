@@ -72,9 +72,11 @@ struct VFSPath {
     }
 
     ///create VFSPath struct and set path (see set())
-    static VFSPath opCall(char[] p, bool fixIllegal = false) {
+    static VFSPath opCall(char[] p, bool fixIllegal = false,
+        bool allowWildcards = false)
+    {
         VFSPath ret;
-        ret.set(p, fixIllegal);
+        ret.set(p, fixIllegal, allowWildcards);
         return ret;
     }
 
@@ -83,9 +85,10 @@ struct VFSPath {
     ///Params:
     ///  fixIllegal = if true, illegal characters will be replaced with _
     ///               if false, illegal chars will throw an exception
-    void set(char[] p, bool fixIllegal = false) {
+    ///  allowWildcards = true to allow * and ? in filenames
+    void set(char[] p, bool fixIllegal = false, bool allowWildcards = false) {
         mPath = p;
-        parse(fixIllegal);
+        parse(fixIllegal, allowWildcards);
     }
 
     ///retrieve current path, in platform-independent notation (/ separated)
@@ -194,7 +197,7 @@ struct VFSPath {
     // - resolves . and ..
     // - handles illegal characters
     // - sets name and extension split points
-    private void parse(bool fixIllegal = false) {
+    private void parse(bool fixIllegal = false, bool allowWildcards = false) {
         mNameIdx = mExtIdx = -1;
         char[] curpart;
         char[][] parts;
@@ -227,7 +230,13 @@ struct VFSPath {
         //split into parts
         foreach_reverse (int i, inout char c; mPath) {
             switch (c) {
-                case ':','*','?','"','<','>','|':
+                case '*', '?':
+                    if (allowWildcards) {
+                        curpart = c ~ curpart;
+                        break;
+                    }
+                    //fall-through
+                case ':','"','<','>','|':
                     //illegal character detected
                     if (fixIllegal)
                         curpart = '_' ~ curpart;

@@ -300,3 +300,49 @@ do
     enableSpriteCrateBlowup(w, sprite_class, 4)
 end
 
+do
+    local name = "cerpatstrake"
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            radius = 9,
+            explosionInfluence = 0.0,
+            windInfluence = 0.0,
+            elasticity = 0.6,    -- by experiment
+            rotation = "distance",
+        },
+        sequenceType = "s_carpetstrike",
+    }
+    enableDrown(sprite_class)
+    addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
+        spriteExplode(sender, 40, false)
+        -- change 3rd param for number of bounces
+        local bounce = get_context_val(sender, "bounce", 3)
+        if bounce <= 0 then
+            Sprite_die(sender)
+        end
+        set_context_val(sender, "bounce", bounce - 1)
+    end)
+
+    local w = createWeapon {
+        name = name,
+        onFire = getAirstrikeOnFire(sprite_class, 6, 45),
+        onCreateSelector = function(sprite)
+            return AirstrikeControl_ctor(sprite)
+        end,
+        value = 0,
+        category = "air",
+        isAirstrike = true,
+        icon = "icon_carpetstrike",
+        animation = "weapon_airstrike",
+        fireMode = {
+            point = "instant",
+            throwStrengthFrom = 300,
+            throwStrengthTo = 300,
+        }
+    }
+    enableSpriteCrateBlowup(w, sprite_class, 3)
+end
+

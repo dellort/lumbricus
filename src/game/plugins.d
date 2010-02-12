@@ -13,6 +13,7 @@ import game.weapon.weapon;
 import utils.misc;
 import utils.factory;
 import utils.configfile;
+import utils.path;
 import utils.string : isIdentifier;
 
 ///thrown when a plugin fails to load; the game may still work without it
@@ -113,13 +114,20 @@ class Plugin {
 
         //pass configuration as global "config"
         eng.scripting().setGlobal("config", mConfigWhateverTheFuckThisIs, name);
+        //each modules entry can be a file, or a pattern with wildcards
         foreach (modf; mModules) {
-            char[] filename = mResources.fixPath(modf);
+            //no fixup for illegal chars, allow wildcards
+            auto mpath = VFSPath(mResources.fixPath(modf), false, true);
 
-            auto st = gFS.open(filename);
-            scope(exit) st.close();
-            //filename = for debug output; name = lua environment
-            eng.scripting().loadScript(filename, st, name);
+            gFS.listdir(mpath.parent, mpath.filename, false, (char[] relFn) {
+                //why does listdir return relative filenames? I don't know
+                char[] filename = mpath.parent.get(true, true) ~ relFn;
+                auto st = gFS.open(filename);
+                scope(exit) st.close();
+                //filename = for debug output; name = lua environment
+                eng.scripting().loadScript(filename, st, name);
+                return true;
+            });
         }
         //no GameObject? hmm
     }

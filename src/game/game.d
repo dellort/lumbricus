@@ -248,7 +248,7 @@ class GameEngine {
             try {
                 plg.init(this);
             } catch (CustomException e) {
-                error("Plugin '{}' failed  to init(): {}", plg.name, e.msg);
+                error("Plugin '{}' failed to init(): {}", plg.name, e.msg);
             }
         }
 

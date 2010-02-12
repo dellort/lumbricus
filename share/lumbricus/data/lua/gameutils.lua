@@ -120,11 +120,11 @@ function getStandardOnFire(sprite_class_ref)
     end
 end
 
-function getAirstrikeOnFire(sprite_class_ref)
+function getAirstrikeOnFire(sprite_class_ref, count, distance)
     return function(shooter, info)
         Shooter_reduceAmmo(shooter)
         Shooter_finished(shooter)
-        spawnAirstrike(sprite_class_ref, 6, shooter, info, 40)
+        spawnAirstrike(sprite_class_ref, count or 6, shooter, info, distance or 40)
     end
 end
 
@@ -383,13 +383,15 @@ function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
     updateTime()
 end
 
-function spriteExplode(sprite, damage)
+function spriteExplode(sprite, damage, kill)
     -- don't explode if not visible (this is almost always what you want)
     if not Sprite_visible(sprite) then
         return
     end
     local spos = Phys_pos(Sprite_physics(sprite))
-    Sprite_die(sprite)
+    if ifnil(kill, true) then
+        Sprite_die(sprite)
+    end
     Game_explosionAt(spos, damage, sprite)
 end
 

@@ -15,7 +15,7 @@ public class LogWindow : Widget, Output {
     private {
         //maximum entries the backlog stores
         //if backlog would grow larger, old entries are thrown away
-        const int BACKLOG_LENGTH = 100;
+        const int BACKLOG_LENGTH = 150;
 
         //output font (from constructor)
         Font mConsoleFont;
@@ -207,7 +207,7 @@ public class LogWindow : Widget, Output {
     public void scrollBack(int dLines) {
         mBackLog.addOffset(dLines);
         //reset entry visibility
-        foreach (ref entry; mBackLog) {
+        foreach_reverse (ref entry; mBackLog) {
             entry.timestamp = timeCurrentTime();
         }
     }
