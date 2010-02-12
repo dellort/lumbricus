@@ -63,10 +63,6 @@ function katastrophe()
     end)
 end
 
-Lexel_free = 0
-Lexel_soft = 1
-Lexel_hard = 2
-
 function snowflake(depth, interpolate)
     depth = depth or 1000
     interpolate = ifnil(interpolate, false)

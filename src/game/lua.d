@@ -56,6 +56,8 @@ static this() {
 
     gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder", "size");
 
+    gScripting.properties_ro!(Surface, "size");
+
     gScripting.setClassPrefix!(GfxSet)("Gfx");
     gScripting.methods!(GfxSet, "findSpriteClass", "findWeaponClass",
         "weaponList", "registerWeapon", "registerSpriteClass");

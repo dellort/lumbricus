@@ -64,6 +64,15 @@ function Vector2:orthogonal()
     return Vector2(self.y, -self.x)
 end
 
+function Vector2:rotated(angle_rads)
+    local a_s, a_c = math.sin(angle_rads), math.cos(angle_rads)
+
+    local mat11, mat12 = a_c, -a_s
+    local mat21, mat22 = a_s,  a_c
+
+    return Vector2(mat11*self.x + mat12*self.y, mat21*self.x + mat22*self.y)
+end
+
 function Vector2:toAngle()
     return math.atan2(self.y, self.x)
 end

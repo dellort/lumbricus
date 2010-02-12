@@ -100,12 +100,21 @@ function spawnFromFireInfo(sprite_class_ref, fireinfo)
     return s
 end
 
-function spawnCluster(sprite_class_ref, parentSprite, count, strengthMin, strengthMax, randomRange)
+-- custom_dir is optional
+function spawnCluster(sprite_class_ref, parentSprite, count, strengthMin, strengthMax, randomRange, custom_dir)
     local spos = Phys_pos(Sprite_physics(parentSprite))
     for i = 1,count do
         local strength = Random_rangei(strengthMin, strengthMax)
-        local theta = (Random_rangef(-0.5, 0.5)*randomRange - 90) * math.pi/180
-        local dir = Vector2.FromPolar(strength, theta)
+        local dir
+        if not custom_dir then
+            local theta = (Random_rangef(-0.5, 0.5)*randomRange - 90)
+                * math.pi/180
+            dir = Vector2.FromPolar(strength, theta)
+        else
+            local theta = (Random_rangef(-0.5, 0.5)*randomRange)
+                * math.pi/180
+            dir = custom_dir:rotated(theta) * strength
+        end
         spawnSprite(sprite_class_ref, spos, dir)
     end
 end
@@ -207,6 +216,13 @@ function enableOnTimedGlue(sprite_class, time, fn)
     end)
 end
 
+-- create a timer as a sprite of that class is spawned
+-- the timer is never called under water or after the sprite has died
+-- args:
+--  callback = function called when timer has ellapsed (with sprite as param)
+--  useUserTimer = use the timer as set by the user
+--  defTimer = timer value (or default if user timer not available)
+--  showDisplay = if true, show the time as a label near the sprite
 function enableSpriteTimer(sprite_class, args)
     local useUserTimer = args.useUserTimer
     if not args.defTimer then
@@ -218,9 +234,7 @@ function enableSpriteTimer(sprite_class, args)
     -- xxx need a better way to "cleanup" stuff like timers
     addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
         local ctx = get_context(sender, true)
-        if ctx and ctx.timer and
-            (not Sprite_visible(sender) or Sprite_isUnderWater(sender))
-        then
+        if ctx and ctx.timer and spriteIsGone(sender) then
             ctx.timer:cancel()
         end
     end)
@@ -383,6 +397,7 @@ function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
     updateTime()
 end
 
+-- kill = if sprite should die; default is true
 function spriteExplode(sprite, damage, kill)
     -- don't explode if not visible (this is almost always what you want)
     if not Sprite_visible(sprite) then
@@ -395,6 +410,7 @@ function spriteExplode(sprite, damage, kill)
     Game_explosionAt(spos, damage, sprite)
 end
 
+
 -- props will be used with setProperties(), except for:
 --  name = string used as symbolic/translateable weapon name
 --  ctor = if non-nil, a constuctor function for the weapon
@@ -402,15 +418,12 @@ end
 -- onBlowup = removed and registered as event handler
 --         (onFire has to follow different rules because it returns something)
 function createWeapon(props)
-    local ctor = props.ctor or LuaWeaponClass_ctor
-    props.ctor = nil
+    local ctor = pick(props, "ctor", LuaWeaponClass_ctor)
     if type(ctor) == "string" then
         ctor = _G[ctor]
     end
-    local name = props.name
-    props.name = nil
-    local onblowup = props.onBlowup
-    props.onBlowup = nil
+    local name = pick(props, "name")
+    local onblowup = pick(props, "onBlowup")
     --
     local w = ctor(Gfx, name)
     setProperties(w, props)
@@ -422,10 +435,18 @@ function createWeapon(props)
     return w
 end
 
+-- special properties (similar to createWeapon):
+--  name = symbolic name for the sprite (mostly used for even dispatch)
+--  noDrown = if true, don't automatically call enableDrown on the sprite class
 function createSpriteClass(props)
-    local s = SpriteClass_ctor(Gfx, props.name)
-    props.name = nil
+    local name = pick(props, "name")
+    local nodrown = pick(props, "noDrown", false)
+    --
+    local s = SpriteClass_ctor(Gfx, name)
     setProperties(s, props)
+    if not nodrown then
+        enableDrown(s)
+    end
     Gfx_registerSpriteClass(s)
     return s
 end
@@ -439,3 +460,14 @@ function currentTeamFromShooter(shooter)
     end
     return team, member
 end
+
+-- sprite died or is under water
+-- xxx: you have to check the sprite state all the time; there should be some
+--  automatic way to deal with this instead
+function spriteIsGone(sprite)
+    return not Sprite_visible(sprite) or Sprite_isUnderWater(sprite)
+end
+
+Lexel_free = 0
+Lexel_soft = 1
+Lexel_hard = 2

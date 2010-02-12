@@ -265,6 +265,13 @@ function array_equal(a1, a2)
     return true
 end
 
+-- remove table entry; remove its old value or the default
+function pick(t, key, def)
+    local val = t[key]
+    t[key] = nil
+    return ifnil(val, def)
+end
+
 -- returns the calling module's export table
 -- equal to _G[ENV_NAME] (initialized to table if empty)
 function export_table()

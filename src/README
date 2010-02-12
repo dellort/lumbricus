@@ -26,15 +26,13 @@ Version status for tools and libraries:
     D compiler:
         You need one of those...
         dmd:
-            1.054, 1.055: don't work, dmd bugzilla 3685
-            1.053: works (at least with dmd bugzilla 3541 patch + compile.sh)
-            1.051 and 1.046 worked in the past; probably don't anymore
-        ldc: *sigh*, if it works depends from the current moonphase
-            (worked with lumbricus r876+1 and ldc 1578:1dee66f6ec0b)
+            no official version works
+            you need 1.055 with docs/dmd-1055-lumbricus.patch
+        ldc: probably doesn't work at all
         gdc: forget it
     tango:
-        svn r5277 (trunk): works
-        release 0.99.8: will not work because not updated to newest dmd
+        svn r5366 (trunk): works
+        release 0.99.9: may work
     Derelict:
         http://svn.dsource.org/projects/derelict/trunk/
         svn r394: works
@@ -88,13 +86,13 @@ Required libraries:
   - Freetype
   - ENet (enet.bespin.org)
   - Zlib
+  - Lua 5.1
 
   - FMod (optional)
-  - SDL_mixer (optional)
   - OpenAL (optional)
   For Win32, all required .dll files can be found in <svn_root>/downloads/win32_dlls
 - Static linked D libraries:
-  - Derelict for the 3 SDL libraries
+  - Derelict for the 2 SDL libraries
   - Tango (comes not with DMD)
 
 Using the WWP data converter:

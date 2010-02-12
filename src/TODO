@@ -5,22 +5,6 @@
 *** völlig unmöglich,
 [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
 
-== Actionzeug => Lua ==
-- detonate: sollte direkt durch sprite_die event behandelt werden
-- "onzerolife" event: sollte nicht eh sprite_die aufgerufen werden, wenn keine lebenspunkte mehr?
-- canRefire, ProjectileFeedback: kann man stattdessen WormControl.pushControllable verwenden? (hauptzweck scheint abfangen der feuertaste zu sein)
-- viel komplexität des actionzeugs wird durch dessen inflexibilität verursacht => nicht nach Lua portieren, sondern sich was besseres ausdenken
-- projectile.d kann hoffentlich verschwinden
-- k.a. wie physDamage/physImpact behandelt werden soll (jedesmal eine skriptfunktion aufzurufen würde sich sicher zum performanceproblem entwickeln)
-- k.a. wie skripte allgemein integriert werden sollen...
-    a) man könnte skripte einfach mit einer sprite-klasse laden; toplevel-code des skripts ist in der .conf datei eingebettet, und würde vor begin des spiels ausgeführt werden, wobei das skript eventhandler registriert oder sprite-klassen eigenschaften setzen kann
-    b) geskriptete sprite-klassen werden von "normalen" skript code erzeugt, und es gibt keine .conf dateien mehr für von waffen erzeugte sprites
-- problem: event handler (und überhaupt alle D funktionen) geben nur D Sprite objekte zurück; wenn ein skript kontext braucht (per-instanz variablen), muss das Sprite irgendwie zu einem skript objekt (Lua table) gemappt werden
-  allgemein könnte man immer Lua wrappercode für D-dinge wie events anbieten, die eine freundlichere API anbietet (d.h. D code kann einfach bleiben)
-
-== Scripting allgemein ==
-- modul system für Lua? zumindest irgendetwas, um die ladereihenfolge sicherzustellen
-
 == Sonstiges/Minor ==
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
     (+ "level editor" töten)
@@ -51,6 +35,7 @@
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - physik-kollisions callback entfernen, insbesondere den statistik-müll ("wer schadet wen wieviel" => z.b. versuchen, einfach den schaden per runde auszuwerten?)
+- in Lua wird bei jedem physImpact ("sprite_impact") eine Vector2 table für die normale allokiert (wenn der sprite-typ einen event handler registriert)
 - und physik "kollisionsmatrix" vereinfachen (CollisionMap)
 - statt speichern des kompletten zustands (für savegames und replays) nur zwischen den runden speichern? (replays würden input aufzeichnen, man könnte den savegame code verwenden statt snapshot.d)
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)
@@ -81,7 +66,6 @@
 + Mehr Powerup-Kisten (Niedrige Schwerkraft etc.)
 + Vergiftete Würmer (nach Atomangriff/Sudden death oder Stinktiertreffer)
 *** KI
-*** Scripting
 
 == Spiel-Anzeige (Grafiken, Präsentation) ==
 + Partikel-Effekt für Explosionen, Wurm-nimmt-Schaden, kleine Explosionen (z.B. Minigun-Einschläge)
