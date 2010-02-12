@@ -261,6 +261,45 @@ function enableSpriteTimer(sprite_class, args)
     end)
 end
 
+-- adds a timer to an active sprite instance
+-- xxx maybe join with enableSpriteTimer, but addInstanceEventHandler looks
+--     very expensive
+function addSpriteTimer(sprite, timerId, time, showDisplay, callback)
+    assert(callback)
+    -- xxx need a better way to "cleanup" stuff like timers
+    addInstanceEventHandler(sprite, "sprite_waterstate", function(sender)
+        local ctx = get_context(sender, true)
+        if ctx and ctx[timerId] and spriteIsGone(sender) then
+            ctx[timerId]:cancel()
+        end
+    end)
+
+    local ctx = get_context(sprite)
+    ctx[timerId] = addTimer(time, function()
+        callback(sprite)
+    end)
+    if showDisplay then
+        addCountdownDisplay(sprite, ctx[timerId], 5, 2)
+    end
+end
+
+-- create ZoneTrigger and add it to the world
+--   zone = PhysicZone instance
+--   collision = string collision id
+function createZoneTrigger(zone, collision, onTrigger)
+    local trig = ZoneTrigger_ctor(zone)
+    Phys_set_collision(trig, CollisionMap_findCollisionID(collision))
+    PhysicTrigger_set_onTrigger(trig, onTrigger)
+    World_add(trig)
+    return trig
+end
+
+-- helper, creates PhysicZoneCircle attached to sprite and calls createZoneTrigger
+function addCircleTrigger(sprite, radius, collision, onTrigger)
+    local zone = PhysicZoneCircle_ctor(Sprite_physics(sprite), radius)
+    return createZoneTrigger(zone, collision, onTrigger)
+end
+
 autoProperties = {
     WeaponClass_set_icon = {
         string = Gfx_resource

@@ -2,6 +2,7 @@ module physics.trigger;
 
 import utils.vector2;
 import utils.list2;
+import utils.misc;
 
 import physics.base;
 import physics.physobj;
@@ -39,6 +40,7 @@ class ZoneTrigger : PhysicTrigger {
     PhysicZone zone;
 
     this(PhysicZone z) {
+        argcheck(z);
         zone = z;
     }
 

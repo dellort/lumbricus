@@ -282,3 +282,12 @@ function export_table()
     end
     return _G[ENV_NAME]
 end
+
+-- import all (named) symbols from table into caller's environment
+function import(table)
+    -- get caller's environment
+    local env = getfenv(2)
+    for k, v in pairs(table) do
+        env[k] = v
+    end
+end

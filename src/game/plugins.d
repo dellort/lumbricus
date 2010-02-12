@@ -114,6 +114,7 @@ class Plugin {
 
         //pass configuration as global "config"
         eng.scripting().setGlobal("config", mConfigWhateverTheFuckThisIs, name);
+        bool[char[]] loadedModules;
         //each modules entry can be a file, or a pattern with wildcards
         foreach (modf; mModules) {
             //no fixup for illegal chars, allow wildcards
@@ -122,9 +123,15 @@ class Plugin {
             gFS.listdir(mpath.parent, mpath.filename, false, (char[] relFn) {
                 //why does listdir return relative filenames? I don't know
                 char[] filename = mpath.parent.get(true, true) ~ relFn;
+                //only load once
+                if (filename in loadedModules) {
+                    return true;
+                }
+                loadedModules[filename] = true;
                 auto st = gFS.open(filename);
                 scope(exit) st.close();
                 //filename = for debug output; name = lua environment
+                //xxx catch lua errors here, so other modules can be loaded?
                 eng.scripting().loadScript(filename, st, name);
                 return true;
             });

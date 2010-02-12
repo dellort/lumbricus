@@ -6,6 +6,7 @@ module physics.zone;
 import utils.vector2;
 import utils.rect2;
 import utils.list2;
+import utils.misc;
 
 import physics.base;
 import physics.physobj;
@@ -48,13 +49,23 @@ class PhysicZonePlane : PhysicZone {
 class PhysicZoneCircle : PhysicZone {
     float radius;
     Vector2f pos;
+    PhysicObject attach;
 
     this(Vector2f pos, float rad) {
         radius = rad;
         this.pos = pos;
     }
 
+    this(PhysicObject attach, float rad) {
+        argcheck(attach);
+        radius = rad;
+        this.attach = attach;
+    }
+
     override bool checkCircle(Vector2f opos, float orad) {
+        if (attach) {
+            pos = attach.pos;
+        }
         return (opos-pos).quad_length < (radius*radius + orad*orad);
     }
 }

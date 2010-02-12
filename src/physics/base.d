@@ -77,6 +77,10 @@ class PhysicBase {
             onDie();
     }
 
+    void kill() {
+        dead = true;
+    }
+
     /+package+/ void simulate(float deltaT) {
         if (mLifeTime != float.infinity) {
             mRemainLifeTime -= deltaT;

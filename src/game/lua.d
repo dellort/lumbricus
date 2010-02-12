@@ -28,6 +28,7 @@ import game.weapon.rope;
 import game.weapon.weapon;
 import gui.rendertext; //: FormattedText
 import physics.world;
+import physics.collisionmap;
 import utils.vector2;
 import utils.rect2;
 import utils.time;
@@ -140,6 +141,15 @@ static this() {
     gScripting.properties_ro!(PhysicObject, "surface_normal", "lifepower");
     gScripting.setClassPrefix!(PhysicBase)("Phys");
     gScripting.property_ro!(PhysicBase, "backlink");
+    gScripting.property!(PhysicBase, "collision");
+    gScripting.method!(PhysicBase, "kill");
+
+    gScripting.ctor!(PhysicZoneCircle, PhysicObject, float)();
+    gScripting.ctor!(ZoneTrigger, PhysicZone)();
+    gScripting.properties!(PhysicTrigger, "inverse", "onTrigger");
+    gScripting.property!(ZoneTrigger, "zone");
+
+    gScripting.method!(CollisionMap, "findCollisionID");
 
     //oh my
     //NOTE: we could handle classes just like structs and use tupleof on them

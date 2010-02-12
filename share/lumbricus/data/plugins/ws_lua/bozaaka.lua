@@ -2,7 +2,6 @@
 
 -- xxx old stuff
 local napalm = Gfx_findSpriteClass("molotov_napalm")
-local mine = Gfx_findSpriteClass("mine")
 
 do
     local name = "bozaaka"
@@ -478,11 +477,67 @@ do
 end
 
 do
+    local name = "mane"
+    -- no "local", this is used in other weapons
+    mine_class = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            radius = 2,
+            explosionInfluence = 1.0,
+            windInfluence = 0.0,
+            elasticity = 0.6,
+            glueForce = 120,
+            rotation = "distance",
+        },
+        sequenceType = "s_mine",
+    }
+
+    local seq = SpriteClass_sequenceType(mine_class)
+    assert(seq)
+    flash_graphic = SequenceType_findState(seq, "flashing", true)
+    -- timer for initial delay
+    enableSpriteTimer(mine_class, {
+        defTimer = timeSecs(3),
+        callback = function(sender)
+            -- mine becomes active
+            addCircleTrigger(sender, 45, "wormsensor", function(trig, obj)
+                -- worm stepped on
+                if flash_graphic then
+                    Sequence_setState(Sprite_graphic(sender), flash_graphic)
+                    -- blow up after 1s
+                    addSpriteTimer(sender, "explodeT", time(1), false, function(sender)
+                        spriteExplode(sender, 50)
+                    end) 
+                end
+                Phys_kill(trig)
+            end)
+        end
+    })
+
+    local w = createWeapon {
+        name = name,
+        onFire = getStandardOnFire(mine_class),
+        value = 0,
+        category = "sheep",
+        icon = "icon_mine",
+        animation = "weapon_mine",
+        fireMode = {
+            direction = "fixed",
+            throwStrengthFrom = 40,
+            throwStrengthTo = 40,
+        }
+    }
+    enableSpriteCrateBlowup(w, mine_class)
+end
+
+do
     local name = "manestrake"
 
     local w = createWeapon {
         name = name,
-        onFire = getAirstrikeOnFire(mine, 10, 25),
+        onFire = getAirstrikeOnFire(mine_class, 10, 25),
         onCreateSelector = AirstrikeControl_ctor,
         value = 0,
         category = "air",

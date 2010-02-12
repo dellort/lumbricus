@@ -159,6 +159,7 @@ class GameEngine {
         mScripting.addSingleton(gfx);
         mScripting.addSingleton(rnd);
         mScripting.addSingleton(mPhysicWorld);
+        mScripting.addSingleton(mPhysicWorld.collide);
 
         events.setScripting(mScripting, "eventhandlers_global");
         foreach (char[] name, char[] value; gameConf.getSubNode("scripts")) {
