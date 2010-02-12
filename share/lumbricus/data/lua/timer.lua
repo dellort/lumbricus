@@ -81,7 +81,9 @@ end
 
 -- deactivate the timer (also resets pause state)
 function Timer:cancel()
-    if not self:isStarted() then
+    -- corner case: if it was set periodic, must reset even if the timer isn't
+    --  started right now (on linked timers, too)
+    if (not self:isStarted()) and (not self._periodic) then
         return
     end
     self:_remove()

@@ -1,5 +1,9 @@
 -- this is just a test
 
+-- xxx old stuff
+local napalm = Gfx_findSpriteClass("molotov_napalm")
+local mine = Gfx_findSpriteClass("mine")
+
 do
     local name = "bozaaka"
     local sprite_class = createSpriteClass {
@@ -32,6 +36,50 @@ do
         }
     }
     enableSpriteCrateBlowup(w, sprite_class)
+end
+
+do
+    local name = "flemathrower"
+
+    local w = createWeapon {
+        name = name,
+        onFire = function(shooter, fireinfo)
+            local worm = Shooter_owner(shooter)
+            Shooter_reduceAmmo(shooter)
+            local remains = 50
+            local timer = Timer.new()
+            set_context_val(shooter, "timer", timer)
+            timer:setCallback(function()
+                -- only one sprite per timer tick...
+                -- xxx this function is bad:
+                --  1. sets a context per napalm sprite (for fireinfo)
+                --  2. doesn't spawn like the .conf flamethrower
+                spawnFromFireInfo(napalm, fireinfo)
+                remains = remains - 1
+                if remains <= 0 then
+                    timer:cancel()
+                    Shooter_finished(shooter)
+                end
+            end)
+            timer:start(timeMsecs(60), true)
+        end,
+        onInterrupt = function(shooter, outOfAmmo)
+            -- xxx somehow this never gets called
+            local timer = get_context_val(shooter, "timer")
+            if timer then
+                timer:cancel()
+            end
+        end,
+        category = "misc2",
+        value = 0,
+        animation = "weapon_flamethrower",
+        icon = "icon_flamer",
+        fireMode = {
+            direction = "any",
+            throwStrengthFrom = 500,
+            throwStrengthTo = 500,
+        }
+    }
 end
 
 do
@@ -258,6 +306,89 @@ do
 end
 
 do
+    local name = "mingvesa"
+    local main = createSpriteClass {
+        name = name .. "_sprite",
+        sequenceType = "s_mingvase",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            radius = 2,
+            explosionInfluence = 0,
+            windInfluence = 0.0,
+            elasticity = 0.0,
+            glueForce = "500",
+        }
+    }
+    local shard = createSpriteClass {
+        name = name .. "_shard",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            radius = 2,
+            explosionInfluence = 0,
+            windInfluence = 0.0,
+            elasticity = 0.4,
+            rotation = "distance",
+        }
+    }
+
+    enableExplosionOnImpact(shard, 60)
+    enableSpriteTimer(main, {
+        showDisplay = false,
+        defTimer = time("5 s"),
+        callback = function(sender)
+            spriteExplode(sender, 50)
+            spawnCluster(shard, sender, 5, 300, 400, 50)
+        end
+    })
+
+    -- the following code is for selecting a random graphic on sprite spawn
+    -- it's a bit hacky, and doesn't handle the case when a sprite goes back
+    --  from water to non-water (but enableDrown doesn't either)
+    -- also note: enableDrown won't set a graphic, because the class doesn't
+    --  have an init graphic (SpriteClass.sequenceType is null)
+    local seqs = {"s_mingshard1", "s_mingshard2", "s_mingshard3"}
+    local seq_states = {}
+    local seq_to_drown = {}
+    for i, v in ipairs(seqs) do
+        local seq = Gfx_resource(v)
+        local state = SequenceType_findState(seq, "normal")
+        seq_states[i] = state
+        seq_to_drown[state] = SequenceType_findState(seq, "drown")
+    end
+    addSpriteClassEvent(shard, "sprite_activate", function(sender, normal)
+        Sequence_setState(Sprite_graphic(sender),
+            seq_states[Random_rangei(1, #seq_states)])
+    end)
+    addSpriteClassEvent(shard, "sprite_waterstate", function(sender)
+        local gr = Sprite_graphic(sender)
+        if Sprite_isUnderWater(sender) and gr then
+            local n = seq_to_drown[Sequence_currentState(gr)]
+            if n then
+                Sequence_setState(gr, n)
+            end
+        end
+    end)
+
+    local w = createWeapon {
+        name = name,
+        onFire = getStandardOnFire(main),
+        value = 0,
+        category = "sheep",
+        icon = "icon_mingvase",
+        animation = "weapon_mingvase",
+        fireMode = {
+            direction = "fixed",
+            variableThrowStrength = true,
+            throwStrengthFrom = 40,
+            throwStrengthTo = 40,
+        }
+    }
+    enableSpriteCrateBlowup(w, shard, 2)
+end
+
+do
     local name = "martor"
     local cluster = createSpriteClass {
         name = name .. "_cluster",
@@ -347,6 +478,27 @@ do
 end
 
 do
+    local name = "manestrake"
+
+    local w = createWeapon {
+        name = name,
+        onFire = getAirstrikeOnFire(mine, 10, 25),
+        onCreateSelector = AirstrikeControl_ctor,
+        value = 0,
+        category = "air",
+        isAirstrike = true,
+        icon = "icon_minestrike",
+        animation = "weapon_airstrike",
+        fireMode = {
+            point = "instant",
+            throwStrengthFrom = 300,
+            throwStrengthTo = 300,
+        }
+    }
+    enableSpriteCrateBlowup(w, sprite_class, 5)
+end
+
+do -- depends from napalm
     local name = "nalmpastrike"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
@@ -361,8 +513,6 @@ do
         initParticle = "p_rocket",
     }
     enableExplosionOnImpact(sprite_class, 35)
-    -- xxx depends on old stuff
-    local napalm = Gfx_findSpriteClass("molotov_napalm")
     enableSpriteTimer(sprite_class, {
         defTimer = time("500 ms"),
         showDisplay = false,
@@ -463,15 +613,43 @@ do
 
     local w = createWeapon {
         name = name,
-        onFire = function(shooter, info)
-            Shooter_reduceAmmo(shooter)
-            Shooter_finished(shooter)
-            spawnSprite(sprite_class, info.pointto.pos, Vector2(0))
-        end,
+        onFire = getAirstrikeOnFire(sprite_class, 1),
+        isAirstrike = true,
         category = "misc1",
         value = 0,
         animation = "weapon_airstrike",
         icon = "icon_penguin",
+        fireMode = {
+            point = "instant"
+        }
+    }
+end
+
+do
+    local name = "bmbomb"
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 2,
+            radius = 25,
+            explosionInfluence = 0,
+            windInfluence = -0.3,
+            airResistance = 0.03,
+        },
+        sequenceType = "s_mbbomb",
+        initParticle = "p_mbbomb",
+    }
+    enableExplosionOnImpact(sprite_class, 75)
+
+    local w = createWeapon {
+        name = name,
+        onFire = getAirstrikeOnFire(sprite_class, 1),
+        isAirstrike = true,
+        category = "misc3",
+        value = 0,
+        animation = "weapon_airstrike",
+        icon = "icon_mbbomb",
         fireMode = {
             point = "instant"
         }

@@ -722,7 +722,9 @@ class Widget {
         if (mGUI && mouseIsInside()) {
             //widget position/size is changing while the mouse cursor is over it
             //  -> need to correct mouse pos, as it's relative to the widget pos
-            mGUI.fixMouse();
+            //xxx commented because it caused infinite recursion when trying to
+            //  move a window (probably also with scrollbar, resizing, etc.)
+            //mGUI.fixMouse();
         }
     }
 

@@ -116,8 +116,9 @@ static this() {
 
     gScripting.methods!(SequenceType, "findState");
 
-    gScripting.methods!(Sequence, "setState");
+    gScripting.methods!(Sequence, "setState", "queueState");
     gScripting.properties!(Sequence, "attachText");
+    gScripting.properties_ro!(Sequence, "currentState");
 
     gScripting.setClassPrefix!(PhysicWorld)("World");
 
@@ -197,7 +198,7 @@ static this() {
 
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
     gScripting.properties!(LuaWeaponClass, "onFire",
-        "onCreateSelector");
+        "onCreateSelector", "onInterrupt");
 
     gScripting.ctor!(FormattedText)();
     //xxx getText is problematic because of out params

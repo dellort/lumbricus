@@ -1,6 +1,7 @@
 module game.weapon.luaweapon;
 
 import framework.framework;
+import game.controller_events;
 import game.game;
 import game.gfxset;
 import game.gobject;
@@ -14,6 +15,7 @@ import utils.time;
 class LuaWeaponClass : WeaponClass {
     void delegate(Shooter, FireInfo) onFire;
     WeaponSelector delegate(Sprite) onCreateSelector;
+    void delegate(Shooter, bool) onInterrupt;
 
     this(GfxSet a_gfx, char[] a_name) {
         super(a_gfx, a_name);
@@ -49,5 +51,12 @@ class LuaShooter : Shooter {
         if (myclass.onFire) {
             myclass.onFire(this, info);
         }
+    }
+
+    override void interruptFiring(bool outOfAmmo) {
+        if (myclass.onInterrupt) {
+            myclass.onInterrupt(this, outOfAmmo);
+        }
+        super.interruptFiring(outOfAmmo);
     }
 }
