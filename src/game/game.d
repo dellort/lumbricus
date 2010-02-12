@@ -155,6 +155,7 @@ class GameEngine {
         //code loaded here can be considered "internal" and should explode
         //  on errors
         mScripting = createScriptingObj(this);
+        mScripting.onError = &scriptingObjError;
         mScripting.addSingleton(this);
         mScripting.addSingleton(gfx);
         mScripting.addSingleton(rnd);
@@ -1093,6 +1094,10 @@ class GameEngine {
 
     private void eventScriptError(char[] event, Exception e) {
         error("Scripting error while handling event '{}': {}", event, e.msg);
+    }
+
+    private void scriptingObjError(ScriptingException e) {
+        error("Scripting error in delegate call: {}", e.msg);
     }
 
     //--------------- client commands
