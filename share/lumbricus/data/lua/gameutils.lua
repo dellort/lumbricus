@@ -252,6 +252,7 @@ end
 --  useUserTimer = use the timer as set by the user
 --  defTimer = timer value (or default if user timer not available)
 --  showDisplay = if true, show the time as a label near the sprite
+--  timerId = (default "timer") set if you want to use multiple timers
 function enableSpriteTimer(sprite_class, args)
     local useUserTimer = args.useUserTimer
     if not args.defTimer then
@@ -260,13 +261,17 @@ function enableSpriteTimer(sprite_class, args)
     local showDisplay = args.showDisplay
     local defTimer = args.defTimer or timeSecs(3)
     local callback = assert(args.callback)
+    local periodic = args.periodic
+    local timerId = args.timerId or "timer"
     -- xxx need a better way to "cleanup" stuff like timers
-    addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
+    local function cleanup(sender)
         local ctx = get_context(sender, true)
-        if ctx and ctx.timer and spriteIsGone(sender) then
-            ctx.timer:cancel()
+        if ctx and ctx[timerId] and spriteIsGone(sender) then
+            ctx[timerId]:cancel()
         end
-    end)
+    end
+    addSpriteClassEvent(sprite_class, "sprite_waterstate", cleanup)
+    addSpriteClassEvent(sprite_class, "sprite_die", cleanup)
     -- this is done so that it works when spawned by a crate
     -- xxx probably it's rather stupid this way; need better way
     --  plus I don't even know what should happen if a grenade is spawned by
@@ -281,11 +286,11 @@ function enableSpriteTimer(sprite_class, args)
             -- spawned from crate or so
             t = defTimer
         end
-        ctx.timer = addTimer(t, function()
+        ctx[timerId] = addTimer(t, function()
             callback(sender)
-        end)
+        end, periodic)
         if showDisplay then
-            addCountdownDisplay(sender, ctx.timer, 5, 2)
+            addCountdownDisplay(sender, ctx[timerId], 5, 2)
         end
     end)
 end
@@ -539,3 +544,26 @@ end
 Lexel_free = 0
 Lexel_soft = 1
 Lexel_hard = 2
+
+-- return PhysicObject looking vector
+function lookVector(obj)
+    return Vector2.FromPolar(1.0, Phys_lookey(obj))
+end
+
+-- -1 if looking left, 1 if looking right
+function lookSide(obj)
+    local look = lookVector(obj)
+    return look.x < 0 and -1 or 1
+end
+
+-- make a sprite walk into looking direction (will walk forever)
+function walkForward(sprite, inverse)
+    inverse = ifnil(inverse, false)
+    local phys = Sprite_physics(sprite)
+    local look = lookVector(phys)
+    local dir = 1
+    if (look.x < 0) ~= inverse then
+        dir = -1
+    end
+    Phys_setWalking(phys, Vector2(dir, 0))
+end

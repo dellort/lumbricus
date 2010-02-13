@@ -129,6 +129,58 @@ do
     enableSpriteCrateBlowup(w, shard, 2)
 end
 
+do -- xxx missing refire handling; currently just explodes after 3s
+    local name = "supernabana"
+    local function createSprite(name)
+        return createSpriteClass {
+            name = name .. "_sprite",
+            initPhysic = relay {
+                collisionID = "projectile",
+                mass = 10, -- 10 whatevertheffffunitthisis
+                radius = 2,
+                explosionInfluence = 0,
+                windInfluence = 0,
+                elasticity = 0.4,
+                rotation = "distance"
+            },
+            sequenceType = "s_banana"
+        }
+    end
+    local main = createSprite(name)
+    local shard = createSprite(name .. "shard")
+
+    enableSpriteTimer(main, {
+        defTimer = time(3),
+        showDisplay = true,
+        callback = function(sender)
+            spriteExplode(sender, 75)
+            spawnCluster(shard, sender, 5, 300, 400, 40)
+        end
+    })
+    enableSpriteTimer(shard, {
+        defTimer = time(3),
+        callback = function(sender)
+            spriteExplode(sender, 75)
+        end
+    })
+
+    local w = createWeapon {
+        name = name,
+        onFire = getStandardOnFire(main),
+        category = "throw",
+        value = 0,
+        animation = "weapon_banana",
+        icon = "icon_superbanana",
+        fireMode = {
+            direction = "any",
+            variableThrowStrength = true,
+            throwStrengthFrom = 200,
+            throwStrengthTo = 1200,
+        }
+    }
+    enableSpriteCrateBlowup(w, shard, 2)
+end
+
 do
     local name = "holy_graneda"
     local sprite_class = createSpriteClass {
@@ -920,7 +972,6 @@ do
                 local hp = Phys_lifepower(obj)
                 local dmg = math.min(hp * 0.5, hp - 1)
                 dmg = math.max(dmg, 0)
-                print(dmg)
                 Phys_applyDamage(obj, dmg, 3, self)
                 Phys_addImpulse(obj, Vector2(0, 1))
             else
@@ -936,4 +987,74 @@ do
             direction = "fixed",
         }
     }
+end
+
+do -- xxx missing refire handling and inverse direction when stuck
+    local name = "peesh"
+    local function createSprite(name)
+        return createSpriteClass {
+            name = name .. "_sprite",
+            initPhysic = relay {
+                collisionID = "projectile_controlled",
+                mass = 10,
+                radius = 6,
+                explosionInfluence = 0.0,
+                windInfluence = 0.0,
+                elasticity = 0.0,
+                glueForce = 500,
+                walkingSpeed = 50
+            },
+            sequenceType = "s_sheep",
+            initParticle = "p_sheep",
+        }
+    end
+
+    local sprite_class = createSprite(name)
+    -- start walking on spawn
+    addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
+        walkForward(sender)
+    end)
+    -- jump in random intervals
+    enableSpriteTimer(sprite_class, {
+        defTimer = time(0.2),
+        periodic = true,
+        timerId = "jump",
+        callback = function(sender)
+            local phys = Sprite_physics(sender)
+            if not Phys_isGlued(phys) then
+                return
+            end
+            if Random_rangei(1, 5) == 1 then
+                local look = lookSide(phys)
+                Phys_addImpulse(phys, Vector2(look * 2500, -2500))
+            end
+        end
+    })
+    -- don't live longer than 8s
+    enableSpriteTimer(sprite_class, {
+        defTimer = time(8),
+        showDisplay = true,
+        callback = function(sender)
+            spriteExplode(sender, 75)
+        end
+    })
+
+    -- used by other weapons (I think)
+    cratesheep_class = createSprite("crate" .. name)
+    enableExplosionOnImpact(cratesheep_class, 75)
+
+    local w = createWeapon {
+        name = name,
+        onFire = getStandardOnFire(sprite_class),
+        value = 0,
+        category = "moving",
+        icon = "icon_sheep",
+        animation = "weapon_sheep",
+        fireMode = {
+            direction = "fixed",
+            throwStrengthFrom = 40,
+            throwStrengthTo = 40,
+        }
+    }
+    enableSpriteCrateBlowup(w, cratesheep_class)
 end
