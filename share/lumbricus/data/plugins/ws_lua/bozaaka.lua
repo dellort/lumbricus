@@ -416,7 +416,7 @@ do
         initParticle = "p_rocket"
     }
     -- funfact: on each "impact", a table for the normal will be allocated, even
-    --  if it's not in the parameter or 
+    --  if it's not in the parameter or
     addSpriteClassEvent(main, "sprite_impact", function(sender, normal)
         if spriteIsGone(sender) then
             return
@@ -856,4 +856,84 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
         }
     }
     enableSpriteCrateBlowup(w, blackhole)
+end
+
+-- xxx this function is very specific to prod and baseball, so I did not bother
+--     moving it to gameutils
+-- all worms in radius get an impulse of strength in fire direction, and
+--   everything takes some damage
+function getMeleeImpulseOnFire(strength, damage)
+    return getMeleeOnFire(10, 15, function(shooter, info, self, obj)
+        local spr = Phys_backlink(obj)
+        if damage > 0 then
+            Phys_applyDamage(obj, damage, 3, self)
+        end
+        -- hm, why only worms? could be funny to baseball away mines
+        -- but that's how it was before
+        if className(spr) == "WormSprite" then
+            Phys_addImpulse(obj, info.dir * strength)
+        end
+    end)
+end
+
+do
+    local name = "besabell"
+
+    local w = createWeapon {
+        name = name,
+        onFire = getMeleeImpulseOnFire(7000, 30),
+        category = "punch",
+        value = 0,
+        animation = "weapon_baseball",
+        icon = "icon_baseball",
+        fireMode = {
+            direction = "any",
+        }
+    }
+end
+
+do
+    local name = "drop"
+
+    local w = createWeapon {
+        name = name,
+        onFire = getMeleeImpulseOnFire(1500, 0),
+        category = "punch",
+        value = 0,
+        animation = "weapon_prod",
+        icon = "icon_prod",
+        fireMode = {
+            direction = "fixed",
+        }
+    }
+end
+
+do
+    local name = "hatchet"
+
+    local w = createWeapon {
+        name = name,
+        onFire = getMeleeOnFire(10, 15, function(shooter, info, self, obj)
+            local spr = Phys_backlink(obj)
+            if className(spr) == "WormSprite" then
+                -- half lifepower, but don't reduce to less than 1 hp
+                local hp = Phys_lifepower(obj)
+                local dmg = math.min(hp * 0.5, hp - 1)
+                dmg = math.max(dmg, 0)
+                print(dmg)
+                Phys_applyDamage(obj, dmg, 3, self)
+                Phys_addImpulse(obj, Vector2(0, 1))
+            else
+                -- destroy barrels
+                Phys_applyDamage(obj, 50, 3, self)
+            end
+        end),
+        category = "punch",
+        value = 0,
+        animation = "weapon_axe",
+        icon = "icon_axe",
+        fireMode = {
+            direction = "fixed",
+        }
+    }
 end

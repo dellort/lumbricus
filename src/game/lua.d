@@ -123,7 +123,7 @@ static this() {
 
     gScripting.setClassPrefix!(PhysicWorld)("World");
 
-    gScripting.methods!(PhysicWorld, "add", "objectsAtPred");
+    gScripting.methods!(PhysicWorld, "add", "objectsAt");
     gScripting.method!(PhysicWorld, "collideGeometryScript")("collideGeometry");
     gScripting.method!(PhysicWorld, "collideObjectWithGeometryScript")(
         "collideObjectWithGeometry");

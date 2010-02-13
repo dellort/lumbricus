@@ -642,12 +642,14 @@ class WormControl : WormController {
         switch(mPointMode) {
             case PointMode.targetTracking:
                 //find sprite closest to where
-                mEngine.physicworld.objectsAtPred(where, 10,
+                mEngine.physicworld.objectsAt(where, 10,
                     (PhysicObject obj) {
-                        mCurrentTarget.sprite = cast(Sprite)obj.backlink;
-                        return false;
-                    }, (PhysicObject obj) {
-                        return !!cast(Sprite)obj.backlink;
+                        auto spr = cast(Sprite)obj.backlink;
+                        if (spr) {
+                            mCurrentTarget.sprite = spr;
+                            return false;
+                        }
+                        return true;
                     });
                 //fall-through
             case PointMode.target:

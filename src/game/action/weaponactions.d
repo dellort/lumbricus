@@ -222,12 +222,13 @@ abstract class AoEActionClass : ActionClass {
 
         bool doApply(PhysicObject obj) {
             assert(!!obj.backlink);
-            applyOn(wx, cast(Sprite)obj.backlink);
+            if (useObj(obj)) {
+                applyOn(wx, cast(Sprite)obj.backlink);
+            }
             return true;
         }
 
-        wx.engine.physicworld.objectsAtPred(wx.fireInfo.info.pos, radius,
-            &doApply, &useObj);
+        wx.engine.physicworld.objectsAt(wx.fireInfo.info.pos, radius, &doApply);
     }
 }
 

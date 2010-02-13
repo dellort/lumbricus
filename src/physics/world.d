@@ -489,21 +489,18 @@ class PhysicWorld {
         return true;
     }
 
-    void objectsAtPred(Vector2f pos, float r,
-        bool delegate(PhysicObject obj) del,
-        bool delegate(PhysicObject obj) match = null)
+    void objectsAt(Vector2f pos, float r,
+        bool delegate(PhysicObject obj) del)
     {
         argcheck(!!del);
         foreach (PhysicObject me; mObjects) {
-            if (!match || match(me)) {
-                Vector2f d = me.pos - pos;
-                float qdist = d.quad_length;
-                float mindist = me.posp.radius + r;
-                if (qdist >= mindist*mindist)
-                    continue;
-                if (!del(me))
-                    break;
-            }
+            Vector2f d = me.pos - pos;
+            float qdist = d.quad_length;
+            float mindist = me.posp.radius + r;
+            if (qdist >= mindist*mindist)
+                continue;
+            if (!del(me))
+                break;
         }
     }
 

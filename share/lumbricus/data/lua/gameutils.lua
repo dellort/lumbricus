@@ -133,6 +133,26 @@ function getAirstrikeOnFire(sprite_class_ref, count, distance)
     end
 end
 
+-- do something for all objects inside radius at info.pos + info.dir * distance
+-- will not hit the shooter
+function getMeleeOnFire(distance, radius, callback)
+    return function(shooter, info)
+        local hit = info.pos + info.dir * distance;
+        local self = Shooter_owner(shooter)
+        -- find all objects at hit inside radius
+        World_objectsAt(hit, radius, function(obj)
+            local spr = Phys_backlink(obj)
+            -- don't hit the shooter
+            if spr ~= self then
+                callback(shooter, info, self, obj)
+            end
+            return true
+        end)
+        Shooter_reduceAmmo(shooter)
+        Shooter_finished(shooter)
+    end
+end
+
 -- simple shortcut
 function addSpriteClassEvent(sprite_class, event_name, handler)
     local sprite_class_name = SpriteClass_name(sprite_class)

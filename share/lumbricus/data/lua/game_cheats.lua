@@ -50,7 +50,10 @@ end
 
 function katastrophe()
     local lb = Level_landBounds()
-    World_objectsAtPred(Level_worldCenter(), 2000, function(obj)
+    World_objectsAt(Level_worldCenter(), 2000, function(obj)
+        if className(Phys_backlink(obj)) ~= "WormSprite" then
+            return true
+        end
         local dest
         while (dest == nil) do
             dest = Vector2(Random_rangef(lb.p1.x, lb.p2.x), Random_rangef(lb.p1.y, lb.p2.y))
@@ -58,8 +61,6 @@ function katastrophe()
         end
         Worm_beamTo(Phys_backlink(obj), dest)
         return true
-    end, function(obj)
-        return className(Phys_backlink(obj)) == "WormSprite"
     end)
 end
 
