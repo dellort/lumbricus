@@ -38,7 +38,7 @@ class LuaWeaponClass : WeaponClass {
 class LuaShooter : Shooter {
     private {
         LuaWeaponClass myclass;
-        bool refire;
+        bool mIsFixed;
     }
 
     this(LuaWeaponClass base, Sprite a_owner, GameEngine engine) {
@@ -51,18 +51,13 @@ class LuaShooter : Shooter {
     }
 
     override protected void doFire(FireInfo info) {
+        //xxx although simulate() is unused, we need this for the activity check
+        internal_active = true;
+        mIsFixed = false;
         info.pos = owner.physics.pos;   //?
-        //xxx this is probably wrong, but I don't understand the code in worm.d;
-        //  but it really looks like doFire is called a second time on the same
-        //  shooter object, which actually shouldn't be allowed...
-        if (refire) {
-            doRefire();
-        } else {
-            if (myclass.onFire) {
-                myclass.onFire(this, info);
-            }
+        if (myclass.onFire) {
+            myclass.onFire(this, info);
         }
-        refire = true;
     }
 
     override bool doRefire() {
@@ -76,5 +71,17 @@ class LuaShooter : Shooter {
             myclass.onInterrupt(this, outOfAmmo);
         }
         super.interruptFiring(outOfAmmo);
+    }
+
+    override bool isFixed() {
+        return activity && mIsFixed;
+    }
+    void isFixed(bool fix) {
+        mIsFixed = fix;
+    }
+
+    //xxx I don't know if it's always correct to link this to isFixed
+    override bool delayedAction() {
+        return activity && mIsFixed;
     }
 }

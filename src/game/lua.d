@@ -13,6 +13,7 @@ import game.sprite;
 import game.worm;
 import game.wcontrol;
 import game.action.spawn;
+import game.action.spriteactions;
 import game.action.weaponactions;
 import game.gamemodes.shared;
 import game.levelgen.level;
@@ -95,7 +96,6 @@ static this() {
         "lastActivity", "actionPerformed", "forceAbort", "pushControllable",
         "releaseControllable");
 
-    //no thanks -- gScripting.setClassPrefix!(GameObject)("Obj");
     gScripting.methods!(GameObject, "activity");
     gScripting.property!(GameObject, "createdBy");
     gScripting.property_ro!(GameObject, "objectAlive");
@@ -105,8 +105,6 @@ static this() {
     gScripting.properties!(Sprite, "graphic");
     gScripting.properties_ro!(Sprite, "physics", "isUnderWater", "visible");
 
-    gScripting.setClassPrefix!(ProjectileSprite)("Projectile");
-    gScripting.property!(ProjectileSprite, "detonateTimer");
     gScripting.setClassPrefix!(WormSprite)("Worm");
     gScripting.methods!(WormSprite, "beamTo");
 
@@ -217,11 +215,15 @@ static this() {
         "repeatDelay", "decayTime", "physMedium", "physSmall",
         "lightupVelocity", "emitOnWater");
 
+    gScripting.ctor!(StuckTrigger, Sprite, Time, float, bool)();
+    gScripting.properties!(StuckTrigger, "onTrigger");
+
     //-----
 
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
     gScripting.properties!(LuaWeaponClass, "onFire",
         "onCreateSelector", "onInterrupt", "onRefire", "canRefire");
+    gScripting.properties!(LuaShooter, "isFixed");
 
     gScripting.ctor!(FormattedText)();
     //xxx getText is problematic because of out params

@@ -87,6 +87,7 @@ do
         onFire = function(shooter, fireinfo)
             local worm = Shooter_owner(shooter)
             Shooter_reduceAmmo(shooter)
+            LuaShooter_set_isFixed(shooter, true)
             local remains = 50
             local timer = Timer.new()
             set_context_var(shooter, "timer", timer)
@@ -169,6 +170,8 @@ do
         }
     }
     enableSpriteCrateBlowup(w, shard, 2)
+    -- for superbanana
+    bananashard_class = shard
 end
 
 do -- xxx missing refire handling; currently just explodes after 3s
@@ -203,7 +206,7 @@ do -- xxx missing refire handling; currently just explodes after 3s
                 spawnCluster(shard, ctx.main, 5, 300, 400, 40)
             end
             -- after that time, let shards explode in phase 1
-            ctx.timer:start(time(3))
+            ctx.timer:start(time(4))
         elseif ctx.phase == 1 then
             Shooter_finished(shooter)
             assert(ctx.sprites)
@@ -246,15 +249,12 @@ do -- xxx missing refire handling; currently just explodes after 3s
             local ctx = get_context(shooter)
             ctx.sprites = {}
             ctx.phase = 0
-            ctx.timer = addTimer(time(3), function()
+            ctx.timer = addTimer(time(8), function()
                 dorefire(shooter)
             end)
             ctx.main = spawnFromFireInfo(main, shooter, info)
             addCountdownDisplay(ctx.main, ctx.timer, 5, 2)
         end,
-        -- xxx it seems instead of Shooter.doRefire, Shooter.doFire is called
-        --  (somehow it works in the action weapon?); I added a hack to
-        --  LuaWeapon so that in the end, really onRefire is called
         onRefire = dorefire,
         canRefire = true,
         category = "throw",
@@ -268,7 +268,7 @@ do -- xxx missing refire handling; currently just explodes after 3s
             throwStrengthTo = 1200,
         }
     }
-    --enableSpriteCrateBlowup(w, shard, 2)
+    enableSpriteCrateBlowup(w, bananashard_class, 2)
 end
 
 do
@@ -1102,9 +1102,7 @@ do -- xxx missing refire handling and inverse direction when stuck
 
     local sprite_class = createSprite(name)
     -- start walking on spawn
-    addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
-        walkForward(sender)
-    end)
+    enableWalking(sprite_class)
     -- jump in random intervals
     enableSpriteTimer(sprite_class, {
         defTimer = time(0.2),
@@ -1337,4 +1335,163 @@ do -- xxx missing: deathzone_immune for active missile
     end)
 
     enableSpriteCrateBlowup(w, crate_class)
+end
+
+do
+    local name = "gramma"
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile_controlled",
+            mass = 10,
+            radius = 6,
+            explosionInfluence = 0.0,
+            windInfluence = 0.0,
+            elasticity = 0.0,
+            glueForce = 500,
+            walkingSpeed = 25,
+        },
+        sequenceType = "s_granny",
+        initParticle = "p_granny",
+    }
+    enableWalking(sprite_class)
+    enableSpriteTimer(sprite_class, {
+        defTimer = timeSecs(5),
+        callback = function(sender)
+            spriteExplode(sender, 75)
+        end
+    })
+
+    local w = createWeapon {
+        name = name,
+        onFire = getStandardOnFire(sprite_class),
+        value = 0,
+        category = "moving",
+        icon = "icon_granny",
+        animation = "weapon_granny",
+        fireMode = {
+            direction = "fixed",
+            throwStrengthFrom = 40,
+            throwStrengthTo = 40,
+        }
+    }
+    enableSpriteCrateBlowup(w, sprite_class)
+end
+
+do
+    local name = "lese"
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "weapon",
+            mass = 200,
+            radius = 70,
+            explosionInfluence = 0.0,
+            windInfluence = 0.0,
+            elasticity = 0.8,
+            fixate = Vector2(0, 1),
+        },
+        sequenceType = "s_esel",
+        initParticle = "p_donkey",
+    }
+    enableSpriteTimer(sprite_class, {
+        defTimer = timeSecs(20),
+        callback = function(sender)
+            Sprite_die(sender)
+        end
+    })
+    addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
+        local trig = StuckTrigger_ctor(sender, time(0.25), 2, true);
+        StuckTrigger_set_onTrigger(trig, function(sender, sprite)
+            Sprite_die(sender)
+        end)
+    end)
+    addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
+        spriteExplode(sender, 100, false)
+    end)
+
+    local w = createWeapon {
+        name = name,
+        onFire = getAirstrikeOnFire(sprite_class, 1),
+        isAirstrike = true,
+        category = "misc3",
+        value = 0,
+        animation = "weapon_airstrike",
+        icon = "icon_esel",
+        fireMode = {
+            point = "instant"
+        }
+    }
+    enableSpriteCrateBlowup(w, sprite_class)
+end
+
+do
+    local name = "salvo"
+    local main = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile_controlled",
+            mass = 10,
+            radius = 9,
+            explosionInfluence = 0.0,
+            windInfluence = 0.0,
+            elasticity = 0.0,
+            glueForce = 500,
+            walkingSpeed = 25,
+        },
+        sequenceType = "s_sally_army",
+    }
+    local shard = createSpriteClass {
+        name = name .. "shard_sprite",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            radius = 2,
+            explosionInfluence = 0.0,
+            windInfluence = 0.0,
+            elasticity = 0.4,
+            rotation = "distance"
+        },
+        sequenceType = "s_sallyshard",
+    }
+
+    local function dorefire(shooter)
+        Shooter_finished(shooter)
+        local sprite = get_context_var(shooter, "sprite")
+        spriteExplode(sprite, 50)
+        spawnCluster(shard, sprite, 5, 350, 450, 50)
+        return true
+    end
+
+    enableExplosionOnImpact(shard, 60)
+    enableWalking(main)
+    enableSpriteTimer(main, {
+        defTimer = time(8),
+        showDisplay = true,
+        callback = function(sender)
+            dorefire(get_context_var(sender, "shooter"))
+        end
+    })
+
+    local w = createWeapon {
+        name = name,
+        onFire = function(shooter, info)
+            Shooter_reduceAmmo(shooter)
+            local spr = spawnFromFireInfo(main, shooter, info)
+            set_context_var(spr, "shooter", shooter)
+            set_context_var(shooter, "sprite", spr)
+        end,
+        onRefire = dorefire,
+        canRefire = true,
+        value = 0,
+        category = "moving",
+        icon = "icon_salvationarmy",
+        animation = "weapon_sally_army",
+        fireMode = {
+            direction = "fixed",
+            throwStrengthFrom = 40,
+            throwStrengthTo = 40,
+        }
+    }
+    enableSpriteCrateBlowup(w, shard, 4)
 end

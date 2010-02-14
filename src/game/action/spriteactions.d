@@ -491,3 +491,121 @@ class ControlRotateAction : SpriteAction, Controllable {
 
     //-- end Controllable
 }
+
+
+//===========================================================================
+//  Below this are reimplementations of the stuff above, without the action
+//  overhead. They are used for scripting (I was too lazy to support both,
+//  so I just copied the code, assuming the action stuff will be removed soon)
+
+
+//classes derived from this extend the functionality of a Sprite
+//  the instance will die when the Sprite disappears
+class SpriteHandler : GameObject {
+    protected Sprite mParent;
+
+    this(Sprite parent) {
+        argcheck(parent);
+        mParent = parent;
+        super(parent.engine, "spritehandler");
+        internal_active = true;
+    }
+
+    bool activity() {
+        return internal_active;
+    }
+
+    override void simulate(float deltaT) {
+        super.simulate(deltaT);
+        if (!mParent.visible())
+            kill();
+    }
+}
+
+//will call a delegate when the parent sprite is no longer moving
+//(independant of gluing)
+class StuckTrigger : SpriteHandler {
+    private {
+        struct DeltaSample {
+            Time t;
+            float delta = 0;
+        }
+
+        Vector2f mPosOld;
+        DeltaSample[] mSamples;
+        bool mActivated = false;
+        Time mTriggerDelay;
+        float mTreshold;
+        bool mMultiple;
+    }
+    void delegate(StuckTrigger sender, Sprite sprite) onTrigger;
+
+    this(Sprite parent, Time triggerDelay, float treshold, bool multiple) {
+        super(parent);
+        mParent = parent;
+        mPosOld = mParent.physics.pos;
+        mTriggerDelay = triggerDelay;
+        mTreshold = treshold;
+        mMultiple = multiple;
+    }
+
+    //adds a position-change sample to the list (with timestamp)
+    private void addSample(float delta) {
+        Time t = engine.gameTime.current;
+        foreach (ref s; mSamples) {
+            if (t - s.t > mTriggerDelay) {
+                //found invalid sample -> replace
+                s.t = t;
+                s.delta = delta;
+                //one triggerDelay has passed
+                mActivated = true;
+                return;
+            }
+        }
+        //no invalid sample found -> allocate new
+        DeltaSample s;
+        s.t = t;
+        s.delta = delta;
+        mSamples ~= s;
+    }
+
+    //sums position changes within trigger_delay interval
+    //older samples are ignored
+    private float integrate() {
+        Time t = engine.gameTime.current;
+        float ret = 0.0f;
+        int c;
+        foreach (ref s; mSamples) {
+            if (t - s.t <= mTriggerDelay) {
+                ret += s.delta;
+                c++;
+            }
+        }
+        return ret;
+    }
+
+    private void trigger() {
+        if (onTrigger) {
+            onTrigger(this, mParent);
+        }
+    }
+
+    override void simulate(float deltaT) {
+        super.simulate(deltaT);
+        Vector2f p = mParent.physics.pos;
+        addSample((mPosOld-p).length);
+        mPosOld = p;
+        if (integrate() < mTreshold && mActivated) {
+            //execute trigger event (which maybe blows the projectile)
+            trigger();
+            if (mMultiple) {
+                //reset
+                mActivated = false;
+                mSamples = null;
+            } else {
+                kill();
+            }
+        }
+    }
+}
+

@@ -272,6 +272,17 @@ function enableBouncer(sprite_class, nbounces, onHit)
     end)
 end
 
+-- sprite will start walking on activation, and reverse when it gets stuck
+function enableWalking(sprite_class)
+    addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
+        walkForward(sender)
+        local trig = StuckTrigger_ctor(sender, time(0.2), 2.5, true);
+        StuckTrigger_set_onTrigger(trig, function(trigger, sprite)
+            walkForward(sprite, true)
+        end)
+    end)
+end
+
 -- create a timer as a sprite of that class is spawned
 -- the timer is never called under water or after the sprite has died
 -- args:
