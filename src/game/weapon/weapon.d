@@ -322,6 +322,10 @@ abstract class Shooter : GameObject {
         //default implementation: link with activity
         return activity;
     }
+
+    override char[] toString() {
+        return myformat("[Shooter {:x}]", cast(void*)this);
+    }
 }
 
 //number and types of weapons a team has available

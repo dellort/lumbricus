@@ -22,6 +22,7 @@ import game.weapon.drill;
 import game.weapon.girder;
 import game.weapon.jetpack;
 import game.weapon.luaweapon;
+import game.weapon.napalm;
 import game.weapon.parachute;
 import game.weapon.projectile;
 import game.weapon.rope;
@@ -166,6 +167,7 @@ static this() {
         "velocityConstraint", "speedLimit", "collisionID");
     gScripting.properties_ro!(POSP, "inverseMass");
     gScripting.methods!(POSP, "copy");
+    gScripting.ctor!(POSP);
 
     gScripting.ctor!(TimeStatus)();
     gScripting.properties!(TimeStatus, "showTurnTime", "showGameTime",
@@ -206,11 +208,16 @@ static this() {
 
     gScripting.ctor!(WormSelectHelper, GameEngine, TeamMember);
 
+    gScripting.ctor!(NapalmSpriteClass, GfxSet, char[]);
+    gScripting.properties!(NapalmSpriteClass, "damage", "initialDelay",
+        "repeatDelay", "decayTime", "physMedium", "physSmall",
+        "lightupVelocity", "emitOnWater");
+
     //-----
 
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
     gScripting.properties!(LuaWeaponClass, "onFire",
-        "onCreateSelector", "onInterrupt");
+        "onCreateSelector", "onInterrupt", "onRefire", "canRefire");
 
     gScripting.ctor!(FormattedText)();
     //xxx getText is problematic because of out params

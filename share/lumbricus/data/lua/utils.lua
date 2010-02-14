@@ -291,3 +291,68 @@ function import(table)
         env[k] = v
     end
 end
+
+-- emulation of some features of utils.randval.RandomValue
+-- return a table suitable to be demarshalled to RandomValue
+--  max is optional and will be set to min if nil
+function utils.range(min, max)
+    -- whatever you do here, cross-check with utils.range_sample for consistency
+    max = max or min
+    return setmetatable({ min = min, max = max }, utils.Range)
+end
+utils.Range = {} -- metatable just for marker purposes
+
+function utils.is_range(r)
+    return type(r) == "table" and getmetatable(r) == utils.Range
+end
+
+-- unittest
+assert(not utils.is_range(5))
+assert(not utils.is_range("huh"))
+assert(utils.is_range(utils.range(5, 6)))
+assert(utils.is_range(utils.range(5)))
+
+-- range_sample() for RandomValue.sample()
+-- this function has two forms:
+--  range_sample(some_range_table)
+--  range_sample(x...)
+-- the second behaves approximately like range_sample(range(x...))
+-- to see which version is applied, utils.is_range() is used
+-- further, since Lua doesn't distinguish ints and floats, there are different
+--  versions for each of them
+
+-- integers
+function utils.range_sample_i(...)
+    return utils.range_sample_g(Random_rangei, ...)
+end
+-- floats
+function utils.range_sample_f(...)
+    return utils.range_sample_g(Random_rangef, ...)
+end
+
+-- any type that supports __add, __sub and __mul
+-- e.g. works for Time
+local function _range_any_random(a, b)
+    return a + (b-a)*Random_rangef(0, 1)
+end
+function utils.range_sample_any(...)
+    return utils.range_sample_g(_range_any_random, ...)
+end
+
+-- generic; have to pass a function
+function utils.range_sample_g(fn, r, b)
+    local min, max
+    if utils.is_range(r) then
+        min, max = r.min, r.max
+    else
+        -- similar to what utils.range does
+        -- but don't construct a table because for efficiency
+        if b then
+            min, max = r, b
+        else
+            -- not really a range
+            return r
+        end
+    end
+    return fn(min, max)
+end

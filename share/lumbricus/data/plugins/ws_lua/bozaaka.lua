@@ -1,7 +1,49 @@
 -- this is just a test
 
--- xxx old stuff
-local napalm = Gfx_findSpriteClass("molotov_napalm")
+-- napalm which doesn't "stick"
+local standard_napalm
+do
+    local function phys(radius)
+        local p = POSP_ctor()
+        setProperties(p, {
+            collisionID = "napalm",
+            mass = 10,
+            radius = radius,
+            explosionInfluence = 0.8,
+            windInfluence = 0.0,
+            airResistance = 0.3,
+            elasticity = 0.0,
+            glueForce = 0,
+        })
+        return p
+    end
+    standard_napalm = createSpriteClass {
+        name = "standard_napalm",
+        ctor = "NapalmSpriteClass_ctor",
+        initPhysic = phys(3),
+        physMedium = phys(2),
+        physSmall = phys(1),
+        damage = utils.range(6, 9),
+        initialDelay = timeRange("0ms", "500ms"),
+        repeatDelay = timeRange("400ms", "600ms"),
+        decayTime = timeRange("7s", "10s"),
+        lightupVelocity = 400,
+        sequenceType = "s_napalm",
+        initParticle = "p_napalmsmoke",
+        -- hack until we get some generic event system, or whatever
+        -- specific to this class
+        -- xxx: hey, we have a generic event system... just need extend physic
+        --  to get specific "this collides with that" events (right now, it
+        --  would require you to register an event handler for all types of
+        --  collisions, and do "manual" filtering, which might be S.L.O.W.)
+        -- the holy grenade would need something similar
+        emitOnWater = Gfx_resource("p_napalmsmoke_short"),
+    }
+end
+
+-- napalm which "sticks" a while and fades as the game rounds progress
+-- xxx implement
+local sticky_napalm = standard_napalm
 
 do
     local name = "bozaaka"
@@ -47,13 +89,13 @@ do
             Shooter_reduceAmmo(shooter)
             local remains = 50
             local timer = Timer.new()
-            set_context_val(shooter, "timer", timer)
+            set_context_var(shooter, "timer", timer)
             timer:setCallback(function()
                 -- only one sprite per timer tick...
                 -- xxx this function is bad:
                 --  1. sets a context per napalm sprite (for fireinfo)
                 --  2. doesn't spawn like the .conf flamethrower
-                spawnFromFireInfo(napalm, fireinfo)
+                spawnFromFireInfo(standard_napalm, fireinfo, shooter)
                 remains = remains - 1
                 if remains <= 0 then
                     timer:cancel()
@@ -64,7 +106,7 @@ do
         end,
         onInterrupt = function(shooter, outOfAmmo)
             -- xxx somehow this never gets called
-            local timer = get_context_val(shooter, "timer")
+            local timer = get_context_var(shooter, "timer")
             if timer then
                 timer:cancel()
             end
@@ -149,24 +191,72 @@ do -- xxx missing refire handling; currently just explodes after 3s
     local main = createSprite(name)
     local shard = createSprite(name .. "shard")
 
-    enableSpriteTimer(main, {
-        defTimer = time(3),
-        showDisplay = true,
-        callback = function(sender)
-            spriteExplode(sender, 75)
-            spawnCluster(shard, sender, 5, 300, 400, 40)
+    local function dorefire(shooter)
+        local ctx = get_context(shooter)
+        assert(ctx)
+        local timer = ctx.timer
+        timer:cancel()
+        if ctx.phase == 0 then
+            -- explode the main sprite
+            if not spriteIsGone(ctx.main) then
+                spriteExplode(ctx.main, 75)
+                spawnCluster(shard, ctx.main, 5, 300, 400, 40)
+            end
+            -- after that time, let shards explode in phase 1
+            ctx.timer:start(time(3))
+        elseif ctx.phase == 1 then
+            Shooter_finished(shooter)
+            assert(ctx.sprites)
+            for i, s in ipairs(ctx.sprites) do
+                if not spriteIsGone(s) then
+                    spriteExplode(s, 75)
+                end
+            end
+            ctx.sprites = nil
         end
-    })
-    enableSpriteTimer(shard, {
-        defTimer = time(3),
-        callback = function(sender)
-            spriteExplode(sender, 75)
-        end
-    })
+        ctx.phase = ctx.phase + 1
+        -- signal success???
+        return true
+    end
+
+    addSpriteClassEvent(shard, "sprite_activate", function(sender, normal)
+        -- add to "refire" list
+        -- that could handled in spawnCluster() (and would be cheaper), but
+        --  what if spawnCluster will be implemented in D?
+        -- possible solution to avoid maintaining/building a list in Lua:
+        --  introduce game object "groups", and all objects spawned by the same
+        --  parent belong into the same "group"; you'd be able to iterate the
+        --  group members (=> get sprites without creating an array in Lua;
+        --  you'd iterate them by calling a Group_next(previous_sprite)
+        --  function, so no D->Lua delegate is needed)
+        -- this "group" stuff could also be used to simplify memory managment
+        --  (e.g. find out when a context shared by spawned sprites can be
+        --  free'd; important at least for the Shooter)
+        local shooter = gameObjectFindShooter(sender)
+        assert(shooter)
+        local sprites = get_context(shooter).sprites
+        sprites[#sprites + 1] = sender
+    end)
 
     local w = createWeapon {
         name = name,
-        onFire = getStandardOnFire(main),
+        onFire = function(shooter, info)
+            Shooter_reduceAmmo(shooter)
+            --Shooter_finished(shooter)
+            local ctx = get_context(shooter)
+            ctx.sprites = {}
+            ctx.phase = 0
+            ctx.timer = addTimer(time(3), function()
+                dorefire(shooter)
+            end)
+            ctx.main = spawnFromFireInfo(main, info, shooter)
+            addCountdownDisplay(ctx.main, ctx.timer, 5, 2)
+        end,
+        -- xxx it seems instead of Shooter.doRefire, Shooter.doFire is called
+        --  (somehow it works in the action weapon?); I added a hack to
+        --  LuaWeapon so that in the end, really onRefire is called
+        onRefire = dorefire,
+        canRefire = true,
         category = "throw",
         value = 0,
         animation = "weapon_banana",
@@ -178,7 +268,7 @@ do -- xxx missing refire handling; currently just explodes after 3s
             throwStrengthTo = 1200,
         }
     }
-    enableSpriteCrateBlowup(w, shard, 2)
+    --enableSpriteCrateBlowup(w, shard, 2)
 end
 
 do
@@ -605,7 +695,7 @@ do
     enableSpriteCrateBlowup(w, mine_class, 5)
 end
 
-do -- depends from napalm
+do
     local name = "nalmpastrike"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
@@ -626,7 +716,7 @@ do -- depends from napalm
         callback = function(sender)
             -- use the sender's velocity (direction and magnitude)
             local vel = Phys_velocity(Sprite_physics(sender))
-            spawnCluster(napalm, sender, 15, 1, 1, 60, vel)
+            spawnCluster(standard_napalm, sender, 15, 1, 1, 60, vel)
         end,
     })
 
@@ -688,7 +778,7 @@ do
     enableSpriteCrateBlowup(w, sprite_class, 3)
 end
 
-do -- depends on napalm
+do
     local name = "peeshstrake"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
@@ -704,7 +794,7 @@ do -- depends on napalm
         sequenceType = "s_sheepstrike",
     }
     enableBouncer(sprite_class, 1, function(sender)
-        spawnCluster(napalm, sender, 10, 0, 0, 60)
+        spawnCluster(standard_napalm, sender, 10, 0, 0, 60)
         spriteExplode(sender, 40, false)
     end)
 
@@ -797,7 +887,7 @@ do
     }
 end
 
-do -- this is a bit pointless, as it still requires "napalm" from the old conf file
+do
     local name = "lotomov"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
@@ -816,7 +906,7 @@ do -- this is a bit pointless, as it still requires "napalm" from the old conf f
         if spriteIsGone(sender) then
             return
         end
-        spawnCluster(napalm, sender, 40, 0, 0, 60)
+        spawnCluster(sticky_napalm, sender, 40, 0, 0, 60)
         spriteExplode(sender, 20)
     end)
 
@@ -870,7 +960,8 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
     enableSpriteTimer(nuke, {
         showDisplay = true,
         callback = function(sender)
-            spawnSprite(blackhole, Phys_pos(Sprite_physics(sender)), Vector2(0, 0))
+            spawnSprite(sender, blackhole, Phys_pos(Sprite_physics(sender)),
+                Vector2(0, 0))
             Sprite_die(sender)
         end
     })
@@ -878,10 +969,10 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
     addSpriteClassEvent(blackhole, "sprite_activate", function(sender)
         local grav = GravityCenter_ctor(Sprite_physics(sender), 5000, 300)
         World_add(grav)
-        set_context_val(sender, "gravcenter", grav)
+        set_context_var(sender, "gravcenter", grav)
     end)
     addSpriteClassEvent(blackhole, "sprite_die", function(sender)
-        local grav = get_context_val(sender, "gravcenter")
+        local grav = get_context_var(sender, "gravcenter")
         Phys_kill(grav)
     end)
     enableSpriteTimer(blackhole, {
@@ -1057,4 +1148,65 @@ do -- xxx missing refire handling and inverse direction when stuck
         }
     }
     enableSpriteCrateBlowup(w, cratesheep_class)
+end
+
+do
+    local name = "armegaddon"
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            radius = 15,
+            explosionInfluence = 0,
+            windInfluence = 0,
+            elasticity = 0.4,
+        },
+        sequenceType = "s_meteor",
+        initParticle = "p_meteor",
+    }
+    enableExplosionOnImpact(sprite_class, utils.range(40, 75))
+
+    local w = createWeapon {
+        name = name,
+        onFire = function(shooter, fireinfo)
+            Shooter_reduceAmmo(shooter)
+            -- xxx can the shooter continue running (for activity) stuff, or
+            --  would that somehow block the worm?
+            Shooter_finished(shooter)
+            -- timer to spawn meteors
+            local spawn_time = timeRange("100ms", "200ms")
+            -- xxx original params from amrageddon.conf; somehow looks very off
+            --local spawn_strength = utils.range(800, 1000)
+            local spawn_strength = utils.range(200, 400)
+            local timer1 = Timer.new()
+            timer1:setCallback(function()
+                -- emulate spawnsprite's InitVelocity.randomAir
+                -- maybe this should go into D code (memory thrashing)
+                local damage = utils.range_sample_f(spawn_strength)
+                local bounds = Level_landBounds()
+                local pos = Vector2()
+                pos.x = Random_rangef(bounds.p1.x, bounds.p2.x)
+                pos.y = 0 -- really, 0?
+                -- strange calculation, but I'd rather not change this code
+                --  could be shortened to use fromPolar(angle, strength)
+                local vel = Vector2(Random_rangef(-1, 1)*0.7, 1):normal()
+                local strength = utils.range_sample_f(spawn_strength)
+                spawnSprite(shooter, sprite_class, pos, vel*strength)
+                -- for next meteor
+                timer1:start(utils.range_sample_any(spawn_time))
+            end)
+            timer1:start(Time.Null)
+            -- timer to terminate the armageddon
+            addTimer(time("15s"), function()
+                timer1:cancel()
+            end)
+        end,
+        isAirstrike = true,
+        category = "misc3",
+        value = 0,
+        animation = "weapon_atomtest",
+        icon = "icon_meteorstrike",
+        cooldown = time("15s"),
+    }
 end

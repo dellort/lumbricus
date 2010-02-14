@@ -98,7 +98,6 @@ end
 -- both a and b are converted by time()
 -- this returns a table suitable to be passed as RandomValue!(Time) to D
 function timeRange(a, b)
-    b = b or a
-    return { min = time(a), max = time(b) }
+    return utils.range(time(a), b and time(b))
 end
 

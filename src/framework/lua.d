@@ -1222,6 +1222,8 @@ class LuaState {
         stack0();
 
         scriptExec(`_G.d_get_obj_metadata = ...`, &script_get_obj_metadata);
+        scriptExec(`_G.d_find_class = ...`, &script_find_class);
+        scriptExec(`_G.d_is_class = ...`, &script_is_class);
 
         //install the pcall error handler
         //I'm using plain Lua API calls to avoid bad interactions with the
@@ -1359,6 +1361,39 @@ class LuaState {
         d.name = m.name;
         d.lua_g_name = m.fname;
         return d;
+    }
+
+    private ClassInfo script_find_class(char[] name) {
+        //yes, the class prefix is not unique; one prefix can refer to several
+        //  D classes, and this is by design (apparently this was d0c's idea;
+        //  maybe he could be convinced otherwise)
+        //actually, we'd have to return the least specific class in cases when
+        //  a prefix is ambiguous, but instead just catch the ambiguous case
+        //  and raise an error *shrug*
+        ClassInfo win = null;
+        foreach (LuaRegistry.Method m; mMethods) {
+            if (m.prefix == name) {
+                win = m.classinfo;
+                break;
+            }
+        }
+        if (!win)
+            return null;
+        //check for ambiguous prefixes
+        foreach (LuaRegistry.Method m; mMethods) {
+            if (m.classinfo is win) {
+                if (m.prefix != name)
+                    throw new CustomException("class prefix is not unique,"
+                        " thus can't find unique classinfo: "~name);
+            }
+        }
+        return win;
+    }
+
+    private bool script_is_class(Object obj, ClassInfo cls) {
+        if (!obj)
+            return false;
+        return rtraits.isDerived(obj.classinfo, cls);
     }
 
     void addSingleton(T)(T instance) {

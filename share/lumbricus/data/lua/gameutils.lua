@@ -19,7 +19,7 @@ function get_context(d_game_object, dont_init)
 end
 
 -- helpers for using get_context()
-function get_context_val(d_game_object, value_name, def)
+function get_context_var(d_game_object, value_name, def)
     local ctx = get_context(d_game_object, true)
     if ctx then
         local x = ctx[value_name]
@@ -29,7 +29,7 @@ function get_context_val(d_game_object, value_name, def)
     end
     return def
 end
-function set_context_val(d_game_object, value_name, value)
+function set_context_var(d_game_object, value_name, value)
     get_context(d_game_object)[value_name] = value
 end
 
@@ -68,12 +68,11 @@ stuff that needs to be done:
   (actually, FireInfo.pos fulfills this role right now)
 - there's spawnFromFireInfo, but this concept sucks hard and should be replaced
 ]]
-function spawnSprite(sprite_class_ref, pos, velocity)
+-- parent = any GameObject, from which this is spawned (shooter or sprite)
+-- velocity = optional, if nil no velocity is set
+function spawnSprite(parent, sprite_class_ref, pos, velocity)
     local s = createSpriteFromRef(sprite_class_ref)
-    local t = Game_ownedTeam()
-    if (t) then
-        GameObject_set_createdBy(s, Member_sprite(Team_current(t)))
-    end
+    GameObject_set_createdBy(s, parent)
     if (velocity) then
         Phys_setInitialVelocity(Sprite_physics(s), velocity)
     end
@@ -81,23 +80,50 @@ function spawnSprite(sprite_class_ref, pos, velocity)
     return s
 end
 
--- this also ensures that you can do get_context(sprite).fireinfo in the
---  sprite_activate event
-function spawnFromFireInfo(sprite_class_ref, fireinfo)
+-- this also ensures that you can do get_context(sprite).fireinfo and .shooter
+--  in the sprite_activate event
+function spawnFromFireInfo(sprite_class_ref, fireinfo, shooter)
     -- xxx creating a closure (and the context table etc.) all the time is
     --  probably not so good if it gets called often (like with the
     --  flamethrower), but maybe it doesn't really matter
     local function create()
         local s = createSpriteFromRef(sprite_class_ref)
-        get_context(s).fireinfo = fireinfo
+        local ctx = get_context(s)
+        ctx.fireinfo = fireinfo
+        ctx.shooter = shooter
         return s
     end
     -- copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
     -- eh, and why not use those values directly?
     local dist = (fireinfo.shootbyRadius + 5) * 1.5 + 2
-    local s = spawnSprite(create, fireinfo.pos + fireinfo.dir * dist,
+    local s = spawnSprite(shooter, create, fireinfo.pos + fireinfo.dir * dist,
         fireinfo.dir * fireinfo.strength)
     return s
+end
+
+-- init for gameObjectFindShooter
+local _D_GameObjectClass = d_find_class("GameObject")
+assert(_D_GameObjectClass)
+local _D_ShooterClass = d_find_class("Shooter")
+assert(_D_ShooterClass)
+
+-- find the D shooter from a D sprite; return nil on failure
+-- the sprite must have been created by spawnFromFireInfo to make this work
+function gameObjectFindShooter(obj)
+    -- createdBy may return any other D object, not only sprites
+    -- => check the type
+    while obj and d_is_class(obj, _D_GameObjectClass) do
+        if d_is_class(obj, _D_ShooterClass) then
+            return obj
+        end
+        --let's just say the last one always has to be a shooter?
+        --local ctx = get_context(obj, true)
+        --if ctx and ctx.shooter then
+        --    return ctx.shooter
+        --end
+        obj = GameObject_createdBy(obj)
+    end
+    return nil
 end
 
 -- custom_dir is optional
@@ -111,7 +137,8 @@ function spawnCluster(sprite_class_ref, parentSprite, count, strengthMin, streng
         local dir = custom_dir:rotated(theta)
         -- dir * 15: add some distance from parent to clusters
         --           (see above, I'm too lazy to do this properly now)
-        spawnSprite(sprite_class_ref, spos + dir * 15, dir * strength)
+        spawnSprite(parentSprite, sprite_class_ref, spos + dir * 15,
+            dir * strength)
     end
 end
 
@@ -121,7 +148,7 @@ function getStandardOnFire(sprite_class_ref)
     return function(shooter, info)
         Shooter_reduceAmmo(shooter)
         Shooter_finished(shooter)
-        spawnFromFireInfo(sprite_class_ref, info)
+        spawnFromFireInfo(sprite_class_ref, info, shooter)
     end
 end
 
@@ -160,6 +187,7 @@ function addSpriteClassEvent(sprite_class, event_name, handler)
 end
 
 -- if a sprite "impacts" (whatever this means), explode and die
+-- damage is passed to spriteExplode() (see there)
 function enableExplosionOnImpact(sprite_class, damage)
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
         spriteExplode(sender, damage)
@@ -237,11 +265,11 @@ end
 function enableBouncer(sprite_class, nbounces, onHit)
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
         onHit(sender)
-        local bounce = get_context_val(sender, "bounce", nbounces)
+        local bounce = get_context_var(sender, "bounce", nbounces)
         if bounce <= 0 then
             Sprite_die(sender)
         end
-        set_context_val(sender, "bounce", bounce - 1)
+        set_context_var(sender, "bounce", bounce - 1)
     end)
 end
 
@@ -471,6 +499,7 @@ function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
 end
 
 -- kill = if sprite should die; default is true
+-- damage = number or range of damage value (Cf. utils.range())
 function spriteExplode(sprite, damage, kill)
     -- don't explode if not visible (this is almost always what you want)
     if not Sprite_visible(sprite) then
@@ -480,22 +509,22 @@ function spriteExplode(sprite, damage, kill)
     if ifnil(kill, true) then
         Sprite_die(sprite)
     end
-    Game_explosionAt(spos, damage, sprite)
+    Game_explosionAt(spos, utils.range_sample_f(damage), sprite)
 end
 
 
 -- props will be used with setProperties(), except for:
 --  name = string used as symbolic/translateable weapon name
 --  ctor = if non-nil, a constuctor function for the weapon
---         (if it's a string, it's taken as global fucntion name)
+--         (if it's a string, it's taken as global function name)
 -- onBlowup = removed and registered as event handler
 --         (onFire has to follow different rules because it returns something)
 function createWeapon(props)
+    local name = pick(props, "name")
     local ctor = pick(props, "ctor", LuaWeaponClass_ctor)
     if type(ctor) == "string" then
         ctor = _G[ctor]
     end
-    local name = pick(props, "name")
     local onblowup = pick(props, "onBlowup")
     --
     local w = ctor(Gfx, name)
@@ -510,12 +539,17 @@ end
 
 -- special properties (similar to createWeapon):
 --  name = symbolic name for the sprite (mostly used for even dispatch)
+--  ctor = same as in createWeapon
 --  noDrown = if true, don't automatically call enableDrown on the sprite class
 function createSpriteClass(props)
     local name = pick(props, "name")
+    local ctor = pick(props, "ctor", SpriteClass_ctor)
+    if type(ctor) == "string" then
+        ctor = _G[ctor]
+    end
     local nodrown = pick(props, "noDrown", false)
     --
-    local s = SpriteClass_ctor(Gfx, name)
+    local s = ctor(Gfx, name)
     setProperties(s, props)
     if not nodrown then
         enableDrown(s)

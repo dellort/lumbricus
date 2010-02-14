@@ -16,6 +16,9 @@ class LuaWeaponClass : WeaponClass {
     void delegate(Shooter, FireInfo) onFire;
     WeaponSelector delegate(Sprite) onCreateSelector;
     void delegate(Shooter, bool) onInterrupt;
+    //if you set onRefire, don't forget canRefire
+    bool delegate(Shooter) onRefire;
+    bool canRefire = false;
 
     this(GfxSet a_gfx, char[] a_name) {
         super(a_gfx, a_name);
@@ -35,6 +38,7 @@ class LuaWeaponClass : WeaponClass {
 class LuaShooter : Shooter {
     private {
         LuaWeaponClass myclass;
+        bool refire;
     }
 
     this(LuaWeaponClass base, Sprite a_owner, GameEngine engine) {
@@ -43,14 +47,28 @@ class LuaShooter : Shooter {
     }
 
     override bool activity() {
-        return false;
+        return internal_active;
     }
 
     override protected void doFire(FireInfo info) {
         info.pos = owner.physics.pos;   //?
-        if (myclass.onFire) {
-            myclass.onFire(this, info);
+        //xxx this is probably wrong, but I don't understand the code in worm.d;
+        //  but it really looks like doFire is called a second time on the same
+        //  shooter object, which actually shouldn't be allowed...
+        if (refire) {
+            doRefire();
+        } else {
+            if (myclass.onFire) {
+                myclass.onFire(this, info);
+            }
         }
+        refire = true;
+    }
+
+    override bool doRefire() {
+        if (!(myclass.canRefire && myclass.onRefire))
+            return false;
+        return myclass.onRefire(this);
     }
 
     override void interruptFiring(bool outOfAmmo) {
