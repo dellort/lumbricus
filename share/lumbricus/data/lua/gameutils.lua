@@ -82,7 +82,7 @@ end
 
 -- this also ensures that you can do get_context(sprite).fireinfo and .shooter
 --  in the sprite_activate event
-function spawnFromFireInfo(sprite_class_ref, fireinfo, shooter)
+function spawnFromFireInfo(sprite_class_ref, shooter, fireinfo)
     -- xxx creating a closure (and the context table etc.) all the time is
     --  probably not so good if it gets called often (like with the
     --  flamethrower), but maybe it doesn't really matter
@@ -102,8 +102,6 @@ function spawnFromFireInfo(sprite_class_ref, fireinfo, shooter)
 end
 
 -- init for gameObjectFindShooter
-local _D_GameObjectClass = d_find_class("GameObject")
-assert(_D_GameObjectClass)
 local _D_ShooterClass = d_find_class("Shooter")
 assert(_D_ShooterClass)
 
@@ -112,22 +110,18 @@ assert(_D_ShooterClass)
 function gameObjectFindShooter(obj)
     -- createdBy may return any other D object, not only sprites
     -- => check the type
-    while obj and d_is_class(obj, _D_GameObjectClass) do
+    while obj do
         if d_is_class(obj, _D_ShooterClass) then
             return obj
         end
-        --let's just say the last one always has to be a shooter?
-        --local ctx = get_context(obj, true)
-        --if ctx and ctx.shooter then
-        --    return ctx.shooter
-        --end
         obj = GameObject_createdBy(obj)
     end
     return nil
 end
 
 -- custom_dir is optional
-function spawnCluster(sprite_class_ref, parentSprite, count, strengthMin, strengthMax, randomRange, custom_dir)
+function spawnCluster(sprite_class_ref, parentSprite, count, strengthMin,
+    strengthMax, randomRange, custom_dir)
     local spos = Phys_pos(Sprite_physics(parentSprite))
     -- default up
     custom_dir = custom_dir or Vector2(0, -1)
@@ -148,7 +142,7 @@ function getStandardOnFire(sprite_class_ref)
     return function(shooter, info)
         Shooter_reduceAmmo(shooter)
         Shooter_finished(shooter)
-        spawnFromFireInfo(sprite_class_ref, info, shooter)
+        spawnFromFireInfo(sprite_class_ref, shooter, info)
     end
 end
 
@@ -156,7 +150,8 @@ function getAirstrikeOnFire(sprite_class_ref, count, distance)
     return function(shooter, info)
         Shooter_reduceAmmo(shooter)
         Shooter_finished(shooter)
-        spawnAirstrike(sprite_class_ref, count or 6, shooter, info, distance or 40)
+        spawnAirstrike(sprite_class_ref, count or 6, shooter, info,
+            distance or 40)
     end
 end
 

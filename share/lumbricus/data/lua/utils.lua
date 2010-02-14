@@ -315,8 +315,8 @@ assert(utils.is_range(utils.range(5)))
 -- range_sample() for RandomValue.sample()
 -- this function has two forms:
 --  range_sample(some_range_table)
---  range_sample(x...)
--- the second behaves approximately like range_sample(range(x...))
+--  range_sample(a)     -- return a
+--  range_sample(a, b)  -- behaves like range_sample(range(a, b))
 -- to see which version is applied, utils.is_range() is used
 -- further, since Lua doesn't distinguish ints and floats, there are different
 --  versions for each of them
@@ -332,6 +332,7 @@ end
 
 -- any type that supports __add, __sub and __mul
 -- e.g. works for Time
+-- separate to not allocate a closure on each call
 local function _range_any_random(a, b)
     return a + (b-a)*Random_rangef(0, 1)
 end
@@ -346,7 +347,7 @@ function utils.range_sample_g(fn, r, b)
         min, max = r.min, r.max
     else
         -- similar to what utils.range does
-        -- but don't construct a table because for efficiency
+        -- but don't construct a table for efficiency
         if b then
             min, max = r, b
         else

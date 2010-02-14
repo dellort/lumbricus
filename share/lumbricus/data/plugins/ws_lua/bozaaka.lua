@@ -95,7 +95,7 @@ do
                 -- xxx this function is bad:
                 --  1. sets a context per napalm sprite (for fireinfo)
                 --  2. doesn't spawn like the .conf flamethrower
-                spawnFromFireInfo(standard_napalm, fireinfo, shooter)
+                spawnFromFireInfo(standard_napalm, shooter, fireinfo)
                 remains = remains - 1
                 if remains <= 0 then
                     timer:cancel()
@@ -249,7 +249,7 @@ do -- xxx missing refire handling; currently just explodes after 3s
             ctx.timer = addTimer(time(3), function()
                 dorefire(shooter)
             end)
-            ctx.main = spawnFromFireInfo(main, info, shooter)
+            ctx.main = spawnFromFireInfo(main, shooter, info)
             addCountdownDisplay(ctx.main, ctx.timer, 5, 2)
         end,
         -- xxx it seems instead of Shooter.doRefire, Shooter.doFire is called
