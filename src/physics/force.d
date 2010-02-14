@@ -210,3 +210,62 @@ class ForceZone : PhysicForce {
         }
     }
 }
+
+//"homing missile" force: makes one object fly to another (or a position)
+class HomingForce : PhysicForce {
+    PhysicObject mover;         //the object being moved (i.e. the missile)
+    Vector2f targetPos;         //fly to this position...
+    PhysicObject targetObj;     //  ... or target this object (overrides pos)
+    float forceA;               //acceleration force
+    float forceT;               //turning force
+
+    this(PhysicObject mover, float forceA, float forceT) {
+        argcheck(mover);
+        this.mover = mover;
+        this.forceA = forceA;
+        this.forceT = forceT;
+    }
+
+    private Vector2f calcForce(Vector2f target) {
+        Vector2f totarget = target - mover.pos;
+        //accelerate/brake
+        Vector2f cmpAccel = totarget.project_vector(mover.velocity);
+        float al = cmpAccel.length;
+        float ald = totarget.project_vector_len(mover.velocity);
+        //steering
+        Vector2f cmpTurn = totarget.project_vector(mover.velocity.orthogonal);
+        float tl = cmpTurn.length;
+
+        Vector2f fAccel, fTurn;
+        //acceleration force
+        if (al > float.epsilon)
+            fAccel = cmpAccel/al*forceA;
+        //turn force
+        if (tl > float.epsilon) {
+            fTurn = cmpTurn/tl*forceT;
+            if (ald > float.epsilon && 2.0f*tl < al) {
+                //when flying towards target and angle is small enough, limit
+                //  turning force to fly a nice arc
+                Vector2f v1 = cmpTurn/tl;
+                Vector2f v2 = v1 - 2*v1.project_vector(totarget);
+                //compute radius of circle trajectory
+                float r =  (totarget.y*v2.x - totarget.x*v2.y)
+                    /(v2.x*v1.y - v1.x*v2.y);
+                //  a = v^2 / r ; F = m * a
+                float fOpt_val = mover.posp.mass
+                    * mover.velocity.quad_length / r;
+                //turn slower if we will still hit dead-on
+                if (fOpt_val < forceT)
+                    fTurn = fOpt_val*cmpTurn/tl;
+            }
+        }
+        return fAccel + fTurn;
+    }
+
+    void applyTo(PhysicObject o, float deltaT) {
+        if (o is mover) {
+            auto pos = targetObj ? targetObj.pos : targetPos;
+            o.addForce(calcForce(pos));
+        }
+    }
+}

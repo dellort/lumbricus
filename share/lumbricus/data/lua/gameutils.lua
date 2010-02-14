@@ -197,7 +197,7 @@ end
 --  "solved" it by using a different, non-leaveable state, and probably by
 --  additional manual checks)
 -- (changing the sprite class sounds way better than the retarded state stuff)
-function enableDrown(sprite_class, drown_phys)
+function getDrownFunc(sprite_class, drown_phys)
     local drown_graphic
     local seq = SpriteClass_sequenceType(sprite_class)
     if seq then
@@ -210,7 +210,7 @@ function enableDrown(sprite_class, drown_phys)
         POSP_set_radius(drown_phys, 1)
         POSP_set_collisionID(drown_phys, "waterobj")
     end
-    addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
+    return function(sender)
         if not Sprite_isUnderWater(sender) then
             return
         end
@@ -219,7 +219,11 @@ function enableDrown(sprite_class, drown_phys)
         if drown_graphic then
             Sequence_setState(Sprite_graphic(sender), drown_graphic)
         end
-    end)
+    end
+end
+function enableDrown(sprite_class, drown_phys)
+    addSpriteClassEvent(sprite_class, "sprite_waterstate",
+        getDrownFunc(sprite_class, drown_phys))
 end
 
 -- when a create with the weapon is blown up, the sprite gets spawned somehow
@@ -286,6 +290,7 @@ function enableSpriteTimer(sprite_class, args)
     local callback = assert(args.callback)
     local periodic = args.periodic
     local timerId = args.timerId or "timer"
+    local removeUnderwater = ifnil(args.removeUnderwater, true)
     -- xxx need a better way to "cleanup" stuff like timers
     local function cleanup(sender)
         local ctx = get_context(sender, true)
@@ -293,7 +298,9 @@ function enableSpriteTimer(sprite_class, args)
             ctx[timerId]:cancel()
         end
     end
-    addSpriteClassEvent(sprite_class, "sprite_waterstate", cleanup)
+    if removeUnderwater then
+        addSpriteClassEvent(sprite_class, "sprite_waterstate", cleanup)
+    end
     addSpriteClassEvent(sprite_class, "sprite_die", cleanup)
     -- this is done so that it works when spawned by a crate
     -- xxx probably it's rather stupid this way; need better way
@@ -596,3 +603,63 @@ function walkForward(sprite, inverse)
     end
     Phys_setWalking(phys, Vector2(dir, 0))
 end
+
+function createPOSP(props)
+    local ret = POSP_ctor()
+    setProperties(ret, props)
+    return ret
+end
+
+-- add HomingForce to sprite
+--   targetStruct = WeaponTarget structure (from FireInfo)
+--   forceA, forceT = acceleration / turn force
+function setSpriteHoming(sprite, targetStruct, forceA, forceT)
+    local homing = HomingForce_ctor(Sprite_physics(sprite), forceA or 15000,
+        forceT or 15000)
+    if targetStruct.sprite then
+        HomingForce_set_targetObj(homing, Sprite_physics(targetStruct.sprite))
+    else
+        HomingForce_set_targetPos(homing, targetStruct.pos)
+    end
+    World_add(homing)
+    return homing
+end
+
+-- the following state functions are mostly a hack for complex weapons
+-- a state is the combination of (animation, physics, particle)
+-- initSpriteState creates a table with preprocessed state values for a sprite
+--    animation = string sequence state id
+--    physics = POSP instance, or physics table (will use createPOSP)
+--    particle = string resource id
+-- if any param is nil, it will not be modified (except particle, which will be
+--    cleared then)
+function initSpriteState(sprite_class, animation, physics, particle)
+    local seq = SpriteClass_sequenceType(sprite_class)
+    local ret = {}
+    if animation then
+        ret.seqState = SequenceType_findState(seq, animation)
+    end
+    if physics then
+        if type(physics) == "userdata" then
+            ret.posp = physics
+        else
+            ret.posp = createPOSP(physics)
+        end
+    end
+    if particle then
+        ret.particle = Gfx_resource(particle)
+    end
+    return ret
+end
+
+-- sets the sprite to a state created with initSpriteState
+function setSpriteState(sprite, state)
+    if state.posp then
+        Phys_set_posp(Sprite_physics(sprite), state.posp)
+    end
+    if state.seqState then
+        Sequence_setState(Sprite_graphic(sprite), state.seqState)
+    end
+    Sprite_setParticle(sprite, state.particle)
+end
+

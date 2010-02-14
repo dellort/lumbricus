@@ -50,7 +50,7 @@ class MessageViewer : Label {
 
         styles.addClass("preparebox");
         mStdFont = gFontManager.getStyle("messages");
-
+        setFont(mStdFont);
         //make sure it's hidden initially
         mInterp.init(timeSecs(0), -200, 0);
 
@@ -69,6 +69,11 @@ class MessageViewer : Label {
 
     bool idle() {
         return !working();
+    }
+
+    private void setFont(ref FontProperties props) {
+        styles.setStyleOverrideT!(Font)("text-font",
+            gFontManager.create(props));
     }
 
     private void showMessage(GameObject sender, GameMessage msg) {
@@ -98,8 +103,7 @@ class MessageViewer : Label {
             if (team) {
                 p.fore_color = team.color.color;
             }
-            styles.setStyleOverrideT!(Font)("text-font",
-                gFontManager.create(p));
+            setFont(p);
             mInterp.init(timeSecs(1.5f),
                 -containedBorderBounds.p1.y - containedBorderBounds.size.y, 0);
         }

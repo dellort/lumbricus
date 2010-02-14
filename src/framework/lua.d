@@ -1445,7 +1445,9 @@ class LuaState {
         int res = lua_load(mLua, reader, d, czstr.toStringz('='~chunkname));
         if (res != 0) {
             scope (exit) lua_pop(mLua, 1);  //remove error message
-            char[] err = lua_todstring_unsafe(mLua, -1);
+            //xxx if this fails to get the message (e.g. utf8 error), there
+            //    will be no line number
+            char[] err = lua_todstring_protected(mLua, -1);
             throw new LuaException("Parse error: " ~ err);
         }
     }

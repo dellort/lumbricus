@@ -249,6 +249,15 @@ function table_empty(table)
     return not key
 end
 
+-- duplicate table with table_copy() and then copy in the values from modifications
+function table_modified(table, modifications)
+    local ntable = table_copy(table)
+    for k, v in pairs(modifications) do
+        ntable[k] = v
+    end
+    return ntable
+end
+
 -- a1 and a2 are expected to be arrays (basically means '#' should work)
 -- items are compared with ==
 function array_equal(a1, a2)

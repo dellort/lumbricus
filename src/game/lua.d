@@ -152,6 +152,10 @@ static this() {
 
     gScripting.ctor!(GravityCenter, PhysicObject, float, float)();
 
+    gScripting.ctor!(HomingForce, PhysicObject, float, float)();
+    gScripting.properties!(HomingForce, "mover", "forceA", "forceT",
+        "targetPos", "targetObj");
+
     gScripting.method!(CollisionMap, "findCollisionID");
 
     //oh my

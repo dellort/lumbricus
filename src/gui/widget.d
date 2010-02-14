@@ -545,8 +545,11 @@ class Widget {
 
     final void containerPosition(Vector2i pos) {
         auto rc = mContainerBounds;
-        rc += -rc.p1 + pos;
-        layoutContainerAllocate(rc); //shouldn't normally trigger relayout
+        auto delta = -rc.p1 + pos;
+        if (delta != Vector2i(0)) {
+            rc += delta;
+            layoutContainerAllocate(rc); //shouldn't normally trigger relayout
+        }
     }
 
     ///widget client size
@@ -710,6 +713,7 @@ class Widget {
         mContainerBounds = rect;
         layoutCalculateSubAllocation(rect);
         auto oldsize = mContainedWidgetBounds.size;
+        bool rectChanged = mContainedWidgetBounds != rect;
         mContainedWidgetBounds = rect;
         if (!mLayoutNeedReallocate && oldsize == rect.size) {
             //huh, no need to reallocate, because only the size matters.
@@ -719,12 +723,12 @@ class Widget {
             //log("realloc {} {}/{}", this, mContainerBounds, rect);
             layoutSizeAllocation();
         }
-        if (mGUI && mouseIsInside()) {
+        if (mGUI && mouseIsInside() && rectChanged) {
             //widget position/size is changing while the mouse cursor is over it
             //  -> need to correct mouse pos, as it's relative to the widget pos
-            //xxx commented because it caused infinite recursion when trying to
-            //  move a window (probably also with scrollbar, resizing, etc.)
-            //mGUI.fixMouse();
+            //xxx danger of infinite recursion while moving a window, but
+            //    I added checks to prevent that
+            mGUI.fixMouse();
         }
     }
 

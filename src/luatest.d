@@ -291,9 +291,6 @@ void main(char[][] args) {
     void fail(char[] code) {
         try {
             loadexec(code);
-        } catch (LuaError e) {
-            Trace.formatln("OK, {}", e.msg);
-            return;
         } catch (LuaException e) {
             Trace.formatln("OK, {}", e.msg);
             return;

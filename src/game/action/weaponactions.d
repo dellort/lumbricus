@@ -114,22 +114,22 @@ void homing(WeaponContext wx, float forceA, float forceT) {
 
 class HomingAction : GameObject {
     private {
-        float forceA, forceT;
-        ObjectForce objForce;
-        ConstantForce homingForce;
+        HomingForce homingForce;
         ProjectileSprite mParent;
     }
 
     this(GameEngine eng, ProjectileSprite parent, float forceA, float forceT) {
         super(eng, "homingaction");
         internal_active = true;
-        this.forceA = forceA;
-        this.forceT = forceT;
         mParent = parent;
         assert(!!mParent);
-        homingForce = new ConstantForce();
-        objForce = new ObjectForce(homingForce, mParent.physics);
-        engine.physicworld.add(objForce);
+        homingForce = new HomingForce(mParent.physics, forceA, forceT);
+        if (mParent.target.sprite) {
+            homingForce.targetObj = mParent.target.sprite.physics;
+        } else {
+            homingForce.targetPos = mParent.target.pos;
+        }
+        engine.physicworld.add(homingForce);
     }
 
     bool activity() {
@@ -138,48 +138,7 @@ class HomingAction : GameObject {
 
     override protected void updateInternalActive() {
         if (!internal_active)
-            objForce.dead = true;
-    }
-
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
-        Vector2f totarget = mParent.target.currentPos
-            - mParent.physics.pos;
-        //accelerate/brake
-        Vector2f cmpAccel = totarget.project_vector(
-            mParent.physics.velocity);
-        float al = cmpAccel.length;
-        float ald = totarget.project_vector_len(
-            mParent.physics.velocity);
-        //steering
-        Vector2f cmpTurn = totarget.project_vector(
-            mParent.physics.velocity.orthogonal);
-        float tl = cmpTurn.length;
-
-        Vector2f fAccel, fTurn;
-        //acceleration force
-        if (al > float.epsilon)
-            fAccel = cmpAccel/al*forceA;
-        //turn force
-        if (tl > float.epsilon) {
-            fTurn = cmpTurn/tl*forceT;
-            if (ald > float.epsilon && 2.0f*tl < al) {
-                //when flying towards target and angle is small enough, limit
-                //  turning force to fly a nice arc
-                Vector2f v1 = cmpTurn/tl;
-                Vector2f v2 = v1 - 2*v1.project_vector(totarget);
-                //compute radius of circle trajectory
-                float r =  (totarget.y*v2.x - totarget.x*v2.y)
-                    /(v2.x*v1.y - v1.x*v2.y);
-                //  a = v^2 / r ; F = m * a
-                float fOpt_val = mParent.physics.posp.mass
-                    * mParent.physics.velocity.quad_length / r;
-                //turn slower if we will still hit dead-on
-                if (fOpt_val < forceT)
-                    fTurn = fOpt_val*cmpTurn/tl;
-            }
-        }
-        homingForce.force = fAccel + fTurn;
+            homingForce.dead = true;
     }
 }
 
