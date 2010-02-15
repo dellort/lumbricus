@@ -1567,11 +1567,16 @@ do
 end
 
 -- specific to gun-type weapons: nrounds explosions in a direct line-of-sight
-function getGunOnFire(nrounds, interval, damage)
+-- effect = optional function(from, to) to draw an impact effect
+-- how about documenting return types and all that?
+function getGunOnFire(nrounds, interval, damage, effect)
     return getMultipleOnFire(nrounds, interval, false,
         function(shooter, fireinfo)
             local hitpoint = castFireRay(shooter, fireinfo)
             if hitpoint then
+                if effect then
+                    effect(fireinfo.pos, hitpoint)
+                end
                 -- hit something
                 Game_explosionAt(hitpoint, damage, shooter)
             end
@@ -1638,11 +1643,27 @@ do
     }
 end
 
-do -- xxx missing laser line
+-- return a function(from, to) that draws a laser for the given time
+-- t = time how long the laser should last
+local function getLaserEffect(t)
+    local function color(r,g,b,a)
+        return {r=r,g=g,b=b,a=a or 1}
+    end
+
+    local line_colors = { color(1,0,0), color(0,0,0), color(1,0,0) }
+    local line_time = t or time("2s")
+
+    return function(from, to)
+        RenderLaser_ctor(Game, from, to, line_time, line_colors)
+    end
+end
+
+do
     local name = "lesar"
 
     -- spread = "0"
-    local fire, interrupt, readjust = getGunOnFire(4, time(0.1), 10)
+    local fire, interrupt, readjust = getGunOnFire(4, time(0.1), 10,
+        getLaserEffect(time("200ms")))
     local w = createWeapon {
         name = name,
         onFire = fire,
@@ -1658,8 +1679,9 @@ do -- xxx missing laser line
     }
 end
 
-do -- xxx missing laser line
+do
     local name = "beamlaser"
+    local addlaser = getLaserEffect(time("2s"))
 
     local w = createWeapon {
         name = name,
@@ -1669,8 +1691,8 @@ do -- xxx missing laser line
             if hitpoint then
                 Shooter_reduceAmmo(shooter)
                 Worm_beamTo(Shooter_owner(shooter), hitpoint)
+                addlaser(fireinfo.pos, hitpoint)
             end
-            -- xxx not much of a laserbeamer without the laser line...
         end,
         category = "tools",
         value = 0,

@@ -26,6 +26,7 @@ import game.weapon.luaweapon;
 import game.weapon.napalm;
 import game.weapon.parachute;
 import game.weapon.projectile;
+import game.weapon.ray;
 import game.weapon.rope;
 import game.weapon.weapon;
 import gui.rendertext; //: FormattedText
@@ -220,6 +221,9 @@ static this() {
 
     gScripting.ctor!(ControlRotate, Sprite, float, float)();
     gScripting.properties!(ControlRotate, "direction");
+
+    gScripting.ctor!(RenderLaser, GameEngine, Vector2f, Vector2f, Time,
+        Color[]);
 
     //-----
 

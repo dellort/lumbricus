@@ -71,7 +71,7 @@ class RayShooter: ActionShooter {
         fireInfo.info.surfNormal = normal;
         if (base.lineTime > Time.Null) {
             //xxx: evil memory allocation (array literals)
-            new RenderLaser(engine, [npos, hitPoint], base.lineTime,
+            new RenderLaser(engine, npos, hitPoint, base.lineTime,
                 [base.lineColors[0], base.lineColors[1], base.lineColors[0]]);
         }
     }
@@ -89,12 +89,14 @@ class RenderLaser : SceneObject {
         Color[] mColors;
     }
 
-    this(GameEngine aengine, Vector2f[2] p, Time duration, Color[] colors) {
+    this(GameEngine aengine, Vector2f p1, Vector2f p2, Time duration,
+        Color[] colors)
+    {
         base = aengine.callbacks;
         zorder = GameZOrder.Effects;
         base.scene.add(this);
-        mP[0] = toVector2i(p[0]);
-        mP[1] = toVector2i(p[1]);
+        mP[0] = toVector2i(p1);
+        mP[1] = toVector2i(p2);
         mStart = base.interpolateTime.current;
         mEnd = mStart + duration;
         mColors = colors;
