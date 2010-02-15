@@ -138,8 +138,9 @@ do -- xxx missing: deathzone_immune for active missile
         callback = function(sender)
             setSpriteState(sender, activeState)
             local ctx = get_context(sender)
-            local homing = setSpriteHoming(sender, ctx.fireinfo.pointto, 15000,
-                15000)
+            local sh = gameObjectFindShooter(sender)
+            local fi = Shooter_fireinfo(sh)
+            local homing = setSpriteHoming(sender, fi.pointto, 15000, 15000)
             ctx.active = true
             ctx.force = homing
         end

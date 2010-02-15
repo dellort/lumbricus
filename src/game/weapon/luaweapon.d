@@ -68,10 +68,10 @@ class LuaShooter : Shooter {
     }
 
     override void readjust(Vector2f dir) {
+        super.readjust(dir);
         if (myclass.onReadjust) {
             myclass.onReadjust(this, dir);
         }
-        super.readjust(dir);
     }
 
     override void interruptFiring(bool outOfAmmo) {

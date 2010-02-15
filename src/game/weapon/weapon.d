@@ -218,6 +218,18 @@ struct WeaponTarget {
     }
 }
 
+//find the shooter from a game object; return null on failure
+//this should always work for sprites created by weapons, except if there's a
+//  bug in some weapon code (incorrect createdBy chain)
+Shooter gameObjectFindShooter(GameObject o) {
+    while (o) {
+        if (auto sh = cast(Shooter)o)
+            return sh;
+        o = o.createdBy;
+    }
+    return null;
+}
+
 //simulate the firing of a weapon; i.e. create projectiles and so on
 //also simulates whatever is going on for special weapons (i.e. earth quakes)
 //always created by WeaponClass.createShooter()
@@ -227,6 +239,10 @@ abstract class Shooter : GameObject {
     protected WeaponClass mClass;
     Sprite owner;
     private bool mWorking;   //only for finishCb event
+
+    //latest valid fire position etc.
+    //valid at first doFire call, updated on readjust
+    FireInfo fireinfo;
 
     //shooters should call this to reduce owner's ammo by 1
     ShooterCallback ammoCb, finishCb;
@@ -269,6 +285,7 @@ abstract class Shooter : GameObject {
     //fire (i.e. activate) weapon
     final bool fire(FireInfo info) {
         assert(!activity);
+        fireinfo = info;
         if (selector) {
             if (!selector.canFire(info))
                 return false;
@@ -300,6 +317,7 @@ abstract class Shooter : GameObject {
 
     //often the worm can change shooting direction while the weapon still fires
     void readjust(Vector2f dir) {
+        fireinfo.dir = dir;
     }
 
     //if this returns false, the direction cannot be changed

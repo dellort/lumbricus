@@ -183,7 +183,8 @@ static this() {
         "cooldown", "crateAmount", "icon", "fireMode", "animation");
 
     gScripting.methods!(Shooter, "finished", "reduceAmmo");
-    gScripting.properties!(Shooter, "selector", "owner");
+    gScripting.properties!(Shooter, "selector", "owner", "fireinfo");
+    gScripting.func!(gameObjectFindShooter)();
 
     //------- specific weapons implemented in D
 

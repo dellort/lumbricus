@@ -78,6 +78,7 @@ do
             local vel = Phys_velocity(Sprite_physics(sender))
             spawnCluster(worms_shared.standard_napalm, sender, 15, 1, 1, 60,
                 vel)
+            spriteExplode(sender, 25)
         end,
     })
 

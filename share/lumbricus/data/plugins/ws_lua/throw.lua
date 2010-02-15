@@ -50,7 +50,7 @@ do
     bananashard_class = shard
 end
 
-do -- xxx missing refire handling; currently just explodes after 3s
+do
     local name = "supernabana"
     local function createSprite(name)
         return createSpriteClass {
@@ -75,16 +75,17 @@ do -- xxx missing refire handling; currently just explodes after 3s
         assert(ctx)
         local timer = ctx.timer
         timer:cancel()
-        if ctx.phase == 0 then
+        if ctx.phase1 then
             -- explode the main sprite
             if not spriteIsGone(ctx.main) then
                 spriteExplode(ctx.main, 75)
                 spawnCluster(shard, ctx.main, 5, 300, 400, 40)
+                -- after that time, let shards explode in phase 1
+                ctx.timer:start(time(4))
+                ctx.phase1 = false
+                return true
             end
-            -- after that time, let shards explode in phase 1
-            ctx.timer:start(time(4))
-        elseif ctx.phase == 1 then
-            Shooter_finished(shooter)
+        else
             assert(ctx.sprites)
             for i, s in ipairs(ctx.sprites) do
                 if not spriteIsGone(s) then
@@ -93,7 +94,7 @@ do -- xxx missing refire handling; currently just explodes after 3s
             end
             ctx.sprites = nil
         end
-        ctx.phase = ctx.phase + 1
+        Shooter_finished(shooter)
         -- signal success???
         return true
     end
@@ -124,7 +125,7 @@ do -- xxx missing refire handling; currently just explodes after 3s
             --Shooter_finished(shooter)
             local ctx = get_context(shooter)
             ctx.sprites = {}
-            ctx.phase = 0
+            ctx.phase1 = true
             ctx.timer = addTimer(time(8), function()
                 dorefire(shooter)
             end)

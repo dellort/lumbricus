@@ -186,6 +186,7 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
 }
 
 //core spawn functions; actually, all spawn functions should use this
+//lua has a spawnSprite function for this
 void doSpawnSprite(SpriteClass sclass, GameObject spawned_by, Vector2f pos,
     Vector2f init_vel = Vector2f(0))
 {
@@ -256,7 +257,7 @@ void spawnCluster(SpriteClass sclass, Sprite parent, int count,
         //15???
         //-- dir * 15: add some distance from parent to clusters
         //--           (see above, I'm too lazy to do this properly now)
-        doSpawnSprite(sclass, parent, spos + dir * 15, dir * strength);
+        doSpawnSprite(sclass, parent, spos + dir.normal * 15, dir * strength);
     }
 }
 

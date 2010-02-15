@@ -40,23 +40,6 @@ end
 
 -- random helper functions
 
--- sprite_class_ref is...
---  - a string referencing a SpriteClass
---  - a SpriteClass instance
---  - a Lua function to instantiate a sprite
-function createSpriteFromRef(sprite_class_ref)
-    local t = type(sprite_class_ref)
-    if t == "string" then
-        return Game_createSprite(sprite_class_ref)
-    elseif t == "function" then
-        return sprite_class_ref()
-    elseif t == "userdata" then
-        return SpriteClass_createSprite(sprite_class_ref, Game)
-    else
-        assert(false)
-    end
-end
-
 --[[
 stuff that needs to be done:
 - fix createdBy crap
@@ -69,93 +52,50 @@ stuff that needs to be done:
 - there's spawnFromFireInfo, but this concept sucks hard and should be replaced
 ]]
 -- parent = any GameObject, from which this is spawned (shooter or sprite)
--- velocity = optional, if nil no velocity is set
-function spawnSprite(parent, sprite_class_ref, pos, velocity)
-    local s = createSpriteFromRef(sprite_class_ref)
+-- sprite_class = a D SpriteClass (doesn't accept a name string anymore)
+-- pos = a Vector2
+-- velocity = optional Vector2, if nil no velocity is set
+function spawnSprite(parent, sprite_class, pos, velocity)
+    local s = SpriteClass_createSprite(sprite_class, Game)
     GameObject_set_createdBy(s, parent)
-    if (velocity) then
+    if velocity then
         Phys_setInitialVelocity(Sprite_physics(s), velocity)
     end
     Sprite_activate(s, pos)
     return s
 end
 
--- this also ensures that you can do get_context(sprite).fireinfo and .shooter
---  in the sprite_activate event
-function spawnFromFireInfo(sprite_class_ref, shooter, fireinfo)
-    -- xxx creating a closure (and the context table etc.) all the time is
-    --  probably not so good if it gets called often (like with the
-    --  flamethrower), but maybe it doesn't really matter
-    local function create()
-        local s = createSpriteFromRef(sprite_class_ref)
-        local ctx = get_context(s)
-        ctx.fireinfo = fireinfo
-        ctx.shooter = shooter
-        return s
-    end
+-- shortcut for spawnFromFireInfo()
+-- due to FireInfo this creates quite some tables
+function spawnFromShooter(sprite_class, shooter)
+    spawnFromFireInfo(sprite_class, shooter, Shooter_fireinfo(shooter))
+end
+
+-- spawn using the fireinfo settings, and using shooter as parent
+function spawnFromFireInfo(sprite_class, shooter, fireinfo)
     -- copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
     -- eh, and why not use those values directly?
     local dist = (fireinfo.shootbyRadius + 5) * 1.5 + 2
-    local s = spawnSprite(shooter, create, fireinfo.pos + fireinfo.dir * dist,
-        fireinfo.dir * fireinfo.strength)
+    local s = spawnSprite(shooter, sprite_class,
+        fireinfo.pos + fireinfo.dir * dist, fireinfo.dir * fireinfo.strength)
     return s
 end
 
--- init for gameObjectFindShooter
-local _D_ShooterClass = d_find_class("Shooter")
-assert(_D_ShooterClass)
-
--- find the D shooter from a D sprite; return nil on failure
--- the sprite must have been created by spawnFromFireInfo to make this work
-function gameObjectFindShooter(obj)
-    -- createdBy may return any other D object, not only sprites
-    -- => check the type
-    while obj do
-        if d_is_class(obj, _D_ShooterClass) then
-            return obj
-        end
-        obj = GameObject_createdBy(obj)
-    end
-    return nil
-end
-
---[[
-now in game/action/spawn.d
-leaving this still here for testing purposes
-
--- custom_dir is optional
-function spawnCluster(sprite_class_ref, parentSprite, count, strengthMin,
-    strengthMax, randomRange, custom_dir)
-    local spos = Phys_pos(Sprite_physics(parentSprite))
-    -- default up
-    custom_dir = custom_dir or Vector2(0, -1)
-    for i = 1,count do
-        local strength = Random_rangei(strengthMin, strengthMax)
-        local theta = (Random_rangef(-0.5, 0.5)*randomRange) * math.pi/180
-        local dir = custom_dir:rotated(theta)
-        -- dir * 15: add some distance from parent to clusters
-        --           (see above, I'm too lazy to do this properly now)
-        spawnSprite(parentSprite, sprite_class_ref, spos + dir * 15,
-            dir * strength)
-    end
-end
---]]
-
 -- create and return a function that does what most onFire functions will do
 -- incidentally, this just calls spawnFromFireInfo()
-function getStandardOnFire(sprite_class_ref)
+function getStandardOnFire(sprite_class)
     return function(shooter, info)
         Shooter_reduceAmmo(shooter)
         Shooter_finished(shooter)
-        spawnFromFireInfo(sprite_class_ref, shooter, info)
+        spawnFromFireInfo(sprite_class, shooter, info)
     end
 end
 
-function getAirstrikeOnFire(sprite_class_ref, count, distance)
+function getAirstrikeOnFire(sprite_class, count, distance)
     return function(shooter, info)
         Shooter_reduceAmmo(shooter)
         Shooter_finished(shooter)
-        spawnAirstrike(sprite_class_ref, count or 6, shooter, info,
+        spawnAirstrike(sprite_class, count or 6, shooter, info,
             distance or 40)
     end
 end
@@ -228,7 +168,7 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
     end
     local function doReadjust(shooter, dir)
         local ctx = get_context(shooter)
-        -- xxx modifies fireinfo stored in already spawned sprites
+        -- Shooter_fireinfo() could also be used, but that recreates the tables
         ctx.fireinfo.dir = dir
     end
     return doFire, doInterrupt, doReadjust
@@ -239,7 +179,6 @@ function getMultispawnOnFire(sprite_class, nsprites, interval, per_shot_ammo)
     return getMultipleOnFire(nsprites, interval, per_shot_ammo,
         function(shooter, fireinfo)
             -- xxx this function is bad:
-            --  1. sets a context per napalm sprite (for fireinfo)
             --  2. doesn't spawn like the .conf flamethrower
             spawnFromFireInfo(sprite_class, shooter, fireinfo)
         end)
@@ -394,13 +333,13 @@ function enableSpriteTimer(sprite_class, args)
     --  blowing up a crate (right now it sets the timer to a default)
     addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
         local ctx = get_context(sender)
-        local fi = ctx.fireinfo
-        local t
-        if fi and useUserTimer then
-            t = fi.timer
-        else
-            -- spawned from crate or so
-            t = defTimer
+        local t = defTimer
+        if useUserTimer then
+            -- actually, it should always find a shooter
+            local sh = gameObjectFindShooter(sender)
+            if sh then
+                t = Shooter_fireinfo(sh).timer
+            end
         end
         ctx[timerId] = addTimer(t, function()
             callback(sender)

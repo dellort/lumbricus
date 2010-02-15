@@ -188,6 +188,10 @@ do
     local function dorefire(shooter)
         Shooter_finished(shooter)
         local sprite = get_context_var(shooter, "sprite")
+        -- not under water
+        if spriteIsGone(sprite) then
+            return
+        end
         spriteExplode(sprite, 50)
         spawnCluster(shard, sprite, 5, 350, 450, 50)
         return true
@@ -202,6 +206,11 @@ do
             dorefire(get_context_var(sender, "shooter"))
         end
     })
+
+    addSpriteClassEvent(main, "sprite_waterstate", function(sender)
+        -- cleanup
+        dorefire(gameObjectFindShooter(sender))
+    end)
 
     local w = createWeapon {
         name = name,

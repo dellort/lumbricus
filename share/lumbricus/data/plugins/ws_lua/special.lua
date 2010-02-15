@@ -42,7 +42,7 @@ do
         if spriteIsGone(sender) then
             return
         end
-        spawnCluster(sticky_napalm, sender, 40, 0, 0, 60)
+        spawnCluster(worm_shared.sticky_napalm, sender, 40, 0, 0, 60)
         spriteExplode(sender, 20)
     end)
 
