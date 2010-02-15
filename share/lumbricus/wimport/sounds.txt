@@ -37,6 +37,7 @@ sounds {
             a_granny = "OLDWOMAN.WAV"
             a_sheep = "SHEEPBAA.WAV"
             a_sizzle = "SIZZLE.WAV"
+            a_sallyarmy = "SALVATIONARMY.WAV"
         }
     }
     /* -- not implemented

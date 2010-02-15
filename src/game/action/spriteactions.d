@@ -542,7 +542,6 @@ class StuckTrigger : SpriteHandler {
 
     this(Sprite parent, Time triggerDelay, float treshold, bool multiple) {
         super(parent);
-        mParent = parent;
         mPosOld = mParent.physics.pos;
         mTriggerDelay = triggerDelay;
         mTreshold = treshold;
@@ -609,3 +608,69 @@ class StuckTrigger : SpriteHandler {
     }
 }
 
+class ControlRotate : SpriteHandler, Controllable {
+    private {
+        WormControl mMember;
+        Vector2f mMoveVector;
+        float mDirection, mRotateSpeed, mThrust;
+    }
+
+    this(Sprite parent, float rotateSpeed, float thrust)
+    {
+        super(parent);
+        mMember = engine.controller.controlFromGameObject(mParent, true);
+        mMember.pushControllable(this);
+        //default to parent velocity (can be changed later)
+        mDirection = mParent.physics.velocity.toAngle();
+        mRotateSpeed = rotateSpeed;
+        mThrust = thrust;
+        setForce();
+    }
+
+    float direction() {
+        return mDirection;
+    }
+    void direction(float dir) {
+        mDirection = dir;
+        setForce();
+    }
+
+    override protected void updateInternalActive() {
+        if (!internal_active) {
+            mParent.physics.resetLook();
+            mMember.releaseControllable(this);
+        }
+    }
+
+    override void simulate(float deltaT) {
+        mDirection += mMoveVector.x * mRotateSpeed * deltaT;
+        setForce();
+        super.simulate(deltaT);
+    }
+
+    private void setForce() {
+        mParent.physics.selfForce = Vector2f.fromPolar(1.0f, mDirection)
+            * mThrust;
+    }
+
+    //-- Controllable implementation
+
+    bool fire(bool keyDown) {
+        return false;
+    }
+
+    bool jump(JumpMode j) {
+        return false;
+    }
+
+    bool move(Vector2f m) {
+        mMoveVector = m;
+        return true;
+    }
+
+    Sprite getSprite() {
+        return mParent;
+    }
+
+    //-- end Controllable
+}

@@ -218,6 +218,9 @@ static this() {
     gScripting.ctor!(StuckTrigger, Sprite, Time, float, bool)();
     gScripting.properties!(StuckTrigger, "onTrigger");
 
+    gScripting.ctor!(ControlRotate, Sprite, float, float)();
+    gScripting.properties!(ControlRotate, "direction");
+
     //-----
 
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();

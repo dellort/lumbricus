@@ -82,36 +82,12 @@ end
 do
     local name = "flemathrower"
 
+    local fire, interrupt = getMultispawnOnFire(standard_napalm, 50,
+        timeMsecs(60))
     local w = createWeapon {
         name = name,
-        onFire = function(shooter, fireinfo)
-            local worm = Shooter_owner(shooter)
-            Shooter_reduceAmmo(shooter)
-            LuaShooter_set_isFixed(shooter, true)
-            local remains = 50
-            local timer = Timer.new()
-            set_context_var(shooter, "timer", timer)
-            timer:setCallback(function()
-                -- only one sprite per timer tick...
-                -- xxx this function is bad:
-                --  1. sets a context per napalm sprite (for fireinfo)
-                --  2. doesn't spawn like the .conf flamethrower
-                spawnFromFireInfo(standard_napalm, shooter, fireinfo)
-                remains = remains - 1
-                if remains <= 0 then
-                    timer:cancel()
-                    Shooter_finished(shooter)
-                end
-            end)
-            timer:start(timeMsecs(60), true)
-        end,
-        onInterrupt = function(shooter, outOfAmmo)
-            -- xxx somehow this never gets called
-            local timer = get_context_var(shooter, "timer")
-            if timer then
-                timer:cancel()
-            end
-        end,
+        onFire = fire,
+        onInterrupt = interrupt,
         category = "misc2",
         value = 0,
         animation = "weapon_flamethrower",
@@ -1080,7 +1056,7 @@ do
     }
 end
 
-do -- xxx missing refire handling and inverse direction when stuck
+do
     local name = "peesh"
     local function createSprite(name)
         return createSpriteClass {
@@ -1101,6 +1077,13 @@ do -- xxx missing refire handling and inverse direction when stuck
     end
 
     local sprite_class = createSprite(name)
+    local seqNormal = findSpriteSeqType(sprite_class, "normal")
+    local seqHelmet = findSpriteSeqType(sprite_class, "helmet")
+
+    -- take off helmet on impact
+    addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
+        Sequence_setState(Sprite_graphic(sender), seqNormal)
+    end)
     -- start walking on spawn
     enableWalking(sprite_class)
     -- jump in random intervals
@@ -1119,12 +1102,19 @@ do -- xxx missing refire handling and inverse direction when stuck
             end
         end
     })
+
+    local function dorefire(shooter)
+        Shooter_finished(shooter)
+        local sprite = get_context_var(shooter, "sprite")
+        spriteExplode(sprite, 75)
+        return true
+    end
     -- don't live longer than 8s
     enableSpriteTimer(sprite_class, {
         defTimer = time(8),
         showDisplay = true,
         callback = function(sender)
-            spriteExplode(sender, 75)
+            dorefire(get_context_var(sender, "shooter"))
         end
     })
 
@@ -1134,7 +1124,13 @@ do -- xxx missing refire handling and inverse direction when stuck
 
     local w = createWeapon {
         name = name,
-        onFire = getStandardOnFire(sprite_class),
+        onFire = function(shooter, info)
+            Shooter_reduceAmmo(shooter)
+            local s = spawnFromFireInfo(sprite_class, shooter, info)
+            set_context_var(shooter, "sprite", s)
+        end,
+        onRefire = dorefire,
+        canRefire = true,
         value = 0,
         category = "moving",
         icon = "icon_sheep",
@@ -1143,6 +1139,31 @@ do -- xxx missing refire handling and inverse direction when stuck
             direction = "fixed",
             throwStrengthFrom = 40,
             throwStrengthTo = 40,
+        }
+    }
+    enableSpriteCrateBlowup(w, cratesheep_class)
+
+    -- sheeplauncher is almost exactly the same, but the sheep spawns with
+    --   the "helmet" animation
+    local name = name .. "launcher"
+    local w = createWeapon {
+        name = name,
+        onFire = function(shooter, info)
+            Shooter_reduceAmmo(shooter)
+            local s = spawnFromFireInfo(sprite_class, shooter, info)
+            Sequence_setState(Sprite_graphic(s), seqHelmet)
+            set_context_var(shooter, "sprite", s)
+        end,
+        onRefire = dorefire,
+        canRefire = true,
+        value = 0,
+        category = "fly",
+        icon = "icon_sheeplauncher",
+        animation = "weapon_sheeplauncher",
+        fireMode = {
+            direction = "any",
+            throwStrengthFrom = 600,
+            throwStrengthTo = 600,
         }
     }
     enableSpriteCrateBlowup(w, cratesheep_class)
@@ -1440,6 +1461,7 @@ do
             walkingSpeed = 25,
         },
         sequenceType = "s_sally_army",
+        initParticle = "p_sallyarmy",
     }
     local shard = createSpriteClass {
         name = name .. "shard_sprite",
@@ -1478,7 +1500,6 @@ do
         onFire = function(shooter, info)
             Shooter_reduceAmmo(shooter)
             local spr = spawnFromFireInfo(main, shooter, info)
-            set_context_var(spr, "shooter", shooter)
             set_context_var(shooter, "sprite", spr)
         end,
         onRefire = dorefire,
@@ -1494,4 +1515,51 @@ do
         }
     }
     enableSpriteCrateBlowup(w, shard, 4)
+end
+
+do
+    local name = "ox"
+    local sprite_class = createSpriteClass {
+        name = name .. "_sprite",
+        initPhysic = relay {
+            collisionID = "projectile_controlled",
+            mass = 10,
+            radius = 5,
+            explosionInfluence = 0.0,
+            windInfluence = 0.0,
+            elasticity = 0.0,
+            glueForce = 500,
+            walkingSpeed = 50,
+        },
+        sequenceType = "s_cow",
+        initParticle = "p_cow",
+    }
+    enableWalking(sprite_class, function(sprite)
+        spriteExplode(sprite, 75)
+    end)
+    enableSpriteTimer(sprite_class, {
+        defTimer = timeSecs(10),
+        showDisplay = true,
+        callback = function(sender)
+            spriteExplode(sender, 75)
+        end
+    })
+
+    local fire, interrupt = getMultispawnOnFire(sprite_class, 3, time(0.6), true)
+    local w = createWeapon {
+        name = name,
+        onFire = fire,
+        onInterrupt = interrupt,
+        value = 0,
+        category = "moving",
+        icon = "icon_cow",
+        animation = "weapon_cow",
+        crateAmount = 3,
+        fireMode = {
+            direction = "fixed",
+            throwStrengthFrom = 40,
+            throwStrengthTo = 40,
+        }
+    }
+    enableSpriteCrateBlowup(w, sprite_class)
 end

@@ -175,6 +175,52 @@ function getMeleeOnFire(distance, radius, callback)
     end
 end
 
+-- spawn multiple sprites with a single fire call; returns onFire and
+-- onInterrupt function
+--   nsprites = max number to spawn (may be interrupted before)
+--   interval = delay between spawns (first is spawned immediately)
+--   per_shot_ammo = if true, every spawned projectile reduces ammo
+function getMultispawnOnFire(sprite_class, nsprites, interval, per_shot_ammo)
+    assert(sprite_class)
+    assert(nsprites > 0)
+    local function doFire(shooter, fireinfo)
+        if not per_shot_ammo then
+            Shooter_reduceAmmo(shooter)
+        end
+        LuaShooter_set_isFixed(shooter, true)
+        local remains = nsprites
+        local timer = Timer.new()
+        set_context_var(shooter, "firetimer", timer)
+        local function doSpawn()
+            if per_shot_ammo then
+                Shooter_reduceAmmo(shooter)
+            end
+            -- only one sprite per timer tick...
+            -- xxx this function is bad:
+            --  1. sets a context per napalm sprite (for fireinfo)
+            --  2. doesn't spawn like the .conf flamethrower
+            --  3. doesn't use readjust
+            spawnFromFireInfo(sprite_class, shooter, fireinfo)
+            remains = remains - 1
+            if remains <= 0 then
+                timer:cancel()
+                Shooter_finished(shooter)
+            end
+        end
+        timer:setCallback(doSpawn)
+        timer:start(interval, true)
+        doSpawn()
+    end
+    local function doInterrupt(shooter, outOfAmmo)
+        local timer = get_context_var(shooter, "firetimer")
+        if timer then
+            timer:cancel()
+            Shooter_finished(shooter)
+        end
+    end
+    return doFire, doInterrupt
+end
+
 -- simple shortcut
 function addSpriteClassEvent(sprite_class, event_name, handler)
     local sprite_class_name = SpriteClass_name(sprite_class)
@@ -273,12 +319,17 @@ function enableBouncer(sprite_class, nbounces, onHit)
 end
 
 -- sprite will start walking on activation, and reverse when it gets stuck
-function enableWalking(sprite_class)
+--   (or call onStuck, if it's set)
+function enableWalking(sprite_class, onStuck)
     addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
         walkForward(sender)
         local trig = StuckTrigger_ctor(sender, time(0.2), 2.5, true);
         StuckTrigger_set_onTrigger(trig, function(trigger, sprite)
-            walkForward(sprite, true)
+            if onStuck then
+                onStuck(sprite)
+            else
+                walkForward(sprite, true)
+            end
         end)
     end)
 end
@@ -634,6 +685,11 @@ function setSpriteHoming(sprite, targetStruct, forceA, forceT)
     end
     World_add(homing)
     return homing
+end
+
+function findSpriteSeqType(sprite_class, animation)
+    return SequenceType_findState(SpriteClass_sequenceType(sprite_class),
+        animation)
 end
 
 -- the following state functions are mostly a hack for complex weapons
