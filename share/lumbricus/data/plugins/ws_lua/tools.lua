@@ -191,38 +191,28 @@ createWeapon {
     }
 }
 
-createWeapon {
-    name = "atomtest",
-    value = 10000,
-    category = "misc3",
-    cooldown = time("5s"),
-    icon = "icon_indiannuke",
-    animation = "weapon_atomtest",
-    onFire = function(shooter, fireinfo)
-        Shooter_reduceAmmo(shooter)
-        Shooter_finished(shooter)
-        Game_raiseWater(60)
-        Game_addEarthQuake(500, time(4))
-        Game_nukeSplatEffect()
-    end,
-    onBlowup = function(weapon)
-        Game_addEarthQuake(150, time(4))
-    end,
-}
+do
+    local name = "beamlaser"
+    local addlaser = getLaserEffect(time("2s"))
 
-createWeapon {
-    name = "earthquake",
-    value = 10000,
-    category = "misc3",
-    cooldown = time("5s"),
-    icon = "icon_earthquake",
-    animation = "weapon_atomtest",
-    onFire = function(shooter, fireinfo)
-        Shooter_reduceAmmo(shooter)
-        Shooter_finished(shooter)
-        Game_addEarthQuake(500, time(5), true, true)
-    end,
-    onBlowup = function(weapon)
-        Game_addEarthQuake(150, time(5))
-    end,
-}
+    local w = createWeapon {
+        name = name,
+        onFire = function(shooter, fireinfo)
+            Shooter_finished(shooter)
+            local hitpoint = castFireRay(shooter, fireinfo)
+            if hitpoint then
+                Shooter_reduceAmmo(shooter)
+                Worm_beamTo(Shooter_owner(shooter), hitpoint)
+                addlaser(fireinfo.pos, hitpoint)
+            end
+        end,
+        category = "tools",
+        value = 0,
+        dontEndRound = true,
+        animation = "weapon_sheeplauncher",
+        icon = "icon_shotgun",
+        fireMode = {
+            direction = "any",
+        }
+    }
+end
