@@ -12,7 +12,8 @@ import utils.filetools;
 
 void do_unworms(char[] filename, char[] outputDir) {
     char[] fnBase = basename(filename);
-    scope st = Stream.OpenFile(filename, File.ReadExisting);
+    auto st = Stream.OpenFile(filename, File.ReadExisting);
+    scope(exit) st.close();
 
     if (auto readFunc = findReader(st)) {
         Stdout.formatln("Extracting from '{}'...", filename);

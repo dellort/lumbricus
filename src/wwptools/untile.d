@@ -36,6 +36,7 @@ void do_untile(char[] filename, VfsFolder destFolder, char[] imgPath,
 void do_untile(Image img, char[] filename, VfsFolder destFolder, char[] imgPath,
     char[] nameHead, char[] nameTail, char[] confName, Stream namefile)
 {
+    //hey there; scope doesn't work on arrays
     scope buffer = new void[2*1024*1024];
     char[] fnbase = FilePath(filename).name;
     //path.getBaseName(path.getName(filename));
@@ -91,7 +92,8 @@ void do_untile(Image img, char[] filename, VfsFolder destFolder, char[] imgPath,
     }
 
     if (conffile) {
-        scope outp = destFolder.file(confName).create.output;
+        auto outp = destFolder.file(confName).create.output;
+        scope(exit) outp.close();
         conffile.writeFile(new TangoStreamOutput(outp));
     }
 }

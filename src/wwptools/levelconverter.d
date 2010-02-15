@@ -58,6 +58,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     ObjDef[] definedObjects;
 
     Dir ldir = new Dir(sourcePath~"Level.dir");
+    scope(exit) ldir.close();
     //Soil back texture
     ldir.unworms("soil.img",destPath);
     landBitmaps ~= BmpDef("soiltex","soil.png");
@@ -77,7 +78,9 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     //skyGradient is used below
 
     //big background image
-    scope AnimList backAl = readSprFile(ldir.open("back.spr"));
+    auto whatever = ldir.open("back.spr");
+    scope AnimList backAl = readSprFile(whatever);
+    scope(exit) whatever.close();
     //WWP backgrounds are animation files, although there's only one frame (?)
     //spr file -> one animation with (at least) one frame, so this is ok
     backAl.animations[0].frames[0].save(destPath~"backdrop.png");
@@ -86,7 +89,8 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     //debris with metadata
     scope debrisPacker = new AtlasPacker("debris_atlas",Vector2i(256));
     scope debrisAnif = new AniFile("debris", debrisPacker);
-    scope debrisSpr = ldir.open("debris.spr");
+    auto debrisSpr = ldir.open("debris.spr");
+    scope(exit) debrisSpr.close();
     scope AnimList debrisAl = readSprFile(debrisSpr);
     auto debrisAni = new AniEntry(debrisAnif, "debris");
     debrisAni.addFrames(debrisAl.animations);
@@ -118,6 +122,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
         char[] objname = infPath.name;
         ldir.unworms(objname~".img",destPath~"objects");
         scope infFile = ldir.open(inff);
+        scope(exit) infFile.close();
         //AHAHAHAHA leaving the old line for comedy
         //char[][] infLines = str.split(infFile.toString());
         char[][] infLines = str.split(cast(char[])infFile.readAll());

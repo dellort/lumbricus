@@ -39,6 +39,7 @@ struct WWPDirEntry {
         st.position = offset;
         scope fileOut = Stream.OpenFile(outPath ~ pathsep ~ filename,
             File.WriteCreate);
+        scope(exit) fileOut.close();
         fileOut.pipeOut.copyFrom(st.pipeIn, size);
     }
 
@@ -76,6 +77,10 @@ class Dir {
             }
         }
         throw new Exception("file within .dir not found: " ~ filename);
+    }
+
+    void close() {
+        mStream.close();
     }
 
     //works exactly like do_unworms, just filename is opened from the .dir-file

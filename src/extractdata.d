@@ -13,6 +13,13 @@ import stream = utils.stream;
 import utils.stream;
 import str = utils.string;
 
+debug version (linux) {
+    import tango.stdc.stdlib;
+    import tango.stdc.stdio;
+    import tango.stdc.string;
+    import tango.stdc.posix.unistd;
+}
+
 import utils.filetools;
 import utils.configfile;
 import utils.path;
@@ -57,10 +64,12 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         throw new Exception("Invalid directory! Gfx.dir not found.");
     }
     scope iconnames = Stream.OpenFile(importDir ~ "iconnames.txt");
+    scope(exit) iconnames.close();
 
     //****** Extract WWP .dir files ******
     //extract Gfx.dir to current directory (creating a new dir "Gfx")
     Dir gfxdir = new Dir(gfxdirp);
+    scope(exit) gfxdir.close();
 
     //****** Weapon icons ******
     //xxx box packing?
@@ -233,6 +242,12 @@ Options:
                 assert(false);
         }
         remove_dir(outputDir);
+    }
+    debug version (linux) {
+        Stdout("done, list of opened files:").newline;
+        char[100] buffer;
+        sprintf(buffer.ptr, "ls -l /proc/%i/fd".ptr, getpid());
+        system(buffer.ptr);
     }
     return 0;
 }
