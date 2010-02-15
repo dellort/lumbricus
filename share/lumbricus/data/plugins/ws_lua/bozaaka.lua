@@ -82,12 +82,14 @@ end
 do
     local name = "flemathrower"
 
-    local fire, interrupt = getMultispawnOnFire(standard_napalm, 50,
+    -- xxx missing: random = "7"
+    local fire, interrupt, readjust = getMultispawnOnFire(standard_napalm, 50,
         timeMsecs(60))
     local w = createWeapon {
         name = name,
         onFire = fire,
         onInterrupt = interrupt,
+        onReadjust = readjust,
         category = "misc2",
         value = 0,
         animation = "weapon_flamethrower",
@@ -1562,4 +1564,121 @@ do
         }
     }
     enableSpriteCrateBlowup(w, sprite_class)
+end
+
+-- specific to gun-type weapons: nrounds explosions in a direct line-of-sight
+function getGunOnFire(nrounds, interval, damage)
+    return getMultipleOnFire(nrounds, interval, false,
+        function(shooter, fireinfo)
+            local hitpoint = castFireRay(shooter, fireinfo)
+            if hitpoint then
+                -- hit something
+                Game_explosionAt(hitpoint, damage, shooter)
+            end
+        end)
+end
+
+do
+    local name = "maxigun"
+
+    -- spread = "15"
+    local fire, interrupt, readjust = getGunOnFire(50, time(0.05), 5)
+    local w = createWeapon {
+        name = name,
+        onFire = fire,
+        onInterrupt = interrupt,
+        onReadjust = readjust,
+        category = "shoot",
+        value = 0,
+        animation = "weapon_minigun",
+        icon = "icon_minigun",
+        fireMode = {
+            direction = "any",
+        }
+    }
+end
+
+do
+    local name = "revolver"
+
+    -- spread = "5"
+    local fire, interrupt, readjust = getGunOnFire(5, time(0.4), 7)
+    local w = createWeapon {
+        name = name,
+        onFire = fire,
+        onInterrupt = interrupt,
+        onReadjust = readjust,
+        category = "shoot",
+        value = 0,
+        animation = "weapon_pistol",
+        icon = "icon_pistol",
+        fireMode = {
+            direction = "any",
+        }
+    }
+end
+
+do
+    local name = "smg"
+
+    -- spread = "8"
+    local fire, interrupt, readjust = getGunOnFire(15, time(0.15), 5)
+    local w = createWeapon {
+        name = name,
+        onFire = fire,
+        onInterrupt = interrupt,
+        onReadjust = readjust,
+        category = "shoot",
+        value = 0,
+        animation = "weapon_uzi",
+        icon = "icon_uzi",
+        fireMode = {
+            direction = "any",
+        }
+    }
+end
+
+do -- xxx missing laser line
+    local name = "lesar"
+
+    -- spread = "0"
+    local fire, interrupt, readjust = getGunOnFire(4, time(0.1), 10)
+    local w = createWeapon {
+        name = name,
+        onFire = fire,
+        onInterrupt = interrupt,
+        onReadjust = readjust,
+        category = "shoot",
+        value = 0,
+        animation = "weapon_sheeplauncher",
+        icon = "icon_shotgun",
+        fireMode = {
+            direction = "any",
+        }
+    }
+end
+
+do -- xxx missing laser line
+    local name = "beamlaser"
+
+    local w = createWeapon {
+        name = name,
+        onFire = function(shooter, fireinfo)
+            Shooter_finished(shooter)
+            local hitpoint = castFireRay(shooter, fireinfo)
+            if hitpoint then
+                Shooter_reduceAmmo(shooter)
+                Worm_beamTo(Shooter_owner(shooter), hitpoint)
+            end
+            -- xxx not much of a laserbeamer without the laser line...
+        end,
+        category = "tools",
+        value = 0,
+        dontEndRound = true,
+        animation = "weapon_sheeplauncher",
+        icon = "icon_shotgun",
+        fireMode = {
+            direction = "any",
+        }
+    }
 end

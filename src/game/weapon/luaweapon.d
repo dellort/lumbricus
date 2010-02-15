@@ -19,6 +19,7 @@ class LuaWeaponClass : WeaponClass {
     //if you set onRefire, don't forget canRefire
     bool delegate(Shooter) onRefire;
     bool canRefire = false;
+    void delegate(Shooter, Vector2f) onReadjust;
 
     this(GfxSet a_gfx, char[] a_name) {
         super(a_gfx, a_name);
@@ -66,11 +67,19 @@ class LuaShooter : Shooter {
         return myclass.onRefire(this);
     }
 
+    override void readjust(Vector2f dir) {
+        if (myclass.onReadjust) {
+            myclass.onReadjust(this, dir);
+        }
+        super.readjust(dir);
+    }
+
     override void interruptFiring(bool outOfAmmo) {
         if (myclass.onInterrupt) {
             myclass.onInterrupt(this, outOfAmmo);
         }
-        super.interruptFiring(outOfAmmo);
+        //No! will be handled by finished()
+        //  super.interruptFiring(outOfAmmo);
     }
 
     override bool isFixed() {

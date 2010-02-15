@@ -225,7 +225,8 @@ static this() {
 
     gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
     gScripting.properties!(LuaWeaponClass, "onFire",
-        "onCreateSelector", "onInterrupt", "onRefire", "canRefire");
+        "onCreateSelector", "onInterrupt", "onRefire", "canRefire",
+        "onReadjust");
     gScripting.properties!(LuaShooter, "isFixed");
 
     gScripting.ctor!(FormattedText)();

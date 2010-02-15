@@ -175,32 +175,31 @@ function getMeleeOnFire(distance, radius, callback)
     end
 end
 
--- spawn multiple sprites with a single fire call; returns onFire and
--- onInterrupt function
+-- spawn multiple sprites with a single fire call; returns onFire, onInterrupt
+-- and onReadjust function
 --   nsprites = max number to spawn (may be interrupted before)
 --   interval = delay between spawns (first is spawned immediately)
 --   per_shot_ammo = if true, every spawned projectile reduces ammo
-function getMultispawnOnFire(sprite_class, nsprites, interval, per_shot_ammo)
-    assert(sprite_class)
+function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
+    assert(callback)
     assert(nsprites > 0)
     local function doFire(shooter, fireinfo)
         if not per_shot_ammo then
+            -- this may call onInterrupt if the last piece of ammo is fired
             Shooter_reduceAmmo(shooter)
         end
         LuaShooter_set_isFixed(shooter, true)
         local remains = nsprites
         local timer = Timer.new()
-        set_context_var(shooter, "firetimer", timer)
+        local ctx = get_context(shooter)
+        ctx.firetimer = timer
+        ctx.fireinfo = fireinfo
         local function doSpawn()
             if per_shot_ammo then
                 Shooter_reduceAmmo(shooter)
             end
             -- only one sprite per timer tick...
-            -- xxx this function is bad:
-            --  1. sets a context per napalm sprite (for fireinfo)
-            --  2. doesn't spawn like the .conf flamethrower
-            --  3. doesn't use readjust
-            spawnFromFireInfo(sprite_class, shooter, fireinfo)
+            callback(shooter, ctx.fireinfo, remains)
             remains = remains - 1
             if remains <= 0 then
                 timer:cancel()
@@ -212,13 +211,33 @@ function getMultispawnOnFire(sprite_class, nsprites, interval, per_shot_ammo)
         doSpawn()
     end
     local function doInterrupt(shooter, outOfAmmo)
+        if outOfAmmo and not per_shot_ammo then
+            -- the current activity used up the last ammo -> don't abort
+            return
+        end
         local timer = get_context_var(shooter, "firetimer")
         if timer then
             timer:cancel()
             Shooter_finished(shooter)
         end
     end
-    return doFire, doInterrupt
+    local function doReadjust(shooter, dir)
+        local ctx = get_context(shooter)
+        -- xxx modifies fireinfo stored in already spawned sprites
+        ctx.fireinfo.dir = dir
+    end
+    return doFire, doInterrupt, doReadjust
+end
+
+function getMultispawnOnFire(sprite_class, nsprites, interval, per_shot_ammo)
+    assert(sprite_class)
+    return getMultipleOnFire(nsprites, interval, per_shot_ammo,
+        function(shooter, fireinfo)
+            -- xxx this function is bad:
+            --  1. sets a context per napalm sprite (for fireinfo)
+            --  2. doesn't spawn like the .conf flamethrower
+            spawnFromFireInfo(sprite_class, shooter, fireinfo)
+        end)
 end
 
 -- simple shortcut
@@ -730,3 +749,18 @@ function setSpriteState(sprite, state)
     Sprite_setParticle(sprite, state.particle)
 end
 
+-- shoot a ray from shooter's pos in fireinfo.dir
+--   returns hitpoint if something was hit, nil otherwise
+function castFireRay(shooter, fireinfo)
+    local spr = Shooter_owner(shooter)
+    local owner = Sprite_physics(spr)
+    local dist = POSP_radius(Phys_posp(owner)) + 2
+    -- xxx random spread
+    local dir = fireinfo.dir
+    local pos = Phys_pos(owner) + dir * dist;
+    local hitpoint, normal = World_shootRay(pos, dir, 1000)
+    if normal then
+        -- hit something
+        return hitpoint
+    end
+end

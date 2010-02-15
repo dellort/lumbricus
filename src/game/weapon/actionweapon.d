@@ -147,7 +147,7 @@ class ActionShooter : Shooter, ProjectileFeedback {
         fireInfo.info.pos = owner.physics.pos;
     }
 
-    void readjust(Vector2f dir) {
+    override void readjust(Vector2f dir) {
         fireInfo.info.dir = dir;
     }
 
