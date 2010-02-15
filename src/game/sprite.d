@@ -47,6 +47,7 @@ class Sprite : GameObject {
         bool mWasActivated;
         bool mOldGlueState;
         bool mIsUnderWater, mWaterUpdated;
+        bool mZeroHpCalled;
     }
     protected SpriteClass mType;
 
@@ -262,6 +263,12 @@ class Sprite : GameObject {
             waterStateChange();
         }
         mWaterUpdated = false;
+
+        if (physics.lifepower <= 0) {
+            if (!mZeroHpCalled)
+                OnSpriteZeroHp.raise(this);
+            mZeroHpCalled = true;
+        }
 
         updateParticles();
     }

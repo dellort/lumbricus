@@ -1,5 +1,6 @@
 module game.crate;
 
+import game.action.spawn;
 import game.gobject;
 import physics.world;
 import game.game;
@@ -66,6 +67,7 @@ class CollectableWeapon : Collectable {
 
     override void blow(CrateSprite parent) {
         //think about the crate-sheep
+        /+
         //xxx maybe make this more generic
         auto aw = cast(ActionWeapon)weapon;
         if (aw && aw.onBlowup) {
@@ -73,6 +75,7 @@ class CollectableWeapon : Collectable {
             auto ctx = parent.createContext;
             aw.onBlowup.execute(ctx);
         }
+        +/
         //ok, made more generic
         OnWeaponCrateBlowup.raise(weapon, parent);
     }
@@ -161,7 +164,7 @@ class CollectableBomb : Collectable {
     }
 }
 
-class CrateSprite : ActionSprite {
+class CrateSprite : StateSprite {
     private {
         CrateSpriteClass myclass;
         PhysicZoneCircle crateZone;
@@ -179,6 +182,8 @@ class CrateSprite : ActionSprite {
     protected this (GameEngine engine, CrateSpriteClass spriteclass) {
         super(engine, spriteclass);
         myclass = spriteclass;
+
+        myclass.doinit(engine); //hack until crates (possibly) are moved to Lua
 
         crateZone = new PhysicZoneCircle(Vector2f(), myclass.collectRadius);
         collectTrigger = new ZoneTrigger(crateZone);
@@ -205,6 +210,20 @@ class CrateSprite : ActionSprite {
         collectTrigger.dead = true;
         mSpy = null;
         super.die();
+    }
+
+    private void onZeroHp() {
+        detonate();
+    }
+
+    void detonate() {
+        if (isUnderWater())
+            return;
+        engine.explosionAt(physics.pos, 50, this);
+        die();
+        auto napalm = engine.gfx.findSpriteClass(myclass.napalm_class);
+        spawnCluster(napalm, this, 40, 0, 0, 60);
+        blowStuffies();
     }
 
     private void oncollect(PhysicTrigger sender, PhysicObject other) {
@@ -294,13 +313,6 @@ class CrateSprite : ActionSprite {
         return cast(CrateStateInfo)super.currentState();
     }
 
-    override void doEvent(char[] id, bool stateonly = false) {
-        super.doEvent(id, stateonly);
-        if (id == "ondetonate") {
-            blowStuffies();
-        }
-    }
-
     override void simulate(float deltaT) {
         crateZone.pos = physics.pos;
         if (physics.isGlued) {
@@ -328,11 +340,11 @@ class CrateSprite : ActionSprite {
     }
 }
 
-class CrateStateInfo : ActionStateInfo {
+class CrateStateInfo : StaticStateInfo {
     SequenceState[CrateType.max+1] myAnimation;
 
-    this(char[] owner_name, char[] this_name) {
-        super(owner_name, this_name);
+    this(char[] this_name) {
+        super(this_name);
     }
 
     override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
@@ -349,16 +361,24 @@ class CrateStateInfo : ActionStateInfo {
     }
 }
 
-//the factories work over the sprite classes, so we need one
-class CrateSpriteClass : ActionSpriteClass {
+class CrateSpriteClass : StateSpriteClass {
     float enterParachuteSpeed;
     float collectRadius;
+    char[] napalm_class;
 
     StaticStateInfo st_creation, st_normal, st_parachute, st_drowning;
     SequenceType[CrateType.max+1] mySequences;
 
+    private bool didinit;
+
     this(GfxSet e, char[] r) {
         super(e, r);
+    }
+    private void doinit(GameEngine engine) {
+        if (didinit)
+            return;
+        didinit = true;
+        OnSpriteZeroHp.handler(engine.events, &onZeroHp);
     }
     override void loadFromConfig(ConfigNode config) {
         SequenceType sq(char[] name) {
@@ -378,17 +398,25 @@ class CrateSpriteClass : ActionSpriteClass {
         st_normal = findState("normal");
         st_parachute = findState("parachute");
         st_drowning = findState("drowning");
+
+        napalm_class = config["napalm"];
     }
     override CrateSprite createSprite(GameEngine engine) {
         return new CrateSprite(engine, this);
     }
 
     override protected CrateStateInfo createStateInfo(char[] a_name) {
-        return new CrateStateInfo(name, a_name);
+        return new CrateStateInfo(a_name);
     }
 
     private SequenceState findSequenceState2(CrateType type, char[] name) {
         return mySequences[type].findState(name);
+    }
+
+    private void onZeroHp(Sprite sender) {
+        auto spr = cast(CrateSprite)sender;
+        if (spr)
+            spr.onZeroHp();
     }
 
     static this() {

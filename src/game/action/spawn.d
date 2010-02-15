@@ -185,6 +185,19 @@ void spawnsprite(GameEngine engine, int n, SpawnParams params,
     sprite.activate(pos);
 }
 
+//core spawn functions; actually, all spawn functions should use this
+void doSpawnSprite(SpriteClass sclass, GameObject spawned_by, Vector2f pos,
+    Vector2f init_vel = Vector2f(0))
+{
+    argcheck(sclass);
+    argcheck(spawned_by);
+
+    Sprite sprite = sclass.createSprite(spawned_by.engine);
+    sprite.createdBy = spawned_by;
+    sprite.physics.setInitialVelocity(init_vel);
+    sprite.activate(pos);
+}
+
 //classic airstrike in-a-row positioning, facing down
 void spawnAirstrike(SpriteClass sclass, int count, GameObject shootbyObject,
     FireInfo about, int spawnDist)
@@ -217,15 +230,33 @@ void spawnAirstrike(SpriteClass sclass, int count, GameObject shootbyObject,
     float width = spawnDist * (count-1);
 
     for (int n = 0; n < count; n++) {
-        Sprite sprite = sclass.createSprite(engine);
-        sprite.createdBy = shootbyObject;
-
         Vector2f pos;
         pos.x = destPos.x - width/2 + spawnDist * n;
         pos.y = engine.level.airstrikeY;
+        auto vel = about.dir*about.strength;
+        doSpawnSprite(sclass, shootbyObject, pos, vel);
+    }
+}
 
-        sprite.physics.setInitialVelocity(about.dir*about.strength);
-        sprite.activate(pos);
+//custom_dir is optional (considered not passed if x==y==0)
+void spawnCluster(SpriteClass sclass, Sprite parent, int count,
+    float strength_min, float strength_max, float random_range,
+    Vector2f custom_dir = Vector2f(0))
+{
+    auto engine = parent.engine;
+    auto spos = parent.physics.pos;
+    if (custom_dir.x == 0 && custom_dir.y == 0) {
+        custom_dir = Vector2f(0, -1);
+    }
+    for (int i = 0; i < count; i++) {
+        auto strength = engine.rnd.rangef(strength_min, strength_max);
+        auto theta = engine.rnd.rangef(-0.5, 0.5) * random_range
+            * math.PI/180;
+        auto dir = custom_dir.rotated(theta);
+        //15???
+        //-- dir * 15: add some distance from parent to clusters
+        //--           (see above, I'm too lazy to do this properly now)
+        doSpawnSprite(sclass, parent, spos + dir * 15, dir * strength);
     }
 }
 

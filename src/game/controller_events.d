@@ -76,6 +76,8 @@ alias DeclareEvent!("sprite_activate", Sprite) OnSpriteActivate;
 alias DeclareEvent!("sprite_setstate", StateSprite) OnSpriteSetState;
 //whenever the glue status changes (checked/called every frame)
 alias DeclareEvent!("sprite_gluechanged", Sprite) OnSpriteGlueChanged;
+//physics.lifepower <= 0
+alias DeclareEvent!("sprite_zerohp", Sprite) OnSpriteZeroHp;
 //reached the ocean floor
 //alias DeclareEvent!("sprite_drowned", Sprite) OnSpriteDrowned;
 //starting to blow itself up

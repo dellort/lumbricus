@@ -875,11 +875,19 @@ class WormSprite : StateSprite {
             if (!died_in_deathzone) {
                 //explosion!
                 engine.explosionAt(physics.pos, wsc.suicideDamage, this);
-                auto grave = castStrict!(GravestoneSprite)(
-                    engine.createSprite("grave"));
-                grave.createdBy = this;
-                grave.setGravestone(mGravestone);
-                grave.setPos(physics.pos);
+                SpriteClass findGrave(int id) {
+                    return engine.gfx.findSpriteClass(
+                        myformat("gravestone{}", mGravestone), true);
+                }
+                auto graveclass = findGrave(mGravestone);
+                if (!graveclass) //try to default to first gravestone
+                    graveclass = findGrave(0);
+                //no gravestone if not available?
+                if (graveclass) {
+                    auto grave = graveclass.createSprite(engine);
+                    grave.createdBy = this;
+                    grave.activate(physics.pos);
+                }
             }
         }
 
@@ -1203,83 +1211,6 @@ class WormSpriteClass : StateSpriteClass {
         SpriteClassFactory.register!(WormSpriteClass)("worm_mc");
     }
 }
-
-class GravestoneSprite : StateSprite {
-    private {
-        GravestoneSpriteClass gsc;
-        int mType;
-    }
-
-    void setGravestone(int n) {
-        assert(n >= 0);
-        if (n >= gsc.normal.length) {
-            //what to do?
-            assert(false, "gravestone not found");
-        }
-        mType = n;
-        setCurrentAnimation();
-    }
-
-    protected override void setCurrentAnimation() {
-        if (!graphic)
-            return;
-
-        SequenceState st;
-        if (currentState is gsc.st_normal) {
-            st = gsc.normal[mType];
-        } else if (currentState is gsc.st_drown) {
-            st = gsc.drown[mType];
-        } else {
-            assert(false);
-        }
-
-        graphic.setState(st);
-    }
-
-    this(GameEngine e, GravestoneSpriteClass s) {
-        super(e, s);
-        gsc = s;
-        internal_active = true;
-    }
-}
-
-class GravestoneSpriteClass : StateSpriteClass {
-    StaticStateInfo st_normal, st_drown;
-
-    //indexed by type
-    SequenceState[] normal;
-    SequenceState[] drown;
-
-    this(GfxSet e, char[] r) {
-        super(e, r);
-    }
-
-    override void loadFromConfig(ConfigNode config) {
-        super.loadFromConfig(config);
-
-        st_normal = findState("normal");
-        st_drown = findState("drowning");
-
-        //try to find as much gravestones as there are
-        for (int n = 0; ; n++) {
-            auto s_n = findSequenceState(myformat("n{}", n), true);
-            auto s_d = findSequenceState(myformat("drown{}", n), true);
-            if (!(s_n && s_d))
-                break;
-            normal ~= s_n;
-            drown ~= s_d;
-        }
-    }
-
-    override GravestoneSprite createSprite(GameEngine engine) {
-        return new GravestoneSprite(engine, this);
-    }
-
-    static this() {
-        SpriteClassFactory.register!(typeof(this))("grave_mc");
-    }
-}
-
 
 //move elsewhere?
 class RenderCrosshair : SceneObject {

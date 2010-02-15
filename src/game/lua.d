@@ -188,6 +188,7 @@ static this() {
     //------- specific weapons implemented in D
 
     gScripting.func!(spawnAirstrike)();
+    gScripting.func!(spawnCluster)();
 
     gScripting.ctor!(GirderControl, Sprite);
     gScripting.methods!(GirderControl, "fireCheck");

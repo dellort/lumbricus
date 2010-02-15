@@ -13,6 +13,7 @@ import game.weapon.weapon;
 import utils.misc;
 import utils.factory;
 import utils.configfile;
+import utils.log;
 import utils.path;
 import utils.string : isIdentifier;
 
@@ -29,6 +30,8 @@ class Plugin {
     char[] name;            //unique plugin id
     char[][] dependencies;  //all plugins in this list will be loaded, too
 
+    static LogStruct!("game.plugins") log;
+
     private {
         ConfigNode mConfig;
         ConfigNode mConfigWhateverTheFuckThisIs;
@@ -41,6 +44,7 @@ class Plugin {
     //  conf = static plugin configuration
     this(char[] a_name, GfxSet gfx, ConfigNode conf) {
         name = a_name;
+        log("loading '{}'", name);
         if (!isIdentifier(name)) {
             throw new PluginException("Plugin name is not a valid identifier");
         }
@@ -83,6 +87,7 @@ class Plugin {
 
     //called from GfxSet.finishLoading(); resources are sealed and can be used
     void finishLoading() {
+        log("finish loading '{}'", name);
         if (mResources) {
             //load the weapons (they reference resources)
             char[] weaponsdir = mResources.fixPath("weapons");
@@ -105,6 +110,7 @@ class Plugin {
 
     //called from GameEngine, to create the runtime part of this plugin
     void init(GameEngine eng) {
+        log("init '{}'", name);
         //handling of internal plugins (special cased D-only plugin hack)
         char[] internal_plugin = mConfig["internal_plugin"];
         if (internal_plugin.length) {
@@ -132,6 +138,7 @@ class Plugin {
                 scope(exit) st.close();
                 //filename = for debug output; name = lua environment
                 //xxx catch lua errors here, so other modules can be loaded?
+                log("load lua script for '{}': {}", name, filename);
                 eng.scripting().loadScript(filename, st, name);
                 return true;
             });

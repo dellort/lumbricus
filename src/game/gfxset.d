@@ -196,8 +196,8 @@ class GfxSet {
     //this also means that a bogus/changed resource file could cause scripting
     //  type errors, when it receives the wrong object type; maybe add some way
     //  to enforce a specific type?
-    Object scriptGetRes(char[] name) {
-        return resources.get!(Object)(name);
+    Object scriptGetRes(char[] name, bool canfail = false) {
+        return resources.get!(Object)(name, canfail);
     }
 
     ResourceFile addGfxSet(ConfigNode conf) {

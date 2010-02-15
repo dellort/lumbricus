@@ -749,7 +749,7 @@ class GameEngine {
                     npos = toVector2f(mLevel.worldSize)/2;
                 }
             }
-            log("placed '{}' at {}", sprite, npos);
+            log("placed '{}' at {}", sprite.type.name, npos);
             sprite.activate(npos);
         }
         mPlaceQueue = null;

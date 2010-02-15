@@ -119,6 +119,10 @@ function gameObjectFindShooter(obj)
     return nil
 end
 
+--[[
+now in game/action/spawn.d
+leaving this still here for testing purposes
+
 -- custom_dir is optional
 function spawnCluster(sprite_class_ref, parentSprite, count, strengthMin,
     strengthMax, randomRange, custom_dir)
@@ -135,6 +139,7 @@ function spawnCluster(sprite_class_ref, parentSprite, count, strengthMin,
             dir * strength)
     end
 end
+--]]
 
 -- create and return a function that does what most onFire functions will do
 -- incidentally, this just calls spawnFromFireInfo()
