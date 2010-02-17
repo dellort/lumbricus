@@ -194,7 +194,7 @@ class CrateSprite : StateSprite {
 
     private void collected() {
         stuffies = null;
-        die();
+        kill();
     }
 
     void blowStuffies() {
@@ -203,10 +203,10 @@ class CrateSprite : StateSprite {
         }
     }
 
-    override protected void die() {
+    override protected void onKill() {
         collectTrigger.dead = true;
         mSpy = null;
-        super.die();
+        super.onKill();
     }
 
     private void onZeroHp() {
@@ -217,7 +217,7 @@ class CrateSprite : StateSprite {
         if (isUnderWater())
             return;
         engine.explosionAt(physics.pos, 50, this);
-        die();
+        kill();
         auto napalm = engine.gfx.findSpriteClass(myclass.napalm_class);
         spawnCluster(napalm, this, 40, 0, 0, 60);
         blowStuffies();

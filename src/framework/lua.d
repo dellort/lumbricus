@@ -861,6 +861,7 @@ class LuaRegistry {
     private {
         Method[] mMethods;
         char[][ClassInfo] mPrefixes;
+        bool mSealed;
     }
 
     enum MethodType {
@@ -895,6 +896,7 @@ class LuaRegistry {
     private void registerDMethod(ClassInfo ci, char[] method,
         lua_CFunction demarshal, MethodType type)
     {
+        assert(!mSealed);
         Method m;
         m.name = method;
         m.fname = method;
@@ -1087,6 +1089,49 @@ class LuaRegistry {
         if (prefixname.length)
             setClassPrefix!(Class)(prefixname);
         return DefClass!(Class)(this);
+    }
+
+    void seal() {
+        if (mSealed) {
+            return;
+        }
+        fixupInheritance();
+        mSealed = true;
+    }
+
+    //for every registered method/property, this function checks if there
+    //are derived classes registered (which also have this method), and
+    //makes the baseclass methods available under the name of the derived class
+    //e.g.: GameObject_kill() is made available as Sprite_kill()
+    //xxx this could be done on-the-fly while registering (would avoid sealing)
+    private void fixupInheritance() {
+        //scan all methods...
+        foreach (ref baseMethod; mMethods) {
+            //methods and properties only
+            if (!(baseMethod.type == MethodType.Method
+                || baseMethod.type == MethodType.Property_R
+                || baseMethod.type == MethodType.Property_W))
+            {
+                continue;
+            }
+            //... and see if there is a derived class registered (that,
+            //  according to inheritance, also has to provide that method)
+            foreach (derivedClass, prefix; mPrefixes) {
+                //conditions: implicitly castable, not the same,
+                //  base not registered with same prefix
+                if (rtraits.isImplicitly(derivedClass, baseMethod.classinfo)
+                    && derivedClass !is baseMethod.classinfo
+                    && baseMethod.prefix != prefix)
+                {
+                    //a class was found that can be implicitly casted to the
+                    //  class of baseMethod (i.e. derivedClass is derived from
+                    //  baseMethod.classinfo)
+                    //-> Register baseMethod for derivedClass
+                    registerDMethod(derivedClass, baseMethod.name,
+                        baseMethod.demarshal, baseMethod.type);
+                }
+            }
+        }
     }
 }
 
@@ -1304,6 +1349,7 @@ class LuaState {
     }
 
     void register(LuaRegistry stuff) {
+        stuff.seal();
         foreach (m; stuff.mMethods) {
             auto name = czstr.toStringz(m.fname);
 

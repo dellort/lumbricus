@@ -65,7 +65,6 @@ static this() {
     gScripting.properties!(StuckTrigger, "onTrigger");
 
     gScripting.ctor!(ControlRotate, Sprite, float, float)();
-    gScripting.methods!(ControlRotate, "release");
     gScripting.properties!(ControlRotate, "direction");
 
     gScripting.ctor!(RenderLaser, GameEngine, Vector2f, Vector2f, Time,

@@ -188,7 +188,6 @@
 		<Unit filename="..\src\game\levelgen\placeobjects.d" />
 		<Unit filename="..\src\game\levelgen\renderer.d" />
 		<Unit filename="..\src\game\loader.d" />
-		<Unit filename="..\src\game\lua.d" />
 		<Unit filename="..\src\game\lua\all.d" />
 		<Unit filename="..\src\game\lua\base.d" />
 		<Unit filename="..\src\game\lua\control.d" />

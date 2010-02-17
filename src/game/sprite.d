@@ -151,19 +151,13 @@ class Sprite : GameObject {
         //assume that's what we want
         if (!internal_active)
             return;
-        die();
+        kill();
     }
 
     void exterminate() {
         //_always_ die completely (or are there exceptions?)
         log("exterminate in deathzone: {}", type.name);
         died_in_deathzone = true;
-        die();
-    }
-
-    //called when object should die
-    //this implementation kills it immediately
-    protected void die() {
         kill();
     }
 
@@ -175,12 +169,6 @@ class Sprite : GameObject {
             log("really die: {}", type.name);
             OnSpriteDie.raise(this);
         }
-    }
-
-    //hmm... I'm sure there's a reason die() is protected
-    //remove this function to see who needs public access
-    void pleasedie() {
-        die();
     }
 
     //update animation to physics status etc.
@@ -420,7 +408,7 @@ class StateSprite : Sprite {
                     physics.posp = currentState.physicWater;
                 } else {
                     //no drowning state -> die now
-                    die();
+                    kill();
                 }
             }
         } else {

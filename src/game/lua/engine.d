@@ -31,12 +31,11 @@ static this() {
     gScripting.properties_ro!(Level, "airstrikeAllow", "airstrikeY",
         "worldSize", "landBounds");
 
-    gScripting.methods!(GameObject, "activity");
+    gScripting.methods!(GameObject, "activity", "kill");
     gScripting.property!(GameObject, "createdBy");
     gScripting.property_ro!(GameObject, "objectAlive");
 
-    gScripting.methods!(Sprite, "setPos", "die", "pleasedie", "type",
-        "activate", "setParticle");
+    gScripting.methods!(Sprite, "setPos", "type", "activate", "setParticle");
     gScripting.properties!(Sprite, "graphic");
     gScripting.properties_ro!(Sprite, "physics", "isUnderWater", "visible");
 

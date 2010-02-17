@@ -100,9 +100,9 @@ abstract class GameObject : EventTarget {
     final void kill() {
         if (!mIsAlive)
             return;
+        mIsAlive = false;
         onKill();
         internal_active = false;
-        mIsAlive = false;
         engine._object_killed(this);
     }
 

@@ -406,7 +406,7 @@ class Team : GameObject {
         current = null;
         //xxx: set worms to "white flag" animation first
         foreach (m; mMembers) {
-            m.sprite.pleasedie();
+            m.sprite.kill();
         }
     }
 

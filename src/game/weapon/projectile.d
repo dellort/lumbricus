@@ -71,12 +71,11 @@ class ProjectileSprite : ActionSprite {
         super.physImpact(other, normal);
     }
 
-    override protected void die() {
+    override protected void onKill() {
         //remove from shooter's refire list
         if (mFeedback && type.canRefire)
             mFeedback.removeRefire(this);
-        //actually die (byebye)
-        super.die();
+        super.onKill();
     }
 
     override WeaponContext createContext() {

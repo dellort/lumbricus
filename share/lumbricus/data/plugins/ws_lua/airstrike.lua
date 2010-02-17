@@ -123,9 +123,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = getAirstrikeOnFire(sprite_class, 6, 45),
-        onCreateSelector = function(sprite)
-            return AirstrikeControl_ctor(sprite)
-        end,
+        onCreateSelector = AirstrikeControl_ctor,
         value = 10000,
         category = "air",
         isAirstrike = true,
@@ -163,9 +161,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = getAirstrikeOnFire(sprite_class, 6, 45),
-        onCreateSelector = function(sprite)
-            return AirstrikeControl_ctor(sprite)
-        end,
+        onCreateSelector = AirstrikeControl_ctor,
         value = 10000,
         category = "air",
         isAirstrike = true,

@@ -368,7 +368,7 @@ local function createSuperSheep(name, is_aqua)
         local ctx = get_context(shooter)
         -- remove control e.g. when it starts drowning
         if ctx.control then
-            ControlRotate_release(ctx.control)
+            ControlRotate_kill(ctx.control)
             ctx.control = nil
         end
         Shooter_finished(shooter)
@@ -383,18 +383,16 @@ local function createSuperSheep(name, is_aqua)
                 -- make it fly
                 -- creating a new sprite is really the simplest; no reason to
                 --  try to do anything more "sophisticated"
-                Sprite_die(ctx.sprite)
+                Sprite_kill(ctx.sprite)
                 ctx.sprite = spawnSprite(shooter, flying,
                     Phys_pos(Sprite_physics(ctx.sprite)), Vector2(0, -1))
                 ctx.phase1 = false
                 -- and this makes the sheep controllable; hardcoded in D
                 ctx.control = ControlRotate_ctor(ctx.sprite, 5, 10000)
-                return true
             else
                 spriteExplode(ctx.sprite, 75)
             end
         end
-        cleanup(shooter)
         return true
     end
 
@@ -406,14 +404,18 @@ local function createSuperSheep(name, is_aqua)
 
     addSpriteClassEvent(flying, "sprite_waterstate", function(sender)
         local inwater = Sprite_isUnderWater(sender)
-        if inwater and not is_aqua then
-            cleanup(sender)
-            -- disable thrusting from ControlRotate
-            Phys_set_selfForce(Sprite_physics(sender), Vector2.Null)
-            dodrown(sender)
+        if not is_aqua then
+            if inwater then
+                cleanup(sender)
+                dodrown(sender)
+            end
             return
         end
         setSpriteState(sender, iif(inwater, state_water, state_air))
+    end)
+
+    addSpriteClassEvent(flying, "sprite_die", function(sender)
+        cleanup(sender)
     end)
 
     addSpriteClassEvent(jumping, "sprite_waterstate", function(sender)

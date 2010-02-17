@@ -292,11 +292,11 @@ class WormSprite : StateSprite {
         }
     }
 
-    override protected void die() {
+    override protected void onKill() {
         weapon_unselect();
-        super.die();
         if (currentState !is wsc.st_dead)
             setState(wsc.st_dead);
+        super.onKill();
     }
 
     protected this (GameEngine engine, WormSpriteClass spriteclass) {
@@ -871,7 +871,7 @@ class WormSprite : StateSprite {
 
         //die by blowing up
         if (to is wsc.st_dead) {
-            die();
+            kill();
             if (!died_in_deathzone) {
                 //explosion!
                 engine.explosionAt(physics.pos, wsc.suicideDamage, this);

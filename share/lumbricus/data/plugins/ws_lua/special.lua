@@ -96,7 +96,7 @@ do
     }
     local bmp = Gfx_resource("penguin_bmp")
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
-        Sprite_die(sender)
+        Sprite_kill(sender)
         local at = Phys_pos(Sprite_physics(sender))
         at = at - Surface_size(bmp) / 2
         Game_insertIntoLandscape(at, bmp, Lexel_soft)
@@ -167,13 +167,13 @@ do
     enableSpriteTimer(sprite_class, {
         defTimer = timeSecs(20),
         callback = function(sender)
-            Sprite_die(sender)
+            Sprite_kill(sender)
         end
     })
     addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
         local trig = StuckTrigger_ctor(sender, time(0.25), 2, true);
         StuckTrigger_set_onTrigger(trig, function(sender, sprite)
-            Sprite_die(sender)
+            Sprite_kill(sender)
         end)
     end)
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
@@ -229,7 +229,7 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
         callback = function(sender)
             spawnSprite(sender, blackhole, Phys_pos(Sprite_physics(sender)),
                 Vector2(0, 0))
-            Sprite_die(sender)
+            Sprite_kill(sender)
         end
     })
 

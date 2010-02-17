@@ -76,7 +76,7 @@ class NapalmSprite : Sprite {
         //check for death
         mDecayPerc = dp;
         if (mDecayPerc < 0)
-            die();
+            kill();
 
         //cause some damage
         //NOTE: not using action stuff because of custom damage, and

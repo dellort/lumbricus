@@ -278,7 +278,7 @@ function enableBouncer(sprite_class, nbounces, onHit)
         onHit(sender)
         local bounce = get_context_var(sender, "bounce", nbounces)
         if bounce <= 0 then
-            Sprite_die(sender)
+            Sprite_kill(sender)
         end
         set_context_var(sender, "bounce", bounce - 1)
     end)
@@ -540,7 +540,7 @@ function spriteExplode(sprite, damage, kill)
     end
     local spos = Phys_pos(Sprite_physics(sprite))
     if ifnil(kill, true) then
-        Sprite_die(sprite)
+        Sprite_kill(sprite)
     end
     Game_explosionAt(spos, utils.range_sample_f(damage), sprite)
 end

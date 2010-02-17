@@ -86,7 +86,7 @@ void beam(WeaponContext wx, bool usePos) {
 }
 
 void die(WeaponContext wx) {
-    wx.ownerSprite.pleasedie();
+    wx.ownerSprite.kill();
 }
 
 void earthquake(ActionContext ctx, float strength, bool degrade,

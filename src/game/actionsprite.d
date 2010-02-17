@@ -69,9 +69,9 @@ class ActionSprite : StateSprite {
         doEvent("ondamage");
     }
 
-    override protected void die() {
+    override protected void onKill() {
         doEvent("ondie");
-        super.die();
+        super.onKill();
     }
 
     //when called: currentState is to
@@ -175,7 +175,7 @@ class ActionSprite : StateSprite {
 
         if (id == "ondetonate") {
             //reserved event that kills the sprite
-            die();
+            kill();
             return;
         }
         if (id in type.detonateMap || id in currentState.detonateMap) {
