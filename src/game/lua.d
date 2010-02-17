@@ -64,7 +64,8 @@ static this() {
 
     gScripting.setClassPrefix!(GfxSet)("Gfx");
     gScripting.methods!(GfxSet, "findSpriteClass", "findWeaponClass",
-        "weaponList", "registerWeapon", "registerSpriteClass");
+        "weaponList", "registerWeapon", "registerSpriteClass",
+        "findSequenceState");
     gScripting.static_method!(GfxSet, "textCreate");
     gScripting.method!(GfxSet, "scriptGetRes")("resource");
 
@@ -110,10 +111,13 @@ static this() {
     gScripting.methods!(WormSprite, "beamTo");
 
     gScripting.ctor!(SpriteClass, GfxSet, char[])();
-    gScripting.methods!(SpriteClass, "createSprite");
+    gScripting.methods!(SpriteClass, "createSprite", "getInitSequenceState",
+        "getInitSequenceType");
     gScripting.property_ro!(SpriteClass, "name");
     gScripting.properties!(SpriteClass, "initialHp", "initPhysic",
-        "initParticle", "sequenceType");
+        "initParticle", "sequenceType", "sequenceState");
+
+    gScripting.properties_ro!(SequenceState, "owner");
 
     gScripting.methods!(SequenceType, "findState");
 
@@ -222,6 +226,7 @@ static this() {
     gScripting.properties!(StuckTrigger, "onTrigger");
 
     gScripting.ctor!(ControlRotate, Sprite, float, float)();
+    gScripting.methods!(ControlRotate, "release");
     gScripting.properties!(ControlRotate, "direction");
 
     gScripting.ctor!(RenderLaser, GameEngine, Vector2f, Vector2f, Time,

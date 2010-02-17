@@ -642,7 +642,15 @@ class ControlRotate : SpriteHandler, Controllable {
         }
     }
 
+    //deactivate the control thing
+    void release() {
+        internal_active = false;
+    }
+
     override void simulate(float deltaT) {
+        //die as sprite dies
+        if (!mParent.visible())
+            release();
         mDirection += mMoveVector.x * mRotateSpeed * deltaT;
         setForce();
         super.simulate(deltaT);

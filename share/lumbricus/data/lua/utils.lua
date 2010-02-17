@@ -242,6 +242,19 @@ function table_copy(table)
     return ntable
 end
 
+-- mix two tables (if items exist in both tables, second has priority)
+-- original tables aren't changed
+function table_merge(t1, t2)
+    local t = {}
+    for k, v in pairs(t1) do
+        t[k] = v
+    end
+    for k, v in pairs(t2) do
+        t[k] = v
+    end
+    return t
+end
+
 -- return true or false whether the table is empty
 -- I have no clue how to do this "right" (#table obviously doesn't always work)
 function table_empty(table)

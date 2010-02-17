@@ -320,6 +320,9 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
             return cast(T)luaStackValue!(Base)(state, stackIdx);
         }
     } else static if (is(T : bool)) {
+        //now more strict
+        if (lua_type(state, stackIdx) != LUA_TBOOLEAN)
+            expected("boolean");
         //accepts everything, true for anything except 'false' and 'nil'
         return !!lua_toboolean(state, stackIdx);
     } else static if (is(T : char[])) {

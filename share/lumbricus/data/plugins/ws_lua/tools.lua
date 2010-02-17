@@ -199,10 +199,12 @@ do
         name = name,
         onFire = function(shooter, fireinfo)
             Shooter_finished(shooter)
-            local hitpoint = castFireRay(shooter, fireinfo)
+            local sprite = Shooter_owner(shooter)
+            local hitpoint = castFireRay(sprite, fireinfo.dir)
             if hitpoint then
                 Shooter_reduceAmmo(shooter)
-                Worm_beamTo(Shooter_owner(shooter), hitpoint)
+                Worm_beamTo(sprite, hitpoint)
+                -- xxx laser is inside the poor worm
                 addlaser(fireinfo.pos, hitpoint)
             end
         end,

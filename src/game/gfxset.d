@@ -200,6 +200,18 @@ class GfxSet {
         return resources.get!(Object)(name, canfail);
     }
 
+    //fstr = string of the form "SequenceType:SequenceState"
+    //       e.g. "s_sheep:normal"
+    //this is just a shortcut for the full code
+    SequenceState findSequenceState(char[] fstr, bool canfail = false) {
+        auto s = str.split(fstr, ":");
+        argcheck(s.length == 2);
+        SequenceType seq = resources.get!(SequenceType)(s[0], canfail);
+        if (!seq)
+            return null;
+        return seq.findState(s[1], canfail);
+    }
+
     ResourceFile addGfxSet(ConfigNode conf) {
         //resources
         auto file = gResources.loadResources(conf);

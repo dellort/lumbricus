@@ -22,7 +22,11 @@ class EventTarget {
     this(char[] type, Events global_events) {
         assert(!!global_events);
         mEvents = global_events;
-        mEventTargetType = type;
+        resetEventType(type);
+    }
+
+    void resetEventType(char[] n) {
+        mEventTargetType = n;
         //mEventTargetTypeID = 0;
         mPerClass = mEvents.perClassEvents(mEventTargetType);
     }

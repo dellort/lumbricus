@@ -117,8 +117,8 @@ class Sprite : GameObject {
             auto owner = member ? member.team : null;
             graphic = new Sequence(engine, owner ? owner.teamColor : null);
             graphic.zorder = GameZOrder.Objects;
-            if (type.sequenceType)
-                graphic.setState(type.sequenceType.normalState);
+            if (auto st = type.getInitSequenceState())
+                graphic.setState(st);
             engine.scene.add(graphic);
             physics.checkRotation();
             updateAnimation();
@@ -190,6 +190,10 @@ class Sprite : GameObject {
 
         fillAnimUpdate();
 
+        //this is needed to fix a 1-frame error with worms - when you walk, the
+        //  weapon gets deselected, and without this code, the weapon icon
+        //  (normally used for weapons without animation) can be seen for a
+        //  frame or so
         graphic.simulate();
     }
 
@@ -300,6 +304,11 @@ class SpriteClass {
     char[] name;
 
     SequenceType sequenceType;
+    //can be null (then sequenceType.normalState is used)
+    //if non-null, sequenceType is ignored (remember that SequenceType just
+    //  provides a namespace for sequenceStates anyway)
+    //see getInitSequenceState()
+    SequenceState sequenceState;
 
     //those are just "utility" properties to simplify initialization
     //in most cases, it's all what one needs
@@ -316,6 +325,19 @@ class SpriteClass {
 
     Sprite createSprite(GameEngine engine) {
         return new Sprite(engine, this);
+    }
+
+    //may return null
+    SequenceState getInitSequenceState() {
+        auto state = sequenceState;
+        if (!state && sequenceType)
+            state = sequenceType.normalState;
+        return state;
+    }
+    SequenceType getInitSequenceType() {
+        if (sequenceState && sequenceState.owner)
+            return sequenceState.owner;
+        return sequenceType;
     }
 
     void loadFromConfig(ConfigNode config) {

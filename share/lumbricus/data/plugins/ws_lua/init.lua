@@ -20,11 +20,13 @@ end
 
 -- specific to gun-type weapons: nrounds explosions in a direct line-of-sight
 -- effect = optional function(from, to) to draw an impact effect
+-- spread = nil or random spread angle
 -- returns: onFire, onInterrupt, onReadjust (same as getMultipleOnFire)
-function getGunOnFire(nrounds, interval, damage, effect)
+function getGunOnFire(nrounds, interval, damage, effect, spread)
     return getMultipleOnFire(nrounds, interval, false,
         function(shooter, fireinfo)
-            local hitpoint = castFireRay(shooter, fireinfo)
+            local hitpoint = castFireRay(Shooter_owner(shooter), fireinfo.dir,
+                spread)
             if hitpoint then
                 if effect then
                     effect(fireinfo.pos, hitpoint)

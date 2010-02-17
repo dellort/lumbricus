@@ -8,8 +8,6 @@ function currentTime()
     return _currentTime
 end
 
-_perFrameCbs = {}
-
 -- changes each frame; used to catch the special case when timers re-add
 --  themselves with duration 0 on a timer callback (the current code in
 --  _run_timers() would go into an endless loop)
@@ -20,18 +18,6 @@ function game_per_frame()
     _currentTime = Time_current(Game_gameTime())
     _frameCounter = _frameCounter + 1
     _run_timers()
-    for k,v in pairs(_perFrameCbs) do
-        k()
-    end
-end
-
--- make cb get called on each game frame (one should be careful with this!)
-function addFrameCallback(cb)
-    _perFrameCbs[cb] = true
-end
-
-function removeFrameCallback(cb)
-    _perFrameCbs[cb] = nil
 end
 
 -- singly linked list of Timers, sorted by earlierst trigger time

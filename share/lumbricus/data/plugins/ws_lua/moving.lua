@@ -1,5 +1,26 @@
 -- Weapons that spawn moving/jumping/controlled projectiles that collect crates
 
+local function enableSheepJumping(sprite_class)
+    -- start walking on spawn
+    enableWalking(sprite_class)
+    -- jump in random intervals
+    enableSpriteTimer(sprite_class, {
+        defTimer = time(0.2),
+        periodic = true,
+        timerId = "jump",
+        callback = function(sender)
+            local phys = Sprite_physics(sender)
+            if not Phys_isGlued(phys) then
+                return
+            end
+            if Random_rangei(1, 5) == 1 then
+                local look = lookSide(phys)
+                Phys_addImpulse(phys, Vector2(look * 2500, -2500))
+            end
+        end
+    })
+end
+
 do
     local name = "peesh"
     local function createSprite(name)
@@ -28,39 +49,35 @@ do
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
         Sequence_setState(Sprite_graphic(sender), seqNormal)
     end)
-    -- start walking on spawn
-    enableWalking(sprite_class)
-    -- jump in random intervals
-    enableSpriteTimer(sprite_class, {
-        defTimer = time(0.2),
-        periodic = true,
-        timerId = "jump",
-        callback = function(sender)
-            local phys = Sprite_physics(sender)
-            if not Phys_isGlued(phys) then
-                return
-            end
-            if Random_rangei(1, 5) == 1 then
-                local look = lookSide(phys)
-                Phys_addImpulse(phys, Vector2(look * 2500, -2500))
-            end
-        end
-    })
+
+    enableSheepJumping(sprite_class)
 
     local function dorefire(shooter)
         Shooter_finished(shooter)
         local sprite = get_context_var(shooter, "sprite")
-        spriteExplode(sprite, 75)
+        if not spriteIsGone(sprite) then
+            spriteExplode(sprite, 75)
+        end
         return true
+    end
+    local function interrupt(shooter)
+        -- don't keep control while sheep is still active, but worm isn't
+        -- (actually, it may be unneeded, but weapon control code keeps showing
+        --  a wrong animation as long as shooter is active *shrug*)
+        Shooter_finished(shooter)
     end
     -- don't live longer than 8s
     enableSpriteTimer(sprite_class, {
         defTimer = time(8),
         showDisplay = true,
         callback = function(sender)
-            dorefire(get_context_var(sender, "shooter"))
+            dorefire(gameObjectFindShooter(sender))
         end
     })
+    -- cleanup
+    addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
+        dorefire(gameObjectFindShooter(sender))
+    end)
 
     -- used by other weapons (I think)
     cratesheep_class = createSprite("crate" .. name)
@@ -75,6 +92,7 @@ do
         end,
         onRefire = dorefire,
         canRefire = true,
+        onInterrupt = interrupt,
         value = 0,
         category = "moving",
         icon = "icon_sheep",
@@ -100,6 +118,7 @@ do
         end,
         onRefire = dorefire,
         canRefire = true,
+        onInterrupt = interrupt,
         value = 0,
         category = "fly",
         icon = "icon_sheeplauncher",
@@ -203,12 +222,12 @@ do
         defTimer = time(8),
         showDisplay = true,
         callback = function(sender)
-            dorefire(get_context_var(sender, "shooter"))
+            dorefire(gameObjectFindShooter(sender))
         end
     })
 
+    -- cleanup
     addSpriteClassEvent(main, "sprite_waterstate", function(sender)
-        -- cleanup
         dorefire(gameObjectFindShooter(sender))
     end)
 
@@ -281,3 +300,162 @@ do
     enableSpriteCrateBlowup(w, sprite_class)
 end
 
+
+
+local function createSuperSheep(name, is_aqua)
+    -- apparently, these properties are almost always the same
+    local phys = {
+        collisionID = "projectile_controlled",
+        radius = 6,
+        explosionInfluence = 0.0,
+        windInfluence = 0.0,
+        elasticity = 0.0,
+        glueForce = 500,
+        walkingSpeed = 50
+    }
+
+    local jumping = createSpriteClass {
+        name = name .. "_sprite_jumping",
+        initPhysic = relay(table_merge(phys, {
+            mass = 10,
+            walkingSpeed = 50,
+        })),
+        sequenceType = "s_sheep",
+        initParticle = "p_sheep",
+    }
+    enableSheepJumping(jumping)
+
+    -- flying sheep
+
+    phys = table_merge(phys, {
+        mass = 1,
+        zeroGrav = true,
+        rotation = "selfforce",
+        speedLimit = 300,
+    })
+
+    local flying = createSpriteClass {
+        name = name .. "_sprite_flying",
+        initPhysic = relay(phys),
+        sequenceState = "s_sheep:super_" .. iif(is_aqua, "blue", "red"),
+        initParticle = "p_supersheep",
+        noDrown = true,
+    }
+
+    enableExplosionOnImpact(flying, 75)
+
+    local state_air = createNormalSpriteState(flying)
+
+    -- unused if not is_aqua
+    local water_ani = "super_blue_underwater"
+    local state_water = initSpriteState(flying, water_ani, table_merge(phys, {
+        collisionID = "waterobj",
+        stokesModifier = 0,
+    }))
+
+    -- unused if is_aqua
+    -- note that it will be used on the "wrong" class ("flying" instead of
+    --  "jumping"), but it works anyway, because all sprites are the same
+    -- xxx duplicates what is generated for "jumping" anyway
+    -- also, maybe the drown stuff could either...
+    --  1. work together with sprite state stuff
+    --  2. or exchange the SpriteClass, then we don't need this
+    local dodrown = getDrownFunc(jumping)
+
+    -- sender = shooter or sprite spawned by shooter
+    local function cleanup(sender)
+        local shooter = gameObjectFindShooter(sender)
+        local ctx = get_context(shooter)
+        -- remove control e.g. when it starts drowning
+        if ctx.control then
+            ControlRotate_release(ctx.control)
+            ctx.control = nil
+        end
+        Shooter_finished(shooter)
+    end
+
+    -- sender = shooter or sprite spawned by shooter
+    local function dorefire(sender)
+        local shooter = gameObjectFindShooter(sender)
+        local ctx = get_context(shooter)
+        if not spriteIsGone(ctx.sprite) then
+            if ctx.phase1 then
+                -- make it fly
+                -- creating a new sprite is really the simplest; no reason to
+                --  try to do anything more "sophisticated"
+                Sprite_die(ctx.sprite)
+                ctx.sprite = spawnSprite(shooter, flying,
+                    Phys_pos(Sprite_physics(ctx.sprite)), Vector2(0, -1))
+                ctx.phase1 = false
+                -- and this makes the sheep controllable; hardcoded in D
+                ctx.control = ControlRotate_ctor(ctx.sprite, 5, 10000)
+                return true
+            else
+                spriteExplode(ctx.sprite, 75)
+            end
+        end
+        cleanup(shooter)
+        return true
+    end
+
+    enableSpriteTimer(flying, {
+        defTimer = time("15s"),
+        showDisplay = true,
+        callback = dorefire,
+    })
+
+    addSpriteClassEvent(flying, "sprite_waterstate", function(sender)
+        local inwater = Sprite_isUnderWater(sender)
+        if inwater and not is_aqua then
+            cleanup(sender)
+            -- disable thrusting from ControlRotate
+            Phys_set_selfForce(Sprite_physics(sender), Vector2.Null)
+            dodrown(sender)
+            return
+        end
+        setSpriteState(sender, iif(inwater, state_water, state_air))
+    end)
+
+    addSpriteClassEvent(jumping, "sprite_waterstate", function(sender)
+        if Sprite_isUnderWater(sender) then
+            cleanup(sender)
+        end
+    end)
+
+    enableSpriteTimer(jumping, {
+        defTimer = time("10s"),
+        showDisplay = true,
+        callback = function(sender)
+            spriteExplode(sender, 75)
+            cleanup(sender)
+        end
+    })
+
+    local w = createWeapon {
+        name = name,
+        onFire = function(shooter, info)
+            Shooter_reduceAmmo(shooter)
+            local s = spawnFromFireInfo(jumping, shooter, info)
+            local ctx = get_context(shooter)
+            ctx.phase1 = true
+            ctx.sprite = s
+        end,
+        onRefire = dorefire,
+        canRefire = true,
+        -- strange that you need this
+        -- e.g. when you hit yourself with your own supersheep
+        onInterrupt = cleanup,
+        value = 0,
+        category = "moving",
+        icon = iif(is_aqua, "icon_aquasheep", "icon_supersheep"),
+        animation = "weapon_sheep",
+        fireMode = {
+            direction = "fixed",
+            throwStrengthFrom = 40,
+            throwStrengthTo = 40,
+        }
+    }
+end
+
+createSuperSheep("superpeesh", false)
+createSuperSheep("aquapeesh", true)

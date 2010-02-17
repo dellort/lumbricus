@@ -208,9 +208,12 @@ end
 -- (changing the sprite class sounds way better than the retarded state stuff)
 function getDrownFunc(sprite_class, drown_phys)
     local drown_graphic
-    local seq = SpriteClass_sequenceType(sprite_class)
+    local seq = SpriteClass_getInitSequenceType(sprite_class)
     if seq then
         drown_graphic = SequenceType_findState(seq, "drown", true)
+    end
+    if not drown_graphic then
+        printf("WARNING: no drown graphic for sprite {}", sprite_class)
     end
     local particle = Gfx_resource("p_projectiledrown")
     if not drown_phys then
@@ -230,9 +233,9 @@ function getDrownFunc(sprite_class, drown_phys)
         end
     end
 end
-function enableDrown(sprite_class, drown_phys)
+function enableDrown(sprite_class, ...)
     addSpriteClassEvent(sprite_class, "sprite_waterstate",
-        getDrownFunc(sprite_class, drown_phys))
+        getDrownFunc(sprite_class, ...))
 end
 
 -- when a create with the weapon is blown up, the sprite gets spawned somehow
@@ -396,9 +399,12 @@ autoProperties = {
     SpriteClass_set_sequenceType = {
         string = Gfx_resource
     },
+    SpriteClass_set_sequenceState = {
+        string = Gfx_findSequenceState,
+    },
     SpriteClass_set_initParticle = {
         string = Gfx_resource
-    }
+    },
 }
 
 -- this is magic
@@ -667,6 +673,7 @@ function initSpriteState(sprite_class, animation, physics, particle)
     local seq = SpriteClass_sequenceType(sprite_class)
     local ret = {}
     if animation then
+        local seq = SpriteClass_getInitSequenceType(sprite_class)
         ret.seqState = SequenceType_findState(seq, animation)
     end
     if physics then
@@ -682,25 +689,45 @@ function initSpriteState(sprite_class, animation, physics, particle)
     return ret
 end
 
+-- get a sprite state (as in setSpriteState) that reflects the initial values
+--  according to the sprite class
+-- (allocates memory)
+function createNormalSpriteState(sprite_class)
+    return {
+        seqState = SpriteClass_getInitSequenceState(sprite_class),
+        posp = SpriteClass_initPhysic(sprite_class),
+        particle = SpriteClass_initParticle(sprite_class),
+    }
+end
+
 -- sets the sprite to a state created with initSpriteState
 function setSpriteState(sprite, state)
+    -- xxx there's no way to tell whether a table entry is unset, or if an
+    --  entry is a null object reference
+    -- idea: use the value false if an entry is considered null?
     if state.posp then
         Phys_set_posp(Sprite_physics(sprite), state.posp)
     end
     if state.seqState then
         Sequence_setState(Sprite_graphic(sprite), state.seqState)
     end
-    Sprite_setParticle(sprite, state.particle)
+    if state.particle then
+        Sprite_setParticle(sprite, state.particle)
+    end
 end
 
--- shoot a ray from shooter's pos in fireinfo.dir
+-- shoot a ray from sprite's pos in dir
 --   returns hitpoint if something was hit, nil otherwise
-function castFireRay(shooter, fireinfo)
-    local spr = Shooter_owner(shooter)
-    local owner = Sprite_physics(spr)
+-- sprite = a D Sprite as start point (ray is offset to radius)
+-- dir = Vector2 for direction (should be normalized)
+-- spread = optional, angle in degrees for random spread
+function castFireRay(sprite, dir, spread)
+    local owner = Sprite_physics(sprite)
     local dist = POSP_radius(Phys_posp(owner)) + 2
-    -- xxx random spread
-    local dir = fireinfo.dir
+    if spread then
+        local a = Random_rangef(-spread/2, spread/2)
+        dir = dir:rotated(a*math.pi/180)
+    end
     local pos = Phys_pos(owner) + dir * dist;
     local hitpoint, normal = World_shootRay(pos, dir, 1000)
     if normal then

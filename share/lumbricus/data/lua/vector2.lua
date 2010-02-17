@@ -10,6 +10,9 @@ setmetatable(Vector2, {__call = function(self, x, y)
     end
 end})
 
+-- immutable (hopefully) Vector2(0, 0) value
+Vector2.Null = Vector2(0, 0)
+
 function Vector2.FromPolar(length, angle)
     return Vector2(math.cos(angle)*length, math.sin(angle)*length)
 end
