@@ -23,8 +23,8 @@ class RayWeapon: ActionWeapon {
     Time lineTime;         //time for which a laser-like line is displayed
     Color[2] lineColors;   //[cold, hot] colors (interpolated during lineTime)
 
-    this(GfxSet gfx, ConfigNode node) {
-        super(gfx, node);
+    this(char[] prefix, GfxSet gfx, ConfigNode node) {
+        super(prefix, gfx, node);
         //always directed with fixed strength
         fireMode.variableThrowStrength = false;
         spread = node.getFloatValue("spread", spread);

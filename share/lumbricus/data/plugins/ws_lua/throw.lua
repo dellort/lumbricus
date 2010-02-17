@@ -1,7 +1,7 @@
 -- Weapons like grenades (thrown, explode after timer / on spacebar)
 
 do
-    local name = "nabana"
+    local name = "banana"
     local function createSprite(name)
         return createSpriteClass {
             name = name .. "_sprite",
@@ -33,7 +33,7 @@ do
         name = name,
         onFire = getStandardOnFire(main),
         category = "throw",
-        value = 0,
+        value = 10,
         animation = "weapon_banana",
         icon = "icon_banana",
         fireMode = {
@@ -51,7 +51,7 @@ do
 end
 
 do
-    local name = "supernabana"
+    local name = "superbanana"
     local function createSprite(name)
         return createSpriteClass {
             name = name .. "_sprite",
@@ -135,7 +135,7 @@ do
         onRefire = dorefire,
         canRefire = true,
         category = "throw",
-        value = 0,
+        value = 10,
         animation = "weapon_banana",
         icon = "icon_superbanana",
         fireMode = {
@@ -149,7 +149,7 @@ do
 end
 
 do
-    local name = "graneda"
+    local name = "grenade"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -175,7 +175,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = getStandardOnFire(sprite_class),
-        value = 0,
+        value = 10,
         category = "throw",
         animation = "weapon_grenade",
         icon = "icon_grenade",
@@ -194,7 +194,7 @@ do
 end
 
 do
-    local name = "clestur"
+    local name = "clusterbomb"
     local phys = relay {
         collisionID = "projectile",
         mass = 10,
@@ -227,7 +227,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = getStandardOnFire(main),
-        value = 0,
+        value = 10,
         category = "throw",
         icon = "icon_cluster",
         crateAmount = 3,
@@ -245,7 +245,7 @@ do
 end
 
 do
-    local name = "holy_graneda"
+    local name = "holy_grenade"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -269,7 +269,7 @@ do
         name = name,
         onFire = getStandardOnFire(sprite_class),
         category = "throw",
-        value = 0,
+        value = 10,
         animation = "weapon_holy",
         icon = "icon_holy",
         fireMode = {

@@ -20,7 +20,7 @@ import utils.log;
 import tango.util.Convert : to;
 
 
-alias StaticFactory!("WeaponClasses", ConfWeaponClass, GfxSet, ConfigNode)
+alias StaticFactory!("WeaponClasses", ConfWeaponClass, char[], GfxSet, ConfigNode)
     WeaponClassFactory;
 
 alias StaticFactory!("WeaponSelectors", WeaponSelector, Sprite)
@@ -90,8 +90,8 @@ class ConfWeaponClass : WeaponClass {
     //argument to WeaponSelectorFactory
     char[] onSelect;
 
-    this(GfxSet a_gfx, ConfigNode node) {
-        super(a_gfx, node.name);
+    this(char[] prefix, GfxSet a_gfx, ConfigNode node) {
+        super(a_gfx, prefix ~ node.name);
 
         value = node.getIntValue("value", value);
         category = node.getStringValue("category", category);

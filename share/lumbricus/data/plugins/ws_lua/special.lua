@@ -1,7 +1,7 @@
 -- Dumping ground for weapons that don't fit anywhere else
 
 do
-    local name = "flemathrower"
+    local name = "flamethrower"
 
     -- xxx missing: random = "7"
     local fire, interrupt, readjust = getMultispawnOnFire(
@@ -12,7 +12,7 @@ do
         onInterrupt = interrupt,
         onReadjust = readjust,
         category = "misc2",
-        value = 0,
+        value = 10,
         animation = "weapon_flamethrower",
         icon = "icon_flamer",
         fireMode = {
@@ -24,7 +24,7 @@ do
 end
 
 do
-    local name = "lotomov"
+    local name = "molotov"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -49,7 +49,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = getStandardOnFire(sprite_class),
-        value = 0,
+        value = 10,
         category = "misc2",
         animation = "weapon_molotov",
         icon = "icon_molotov",
@@ -65,7 +65,7 @@ do
 end
 
 do
-    local name = "pinguen"
+    local name = "penguin"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -93,7 +93,7 @@ do
         onFire = getAirstrikeOnFire(sprite_class, 1),
         isAirstrike = true,
         category = "misc1",
-        value = 0,
+        value = 100,
         animation = "weapon_airstrike",
         icon = "icon_penguin",
         fireMode = {
@@ -103,7 +103,7 @@ do
 end
 
 do
-    local name = "bmbomb"
+    local name = "mbbomb"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -124,7 +124,7 @@ do
         onFire = getAirstrikeOnFire(sprite_class, 1),
         isAirstrike = true,
         category = "misc3",
-        value = 0,
+        value = 10000,
         animation = "weapon_airstrike",
         icon = "icon_mbbomb",
         fireMode = {
@@ -134,7 +134,7 @@ do
 end
 
 do
-    local name = "lese"
+    local name = "esel"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -170,7 +170,7 @@ do
         onFire = getAirstrikeOnFire(sprite_class, 1),
         isAirstrike = true,
         category = "misc3",
-        value = 0,
+        value = 10000,
         animation = "weapon_airstrike",
         icon = "icon_esel",
         fireMode = {
@@ -181,7 +181,7 @@ do
 end
 
 do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in old set
-    local name = "whitehole_bomb"
+    local name = "blackhole_bomb"
     local nuke = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -238,7 +238,7 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
         name = name,
         onFire = getStandardOnFire(nuke),
         category = "misc1",
-        value = 0,
+        value = 10,
         animation = "weapon_holy",
         icon = "icon_blackhole",
         fireMode = {
@@ -254,7 +254,7 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
 end
 
 do
-    local name = "armegaddon"
+    local name = "armageddon"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -307,7 +307,7 @@ do
         end,
         isAirstrike = true,
         category = "misc3",
-        value = 0,
+        value = 10000,
         animation = "weapon_atomtest",
         icon = "icon_meteorstrike",
         cooldown = time("15s"),

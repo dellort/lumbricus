@@ -1,7 +1,7 @@
 -- Rocket weapons: thrown from worm, explode on impact
 
 do
-    local name = "bozaaka"
+    local name = "bazooka"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -21,7 +21,7 @@ do
         name = name,
         onFire = getStandardOnFire(sprite_class),
         category = "fly",
-        value = 0,
+        value = 10,
         animation = "weapon_bazooka",
         icon = "icon_bazooka",
         fireMode = {
@@ -35,7 +35,7 @@ do
 end
 
 do
-    local name = "martor"
+    local name = "mortar"
     local cluster = createSpriteClass {
         name = name .. "_cluster",
         initPhysic = relay {
@@ -76,7 +76,7 @@ do
         name = name,
         onFire = getStandardOnFire(main),
         category = "fly",
-        value = 0,
+        value = 10,
         animation = "weapon_mortar",
         icon = "icon_mortar",
         fireMode = {
@@ -90,7 +90,7 @@ end
 
 
 do -- xxx missing: deathzone_immune for active missile
-    local name = "homo"
+    local name = "homing"
     local inactive_phys = {
         collisionID = "projectile",
         mass = "10",
@@ -191,7 +191,7 @@ do -- xxx missing: deathzone_immune for active missile
         name = name,
         onFire = getStandardOnFire(sprite_class),
         category = "fly",
-        value = 0,
+        value = 10,
         animation = "weapon_homing",
         icon = "icon_homing",
         fireMode = {

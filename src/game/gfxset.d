@@ -340,7 +340,8 @@ class GfxSet {
     //mainly for scripts
     void registerWeapon(WeaponClass c) {
         argcheck(c);
-        assert(findWeaponClass(c.name, true) is null);
+        if (findWeaponClass(c.name, true))
+            throw new CustomException("wepaon already exists: "~c.name);
         mWeaponClasses[c.name] = c;
     }
 

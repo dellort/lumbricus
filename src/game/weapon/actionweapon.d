@@ -28,8 +28,8 @@ class ActionWeapon : ConfWeaponClass {
     int reduceAmmo = int.max; //take 1 ammo every x bullets (and always at end)
     RandomValue!(Time) repeatDelay = {Time.Null, Time.Null};
 
-    this(GfxSet gfx, ConfigNode node) {
-        super(gfx, node);
+    this(char[] prefix, GfxSet gfx, ConfigNode node) {
+        super(prefix, gfx, node);
         ActionClass getaction(char[] aname, bool required) {
             auto res = actionFromConfig(gfx, node.getSubNode(aname, required),
                 name ~ "::" ~ aname);

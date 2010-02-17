@@ -22,7 +22,7 @@ local function enableSheepJumping(sprite_class)
 end
 
 do
-    local name = "peesh"
+    local name = "sheep"
     local function createSprite(name)
         return createSpriteClass {
             name = name .. "_sprite",
@@ -93,7 +93,7 @@ do
         onRefire = dorefire,
         canRefire = true,
         onInterrupt = interrupt,
-        value = 0,
+        value = 10,
         category = "moving",
         icon = "icon_sheep",
         animation = "weapon_sheep",
@@ -119,7 +119,7 @@ do
         onRefire = dorefire,
         canRefire = true,
         onInterrupt = interrupt,
-        value = 0,
+        value = 10,
         category = "fly",
         icon = "icon_sheeplauncher",
         animation = "weapon_sheeplauncher",
@@ -133,7 +133,7 @@ do
 end
 
 do
-    local name = "gramma"
+    local name = "granny"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -160,7 +160,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = getStandardOnFire(sprite_class),
-        value = 0,
+        value = 10,
         category = "moving",
         icon = "icon_granny",
         animation = "weapon_granny",
@@ -174,7 +174,7 @@ do
 end
 
 do
-    local name = "salvo"
+    local name = "sally_army"
     local main = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -240,7 +240,7 @@ do
         end,
         onRefire = dorefire,
         canRefire = true,
-        value = 0,
+        value = 10,
         category = "moving",
         icon = "icon_salvationarmy",
         animation = "weapon_sally_army",
@@ -254,7 +254,7 @@ do
 end
 
 do
-    local name = "ox"
+    local name = "cow"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -286,7 +286,7 @@ do
         name = name,
         onFire = fire,
         onInterrupt = interrupt,
-        value = 0,
+        value = 10,
         category = "moving",
         icon = "icon_cow",
         animation = "weapon_cow",
@@ -445,7 +445,7 @@ local function createSuperSheep(name, is_aqua)
         -- strange that you need this
         -- e.g. when you hit yourself with your own supersheep
         onInterrupt = cleanup,
-        value = 0,
+        value = 10,
         category = "moving",
         icon = iif(is_aqua, "icon_aquasheep", "icon_supersheep"),
         animation = "weapon_sheep",
@@ -457,5 +457,5 @@ local function createSuperSheep(name, is_aqua)
     }
 end
 
-createSuperSheep("superpeesh", false)
-createSuperSheep("aquapeesh", true)
+createSuperSheep("supersheep", false)
+createSuperSheep("aquasheep", true)

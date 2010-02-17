@@ -1,7 +1,7 @@
 -- Airstrike-type weapons (defined by using AirstrikeControl)
 
 do
-    local name = "iarstrake"
+    local name = "airstrike"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -20,7 +20,7 @@ do
         name = name,
         onFire = getAirstrikeOnFire(sprite_class),
         onCreateSelector = AirstrikeControl_ctor,
-        value = 0,
+        value = 10000,
         category = "air",
         isAirstrike = true,
         icon = "icon_airstrike",
@@ -35,13 +35,13 @@ do
 end
 
 do
-    local name = "manestrake"
+    local name = "minestrike"
 
     local w = createWeapon {
         name = name,
         onFire = getAirstrikeOnFire(mine_class, 10, 25),
         onCreateSelector = AirstrikeControl_ctor,
-        value = 0,
+        value = 10000,
         category = "air",
         isAirstrike = true,
         icon = "icon_minestrike",
@@ -56,7 +56,7 @@ do
 end
 
 do
-    local name = "nalmpastrike"
+    local name = "napalmstrike"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -86,7 +86,7 @@ do
         name = name,
         onFire = getAirstrikeOnFire(sprite_class, 8, 45),
         onCreateSelector = AirstrikeControl_ctor,
-        value = 0,
+        value = 10000,
         category = "air",
         isAirstrike = true,
         icon = "icon_napalmstrike",
@@ -102,7 +102,7 @@ do
 end
 
 do
-    local name = "cerpatstrake"
+    local name = "carpetstrike"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -126,7 +126,7 @@ do
         onCreateSelector = function(sprite)
             return AirstrikeControl_ctor(sprite)
         end,
-        value = 0,
+        value = 10000,
         category = "air",
         isAirstrike = true,
         icon = "icon_carpetstrike",
@@ -141,7 +141,7 @@ do
 end
 
 do
-    local name = "peeshstrake"
+    local name = "sheepstrike"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -166,9 +166,10 @@ do
         onCreateSelector = function(sprite)
             return AirstrikeControl_ctor(sprite)
         end,
-        value = 0,
+        value = 10000,
         category = "air",
         isAirstrike = true,
+        cooldown = time("5s"),
         icon = "icon_sheepstrike",
         animation = "weapon_airstrike",
         fireMode = {

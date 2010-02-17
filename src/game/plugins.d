@@ -38,6 +38,8 @@ class Plugin {
         ResourceFile mResources;
         GfxSet mGfx;
         char[][] mModules;
+        //temporary hack
+        char[] mWeaponPrefix;
     }
 
     //called in resource-loading phase; currently name comes from plugin path
@@ -52,6 +54,8 @@ class Plugin {
         mConfig = conf;
         assert(!!conf);
         dependencies = mConfig.getValue("dependencies", dependencies);
+        //temporary hack
+        mWeaponPrefix = mConfig.getValue!(char[])("weapon_prefix");
 
         //load resources
         if (gResources.isResourceFile(mConfig)) {
@@ -151,7 +155,8 @@ class Plugin {
         char[] type = weapon.getStringValue("type", "action");
         //xxx error handling
         //hope you never need to debug this code!
-        WeaponClass c = WeaponClassFactory.instantiate(type, mGfx, weapon);
+        WeaponClass c = WeaponClassFactory.instantiate(type, mWeaponPrefix,
+            mGfx, weapon);
         mGfx.registerWeapon(c);
     }
 }

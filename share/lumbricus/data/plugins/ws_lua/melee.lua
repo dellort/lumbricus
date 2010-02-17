@@ -1,13 +1,13 @@
 -- Melee weapons: somehow affect objects directly before the shooter
 
 do
-    local name = "besabell"
+    local name = "baseball"
 
     local w = createWeapon {
         name = name,
         onFire = getMeleeImpulseOnFire(7000, 30),
         category = "punch",
-        value = 0,
+        value = 12,
         animation = "weapon_baseball",
         icon = "icon_baseball",
         fireMode = {
@@ -17,13 +17,13 @@ do
 end
 
 do
-    local name = "drop"
+    local name = "prod"
 
     local w = createWeapon {
         name = name,
         onFire = getMeleeImpulseOnFire(1500, 0),
         category = "punch",
-        value = 0,
+        value = 12,
         animation = "weapon_prod",
         icon = "icon_prod",
         fireMode = {
@@ -33,7 +33,7 @@ do
 end
 
 do
-    local name = "hatchet"
+    local name = "axe"
 
     local w = createWeapon {
         name = name,
@@ -52,7 +52,7 @@ do
             end
         end),
         category = "punch",
-        value = 0,
+        value = 12,
         animation = "weapon_axe",
         icon = "icon_axe",
         fireMode = {

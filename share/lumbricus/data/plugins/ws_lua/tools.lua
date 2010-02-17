@@ -192,7 +192,7 @@ createWeapon {
 }
 
 do
-    local name = "beamlaser"
+    local name = "laserbeamer"
     local addlaser = getLaserEffect(time("2s"))
 
     local w = createWeapon {
@@ -209,7 +209,7 @@ do
             end
         end,
         category = "tools",
-        value = 0,
+        value = 10,
         dontEndRound = true,
         animation = "weapon_sheeplauncher",
         icon = "icon_shotgun",

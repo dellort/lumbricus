@@ -1,7 +1,7 @@
 -- Explosive weapons (dynamite etc.); lay it and run away
 
 do
-    local name = "dinamite"
+    local name = "dynamite"
     local sprite_class = createSpriteClass {
         name = name .. "_sprite",
         initPhysic = relay {
@@ -26,7 +26,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = getStandardOnFire(sprite_class),
-        value = 0,
+        value = 10,
         category = "sheep",
         icon = "icon_dynamite",
         animation = "weapon_dynamite",
@@ -40,7 +40,7 @@ do
 end
 
 do
-    local name = "mingvesa"
+    local name = "mingvase"
     local main = createSpriteClass {
         name = name .. "_sprite",
         sequenceType = "s_mingvase",
@@ -108,7 +108,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = getStandardOnFire(main),
-        value = 0,
+        value = 10,
         category = "sheep",
         icon = "icon_mingvase",
         animation = "weapon_mingvase",
@@ -123,10 +123,11 @@ do
 end
 
 do
-    local name = "mane"
+    local name = "mine"
     -- no "local", this is used in other weapons
     mine_class = createSpriteClass {
-        name = name .. "_sprite",
+        -- newgame.conf/levelobjects references this name!
+        name = "mine",
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -153,9 +154,10 @@ do
                 if flash_graphic then
                     Sequence_setState(Sprite_graphic(sender), flash_graphic)
                     -- blow up after 1s
-                    addSpriteTimer(sender, "explodeT", time(1), false, function(sender)
-                        spriteExplode(sender, 50)
-                    end)
+                    addSpriteTimer(sender, "explodeT", time(1), false,
+                        function(sender)
+                            spriteExplode(sender, 50)
+                        end)
                 end
                 Phys_kill(trig)
             end)
@@ -165,7 +167,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = getStandardOnFire(mine_class),
-        value = 0,
+        value = 10,
         category = "sheep",
         icon = "icon_mine",
         animation = "weapon_mine",

@@ -19,8 +19,8 @@ import utils.time;
 class MeleeWeapon: ActionWeapon {
     int dist = 10;
 
-    this(GfxSet gfx, ConfigNode node) {
-        super(gfx, node);
+    this(char[] prefix, GfxSet gfx, ConfigNode node) {
+        super(prefix, gfx, node);
         //always directed with fixed strength
         fireMode.variableThrowStrength = false;
         node.getValue!(int)("distance", dist);
