@@ -2,8 +2,6 @@ module game.weapon.airstrike;
 
 import common.animation;
 import framework.framework;
-import game.action.base;
-import game.action.wcontext;
 import game.game;
 import game.gfxset;
 import game.sprite;

@@ -1,8 +1,6 @@
 module game.weapon.girder;
 
 import framework.framework;
-import game.action.base;
-import game.action.wcontext;
 import game.game;
 import game.gfxset;
 import game.sprite;
@@ -21,10 +19,6 @@ import utils.randval;
 
 import math = tango.math.Math;
 import mymath = utils.math;
-
-static this() {
-    regAction!(putgirder, "")("putgirder");
-}
 
 float girder_rotation(int n, int steps) {
     //start horizontal, 22.5° steps, no upside-down
@@ -229,13 +223,3 @@ class GirderControl : WeaponSelector, Controllable {
         WeaponSelectorFactory.register!(typeof(this))("girder_selector");
     }
 }
-
-void putgirder(WeaponContext wx) {
-    WeaponSelector sel = wx.shooter.selector;
-    if (!sel)
-        return; //???
-    auto gsel = castStrict!(GirderControl)(sel);
-    //(should never return false for failure if weapon code is correct)
-    gsel.fireCheck(wx.fireInfo.info, true);
-}
-

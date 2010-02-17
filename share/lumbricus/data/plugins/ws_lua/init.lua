@@ -25,12 +25,12 @@ end
 function getGunOnFire(nrounds, interval, damage, effect, spread)
     return getMultipleOnFire(nrounds, interval, false,
         function(shooter, fireinfo)
-            local hitpoint = castFireRay(Shooter_owner(shooter), fireinfo.dir,
-                spread)
-            if hitpoint then
-                if effect then
-                    effect(fireinfo.pos, hitpoint)
-                end
+            local hitpoint, normal = castFireRay(Shooter_owner(shooter),
+                fireinfo.dir, spread)
+            if effect then
+                effect(fireinfo.pos, hitpoint)
+            end
+            if normal then
                 -- hit something
                 Game_explosionAt(hitpoint, damage, shooter)
             end
@@ -44,7 +44,7 @@ function getLaserEffect(t)
         return {r=r,g=g,b=b,a=a or 1}
     end
 
-    local line_colors = { color(1,0,0), color(0,0,0), color(1,0,0) }
+    local line_colors = { color(1,0,0,0), color(1,0,0), color(1,0,0,0) }
     local line_time = t or time("2s")
 
     return function(from, to)

@@ -14,6 +14,7 @@ import game.glevel;
 import game.levelgen.landscape;
 import game.controller;
 import game.actionsprite;
+import game.weapon.girder;
 import game.weapon.projectile;
 import physics.world;
 import utils.configfile;
@@ -40,6 +41,7 @@ static this() {
     regAction!(homing, "force_a, force_t")("homing");
 
     regAction!(nothing, "")("nothing");
+    regAction!(putgirder, "")("putgirder");
 }
 
 void nothing(WeaponContext wx) {
@@ -109,6 +111,15 @@ void homing(WeaponContext wx, float forceA, float forceT) {
     wx.putObj(new HomingAction(wx.engine, pspr, forceA, forceT));
 }
 
+//depends on GirderControl
+void putgirder(WeaponContext wx) {
+    WeaponSelector sel = wx.shooter.selector;
+    if (!sel)
+        return; //???
+    auto gsel = castStrict!(GirderControl)(sel);
+    //(should never return false for failure if weapon code is correct)
+    gsel.fireCheck(wx.fireInfo.info, true);
+}
 
 //------------------------------------------------------------------------
 
@@ -280,33 +291,5 @@ class AoEDamageActionClass : AoEActionClass {
 
     static this() {
         ActionClassFactory.register!(typeof(this))("aoedamage");
-    }
-}
-
-//now used by Lua weapon; no point in changing this
-class WormSelectHelper : GameObject {
-    private {
-        TeamMember mMember;
-    }
-
-    this(GameEngine eng, TeamMember member) {
-        super(eng, "wormselecthelper");
-        internal_active = true;
-        mMember = member;
-        assert(!!mMember);
-    }
-
-    bool activity() {
-        return internal_active;
-    }
-
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
-        //xxx: we just need the 1-frame delay for this because initialStep() is
-        //     called from doFire, which will set mMember.mWormAction = true
-        //     afterwards and would conflict with the code below
-        mMember.team.allowSelect = true;
-        mMember.control.resetActivity();
-        kill();
     }
 }

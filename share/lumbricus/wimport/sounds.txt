@@ -38,6 +38,8 @@ sounds {
             a_sheep = "SHEEPBAA.WAV"
             a_sizzle = "SIZZLE.WAV"
             a_sallyarmy = "SALVATIONARMY.WAV"
+            a_mine_tick = "MINETICK.WAV"
+            a_mine_activate = "MineArm.wav"
         }
     }
     /* -- not implemented

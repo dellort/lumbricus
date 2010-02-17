@@ -1,14 +1,13 @@
 module game.weapon.ray;
 
-import common.scene;
 import game.game;
 import game.gfxset;
 import game.gobject;
 import physics.world;
 import game.action.base;
-import game.glue;
 import game.sprite;
 import game.weapon.weapon;
+import game.weapon.helpers;
 import game.weapon.actionweapon;
 import tango.math.Math: PI;
 import utils.vector2;
@@ -74,53 +73,5 @@ class RayShooter: ActionShooter {
             new RenderLaser(engine, npos, hitPoint, base.lineTime,
                 [base.lineColors[0], base.lineColors[1], base.lineColors[0]]);
         }
-    }
-}
-
-//non-deterministic, transient, self-removing shoot effect
-//xxx: this used to be derived from GameObject
-//     now this functionality got lost: bool activity() { return active; }
-//     if it's needed again, let RayShooter wait until end-time
-class RenderLaser : SceneObject {
-    private {
-        GameEngineCallback base;
-        Vector2i[2] mP;
-        Time mStart, mEnd;
-        Color[] mColors;
-    }
-
-    this(GameEngine aengine, Vector2f p1, Vector2f p2, Time duration,
-        Color[] colors)
-    {
-        base = aengine.callbacks;
-        zorder = GameZOrder.Effects;
-        base.scene.add(this);
-        mP[0] = toVector2i(p1);
-        mP[1] = toVector2i(p2);
-        mStart = base.interpolateTime.current;
-        mEnd = mStart + duration;
-        mColors = colors;
-    }
-
-    override void draw(Canvas c) {
-        auto cur = base.interpolateTime.current;
-        assert(cur >= mStart);
-        if (cur >= mEnd) {
-            removeThis();
-            return;
-        }
-        float pos = 1.0*(cur - mStart).msecs / (mEnd - mStart).msecs;
-        // [0.0, 1.0] onto range [colors[0], ..., colors[$-1]]
-        pos *= mColors.length;
-        int segi = cast(int)(pos);
-        float segmod = pos - segi;
-        //assert(segi >= 0 && segi < mColors.length-1);
-        if (!(segi >= 0 && segi < mColors.length-1)) {
-            removeThis();
-            return;
-        }
-        //linear interpolation between these
-        auto col = mColors[segi] + (mColors[segi+1]-mColors[segi])*segmod;
-        c.drawLine(mP[0], mP[1], col);
     }
 }

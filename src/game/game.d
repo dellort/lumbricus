@@ -17,7 +17,7 @@ import game.glue;
 import game.sequence;
 import game.setup;
 import game.particles;
-import game.lua;
+import game.lua.base;
 import gui.rendertext; //oops, the core shouldn't really depend from the GUI
 import net.marshal : Hasher;
 import utils.list2;
@@ -154,7 +154,7 @@ class GameEngine {
         //scripting initialization
         //code loaded here can be considered "internal" and should explode
         //  on errors
-        mScripting = createScriptingObj(this);
+        mScripting = createScriptingObj();
         mScripting.onError = &scriptingObjError;
         mScripting.addSingleton(this);
         mScripting.addSingleton(gfx);

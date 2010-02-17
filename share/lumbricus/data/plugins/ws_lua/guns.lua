@@ -74,8 +74,9 @@ do
         -- (gives readjusted fireinfo after 1st shot)
         local fireinfo = Shooter_fireinfo(shooter)
         -- copy & pasted from elsewhere
-        local hitpoint = castFireRay(Shooter_owner(shooter), fireinfo.dir)
-        if hitpoint then
+        local hitpoint, normal = castFireRay(Shooter_owner(shooter),
+            fireinfo.dir)
+        if normal then
             Game_explosionAt(hitpoint, 25, shooter)
         end
         if ctx.shots <= 0 then

@@ -717,7 +717,8 @@ function setSpriteState(sprite, state)
 end
 
 -- shoot a ray from sprite's pos in dir
---   returns hitpoint if something was hit, nil otherwise
+--   returns hitpoint, normal if something was hit, the point where hit testing
+--   stopped otherwise (sprite.pos + dir * 1000); see PhysicWorld.shootRay
 -- sprite = a D Sprite as start point (ray is offset to radius)
 -- dir = Vector2 for direction (should be normalized)
 -- spread = optional, angle in degrees for random spread
@@ -729,9 +730,5 @@ function castFireRay(sprite, dir, spread)
         dir = dir:rotated(a*math.pi/180)
     end
     local pos = Phys_pos(owner) + dir * dist;
-    local hitpoint, normal = World_shootRay(pos, dir, 1000)
-    if normal then
-        -- hit something
-        return hitpoint
-    end
+    return World_shootRay(pos, dir, 1000)
 end

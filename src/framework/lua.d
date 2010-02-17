@@ -245,9 +245,6 @@ class LuaException : CustomException {
     }
 }
 
-//this alias is just so that we can pretend our scripting interface is generic
-alias LuaException ScriptingException;
-
 //this can be used in 2 cases:
 //- Lua calls user D code, and the user raised some recoverable exception
 //  => e is that (catched) exception, and it is not a LuaException

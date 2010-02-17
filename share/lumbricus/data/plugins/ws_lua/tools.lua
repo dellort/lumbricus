@@ -200,12 +200,12 @@ do
         onFire = function(shooter, fireinfo)
             Shooter_finished(shooter)
             local sprite = Shooter_owner(shooter)
-            local hitpoint = castFireRay(sprite, fireinfo.dir)
-            if hitpoint then
+            local hitpoint, normal = castFireRay(sprite, fireinfo.dir)
+            -- xxx laser is inside the poor worm
+            addlaser(fireinfo.pos, hitpoint)
+            if normal then
                 Shooter_reduceAmmo(shooter)
                 Worm_beamTo(sprite, hitpoint)
-                -- xxx laser is inside the poor worm
-                addlaser(fireinfo.pos, hitpoint)
             end
         end,
         category = "tools",

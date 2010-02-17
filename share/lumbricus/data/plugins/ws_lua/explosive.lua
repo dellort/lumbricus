@@ -144,12 +144,14 @@ do
     local seq = SpriteClass_sequenceType(mine_class)
     assert(seq)
     local flash_graphic = SequenceType_findState(seq, "flashing", true)
+    local flash_particle = Gfx_resource("p_mine_flash")
     -- timer for initial delay
     enableSpriteTimer(mine_class, {
         defTimer = timeSecs(3),
         callback = function(sender)
             -- mine becomes active
             addCircleTrigger(sender, 45, "wormsensor", function(trig, obj)
+                Sprite_setParticle(sender, flash_particle)
                 -- worm stepped on
                 if flash_graphic then
                     Sequence_setState(Sprite_graphic(sender), flash_graphic)

@@ -1,6 +1,5 @@
 module game.crate;
 
-import game.action.spawn;
 import game.gobject;
 import physics.world;
 import game.game;
@@ -9,10 +8,8 @@ import game.controller;
 import game.controller_events;
 import game.sequence;
 import game.weapon.weapon;
+import game.weapon.spawn;
 import game.sprite;
-import game.actionsprite;
-import game.action.base;
-import game.weapon.actionweapon;
 import game.temp;
 import gui.rendertext;
 import utils.misc;
