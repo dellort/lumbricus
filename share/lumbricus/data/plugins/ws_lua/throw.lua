@@ -77,28 +77,43 @@ do
         timer:cancel()
         if ctx.phase1 then
             -- explode the main sprite
-            if not spriteIsGone(ctx.main) then
-                spriteExplode(ctx.main, 75)
-                spawnCluster(shard, ctx.main, 5, 300, 400, 40)
-                -- after that time, let shards explode in phase 1
-                ctx.timer:start(time(4))
-                ctx.phase1 = false
-                return true
-            end
+            spriteExplode(ctx.main, 75)
+            spawnCluster(shard, ctx.main, 5, 300, 400, 40)
+            -- after that time, let shards explode in phase 1
+            ctx.timer:start(time(4))
+            ctx.phase1 = false
         else
             assert(ctx.sprites)
-            for i, s in ipairs(ctx.sprites) do
+            for s, _ in pairs(ctx.sprites) do
+                -- spriteExplode will trigger die event, which will remove the
+                --  sprite from the array... that's allowed
                 if not spriteIsGone(s) then
                     spriteExplode(s, 75)
                 end
             end
-            ctx.sprites = nil
         end
-        Shooter_finished(shooter)
         -- signal success???
         return true
     end
 
+    addSpriteClassEvent(main, "sprite_waterstate", function(sender)
+        if Sprite_isUnderWater(sender) then
+            local shooter = gameObjectFindShooter(sender)
+            get_context(shooter).timer:cancel()
+            Shooter_finished(shooter)
+        end
+    end)
+
+    local function subsprite_status(sprite, status)
+        local shooter = gameObjectFindShooter(sprite)
+        assert(shooter)
+        local sprites = get_context(shooter).sprites
+        sprites[sprite] = status
+        -- reconsider refire status; no sprites left => no refire
+        if (not status) and table_empty(sprites) then
+            Shooter_finished(shooter)
+        end
+    end
     addSpriteClassEvent(shard, "sprite_activate", function(sender, normal)
         -- add to "refire" list
         -- that could handled in spawnCluster() (and would be cheaper), but
@@ -112,10 +127,15 @@ do
         -- this "group" stuff could also be used to simplify memory managment
         --  (e.g. find out when a context shared by spawned sprites can be
         --  free'd; important at least for the Shooter)
-        local shooter = gameObjectFindShooter(sender)
-        assert(shooter)
-        local sprites = get_context(shooter).sprites
-        sprites[#sprites + 1] = sender
+        subsprite_status(sender, true)
+    end)
+    addSpriteClassEvent(shard, "sprite_die", function(sender)
+        subsprite_status(sender, nil)
+    end)
+    addSpriteClassEvent(shard, "sprite_waterstate", function(sender)
+        if Sprite_isUnderWater(sender) then
+            subsprite_status(sender, nil)
+        end
     end)
 
     local w = createWeapon {

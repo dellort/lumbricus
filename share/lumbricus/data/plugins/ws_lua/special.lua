@@ -3,9 +3,24 @@
 do
     local name = "flamethrower"
 
-    -- xxx missing: random = "7"
-    local fire, interrupt, readjust = getMultispawnOnFire(
-        worms_shared.standard_napalm, 50, timeMsecs(60))
+    local fire, interrupt, readjust = getMultipleOnFire(50, timeMsecs(60), nil,
+        function(shooter, fireinfo)
+            -- from: spawnFromFireInfo, castFireRay, flamethrower.conf
+            local spread = 7
+            local a = Random_rangef(-spread/2, spread/2)
+            dir = fireinfo.dir:rotated(a*math.pi/180)
+            -- the problem in correctly placing is, that the napalm is centered
+            --  in the middle of its position; plus we don't even know which
+            --  graphic is going to be used (depends from napalm speed etc.)
+            -- solutions:
+            --  1. change napalm graphics; napalm position points to the
+            --     beginning of the graphic, instead of the center
+            --  2. guess (done here)
+            local dist = (fireinfo.shootbyRadius + 5) * 1.5 + 9 + 8
+            local s = spawnSprite(shooter, worms_shared.standard_napalm,
+                fireinfo.pos + dir * dist, dir * 500)
+        end
+    )
     local w = createWeapon {
         name = name,
         onFire = fire,
@@ -17,8 +32,8 @@ do
         icon = "icon_flamer",
         fireMode = {
             direction = "any",
-            throwStrengthFrom = 500,
-            throwStrengthTo = 500,
+            --throwStrengthFrom = 500,
+            --throwStrengthTo = 500,
         }
     }
 end
