@@ -58,6 +58,8 @@ class Team : GameObject {
         int mGlobalWins;
         //incremented for each crate; xxx take over to next round
         int mDoubleDmg, mCrateSpy;
+
+        bool mActionNotified;
     }
 
     //node = the node describing a single team
@@ -271,6 +273,7 @@ class Team : GameObject {
             }
             mAllowSelect = false;
         }
+        mActionNotified = false;
         OnTeamSetActive.raise(this, act);
     }
 
@@ -356,8 +359,17 @@ class Team : GameObject {
         if (!has_active_worm)
             active = false;
 
-        if (current && current.control.actionPerformed())
+        bool action;
+
+        if (current && current.control.actionPerformed()) {
             mAllowSelect = false;
+            action = true;
+        }
+
+        if (action && !mActionNotified) {
+            mActionNotified = true;
+            OnTeamFirstAction.raise(this);
+        }
     }
 
     bool checkDyingMembers() {
@@ -432,6 +444,7 @@ class TeamMember : GameObject {
         int mHealthTarget;
         bool mDeathAnnounced; //show normal death msg only once
         Time mHealthChangeTime;
+        bool mLostNotified;
     }
 
     this(char[] a_name, Team a_team) {
@@ -564,6 +577,7 @@ class TeamMember : GameObject {
     //xxx should be named: round lost?
     //apparently amount of lost healthpoints since last activation
     //tolerance: positive number of health points, whose loss can be tolerated
+    //also xxx: tolerance should be a settable property of TeamMember
     bool lifeLost(int tolerance = 0) {
         return health() + tolerance < mLastKnownLifepower;
     }
@@ -588,11 +602,17 @@ class TeamMember : GameObject {
         if (act) {
             mLastKnownLifepower = health;
         }
+        mLostNotified = false;
         OnTeamMemberSetActive.raise(this, act);
     }
 
     override void simulate(float deltaT) {
         mWormControl.simulate();
+
+        if (!mLostNotified && lifeLost()) {
+            mLostNotified = true;
+            OnTeamMemberLostControl.raise(this);
+        }
 
         //mWormControl deactivates itself if the worm was e.g. injured
         if (!mWormControl.engaged())

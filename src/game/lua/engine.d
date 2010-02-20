@@ -15,8 +15,10 @@ static this() {
     gScripting.methods!(GameEngine, "createSprite", "gameTime", "waterOffset",
         "windSpeed", "setWindSpeed", "randomizeWind", "gravity", "raiseWater",
         "addEarthQuake", "explosionAt", "damageLandscape",
-        "insertIntoLandscape", "countSprites", "ownedTeam", "nukeSplatEffect");
+        "insertIntoLandscape", "countSprites", "ownedTeam", "nukeSplatEffect",
+        "checkForActivity");
     gScripting.properties_ro!(GameEngine, "events", "globalEvents");
+    gScripting.properties!(GameEngine, "persistentState");
 
     gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder", "size");
 

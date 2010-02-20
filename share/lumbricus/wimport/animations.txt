@@ -412,7 +412,7 @@ mainspr {
                 worm_uzi_fire = "+repeat,f:100; 574 | 577"
                 worm_minigun_fire = "+repeat,f:50; 580 | 583"
                 worm_shotgun_prepare = "f:250; 556 | 553"
-                worm_shotgun_fire = "f:200; 559"
+                worm_shotgun_fire = "f:200; 559 | 553"
                 //throw animation for grenades etc.
                 worm_throw = "f:250; 601"
                 worm_baseball_fire = "f:250; 532"

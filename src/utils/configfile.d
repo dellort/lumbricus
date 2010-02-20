@@ -651,6 +651,14 @@ public class ConfigNode {
     }
     //<-- end legacy accessor functions
 
+    //just for scripting
+    char[][] getStringArray(char[] name) {
+        return getValue!(char[][])(name);
+    }
+    void setStringArray(char[] name, char[][] value) {
+        setValue(name, value);
+    }
+
     static char[] encodeByteArray(ubyte[] data, bool compress) {
         //
         if (!data.length)

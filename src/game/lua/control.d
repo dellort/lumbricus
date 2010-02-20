@@ -2,6 +2,7 @@ module game.lua.control;
 
 import game.lua.base;
 import game.controller;
+import game.crate;
 import game.worm;
 import game.wcontrol;
 import game.gamemodes.shared;
@@ -10,9 +11,9 @@ static this() {
     gScripting.setClassPrefix!(GameController)("Control");
     gScripting.methods!(GameController, "currentRound",
         "checkDyingWorms", "updateHealth", "needUpdateHealth", "teams",
-        "deactivateAll", "addMemberGameObject",
+        "deactivateAll", "addMemberGameObject", "isIdle",
         "memberFromGameObject", "weaponFromGameObject", "controlFromGameObject",
-        "dropCrate", "startSuddenDeath", "endGame");
+        "dropCrate", "startSuddenDeath", "endGame", "addCrateTool");
 
     gScripting.setClassPrefix!(TeamMember)("Member");
     gScripting.methods!(TeamMember, "control", "updateHealth",
@@ -41,4 +42,9 @@ static this() {
     gScripting.ctor!(PrepareStatus)();
     gScripting.properties!(PrepareStatus, "visible", "prepareRemaining");
 
+    //the class has no new members, but Lua gamemmode needs to identify it
+    //the wrapper requires at least one method registered for awkward reasons
+    gScripting.ctor!(CollectableToolDoubleTime)();
+    gScripting.ctor!(CollectableToolCrateSpy)();
+    gScripting.ctor!(CollectableToolDoubleDamage)();
 }

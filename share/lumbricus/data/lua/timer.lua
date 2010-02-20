@@ -28,13 +28,12 @@ Timer.__index = Timer
 
 -- create a one-shot timer, in most cases addTimer() will be simpler
 function Timer.new()
-    local res = {}
-    setmetatable(res, Timer)
-    res._destTime = Time.Null
-    res._added = false
-    res._periodic = false
-    res._paused = false
-    return res
+    return setmetatable({
+        _destTime = Time.Null,
+        _added = false,
+        _periodic = false,
+        _paused = false,
+    }, Timer)
 end
 
 -- set relative amount of time that should be waited until calling the callback
@@ -78,8 +77,24 @@ function Timer:cancel()
     self:_dolink("onCancel")
 end
 
+-- set duration time (as with :start)
+-- periodic is optional (if nil, doesn't change it)
+-- if the timer is started, the timer gets restarted with the passed values
+--  (this function restores the pause state when restarting)
+function Timer:setDuration(duration, periodic)
+    if self:isStarted() then
+        local p = self:paused()
+        self:start(duration, periodic)
+        self:setPauses(p)
+    else
+        self._last_duration = duration
+        self._periodic = ifnil(periodic, self._periodic)
+    end
+end
+
 -- restart with last passed duration
--- if the Timer hasn't been started before, nothing happens
+-- if the Timer hasn't been started before (or setDuration() was called),
+--  nothing happens
 function Timer:restart()
     if not self._last_duration then
         return
@@ -102,6 +117,7 @@ end
 function Timer:paused()
     return self._paused
 end
+Timer.isPaused = Timer.paused -- grrr
 function Timer:setPaused(state)
     if state then self:pause() else self:resume() end
 end

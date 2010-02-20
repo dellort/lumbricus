@@ -312,7 +312,7 @@ do
                 local strength = utils.range_sample_f(spawn_strength)
                 spawnSprite(shooter, sprite_class, pos, vel*strength)
                 -- for next meteor
-                timer1:start(utils.range_sample_any(spawn_time))
+                timer1:start(utils.range_sample(spawn_time))
             end)
             timer1:start(Time.Null)
             -- timer to terminate the armageddon

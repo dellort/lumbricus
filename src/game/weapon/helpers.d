@@ -157,7 +157,6 @@ class ControlRotate : SpriteHandler, Controllable {
 
     override protected void updateInternalActive() {
         if (!internal_active) {
-            mParent.physics.resetLook();
             mParent.physics.selfForce = Vector2f(0);
             mMember.releaseControllable(this);
         }

@@ -480,6 +480,9 @@ class GameEngine {
             globals.setCounter("active_gameobjects", mActiveObjects.count);
             globals.setCounter("all_gameobjects", mAllObjects.count);
             globals.setByteSizeStat("game_lua_vm", scripting.vmsize());
+            globals.setCounter("lua_to_d_calls", gLuaToDCalls);
+            globals.setCounter("d_to_lua_calls", gDToLuaCalls);
+            globals.setCounter("Lua ref table size", scripting.reftableSize());
         }
     }
 

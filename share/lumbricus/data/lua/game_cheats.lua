@@ -80,7 +80,7 @@ function snowflake(depth, interpolate)
         local s1 = from + dir/3
         local s2 = to - dir/3
         local p_h = get_h(s1, s2)
-        return concat(
+        return array.concat(
             koch(from, s1, l), koch(s1, p_h, l),
             koch(p_h, s2, l), koch(s2, to, l))
     end
@@ -95,7 +95,7 @@ function snowflake(depth, interpolate)
     local p1 = c+Vector2(-len, len)
     local p3 = c+Vector2(len, len)
     local p2 = get_h(p1, p3)
-    local arr = concat(koch(p1, p2), koch(p2, p3), koch(p3, p1))
+    local arr = array.concat(koch(p1, p2), koch(p2, p3), koch(p3, p1))
 
     -- first clear the landscape before rendering the snowflake
     LandscapeBitmap_addPolygon(ls,

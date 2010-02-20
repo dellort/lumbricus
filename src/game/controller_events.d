@@ -85,6 +85,10 @@ alias DeclareEvent!("sprite_zerohp", Sprite) OnSpriteZeroHp;
 alias DeclareEvent!("team_member_start_die", TeamMember) OnTeamMemberStartDie;
 alias DeclareEvent!("team_member_set_active", TeamMember, bool)
     OnTeamMemberSetActive;
+//first time a team does an action (should probably be per team member?)
+//xxx actually those should be WormControl events?
+alias DeclareEvent!("team_on_first_action", Team) OnTeamFirstAction;
+alias DeclareEvent!("team_member_on_lost_control", TeamMember) OnTeamMemberLostControl;
 alias DeclareEvent!("team_set_active", Team, bool) OnTeamSetActive;
 //sprite firing the weapon, used weapon, refired
 alias DeclareEvent!("shooter_fire", Shooter, bool) OnFireWeapon;

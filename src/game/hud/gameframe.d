@@ -266,6 +266,7 @@ class GameFrame : SimpleContainer {
     }
 
     private void addHud(char[] id, Object link) {
+        argcheck(link);
         HudFactory.instantiate(id, mGui, game, link);
     }
 

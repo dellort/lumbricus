@@ -14,9 +14,12 @@ import net.marshal;
 import utils.misc;
 import utils.stream;
 import utils.strparser;
-import utils.configfile;
 
 import tango.core.Exception;
+
+//counters incremented on each function call
+//doesn't include Lua builtin/stdlib calls or manually registered calls
+debug int gLuaToDCalls, gDToLuaCalls;
 
 //--- stuff which might appear as keys in the Lua "Registry"
 
@@ -339,14 +342,6 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         } catch (LuaError e) {
         }
         expected("string");
-    } else static if (is(T == ConfigNode)) {
-        //I don't think we will ever need that, but better catch the special case
-        //see luaPush() for the format
-        //also, having ConfigNode here is the MOST RETARDED IDEA EVER
-        //at least the one adding this hack could have simply implemented the
-        //  ConfigNode -> Lua table conversion in Lua
-        //leaving it in as long as that other hack is active
-        static assert(false, "Implement me: ConfigNode");
     } else static if (is(T == class) || is(T == interface)) {
         //allow userdata and nil, nothing else
         if (!lua_islightuserdata(state, stackIdx) && !lua_isnil(state,stackIdx))
@@ -502,24 +497,6 @@ int luaPush(T)(lua_State *state, T value) {
         lua_pushboolean(state, cast(int)value);
     } else static if (is(T : char[])) {
         lua_pushlstring(state, value.ptr, value.length);
-    } else static if (is(T == ConfigNode)) {
-        //push a confignode as a table; only uses named values
-        lua_newtable(state);
-        foreach (ConfigNode sub; value) {
-            if (!sub.name.length) {
-                //no unnamed values
-                continue;
-            }
-            luaPush(state, sub.name);
-            if (sub.hasSubNodes()) {
-                //subnode, push as sub-table
-                luaPush(state, sub);
-            } else {
-                //name-value pair
-                luaPush(state, sub.value);
-            }
-            lua_settable(state, -3);
-        }
     } else static if (is(T == class) || is(T == interface)) {
         if (value is null) {
             lua_pushnil(state);
@@ -719,6 +696,8 @@ private T luaStackDelegate(T)(lua_State* state, int stackIdx) {
 //xxx I'm not sure, but I think caller will have to call this inside
 //    luaProtected() to ensure stack cleanup when a (de-)marshaller fails?
 private RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
+    debug gDToLuaCalls++;
+
     lua_rawgeti(state, LUA_REGISTRYINDEX, cGlobalErrorFuncIdx);
     lua_insert(state, -2);
     int argc;
@@ -773,6 +752,8 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
     char[] funcName)
 {
     //eh static assert(is(T == delegate) || is(T == function));
+
+    debug gLuaToDCalls++;
 
     void error(char[] msg) {
         throw new LuaError(msg);
@@ -1267,6 +1248,8 @@ class LuaState {
         stack0();
 
         scriptExec(`_G.d_get_obj_metadata = ...`, &script_get_obj_metadata);
+        scriptExec(`_G.d_get_class_metadata = ...`, &script_get_class_metadata);
+        scriptExec(`_G.d_get_class = ...`, &script_get_class);
         scriptExec(`_G.d_find_class = ...`, &script_find_class);
         scriptExec(`_G.d_is_class = ...`, &script_is_class);
 
@@ -1332,6 +1315,23 @@ class LuaState {
             + lua_gc(mLua, LUA_GCCOUNTB, 0);
     }
 
+    //return the size of the reference table (may give hints about unfree'd
+    //  D delegates referencing Lua functions, and stuff)
+    final int reftableSize() {
+        //so yeah, need to walk the whole table
+        int count = 0;
+        stack0();
+        lua_getfield(mLua, LUA_REGISTRYINDEX, cLuaReferenceTable.ptr);
+        lua_pushnil(mLua);
+        while (lua_next(mLua, -2) != 0) {
+            count++;
+            lua_pop(mLua, 1);
+        }
+        lua_pop(mLua, 1);
+        stack0();
+        return count;
+    }
+
     //needed by utils.lua to format userdata
     private static char[] ObjectToString(Object o) {
         return o ? o.toString() : "null";
@@ -1380,14 +1380,14 @@ class LuaState {
         char[] name;        //name of the mthod
         char[] lua_g_name;  //name of the Lua bind function in _G
     }
-    //return MetaData for all known bound D functions for the passed object
+    //return MetaData for all known bound D functions for the passed class
     //if from is null, an empty array is returned
-    private MetaData[] script_get_obj_metadata(Object from) {
+    private MetaData[] script_get_class_metadata(ClassInfo from) {
         if (!from)
             return null;
         MetaData[] res;
         foreach (LuaRegistry.Method m; mMethods) {
-            if (rtraits.isDerived(from.classinfo, m.classinfo))
+            if (rtraits.isDerived(from, m.classinfo))
                 res ~= convert_md(m);
         }
         return res;
@@ -1407,6 +1407,14 @@ class LuaState {
         d.name = m.name;
         d.lua_g_name = m.fname;
         return d;
+    }
+
+    private MetaData[] script_get_obj_metadata(Object from) {
+        return script_get_class_metadata(script_get_class(from));
+    }
+
+    private ClassInfo script_get_class(Object from) {
+        return from ? from.classinfo : null;
     }
 
     private ClassInfo script_find_class(char[] name) {
@@ -1437,7 +1445,7 @@ class LuaState {
     }
 
     private bool script_is_class(Object obj, ClassInfo cls) {
-        if (!obj)
+        if (!obj || !cls)
             return false;
         return rtraits.isDerived(obj.classinfo, cls);
     }
