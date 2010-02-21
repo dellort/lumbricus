@@ -264,6 +264,10 @@ class GameLandscape : GameObject {
     void activate() {
     }
 
+    LandscapeBitmap landscape() {
+        return mLandscape;
+    }
+
     override void debug_draw(Canvas c) {
         //c.drawRect(rect, Color(1,0,0));
     }

@@ -4,6 +4,7 @@ import game.lua.base;
 import game.events;
 import game.game;
 import game.gfxset;
+import game.glevel;
 import game.gobject;
 import game.sequence;
 import game.sprite;
@@ -18,7 +19,9 @@ static this() {
         "insertIntoLandscape", "countSprites", "ownedTeam", "nukeSplatEffect",
         "checkForActivity");
     gScripting.properties_ro!(GameEngine, "events", "globalEvents");
-    gScripting.properties!(GameEngine, "persistentState");
+    gScripting.properties!(GameEngine, "persistentState", "gameLandscapes");
+
+    gScripting.properties_ro!(GameLandscape, "landscape");
 
     gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder", "size");
 

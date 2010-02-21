@@ -8,6 +8,7 @@ import tango.core.Traits : ParameterTupleOf, isIntegerType, isFloatingPointType,
     ReturnTypeOf, isStaticArrayType;
 import cstd = tango.stdc.stdlib;
 import rtraits = tango.core.RuntimeTraits;
+import env = tango.sys.Environment;
 import str = utils.string;
 import net.marshal;
 
@@ -865,7 +866,6 @@ class LuaRegistry {
     }
 
     this() {
-        DerelictLua.load();
     }
 
     //e.g. setClassPrefix!(GameEngine)("Game"), to keep scripting names short
@@ -1199,13 +1199,27 @@ class LuaState {
 
     const cLanguageAndVersion = LUA_VERSION;
 
+    static bool gLibLuaLoaded = false;
+
     this(int stdlibFlags = LuaLib.safe) {
+        if (!gLibLuaLoaded) {
+            char[] libname = env.Environment.get("LUALIB");
+            if (!libname.length)
+                libname = null; //derelict uses "libname is null"
+            DerelictLua.load(libname);
+        }
+
         mLua = lua_newstate(&my_lua_alloc, null);
         lua_atpanic(mLua, &my_lua_panic);
         loadStdLibs(stdlibFlags);
 
         //this is security relevant; allow only in debug code
-        debug loadStdLibs(LuaLib.debuglib);
+        //xxx add explicit debugging mode or so, because if it's really security
+        //  relevant, relying on debug alone would be too careless
+        debug {
+            loadStdLibs(LuaLib.debuglib);
+            loadStdLibs(LuaLib.packagelib);
+        }
 
         //set "this" reference
         luaPush(mLua, this);

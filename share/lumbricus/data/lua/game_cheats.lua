@@ -87,7 +87,8 @@ function snowflake(depth, interpolate)
 
     local fill = Gfx_resource("border_segment") -- just some random bitmap for now
     local border = Gfx_resource("rope_segment")
-    local ls = Game_landscapeBitmaps()[1]
+    local gls = Game_gameLandscapes()[1]
+    local ls = GameLandscape_landscape(gls)
     local s = LandscapeBitmap_size(ls)
     local len = min(s.x, s.y)/3
     local c = s/2
