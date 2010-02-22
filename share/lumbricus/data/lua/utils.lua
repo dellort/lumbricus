@@ -340,16 +340,6 @@ function table_merge(t1, t2)
     return t
 end
 
--- xxx table_modified and table_merge do the same right? (just different authors)
--- duplicate table with table_copy() and then copy in the values from modifications
-function table_modified(table, modifications)
-    local ntable = table_copy(table)
-    for k, v in pairs(modifications) do
-        ntable[k] = v
-    end
-    return ntable
-end
-
 -- return true or false whether the table is empty
 function table_empty(table)
     local key, value = next(table)

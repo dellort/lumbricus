@@ -99,12 +99,12 @@ do -- xxx missing: deathzone_immune for active missile
         windInfluence = "0.0",
         elasticity = "0.4",
     }
-    local active_phys = table_modified(inactive_phys, {
+    local active_phys = table_merge(inactive_phys, {
         collisionID = "projectile_nobounce",
         zeroGrav = true,
         speedLimit = 700,
     })
-    local active_water_phys = table_modified(active_phys, {
+    local active_water_phys = table_merge(active_phys, {
         collisionID = "waterobj",
         stokesModifier = 0,
     })

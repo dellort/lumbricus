@@ -49,6 +49,7 @@
 		<Unit filename="..\share\lumbricus\data\lua\timer.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\utils.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\vector2.lua" />
+		<Unit filename="..\share\lumbricus\data\lua\wrap.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\worms_shared\barrel.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\worms_shared\grave.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\worms_shared\napalm.lua" />
@@ -100,8 +101,8 @@
 		<Unit filename="..\src\derelict\lua\lua.d" />
 		<Unit filename="..\src\derelict\lua\luaconf.d" />
 		<Unit filename="..\src\derelict\lua\lualib.d" />
-		<Unit filename="..\src\derelict\lua\pluto.d" />
 		<Unit filename="..\src\derelict\sdl\sound.d" />
+		<Unit filename="..\src\framework\clipboard.d" />
 		<Unit filename="..\src\framework\commandline.d" />
 		<Unit filename="..\src\framework\config.d" />
 		<Unit filename="..\src\framework\drawing.d" />
@@ -303,19 +304,8 @@
 		<Unit filename="..\src\utils\random.d" />
 		<Unit filename="..\src\utils\randval.d" />
 		<Unit filename="..\src\utils\rect2.d" />
-		<Unit filename="..\src\utils\reflect\all.d" />
-		<Unit filename="..\src\utils\reflect\arraytype.d" />
-		<Unit filename="..\src\utils\reflect\classdef.d" />
-		<Unit filename="..\src\utils\reflect\dgtype.d" />
-		<Unit filename="..\src\utils\reflect\refctor.d" />
-		<Unit filename="..\src\utils\reflect\safeptr.d" />
-		<Unit filename="..\src\utils\reflect\structtype.d" />
-		<Unit filename="..\src\utils\reflect\type.d" />
-		<Unit filename="..\src\utils\reflect\types.d" />
-		<Unit filename="..\src\utils\reflection.d" />
 		<Unit filename="..\src\utils\ringbuffer.d" />
 		<Unit filename="..\src\utils\rndkiss.d" />
-		<Unit filename="..\src\utils\serialize.d" />
 		<Unit filename="..\src\utils\stream.d" />
 		<Unit filename="..\src\utils\string.d" />
 		<Unit filename="..\src\utils\strparser.d" />

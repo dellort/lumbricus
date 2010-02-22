@@ -1090,7 +1090,7 @@ class GameEngine {
     void error(char[] fmt, ...) {
         char[] msg = formatfx(fmt, _arguments, _argptr);
         //log all errors
-        log(msg);
+        log("{}", msg);
         //xxx I don't know if an event is the right way
         OnGameError.raise(globalEvents, msg);
     }

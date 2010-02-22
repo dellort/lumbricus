@@ -254,7 +254,7 @@ void main(char[][] args) {
         x[400] = nil
         -- this failed with the old marshaller code, because it assumed lua_next
         --  would iterate the indices in a sorted way
-        assert(array_equal(Foo_array(x), {1, 2}))
+        assert(array.equal(Foo_array(x), {1, 2}))
     `);
 
     s.call("test", "Blubber");
