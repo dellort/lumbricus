@@ -5,8 +5,13 @@ version(Windows) {
 import tango.sys.win32.UserGdi;
 import tango.stdc.stringz : fromString16z;
 import tutf = tango.text.convert.Utf;
+import str = utils.string;
 
+//Windows clipboard implementation
 class Clipboard {
+    //return text in the clipboard; if the format is not CF_UNICODETEXT,
+    //  it will be converted by Windows if possible
+    //returns empty string on error
     static char[] getText() {
         if (!OpenClipboard(null)) {
             return null;
@@ -24,9 +29,13 @@ class Clipboard {
         }
         scope(exit) GlobalUnlock(hData);
 
-        return tutf.toString(fromString16z(data));
+        char[] ret = tutf.toString(fromString16z(data));
+        //correct Windows newlines
+        return str.replace(ret, "\r", "");
     }
 
+    //put text into the clipboard as unicode text
+    //xxx does nothing on error, maybe add exception
     static void setText(char[] text) {
         if (!OpenClipboard(null)) {
             return;
@@ -35,6 +44,8 @@ class Clipboard {
         EmptyClipboard();
 
         wchar[] wtxt = tutf.toString16(text);
+        //ownership of this memory passes to Windows with the
+        //  SetClipboardData() call
         HGLOBAL hGlobal = GlobalAlloc(GMEM_MOVEABLE, (wtxt.length + 1)
             * wchar.sizeof);
         if (!hGlobal) {
@@ -62,6 +73,8 @@ class Clipboard {
 } // version(Windows)
 else {
 
+//Linux clipboard implementation
+//xxx I don't think this will ever get implemented
 class Clipboard {
     static char[] getText() {
         return null;

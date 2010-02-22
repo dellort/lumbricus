@@ -347,16 +347,16 @@ public class FormattedText {
         }
 
         //split text on \n or other escape sequences
-        while (txt.length) {
+        outerloop: while (txt.length) {
             foreach (int idx, char c; txt) {
                 if (c == '\n') {
                     add(PartType.Text, idx);
                     add(PartType.Newline, 1);
-                    break;
+                    continue outerloop;
                 } else if (c == '\t') {
                     add(PartType.Text, idx);
                     auto p = add(PartType.Space, 1);
-                    break;
+                    continue outerloop;
                 }
             }
             add(PartType.Text, txt.length);

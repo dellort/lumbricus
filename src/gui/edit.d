@@ -2,6 +2,7 @@ module gui.edit;
 
 import framework.font;
 import framework.framework;
+import framework.clipboard;
 import gui.global;
 import gui.rendertext;
 import gui.widget;
@@ -108,6 +109,24 @@ class EditLine : Widget {
             mCursor = mCurline.length;
             handleSelOnMove();
             return true;
+        } else if ((ctrl && infos.code == Keycode.C)   //xxx hardcoded keybinds
+            || (ctrl && infos.code == Keycode.INSERT))
+        {
+            //copy
+            clipCopy();
+        } else if ((ctrl && infos.code == Keycode.V)
+            || (shift && infos.code == Keycode.INSERT))
+        {
+            //paste
+            clipPaste();
+            doOnChange();
+        } else if ((ctrl && infos.code == Keycode.X)
+            || (shift && infos.code == Keycode.DELETE))
+        {
+            //cut
+            clipCopy();
+            deleteSelection();
+            doOnChange();
         } else if (infos.isPrintable()) {
             char[] append;
             if (!str.isValidDchar(infos.unicode)) {
@@ -124,6 +143,20 @@ class EditLine : Widget {
     protected void doOnChange() {
         if (onChange)
             onChange(this);
+    }
+
+    protected void clipCopy() {
+        char[] sel = selectedText();
+        //don't overwrite if no selection
+        if (sel.length) {
+            Clipboard.setText(sel);
+        }
+    }
+
+    protected void clipPaste() {
+        //only text to first newline by default
+        char[] txt = str.split2(Clipboard.getText(), '\n')[0];
+        insertEvent(txt);
     }
 
     //sets mCurline[start...end-start] to replace
@@ -188,6 +221,11 @@ class EditLine : Widget {
         auto sel = orderedSelection();
         editText(sel.start, sel.end, "");
         killSelection();
+    }
+
+    char[] selectedText() {
+        auto sel = orderedSelection();
+        return mCurline[sel.start..sel.end];
     }
 
     ///byteindex into text at the given pixel pos
@@ -310,6 +348,12 @@ class MultilineEdit : EditLine {
     this() {
         //just for fun
         mRender.shrink = ShrinkMode.wrap;
+    }
+
+    override protected void clipPaste() {
+        //no need to remove newlines in multiline mode
+        char[] txt = Clipboard.getText();
+        insertEvent(txt);
     }
 
     override bool handleKeyPress(KeyInfo infos) {
