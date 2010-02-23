@@ -81,6 +81,24 @@ class EditLine : Widget {
             }
             handleSelOnMove();
             return true;
+        } else if ((ctrl && infos.code == Keycode.C)   //xxx hardcoded keybinds
+            || (ctrl && infos.code == Keycode.INSERT))
+        {
+            //copy
+            clipCopy(true);
+        } else if ((ctrl && infos.code == Keycode.V)
+            || (shift && infos.code == Keycode.INSERT))
+        {
+            //paste
+            clipPaste(true);
+            doOnChange();
+        } else if ((ctrl && infos.code == Keycode.X)
+            || (shift && infos.code == Keycode.DELETE))
+        {
+            //cut
+            clipCopy(true);
+            deleteSelection();
+            doOnChange();
         } else if (infos.code == Keycode.BACKSPACE) {
             if (had_sel) {
                 deleteSelection();
@@ -109,24 +127,6 @@ class EditLine : Widget {
             mCursor = mCurline.length;
             handleSelOnMove();
             return true;
-        } else if ((ctrl && infos.code == Keycode.C)   //xxx hardcoded keybinds
-            || (ctrl && infos.code == Keycode.INSERT))
-        {
-            //copy
-            clipCopy();
-        } else if ((ctrl && infos.code == Keycode.V)
-            || (shift && infos.code == Keycode.INSERT))
-        {
-            //paste
-            clipPaste();
-            doOnChange();
-        } else if ((ctrl && infos.code == Keycode.X)
-            || (shift && infos.code == Keycode.DELETE))
-        {
-            //cut
-            clipCopy();
-            deleteSelection();
-            doOnChange();
         } else if (infos.isPrintable()) {
             char[] append;
             if (!str.isValidDchar(infos.unicode)) {
@@ -145,17 +145,40 @@ class EditLine : Widget {
             onChange(this);
     }
 
-    protected void clipCopy() {
+    protected void clipCopy(bool clipboard) {
         char[] sel = selectedText();
         //don't overwrite if no selection
         if (sel.length) {
-            Clipboard.setText(sel);
+            Clipboard.copyText(clipboard, sel);
         }
     }
 
-    protected void clipPaste() {
+    protected void clipPaste(bool clipboard) {
+        Clipboard.pasteText(clipboard, &onPaste);
+    }
+
+    //make sure paste events are denied after this is called (until the next
+    //  time clipPaste() is called)
+    //not really needed; just some robustness against asynchronous pasting
+    //e.g. some app hangs -> press middle mouse button -> nothing happens
+    //  -> after some time, app unhangs for some reason -> text gets pasted,
+    //  although user is already doing something else
+    //if clipCancel() gets called as soon as it is recognized that the user
+    //  does "something else", the paste event will be ignored in this case
+    protected void clipCancel() {
+        Clipboard.pasteCancel(&onPaste);
+    }
+
+    private void onPaste(char[] txt) {
+        //sanity checks?
+        if (visible && isLinked) {
+            clipInsertPaste(txt);
+        }
+    }
+
+    protected void clipInsertPaste(char[] text) {
         //only text to first newline by default
-        char[] txt = str.split2(Clipboard.getText(), '\n')[0];
+        char[] txt = str.split2(text, '\n')[0];
         insertEvent(txt);
     }
 
@@ -213,6 +236,8 @@ class EditLine : Widget {
         if (!sel_ok && want_sel) {
             mRenderSel = mRender.addStyleRange(sel, mSelFont);
         }
+
+        clipCancel();
     }
 
     //deselect and remove selected text + fixup cursor
@@ -240,7 +265,7 @@ class EditLine : Widget {
             mCursorTimer.reset();
             return true;
         }
-        if (info.isMouseButton && info.code == Keycode.MOUSE_LEFT) {
+        if (info.code == Keycode.MOUSE_LEFT) {
             mMouseDown = true;
             //set cursor pos according to click
             mCursor = indexAt(mousePos);
@@ -250,6 +275,13 @@ class EditLine : Widget {
             mCursorVisible = true;
             mCursorTimer.reset();
             return true;
+        }
+        if (info.code == Keycode.MOUSE_MIDDLE) {
+            //X11 style mouse pasting
+            mCursor = indexAt(mousePos);
+            mSelStart = mSelEnd = mCursor;
+            updateSelection();
+            clipPaste(false);
         }
         return false;
     }
@@ -264,6 +296,8 @@ class EditLine : Widget {
             mSelEnd = indexAt(mousePos);
             mCursor = mSelEnd;
             updateSelection();
+            //X11-style mouse selection clipboard
+            clipCopy(false);
         }
     }
 
@@ -350,10 +384,9 @@ class MultilineEdit : EditLine {
         mRender.shrink = ShrinkMode.wrap;
     }
 
-    override protected void clipPaste() {
+    override void clipInsertPaste(char[] text) {
         //no need to remove newlines in multiline mode
-        char[] txt = Clipboard.getText();
-        insertEvent(txt);
+        insertEvent(text);
     }
 
     override bool handleKeyPress(KeyInfo infos) {

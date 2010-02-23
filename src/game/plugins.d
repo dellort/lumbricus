@@ -130,6 +130,8 @@ class Plugin {
             //no fixup for illegal chars, allow wildcards
             auto mpath = VFSPath(mResources.fixPath(modf), false, true);
 
+            bool loaded = false;
+
             gFS.listdir(mpath.parent, mpath.filename, false, (char[] relFn) {
                 //why does listdir return relative filenames? I don't know
                 char[] filename = mpath.parent.get(true, true) ~ relFn;
@@ -144,8 +146,12 @@ class Plugin {
                 //xxx catch lua errors here, so other modules can be loaded?
                 log("load lua script for '{}': {}", name, filename);
                 eng.scripting().loadScript(filename, st, name);
+                loaded = true;
                 return true;
             });
+
+            if (!loaded)
+                assert(false, "not loaded: '"~modf~"'");
         }
         //no GameObject? hmm
     }

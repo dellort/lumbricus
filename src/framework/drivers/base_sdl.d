@@ -114,6 +114,8 @@ class SDLDriver : FrameworkDriver {
         //assert(mDriverSurfaceCount == 0);
 
         //deinit and unload all SDL dlls (in reverse order)
+        if (gOnSDLVideoInit)
+            gOnSDLVideoInit(false);
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
         DerelictSDLImage.unload();
         sdlQuit();
@@ -151,6 +153,13 @@ class SDLDriver : FrameworkDriver {
             return false;
         }
         mSDLScreen = newscreen;
+
+        //reinit clipboard because we need the Xlib Window
+        //SDL makes this a pain
+        if (gOnSDLVideoInit)
+            gOnSDLVideoInit(false);
+        if (gOnSDLVideoInit)
+            gOnSDLVideoInit(true);
 
         return true;
     }
@@ -330,6 +339,10 @@ class SDLDriver : FrameworkDriver {
         Vector2i newVideoSize;
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
+            if (gSDLEventFilter) {
+                if (gSDLEventFilter(&event))
+                    continue;
+            }
             switch(event.type) {
                 case SDL_KEYDOWN:
                     KeyInfo infos = keyInfosFromSDL(event.key);

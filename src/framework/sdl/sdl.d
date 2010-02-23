@@ -11,6 +11,12 @@ import utils.color;
 //more independent from soundmixer.d, so sdl_mixer can be kept out more easily
 private static int gSDLLoadCount = 0;
 
+//hack for clipboard code
+void function(bool) gOnSDLVideoInit;
+//NOTE: SDL has an own event filter thingy, but that may run in a different
+//  thread => completely useless
+bool function(SDL_Event* event) gSDLEventFilter;
+
 void sdlInit() {
     gSDLLoadCount++;
     if (gSDLLoadCount == 1) {

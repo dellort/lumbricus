@@ -99,6 +99,7 @@ void encode(ref char[] txt, dchar c) {
 
 //decode one character of the utf-8 string txt, starting at txt[idx]
 //return decoded character, and write index of following character to idx
+//if decoding fails, throw UnicodeException and don't change idx
 dchar decode(char[] txt, ref size_t idx) {
     /+ maybe this code would be faster; but it's also a bit buggy
        as of Tango r5245, this didn't throw errors on some invalid utf-8
@@ -133,6 +134,47 @@ void validate(char[] txt) {
         decode(txt, idx);
     }
     assert(idx == txt.length); //can only fail if decode() is buggy
+}
+
+//exception-less version of validate
+bool isValid(char[] txt) {
+    try {
+        validate(txt);
+    } catch (UnicodeException e) {
+        return false;
+    }
+    return true;
+}
+
+//return a string that has been fixed to valid utf-8 (as in validate() succeeds)
+//the input string can anything
+char[] sanitize(char[] txt) {
+    if (isValid(txt))
+        return txt;
+    char[] nstr;
+    size_t idx = 0;
+    while (idx < txt.length) {
+        dchar cur = '?';
+        try {
+            cur = decode(txt, idx);
+        } catch (UnicodeException e) {
+            //could do anything here; but at least has to make some progress
+            idx += 1;
+        }
+        encode(nstr, cur);
+    }
+    return nstr;
+}
+
+unittest {
+    char[] foo;
+    foo ~= "huhu";
+    foo ~= 0xa4;
+    foo ~= 0xc3;
+    assert(!isValid(foo));
+    char[] v = sanitize(foo);
+    assert(isValid(v));
+    assert(startsWith(v, "huh")); //the last 'u' gets eaten, who knows why
 }
 
 //return length of the unicode character at txt[idx] (in bytes)

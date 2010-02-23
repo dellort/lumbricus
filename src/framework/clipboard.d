@@ -1,90 +1,48 @@
 module framework.clipboard;
 
-version(Windows) {
-
-import tango.sys.win32.UserGdi;
-import tango.stdc.stringz : fromString16z;
-import tutf = tango.text.convert.Utf;
-import str = utils.string;
-
-//Windows clipboard implementation
-class Clipboard {
-    //return text in the clipboard; if the format is not CF_UNICODETEXT,
-    //  it will be converted by Windows if possible
-    //returns empty string on error
-    static char[] getText() {
-        if (!OpenClipboard(null)) {
-            return null;
-        }
-        scope(exit) CloseClipboard();
-
-        HANDLE hData = GetClipboardData(CF_UNICODETEXT);
-        if (hData == null) {
-            return null;
-        }
-
-        wchar* data = cast(wchar*)GlobalLock(hData);
-        if (data == null) {
-            return null;
-        }
-        scope(exit) GlobalUnlock(hData);
-
-        char[] ret = tutf.toString(fromString16z(data));
-        //correct Windows newlines
-        return str.replace(ret, "\r", "");
-    }
-
-    //put text into the clipboard as unicode text
-    //xxx does nothing on error, maybe add exception
-    static void setText(char[] text) {
-        if (!OpenClipboard(null)) {
-            return;
-        }
-        scope(exit) CloseClipboard();
-        EmptyClipboard();
-
-        wchar[] wtxt = tutf.toString16(text);
-        //ownership of this memory passes to Windows with the
-        //  SetClipboardData() call
-        HGLOBAL hGlobal = GlobalAlloc(GMEM_MOVEABLE, (wtxt.length + 1)
-            * wchar.sizeof);
-        if (!hGlobal) {
-            return;
-        }
-
-        wchar* data = cast(wchar*)GlobalLock(hGlobal);
-        assert(data);
-        data[0..wtxt.length] = wtxt[0..$];
-        data[wtxt.length] = '\0';
-        GlobalUnlock(hGlobal);
-
-        SetClipboardData(CF_UNICODETEXT, hGlobal);
-    }
-
-    static void clear() {
-        if (!OpenClipboard(null)) {
-            return;
-        }
-        scope(exit) CloseClipboard();
-        EmptyClipboard();
-    }
+interface ClipboardHandler {
+    //make the passed text available to the clipboard
+    //clipboard:
+    //  true: the "hard" clipboard (mostly using the key shortcuts)
+    //  false: the clipboard for the mouse (selecting text, middle mouse button)
+    //Windows has only clipboard=true, and clipboard=false calls are ignored
+    void copyText(bool clipboard, char[] text);
+    //request text from the clipboard; cb() will be called with the clipboard
+    //  text as soon as the other application currently holding the clipboard
+    //  contents reacts (which may be never)
+    //when cb() is actually called:
+    //  Windows: immediately by this function
+    //  Linux: somewhere from the framework event loop
+    void pasteText(bool clipboard, void delegate(char[] text) cb);
+    //remove the callback set by pasteText(); rarely needed because the callback
+    //  gets automatically removed when it is called. 
+    void pasteCancel(void delegate(char[] text) cb);
 }
 
-} // version(Windows)
-else {
+ClipboardHandler gClipboardHandler;
 
-//Linux clipboard implementation
-//xxx I don't think this will ever get implemented
+//basically this class only checks for null gClipboardHandler
+//also: emulate a process-local clipboard
 class Clipboard {
-    static char[] getText() {
-        return null;
-    }
+static:
+    char[][2] gLocalClipboard;
 
-    static void setText(char[] text) {
+    void copyText(bool clipboard, char[] text) {
+        if (gClipboardHandler) {
+            gClipboardHandler.copyText(clipboard, text);
+        } else {
+            gLocalClipboard[clipboard ? 1 : 0] = text;
+        }
     }
-
-    static void clear() {
+    void pasteText(bool clipboard, void delegate(char[] text) cb) {
+        if (gClipboardHandler) {
+            gClipboardHandler.pasteText(clipboard, cb);
+        } else {
+            cb(gLocalClipboard[clipboard ? 1 : 0]);
+        }
     }
-}
-
+    void pasteCancel(void delegate(char[] text) cb) {
+        if (gClipboardHandler)
+            gClipboardHandler.pasteCancel(cb);
+    }
 }

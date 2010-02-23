@@ -1,25 +1,27 @@
 -- "shortcut" functions for debugging and cheating
 
-function giveWeapon(name, amount)
+local E = {} -- whatever
+
+function E.giveWeapon(name, amount)
     Team_addWeapon(Game_ownedTeam(), Gfx_findWeaponClass(name), amount)
 end
 
 -- drop a crate with a weapon in it; weapon_name is a string for the weapon
-function dropCrate(weapon_name)
+function E.dropCrate(weapon_name)
     local w = weapon_name and Gfx_findWeaponClass(weapon_name)
     Control_dropCrate(true, w)
     crateSpy()
 end
 
 -- give all teams a crate spy
-function crateSpy()
+function E.crateSpy()
     for k,t in ipairs(Control_teams()) do
         Team_set_crateSpy(t, 1)
     end
 end
 
 -- the caller wins
-function allYourBaseAreBelongToUs()
+function E.allYourBaseAreBelongToUs()
     for k,t in ipairs(Control_teams()) do
         if (t ~= Game_ownedTeam()) then
             Team_surrenderTeam(t)
@@ -28,7 +30,7 @@ function allYourBaseAreBelongToUs()
 end
 
 -- +500 hp for caller, 1 hp for others
-function whosYourDaddy()
+function E.whosYourDaddy()
     for k,t in ipairs(Control_teams()) do
         for k,m in ipairs(Team_getMembers(t)) do
             if (t == Game_ownedTeam()) then
@@ -42,13 +44,13 @@ function whosYourDaddy()
 end
 
 -- amount (or 10 if omitted) of all weapons
-function greedIsGood(amount)
+function E.greedIsGood(amount)
     for k,w in ipairs(Gfx_weaponList()) do
         Team_addWeapon(Game_ownedTeam(), w, amount or 10)
     end
 end
 
-function katastrophe()
+function E.katastrophe()
     local lb = Level_landBounds()
     World_objectsAt(Level_worldCenter(), 2000, function(obj)
         if className(Phys_backlink(obj)) ~= "WormSprite" then
@@ -56,7 +58,8 @@ function katastrophe()
         end
         local dest
         while (dest == nil) do
-            dest = Vector2(Random_rangef(lb.p1.x, lb.p2.x), Random_rangef(lb.p1.y, lb.p2.y))
+            dest = Vector2(Random_rangef(lb.p1.x, lb.p2.x),
+                Random_rangef(lb.p1.y, lb.p2.y))
             dest = World_freePoint(dest, 6)
         end
         Worm_beamTo(Phys_backlink(obj), dest)
@@ -64,7 +67,7 @@ function katastrophe()
     end)
 end
 
-function snowflake(depth, interpolate)
+function E.snowflake(depth, interpolate)
     depth = depth or 1000
     interpolate = ifnil(interpolate, false)
 
@@ -108,3 +111,8 @@ function snowflake(depth, interpolate)
     LandscapeBitmap_drawBorder(ls, Lexel_soft, Lexel_free, border, border)
 end
 
+
+-- well whatever
+for name, fn in pairs(E) do
+    _G[name] = fn
+end

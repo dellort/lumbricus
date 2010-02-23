@@ -10,7 +10,6 @@ import game.temp : CrateType;
 import game.crate;
 import game.weapon.weapon;
 import game.gamemodes.base;
-import game.gamemodes.mdebug;
 import physics.misc;
 import utils.log;
 import utils.configfile;

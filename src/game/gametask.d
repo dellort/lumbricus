@@ -79,7 +79,6 @@ import game.weapon.parachute;
 import game.weapon.airstrike;
 import game.weapon.luaweapon;
 import game.gamemodes.turnbased;
-import game.gamemodes.mdebug;
 import game.gamemodes.realtime;
 import game.controller_plugins;
 import game.lua.all;

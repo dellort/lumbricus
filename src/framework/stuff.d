@@ -17,3 +17,6 @@ version(Windows) {
 //    this line in some scenarios (this is all it needs to disable FMOD)
 import framework.drivers.sound_fmod;
 //<--
+
+import framework.drivers.clipboard_win32;
+import framework.drivers.clipboard_x11;
