@@ -15,6 +15,7 @@ import net.marshal;
 import utils.misc;
 import utils.stream;
 import utils.strparser;
+import utils.time;      //for special Time marshalling
 
 import tango.core.Exception;
 
@@ -355,6 +356,8 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
             luaExpected(state, T.classinfo.name, o.classinfo.name);
         }
         return res;
+    } else static if (is(T == Time)) {
+        return timeSecs!(double)(luaStackValue!(double)(state, stackIdx));
     } else static if (is(T == struct)) {
         //Note: supports both {x = 1, y = 2} and {1, 2} access mode,
         //      but mixing both in one declaration will fail horribly
@@ -504,6 +507,8 @@ int luaPush(T)(lua_State *state, T value) {
         } else {
             lua_pushlightuserdata(state, cast(void*)value);
         }
+    } else static if (is(T == Time)) {
+        lua_pushnumber(state, value.secsd());
     } else static if (is(T == struct)) {
         //This is a hack to allow functions to return multiple values without
         //exposing internal lua functions. The function returns a struct with

@@ -15,7 +15,7 @@ interface ClipboardHandler {
     //  Linux: somewhere from the framework event loop
     void pasteText(bool clipboard, void delegate(char[] text) cb);
     //remove the callback set by pasteText(); rarely needed because the callback
-    //  gets automatically removed when it is called. 
+    //  gets automatically removed when it is called.
     void pasteCancel(void delegate(char[] text) cb);
 }
 

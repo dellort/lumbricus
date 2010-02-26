@@ -303,10 +303,12 @@ bool handle_event(SDL_Event* event) {
 
     if (gPasteResult) {
         char[] data = gPasteResult;
+        auto sel = gSelectionRequestor;
         gPasteResult = null;
-        if (gSelectionRequestor) {
+        gSelectionRequestor = null;
+        if (sel) {
             data = str.sanitize(data);
-            gSelectionRequestor(data);
+            sel(data);
         }
     }
 

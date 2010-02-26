@@ -489,7 +489,7 @@ function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
     local function updateTime()
         local left
         if timer:isStarted() then
-            left = timer:timeLeft():unitsf(unit)
+            left = timer:timeLeft() / unit
         end
         local visible = left and ((not time_visible) or (left <= time_visible))
         setVisible(visible)

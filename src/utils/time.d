@@ -305,7 +305,12 @@ public struct Time {
 
     //return as float in seconds (should only be used for small relative times)
     public float secsf() {
-        return cast(float)musecs / (1000.0f * 1000.0f);
+        return secsd();
+    }
+
+    //seconds in double
+    double secsd() {
+        return cast(double)musecs / (1000.0 * 1000.0);
     }
 
     ///Set: Time value as seconds

@@ -31,10 +31,10 @@ function invoke_compiler
     # just joking, D is nice (as long as it works)
     FUCK_D=""
     # libreadline and MDReadline is just for mdcl
-    $CMD xfbuild +c$COMPILER $1.d +noop +xtango -unittest -debug -g -L-lz -L-ldl +o$BINDIR$1 +D$TMPDIR.deps_$1 +O$TMPDIR.objs_$1 $DMD_IS_BROKEN $FUCK_D -version=MDReadline -L-lreadline +q
+    $CMD xfbuild +c$COMPILER $1.d +noop +xtango -unittest -debug -g -L-lz -L-ldl +o$BINDIR$1 +D$TMPDIR.deps_$1 +O$TMPDIR.objs_$1 $DMD_IS_BROKEN $FUCK_D +q
 }
 
-TARGETS="lumbricus extractdata test mdcl unworms animutil sdlimginfo luatest"
+TARGETS="lumbricus extractdata test unworms animutil sdlimginfo luatest"
 DEF_TARGET=lumbricus
 
 
