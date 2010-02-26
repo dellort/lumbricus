@@ -96,7 +96,7 @@ def is_ignored(name):
     return False
 
 def getnode(name):
-    if not nodes.has_key(name):
+    if name not in nodes:
         nodes[name] = Node(name, len(nodes))
     return nodes[name]
 

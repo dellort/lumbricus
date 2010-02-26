@@ -61,6 +61,9 @@ class GameEngine {
     Events events;
     GlobalEvents globalEvents;
 
+    const cDamageToImpulse = 140.0f;
+    const cDamageToRadius = 2.0f;
+
     private {
         static LogStruct!("game.game") log;
 
@@ -895,21 +898,48 @@ class GameEngine {
         callbacks.scene.add(a);
     }
 
+    private void applyExplosion(PhysicObject o, Vector2f pos, float damage,
+        Object cause = null)
+    {
+        const cDistDelta = 0.01f;
+
+        assert(damage != 0f && !ieee.isNaN(damage));
+
+        float radius = damage * cDamageToRadius;
+        float impulse = damage * cDamageToImpulse;
+        Vector2f v = (pos-o.pos);
+        float dist = v.length;
+        if (dist > cDistDelta) {
+            float r = max(radius-dist, 0f)/radius;
+            if (r < float.epsilon)
+                return;
+            o.applyDamage(r*damage, DamageCause.explosion, cause);
+            o.addImpulse(-v.normal()*impulse*r*o.posp.explosionInfluence);
+        } else {
+            //unglue objects at center of explosion
+            o.doUnglue();
+        }
+    }
+
     void explosionAt(Vector2f pos, float damage, GameObject cause,
         bool effect = true, bool damage_landscape = true,
-        bool delegate(ExplosiveForce,PhysicObject) selective = null)
+        bool delegate(PhysicObject) selective = null)
     {
         if (damage < float.epsilon)
             return;
-        auto expl = new ExplosiveForce();
-        expl.damage = damage;
-        expl.pos = pos;
-        expl.onCheckApply = selective;
-        //expl.cause = cause;
-        auto iradius = cast(int)((expl.radius+0.5f)/2.0f);
+        //radius of explosion influence
+        float radius = cDamageToRadius * damage;
+        //radius of landscape damage and effect
+        auto iradius = cast(int)((radius+0.5f)/2.0f);
         if (damage_landscape)
             damageLandscape(toVector2i(pos), iradius, cause);
-        physicworld.add(expl);
+        physicworld.objectsAt(pos, radius, (PhysicObject o) {
+            if (selective && !selective(o)) {
+                return true;
+            }
+            applyExplosion(o, pos, damage);
+            return true;
+        });
         if (effect)
             showExplosion(pos, iradius);
         //some more chaos, if strong enough

@@ -168,7 +168,12 @@ class GfxSet {
             //normal case: plugin with plugin.conf
             char[] confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
             //load plugin.conf as gfx set (resources and sequences)
-            conf = gResources.loadConfigForRes(confFile);
+            try {
+                conf = gResources.loadConfigForRes(confFile);
+            } catch (CustomException e) {
+                throw new PluginException("Failed to load plugin.conf ("
+                    ~ e.msg ~ ")");
+            }
         }
 
         //mixin dynamic configuration

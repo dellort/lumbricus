@@ -12,7 +12,6 @@ import game.gobject;
 import game.sprite;
 import game.crate;
 import game.events;
-import game.gamemodes.base;
 import game.weapon.weapon;
 import game.temp;
 import physics.misc;

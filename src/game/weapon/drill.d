@@ -93,7 +93,7 @@ class Drill : Shooter {
         }
     }
 
-    private bool checkApply(ExplosiveForce sender, PhysicObject other) {
+    private bool checkApply(PhysicObject other) {
         //force applies to all objects, except the own worm
         return other !is mWorm.physics;
     }
@@ -109,7 +109,7 @@ class Drill : Shooter {
         engine.damageLandscape(toVector2i(at), myclass.tunnelRadius, mWorm);
         const cPush = 3.0f; //multiplier so that other worms get pushed away
         engine.explosionAt(at,
-            myclass.tunnelRadius/ExplosiveForce.cDamageToRadius*cPush, mWorm,
+            myclass.tunnelRadius/GameEngine.cDamageToRadius*cPush, mWorm,
             false, false, &checkApply);
 
         mNext = engine.gameTime.current + myclass.interval.sample(engine.rnd);

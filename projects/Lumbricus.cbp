@@ -42,7 +42,6 @@
 			</Target>
 		</Build>
 		<Unit filename="..\share\lumbricus\data\lua\events.lua" />
-		<Unit filename="..\share\lumbricus\data\lua\game_cheats.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\gameutils.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\rect2.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\time.lua" />
@@ -107,6 +106,8 @@
 		<Unit filename="..\src\framework\config.d" />
 		<Unit filename="..\src\framework\drawing.d" />
 		<Unit filename="..\src\framework\drivers\base_sdl.d" />
+		<Unit filename="..\src\framework\drivers\clipboard_win32.d" />
+		<Unit filename="..\src\framework\drivers\clipboard_x11.d" />
 		<Unit filename="..\src\framework\drivers\draw_directx.d" />
 		<Unit filename="..\src\framework\drivers\draw_opengl.d" />
 		<Unit filename="..\src\framework\drivers\draw_sdl.d" />
@@ -148,7 +149,6 @@
 		<Unit filename="..\src\game\events.d" />
 		<Unit filename="..\src\game\game.d" />
 		<Unit filename="..\src\game\gamemodes\base.d" />
-		<Unit filename="..\src\game\gamemodes\mdebug.d" />
 		<Unit filename="..\src\game\gamemodes\realtime.d" />
 		<Unit filename="..\src\game\gamemodes\shared.d" />
 		<Unit filename="..\src\game\gamemodes\turnbased.d" />

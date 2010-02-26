@@ -63,49 +63,6 @@ class WindyForce : PhysicForce {
     }
 }
 
-//feature request to d0c: make it last more than one frame :)
-//(over several frames should it should be more stable )
-class ExplosiveForce : PhysicForce {
-    float damage;
-    Vector2f pos;
-    Object cause;
-
-    //the force is only applied if true is returned
-    bool delegate(ExplosiveForce sender, PhysicObject obj) onCheckApply;
-
-    this() {
-        //one time
-        lifeTime = 0;
-    }
-
-    private const cDamageToImpulse = 140.0f;
-    private const cDamageToRadius = 2.0f;
-
-    public float radius() {
-        return damage*cDamageToRadius;
-    }
-
-    private float cDistDelta = 0.01f;
-    void applyTo(PhysicObject o, float deltaT) {
-        assert(damage != 0f && !ieee.isNaN(damage));
-        float impulse = damage*cDamageToImpulse;
-        Vector2f v = (pos-o.pos);
-        float dist = v.length;
-        if (dist > cDistDelta) {
-            float r = max(radius-dist,0f)/radius;
-            if (r < float.epsilon)
-                return;
-            if (onCheckApply && !onCheckApply(this, o))
-                return;
-            o.applyDamage(r*damage, DamageCause.explosion, cause);
-            o.addImpulse(-v.normal()*impulse*r*o.posp.explosionInfluence);
-        } else {
-            //unglue objects at center of explosion
-            o.doUnglue();
-        }
-    }
-}
-
 class GravityCenter : PhysicForce {
     float accel, radius;
     Vector2f pos;

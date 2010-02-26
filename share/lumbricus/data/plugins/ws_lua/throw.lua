@@ -39,7 +39,7 @@ do
         fireMode = {
             direction = "any",
             variableThrowStrength = true,
-            throwStrengthFrom = 200,
+            throwStrengthFrom = 20,
             throwStrengthTo = 1200,
             timerFrom = timeSecs(1),
             timerTo = timeSecs(5),
@@ -161,7 +161,7 @@ do
         fireMode = {
             direction = "any",
             variableThrowStrength = true,
-            throwStrengthFrom = 200,
+            throwStrengthFrom = 20,
             throwStrengthTo = 1200,
         }
     }
