@@ -2,6 +2,7 @@ module game.lua.base;
 
 import framework.framework;
 import framework.lua;
+import gui.lua;
 import gui.rendertext; //: FormattedText
 import utils.configfile;
 import utils.timesource;
@@ -48,6 +49,8 @@ void loadScript(LuaState state, char[] filename) {
 LuaState createScriptingObj() {
     auto state = new LuaState(LuaLib.safe);
     state.register(gScripting);
+    state.register(gLuaGuiAdapt);
+    state.register(gLuaScenes);
 
     //only load base stuff here
     //don't load game specific stuff here

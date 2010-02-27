@@ -1,6 +1,8 @@
 module common.scene;
 
 import framework.framework;
+import gui.renderbox;
+import gui.rendertext;
 import utils.list2;
 import utils.vector2;
 import utils.rect2;
@@ -52,7 +54,11 @@ class Scene : SceneObjectCentered {
     /// and the z-orders within the already contained objects isn't changed.
     /// xxx currently only supports one container-scene per SceneObject, maybe
     /// I want to change that??? (and: how then? maybe need to allocate listnodes)
-    void add(SceneObject obj) {
+    /// if zorder is passed, set the zorder (-1 is a special marker value to
+    /// indicate that the function was called with one parameter)
+    void add(SceneObject obj, int zorder = -1) {
+        if (zorder != -1)
+            obj.zorder = zorder;
         if (obj.mParent is this)
             return;
         assert(!obj.mParent, "already inserted in another Scene?");
@@ -61,12 +67,6 @@ class Scene : SceneObjectCentered {
         assert(!mActiveObjects[z].contains(obj));
         mActiveObjects[z].add(obj);
         obj.mParent = this;
-    }
-
-    /// Add with zorder; the other add() doesn't change the zorder
-    void add(SceneObject obj, int zorder) {
-        obj.zorder = zorder;
-        add(obj);
     }
 
     /// Remove an object from the scene.
@@ -228,8 +228,90 @@ class SceneObject {
 }
 
 class SceneObjectCentered : SceneObject {
-    Vector2i pos = {0, 0};
+    Vector2i pos;
+}
+
+class SceneObjectRect : SceneObject {
+    Rect2i rc;
+}
+
+//this crap is for Lua; you don't want to redraw every frame using Lua code, so
+//  here's some scene graph based stuff that basically wraps common drawing
+//  commands for Lua
+
+//add new stuff as needed
+
+//commands like blend or clip can be done as subclasses of Scene (influencing
+//  only sub scene objects, then restoring the Canvas state)
+
+class SceneDrawRect : SceneObjectRect {
+    Color color = Color(0);
+    bool fill = false;
+    int width = 1; //width for unfilled rect
+    int stipple = 0; //length of stipple
+
+    override void draw(Canvas c) {
+        if (fill) {
+            c.drawFilledRect(rc, color);
+        } else if (stipple > 0) {
+            c.drawStippledRect(rc, color, stipple);
+        } else {
+            c.drawRect(rc, color, width);
+        }
+    }
+}
+
+class SceneDrawCircle : SceneObjectCentered {
+    int radius;
+    Color color = Color(0);
+    bool fill;
+
+    override void draw(Canvas c) {
+        if (fill) {
+            c.drawFilledCircle(pos, radius, color);
+        } else {
+            c.drawCircle(pos, radius, color);
+        }
+    }
+}
+
+class SceneDrawLine : SceneObject {
+    Vector2i p1, p2;
+    Color color;
+    int width = 1;
+
+    override void draw(Canvas c) {
+        c.drawLine(p1, p2, color, width);
+    }
+}
+
+class SceneDrawSprite : SceneObjectCentered {
+    SubSurface source;
+    BitmapEffect effect;
+
+    override void draw(Canvas c) {
+        c.drawSprite(source, pos, &effect);
+    }
+}
+
+class SceneDrawText : SceneObjectCentered {
+    FormattedText text;
 
     this() {
+        text = new FormattedText();
+    }
+
+    override void draw(Canvas c) {
+        //not really centered; the user can do that; hopefully this small
+        //  violation of SceneObjectCentered assumptions doesn't really matter
+        text.draw(c, pos);
+    }
+}
+
+class SceneDrawBox : SceneObjectRect {
+    BoxProperties box;
+
+    override void draw(Canvas c) {
+        drawBox(c, rc, box);
     }
 }

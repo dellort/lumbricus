@@ -19,7 +19,8 @@ static this() {
         "insertIntoLandscape", "countSprites", "ownedTeam", "nukeSplatEffect",
         "checkForActivity");
     gScripting.properties_ro!(GameEngine, "events", "globalEvents");
-    gScripting.properties!(GameEngine, "persistentState", "gameLandscapes");
+    gScripting.properties!(GameEngine, "persistentState", "gameLandscapes",
+        "scene");
 
     gScripting.properties_ro!(GameLandscape, "landscape");
 

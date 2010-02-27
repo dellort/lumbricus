@@ -6,8 +6,10 @@ import common.scene;
 import framework.framework;
 import framework.event;
 import framework.i18n;
+import framework.lua;
 import gui.container;
 import gui.label;
+import gui.lua;
 import gui.tablecontainer;
 import gui.widget;
 import gui.mousescroller;
@@ -58,6 +60,7 @@ class GameFrame : SimpleContainer {
         TeamWindow mTeamWindow;
         Label mPauseLabel;
         Chatbox mChatbox;
+        BoxContainer mSideBar;
 
         Time mLastFrameTime;
         bool mFirstFrame = true;
@@ -275,6 +278,11 @@ class GameFrame : SimpleContainer {
         mChatbox.output.writefln("\\c(ff0000){}", msg);
     }
 
+    void scriptAddHudWidget(LuaGuiAdapter gui) {
+        Widget w = gui.widget();
+        mSideBar.add(w, WidgetLayout.Aligned(-1,-1, Vector2i(0,20)));
+    }
+
     this(GameInfo g) {
         game = g;
 
@@ -342,6 +350,9 @@ class GameFrame : SimpleContainer {
         mPauseLabel.visible = false;
         add(mPauseLabel, WidgetLayout.Noexpand());
 
+        mSideBar = new VBoxContainer();
+        add(mSideBar, WidgetLayout.Aligned(-1, -1, Vector2i(30, 50)));
+
         setPosition(game.engine.level.worldCenter);
 
         OnWeaponSetChanged.handler(game.cevents, &updateWeapons);
@@ -352,5 +363,13 @@ class GameFrame : SimpleContainer {
         }
 
         OnGameReload.raise(game.engine.globalEvents);
+
+        //this is very violent; but I don't even know yet how game specific
+        //  scripts would link into the client gui
+        LuaState state = game.engine.scripting;
+        LuaRegistry reg = new LuaRegistry();
+        reg.method!(GameFrame, "scriptAddHudWidget")("addHudWidget");
+        state.register(reg);
+        state.addSingleton!(GameFrame)(this);
     }
 }

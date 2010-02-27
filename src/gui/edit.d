@@ -128,13 +128,7 @@ class EditLine : Widget {
             handleSelOnMove();
             return true;
         } else if (infos.isPrintable()) {
-            char[] append;
-            if (!str.isValidDchar(infos.unicode)) {
-                append = "?";
-            } else {
-                str.encode(append, infos.unicode);
-            }
-            insertEvent(append);
+            insertEvent(infos.unicode);
             return true;
         }
         return false;

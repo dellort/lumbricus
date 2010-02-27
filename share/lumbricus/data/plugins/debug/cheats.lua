@@ -111,6 +111,44 @@ function E.snowflake(depth, interpolate)
     LandscapeBitmap_drawBorder(ls, Lexel_soft, Lexel_free, border, border)
 end
 
+-- some test
+function E.guitest()
+    -- adding something to game scene
+    local s = Game_scene()
+    local f = SceneDrawBox_ctor()
+    SceneDrawBox_set_rc(f, Rect2(2000,1000,2500,1500))
+    SceneDrawBox_set_zorder(f, 10)
+    Scene_add(s, f)
+    -- adding an actual GUI element to the hud
+    local w = Gui_ctor()
+    setProperties(w, {
+        OnHandleKeyInput = function(info)
+            printf("key input: {}", info)
+            return true
+        end,
+        OnHandleMouseInput = function(info)
+            printf("mouse input: {}", info)
+            return true
+        end,
+        OnMouseLeave = function()
+            printf("mouse leave")
+        end,
+        OnSetFocus = function(s)
+            printf("focus: {}", s)
+        end,
+        OnMap = function(rc)
+            printf("map: {}", rc)
+        end,
+        OnUnmap = function()
+            printf("unmap")
+        end,
+    })
+    Gui_setSizeRequest(w, Vector2(100))
+    local x = SceneDrawBox_ctor()
+    SceneDrawBox_set_rc(x, Rect2(0,0,100,100))
+    Gui_set_render(w, x)
+    GameFrame_addHudWidget(w)
+end
 
 -- well whatever
 for name, fn in pairs(E) do

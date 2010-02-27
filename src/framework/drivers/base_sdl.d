@@ -25,6 +25,24 @@ import str = utils.string;
 
 package {
     Keycode[int] gSdlToKeycode;
+    //cached unicode translations
+    //(just so that not each keystroke causes memory allocation)
+    char[][dchar] gUniCache;
+
+    char[] fromUnicode(dchar uc) {
+        if (uc == '\0')
+            return null;
+        if (!str.isValidDchar(uc)) {
+            //special "error" case
+            return myformat("?[0x{:x}]", cast(uint)uc);
+        }
+        if (auto pres = uc in gUniCache)
+            return *pres;
+        char[] res;
+        str.encode(res, uc);
+        gUniCache[uc] = res;
+        return res;
+    }
 }
 
 class SDLDriver : FrameworkDriver {
@@ -269,7 +287,7 @@ class SDLDriver : FrameworkDriver {
     private KeyInfo keyInfosFromSDL(in SDL_KeyboardEvent sdl) {
         KeyInfo infos;
         infos.code = sdlToKeycode(sdl.keysym.sym);
-        infos.unicode = sdl.keysym.unicode;
+        infos.unicode = fromUnicode(sdl.keysym.unicode);
         infos.mods = gFramework.getModifierSet();
         return infos;
     }

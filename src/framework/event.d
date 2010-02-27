@@ -93,7 +93,8 @@ public struct KeyInfo {
     KeyEventType type;
     Keycode code;
     /// Fully translated according to system keymap and modifiers
-    dchar unicode = '\0';
+    /// length 0 if no text representation
+    char[] unicode;
     /// set of active modifiers when event was fired
     ModifierSet mods;
     /// whether this event is an artifical one coming from autorepeat
@@ -101,7 +102,7 @@ public struct KeyInfo {
 
     ///if not a control character
     bool isPrintable() {
-        return unicode >= 0x20;
+        return unicode.length > 0;
     }
 
     ///if mouse button
@@ -135,7 +136,7 @@ public struct KeyInfo {
             " ch='{}']",
             ["down", "up"][type],
             cast(int)code, translateKeycodeToKeyID(code), modstr, isRepeated,
-            isPrintable ? [unicode] : "None");
+            isPrintable ? unicode : "None");
     }
 }
 
