@@ -972,7 +972,7 @@ class Widget {
 
     //dispatch either to this widget or children widgets
     //return true if the event was handled
-    private bool handleInput(InputEvent event) {
+    protected bool handleInput(InputEvent event) {
         if (!gui)
             return false;
 
@@ -980,23 +980,13 @@ class Widget {
         //can only fail if MainFrame is set to disabled/invisible or so
         assert(canTakeInput());
 
-        auto focus = gui.mFocus;
-
         if (handleChildInput(event))
             return true;
 
-        //again the two dispatch methods - final event test
-        if (event.isMouseRelated()) {
-            if (!testMouse(event.mousePos))
-                return false;
-        } else {
-            if (this !is focus)
-                return false;
-        }
+        if (!event.isMouseRelated && gui && gui.focused !is this)
+            return false;
 
-        gui.deliverDirectEvent(this, event);
-
-        return true;
+        return gui.deliverDirectEvent(this, event, true);
     }
 
     //this function is called to deliver events to child widgets
@@ -1063,10 +1053,35 @@ class Widget {
 
     //directly deliver an event to this widget (without considering children or
     //  proper event routing)
-    protected final void deliverDirectEvent(InputEvent event) {
+    protected final bool deliverDirectEvent(InputEvent event, bool filter) {
         if (!gui)
-            return;
-        gui.deliverDirectEvent(this, event);
+            return false;
+        return gui.deliverDirectEvent(this, event, filter);
+    }
+
+    //call the user's event handler functions (only some keyboard/mouse events)
+    //doesn't do any additional work (unlike deliverDirectEvent())
+    //it does do a final event test if filter=true; if filter=false, the widget
+    //  is forced to handle the event (so to speak)
+    protected bool callEventHandler(InputEvent event, bool filter) {
+        if (filter) {
+            if (event.isMouseRelated()) {
+                if (!testMouse(event.mousePos))
+                    return false;
+            }
+        }
+        if (event.isKeyEvent) {
+            if (event.keyEvent.isDown) {
+                return onKeyDown(event.keyEvent);
+            } else {
+                onKeyUp(event.keyEvent);
+                return true;
+            }
+        } else if (event.isMouseEvent) {
+            onMouseMove(event.mouseEvent);
+            return true;
+        }
+        assert(false);
     }
 
     //return an event changed so that the child can handle it; currently
@@ -1877,7 +1892,7 @@ final class GUI {
             //send event directly to receiver (== don't route the event using
             //  focus, mouse position etc.); also don't try to send events to
             //  children of that widget (intended)
-            deliverDirectEvent(dest.widget, event);
+            deliverDirectEvent(dest.widget, event, false);
         }
 
         //when a mouse button is released, generate an artifical mouse move
@@ -1936,19 +1951,20 @@ final class GUI {
                 state = false;
                 if (old && taken) {
                     //slightly evil: call user event handler directly?
-                    KeyInfo e;
-                    e.type = KeyEventType.Up;
-                    e.code = cast(Keycode)i;
-                    //e.unicode = oops
+                    InputEvent ev;
+                    ev.isKeyEvent = true;
+                    ev.mousePos = old.mousePos();
+                    ev.keyEvent.isDown = false;
+                    ev.keyEvent.code = cast(Keycode)i;
                     //e.mods = huh
-                    old.onKeyUp(e);
+                    old.callEventHandler(ev, false);
                 }
             }
             mCaptureKey = null;
         }
 
         mCaptureKey = w;
-        mCaptureKeyState[event.code] = event.isDown();
+        mCaptureKeyState[event.code] = event.isDown;
 
         //if we get the event and a mouse button is hold, we should receive all
         //  other mouse events until no mouse button is down anymore
@@ -1959,59 +1975,73 @@ final class GUI {
     }
 
     //called by Widget (xxx idiotic code structure, move to Widget)
-    private void deliverDirectEvent(Widget receiver, InputEvent event) {
+    private bool deliverDirectEvent(Widget receiver, InputEvent event,
+        bool filter)
+    {
         log("deliver event to {}: {}", receiver, event);
 
+        bool taken = false;
+
+        //set even if not taken (can't know if event was taken before event
+        //  handler is executed, but event handlers probably rely on mousePos)
         if (event.isMouseRelated) {
             receiver.mMousePos = event.mousePos;
         }
 
-        //set focus on mouse down clicks
-        //xxx: mouse wheel will set focus too, is that ok?
-        if (event.isKeyEvent && event.isMouseRelated && event.keyEvent.isDown)
-            receiver.focusOnInput();
-
         if (event.isKeyEvent) {
-            updateKeyCapture(receiver, event.keyEvent);
+            //xxx: code had to be changed later without confidence about
+            //  correctness, may be slightly buggy/nonsensical
+
             Keycode code = event.keyEvent.code;
 
             if (event.keyEvent.isUp) {
-                if (mKeyTaken[code]) {
-                    receiver.onKeyUp(event.keyEvent);
-                } else {
-                    defaultKeyUp(receiver, event.keyEvent);
+                //only deliver if onKeyDown for the same key returned true
+                if (mCaptureKey is receiver && mKeyTaken[code]) {
+                    taken = receiver.callEventHandler(event, filter);
                 }
             } else {
-                //xxx slightly unkosher because not reentrant
-                //  what if an event handler uses deliverDirectEvent()
-                bool taken = receiver.onKeyDown(event.keyEvent);
-                if (mCaptureKey !is receiver) {
-                    //onKeyDown did something strange (reentrancy issue)
-                    log("capture key changed after onKeyDown() handler?");
-                }
-                mKeyTaken[code] = taken;
-                if (!taken) {
-                    defaultKeyDown(receiver, event.keyEvent);
-                }
+                taken = receiver.callEventHandler(event, filter);
+            }
+
+            if (taken) {
+                updateKeyCapture(receiver, event.keyEvent);
+                if (event.keyEvent.isDown)
+                    mKeyTaken[code] = true;
+            } else {
+                defaultKeyEvent(event.keyEvent);
             }
         } else if (event.isMouseEvent) {
+            taken = receiver.callEventHandler(event, filter);
+
             //usually used for the mouse cursor
             //NOTE: not for mouse click events... this is a hack to prevent the
             //  mouse cursor from appearing for a brief moment, if you right
             //  click into a MouseScroller (which is what the game uses)
-            if (mMouseWidget !is receiver) {
+            if (taken && mMouseWidget !is receiver) {
                 log("set mouse cursor widget: {} -> {}", mMouseWidget,
                     receiver);
                 mMouseWidget = receiver;
             }
-
-            receiver.onMouseMove(event.mouseEvent);
         }
+
+        if (taken) {
+            //set focus on mouse down clicks
+            //xxx: mouse wheel will set focus too, is that ok?
+            if (event.isKeyEvent && event.isMouseRelated
+                && event.keyEvent.isDown)
+                receiver.focusOnInput();
+        }
+
+        return taken;
     }
 
     //gets executed if a Widget returned false for onKeyDown()
-    private void defaultKeyDown(Widget receiver, KeyInfo event) {
-        assert(!!receiver);
+    private void defaultKeyEvent(KeyInfo event) {
+        if (!(event.isDown && defaultKeyDown(event)))
+            log("unhandled key event: {}", event);
+    }
+
+    private bool defaultKeyDown(KeyInfo event) {
         bool taken = false;
 
         if (event.code == Keycode.TAB) {
@@ -2019,8 +2049,8 @@ final class GUI {
             bool none = event.mods == 0;
 
             if (none || shift) {
-                if (event.isDown)
-                    receiver.nextFocus(shift);
+                if (event.isDown && mFocus)
+                    mFocus.nextFocus(shift);
                 taken = true;
             }
         }
@@ -2033,11 +2063,9 @@ final class GUI {
             }
         }
 
-        if (!taken)
-            log("unhandled key event: {}", event);
+        return taken;
     }
-    private void defaultKeyUp(Widget receiver, KeyInfo event) {
-        assert(!!receiver);
+    private void defaultKeyUp(KeyInfo event) {
     }
 
     //focus a widget that is in the given direction (relative to mFocus)

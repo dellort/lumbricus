@@ -1098,6 +1098,20 @@ class GameEngine {
         }
     }
 
+    //this is for iteration from Lua
+    GameObject gameObjectFirst() {
+        return mAllObjects.head();
+    }
+
+    GameObject gameObjectNext(GameObject obj) {
+        if (!obj)
+            return null;
+        //contains is O(1)
+        if (!mAllObjects.contains(obj))
+            throw new CustomException("gameObjectNext() on dead object");
+        return mAllObjects.next(obj);
+    }
+
     GameObject debug_pickObject(Vector2i pos) {
         auto p = toVector2f(pos);
         Sprite best;

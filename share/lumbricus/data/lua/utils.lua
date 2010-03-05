@@ -17,8 +17,8 @@ end
 -- return if i is an integer
 function utils.isInteger(i)
     -- apparently Lua really makes this bothersome, wtf?
-    -- checks: type, fractional numbers, nan, inf
-    return type(i) == "number" and math.floor(i) == i and i == i and i-1 ~= i
+    -- checks: type, fractional numbers + nan, inf
+    return type(i) == "number" and math.floor(i) == i and i-1 ~= i
 end
 
 -- format anything (for convenience)
@@ -28,12 +28,16 @@ end
 -- allowed inside {}:
 --      - ':q' if param is a string, quote it (other types aren't quoted)
 --      - index, e.g. '{3}' gets the third parameter
-function utils.sformat(fmt, ...)
-    return utils.sformat_r({}, fmt, ...)
+-- returns result_string, highest_used_arg
+-- trailing unused arguments are thrown away and ignored
+-- use utils.anyformat to print even trailing unused args
+function utils.format(fmt, ...)
+    return utils.format_r({}, fmt, ...)
 end
 
--- recursive version of sformat (done is simple used for table2string())
-function utils.sformat_r(done, fmt, ...)
+-- recursive version of format (done is simple used for table2string())
+-- everything else see utils.format
+function utils.format_r(done, fmt, ...)
     if type(fmt) ~= "string" then
         assert(false, "sformat() expects a format string as first argument")
     end
@@ -43,7 +47,8 @@ function utils.sformat_r(done, fmt, ...)
     end
     local args = {...}
     local next = 1
-    local idx = 1
+    local nidx = 0
+    local max_arg = 0
     for a, b in string.gmatch(fmt, "(){.-}()") do
         out(string.sub(fmt, next, a - 1))
         local f = string.sub(fmt, a, b - 1)
@@ -51,6 +56,7 @@ function utils.sformat_r(done, fmt, ...)
         assert(string.sub(f, #f, #f) == "}")
         f = string.sub(f, 2, #f - 1)
         -- do something with f, that contains format specifiers
+        local idx = nidx + 1
         local pindex = nil
         local sidx, mods = utils.split2(f, ":")
         if #sidx > 0 then
@@ -92,21 +98,23 @@ function utils.sformat_r(done, fmt, ...)
             out(tostring(param))
         end
         --
-        idx = idx + 1
+        max_arg = math.max(max_arg, idx)
+        nidx = idx
         next = b
     end
     out(string.sub(fmt, next, #fmt))
-    return res
+    return res, max_arg
 end
 
--- like sformat(), but print it (include a trailing newline)
-function utils.formatln(fmt, ...)
-    s = utils.sformat(fmt, ...)
-    print(s)
+do -- unittest
+    assert(utils.format("a", 5) == "a", 0)
+    assert(utils.format("a {}", 5) == "a 5", 1)
+    assert(utils.format("a {} {}", 5, 6) == "a 5 6", 2)
+    assert(utils.format("a {3} {2} {}", 5, 6, 7) == "a 7 6 7", 3)
 end
 
 -- format a table for debug purposes
--- mainly for use with sformat()
+-- mainly for use with format()
 -- done_set can be nil; if not, it's expected to be a table with already
 --  iterated tables as keys (to avoid recursion)
 function utils.table2string(t, done_set)
@@ -140,7 +148,7 @@ function utils.table2string(t, done_set)
         if #res > 1 then
             res = res .. ", "
         end
-        res = res .. utils.sformat_r(done_set, "{}{:q}", keypart, v)
+        res = res .. utils.format_r(done_set, "{}{:q}", keypart, v)
     end
     -- array part (covers [1, index) )
     local index = 1
@@ -163,12 +171,37 @@ function utils.table2string(t, done_set)
                 keypart = k .. " = "
             else
                 -- (:q means only quote strings)
-                keypart = utils.sformat_r(done_set, "[{:q}] = ", k)
+                keypart = utils.format_r(done_set, "[{:q}] = ", k)
             end
             item(keypart, v)
         end
     end
     return res .. "}"
+end
+
+-- "somehow" format all arguments and return the result string
+-- if fmt is a string, call format(fmt, ...), else format fmt as "{}"
+-- then call format() on the remaining args
+-- results from multiple format() calls are seperated with \t
+-- e.g. utils.anyformat(3, "hu {}", 6, "ar", 7) == "3\thu 6\tar\t7"
+function utils.anyformat(fmt, ...)
+    local argc = select("#", ...)
+    if type(fmt) == "string" then
+        local res, args = utils.format(fmt, ...)
+        if args < argc then
+            -- pass all arguments ignored by format() to anyformat()
+            return res .. "\t" .. utils.anyformat(select(args + 1, ...))
+        else
+            return res
+        end
+    else
+        return utils.anyformat("{}", fmt, ...)
+    end
+end
+
+do -- unittest
+    assert(utils.anyformat("hu {}", "meep") == "hu meep")
+    assert(utils.anyformat(3, "hu {}", 6, "ar", 7) == "3\thu 6\tar\t7")
 end
 
 -- emulation of some features of utils.randval.RandomValue
@@ -242,17 +275,19 @@ end
 -- I consider them Lua language deficiencies *g*
 -- to fix Lua, they just have to be global
 
-local function dodir(t, level, done)
+local function dodir(t, match, level, done)
     done[t] = true
     for k, v in pairs(t) do
-        utils.formatln("{}{} {}", level, type(v), k)
+        if not match or type(k) ~= "string" or string.match(k, match) then
+            printf("{}{} {}", level, type(v), k)
+        end
     end
     local meta = getmetatable(t)
     if not meta then
         return
     end
     if done[meta] then
-        utils.formatln("[recursive metatable]")
+        printf("[recursive metatable]")
         return
     end
     dodir(meta, level .. ":", done)
@@ -260,22 +295,39 @@ end
 -- show list of members in current scope
 -- if t is not nil, list members of t instead
 -- recurses into metatables; members from metatables have ":" on their types
-function dir(t)
-    dodir(t or _G, "", {})
+-- if t or x is a string, it pattern matches the items in table _G or t
+--  the pattern can contain * as in shell globbing
+function dir(t, x)
+    if type(t) == "string" then
+        x = t
+        t = nil
+    end
+    if x then
+        assert(type(x) == "string")
+        -- turn every * into .* (glob pattern to Lua pseudo-regex pattern)
+        -- also, match begin and end with ^ $
+        x = "^" .. string.gsub(x, "%*", ".*") .. "$"
+    end
+    t = t or _G
+    assert(type(t) == "table")
+    dodir(t, x, "", {})
 end
 
 -- just print something, and don't be as inconvenient as print()
 -- but trailing (useless) arguments are ignored, unlike with print()
-function printf(fmt, ...)
-    if type(fmt) == "string" then
-        utils.formatln(fmt, ...)
-    else
-        -- for the dumb and lazy
-        utils.formatln("{}", fmt)
-        if #{...} > 0 then
-            printf(...)
-        end
-    end
+function printf(...)
+    print(utils.anyformat(...))
+end
+
+-- like print, but possibly mark it as an error or something similar
+-- defaults to print, but other code can replace this
+function warn(...)
+    print("Warning:", ...)
+end
+
+-- like printf(), but use warn() (and not print()) to output the result
+function warnf(...)
+    warn(utils.anyformat(...))
 end
 
 -- there's also math.max, math.min
@@ -324,6 +376,8 @@ function table_copy(table)
     for k, v in pairs(table) do
         ntable[k] = v
     end
+    -- preserve metatable
+    setmetatable(ntable, getmetatable(table))
     return ntable
 end
 
@@ -344,6 +398,24 @@ end
 function table_empty(table)
     local key, value = next(table)
     return not key
+end
+
+-- return array of keys
+function table_keys(table)
+    local r = {}
+    for k, v in pairs(table) do
+        r[#r+1] = k
+    end
+    return r
+end
+
+-- return array of values
+function table_values(table)
+    local r = {}
+    for k, v in pairs(table) do
+        r[#r+1] = v
+    end
+    return r
 end
 
 -- remove table entry; remove its old value or the default
@@ -404,7 +476,8 @@ function array.concat(...)
     local res = {}
     local n = 1
     for i = 1, select("#", ...) do
-        for k2, v2 in ipairs(select(i, ...)) do
+        local arr = select(i, ...)
+        for k2, v2 in ipairs(arr) do
             res[n] = v2
             n = n + 1
         end
@@ -458,6 +531,7 @@ function array.indexof(arr, item)
 end
 
 -- the following functions apparently partially rely on the D wrapper
+-- actually, those should be moved into a plugins.lua
 
 -- returns the calling module's export table
 -- equal to _G[ENV_NAME] (initialized to table if empty)
@@ -476,5 +550,12 @@ function import(table)
     local env = getfenv(2)
     for k, v in pairs(table) do
         env[k] = v
+    end
+end
+
+-- copy all entries in table to _G
+function export_from_table(table)
+    for name, e in pairs(table) do
+        _G[name] = e
     end
 end

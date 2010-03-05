@@ -138,7 +138,7 @@ class MouseScroller : ScrollArea {
         take |= event.isMouseEvent && mMouseScrolling;
         take |= event.isMouseRelated && filterClicks && mMouseScrolling;
         if (take) {
-            deliverDirectEvent(event);
+            deliverDirectEvent(event, false);
             return true;
         }
         return super.handleChildInput(event);

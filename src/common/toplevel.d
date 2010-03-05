@@ -724,10 +724,10 @@ private:
         //for debugging
         //but something similar will be needed for a proper keybindings editor
         if (mKeyNameIt && event.isKeyEvent) {
-            if (!event.keyEvent.isDown())
+            if (!event.keyEvent.isDown)
                 return;
 
-            BindKey key = BindKey.fromKeyInfo(event.keyEvent);
+            BindKey key = BindKey.FromKeyInfo(event.keyEvent);
 
             mGuiConsole.output.writefln("Key: '{}' '{}', code={} mods={}",
                 key.unparse(), globals.translateKeyshortcut(key),
@@ -745,7 +745,7 @@ private:
         if (event.isKeyEvent) {
             char[] bind = keybindings.findBinding(event.keyEvent);
             if (bind.length > 0) {
-                if (event.keyEvent.isDown())
+                if (event.keyEvent.isDown)
                     globals.cmdLine.execute(bind);
                 return;
             }

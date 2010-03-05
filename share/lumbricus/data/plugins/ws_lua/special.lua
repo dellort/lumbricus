@@ -297,7 +297,7 @@ do
             -- xxx original params from amrageddon.conf; somehow looks very off
             --local spawn_strength = utils.range(800, 1000)
             local spawn_strength = utils.range(200, 400)
-            local timer1 = Timer.new()
+            local timer1 = Timer.New()
             timer1:setCallback(function()
                 -- emulate spawnsprite's InitVelocity.randomAir
                 -- maybe this should go into D code (memory thrashing)

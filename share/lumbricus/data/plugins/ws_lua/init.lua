@@ -40,11 +40,7 @@ end
 -- return a function(from, to) that draws a laser for the given time
 -- t = time how long the laser should last
 function getLaserEffect(t)
-    local function color(r,g,b,a)
-        return {r=r,g=g,b=b,a=a or 1}
-    end
-
-    local line_colors = { color(1,0,0,0), color(1,0,0), color(1,0,0,0) }
+    local line_colors = {Color(1,0,0,0), Color(1,0,0), Color(1,0,0,0)}
     local line_time = t or time("2s")
 
     return function(from, to)

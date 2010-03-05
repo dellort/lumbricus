@@ -4,15 +4,17 @@
 Rect2 = {}
 Rect2.__index = Rect2
 setmetatable(Rect2, {__call = function(self, a, b, c, d)
-    if (c) then
+    if c then
         -- x1, y1, x2, y2
         return setmetatable({p1 = Vector2(a, b), p2 = Vector2(c, d)}, Rect2)
-    elseif (b) then
+    elseif b then
         -- p1, p2
         return setmetatable({p1 = a, p2 = b}, Rect2)
-    else
+    elseif a then
         -- Vector2(0, 0), p2
         return setmetatable({p1 = Vector2(0), p2 = a}, Rect2)
+    else
+        return setmetatable({p1=Vector2(0), p2=Vector2(0)}, Rect2)
     end
 end})
 
@@ -25,6 +27,10 @@ function Rect2.Span(a, b, c, d)
         -- p, size
         return Rect2(a, a + b)
     end
+end
+
+function Rect2:__eq(v)
+    return self.p1 == v.p1 and self.p2 == v.p2
 end
 
 -- translate by r

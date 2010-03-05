@@ -135,7 +135,7 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
         end
         LuaShooter_set_isFixed(shooter, true)
         local remains = nsprites
-        local timer = Timer.new()
+        local timer = Timer.New()
         local ctx = get_context(shooter)
         ctx.firetimer = timer
         ctx.fireinfo = fireinfo
@@ -213,7 +213,7 @@ function getDrownFunc(sprite_class, drown_phys)
         drown_graphic = SequenceType_findState(seq, "drown", true)
     end
     if not drown_graphic then
-        printf("WARNING: no drown graphic for sprite {}", sprite_class)
+        warnf("no drown graphic for sprite {}", sprite_class)
     end
     local particle = Gfx_resource("p_projectiledrown")
     if not drown_phys then
@@ -256,7 +256,7 @@ function enableOnTimedGlue(sprite_class, time, fn)
         local ctx = get_context(sender)
         local timer = ctx.glue_timer
         if not timer then
-            timer = Timer.new()
+            timer = Timer.New()
             ctx.glue_timer = timer
             timer:setCallback(function()
                 if Sprite_visible(sender) then
@@ -429,7 +429,8 @@ function setProperties(d_object, data)
             data[v.name] = nil
             local relayed = _G[v.lua_g_name](d_object)
             setProperties(relayed, value)
-        elseif (not is_relay) and value and v.type == "Property_W" then
+        elseif (not is_relay) and (value ~= nil) and v.type == "Property_W"
+        then
             data[v.name] = nil -- delete for later check for completeness
             local autoprop = autoProperties[v.lua_g_name]
             if autoprop then
@@ -443,7 +444,7 @@ function setProperties(d_object, data)
     end
     -- error if a property in data wasn't in d_object
     if not table_empty(data) then
-        error(utils.sformat("the following stuff couldn't be set: {}", data), 2)
+        error(utils.format("the following stuff couldn't be set: {}", data), 2)
     end
 end
 
@@ -485,7 +486,7 @@ function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
     end
     -- the Timer updater is invoked every second to change the time display
     -- the "link" is used to make the timer run synchronously
-    local updater = Timer.new()
+    local updater = Timer.New()
     local function updateTime()
         local left
         if timer:isStarted() then

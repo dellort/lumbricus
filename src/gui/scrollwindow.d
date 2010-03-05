@@ -416,7 +416,7 @@ class ScrollWindow : Container {
         if (event.isKeyEvent) {
             Keycode c = event.keyEvent.code;
             if (c == Keycode.MOUSE_WHEELUP || c == Keycode.MOUSE_WHEELDOWN) {
-                deliverDirectEvent(event);
+                deliverDirectEvent(event, false);
                 return true;
             }
         }

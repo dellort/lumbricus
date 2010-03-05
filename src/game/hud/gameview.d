@@ -440,6 +440,9 @@ class GameView : Widget {
         char[][char[]] mKeybindToCommand;
         //wormbinds.conf/map_commands
         ConfigNode mCommandMap;
+        //and this is something completely different
+        //additional keybindings for plugins
+        void delegate(char[])[KeyBindings] mExtKeybinds;
 
         //for worm-name drawing
         ViewMember[TeamMember] mEngineMemberToOurs;
@@ -455,6 +458,10 @@ class GameView : Widget {
 
         bool mCursorVisible = true;
     } //private
+
+    void addSubWidget(Widget w) {
+        addChild(w);
+    }
 
     void setGUITeamMemberSettings(GUITeamMemberSettings s) {
         mTeamGUISettings = s;
@@ -749,6 +756,13 @@ class GameView : Widget {
         return mGame.engine.gfx.findWeaponClass(name, true);
     }
 
+    void addExternalKeybinds(KeyBindings binds, void delegate(char[]) handler) {
+        mExtKeybinds[binds] = handler;
+    }
+    void removeExternalKeybinds(KeyBindings binds) {
+        mExtKeybinds.remove(binds);
+    }
+
     //takes a binding string from KeyBindings and replaces params
     //  %d -> true if key was pressed, false if released
     //  %mx, %my -> mouse position
@@ -769,16 +783,39 @@ class GameView : Widget {
         doKeyEvent(ki);
     }
     private bool doKeyEvent(KeyInfo ki) {
-        char[] bind = findBind(ki);
-        if (!bind.length)
+        KeyBindings local = bindings;
+        BindKey key = BindKey.FromKeyInfo(ki);
+        KeyBindings winner;
+        char[] bind;
+        bool check(KeyBindings k) {
+            bind = k.findBinding(key);
+            if (!bind.length)
+                return false;
+            winner = k;
+            return true;
+        }
+        if (!check(local)) {
+            foreach (KeyBindings k, v; mExtKeybinds) {
+                if (check(k))
+                    break;
+            }
+        }
+        if (!winner)
             return false;
-        if (!ki.isRepeated) {
+        //if repeated, consider as handled, but throw away anyway
+        if (ki.isRepeated)
+            return true;
+        if (winner is local) {
             if (auto pcmd = bind in mKeybindToCommand) {
                 bind = processBinding(*pcmd, ki.isUp);
             }
             //if not processed locally, send
             if (!mCmd.execute(bind, true))
                 executeServerCommand(bind);
+        } else {
+            //the keybinding was one of mExtKeybinds; call its handler
+            if (!ki.isUp)
+                mExtKeybinds[winner](bind);
         }
         return true;
     }

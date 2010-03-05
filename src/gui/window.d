@@ -473,7 +473,7 @@ class WindowWidget : Widget {
         if (mDraging
             || (event.isKeyEvent && findBind(event.keyEvent) != ""))
         {
-            deliverDirectEvent(event);
+            deliverDirectEvent(event, false);
             //mask events from children
             return true;
         }
@@ -776,7 +776,7 @@ class WindowFrame : Container {
         if (mWindowSelecting
             || (event.isKeyEvent && mKeysWM.findBinding(event.keyEvent)))
         {
-            deliverDirectEvent(event);
+            deliverDirectEvent(event, false);
             return true;
         }
         return super.handleChildInput(event);

@@ -173,10 +173,6 @@ abstract class FrameworkDriver : Driver {
     abstract void setInputState(in DriverInputState state);
     abstract void setMousePos(Vector2i p);
 
-    ///give the driver more control about this
-    ///don't ask... was carefully translated from old code
-    abstract bool getModifierState(Modifier mod, bool whatithink);
-
     abstract VideoWindowState getVideoWindowState();
     ///returns success (for switching the video mode, only)
     abstract bool setVideoWindowState(in VideoWindowState state);
@@ -1203,20 +1199,17 @@ class Framework {
 
     /// return if Modifier is applied
     public bool getModifierState(Modifier mod) {
-        bool get() {
-            switch (mod) {
-                case Modifier.Alt:
-                    return getKeyState(Keycode.RALT) || getKeyState(Keycode.LALT);
-                case Modifier.Control:
-                    return getKeyState(Keycode.RCTRL) || getKeyState(Keycode.LCTRL);
-                case Modifier.Shift:
-                    return getKeyState(Keycode.RSHIFT)
-                        || getKeyState(Keycode.LSHIFT);
-                default:
-            }
-            return false;
+        switch (mod) {
+            case Modifier.Alt:
+                return getKeyState(Keycode.RALT) || getKeyState(Keycode.LALT);
+            case Modifier.Control:
+                return getKeyState(Keycode.RCTRL) || getKeyState(Keycode.LCTRL);
+            case Modifier.Shift:
+                return getKeyState(Keycode.RSHIFT)
+                    || getKeyState(Keycode.LSHIFT);
+            default:
         }
-        return mDriver.getModifierState(mod, get());
+        return false;
     }
 
     /// return true if all modifiers in the set are applied
@@ -1289,10 +1282,10 @@ class Framework {
 
     //called from framework implementation... relies on key repeat
     void driver_doKeyEvent(KeyInfo infos) {
-        updateKeyState(infos, infos.type == KeyEventType.Down);
+        updateKeyState(infos, infos.isDown);
 
         //xxx: huh? shouldn't that be done by the OS' window manager?
-        if (infos.type == KeyEventType.Down && infos.code == Keycode.F4
+        if (infos.isDown && infos.code == Keycode.F4
             && getModifierState(Modifier.Alt))
         {
             doTerminate();

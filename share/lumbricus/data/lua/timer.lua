@@ -2,6 +2,7 @@
 -- makes use of the Time data type in time.lua
 
 _currentTime = timeSecs(0)
+_gameTimeSource = Game_gameTime()
 
 -- return the current frame's time as Time object
 function currentTime()
@@ -15,7 +16,7 @@ _frameCounter = 0
 
 -- gets called by game.d
 function game_per_frame()
-    _currentTime = Time_current(Game_gameTime())
+    _currentTime = Time_current(_gameTimeSource)
     _frameCounter = _frameCounter + 1
     _run_timers()
 end
@@ -27,7 +28,7 @@ Timer = {}
 Timer.__index = Timer
 
 -- create a one-shot timer, in most cases addTimer() will be simpler
-function Timer.new()
+function Timer.New()
     return setmetatable({
         _destTime = Time.Null,
         _added = false,
@@ -256,7 +257,7 @@ end
 -- cb is an optional callback
 -- returns a Timer with the time set
 function addTimer(time, cb, periodic)
-    local tr = Timer.new()
+    local tr = Timer.New()
     tr:setCallback(cb)
     tr:start(time, periodic)
     return tr

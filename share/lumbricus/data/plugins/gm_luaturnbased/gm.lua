@@ -4,9 +4,9 @@ local teams -- return of Control_teams()
 local pteams -- like teams, but teamperm applied
 local teamperm -- integer array for team permutation
 
-local turnTime = Timer.new()
-local prepareTime = Timer.new()
-local suddenDeathTime = Timer.new()
+local turnTime = Timer.New()
+local prepareTime = Timer.New()
+local suddenDeathTime = Timer.New()
 local currentTeam
 local lastTeam = nil
 local turnCounter = 0 -- was mRoundCounter
@@ -104,7 +104,7 @@ end
 -- state machine one-shot timer
 -- periodic = optional, boolean whether it's periodic
 local function timer(duration, cb, periodic)
-    local t = Timer.new()
+    local t = Timer.New()
     local sm -- meh, it's set in enter; this is rather fishy
     t:setCallback(function()
         assert(sm)
@@ -140,7 +140,7 @@ end
 StateMachine = {}
 StateMachine.__index = StateMachine
 
-function StateMachine.new()
+function StateMachine.New()
     return setmetatable({
         _state = nil,
     }, StateMachine)
@@ -350,7 +350,7 @@ local function doinit()
     raiseEvent(Game_globalEvents(), "game_hud_add", "timer", hud_status)
     raiseEvent(Game_globalEvents(), "game_hud_add", "prepare", hud_prepare)
 
-    stateMachine = StateMachine.new()
+    stateMachine = StateMachine.New()
     stateMachine:setState(states.waitForSilence)
 
     addPeriodicTimer(time("1s"), updateTimers)

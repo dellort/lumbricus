@@ -4,6 +4,7 @@ module gui.lua;
 
 import common.scene;
 import framework.event;
+import framework.keybindings;
 import framework.lua;
 import gui.widget;
 import utils.misc;
@@ -14,9 +15,10 @@ import utils.vector2;
 class LuaGuiAdapter {
     private {
         WidgetAdapt mWidget;
-        Vector2i mSizeRequest;
         bool mWasAdded;
     }
+
+    Vector2i sizeRequest;
 
     void delegate(Rect2i) OnMap;
     void delegate() OnUnmap;
@@ -30,14 +32,17 @@ class LuaGuiAdapter {
     SceneObject render;
 
     //this behaves as if there was a single child widget implemented in Lua
+    //warning: because callEventHandler is overridden, some normal widget event
+    //  handlers such as onKeyDown etc. won't be called
     private class WidgetAdapt : Widget {
         this() {
             focusable = true;
+            //this property is practically overridden by the Lua event handler
             isClickable = true;
         }
 
-        override bool handleChildInput(InputEvent event) {
-            bool res;
+        override bool callEventHandler(InputEvent event, bool filter) {
+            bool res = false;
             if (event.isKeyEvent) {
                 if (OnHandleKeyInput)
                     res = OnHandleKeyInput(event.keyEvent);
@@ -46,11 +51,6 @@ class LuaGuiAdapter {
                     res = OnHandleMouseInput(event.mouseEvent);
             } else {
                 assert(false, "doesn't happen");
-            }
-            if (res) {
-                //if event is taken, deliver to us; only done to keep some
-                //  internal GUI mechanisms, namely click-on-focus
-                deliverDirectEvent(event);
             }
             return res;
         }
@@ -67,7 +67,7 @@ class LuaGuiAdapter {
         }
 
         override Vector2i layoutSizeRequest() {
-            return mSizeRequest;
+            return sizeRequest;
         }
 
         override void layoutSizeAllocation() {
@@ -89,7 +89,7 @@ class LuaGuiAdapter {
         }
 
         override void onDraw(Canvas c) {
-            if (render)
+            if (render && render.active)
                 render.draw(c);
             if (OnDraw)
                 OnDraw(c);
@@ -104,18 +104,24 @@ class LuaGuiAdapter {
         return mWidget;
     }
 
-    void setCanFocus(bool f) {
+    void canFocus(bool f) {
         mWidget.focusable = f;
     }
-    void setSizeRequest(Vector2i s) {
-        mSizeRequest = s;
+    bool canFocus() {
+        return mWidget.focusable;
     }
+
     void requestResize() {
         mWidget.needResize();
     }
     void requestFocus() {
         mWidget.claimFocus();
     }
+}
+
+//wrapper prevents memory allocation in D
+Keycode getKeycode(TempString s) {
+    return translateKeyIDToKeycode(s.raw);
 }
 
 LuaRegistry gLuaGuiAdapt;
@@ -126,9 +132,11 @@ static this() {
     g.ctor!(LuaGuiAdapter)();
     g.properties!(LuaGuiAdapter, "OnMap", "OnUnmap", "OnMouseLeave",
         "OnHandleKeyInput", "OnHandleMouseInput", "OnSetFocus", "OnDraw",
-        "render")();
-    g.methods!(LuaGuiAdapter, "setCanFocus", "setSizeRequest", "requestResize",
-        "requestFocus")();
+        "render", "sizeRequest", "canFocus")();
+    g.methods!(LuaGuiAdapter, "requestResize", "requestFocus")();
+    g.ctor!(KeyBindings)();
+    g.method!(KeyBindings, "scriptAddBinding")("addBinding");
+    g.func!(getKeycode)("keycode");
     gLuaGuiAdapt = g;
 }
 

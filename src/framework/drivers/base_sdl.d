@@ -258,24 +258,6 @@ class SDLDriver : FrameworkDriver {
             SDL_WarpMouse(p.x, p.y);
     }
 
-    bool getModifierState(Modifier mod, bool whatithink) {
-        //special handling for the shift- and numlock-modifiers
-        //since the user might toggle numlock or capslock while we don't have
-        //the keyboard-focus, ask the SDL (which inturn asks the OS)
-        SDLMod modstate = SDL_GetModState();
-        //writefln("state={}", modstate);
-        if (mod == Modifier.Shift) {
-            //xxx behaviour when caps and shift are both on is maybe OS
-            //dependend; on X11, both states are usually XORed
-            return ((modstate & KMOD_CAPS) != 0) ^ whatithink;
-        //} else if (mod == Modifier.Numlock) {
-        //    return (modstate & KMOD_NUM) != 0;
-        } else {
-            //generic handling for non-toggle modifiers
-            return whatithink;
-        }
-    }
-
     private Keycode sdlToKeycode(int sdl_sym) {
         if (sdl_sym in gSdlToKeycode) {
             return gSdlToKeycode[sdl_sym];
@@ -364,7 +346,7 @@ class SDLDriver : FrameworkDriver {
             switch(event.type) {
                 case SDL_KEYDOWN:
                     KeyInfo infos = keyInfosFromSDL(event.key);
-                    infos.type = KeyEventType.Down;
+                    infos.isDown = true;
                     //SDL repeats SDL_KEYDOWN on key repeat
                     //that's exactly how the framework does it
                     //SDL doesn't provide an isRepeated, though
@@ -374,7 +356,7 @@ class SDLDriver : FrameworkDriver {
                 case SDL_KEYUP:
                     //xxx TODO: SDL provides no unicode translation for KEYUP
                     KeyInfo infos = keyInfosFromSDL(event.key);
-                    infos.type = KeyEventType.Up;
+                    infos.isDown = false;
                     gFramework.driver_doKeyEvent(infos);
                     break;
                 case SDL_MOUSEMOTION:
@@ -385,7 +367,7 @@ class SDLDriver : FrameworkDriver {
                 case SDL_MOUSEBUTTONUP:
                     if (mInputFocus) {
                         KeyInfo infos = mouseInfosFromSDL(event.button);
-                        infos.type = KeyEventType.Up;
+                        infos.isDown = false;
                         updateMousePos(event.button.x, event.button.y);
                         gFramework.driver_doKeyEvent(infos);
                     }
@@ -393,7 +375,7 @@ class SDLDriver : FrameworkDriver {
                 case SDL_MOUSEBUTTONDOWN:
                     if (mInputFocus) {
                         KeyInfo infos = mouseInfosFromSDL(event.button);
-                        infos.type = KeyEventType.Down;
+                        infos.isDown = true;
                         updateMousePos(event.button.x, event.button.y);
                         gFramework.driver_doKeyEvent(infos);
                     }

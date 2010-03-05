@@ -17,12 +17,13 @@ static this() {
         "windSpeed", "setWindSpeed", "randomizeWind", "gravity", "raiseWater",
         "addEarthQuake", "explosionAt", "damageLandscape",
         "insertIntoLandscape", "countSprites", "ownedTeam", "nukeSplatEffect",
-        "checkForActivity");
+        "checkForActivity", "gameObjectFirst", "gameObjectNext",
+        "debug_pickObject");
     gScripting.properties_ro!(GameEngine, "events", "globalEvents");
     gScripting.properties!(GameEngine, "persistentState", "gameLandscapes",
         "scene");
 
-    gScripting.properties_ro!(GameLandscape, "landscape");
+    gScripting.properties_ro!(GameLandscape, "landscape", "rect");
 
     gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder", "size");
 

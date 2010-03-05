@@ -82,16 +82,10 @@ public bool modifierIsExact(ModifierSet s, Modifier mod) {
     return s == 1<<mod;
 }
 
-enum KeyEventType {
-    Down, ///key pressed down
-    Up, ///key released
-}
-
 /// Information about a key press, this also covers mouse buttons
 public struct KeyInfo {
-    /// type of event
-    KeyEventType type;
     Keycode code;
+    bool isDown;
     /// Fully translated according to system keymap and modifiers
     /// length 0 if no text representation
     char[] unicode;
@@ -114,12 +108,9 @@ public struct KeyInfo {
         return keycodeIsModifierKey(code);
     }
 
-    ///invariant: isDown() != isUp()
-    bool isDown() {
-        return type == KeyEventType.Down;
-    }
+    ///invariant: isDown != isUp
     bool isUp() {
-        return type == KeyEventType.Up;
+        return !isDown;
     }
 
     char[] toString() {
@@ -133,8 +124,7 @@ public struct KeyInfo {
         modstr ~= "]";
 
         return myformat("[KeyInfo: ev={} code={} ('{}') mods={} isRepeated={}"
-            " ch='{}']",
-            ["down", "up"][type],
+            " ch='{}']", isDown ? "down" : "up",
             cast(int)code, translateKeycodeToKeyID(code), modstr, isRepeated,
             isPrintable ? unicode : "None");
     }

@@ -17,7 +17,7 @@ local function createGun(params)
             direction = "any",
         },
     }
-    assert(table_empty(params), utils.sformat("unused values: {}", params))
+    assert(table_empty(params), utils.format("unused values: {}", params))
 end
 
 createGun {

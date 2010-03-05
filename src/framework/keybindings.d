@@ -8,11 +8,13 @@ import utils.vector2;
 import str = utils.string;
 
 //describes a key binding
+//you can construct one from keyboard input (FromKeyInfo()) and simply compare
+//  the result with an existing key binding to see if a key shortcut was hit
 struct BindKey {
     Keycode code;
     ModifierSet mods;
 
-    static BindKey fromKeyInfo(KeyInfo info) {
+    static BindKey FromKeyInfo(KeyInfo info) {
         BindKey k;
         k.code = info.code;
         k.mods = info.mods;
@@ -53,89 +55,41 @@ struct BindKey {
         return str.join(stuff, " ");
     }
 
+    char[] toString() {
+        return "[KeyBind "~unparse()~"]";
+    }
+
 }
 
 /// Map key combinations to IDs (strings).
 public class KeyBindings {
     private struct Entry {
-        char[] bound_to;
-        uint required_mods;
+        char[] bind_to;
+        BindKey key;
     }
 
-    private Entry[BindKey] mBindings;
-    //only for readBinding()
-    private BindKey[char[]] mReverseLookup;
+    private Entry[] mBindings;
 
-    private uint countmods(uint mods) {
-        uint sum = 0;
-        for (int n = Modifier.min; n <= Modifier.max; n++) {
-            sum += !!(mods & (1 << n));
-        }
-        return sum;
-    }
-
-    //find the key which matches with the _most_ modifiers
-    //to do that, try with all permutations (across active mods) :/
-    private Entry* doFindBinding(BindKey bind, uint mods, uint pos = 0) {
-        if (!(mods & (1<<pos))) {
-            pos++;
-            if (pos > Modifier.max) {
-                //recursion end
-                BindKey k = bind;
-                k.mods = mods;
-                return k in mBindings;
-            }
-        }
-        //bit is set at this position...
-        //try recursively with and without that bit set
-        Entry* e1 = doFindBinding(bind, mods & ~(1<<pos), pos+1);
-        Entry* e2 = doFindBinding(bind, mods, pos+1);
-
-        //check which wins... if both are non-null, that with more modifiers
-        if (e1 && e2) {
-            e1 = countmods(e1.required_mods) > countmods(e2.required_mods)
-                ? e1 : e2;
-            e2 = null;
-        }
-        if (!e1) {
-            e1 = e2; e2 = null;
-        }
-
-        return e1;
-    }
-
-    //returns how many modifiers the winning key binding eats up
-    //return -1 if no match
-    int checkBinding(BindKey key) {
-        Entry* e = doFindBinding(key, key.mods);
-        if (!e) {
-            return -1;
-        } else {
-            return countmods(e.required_mods);
-        }
+    //returns if there's a matching binding
+    bool checkBinding(BindKey key) {
+        return findBinding(key).length > 0;
     }
 
     char[] findBinding(BindKey key) {
-        Entry* e = doFindBinding(key, key.mods);
-        if (!e) {
-            return null;
-        } else {
-            return e.bound_to;
+        foreach (ref e; mBindings) {
+            if (e.key == key)
+                return e.bind_to;
         }
+        return null;
     }
 
     char[] findBinding(KeyInfo info) {
-        return findBinding(BindKey.fromKeyInfo(info));
+        return findBinding(BindKey.FromKeyInfo(info));
     }
 
     /// Add a binding.
     bool addBinding(char[] bind_to, BindKey k) {
-        Entry e;
-        e.bound_to = bind_to;
-        e.required_mods = k.mods;;
-
-        mBindings[k] = e;
-        mReverseLookup[bind_to] = k;
+        mBindings ~= Entry(bind_to, k);
         return true;
     }
 
@@ -147,33 +101,36 @@ public class KeyBindings {
         return addBinding(bind_to, k);
     }
 
-    /// Remove all key combinations that map to the binding "bind".
-    void removeBinding(char[] bind) {
-        //hm...
-        BindKey[] keys;
-        foreach (BindKey k, Entry e; mBindings) {
-            if (bind == e.bound_to)
-                keys ~= k;
-        }
-        foreach (BindKey k; keys) {
-            mBindings.remove(k);
-        }
-        mReverseLookup.remove(bind);
+    //wrapper can't deal with overloaded functions (D's fault)
+    bool scriptAddBinding(char[] bind_to, char[] bindstr) {
+        return addBinding(bind_to, bindstr);
     }
 
-    /// Return the arguments for the addBinding() call which created "bind".
+    /// Remove all key combinations that map to the binding bind_to.
+    void removeBinding(char[] bind_to) {
+    again:
+        foreach (int i, Entry e; mBindings) {
+            if (e.bind_to == bind_to) {
+                mBindings = mBindings[0..i] ~ mBindings[i+1..$];
+                goto again;
+            }
+        }
+    }
+
+    /// Return the arguments for the addBinding() call which created bind_to.
     /// Return value is false if not found.
-    bool readBinding(char[] bind, out BindKey key) {
-        BindKey* k = bind in mReverseLookup;
-        if (!k)
-            return false;
-        key = *k;
-        return true;
+    bool readBinding(char[] bind_to, out BindKey key) {
+        foreach (e; mBindings) {
+            if (e.bind_to == bind_to) {
+                key = e.key;
+                return true;
+            }
+        }
+        return false;
     }
 
     void clear() {
         mBindings = null;
-        mReverseLookup = null;
     }
 
     void loadFrom(config.ConfigNode node) {
@@ -199,24 +156,8 @@ public class KeyBindings {
         if (!callback)
             return;
 
-        foreach (BindKey k, Entry e; mBindings) {
-            callback(e.bound_to, k);
+        foreach (Entry e; mBindings) {
+            callback(e.bind_to, e.key);
         }
-    }
-
-    /// For a given key event (code, mods) check whether a or b wins, and return
-    /// the winner. If the event matches neither a nor b, return null. If both
-    /// match equally (it's a draw), always return a.
-    /// Both a and b can be null, null ones are handled as no-match.
-    static KeyBindings compareBindings(KeyBindings a, KeyBindings b,
-        BindKey key)
-    {
-        int wa = a ? a.checkBinding(key) : -1;
-        int wb = b ? b.checkBinding(key) : -1;
-        if (wa >= wb && wa >= 0)
-            return a;
-        else if (wb >= 0)
-            return b;
-        return null;
     }
 }

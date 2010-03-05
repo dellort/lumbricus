@@ -133,7 +133,7 @@ class GameTask : StatefulTask {
         SimpleNetConnection mConnection;
 
         GameFrame mGameFrame;
-        WindowContainer mWindow;
+        SimpleContainer mWindow;
 
         LoadingScreen mLoadScreen;
         Loader mGUIGameLoader;
@@ -147,12 +147,6 @@ class GameTask : StatefulTask {
 
         bool mDelayedFirstFrame; //draw screen before loading first chunk
 
-        /+
-        //temporary when loading a game
-        SerializeInConfig mSaveGame;
-        Vector2i mSavedViewPosition;
-        bool mSavedSetViewPosition;
-        +/
         ConfigNode mGamePersist;
     }
 
@@ -215,7 +209,7 @@ class GameTask : StatefulTask {
     }
 
     private void createWindow() {
-        mWindow = new WindowContainer();
+        mWindow = new SimpleContainer();
         auto wnd = gWindowManager.createWindowFullscreen(this, mWindow,
             r"\t(game_title)");
         //background is mostly invisible, except when loading and at low
@@ -480,10 +474,8 @@ class GameTask : StatefulTask {
             mCmds.register(Command("replay", &cmdReplay, "", ["text?"]));
             mCmds.register(Command("demo_stop", &cmdDemoStop, ""));
         }
-        mCmds.register(Command("savelevelpng", &cmdSafeLevelPNG, "", ["text"]));
         mCmds.register(Command("show_collide", &cmdShowCollide, ""));
         mCmds.register(Command("server", &cmdExecServer, "", ["text..."]));
-        //mCmds.register(Command("show_obj", &cmdShowObj, "", null));
         mCmds.register(Command("game_res", &cmdGameRes, "", null));
         mCmds.register(Command("lua", &cmdLua, ""));
     }
@@ -548,37 +540,6 @@ class GameTask : StatefulTask {
             "Collision matrix");
     }
 
-    //just for that debug-grabbing stuff...
-    class WindowContainer : SimpleContainer {
-        bool do_capture;
-
-        override bool onTestMouse(Vector2i p) {
-            return do_capture;
-        }
-
-        override bool handleChildInput(InputEvent event) {
-            if (!do_capture)
-                return super.handleChildInput(event);
-            if (event.isKeyEvent && event.keyEvent.code == Keycode.MOUSE_LEFT) {
-                do_capture = false;
-                auto p = mousePos;
-                mGameFrame.gameView.translateCoords(this, p);
-                //-- show_obj(p);
-            }
-            deliverDirectEvent(event);
-            return true;
-        }
-
-        //only used when capturing
-        override MouseCursor mouseCursor() {
-            MouseCursor c;
-            //cross like, good enough
-            c.graphic = gGuiResources.get!(Surface)("red_x");
-            c.graphic_spot = c.graphic.size/2;
-            return c;
-        }
-    }
-
     private void cmdGameRes(MyBox[] args, Output write) {
         if (!mGameShell)
             return;
@@ -587,18 +548,6 @@ class GameTask : StatefulTask {
 
     private void cmdLua(MyBox[] args, Output write) {
         new LuaInterpreter(manager, mGameShell.serverEngine.scripting);
-    }
-
-    private void cmdSafeLevelPNG(MyBox[] args, Output write) {
-        if (!mGameShell)
-            return;
-        /+
-        char[] filename = args[0].unbox!(char[])();
-        Stream s = gFS.open(filename, File.WriteCreate);
-        mGameShell.serverEngine.gameLandscapes[0].image.saveImage(s, "png");
-        s.close();
-        +/
-        write.writefln("disabled");
     }
 
     //slow time <whatever>

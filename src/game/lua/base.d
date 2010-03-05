@@ -4,6 +4,7 @@ import framework.framework;
 import framework.lua;
 import gui.lua;
 import gui.rendertext; //: FormattedText
+import utils.color;
 import utils.configfile;
 import utils.timesource;
 import utils.vector2;
@@ -68,6 +69,9 @@ LuaState createScriptingObj() {
 
     loadScript(state, "time.lua");
     state.addScriptType!(Time)("Time");
+
+    loadScript(state, "color.lua");
+    state.addScriptType!(Color)("Color");
 
     return state;
 }

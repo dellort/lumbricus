@@ -278,9 +278,29 @@ class GameFrame : SimpleContainer {
         mChatbox.output.writefln("\\c(ff0000){}", msg);
     }
 
-    void scriptAddHudWidget(LuaGuiAdapter gui) {
+    void scriptAddHudWidget(LuaGuiAdapter gui, char[] where = "sidebar") {
+        argcheck(gui);
         Widget w = gui.widget();
-        mSideBar.add(w, WidgetLayout.Aligned(-1,-1, Vector2i(0,20)));
+        if (where == "sidebar") {
+            mSideBar.add(w, WidgetLayout.Aligned(-1,-1, Vector2i(0,20)));
+        } else if (where == "fullscreen") {
+            mGui.add(w, WidgetLayout());
+        } else if (where == "gameview") {
+            w.setLayout(WidgetLayout());
+            gameView.addSubWidget(w);
+        } else {
+            argcheck(false, "invalid 'where' parameter: '"~where~"'");
+        }
+    }
+    void scriptRemoveHudWidget(LuaGuiAdapter gui) {
+        gui.widget.remove();
+    }
+
+    void addKeybinds(KeyBindings binds, void delegate(char[]) handler) {
+        gameView.addExternalKeybinds(binds, handler);
+    }
+    void removeKeybinds(KeyBindings binds) {
+        gameView.removeExternalKeybinds(binds);
     }
 
     this(GameInfo g) {
@@ -362,14 +382,16 @@ class GameFrame : SimpleContainer {
             addHud(id, obj);
         }
 
-        OnGameReload.raise(game.engine.globalEvents);
-
         //this is very violent; but I don't even know yet how game specific
         //  scripts would link into the client gui
         LuaState state = game.engine.scripting;
         LuaRegistry reg = new LuaRegistry();
         reg.method!(GameFrame, "scriptAddHudWidget")("addHudWidget");
+        reg.method!(GameFrame, "scriptRemoveHudWidget")("removeHudWidget");
+        reg.methods!(GameFrame, "addKeybinds", "removeKeybinds");
         state.register(reg);
         state.addSingleton!(GameFrame)(this);
+
+        OnGameReload.raise(game.engine.globalEvents);
     }
 }

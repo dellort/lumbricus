@@ -143,14 +143,19 @@ function E.guitest()
             printf("unmap")
         end,
     })
-    Gui_setSizeRequest(w, Vector2(100))
+    Gui_set_sizeRequest(w, Vector2(100))
     local x = SceneDrawBox_ctor()
     SceneDrawBox_set_rc(x, Rect2(0,0,100,100))
     Gui_set_render(w, x)
     GameFrame_addHudWidget(w)
+    -- keybinds
+    local binds = KeyBindings_ctor()
+    KeyBindings_addBinding(binds, "huh2", "x mod_ctrl")
+    KeyBindings_addBinding(binds, "huh1", "x")
+    local function h(s)
+        printf("keybind: '{}'", s)
+    end
+    GameFrame_addKeybinds(binds, h)
 end
 
--- well whatever
-for name, fn in pairs(E) do
-    _G[name] = fn
-end
+export_from_table(E)
