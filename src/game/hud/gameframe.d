@@ -182,9 +182,11 @@ class GameFrame : SimpleContainer {
             Vector2i(cast(int)(mWeaponInterp.value*wsel_edge), 0));
         mWeaponSel.visible = 1.0f-mWeaponInterp.value > float.epsilon;
 
+        /+ disabled for now; should work flawlessly
         //unpaused if any child has focus (normally GameView)
         game.shell.pauseBlock(!subFocused(), this);
         game.shell.pauseBlock(!gFramework.appFocused, gFramework);
+        +/
 
         mPauseLabel.visible = game.shell.paused;
 

@@ -5,13 +5,22 @@ utils = {}
 -- searches for "search" and returns text before and after it
 --  utils.split2("abcd", "c") == "ab", "cd"
 --  utils.split2("abcd", "x") == "abcd", ""
-function utils.split2(s, search)
+function utils.split2(s, search, exclude_search)
     local idx = s:find(search, 1, true)
     if not idx then
         return s, ""
+    elseif exclude_search then
+        return s:sub(1, idx - 1), s:sub(idx + #search)
     else
         return s:sub(1, idx - 1), s:sub(idx)
     end
+end
+
+do -- unittest
+    assert(utils.split2("abcd", "c") == "ab", "cd")
+    assert(utils.split2("abcd", "x") == "abcd", "")
+    assert(utils.split2("abcde", "cd", true) == "ab", "e")
+    assert(utils.split2("abcd", "x", true) == "abcd", "")
 end
 
 -- return if i is an integer
@@ -55,10 +64,9 @@ function utils.format_r(done, fmt, ...)
         assert(string.sub(f, 1, 1) == "{")
         assert(string.sub(f, #f, #f) == "}")
         f = string.sub(f, 2, #f - 1)
-        -- do something with f, that contains format specifiers
+        -- f = param_index[:additional_format_parameters]
+        local sidx, mods = utils.split2(f, ":", true)
         local idx = nidx + 1
-        local pindex = nil
-        local sidx, mods = utils.split2(f, ":")
         if #sidx > 0 then
             local tmp = tonumber(sidx)
             if tmp == nil then
@@ -67,36 +75,7 @@ function utils.format_r(done, fmt, ...)
                 idx = tmp
             end
         end
-        local quote_string = false
-        if mods == ":q" then
-            quote_string = true
-        else
-            if #mods > 0 then
-                assert(false, "unknown format specifier: '"..mods.."'")
-            end
-        end
-        -- format the parameter
-        local param = args[idx]
-        local ptype = type(param)
-        if ptype == "userdata" then
-            -- these functions need to be regged by D code
-            if ObjectToString and d_islightuserdata and d_islightuserdata(param)
-            then
-                out(ObjectToString(param))
-            else
-                out("<unknown userdata>")
-            end
-        elseif ptype == "table" then
-            out(utils.table2string(param, done))
-        elseif ptype == "string" then
-            if quote_string then
-                out(string.format("%q", param))
-            else
-                out(param)
-            end
-        else
-            out(tostring(param))
-        end
+        out(utils._format_value(args[idx], mods, done))
         --
         max_arg = math.max(max_arg, idx)
         nidx = idx
@@ -104,6 +83,36 @@ function utils.format_r(done, fmt, ...)
     end
     out(string.sub(fmt, next, #fmt))
     return res, max_arg
+end
+
+-- backend for utils.format; turn a single value into a string
+function utils._format_value(value, fmt, done)
+    local quote_string = false
+    fmt = fmt or ""
+    if fmt == "q" then
+        quote_string = true
+    else
+        if fmt ~= "" then
+            error("unknown format specifier: '"..fmt.."'")
+        end
+    end
+
+    local ptype = type(value)
+    if ptype == "userdata" then
+        -- these functions need to be regged by D code
+        if ObjectToString and d_islightuserdata and d_islightuserdata(value)
+        then
+            return ObjectToString(value)
+        end
+    elseif ptype == "table" then
+        return utils.table2string(value, done)
+    elseif ptype == "string" then
+        if quote_string then
+            return string.format("%q", value)
+        end
+    end
+
+    return tostring(value)
 end
 
 do -- unittest
@@ -418,7 +427,7 @@ function table_values(table)
     return r
 end
 
--- remove table entry; remove its old value or the default
+-- remove table entry; return its old value or the default
 function pick(t, key, def)
     local val = t[key]
     t[key] = nil

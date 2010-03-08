@@ -56,10 +56,14 @@ class EventTarget {
     }
 
     final void raiseEvent(char[] name, EventPtr args) {
+        raiseEvent(Atoms.get(name), args);
+    }
+    //backend function
+    final void raiseEvent(ID eventID, EventPtr args) {
         if (mPerInstance)
-            mPerInstance.raise(name, this, args);
-        mPerClass.raise(name, this, args);
-        mEvents.raise(name, this, args);
+            mPerInstance.raise(eventID, this, args);
+        mPerClass.raise(eventID, this, args);
+        mEvents.raise(eventID, this, args);
     }
 }
 
@@ -147,7 +151,8 @@ static this() {
 //also, either raiseT() or raise() should eventually be removed
 final class Events {
     private {
-        EventType[char[]] mEvents;
+        //indexed by EventType e; mEvents[Atoms.get(e.name)]
+        EventType[] mEvents;
 
         LuaState mScripting;
         char[] mScriptingEventsNamespace;
@@ -195,6 +200,7 @@ final class Events {
     }
 
     //xxx shitty performance hack
+    //  watch out for .ptr in this file if you want to fix this
     private char[] nullTerminate(char[] s) {
         return (s~'\0')[0..$-1];
     }
@@ -229,12 +235,14 @@ final class Events {
     }
 
     private EventType get_event(char[] name) {
-        auto pevent = name in mEvents;
-        if (pevent)
-            return *pevent;
+        ID id = Atoms.get(name);
+        if (id >= mEvents.length)
+            mEvents.length = id + 1;
+        if (auto event = mEvents[id])
+            return event;
         auto e = new EventType;
         e.name = nullTerminate(name);
-        mEvents[e.name] = e;
+        mEvents[id] = e;
         return e;
     }
 
@@ -309,20 +317,29 @@ final class Events {
 
     //one should prefer EventTarget.raiseEvent()
     void raise(char[] event, EventTarget sender, EventPtr params) {
-        //char[] target = sender.eventTargetType();
-        EventType e = get_event(event);
+        raise(Atoms.get(event), sender, params);
+    }
+    //backend function
+    void raise(ID eventID, EventTarget sender, EventPtr params) {
+        if (eventID >= mEvents.length)
+            return;
+
+        EventType e = mEvents[eventID];
+        if (!e)
+            return;
+
         foreach (ref h; e.handlers) {
             h.handler(h, sender, params);
         }
 
         foreach (h; generic_handlers) {
-            h(event, sender, params);
+            h(e.name, sender, params);
         }
 
         raise_to_script(e, sender, params);
 
         foreach (Events c; cascade) {
-            c.raise(event, sender, params);
+            c.raise(eventID, sender, params);
         }
     }
 }
@@ -418,6 +435,9 @@ template DeclareEvent(char[] name, SenderBase, Args...) {
     //(if that goes wrong, anything could happen)
     static bool mInRegged, mOutRegged;
 
+    //cached name->ID lookup
+    static ID mEventID;
+
     static void handler(Events base, Handler a_handler) {
         if (!mInRegged) {
             mInRegged = true;
@@ -435,6 +455,9 @@ template DeclareEvent(char[] name, SenderBase, Args...) {
             mOutRegged = true;
             paramTypeOut!(ParamType)();
         }
+        if (!mEventID) {
+            mEventID = Atoms.get(Name);
+        }
 
         assert(!!sender);
         ParamType args2;
@@ -442,7 +465,7 @@ template DeclareEvent(char[] name, SenderBase, Args...) {
         static if (Args.length)
             args2.args = args;
         auto argsptr = EventPtr.Ptr(args2);
-        sender.raiseEvent(name, argsptr);
+        sender.raiseEvent(mEventID, argsptr);
     }
 
     private static void handler_templated(ref EventEntry from,
@@ -465,17 +488,18 @@ unittest {
     auto xd = {SomeEvent.raise(null, i, b);};
 }
 
-/+
 //stupid "optimization"
 
 alias size_t ID; //always >0 (0 means invalid)
 class Atoms {
-    private {
+    private static {
         ID[char[]] mAtoms;
         ID mIDAlloc;
     }
 
-    ID get(char[] s) {
+    //return an unique, small integer for string s
+    //never return 0
+    static ID get(char[] s) {
         if (auto p = s in mAtoms) {
             return *p;
         }
@@ -484,8 +508,10 @@ class Atoms {
         return nid;
     }
 
-    char[] lookup(ID id) {
+    /+
+    static char[] lookup(ID id) {
+        loop? use reverse lookup table?
         return mAtoms[id];
     }
+    +/
 }
-+/

@@ -26,10 +26,10 @@ class PhysicObject : PhysicBase {
         //
     }
 
-    POSP posp() {
+    final POSP posp() {
         return mPosp;
     }
-    void posp(POSP p) {
+    final void posp(POSP p) {
         argcheck(p);
         mPosp = p;
         //new POSP -> check values
