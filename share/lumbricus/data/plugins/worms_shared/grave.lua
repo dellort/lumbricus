@@ -9,7 +9,7 @@ local function create(id)
     end
     createSpriteClass {
         name = "gravestone" .. id,
-        noActivityWhenGlued = true,
+        initNoActivityWhenGlued = true,
         initPhysic = relay {
             collisionID = "grave",
             radius = 5,
