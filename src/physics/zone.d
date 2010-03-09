@@ -71,6 +71,7 @@ class PhysicZoneCircle : PhysicZone {
 }
 
 //rectangular zone
+//signals collision if the circle touches the rect insides
 class PhysicZoneRect : PhysicZone {
     Rect2f rect;
 
@@ -79,8 +80,8 @@ class PhysicZoneRect : PhysicZone {
     }
 
     override bool checkCircle(Vector2f pos, float radius) {
-        //xxx checks if center of object (i.e. half object) is inside
-        return rect.isInside(pos);
+        //slightly incorrect results for corner cases
+        return rect.collideCircleApprox(pos, radius);
     }
 }
 

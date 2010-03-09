@@ -116,7 +116,7 @@ class POSP {
 
     //maximum absolute value, velocity is cut if over this
     Vector2f velocityConstraint = {float.infinity, float.infinity};
-    float speedLimit = 0.0f;
+    float speedLimit = float.infinity;
 
     private char[] mCollisionID;
     char[] collisionID() {

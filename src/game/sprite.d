@@ -56,13 +56,16 @@ class Sprite : GameObject {
     //if it gets active again it's recreated again LOL
     Sequence graphic;
 
-    //hack for worm.d
-    bool died_in_deathzone;
+    //if false, sprite is considered active if visible/alive
+    //if true, sprite is considered active only if it's moving (== unglued)
+    bool noActivityWhenGlued;
 
     this(GameEngine a_engine, SpriteClass a_type) {
         super(a_engine, a_type.name);
         mType = a_type;
         assert(!!mType);
+
+        noActivityWhenGlued = type.initNoActivityWhenGlued;
 
         physics = new PhysicObject();
         physics.backlink = this;
@@ -127,7 +130,7 @@ class Sprite : GameObject {
     }
 
     override bool activity() {
-        return internal_active && !physics.isGlued;
+        return internal_active && !(physics.isGlued && noActivityWhenGlued);
     }
 
     protected void physImpact(PhysicBase other, Vector2f normal) {
@@ -154,10 +157,9 @@ class Sprite : GameObject {
         kill();
     }
 
-    void exterminate() {
+    final void exterminate() {
         //_always_ die completely (or are there exceptions?)
         log("exterminate in deathzone: {}", type.name);
-        died_in_deathzone = true;
         kill();
     }
 
@@ -303,6 +305,7 @@ class SpriteClass {
     float initialHp = float.infinity;
     POSP initPhysic;
     ParticleType initParticle;
+    bool initNoActivityWhenGlued = false;
 
     this (GfxSet gfx, char[] regname) {
         this.gfx = gfx;
@@ -385,12 +388,6 @@ class StateSprite : Sprite {
             graphic.setState(currentState.animationWater);
         } else {
             graphic.setState(currentState.animation);
-        }
-    }
-
-    void exterminate() {
-        if (!currentState.deathZoneImmune) {
-            super.exterminate();
         }
     }
 
@@ -529,7 +526,6 @@ class StaticStateInfo {
     //don't leave this state (explictly excludes onAnimationEnd)
     bool noleave = false;
     bool keepSelfForce = false;//phys.selfForce will be reset unless this is set
-    bool deathZoneImmune = false;  //don't die in deathzone
 
     SequenceState animation, animationWater;
     SequenceState[char[]] teamAnim;
@@ -570,7 +566,6 @@ class StaticStateInfo {
 
         noleave = sc.getBoolValue("noleave", noleave);
         keepSelfForce = sc.getBoolValue("keep_selfforce", keepSelfForce);
-        deathZoneImmune = sc.getBoolValue("deathzone_immune", deathZoneImmune);
 
         if (sc["animation"].length > 0) {
             animation = owner.findSequenceState(sc["animation"]);
@@ -626,6 +621,9 @@ class StateSpriteClass : SpriteClass {
 
     this (GfxSet gfx, char[] regname) {
         super(gfx, regname);
+
+        //force default to true for compatibility
+        initNoActivityWhenGlued = true;
 
         //create a default state to have at least one state at all
         auto ssi = createStateInfo("defaultstate");

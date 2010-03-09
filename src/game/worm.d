@@ -871,8 +871,12 @@ class WormSprite : StateSprite {
 
         //die by blowing up
         if (to is wsc.st_dead) {
+            bool was_alive = objectAlive();
             kill();
-            if (!died_in_deathzone) {
+            //only show if it didn't die in deathzone
+            //(the only reason this check is needed is because simulate() is
+            //  somehow called when updating the graphic when kill() is called)
+            if (was_alive) {
                 //explosion!
                 engine.explosionAt(physics.pos, wsc.suicideDamage, this);
                 SpriteClass findGrave(int id) {

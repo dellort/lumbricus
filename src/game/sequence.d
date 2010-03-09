@@ -69,8 +69,8 @@ final class SequenceType {
             return *pstate;
         }
         if (!allow_notfound)
-            throw new CustomException(myformat("state not found: {} in {}",  sname,
-                name));
+            throw new CustomException(myformat("state not found: {} in {}",
+                sname, name));
         return null;
     }
 }
@@ -961,21 +961,6 @@ class WwpWeaponState : SequenceState {
             return gfx.resources.get!(Animation)(name, optional);
         }
 
-        //Create Or Get Transformed Animation Resource
-        //I'm sorry.
-        Animation cogtar(char[] postfix, Animation ani, Animation delegate() c)
-        {
-            ResourceSet.Entry e = gfx.resources.reverseLookup(ani);
-            assert(!!e, "must be an existing resource");
-            char[] transformed_name = e.name() ~ postfix;
-            auto res = gfx.resources.get!(Animation)(transformed_name, true);
-            if (!res) {
-                res = c();
-                gfx.resources.addResource(res, transformed_name);
-            }
-            return res;
-        }
-
         normal = loadanim(node, "animation");
 
         foreach (char[] key, char[] value; node.getSubNode("weapons")) {
@@ -1006,13 +991,8 @@ class WwpWeaponState : SequenceState {
             //no hold animation -> show last frame of get animation
             //and to get such an animation, I'm doing some gross hack
             if (!w.hold) {
-                w.hold = cogtar("_last_frame", w.get,
-                    {
-                        auto fc = w.get.frameCount();
-                        Animation fixlast = new SubAnimation(w.get, fc-1, fc);
-                        return fixlast;
-                    }
-                );
+                auto fc = w.get.frameCount();
+                w.hold = new SubAnimation(w.get, fc-1, fc);
             }
         }
 

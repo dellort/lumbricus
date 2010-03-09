@@ -152,6 +152,7 @@ do
     enableWalking(sprite_class)
     enableSpriteTimer(sprite_class, {
         defTimer = timeSecs(5),
+        showDisplay = true,
         callback = function(sender)
             spriteExplode(sender, 75)
         end

@@ -3,6 +3,7 @@ module game.lua.control;
 import game.lua.base;
 import game.controller;
 import game.crate;
+import game.weapon.weapon;
 import game.worm;
 import game.wcontrol;
 import game.gamemodes.shared;
@@ -47,4 +48,7 @@ static this() {
     gScripting.ctor!(CollectableToolDoubleTime)();
     gScripting.ctor!(CollectableToolCrateSpy)();
     gScripting.ctor!(CollectableToolDoubleDamage)();
+    gScripting.ctor!(CollectableWeapon, WeaponClass, int)();
+    gScripting.ctor!(CollectableBomb)();
+    gScripting.ctor!(CollectableMedkit)();
 }

@@ -186,6 +186,18 @@ public struct Rect2(T) {
         return r;
     }
 
+    //fast and incorrect check if the circle is inside the rect
+    //actually only checks the circle bounding box
+    //in some corner cases (literally), the function will return true, even if
+    //  the rect and circle don't really collide
+    //this matters only when the circle is big compared to the rect
+    bool collideCircleApprox(Point pos, T radius) {
+        return (pos.x + radius > p1.x
+            && pos.x - radius < p2.x
+            && pos.y + radius > p1.y
+            && pos.y - radius < p2.y);
+    }
+
     //substract the rectangles in list from this, and return what's left over
     //the rects in list may intersect, and the resulting rects won't intersect
     Rect2[] substractRects(Rect2[] list) {
@@ -288,3 +300,11 @@ public struct Rect2(T) {
 
 alias Rect2!(int) Rect2i;
 alias Rect2!(float) Rect2f;
+
+Rect2f toRect2f(Rect2i r) {
+    return Rect2f(toVector2f(r.p1), toVector2f(r.p2));
+}
+
+Rect2i toRect2i(Rect2f r) {
+    return Rect2i(toVector2i(r.p1), toVector2i(r.p2));
+}

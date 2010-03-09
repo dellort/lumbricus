@@ -6,11 +6,42 @@ function E.giveWeapon(name, amount)
     Team_addWeapon(Game_ownedTeam(), Gfx_findWeaponClass(name), amount)
 end
 
--- drop a crate with a weapon in it; weapon_name is a string for the weapon
-function E.dropCrate(weapon_name)
-    local w = weapon_name and Gfx_findWeaponClass(weapon_name)
-    Control_dropCrate(true, w)
-    crateSpy()
+-- drop a crate with a weapon in it; p is a string for the weapon
+function E.dropCrate(p, spy)
+    local stuff = {
+        doubledamage = CollectableToolDoubleDamage_ctor,
+        doubletime = CollectableToolDoubleTime_ctor,
+        bomb = CollectableBomb_ctor,
+        spy = CollectableToolCrateSpy_ctor,
+        medkit = CollectableMedkit_ctor,
+    }
+    if type(p) ~= "string" then
+        printf("pass as parameter any tool of {}, or any weapon name of {}",
+            table_keys(stuff), array.map(Gfx_weaponList(),
+                function(w) return WeaponClass_name(w) end))
+        printf("pass 'defaultcrate' or '' to drop controller-chosen contents")
+        printf("will always enable crate spy unless second param is false")
+        return
+    end
+    local fill
+    if stuff[p] then
+        fill = {stuff[p]()}
+    elseif p == "defaultcrate" or p == "" then
+        fill = {}
+    else
+        local w = Gfx_findWeaponClass(p, true)
+        if w then
+            fill = {CollectableWeapon_ctor(w, WeaponClass_crateAmount(w))}
+        end
+    end
+    if not fill then
+        printf("don't know what '{}' is", p)
+        return
+    end
+    Control_dropCrate(true, fill)
+    if ifnil(spy, true) then
+        E.crateSpy()
+    end
 end
 
 -- give all teams a crate spy

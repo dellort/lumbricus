@@ -228,9 +228,14 @@ class PhysicObject : PhysicBase {
         velocity_int = velocity.clipAbsEntries(mPosp.velocityConstraint);
 
         //speed limit
-        if (mPosp.speedLimit > float.epsilon) {
-            if (velocity_int.length > mPosp.speedLimit)
-                velocity_int.length = mPosp.speedLimit;
+        //xxx hardcoded, but I didn't want to add another dependency on "world"
+        //  yet (better sort this out later; circular dependencies etc.)
+        const float cMaxSpeed = 2000; //global max limit
+        auto speed = velocity_int.length;
+        if (speed > mPosp.speedLimit) {
+            velocity_int.length = mPosp.speedLimit;
+        } else if (speed > cMaxSpeed) {
+            velocity_int.length = cMaxSpeed;
         }
 
         //xxx what was that for again? seems to work fine without

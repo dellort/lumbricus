@@ -76,7 +76,6 @@ class GameEngine {
         Level mLevel;
 
         PhysicZonePlane mWaterBorder;
-        PhysicZonePlane mDeathZone;
         WaterSurfaceGeometry mWaterBouncer;
 
         GfxSet mGfx;
@@ -210,16 +209,22 @@ class GameEngine {
         physicworld.add(mEarthquakeForceVis);
         physicworld.add(mEarthquakeForceDmg);
 
-        mDeathZone = new PhysicZonePlane();
-        auto dz = new ZoneTrigger(mDeathZone);
+        auto deathrc = toRect2f(mLevel.worldBounds());
+        auto sz = deathrc.size;
+        //make rect much bigger in all three directions except downwards, so
+        //  that the deathzone normally is not noticed (e.g. objects still can
+        //  fly a long time, even if outside of the screen/level)
+        deathrc.p1.x -= sz.x;
+        deathrc.p2.x += sz.x;
+        deathrc.p1.y -= sz.y;
+        //downwards, objects should die immediately ("sea bottom")
+        //the trigger is inverse, and triggers only when the physic object is
+        //completely in the deathzone, but graphics are often larger :(
+        deathrc.p2.y += 20;
+        auto dz = new ZoneTrigger(new PhysicZoneRect(deathrc));
         dz.collision = physicworld.collide.collideAlways();
         dz.onTrigger = &deathzoneTrigger;
         dz.inverse = true;
-        //the trigger is inverse, and triggers only when the physic object is
-        //completely in the deathzone, but graphics are often larger :(
-        auto death_y = mLevel.worldSize.y + 20;
-        //because trigger is inverse, the plane must be defined inverted too
-        mDeathZone.plane.define(Vector2f(1, death_y), Vector2f(0, death_y));
         physicworld.add(dz);
 
         //create trigger to check for objects leaving the playable area
@@ -927,6 +932,13 @@ class GameEngine {
     {
         if (damage < float.epsilon)
             return;
+        //apply double damage; this is probably close to what d0c thinks what
+        //  the "right thing" is: only weapons fired by a worm who has collected
+        //  a double damage crate cause double damage
+        //in my opinion, a global double damage flag would be enough...
+        if (auto member = controller.memberFromGameObject(cause, true)) {
+            damage *= member.team.hasDoubleDamage ? 2.0f : 1.0f;
+        }
         //radius of explosion influence
         float radius = cDamageToRadius * damage;
         //radius of landscape damage and effect
@@ -960,7 +972,6 @@ class GameEngine {
     }
 
     //insert bitmap into the landscape
-    //(bitmap is a Resource for the network mode, if we'll ever have one)
     void insertIntoLandscape(Vector2i pos, Surface bitmap, Lexel bits) {
         argcheck(bitmap);
         Rect2i newrc = Rect2i.Span(pos, bitmap.size);

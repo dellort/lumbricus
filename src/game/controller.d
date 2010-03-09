@@ -1004,7 +1004,7 @@ class GameController {
 
     //  silent = true to prevent generating an event (for debug drop, to
     //           prevent message spam)
-    bool dropCrate(bool silent = false, WeaponClass fill = null) {
+    bool dropCrate(bool silent = false, Collectable[] contents = null) {
         Vector2f from, to;
         if (!engine.placeObjectRandom(10, 25, from, to)) {
             log("couldn't find a safe drop-position");
@@ -1015,10 +1015,10 @@ class GameController {
         CrateSprite crate = cast(CrateSprite)s;
         assert(!!crate);
         //put stuffies into it
-        if (!fill) {
+        if (!contents.length) {
             crate.stuffies = fillCrate();
         } else {
-            crate.stuffies = [new CollectableWeapon(fill, fill.crateAmount)];
+            crate.stuffies = contents;
         }
         //actually start it
         crate.activate(from);

@@ -24,6 +24,7 @@ static this() {
     gScripting.properties!(WeaponClass, "value", "category", "isAirstrike",
         "allowSecondary", "dontEndRound", "deselectAfterFire",
         "cooldown", "crateAmount", "icon", "fireMode", "animation");
+    gScripting.properties_ro!(WeaponClass, "name");
 
     gScripting.methods!(Shooter, "finished", "reduceAmmo");
     gScripting.properties!(Shooter, "selector", "owner", "fireinfo");

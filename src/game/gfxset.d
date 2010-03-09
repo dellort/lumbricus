@@ -240,7 +240,6 @@ class GfxSet {
         assert(!resources, "what");
         resources = loaded_resources;
 
-        reversedHack();
         loadParticles();
         loadSprites();
         //loaded after all this because Sequences depend from Animations etc.
@@ -252,19 +251,6 @@ class GfxSet {
         loadExplosions();
 
         mFinished = true;
-    }
-
-    //sequence.d wants to reverse some animations, and calls Animation.reversed()
-    //that means a new reference to a non-serializable object is created, but
-    //the object isn't catched by the resource system
-    void reversedHack() {
-        foreach (e; resources.resourceList().dup) {
-            if (e.isAlias())
-                continue;
-            if (auto ani = cast(Animation)e.resource()) {
-                resources.addResource(ani.reversed(), "reversed_" ~ e.name());
-            }
-        }
     }
 
     //only for GameEngine
