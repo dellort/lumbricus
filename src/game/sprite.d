@@ -71,9 +71,6 @@ class Sprite : GameObject {
         physics.backlink = this;
         physics.lifepower = type.initialHp;
 
-        engine.physicworld.add(physics);
-
-        //due to braindamage, can set physic props only after adding to world
         physics.posp = type.initPhysic;
 
         physics.onDie = &physDie;
@@ -109,12 +106,13 @@ class Sprite : GameObject {
     }
 
     override protected void updateInternalActive() {
-        //xxx: doesn't deal with physics!
         if (graphic) {
             graphic.remove();
             graphic = null;
         }
+        physics.remove = true;
         if (internal_active) {
+            engine.physicworld.add(physics);
             auto member = engine.controller ?
                 engine.controller.memberFromGameObject(this, true) : null;
             auto owner = member ? member.team : null;

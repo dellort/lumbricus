@@ -72,6 +72,9 @@ void spawnCluster(SpriteClass sclass, Sprite parent, int count,
     float strength_min, float strength_max, float random_range,
     Vector2f custom_dir = Vector2f(0))
 {
+    argcheck(parent);
+    assert(!!parent.physics);
+
     auto engine = parent.engine;
     auto spos = parent.physics.pos;
     if (custom_dir.x == 0 && custom_dir.y == 0) {

@@ -35,5 +35,10 @@ class GameEngineCallback {
     //used for interpolated/extrapolated drawing (see GameShell.frame())
     //NOTE: changes in arbitrary way on replays (restoring snapshots)
     TimeSourcePublic interpolateTime;
+
+    //helper for profiling
+    //returns the real time or thread time (depends from utils/perf.d) spent
+    //  while drawing the game and non-GUI parts of the game hud (worm labels)
+    Time delegate() getRenderTime;
 }
 

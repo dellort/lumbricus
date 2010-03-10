@@ -53,6 +53,7 @@ class PhysicWorld {
     public void add(PhysicBase obj) {
         argcheck(obj);
         obj.world = this;
+        obj.remove = false;
         mAllObjects.insert_tail(obj);
         if (auto o = cast(PhysicForce)obj)
             mForceObjects.insert_tail(o);
@@ -154,7 +155,7 @@ class PhysicWorld {
         foreach (PhysicContactGen cg; mContactGenerators) {
             //xxx may be dead, but not removed yet (why did we have this
             //    delayed-remove crap again?)
-            if (!cg.dead)
+            if (cg.active)
                 cg.process(deltaT, &handleContact);
         }
 
@@ -195,7 +196,7 @@ class PhysicWorld {
     }
 
     private void callCollide(Contact c) {
-        if ((c.obj[0] && c.obj[0].dead) || (c.obj[1] && c.obj[1].dead))
+        if ((c.obj[0] && !c.obj[0].active) || (c.obj[1] && !c.obj[1].active))
             return;
         assert(!!onCollide);
         onCollide(c);
@@ -204,8 +205,9 @@ class PhysicWorld {
     private void checkUpdates() {
         //do updates
         foreach (PhysicBase obj; mAllObjects) {
-            if (obj.dead) {
-                obj.doDie();
+            if (!obj.active) {
+                if (obj.dead)
+                    obj.doDie();
                 remove(obj);
             }
         }

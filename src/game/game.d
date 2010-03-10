@@ -41,6 +41,10 @@ import tango.core.Traits : ParameterTupleOf;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 
+//fixed framerate for the game logic (all of GameEngine)
+//also check physic frame length cPhysTimeStepMs in world.d
+const Time cFrameLength = timeMsecs(20);
+
 //dummy object *sigh*
 class GlobalEvents : GameObject {
     this(GameEngine aengine) { super(aengine, "root"); }
@@ -107,6 +111,12 @@ class GameEngine {
             char[] tag;
             Team team;
         }
+
+        bool mBenchMode;
+        int mBenchFramesMax;
+        int mBenchFramesCur;
+        Time mBenchDrawTime;
+        PerfTimer mBenchRealTime, mBenchSimTime;
 
         const cWindChange = 80.0f;
         const cMaxWind = 150f;
@@ -456,6 +466,9 @@ class GameEngine {
     }
 
     void frame() {
+        if (mBenchSimTime)
+            mBenchSimTime.start();
+
         auto physicTime = globals.newTimer("game_physic");
         physicTime.start();
         mPhysicWorld.simulate(mGameTime.current);
@@ -483,6 +496,15 @@ class GameEngine {
         }
 
         cleanup_objects();
+
+        if (mBenchSimTime)
+            mBenchSimTime.stop();
+
+        if (mBenchMode) {
+            mBenchFramesCur++;
+            if (mBenchFramesCur >= mBenchFramesMax)
+                benchEnd();
+        }
 
         debug {
             globals.setCounter("active_gameobjects", mActiveObjects.count);
@@ -540,6 +562,40 @@ class GameEngine {
             //(cast(ubyte*)cast(void*)o)[0..o.classinfo.init.length] = 0;
         }
         mKillList.clear();
+    }
+
+    //benchmark mode over simtime game time
+    void benchStart(Time simtime) {
+        mBenchMode = true;
+        mBenchFramesMax = simtime/cFrameLength;
+        auto p = registerLog("benchmark");
+        p("Start benchmark, {} => {} frames...", simtime, mBenchFramesMax);
+        mBenchFramesCur = 0;
+        mBenchDrawTime = mCallbacks.getRenderTime();
+        if (!mBenchSimTime)
+            mBenchSimTime = new PerfTimer(true);
+        mBenchSimTime.reset();
+        if (!mBenchRealTime)
+            mBenchRealTime = new PerfTimer(true);
+        mBenchRealTime.reset();
+        mBenchRealTime.start();
+    }
+
+    bool benchActive() {
+        return mBenchMode;
+    }
+
+    private void benchEnd() {
+        assert(mBenchMode);
+        mBenchMode = false;
+        mBenchRealTime.stop();
+        mBenchDrawTime = mCallbacks.getRenderTime() - mBenchDrawTime;
+        auto p = registerLog("benchmark");
+        p("Benchmark done ({} frames)", mBenchFramesCur);
+        p("Real time (may or may not include sleep() calls): {}",
+            mBenchRealTime.time());
+        p("Game time: {}", mBenchSimTime.time());
+        p("Draw time (without GUI): {}", mBenchDrawTime);
     }
 
     //remove all objects etc. from the scene

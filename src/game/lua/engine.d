@@ -18,8 +18,9 @@ static this() {
         "addEarthQuake", "explosionAt", "damageLandscape",
         "insertIntoLandscape", "countSprites", "ownedTeam", "nukeSplatEffect",
         "checkForActivity", "gameObjectFirst", "gameObjectNext",
-        "debug_pickObject");
-    gScripting.properties_ro!(GameEngine, "events", "globalEvents");
+        "debug_pickObject", "benchStart");
+    gScripting.properties_ro!(GameEngine, "events", "globalEvents",
+        "benchActive");
     gScripting.properties!(GameEngine, "persistentState", "gameLandscapes",
         "scene");
 

@@ -165,7 +165,13 @@ class GameTask : StatefulTask {
             return;
         }
 
-        ConfigNode node = loadConfig("newgame");
+        ConfigNode node;
+        if (str.eatStart(args, "config:")) {
+            node = loadConfig(args);
+            args = "";
+        } else {
+            node = loadConfig("newgame");
+        }
 
         //hack, what else
         //there should be a proper command line parser (for lumbricus.d too)
@@ -179,7 +185,7 @@ class GameTask : StatefulTask {
             return;
         }
 
-        throw new CustomException("unknown commandline params"); //???
+        throw new CustomException("unknown commandline params: >"~args~"<");
     }
 
     //start a game

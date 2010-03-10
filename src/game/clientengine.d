@@ -121,7 +121,9 @@ class ClientGameEngine : GameEngineCallback {
         mEngineTime = new TimeSource("ClientEngine");
         mEngineTime.paused = true;
 
-        mGameDrawTime = globals.newTimer("game_draw_time");
+        //newTimer resets time every second to calculate average times
+        //mGameDrawTime = globals.newTimer("game_draw_time");
+        mGameDrawTime = new PerfTimer(true);
 
         mLocalScene = new Scene();
         mUberScene = new SceneZMix();
@@ -132,6 +134,8 @@ class ClientGameEngine : GameEngineCallback {
 
         auto cb = mEngine.callbacks();
         cb.nukeSplatEffect ~= &nukeSplatEffect;
+
+        cb.getRenderTime = &do_getRenderTime;
 
         //why not use mEngineTime? because higher/non-fixed framerate
         mParticles = new ParticleWorld();
@@ -265,6 +269,10 @@ class ClientGameEngine : GameEngineCallback {
         mGameDrawTime.start();
         mUberScene.draw(canvas);
         mGameDrawTime.stop();
+    }
+
+    Time do_getRenderTime() {
+        return mGameDrawTime.time();
     }
 
     public uint detailLevel() {

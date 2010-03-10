@@ -56,10 +56,6 @@ struct EngineHash {
 //initialized by serialize_register.d
 //Types serialize_types;
 
-//fixed framerate for the game logic (all of GameEngine)
-//also check physic frame length cPhysTimeStepMs in world.d
-const Time cFrameLength = timeMsecs(20);
-
 //the optimum length of the input queue in network mode (i.e. what the engine
 //  will try to reach)
 //if the queue gets longer, game speed will be increased to catch up
@@ -102,7 +98,6 @@ class GameLoader {
         Resources.Preloader mResPreloader;
         bool mNetwork;
         GameShell mShell;
-        bool mStartPaused;
 
         //savegame only
         ConfigNode mGameData;
@@ -218,7 +213,6 @@ class GameLoader {
         }
 
         //this doesn't really make sense, but is a helpful hack for now
-        mStartPaused = mGameConfig.management.getValue!(bool)("start_paused");
         mEnableDemoRecording = mGameConfig.management
             .getValue!(bool)("enable_demo_recording", true);
 
@@ -266,7 +260,6 @@ class GameLoader {
         }
         mShell.mGameTime = new TimeSourceFixFramerate("GameTime",
             mShell.mMasterTime, cFrameLength);
-        mShell.mGameTime.paused = mStartPaused;
 
         mShell.mCEvents = new Events();
         OnGameError.handler(mShell.mCEvents, &mShell.onGameError);

@@ -34,6 +34,10 @@ class PhysicBase {
     ObjListNode!(typeof(this)) base_node;
     PhysicWorld mWorld;
     //set to remove object after simulation
+    bool remove = false;
+    //also works like remove, but will call doDie() after removal
+    //various parts of the game may also read this
+    //use !obj.active() to determine if an object is "in the world"
     bool dead = false;
     //in seconds
     private float mLifeTime = float.infinity;
@@ -79,6 +83,11 @@ class PhysicBase {
 
     void kill() {
         dead = true;
+    }
+
+    //return if an object participates in physic simulation
+    final bool active() {
+        return !(dead || remove);
     }
 
     /+package+/ void simulate(float deltaT) {

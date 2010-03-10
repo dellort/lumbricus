@@ -33,11 +33,12 @@ class PhysicObject : PhysicBase {
         argcheck(p);
         mPosp = p;
         //new POSP -> check values
-        collision = world.collide.findCollisionID(mPosp.collisionID);
+        updateCollision();
         if (mPosp.fixate.x < float.epsilon || mPosp.fixate.y < float.epsilon) {
             if (!mFixateConstraint) {
                 mFixateConstraint = new PhysicFixate(this, mPosp.fixate);
-                mWorld.add(mFixateConstraint);
+                if (mWorld)
+                    mWorld.add(mFixateConstraint);
             }
             mFixateConstraint.fixate = mPosp.fixate;
         } else {
@@ -46,6 +47,18 @@ class PhysicObject : PhysicBase {
                 mFixateConstraint = null;
             }
         }
+    }
+
+    override void addedToWorld() {
+        super.addedToWorld();
+        if (mFixateConstraint)
+            mWorld.add(mFixateConstraint);
+        updateCollision();
+    }
+
+    private void updateCollision() {
+        if (mWorld && mPosp)
+            collision = mWorld.collide.findCollisionID(mPosp.collisionID);
     }
 
     package Vector2f mPos; //pixels
@@ -316,6 +329,8 @@ class PhysicObject : PhysicBase {
     public void checkRotation() {
         switch (mPosp.rotation) {
             case RotateMode.velocity:
+                //when napalm-spamming, 5% of execution time is spent in the
+                //  atan2l function called by toAngle()
                 rotation = velocity.toAngle();
                 break;
             case RotateMode.selfforce:

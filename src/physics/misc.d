@@ -46,7 +46,7 @@ enum RotateMode {
 //contains all values which are considered not-changing physical properties of
 //an object, i.e. they won't be changed by the simulation loop at all
 //code to load from ConfigFile at the end of this file
-class POSP {
+final class POSP {
     float elasticity = 0.99f; //loss of energy when bumping against a surface
     float radius = 10; //pixels
     private float mMass = 10; //in Milli-Worms, 10 Milli-Worms = 1 Worm

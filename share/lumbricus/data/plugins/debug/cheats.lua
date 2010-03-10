@@ -189,4 +189,31 @@ function E.guitest()
     GameFrame_addKeybinds(binds, h)
 end
 
+-- best used with newgame_bench.conf
+function E.benchNapalm()
+    local napalm = worms_shared.standard_napalm
+    assert(napalm)
+    -- this thing is just so we can use spawnCluster()
+    if not spawner_class then
+        spawner_class = createSpriteClass {
+            name = "some_napalm_spawner",
+            initPhysic = relay {
+                fixate = Vector2(0, 0),
+            },
+        }
+    end
+    local spawner = spawnSprite(nil, spawner_class, Vector2(3000, 1700))
+    local maxtime = currentTime() + time("5s")
+    local up = Vector2(0, -1)
+    Game_benchStart(time("20s"))
+    addPeriodicTimer(time("100ms"), function(timer)
+        if currentTime() >= maxtime then
+            Sprite_kill(spawner)
+            timer:cancel()
+            return
+        end
+        spawnCluster(napalm, spawner, 50, 50, 100, 20, up)
+    end)
+end
+
 export_from_table(E)

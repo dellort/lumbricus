@@ -76,6 +76,9 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
 
     if (level) {
         cfg.level = level;
+    } else if (auto levelnode = mConfig.findNode("level_inline")) {
+        auto x = new LevelGeneratorShared();
+        cfg.level = loadSavedLevel(x, levelnode, renderBitmaps);
     } else {
         auto x = new LevelGeneratorShared();
         switch (mConfig["level"]) {
