@@ -361,7 +361,7 @@ class EditLine : Widget {
     override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
-        mCurline = loader.locale()(node.getStringValue("text", mCurline));
+        text = loader.locale()(node.getStringValue("text", mCurline));
 
         super.loadFrom(loader);
     }

@@ -225,12 +225,17 @@ class GameLoader {
             auto demoFile = new ConfigNode();
             demoFile.addNode("game_config", mGameConfig.save());
             char[] filename = "last_demo.";
-            saveConfig(demoFile, filename ~ "conf");
             //why two files? because I want to output stuff in realtime, and
             //  the output should survive even a crash
-            auto outstr = gFS.open(filename ~ "dat", File.WriteCreate);
-            auto threadstr = new ThreadedWriter(outstr);
-            mDemoOutput = threadstr.pipeOut();
+            try {
+                auto outstr = gFS.open(filename ~ "dat", File.WriteCreate);
+                auto threadstr = new ThreadedWriter(outstr);
+                mDemoOutput = threadstr.pipeOut();
+                saveConfig(demoFile, filename ~ "conf");
+            } catch (IOException e) {
+                Trace.formatln("Warning: Failed to create demo file ({}). Demo"
+                    " writing disabled.", e.msg);
+            }
         }
 
         mGfx = new GfxSet(mGameConfig);
@@ -294,14 +299,9 @@ class GameLoader {
         mShell.mEngine.callbacks.cevents = mShell.mCEvents;
 
         if (mDemoInput) {
-            //whee whee we simply set it to replay mode and seriously mess with
-            //  the internals
-            //let's hope it doesn't break
-            mShell.snapForReplay();
+            //changed because replays were ditched (and it looks nicer)
             auto lg = cast(GameShell.InputLog*)mDemoInput;
-            mShell.mReplayInput = *lg;
-            mShell.mTimeStamp = lg.end_ts;
-            mShell.replay();
+            mShell.playback(*lg);
         }
 
         if (onLoadDone)
@@ -677,8 +677,8 @@ class GameShell {
         //xxx not sure if the input for this frame should be fed to the engine
         //    before debug-dumping, I'm too tired to think about that
         if (mReplayMode) {
-            if (mTimeStamp >= mReplayInput.end_ts) {
-                assert(mTimeStamp == mReplayInput.end_ts);
+            if (mTimeStamp >= mCurrentInput.end_ts) {
+                assert(mTimeStamp == mCurrentInput.end_ts);
                 if (mMasterTime.slowDown > 1.0f)
                     mMasterTime.slowDown = 1.0f;
                 mReplayMode = false;
@@ -707,8 +707,12 @@ class GameShell {
             debug_save();+/
         mReplayInput.end_ts = mTimeStamp;
         doUnsnapshot(mReplaySnapshot);
+        playback(mReplayInput);
+    }
+
+    void playback(InputLog input) {
         mLogReplayInput = false;
-        mCurrentInput = mReplayInput.clone;
+        mCurrentInput = input.clone;
         mReplayMode = true;
         log("replay start, time={} ({} ns)", mGameTime.current,
             mGameTime.current.nsecs);
@@ -727,7 +731,7 @@ class GameShell {
 
     Time replayRemain() {
         if (mReplayMode) {
-            return (mReplayInput.end_ts - mTimeStamp)*cFrameLength;
+            return (mCurrentInput.end_ts - mTimeStamp)*cFrameLength;
         } else {
             return Time.Null;
         }
