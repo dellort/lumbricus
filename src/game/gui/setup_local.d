@@ -215,7 +215,7 @@ class LevelWidget : SimpleContainer {
         }
         if (mLevelWindow) {
             //level selector is open
-            if (!mLevelWindow.visible) {
+            if (mLevelWindow.wasClosed) {
                 mLevelWindow = null;
                 if (onSetBusy)
                     onSetBusy(false);
@@ -258,7 +258,7 @@ class LocalGameSetupTask {
         bool mDead;
     }
 
-    this(char[] args = "") {
+    this() {
         auto config = loadConfig("dialogs/localgamesetup_gui");
         auto loader = new LoadGui(config);
 
@@ -401,7 +401,7 @@ class LocalGameSetupTask {
 
     //play a level, hide this GUI while doing that, then return
     void play(Level level) {
-        mWindow.visible = false;
+        mWindow.remove();
         //reset preview dialog
         mWindow.client = mSetup;
 
@@ -420,8 +420,11 @@ class LocalGameSetupTask {
         if (!mGame && mWindow.wasClosed())
             mDead = true;
 
-        if (mDead)
+        if (mDead) {
+            mWindow.remove();
+            Trace.formatln("---------------------kill");
             return false;
+        }
 
         if (mTeameditTask) {
             //team editor is open
@@ -433,6 +436,7 @@ class LocalGameSetupTask {
         //poll for game death
         if (mGame) {
             if (!mGame.active) {
+                Trace.formatln("-----------------------reactive");
                 //show GUI again
                 gWindowFrame.addWindow(mWindow);
 
