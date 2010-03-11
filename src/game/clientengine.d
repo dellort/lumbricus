@@ -27,38 +27,6 @@ import utils.interpolate;
 import tango.math.Math : PI, pow;
 
 
-
-
-//------------------------------ Effects ---------------------------------
-
-
-class NukeSplatEffectImpl : SceneObject {
-    static float nukeFlash(float A)(float x) {
-        if (x < A)
-            return interpExponential!(6.0f)(x/A);
-        else
-            return interpExponential2!(4.5f)((1.0f-x)/(1.0f-A));
-    }
-
-    private {
-        InterpolateFnTime!(float, nukeFlash!(0.01f)) mInterp;
-    }
-
-    this() {
-        zorder = GameZOrder.Splat;
-        mInterp.init(timeMsecs(3500), 0, 1.0f);
-    }
-
-    override void draw(Canvas c) {
-        if (!mInterp.inProgress()) {
-            removeThis();
-            return;
-        }
-        c.drawFilledRect(c.visibleArea(),
-            Color(1.0f, 1.0f, 1.0f, mInterp.value()));
-    }
-}
-
 //client-side game engine, manages all stuff that does not affect gameplay,
 //but needs access to the game and is drawn into the game scene
 class ClientGameEngine : GameEngineCallback {
@@ -133,7 +101,6 @@ class ClientGameEngine : GameEngineCallback {
         initSound();
 
         auto cb = mEngine.callbacks();
-        cb.nukeSplatEffect ~= &nukeSplatEffect;
 
         cb.getRenderTime = &do_getRenderTime;
 
@@ -208,10 +175,6 @@ class ClientGameEngine : GameEngineCallback {
         // 3. resuming snapshots
         //but maybe this should be moved to gemashell.d
         // - lol nothing here anymore
-    }
-
-    private void nukeSplatEffect() {
-        scene.add(new NukeSplatEffectImpl());
     }
 
     bool paused() {

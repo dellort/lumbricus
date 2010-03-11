@@ -22,7 +22,6 @@ import utils.vector2;
 import utils.configfile;
 import utils.log;
 import utils.time;
-import utils.md;
 import utils.misc;
 import utils.array;
 import utils.queue;
@@ -1050,7 +1049,7 @@ class GameController {
     //doesn't raise water / affect gameplay
     void startSuddenDeath() {
         engine.addEarthQuake(500, timeSecs(4.5f), true);
-        engine.callbacks.nukeSplatEffect();
+        engine.nukeSplatEffect();
         OnSuddenDeath.raise(engine.globalEvents);
     }
 }

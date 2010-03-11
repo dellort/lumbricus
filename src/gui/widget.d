@@ -1740,7 +1740,8 @@ final class MainFrame : Widget {
         doMouseEnterLeave(true); //mous always in, initial event
         pollFocusState();
 
-        gOnChangeLocale ~= &onLocaleChange;
+        assert(!gOnChangeLocale);
+        gOnChangeLocale = &onLocaleChange;
     }
 
     void add(Widget obj) {

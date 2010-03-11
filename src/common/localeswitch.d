@@ -7,7 +7,7 @@ import framework.font;
 import framework.i18n;
 import gui.loader;
 import gui.widget;
-import gui.wm;
+import gui.window;
 import gui.button;
 import gui.dropdownlist;
 import utils.configfile;
@@ -15,21 +15,18 @@ import utils.misc;
 import utils.rect2;
 import utils.vector2;
 
-class LocaleSwitch : Task {
+class LocaleSwitch {
     private {
         Widget mDialog;
-        Window mWindow;
+        WindowWidget mWindow;
         DropDownList mLocaleList;
         char[][] mLocaleIds;
         char[] mOldLanguage, mSelLanguage;
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this(char[] args) {
         //if "check" is passed, exit if a language is already set
         if (args == "check" && gCurrentLanguage.length > 0) {
-            kill();
             return;
         }
 
@@ -64,14 +61,14 @@ class LocaleSwitch : Task {
         mLocaleList.list.setContents(locList);
 
         mDialog = loader.lookup("locale_root");
-        mWindow = gWindowManager.createWindow(this, mDialog,
+        mWindow = gWindowFrame.createWindow(mDialog,
             r"\t(localeswitch.caption)");
     }
 
     private void cancelClick(Button sender) {
         //locale may have been changed on selection, reset it
         globals.initLocale(mOldLanguage);
-        kill();
+        mWindow.remove();
     }
 
     private void okClick(Button sender) {
@@ -81,7 +78,7 @@ class LocaleSwitch : Task {
         node["language_id"] = mSelLanguage;
         saveConfig(node, "language.conf");
         //locale should already be active
-        kill();
+        mWindow.remove();
     }
 
     private void localeSelect(DropDownList sender) {
@@ -94,6 +91,6 @@ class LocaleSwitch : Task {
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("localeswitch");
+        registerTaskClass!(typeof(this))("localeswitch");
     }
 }

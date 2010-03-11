@@ -15,7 +15,6 @@ import utils.log;
 import utils.configfile;
 import utils.misc;
 import utils.time;
-import utils.md;
 
 import tango.util.Convert : to;
 

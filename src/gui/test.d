@@ -3,7 +3,7 @@ module gui.test;
 import gui.container;
 import gui.console;
 import gui.global;
-import gui.wm;
+import gui.window;
 import gui.widget;
 import gui.button;
 import gui.boxcontainer;
@@ -184,7 +184,7 @@ class TestFrame7 : Container {
     Button mCreate;
     Vector2i mGravity;
     CheckBoxGroup mChk;
-    Window mActivePopup;
+    WindowWidget mActivePopup;
     Widget mPopup;
     ScrollBar mAlign, mLength;
     CheckBox mVolatile, mInside;
@@ -232,42 +232,15 @@ class TestFrame7 : Container {
 
     void onChk(CheckBox b) {
         mChk.check(b);
-        update();
+        //update();
     }
 
     void onAlign(ScrollBar b) {
-        update();
+        //update();
     }
 
     void onCreate(Button b) {
-        if (mActivePopup)
-            mActivePopup.destroy();
-        mActivePopup = gWindowManager.createPopup(mPopup, this,
-            Vector2i(0), Vector2i(0), false);
-        update();
-        mActivePopup.visible = true;
-    }
-
-    void update() {
-        if (!mActivePopup)
-            return;
-        WindowInitialPlacement p;
-        Widget w = mInside;
-        p.relative = mInside.checked ? w : findWindowForWidget(this).window;
-        p.place = WindowInitialPlacement.Placement.gravity;
-        Vector2i sel(int idx) {
-            switch (idx) {
-                case 0: return Vector2i(-1, 0);
-                case 1: return Vector2i(0, -1);
-                case 2: return Vector2i(+1, 0);
-                default /+3+/: return Vector2i(0, +1);
-            }
-        }
-        p.gravity = sel(mChk.checkedIndex())*mLength.curValue;
-        p.gravityAlign = 1.0f*mAlign.curValue/(mAlign.maxValue+1);
-        mActivePopup.isFocusVolatile = mVolatile.checked;
-        mActivePopup.initialPlacement = p;
-        mActivePopup.updatePlacement();
+        // code killed in r1103
     }
 }
 
@@ -373,15 +346,13 @@ class TestFrame10 : Container {
 }
 
 //just to show the testframe
-class TestTask : Task {
+class TestTask {
     //private Widget mWindow;
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this() {
         //xxx move to WindowFrame
         void createWindow(char[] name, Widget client) {
-            gWindowManager.createWindow(this, client, name);
+            gWindowFrame.createWindow(client, name);
         }
 
         createWindow("TestFrame", new TestFrame);
@@ -402,11 +373,6 @@ class TestTask : Task {
         createWindow("Test gradient", new TestGradient());
         createWindow("Tabs", new TestFrame10());
 
-        auto k = new Button();
-        k.text = "Kill!!!1";
-        k.onClick = &onKill;
-        createWindow("hihi", k);
-
         //test loading GUIs from file
         auto loader = new LoadGui(loadConfig("dialogs/test_gui"));
         loader.load();
@@ -425,20 +391,12 @@ class TestTask : Task {
 //        getFramework.clearColor = Color(1,1,1);
     }
 
-    private void onKill(Button b) {
-        terminate();
-    }
-
-    override protected void onKill() {
-        //mWindow.remove();
-    }
-
     static this() {
-        TaskFactory.register!(typeof(this))("testtask");
+        registerTaskClass!(typeof(this))("testtask");
     }
 }
 
-class TestTask2 : Task {
+class TestTask2 {
     const cBorder = Vector2i(10);
 
     class FontTest : Widget {
@@ -538,9 +496,7 @@ class TestTask2 : Task {
         mBox.box.noRoundedCorners = sender.checked();
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this() {
         mFont = new FontTest();
         mBox = new BoxTest();
 
@@ -590,16 +546,15 @@ class TestTask2 : Task {
 
         onScrollbar(null); //update
 
-        gWindowManager.createWindow(this, gui, "Alpha test",
-            Vector2i(450, 300));
+        gWindowFrame.createWindow(gui, "Alpha test", Vector2i(450, 300));
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("alphatest");
+        registerTaskClass!(typeof(this))("alphatest");
     }
 }
 
-class TestTask3 : Task {
+class TestTask3 {
     ScrollBar[4] mBars;
     ImgView mView;
     char[] filename = "storedlevels/bla.png";
@@ -679,9 +634,7 @@ class TestTask3 : Task {
         }
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this() {
         //yes, most code copypasted from alphatest
         auto tgui = new BoxContainer(true, false, 3);
         mFList = new StringListWidget();
@@ -737,16 +690,16 @@ class TestTask3 : Task {
 
         loadFile(filename);
 
-        gWindowManager.createWindow(this, tgui, "BCG test", Vector2i(450, 300));
+        gWindowFrame.createWindow(tgui, "BCG test", Vector2i(450, 300));
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("bcg");
+        registerTaskClass!(typeof(this))("bcg");
     }
 }
 
 //write GUI events into a log window
-class TestTask4 : Task {
+class TestTask4 {
     template ReportEvents() {
         Output log;
 
@@ -807,32 +760,18 @@ class TestTask4 : Task {
         gFramework.mouseLocked = sender.checked();
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this() {
         auto log = new LogWindow(gFontManager.loadFont("normal"));
 
         auto x = new W1();
         x.log = log;
-        auto t = gWindowManager.createWindow(this, x, "huh", Vector2i(400, 200));
+        auto t = gWindowFrame.createWindow(x, "huh", Vector2i(400, 200));
 
-        auto wnd = gWindowManager.createWindow(this, log, "log",
-            Vector2i(400, 175), false);
-        auto wip = wnd.initialPlacement;
-        wip.place = wip.Placement.gravity;
-        wip.gravity = Vector2i(0, 10);
-        wip.relative = t.client();
-        wnd.initialPlacement = wip;
-        wnd.visible = true;
-
-        /+auto blubb = new Button();
-        blubb.text = "lock";
-        blubb.isCheckbox = true;
-        blubb.onClick = &mouseLock;
-        gWindowManager.createWindow(this, blubb, "...");+/
+        auto wnd = gWindowFrame.createWindow(log, "log",
+            Vector2i(400, 175));
     }
     static this() {
-        TaskFactory.register!(typeof(this))("events");
+        registerTaskClass!(typeof(this))("events");
     }
 }
 
@@ -849,7 +788,7 @@ class TestTask4 : Task {
 //   black lines
 //error on my machine, when the hack in fwgl.d is disabled: filled rectangles
 //   look like 1 was added to all y coordinates
-class OffByOneTest : Task {
+class OffByOneTest {
     class W : Widget {
         Surface bmp;
         this() {
@@ -886,17 +825,15 @@ class OffByOneTest : Task {
         }
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
-        gWindowManager.createWindow(this, new W(), "off-by-one", Vector2i(400, 200));
+    this() {
+        gWindowFrame.createWindow(new W(), "off-by-one", Vector2i(400, 200));
     }
     static this() {
-        TaskFactory.register!(typeof(this))("offbyone");
+        registerTaskClass!(typeof(this))("offbyone");
     }
 }
 
-class TextColorTest : Task {
+class TextColorTest {
     FormattedText mText;
 
     class W : Widget {
@@ -921,9 +858,7 @@ class TextColorTest : Task {
         mText.shrink = sender.checked ? ShrinkMode.wrap : ShrinkMode.shrink;
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this() {
         mText = new FormattedText();
         mText.shrink = ShrinkMode.shrink;
 
@@ -940,31 +875,29 @@ class TextColorTest : Task {
         box.add(wrap, WidgetLayout.Expand(true));
         box.add(new W());
 
-        gWindowManager.createWindow(this, box, "Colored text",
+        gWindowFrame.createWindow(box, "Colored text",
             Vector2i(600, 900));
     }
     static this() {
-        TaskFactory.register!(typeof(this))("colortext");
+        registerTaskClass!(typeof(this))("colortext");
     }
 }
 
-class MultiLineTest : Task {
+class MultiLineTest {
     MultilineEdit mEdit;
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this() {
         mEdit = new typeof(mEdit)();
 
-        gWindowManager.createWindow(this, mEdit, "multine edit",
+        gWindowFrame.createWindow(mEdit, "multine edit",
             Vector2i(300, 200));
     }
     static this() {
-        TaskFactory.register!(typeof(this))("multilinetest");
+        registerTaskClass!(typeof(this))("multilinetest");
     }
 }
 
-class PixelTest : Task {
+class PixelTest {
 
     class W : Widget {
         int x;
@@ -992,17 +925,15 @@ class PixelTest : Task {
         }
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
-        gWindowManager.createWindowFullscreen(this, new W(), "meh");
+    this() {
+        gWindowFrame.createWindowFullscreen(new W(), "meh");
     }
     static this() {
-        TaskFactory.register!(typeof(this))("pixeltest");
+        registerTaskClass!(typeof(this))("pixeltest");
     }
 }
 
-class FoobarTest : Task {
+class FoobarTest {
     private Label mLabel;
     private Foobar mFoo;
     private ScrollBar mBar1, mBar2;
@@ -1014,9 +945,7 @@ class FoobarTest : Task {
         mFoo.minSize = Vector2i(mBar2.curValue, 0);
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this() {
         auto box = new BoxContainer(false, false, 10);
 
         mLabel = new Label();
@@ -1046,14 +975,14 @@ class FoobarTest : Task {
 
         onScroll(mBar1);
 
-        gWindowManager.createWindow(this, box, "Foobar", Vector2i(200, 150));
+        gWindowFrame.createWindow(box, "Foobar", Vector2i(200, 150));
     }
     static this() {
-        TaskFactory.register!(typeof(this))("foobartest");
+        registerTaskClass!(typeof(this))("foobartest");
     }
 }
 
-class CanvasTest : Task {
+class CanvasTest {
     private {
         ScrollBar mRot, mZoom;
         const cZoomScale = 100;
@@ -1094,9 +1023,7 @@ class CanvasTest : Task {
         }
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this() {
         auto box = new BoxContainer(false, false, 10);
 
         mRot = new ScrollBar(true);
@@ -1122,11 +1049,11 @@ class CanvasTest : Task {
         mImg = gFramework.loadImage("level/gpl/objects/keller.png");
         mImgSub = mImg.createSubSurface(mImg.rect);
 
-        gWindowManager.createWindow(this, box, "drawtest", Vector2i(500, 500));
+        gWindowFrame.createWindow(box, "drawtest", Vector2i(500, 500));
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("drawtest");
+        registerTaskClass!(typeof(this))("drawtest");
     }
 }
 
@@ -1154,7 +1081,7 @@ static this() {
     setF!(gFuncsExp2, interpExponential2)();
 }
 
-class InterpTest : Task {
+class InterpTest {
     ScrollBar bar;
     Label mLabel;
     int mIdx;
@@ -1182,9 +1109,7 @@ class InterpTest : Task {
         }
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this() {
         auto box = new BoxContainer(false, false, 1);
 
         mLabel = new Label();
@@ -1198,7 +1123,7 @@ class InterpTest : Task {
         box.add(new W());
         onScroll(bar);
 
-        gWindowManager.createWindow(this, box,
+        gWindowFrame.createWindow(box,
             "Interpolate [0, 1]; r = Exp2, g = Exp, y = Linear",
             Vector2i(500, 550));
     }
@@ -1209,6 +1134,6 @@ class InterpTest : Task {
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("interpolate");
+        registerTaskClass!(typeof(this))("interpolate");
     }
 }

@@ -1,4 +1,5 @@
 module game.game;
+import game.effects;
 import game.levelgen.level;
 import game.levelgen.landscape;
 import game.gobject;
@@ -25,7 +26,6 @@ import utils.time;
 import utils.log;
 import utils.configfile;
 import utils.math;
-import utils.md;
 import utils.misc;
 import utils.perf;
 import utils.random;
@@ -449,7 +449,7 @@ class GameEngine {
     }
 
     void nukeSplatEffect() {
-        callbacks.nukeSplatEffect();
+        callbacks.scene.add(new NukeSplatEffect());
     }
 
     void ensureAdded(GameObject obj) {

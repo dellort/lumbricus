@@ -206,25 +206,4 @@ class Common {
     void setByteSizeStat(char[] name, size_t size) {
         size_stats[name] = size;
     }
-
-    //cb will be called each frame between Task and GUI updates
-    //if return value of cb is false, the cb is removed from the list
-    //better use the Task stuff or override Widget.simulate()
-    void addFrameCallback(bool delegate() cb) {
-        //memory will be copied (unlike as in "mFrameCallbacks ~= cb;")
-        mFrameCallbacks = mFrameCallbacks ~ cb;
-    }
-    void callFrameCallBacks() {
-        //robust enough to deal with additions/removals during iterating
-        int[] mRemoveList;
-        foreach (int idx, cb; mFrameCallbacks) {
-            if (!cb())
-                mRemoveList ~= idx;
-        }
-        //works even after modifications because the only possible change is
-        //adding new callbacks
-        foreach_reverse (x; mRemoveList) {
-            mFrameCallbacks = mFrameCallbacks[0..x] ~ mFrameCallbacks[x+1..$];
-        }
-    }
 }

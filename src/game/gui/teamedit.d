@@ -10,16 +10,16 @@ import gui.edit;
 import gui.dropdownlist;
 import gui.button;
 import gui.renderbox;
-import gui.wm;
+import gui.window;
 import gui.loader;
 import gui.list;
 import utils.configfile;
 import utils.misc;
 
-class TeamEditorTask : Task {
+class TeamEditorTask {
     private {
         Widget mEditor;
-        Window mWindow;
+        WindowWidget mWindow;
 
         DropDownList mTeamsDropdown, mControlDropdown;
         EditLine mTeamEdit;
@@ -31,9 +31,7 @@ class TeamEditorTask : Task {
         int mLastTeamId = -1;
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this() {
         mTeamConf = loadConfig("teams");
         mTeams = mTeamConf.getSubNode("teams");
         mLastTeamId = mTeamConf.getIntValue("lastid", mLastTeamId);
@@ -63,7 +61,7 @@ class TeamEditorTask : Task {
         updateTeams();
 
         mEditor = loader.lookup("teamedit_root");
-        mWindow = gWindowManager.createWindow(this, mEditor,
+        mWindow = gWindowFrame.createWindow(mEditor,
             r"\t(teameditor.caption)");
     }
 
@@ -245,14 +243,18 @@ class TeamEditorTask : Task {
     private void okClick(Button sender) {
         mTeamConf.setIntValue("lastid", mLastTeamId);
         saveConfig(mTeamConf, "teams.conf");
-        kill();
+        mWindow.remove();
     }
 
     private void cancelClick(Button sender) {
-        kill();
+        mWindow.remove();
+    }
+
+    bool active() {
+        return !mWindow.wasClosed();
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("teameditor");
+        registerTaskClass!(typeof(this))("teameditor");
     }
 }

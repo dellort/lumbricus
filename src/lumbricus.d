@@ -34,10 +34,8 @@ import gui.test; //GUI test code
 
 version (Game) {
     import game.gametask; //the game itself
-    import game.gui.leveledit; //aw
     import game.gui.welcome;
     import game.gui.teamedit;
-    import game.gui.weaponedit;
     import game.gui.setup_local;
     import game.gui.levelpaint;
     import net.cmdserver_gui;

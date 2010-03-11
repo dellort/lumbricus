@@ -2,7 +2,6 @@ module game.gametask;
 
 import common.common;
 import common.task;
-import common.loadsave;
 import common.resources;
 import common.resset;
 import common.resview;
@@ -33,7 +32,7 @@ import gui.global;
 import gui.label;
 import gui.tablecontainer;
 import gui.widget;
-import gui.wm;
+import gui.window;
 import gui.button;
 import gui.dropdownlist;
 import gui.boxcontainer;
@@ -122,7 +121,7 @@ class Fader : Widget {
     }
 }
 
-class GameTask : StatefulTask {
+class GameTask {
     private {
         GameShell mGameShell; //can be null, if a client in a network game!
         GameLoader mGameLoader; //creates a GameShell
@@ -134,6 +133,7 @@ class GameTask : StatefulTask {
 
         GameFrame mGameFrame;
         SimpleContainer mWindow;
+        WindowWidget mRealWindow;
 
         LoadingScreen mLoadScreen;
         Loader mGUIGameLoader;
@@ -148,15 +148,15 @@ class GameTask : StatefulTask {
         bool mDelayedFirstFrame; //draw screen before loading first chunk
 
         ConfigNode mGamePersist;
+
+        bool mDead;
     }
 
     //not happy with this; but who cares
     //this _really_ should be considered to be a debugging features
     //(to use it from the factory)
     //use the other constructor and pass it a useful GameConfig
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this(char[] args = "") {
         createWindow();
 
         if (str.eatStart(args, "demo:")) {
@@ -189,23 +189,12 @@ class GameTask : StatefulTask {
     }
 
     //start a game
-    this(TaskManager tm, GameConfig cfg) {
-        super(tm);
-
+    this(GameConfig cfg) {
         createWindow();
         initGame(cfg);
     }
 
-    this(TaskManager tm, TarArchive savedState) {
-        super(tm);
-
-        createWindow();
-        initFromSave(savedState);
-    }
-
-    this(TaskManager tm, GameLoader loader, SimpleNetConnection con) {
-        super(tm);
-
+    this(GameLoader loader, SimpleNetConnection con) {
         mGameLoader = loader;
         mConnection = con;
         mConnection.onGameStart = &netGameStart;
@@ -216,13 +205,13 @@ class GameTask : StatefulTask {
 
     private void createWindow() {
         mWindow = new SimpleContainer();
-        auto wnd = gWindowManager.createWindowFullscreen(this, mWindow,
+        mRealWindow = gWindowFrame.createWindowFullscreen(mWindow,
             r"\t(game_title)");
         //background is mostly invisible, except when loading and at low
         //detail levels (where the background isn't completely overdrawn)
-        auto props = wnd.properties;
+        auto props = mRealWindow.properties;
         props.background = Color(0); //black :)
-        wnd.properties = props;
+        mRealWindow.properties = props;
 
         mCmds = new CommandBucket();
         mCmds.helpTranslator = localeRoot.bindNamespace(
@@ -240,16 +229,6 @@ class GameTask : StatefulTask {
     //it's not clear when initialization is finished (but it shows a loader gui)
     private void initGame(GameConfig cfg) {
         mGameLoader = GameLoader.CreateNewGame(cfg);
-        doInit();
-    }
-
-    private void initFromSave(TarArchive tehfile) {
-        auto guiconf = tehfile.readConfigStream("gui.conf");
-
-        //mSavedViewPosition = guiconf.getValue!(Vector2i)("viewpos");
-        //mSavedSetViewPosition = true;
-
-        mGameLoader = GameLoader.CreateFromSavegame(tehfile);
         doInit();
     }
 
@@ -275,6 +254,8 @@ class GameTask : StatefulTask {
         mGUIGameLoader.onFinish = &gameLoaded;
 
         mLoadScreen.setPrimaryChunks(chunks);
+
+        addTask(&onFrame);
     }
 
     private void unloadGame() {
@@ -390,20 +371,17 @@ class GameTask : StatefulTask {
         mControl = null;
     }
 
-    override protected void onKill() {
-        //smash it up (forced kill; unforced goes into terminate())
+    void kill() {
+        if (mDead)
+            return;
+        mDead = true;
+        mRealWindow.remove();
         unloadAndReset();
         mCmds.kill();
         if (mGameFrame)
             mGameFrame.remove(); //from GUI
         if (mLoadScreen)
             mLoadScreen.remove();
-    }
-
-    override void terminate() {
-        //this is called when the window is closed
-        //go boom
-        kill();
     }
 
     void terminateWithFadeOut() {
@@ -423,7 +401,11 @@ class GameTask : StatefulTask {
         }
     }
 
-    override protected void onFrame() {
+    private bool onFrame() {
+        if (mRealWindow.wasClosed())
+            kill();
+        if (mDead)
+            return false;
         if (mGUIGameLoader.fullyLoaded) {
             if (mGameShell) {
                 mGameShell.frame();
@@ -456,20 +438,8 @@ class GameTask : StatefulTask {
 
         //he-he
         doFade();
-    }
 
-    //implements StatefulTask
-    override void saveState(TarArchive tehfile) {
-        if (!mGameShell)
-            throw new CustomException("can't save network game as client");
-
-        mGameShell.saveGame(tehfile);
-
-        auto guiconf = new ConfigNode();
-        guiconf.setValue!(Vector2i)("viewpos", mGameFrame.getPosition());
-        auto zwriter = tehfile.openWriteStream("gui.conf");
-        guiconf.writeFile(zwriter);
-        zwriter.close();
+        return true;
     }
 
     //game specific commands
@@ -542,18 +512,17 @@ class GameTask : StatefulTask {
     private void cmdShowCollide(MyBox[] args, Output write) {
         if (!mGameShell)
             return;
-        gWindowManager.createWindow(this, new ShowCollide(),
-            "Collision matrix");
+        gWindowFrame.createWindow(new ShowCollide(), "Collision matrix");
     }
 
     private void cmdGameRes(MyBox[] args, Output write) {
         if (!mGameShell)
             return;
-        new ResViewerTask(manager, mGameShell.serverEngine.gfx.resources);
+        new ResViewerTask(mGameShell.serverEngine.gfx.resources);
     }
 
     private void cmdLua(MyBox[] args, Output write) {
-        new LuaInterpreter(manager, mGameShell.serverEngine.scripting);
+        new LuaInterpreter(mGameShell.serverEngine.scripting);
     }
 
     //slow time <whatever>
@@ -632,26 +601,24 @@ class GameTask : StatefulTask {
         return mGamePersist;
     }
 
-    const cSaveId = "lumbricus";
-
-    override char[] saveId() {
-        return cSaveId;
+    //game is running
+    bool active() {
+        return !mDead;
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("game");
-        StatefulFactory.register!(typeof(this))(cSaveId);
+        registerTaskClass!(typeof(this))("game");
     }
 }
 
-class LuaInterpreter : Task {
+class LuaInterpreter {
     private {
         CommandLine mCmdLine;
         LuaState mLua;
         Output mOut;
     }
 
-    this(TaskManager mgr, char[] args = "") {
+    this(char[] args = "") {
         auto state = new LuaState();
 
         //copy and paste
@@ -665,12 +632,10 @@ class LuaInterpreter : Task {
 
         loadscript("utils.lua");
 
-        this(mgr, state);
+        this(state);
     }
 
-    this(TaskManager mgr, LuaState state) {
-        super(mgr);
-
+    this(LuaState state) {
         mLua = state;
 
         auto w = new GuiConsole();
@@ -680,7 +645,7 @@ class LuaInterpreter : Task {
             ["text...:code"]);
         mOut = w.output;
         mOut.writefln("Scripting console using: {}", mLua.cLanguageAndVersion);
-        gWindowManager.createWindow(this, w, "Lua Console", Vector2i(400, 200));
+        gWindowFrame.createWindow(w, "Lua Console", Vector2i(400, 200));
 
         //this might be a bit dangerous/unwanted
         //but we need it for this console
@@ -710,6 +675,6 @@ class LuaInterpreter : Task {
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("luaconsole");
+        registerTaskClass!(typeof(this))("luaconsole");
     }
 }

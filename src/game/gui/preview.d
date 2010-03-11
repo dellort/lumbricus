@@ -10,7 +10,6 @@ import gui.button;
 import gui.boxcontainer;
 import gui.label;
 import gui.tablecontainer;
-import gui.wm;
 import gui.dropdownlist;
 import gui.loader;
 import game.levelgen.generator;

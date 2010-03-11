@@ -5,7 +5,6 @@ import framework.filesystem;
 import utils.configfile;
 import utils.log;
 import utils.misc;
-import utils.md;
 //import utils.weaklist;
 import str = utils.string;
 import tango.util.Convert;
@@ -27,7 +26,7 @@ public char[] gCurrentLanguage;
 public char[] gFallbackLanguage;
 
 //called when the language is changed
-public MDelegate!() gOnChangeLocale;
+public void delegate() gOnChangeLocale;
 
 private {
     Log log;
@@ -389,7 +388,8 @@ public void initI18N(char[] lang) {
             tr.reinit();
         }
     }
-    gOnChangeLocale();
+    if (gOnChangeLocale)
+        gOnChangeLocale();
 }
 
 void addLocaleDir(char[] targetId, char[] localePath) {

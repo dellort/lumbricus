@@ -9,7 +9,7 @@ import common.task;
 import gui.widget;
 import gui.container;
 import gui.label;
-import gui.wm;
+import gui.window;
 import utils.configfile;
 import utils.random : rngShared;
 import utils.time;
@@ -19,7 +19,7 @@ import utils.misc;
 import tango.math.Math : abs;
 
 //Pyro clone, which again was a bomberman clone
-class BomberWorm : Task {
+class BomberWorm {
 private:
     const cW = 19, cH = 13;
     const cTileSize = 32;
@@ -34,6 +34,8 @@ private:
     GameObject[] mObjects;
 
     Cell[][] mCells; //addressed mCells[x][y]
+
+    WindowWidget mWindow;
 
     class Cell {
         bool impwall; //impenetrable wall
@@ -431,13 +433,12 @@ private:
         }
     }
 
-    public this(TaskManager mgr, char[] args = "") {
-        super(mgr);
+    public this(char[] args = "") {
 
         mTime = new TimeSource("bomberworm");
         mTime.update();
 
-        auto window = gWindowManager.createWindow(this, new IO(), "BomberWorm");
+        mWindow = gWindowFrame.createWindow(new IO(), "BomberWorm");
 
         ConfigNode config = loadConfig("bomberworm");
         const nPlayers = 1;
@@ -476,9 +477,14 @@ private:
                 mCells[x][y].wall = true;
             }
         }
+
+        addTask(&onFrame);
     }
 
-    override protected void onFrame() {
+    private bool onFrame() {
+        if (mWindow.wasClosed())
+            return false;
+
         mTime.update();
 
         for (int x = 0; x < cW; x++) {
@@ -498,9 +504,11 @@ private:
                 mObjects = mObjects[0..n] ~ mObjects[n+1..$];
             }
         }
+
+        return true;
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("bomberworm");
+        registerTaskClass!(typeof(this))("bomberworm");
     }
 }

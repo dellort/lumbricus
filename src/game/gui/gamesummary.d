@@ -7,7 +7,7 @@ import framework.i18n;
 import framework.font;
 import game.gfxset;
 import gui.loader;
-import gui.wm;
+import gui.window;
 import gui.widget;
 import gui.button;
 import gui.label;
@@ -15,9 +15,9 @@ import gui.tablecontainer;
 import utils.configfile;
 import utils.strparser : ConversionException;
 
-class GameSummary : Task {
+class GameSummary {
     private {
-        Window mWindow;
+        WindowWidget mWindow;
         Widget mDialog;
         Button mCloseButton;
         Label mGameWinLabel, mRoundWinLabel, mVictoryLabel;
@@ -25,9 +25,7 @@ class GameSummary : Task {
         bool mGameOver;
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this(ConfigNode persist) {
         auto config = loadConfig("dialogs/gamesummary_gui");
         auto loader = new LoadGui(config);
         loader.load();
@@ -42,25 +40,27 @@ class GameSummary : Task {
         mScoreTable = loader.lookup!(TableContainer)("tbl_score");
 
         mDialog = loader.lookup("gamesummary_root");
-        mWindow = gWindowManager.createWindow(this, mDialog, "");
 
+/+
         //xxx for debugging, you can do "spawn scores last" and it will show
         //    the last debug dump
         if (args == "last") {
             init(loadConfig("persistence_debug"));
         }
++/
+
+        init(persist);
     }
 
-    void init(ConfigNode persist) {
+    private void init(ConfigNode persist) {
         //valid check
         if (!persist || !persist.exists("teams")
             || !persist.exists("round_counter"))
         {
             mGameOver = false;
-            kill();
             return;
         }
-        auto props = mWindow.properties;
+        WindowProperties props;
         auto teamsNode = persist.getSubNode("teams");
         props.background = Color(0.2, 0.2, 0.2);
         char[] bgCol;
@@ -108,7 +108,6 @@ class GameSummary : Task {
             } catch (ConversionException e) {
             }
         }
-        mWindow.properties = props;
 
         mScoreTable.clear();
         mScoreTable.setSize(2, teamsNode.count);
@@ -130,9 +129,13 @@ class GameSummary : Task {
             translate("gamesummary.victory." ~ persist["victory_type"],
             persist["victory_count"]));
 
+/+
         mWindow.window.position = gFramework.screenSize/2
             - mWindow.window.size/2;
         mWindow.window.activate();
++/
+        mWindow = gWindowFrame.createWindow(mDialog, "");
+        mWindow.properties = props;
     }
 
     bool gameOver() {
@@ -140,11 +143,15 @@ class GameSummary : Task {
     }
 
     private void closeClick(Button sender) {
-        kill();
+        mWindow.remove();
     }
 
-    //debug only, normally you would not need this
-    static this() {
-        TaskFactory.register!(typeof(this))("scores");
+    bool active() {
+        return mWindow && !mWindow.wasClosed();
+    }
+
+    void remove() {
+        if (mWindow)
+            mWindow.remove();
     }
 }

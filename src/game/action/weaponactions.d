@@ -100,7 +100,7 @@ void earthquake(ActionContext ctx, float strength, bool degrade,
     ctx.engine.addEarthQuake(strength, duration, degrade, bounce_objects);
     //nuke effect
     if (nuke_effect) {
-        ctx.engine.callbacks.nukeSplatEffect();
+        ctx.engine.nukeSplatEffect();
     }
 }
 

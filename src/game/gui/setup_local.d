@@ -16,7 +16,7 @@ import gui.widget;
 import gui.edit;
 import gui.dropdownlist;
 import gui.button;
-import gui.wm;
+import gui.window;
 import gui.loader;
 import gui.list;
 import gui.boxcontainer;
@@ -40,9 +40,8 @@ class LevelWidget : SimpleContainer {
         BoxContainer mLevelDDBox;
         LevelGeneratorShared mGenerator;
 
-        Window mLevelWindow;
+        WindowWidget mLevelWindow;
         LevelSelector mSelector;  //8-level window, created once and reused then
-        Task mOwner;
 
         const cSavedLevelsPath = "storedlevels/";
         const cLastlevelConf = "lastlevel";
@@ -50,8 +49,7 @@ class LevelWidget : SimpleContainer {
 
     void delegate(bool busy) onSetBusy;
 
-    this(Task owner) {
-        mOwner = owner;
+    this() {
         mGenerator = new LevelGeneratorShared();
 
         auto config = loadConfig("dialogs/gamesetupshared_gui");
@@ -179,9 +177,8 @@ class LevelWidget : SimpleContainer {
             mSelector.onAccept = &lvlAccept;
         }
         mSelector.loadLevel(mCurrentLevel);
-        mLevelWindow = gWindowManager.createWindow(mOwner, mSelector,
+        mLevelWindow = gWindowFrame.createWindow(mSelector,
             r"\t(levelselect.caption)");
-        mLevelWindow.onClose = &levelWindowClose;
         if (onSetBusy)
             onSetBusy(true);
     }
@@ -207,12 +204,7 @@ class LevelWidget : SimpleContainer {
             setCurrentLevel(gen);
             mSavedLevels.selection = "";
         }
-        mLevelWindow.visible = false;
-    }
-
-    private bool levelWindowClose(Window sender) {
-        //lol, just to prevent killing the task
-        return true;
+        mLevelWindow.remove();
     }
 
     override void simulate() {
@@ -232,10 +224,10 @@ class LevelWidget : SimpleContainer {
     }
 }
 
-class LocalGameSetupTask : Task {
+class LocalGameSetupTask {
     private {
         Widget mSetup, mWaiting;
-        Window mWindow;
+        WindowWidget mWindow;
         DropDownList mTemplates;
         Button mGoBtn, mEditTeamsBtn;
 
@@ -260,20 +252,17 @@ class LocalGameSetupTask : Task {
         //note that it might contain invalid (deleted) teams
         TeamDef[char[]] mActiveTeams;
 
-        //background level rendering thread *g*
-        //LvlGenThread mThread;
-        //bool mThWaiting = false;
         GameTask mGame;
         ConfigNode mGamePersist;
+
+        bool mDead;
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this(char[] args = "") {
         auto config = loadConfig("dialogs/localgamesetup_gui");
         auto loader = new LoadGui(config);
 
-        mLevelSelector = new LevelWidget(this);
+        mLevelSelector = new LevelWidget();
         loader.addNamedWidget(mLevelSelector, "levelwidget");
         mLevelSelector.onSetBusy = &levelBusy;
 
@@ -295,10 +284,12 @@ class LocalGameSetupTask : Task {
 
         mSetup = loader.lookup("gamesetup_root");
         mWaiting = loader.lookup("waiting_root");
-        mWindow = gWindowManager.createWindow(this, mSetup,
+        mWindow = gWindowFrame.createWindow(mSetup,
             r"\t(gamesetup.caption_local)");
 
         loadTeams();
+
+        addTask(&onFrame);
     }
 
     private void levelBusy(bool busy) {
@@ -307,7 +298,7 @@ class LocalGameSetupTask : Task {
 
     private void editteamsClick(Button sender) {
         if (!mTeameditTask)
-            mTeameditTask = new TeamEditorTask(manager);
+            mTeameditTask = new TeamEditorTask();
     }
 
     //reload teams from config file and show in dialog
@@ -405,7 +396,7 @@ class LocalGameSetupTask : Task {
     }
 
     private void cancelClick(Button sender) {
-        kill();
+        mDead = true;
     }
 
     //play a level, hide this GUI while doing that, then return
@@ -422,41 +413,32 @@ class LocalGameSetupTask : Task {
         gc.randomSeed = to!(char[])(rand.uniform!(uint));
         //xxx: do some task-death-notification or so... (currently: polling)
         //currently, the game can't really return anyway...
-        mGame = new GameTask(manager, gc);
-        /+auto lbl = new Label();
-        lbl.image = (cast(LevelLandscape)level.objects[0]).landscape.image();
-        gWindowManager.createWindow(this, lbl, "hurrr");+/
+        mGame = new GameTask(gc);
     }
 
-    override protected void onFrame() {
+    private bool onFrame() {
+        if (!mGame && mWindow.wasClosed())
+            mDead = true;
+
+        if (mDead)
+            return false;
+
         if (mTeameditTask) {
             //team editor is open
-            if (mTeameditTask.reallydead) {
+            if (!mTeameditTask.active) {
                 loadTeams();
                 mTeameditTask = null;
             }
         }
-        /+
-        if (mThWaiting) {
-            //level is being generated
-            if (mThread.getState() != Thread.TS.RUNNING) {
-                //level generation finished, now start the game
-                mThWaiting = false;
-                play(mThread.finalLevel);
-                mThread = null;
-            }
-        }
-        +/
         //poll for game death
         if (mGame) {
-            if (mGame.reallydead) {
+            if (!mGame.active) {
                 //show GUI again
-                mWindow.visible = true;
+                gWindowFrame.addWindow(mWindow);
 
                 mGamePersist = mGame.gamePersist;
                 if (mGamePersist) {
-                    auto gs = new GameSummary(manager);
-                    gs.init(mGamePersist);
+                    auto gs = new GameSummary(mGamePersist);
                     if (gs.gameOver)
                         mGamePersist = null;
                 }
@@ -465,26 +447,11 @@ class LocalGameSetupTask : Task {
                 updateTeams();
             }
         }
+
+        return true;
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("localgamesetup");
+        registerTaskClass!(typeof(this))("localgamesetup");
     }
 }
-
-/+
-class LvlGenThread : Thread {
-    private LevelGenerator mLvlGen;
-    public Level finalLevel;
-
-    this(LevelGenerator gen) {
-        super();
-        mLvlGen = gen;
-    }
-
-    override int run() {
-        finalLevel = mLvlGen.render();
-        return 0;
-    }
-}
-+/

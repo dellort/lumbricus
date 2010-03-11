@@ -11,7 +11,7 @@ import game.glue;
 import game.setup;
 import game.gui.setup_local;
 import game.gui.gamesummary;
-import gui.wm;
+import gui.window;
 import gui.widget;
 import gui.list;
 import gui.dropdownlist;
@@ -35,7 +35,7 @@ import utils.log;
 import tango.math.random.Random : rand;
 import tango.util.Convert : to;
 
-class CmdNetClientTask : Task {
+class CmdNetClientTask {
     private {
         static LogStruct!("connect") log;
         CmdNetClient mClient;
@@ -44,7 +44,7 @@ class CmdNetClientTask : Task {
         EditLine mConnectTo, mNickname;
         Tabs mTabs;
         Widget mConnectDlg;
-        Window mConnectWnd;
+        WindowWidget mConnectWnd;
         Widget mDirectMarker;
 
         const cRefreshInterval = timeSecs(2);
@@ -63,9 +63,7 @@ class CmdNetClientTask : Task {
         }
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this(char[] args = "") {
         mLastTime = timeCurrentTime();
 
         mClient = new CmdNetClient();
@@ -105,8 +103,10 @@ class CmdNetClientTask : Task {
         mTabs = loader.lookup!(Tabs)("tabs");
         mTabs.onActiveChange = &tabActivate;
 
-        mConnectWnd = gWindowManager.createWindow(this, mConnectDlg,
+        mConnectWnd = gWindowFrame.createWindow(mConnectDlg,
             r"\t(connect.caption)");
+
+        addTask(&onFrame);
     }
 
     private void onConnect(CmdNetClient sender) {
@@ -114,10 +114,10 @@ class CmdNetClientTask : Task {
         mClient.onConnect = null;
         mClient.onDisconnect = null;
         mClient.onError = null;
-        new CmdNetLobbyTask(manager, mClient);
+        new CmdNetLobbyTask(mClient);
         //ownership is handed over
         mClient = null;
-        kill();
+        mConnectWnd.remove();
     }
 
     private void onDisconnect(CmdNetClient sender, DiscReason code) {
@@ -153,7 +153,7 @@ class CmdNetClientTask : Task {
     }
 
     private void cancelClick(Button sender) {
-        kill();
+        mConnectWnd.remove();
     }
 
     private void tabActivate(Tabs sender) {
@@ -179,7 +179,7 @@ class CmdNetClientTask : Task {
         mMode = idx;
     }
 
-    override protected void onKill() {
+    private void onKill() {
         if (mClient) {
             mClient.close();
             delete mClient;
@@ -189,7 +189,12 @@ class CmdNetClientTask : Task {
         }
     }
 
-    override protected void onFrame() {
+    private bool onFrame() {
+        if (mConnectWnd.wasClosed()) {
+            onKill();
+            return false;
+        }
+
         if (mClient)
             mClient.tick();
         if (mMode >= 0) {
@@ -222,17 +227,18 @@ class CmdNetClientTask : Task {
                 mLastTime = t;
             }
         }
+
+        return true;
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("cmdclient");
+        registerTaskClass!(typeof(this))("cmdclient");
     }
 }
 
 class CreateNetworkGame : SimpleContainer {
     private {
         LevelWidget mLevelSelector;
-        Task mOwner;
         Widget mDialog, mWaiting;
     }
 
@@ -240,12 +246,11 @@ class CreateNetworkGame : SimpleContainer {
     void delegate() onWantStart;
     void delegate(GameConfig conf) onStart;
 
-    this(Task owner) {
-        mOwner = owner;
+    this() {
         auto config = loadConfig("dialogs/netgamesetup_gui");
         auto loader = new LoadGui(config);
 
-        mLevelSelector = new LevelWidget(mOwner);
+        mLevelSelector = new LevelWidget();
         loader.addNamedWidget(mLevelSelector, "levelwidget");
         mLevelSelector.onSetBusy = &levelBusy;
 
@@ -340,7 +345,7 @@ class CreateNetworkGame : SimpleContainer {
     }
 }
 
-class CmdNetLobbyTask : Task {
+class CmdNetLobbyTask {
     private {
         static LogStruct!("lobby") log;
         CmdNetClient mClient;
@@ -355,13 +360,11 @@ class CmdNetLobbyTask : Task {
         GameConfig mGameConfig;
         Widget mLobbyDlg;
         CreateNetworkGame mCreateDlg;
-        Window mLobbyWnd, mCreateWnd;
+        WindowWidget mLobbyWnd, mCreateWnd;
         GameSummary mGameSummary;
     }
 
-    this(TaskManager tm, CmdNetClient client) {
-        super(tm);
-
+    this(CmdNetClient client) {
         assert(!!client);
         assert(client.connected);
         mClient = client;
@@ -407,15 +410,17 @@ class CmdNetLobbyTask : Task {
 
         //xxx values should be read from configfile
         //also xxx playerName will be interpreted as markup
-        mLobbyWnd = gWindowManager.createWindow(this, mLobbyDlg,
+        mLobbyWnd = gWindowFrame.createWindow(mLobbyDlg,
             translate("lobby.caption", mClient.playerName), Vector2i(550, 500));
 
         //--------------------------------------------------------------
 
-        mCreateDlg = new CreateNetworkGame(this);
+        mCreateDlg = new CreateNetworkGame();
         mCreateDlg.onCancel = &createCancel;
         mCreateDlg.onWantStart = &createWantStart;
         mCreateDlg.onStart = &createStart;
+
+        addTask(&onFrame);
     }
 
     private void cmdlineFalbackExecute(CommandLine sender, char[] line) {
@@ -441,7 +446,7 @@ class CmdNetLobbyTask : Task {
     }
 
     private void cancelClick(Button sender) {
-        kill();
+        mLobbyWnd.remove();
     }
 
     private void hostGame(Button sender) {
@@ -460,15 +465,16 @@ class CmdNetLobbyTask : Task {
             if (granted) {
                 mCreateDlg.reset();
                 if (!mCreateWnd) {
-                    mCreateWnd = gWindowManager.createWindow(this, mCreateDlg,
+                    mCreateWnd = gWindowFrame.createWindow(mCreateDlg,
                         r"\t(gamesetup.caption_net)");
                     mCreateWnd.onClose = &createClose;
+                } else {
+                    gWindowFrame.addWindow(mCreateWnd);
                 }
-                mCreateWnd.visible = true;
             }
         } else {
             if (mCreateWnd)
-                mCreateWnd.destroy();
+                mCreateWnd.remove();
             //show a message that someone else is creating a game
             char[] name;
             mClient.idToPlayerName(playerId, name);
@@ -492,7 +498,7 @@ class CmdNetLobbyTask : Task {
     private void createCancel() {
         //tell the server that someone else can create a game
         mClient.requestCreateGame(false);
-        mCreateWnd.destroy();
+        mCreateWnd.remove();
     }
 
     private void createWantStart() {
@@ -506,13 +512,11 @@ class CmdNetLobbyTask : Task {
         saveConfig(conf.save(), "dump.conf");
 
         mClient.createGame(conf);
-        mCreateWnd.destroy();
+        mCreateWnd.remove();
     }
 
-    private bool createClose(Window sender) {
-        //don't kill the task
+    private void createClose(WindowWidget sender) {
         createCancel();
-        return true;
     }
 
     //<-- CreateNetworkGame end
@@ -521,29 +525,28 @@ class CmdNetLobbyTask : Task {
         mClient.lobbyCmd(cmd);
     }
 
-    private void onGameKill(Task t) {
+    private void onGameKill() {
         ConfigNode persist;
         if (mGame && mGame.gamePersist) {
             persist = mGame.gamePersist;
-            mGameSummary = new GameSummary(manager);
-            mGameSummary.init(persist);
+            mGameSummary = new GameSummary(persist);
             if (mGameSummary.gameOver)
                 persist = null;
         }
+        mGame = null;
         if (mClient)
             mClient.gameKilled(persist);
     }
 
     private void onStartLoading(SimpleNetConnection sender, GameLoader loader) {
         if (mCreateWnd)
-            mCreateWnd.destroy();
+            mCreateWnd.remove();
         if (mGameSummary) {
-            mGameSummary.kill();
+            mGameSummary.remove();
             mGameSummary = null;
         }
         //mConsole.writefln(translate("lobby.gamestarting"));
-        mGame = new GameTask(manager, loader, mClient);
-        mGame.registerOnDeath(&onGameKill);
+        mGame = new GameTask(loader, mClient);
     }
 
     private void onUpdatePlayers(SimpleNetConnection sender)
@@ -565,19 +568,26 @@ class CmdNetLobbyTask : Task {
     }
 
     private void onMessage(CmdNetClient sender, char[][] text) {
-        if (mLobbyWnd.visible) {
+        if (!mLobbyWnd.wasClosed) {
             foreach (l; text) {
                 mConsole.writefln(l);
             }
         }
     }
 
-    override protected void onKill() {
+    private void onKill() {
         mClient.close();
         delete mClient;
     }
 
-    override protected void onFrame() {
+    private bool onFrame() {
+        if (mLobbyWnd.wasClosed) {
+            onKill();
+            return false;
+        }
         mClient.tick();
+        if (mGame && !mGame.active)
+            onGameKill();
+        return true;
     }
 }

@@ -234,12 +234,12 @@ static this() {
     reg!(PropertyCommand, EditCommand)();
 }
 
-import gui.wm;
+import gui.window;
 
 //add_okcancelapply: false=a window where edit actions take effect immediately,
 //  true=add buttons, and copy the properties and write them back on ok/apply
 //  xxx not implemented
-Window createPropertyEditWindow(Task owner, PropertyNode root,
+WindowWidget createPropertyEditWindow(PropertyNode root,
     bool add_okcancelapply, char[] caption)
 {
     //auto c = new PropWndClosure();
@@ -250,5 +250,5 @@ Window createPropertyEditWindow(Task owner, PropertyNode root,
         o.text = "OK"; c.text = "Cancel"; a.text = "Apply";
         o.onClick2 = &c.onok; c.onClick2 = &c.oncancel; a.onClick2 = &onapply;
     }+/
-    return gWindowManager.createWindow(owner, edit, caption);
+    return gWindowFrame.createWindow(edit, caption);
 }

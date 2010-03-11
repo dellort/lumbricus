@@ -13,11 +13,15 @@ import gui.tablecontainer;
 import gui.widget;
 import utils.array;
 import utils.configfile;
+import utils.math;
 import utils.misc;
 import utils.rect2;
 import utils.vector2;
 
 import str = utils.string;
+
+//initialized and added to GUI by toplevel.d
+WindowFrame gWindowFrame;
 
 enum WindowZOrder {
     Normal = 0,
@@ -67,7 +71,7 @@ class WindowWidget : Widget {
 
         //user-chosen size (ignored on fullscreen)
         //this is for the Window _itself_ (and not the client area)
-        Vector2i mUserSize = {150, 150};
+        Vector2i mUserSize;
         //last recorded real minimum size for the client
         Vector2i mLastMinSize;
 
@@ -167,8 +171,9 @@ class WindowWidget : Widget {
         }
     }
 
-    ///catches a window-keybinding
-    void delegate(WindowWidget sender, char[] action) onKeyBinding;
+    ///clock on close button or close shortcut
+    ///if null, remove the window from the GUI
+    void delegate(WindowWidget sender) onRequestClose;
 
     ///invoked when focus was taken
     void delegate(WindowWidget sender) onFocusLost;
@@ -179,8 +184,8 @@ class WindowWidget : Widget {
     ///always call acceptSize() after resize
     bool alwaysAcceptSize = true;
 
-    ///expensive way to highlight the whole window (i.e. for window selection)
-    bool highlight;
+    //for popups
+    bool closeOnDefocus = false;
 
     this() {
         focusable = true;
@@ -447,8 +452,12 @@ class WindowWidget : Widget {
     private void pollFocus() {
         mWindowDecoration.styles.setState("active", subFocused);
 
-        if (!subFocused && onFocusLost)
-            onFocusLost(this);
+        if (!subFocused) {
+            if (closeOnDefocus)
+                remove();
+            if (onFocusLost)
+                onFocusLost(this);
+        }
     }
 
     override bool greedyFocus() {
@@ -461,8 +470,26 @@ class WindowWidget : Widget {
     }
 
     void doAction(char[] s) {
-        if (onKeyBinding)
-            onKeyBinding(this, s);
+        switch (s) {
+            case "toggle_fs": {
+                fullScreen = !fullScreen;
+                break;
+            }
+            case "close": {
+                if (onRequestClose) {
+                    onRequestClose(this);
+                } else {
+                    remove();
+                }
+                break;
+            }
+            case "toggle_ontop": {
+                zorder = !zorder;
+                break;
+            }
+            default:
+                //globals.defaultOut.writefln("window action '{}'??", s);
+        }
     }
 
     override bool handleChildInput(InputEvent event) {
@@ -525,15 +552,6 @@ class WindowWidget : Widget {
         }
     }
 
-    override void onDrawChildren(Canvas c) {
-        super.onDrawChildren(c);
-
-        //only for the shitty window-manager thing
-        if (highlight) {
-            c.drawFilledRect(Vector2i(0), size, Color(0.7,0.7,0.7,0.7));
-        }
-    }
-
     override void onDrawBackground(Canvas c, Rect2i area) {
         //on full screen, leave it to WindowClient
         if (mFullScreen)
@@ -587,6 +605,10 @@ class WindowWidget : Widget {
             onClose(this);
     }
 
+    bool wasClosed() {
+        return !parent;
+    }
+
     char[] toString() {
         return "["~super.toString~" '"~mTitleBar.text~"']";
     }
@@ -599,8 +621,6 @@ class WindowFrame : Container {
         WindowWidget[] mWindows;  //all windows
         ConfigNode mConfig;
         KeyBindings mKeysWindow, mKeysWM;
-        bool mWindowSelecting;
-        ModifierSet mSelectMods; //to determine if the modifiers were released
 
         //factories for parts; indexed by their names (but why?)
         DefPart[char[]] mPartFactory;
@@ -658,10 +678,6 @@ class WindowFrame : Container {
         }
     }
 
-    ///callback for "alt+tab"-style window selection (i.e. MS Windoes, IceWM)
-    ///sel_end==true means the modifiers (i.e. alt) were finally released
-    void delegate(bool sel_end) onSelectWindow;
-
     this() {
         setVirtualFrame(false); //wtf
 
@@ -718,6 +734,18 @@ class WindowFrame : Container {
         addChild(wnd);
     }
 
+    void addWindowCentered(WindowWidget wnd) {
+        wnd.remove();
+        wnd.bindings = mKeysWindow;
+        addDefaultDecorations(wnd);
+        mWindows ~= wnd;
+        addChild(wnd);
+        //size is only there after it has been added
+        Rect2i nrc;
+        nrc += this.size/2 - wnd.size/2;
+        wnd.position = nrc.p1;
+    }
+
     void addWidget(Widget w) {
         w.remove();
         addChild(w);
@@ -767,15 +795,8 @@ class WindowFrame : Container {
         }
     }
 
-    private bool wsIsSet() {
-        assert(mWindowSelecting);
-        return gFramework.getModifierSetState(mSelectMods);
-    }
-
     override bool handleChildInput(InputEvent event) {
-        if (mWindowSelecting
-            || (event.isKeyEvent && mKeysWM.findBinding(event.keyEvent)))
-        {
+        if (event.isKeyEvent && mKeysWM.findBinding(event.keyEvent)) {
             deliverDirectEvent(event, false);
             return true;
         }
@@ -783,24 +804,103 @@ class WindowFrame : Container {
     }
 
     override bool onKeyDown(KeyInfo info) {
-        if (mWindowSelecting) {
-            if (!wsIsSet()) {
-                //modifiers were released => end of selection
-                mWindowSelecting = false;
-                if (onSelectWindow)
-                    onSelectWindow(true);
-            }
-            return true;
-        }
         auto bnd = mKeysWM.findBinding(info);
-        if (bnd == "select_window") {
-            mSelectMods = info.mods;
-            mWindowSelecting = true;
-            assert(wsIsSet()); //doesn't work if it doesn't hold true
-            if (onSelectWindow)
-                onSelectWindow(false);
+        if (info.isDown && !info.isRepeated && bnd == "select_window") {
+            onSelectWindow();
             return true;
         }
         return false;
     }
+
+    private void onSelectWindow() {
+        auto owner = new WindowWidget();
+        auto b = new VBoxContainer();
+        struct Closure {
+            WindowWidget owner;
+            WindowWidget w;
+            void onClick() {
+                owner.remove();
+                w.activate();
+            }
+        }
+        foreach (WindowWidget w; mWindows) {
+            auto cl = new Closure;
+            *cl = Closure(owner, w);
+            auto btn = new Button();
+            btn.textMarkup = w.properties.windowTitle;
+            btn.onClick2 = &cl.onClick;
+            b.add(btn);
+        }
+        auto props = owner.properties;
+        props.windowTitle = "select window";
+        owner.properties = props;
+        owner.client = b;
+        addWindowCentered(owner);
+    }
+
+    //emulate what was in wm.d
+
+    WindowWidget createWindow(Widget client, char[] title,
+        Vector2i initSize = Vector2i(0, 0))
+    {
+        auto w = new WindowWidget();
+        w.initSize = initSize;
+        w.client = client;
+        auto props = w.properties;
+        props.windowTitle = title;
+        w.properties = props;
+        addWindowCentered(w);
+        return w;
+    }
+
+    WindowWidget createWindowFullscreen(Widget client, char[] title) {
+        auto w = createWindow(client, title);
+        w.fullScreen = true;
+        return w;
+    }
+
+    //don't use this function (only for dropdownlist compatibility)
+    WindowWidget createPopup(Widget client, Widget attach, Vector2i initSize) {
+        assert(client && attach);
+
+        auto w = new WindowWidget();
+        w.hasDecorations = false;
+        w.closeOnDefocus = true;
+        w.client = client;
+        addWindow(w);
+
+        Widget relative = attach;
+        Vector2i tmp;
+        if (!w.translateCoords(relative, tmp)) {
+            relative = this;
+        }
+
+        w.initSize(initSize);
+
+        //nrc is in coordinates of the widget "relative"
+        Rect2i nrc = Rect2i(Vector2i(0), w.size);
+
+
+        nrc += placeRelative(nrc, relative.containedBounds,
+            Vector2i(0, 1), 0, 0);
+
+        //translate from "relative" widget coordinates to the ones used by the
+        //window, and actually position it
+        bool r = this.translateCoords(relative, nrc);
+        if (!r) {
+            //whatever, fail gracefully
+            w.remove();
+        }
+
+        //clip size to screen
+        nrc.fitInside(this.widgetBounds);
+        w.initSize(nrc.size);
+
+        w.position = nrc.p1;
+
+        w.claimFocus();
+
+        return w;
+    }
 }
+

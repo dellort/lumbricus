@@ -16,7 +16,6 @@ import game.weapon.weapon;
 import game.temp;
 import physics.misc;
 import utils.configfile;
-import utils.md;
 import utils.factory;
 import utils.vector2;
 

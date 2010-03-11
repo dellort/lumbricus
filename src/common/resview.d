@@ -21,7 +21,7 @@ import gui.scrollwindow;
 import gui.splitter;
 import gui.tablecontainer;
 import gui.widget;
-import gui.wm;
+import gui.window;
 
 import utils.factory;
 import utils.math;
@@ -579,14 +579,13 @@ class AnimationHandler : ResViewHandler!(Animation) {
     }
 }
 
-class ResViewerTask : Task {
-    this(TaskManager mgr, char[] args = "") {
-        this(mgr, ResourceSet.init);
+class ResViewerTask {
+    this() {
+        this(ResourceSet.init);
     }
 
-    this(TaskManager mgr, ResourceSet resources) {
-        super(mgr);
-        gWindowManager.createWindow(this, new Viewer(resources), "Res Viewer",
+    this(ResourceSet resources) {
+        gWindowFrame.createWindow(new Viewer(resources), "Res Viewer",
             Vector2i(750, 500));
     }
 
@@ -780,6 +779,6 @@ class ResViewerTask : Task {
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("resviewer");
+        registerTaskClass!(typeof(this))("resviewer");
     }
 }

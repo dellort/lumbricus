@@ -2,6 +2,7 @@ module gui.mousescroller;
 
 //xxx I like the idea of gui being independent from common
 import common.common;
+import common.task;
 
 import gui.scrollwindow;
 import gui.widget;
@@ -86,7 +87,7 @@ class MouseScroller : ScrollArea {
                 gui.fixMouse(); //(d)
             //use that silly callback in the case when this widget was removed
             //from the GUI while mouse scrolling was enabled
-            globals.addFrameCallback(&checkReleaseLock);
+            addTask(&checkReleaseLock);
             stopSmoothScrolling();
         } else {
             mMouseScrolling = false;

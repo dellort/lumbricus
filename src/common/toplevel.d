@@ -18,9 +18,8 @@ import gui.tablecontainer;
 import gui.button;
 import gui.scrollbar;
 import gui.dropdownlist;
-import gui.wm;
+import gui.window;
 import common.common;
-import common.loadsave;
 import common.settings;
 //import all restypes because of the factories (more for debugging...)
 import common.allres;
@@ -116,8 +115,6 @@ private:
     SystemConsole mGuiConsole;
     GuiFps mFPS;
 
-    TaskManager taskManager;
-
     bool mKeyNameIt = false;
 
     PerfTimer mTaskTime, mGuiDrawTime, mGuiFrameTime;
@@ -133,8 +130,6 @@ private:
     int mLastTimerStatsFrames;
     bool mLastTimerInitialized;
     int mTimerStatsGeneration;
-
-    LoadSaveHandler mLoadSave;
 
     debug int mPrevGCCount;
     int mOldFixedFramerate;
@@ -237,11 +232,8 @@ private:
 
         initConsole();
 
-        taskManager = new TaskManager();
-
-        mLoadSave = new LoadSaveHandler(taskManager);
-
-        gWindowManager = new WindowManager(mGui);
+        gWindowFrame = new WindowFrame();
+        mGui.mainFrame.add(gWindowFrame);
 
         framework.onUpdate = &onUpdate;
         framework.onFrame = &onFrame;
@@ -266,16 +258,9 @@ private:
         foreach (char[] name, char[] value; autoexec) {
             globals.cmdLine.execute(value);
         }
-
-        if (taskManager.taskList.length == 0) {
-            mGuiConsole.output.writefln("Nothing to run, do what you want");
-            mGuiConsole.consoleVisible = true;
-        }
     }
 
     public void deinitialize() {
-        //this gets important when tasks start running threads...
-        taskManager.killAll();
     }
 
     private void onChangeGuiTheme(PropertyValue v) {
@@ -311,12 +296,8 @@ private:
         globals.cmdLine.registerCommand("screenshotwnd", &cmdScreenshotWnd,
             "", ["text?"]);
 
-        globals.cmdLine.registerCommand("ps", &cmdPS, "");
         globals.cmdLine.registerCommand("spawn", &cmdSpawn, "",
             ["text", "text?..."], [&complete_spawn]);
-        globals.cmdLine.registerCommand("kill", &cmdKill, "", ["int"]);
-        globals.cmdLine.registerCommand("terminate", &cmdTerminate,
-            "", ["int"]);
         globals.cmdLine.registerCommand("help_spawn", &cmdSpawnHelp, "");
 
         globals.cmdLine.registerCommand("res_load", &cmdResLoad, "", ["text"]);
@@ -388,8 +369,7 @@ private:
     }
 
     private void cmdFwSettings(MyBox[] args, Output write) {
-        auto t = new Task(taskManager); //grrr
-        createPropertyEditWindow(t, gSettings, false,
+        createPropertyEditWindow(gSettings, false,
             "Framework settings");
     }
 
@@ -452,62 +432,20 @@ private:
         }
     }
 
-    private void cmdPS(MyBox[] args, Output write) {
-        write.writefln("ID / toString()");
-        foreach (Task t; taskManager.taskList) {
-            write.writefln("  {:d2} / {}", t.taskID, t);
-        }
-    }
-
     private void cmdSpawn(MyBox[] args, Output write) {
         char[] name = args[0].unbox!(char[])();
         char[] spawnArgs = args[1].unboxMaybe!(char[])();
-        Task n;
-        try {
-            n = TaskFactory.instantiate(name, taskManager, spawnArgs);
-        } catch (ClassNotFoundException e) {
-            //xxx: and what if the Task was found, but the Task constructor
-            //     throws this exception??
-            write.writefln("not found ({})", e);
-            return;
+        if (!spawnTask(name, spawnArgs)) {
+            write.writefln("not found ({})", name);
         }
-        write.writefln("spawn: instantiated {} -> {}", name, n);
     }
 
     private char[][] complete_spawn() {
-        return TaskFactory.classes;
-    }
-
-    private Task findTask(MyBox[] args, Output write) {
-        int id = args[0].unbox!(int)();
-        foreach (Task t; taskManager.taskList) {
-            if (id == t.taskID) {
-                return t;
-            }
-        }
-        write.writefln("Task {} not found.", id);
-        return null;
-    }
-
-    private void cmdKill(MyBox[] args, Output write) {
-        Task t = findTask(args, write);
-        if (t) {
-            write.writefln("killing {}", t);
-            t.kill();
-            write.writefln("kill: done");
-        }
-    }
-
-    private void cmdTerminate(MyBox[] args, Output write) {
-        Task t = findTask(args, write);
-        if (t) {
-            write.writefln("terminating {}", t);
-            t.terminate();
-        }
+        return taskList();
     }
 
     private void cmdSpawnHelp(MyBox[] args, Output write) {
-        write.writefln("registered task classes: {}", TaskFactory.classes);
+        write.writefln("registered task classes: {}", taskList());
     }
 
     private void cmdFramerate(MyBox[] args, Output write) {
@@ -572,7 +510,7 @@ private:
         bool activeWindow = false)
     {
         //get active window, and its title
-        auto topWnd = gWindowManager.activeWindow();
+        WindowWidget topWnd = gWindowFrame.activeWindow();
         char[] wndTitle;
         if (topWnd)
             wndTitle = topWnd.properties.windowTitle;
@@ -594,7 +532,7 @@ private:
         scope(exit) ssFile.close();  //no close on delete? strange...
         if (activeWindow) {
             //copy out area of active window
-            Rect2i r = topWnd.window.containedBounds;
+            Rect2i r = topWnd.containedBounds;
             scope subsurf = surf.subrect(r);
             subsurf.saveImage(ssFile, "png");
         } else
@@ -702,10 +640,8 @@ private:
         }
 
         mTaskTime.start();
-        taskManager.doFrame();
+        runTasks();
         mTaskTime.stop();
-
-        globals.callFrameCallBacks();
 
         mGuiFrameTime.start();
         mGui.frame();
@@ -769,43 +705,42 @@ private:
     }
 }
 
-class ConsoleWindow : Task {
-    this(TaskManager mgr, char[] args = "") {
-        super(mgr);
-        gWindowManager.createWindowFullscreen(this,
-            new GuiConsole(globals.cmdLine), "Console");
-    }
-
-    static this() {
-        TaskFactory.register!(typeof(this))("console");
-    }
+static this() {
+    registerTask("console", function(char[] args) {
+        gWindowFrame.createWindowFullscreen(new GuiConsole(globals.cmdLine),
+            "Console");
+    });
 }
 
 import gui.tablecontainer;
 import gui.label;
 import str = utils.string;
 
-class StatsWindow : Task {
+class StatsWindow {
     TopLevel bla;
     int lastupdate = -1;
-    Window wnd;
+    WindowWidget wnd;
     TableContainer table;
     //stores strings for each line (each line 40 bytes)
     //this is to avoid memory allocation each frame
     char[40][] buffers;
 
-    this(TaskManager mgr, char[] args = "") {
-        super(mgr);
+    this() {
         bla = gTopLevel;
         table = new TableContainer(2, 0, Vector2i(10, 0));
         //rettet die statistik
-        wnd = gWindowManager.createWindow(this, table, "Statistics");
+        wnd = gWindowFrame.createWindow(table, "Statistics");
         auto props = wnd.properties;
         props.zorder = WindowZOrder.High;
         wnd.properties = props;
+
+        addTask(&onFrame);
     }
 
-    override void onFrame() {
+    private bool onFrame() {
+        if (wnd.wasClosed())
+            return false;
+
         if (bla.mTimerStatsGeneration != lastupdate) {
             lastupdate = bla.mTimerStatsGeneration;
 
@@ -886,21 +821,22 @@ class StatsWindow : Task {
             //avoid that the window resizes on each update
             wnd.acceptSize();
         }
+
+        return true;
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("stats");
+        registerTaskClass!(typeof(this))("stats");
     }
 }
 
 //GUI to disable or enable log targets
-class LogConfig : Task {
+class LogConfig {
     CheckBox[char[]] mLogButtons;
     BoxContainer mLogList;
+    WindowWidget mWindow;
 
-    this(TaskManager mgr, char[] args = "") {
-        super(mgr);
-
+    this() {
         mLogList = new BoxContainer(false);
         auto main = new BoxContainer(false);
         main.add(mLogList);
@@ -911,7 +847,9 @@ class LogConfig : Task {
 
         addLogs();
 
-        gWindowManager.createWindow(this, main, "Logging Configuration");
+        mWindow = gWindowFrame.createWindow(main, "Logging Configuration");
+
+        addTask(&onFrame);
     }
 
     void onToggle(CheckBox sender) {
@@ -948,12 +886,15 @@ class LogConfig : Task {
         }
     }
 
-    override void onFrame() {
+    private bool onFrame() {
+        if (mWindow.wasClosed())
+            return false;
         //every frame check for new log entries; stupid but robust
         addLogs();
+        return true;
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("logconfig");
+        registerTaskClass!(typeof(this))("logconfig");
     }
 }

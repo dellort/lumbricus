@@ -12,7 +12,7 @@ import gui.label;
 import gui.list;
 import gui.scrollwindow;
 import gui.widget;
-import gui.wm;
+import gui.window;
 import gui.edit;
 
 import utils.vector2;
@@ -25,7 +25,7 @@ class DropDownControl : Container {
     private {
         Widget mClientWidget, mPopupWidget;
         Button mDropDown;
-        Window mActivePopup;
+        WindowWidget mActivePopup;
         BoxContainer mClientBox;
         bool mLastSuccess;
     }
@@ -74,12 +74,12 @@ class DropDownControl : Container {
     void killPopup(bool success = true) {
         if (mActivePopup) {
             mLastSuccess = success;
-            mActivePopup.destroy();
+            mActivePopup.remove();
             mActivePopup = null;
         }
     }
 
-    private void onPopupDestroy(Window sender) {
+    private void onPopupDestroy(WindowWidget sender) {
         mActivePopup = null;
         if (onPopupClose)
             onPopupClose(this, mLastSuccess);
@@ -102,11 +102,9 @@ class DropDownControl : Container {
         Vector2i initsize;
         initsize.x = mClientBox.size.x;
         initsize.y = mClientBox.size.x;
-        mActivePopup = gWindowManager.createPopup(mPopupWidget,
-            mClientBox, Vector2i(0, 1), initsize, false);
-        mActivePopup.onDestroy = &onPopupDestroy;
-        mActivePopup.isFocusVolatile = true;
-        mActivePopup.visible = true;
+        mActivePopup = gWindowFrame.createPopup(mPopupWidget,
+            mClientBox, initsize);
+        mActivePopup.onClose = &onPopupDestroy;
 
         mLastSuccess = false;
 

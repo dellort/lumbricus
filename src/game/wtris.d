@@ -11,14 +11,14 @@ import gui.widget;
 import gui.container;
 import gui.label;
 import gui.loader;
-import gui.wm;
+import gui.window;
 import utils.random : rngShared;
 import utils.time;
 import utils.vector2;
 import utils.misc;
 
 //registers itself as Task "wtris"
-public class WTris : Task {
+public class WTris {
     private {
         const PIECE_W = 4, PIECE_H = 4;
 
@@ -56,6 +56,7 @@ public class WTris : Task {
         int PIECE_DRAW_W, PIECE_DRAW_H;
 
         Widget thegui;
+        WindowWidget mWindow;
 
         int lines, speed, points;
 
@@ -460,9 +461,12 @@ public class WTris : Task {
         }
     }
 
-    override protected void onFrame() {
+    private bool onFrame() {
+        if (mWindow.wasClosed())
+            return false;
         thetime.update();
         sim(thetime.current, thetime.difference);
+        return true;
     }
 
     private void createGui() {
@@ -510,8 +514,7 @@ public class WTris : Task {
          }
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
+    this(char[] args = "") {
 
         thetime = new TimeSource("wtris");
 
@@ -525,17 +528,15 @@ public class WTris : Task {
 
         update_gui();
 
-        auto window = gWindowManager.createWindow(this, thegui, "WTris");
-        auto props = window.properties;
+        mWindow = gWindowFrame.createWindow(thegui, "WTris");
+        auto props = mWindow.properties;
         props.background = Color(0.2);
-        window.properties = props;
-    }
+        mWindow.properties = props;
 
-    override protected void onKill() {
-        thegui.remove();
+        addTask(&onFrame);
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("wtris");
+        registerTaskClass!(typeof(this))("wtris");
     }
 }

@@ -7,7 +7,7 @@ import utils.timesource;
 import gui.label;
 import gui.button;
 import gui.widget;
-import gui.wm;
+import gui.window;
 import gui.list;
 import gui.boxcontainer;
 import net.cmdserver;
@@ -26,7 +26,7 @@ import tango.stdc.stdlib : abort;
 import tango.core.Runtime;
 
 //as GUI
-class CmdNetServerTask : Task {
+class CmdNetServerTask {
     private {
         CmdNetServer mServer;
         Label mLabel;
@@ -38,11 +38,10 @@ class CmdNetServerTask : Task {
         int mPlayerCount;
         char[][] mPlayerDetails;
         bool mInternet; //Internet!
+        WindowWidget mWindow;
     }
 
-    this(TaskManager tm, char[] args = "") {
-        super(tm);
-
+    this() {
         mSrvConf = loadConfigDef("server");
 
         mLabel = new Label();
@@ -53,10 +52,12 @@ class CmdNetServerTask : Task {
         box.add(mLabel);
         box.add(mInternetToggle);
         box.add(mPlayerList);
-        gWindowManager.createWindow(this, box, "Server", Vector2i(350, 0));
+        mWindow = gWindowFrame.createWindow(box, "Server", Vector2i(350, 0));
 
         mServerThread = new Thread(&thread_run);
         mServerThread.start();
+
+        addTask(&onFrame);
     }
 
     private void thread_run() {
@@ -96,23 +97,20 @@ class CmdNetServerTask : Task {
         }
     }
 
-    override protected void onKill() {
-        synchronized (this) {
-            mClose = true;
+    private bool onFrame() {
+        if (mWindow.wasClosed()) {
+            synchronized (this) { mClose = true; }
+            return false;
         }
-        //xxx blocks
-        //mServerThread.join();
-    }
-
-    override protected void onFrame() {
         synchronized(this) {
             mLabel.text = myformat("Clients: {}", mPlayerCount);
             mPlayerList.setContents(mPlayerDetails);
             mInternet = mInternetToggle.checked();
         }
+        return true;
     }
 
     static this() {
-        TaskFactory.register!(typeof(this))("cmdserver");
+        registerTaskClass!(typeof(this))("cmdserver");
     }
 }
