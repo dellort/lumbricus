@@ -145,7 +145,7 @@ class MouseScroller : ScrollArea {
     }
 
     override void onMouseMove(MouseInfo mouse) {
-        if (mMouseScrolling) {
+        if (mMouseScrolling && mouse.rel != Vector2i(0)) {
             scrollDeltaSmooth(mouse.rel);
             noticeAction();
         }

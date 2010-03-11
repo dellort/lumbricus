@@ -15,6 +15,11 @@ import str = utils.string;
 
 //this alias is just so that we can pretend our scripting interface is generic
 alias LuaException ScriptingException;
+alias LuaState ScriptingObj;
+debug {
+    alias framework.lua.gLuaToDCalls gLuaToDCalls;
+    alias framework.lua.gDToLuaCalls gDToLuaCalls;
+}
 
 LuaRegistry gScripting;
 

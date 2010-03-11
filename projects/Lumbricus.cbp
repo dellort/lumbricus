@@ -99,7 +99,9 @@
 		<Unit filename="..\src\derelict\lua\lauxlib.d" />
 		<Unit filename="..\src\derelict\lua\lua.d" />
 		<Unit filename="..\src\derelict\lua\luaconf.d" />
+		<Unit filename="..\src\derelict\lua\luafuncs.d" />
 		<Unit filename="..\src\derelict\lua\lualib.d" />
+		<Unit filename="..\src\derelict\lua\luatypes.d" />
 		<Unit filename="..\src\derelict\sdl\sound.d" />
 		<Unit filename="..\src\framework\clipboard.d" />
 		<Unit filename="..\src\framework\commandline.d" />

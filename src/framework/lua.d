@@ -1,23 +1,20 @@
 module framework.lua;
 
 import derelict.lua.lua;
-import derelict.util.exception : SharedLibLoadException;
 import czstr = tango.stdc.stringz;
 import tango.core.Traits : ParameterTupleOf, isIntegerType, isFloatingPointType,
     ElementTypeOfArray, isArrayType, isAssocArrayType, KeyTypeOfAA, ValTypeOfAA,
     ReturnTypeOf, isStaticArrayType;
-import cstd = tango.stdc.stdlib;
 import rtraits = tango.core.RuntimeTraits;
 import env = tango.sys.Environment;
-import str = utils.string;
-import net.marshal;
+import tango.core.Exception;
 
+import str = utils.string;
 import utils.misc;
 import utils.stream;
 import utils.strparser;
 import utils.time;      //for special Time marshalling
 
-import tango.core.Exception;
 
 //counters incremented on each function call
 //doesn't include Lua builtin/stdlib calls or manually registered calls
@@ -174,6 +171,49 @@ private char[] luaWhere(lua_State* L, int level) {
     return "";
 }
 
+//Source: http://www.lua.org/source/5.1/ldblib.c.html#db_errorfb
+//License: MIT
+char[] luaStackTrace(lua_State* state, int level = 1) {
+    const LEVELS1 = 12;      /* size of the first part of the stack */
+    const LEVELS2 = 10;      /* size of the second part of the stack */
+
+    char[] ret;
+    int firstpart = 1;  /* still before eventual `...' */
+    lua_Debug ar;
+    while (lua_getstack(state, level++, &ar)) {
+        if (level > LEVELS1 && firstpart) {
+            /* no more than `LEVELS2' more levels? */
+            if (!lua_getstack(state, level+LEVELS2, &ar))
+                level--;  /* keep going */
+            else {
+                ret ~= "\n\t...";  /* too many levels */
+                while (lua_getstack(state, level+LEVELS2, &ar))  /* find last levels */
+                    level++;
+            }
+            firstpart = 0;
+            continue;
+        }
+        ret ~= "\t";
+        lua_getinfo(state, "Snl", &ar);
+        ret ~= czstr.fromStringz(ar.short_src.ptr) ~ ":";
+        if (ar.currentline > 0)
+            ret ~= myformat("{}:", ar.currentline);
+        if (*ar.namewhat != '\0')  /* is there a name? */
+            ret ~= myformat(" in function '{}'", czstr.fromStringz(ar.name));
+        else {
+            if (*ar.what == 'm')  /* main? */
+                ret ~= " in main chunk";
+            else if (*ar.what == 'C' || *ar.what == 't')
+                ret ~= " ?";  /* C function or tail call */
+            else
+                ret ~= myformat(" in function <{}:{}>",
+                    czstr.fromStringz(ar.short_src.ptr), ar.linedefined);
+        }
+        ret ~= "\n";
+    }
+    return ret.length ? ret[0..$-1] : ret;
+}
+
 //call code() in a more or less "protected" environment:
 //- catch Lua errors (lua_error()/error()) properly
 //- if there are stray D exceptions, clean up the Lua stack
@@ -234,7 +274,7 @@ class LuaException : CustomException {
         }
         //also append the trace like it used to be
         //but I think this should be changed
-        auto trace = LuaState.stackTrace(state, level);
+        auto trace = luaStackTrace(state, level);
         nmsg ~= ". Lua backtrace:\n" ~ trace;
         super(nmsg, next);
         if (!next) { //stupid ctor rules make me write stupid code
@@ -744,7 +784,7 @@ private void internalError(lua_State* state, Exception e) {
         " to Lua:");
     e.writeOut((char[] s) { Trace.format("{}", s); });
     Trace.formatln("responsible Lua backtrace:");
-    Trace.formatln("{}", LuaState.stackTrace(state, 1));
+    Trace.formatln("{}", luaStackTrace(state, 1));
     Trace.formatln("done, will die now.");
     //this is really better than trying to continue the program
     asm { hlt; }
@@ -1701,49 +1741,6 @@ class LuaState {
         //get the metatable from the global scope and write it into the registry
         lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(tableName));
         lua_setfield(mLua, LUA_REGISTRYINDEX, C_Mangle!(T).ptr);
-    }
-
-    //Source: http://www.lua.org/source/5.1/ldblib.c.html#db_errorfb
-    //License: MIT
-    const LEVELS1 = 12;      /* size of the first part of the stack */
-    const LEVELS2 = 10;      /* size of the second part of the stack */
-    static char[] stackTrace(lua_State* state, int level = 1) {
-        auto mLua = state; //move this function and fix names if you care
-        char[] ret;
-        int firstpart = 1;  /* still before eventual `...' */
-        lua_Debug ar;
-        while (lua_getstack(mLua, level++, &ar)) {
-            if (level > LEVELS1 && firstpart) {
-                /* no more than `LEVELS2' more levels? */
-                if (!lua_getstack(mLua, level+LEVELS2, &ar))
-                    level--;  /* keep going */
-                else {
-                    ret ~= "\n\t...";  /* too many levels */
-                    while (lua_getstack(mLua, level+LEVELS2, &ar))  /* find last levels */
-                        level++;
-                }
-                firstpart = 0;
-                continue;
-            }
-            ret ~= "\t";
-            lua_getinfo(mLua, "Snl", &ar);
-            ret ~= czstr.fromStringz(ar.short_src.ptr) ~ ":";
-            if (ar.currentline > 0)
-                ret ~= myformat("{}:", ar.currentline);
-            if (*ar.namewhat != '\0')  /* is there a name? */
-                ret ~= myformat(" in function '{}'", czstr.fromStringz(ar.name));
-            else {
-                if (*ar.what == 'm')  /* main? */
-                    ret ~= " in main chunk";
-                else if (*ar.what == 'C' || *ar.what == 't')
-                    ret ~= " ?";  /* C function or tail call */
-                else
-                    ret ~= myformat(" in function <{}:{}>",
-                        czstr.fromStringz(ar.short_src.ptr), ar.linedefined);
-            }
-            ret ~= "\n";
-        }
-        return ret.length ? ret[0..$-1] : ret;
     }
 }
 

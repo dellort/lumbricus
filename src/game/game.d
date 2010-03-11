@@ -32,7 +32,6 @@ import utils.random;
 import framework.framework;
 import utils.timesource;
 import framework.commandline;
-import framework.lua;
 import common.resset;
 
 import tango.math.Math;
@@ -101,7 +100,7 @@ class GameEngine {
 
         Sprite[] mPlaceQueue;
 
-        LuaState mScripting;
+        ScriptingObj mScripting;
 
         //for neutral text, I use GameEngine as key (hacky but simple)
         FormattedText[Object] mTempTextThemed;
@@ -298,7 +297,7 @@ class GameEngine {
         }
     }
 
-    final LuaState scripting() {
+    final ScriptingObj scripting() {
         //assertion may happen on savegames (when I was writing this, I didn't
         //  care about savegames at all; they may be broken; enjoy.)
         assert (!!mScripting);

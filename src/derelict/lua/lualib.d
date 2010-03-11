@@ -24,7 +24,7 @@
 module derelict.lua.lualib;
 
 import derelict.util.loader;
-import derelict.lua.lua;
+import derelict.lua.luatypes;
 
 //==============================================================================
 // Types
