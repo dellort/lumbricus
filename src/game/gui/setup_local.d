@@ -422,7 +422,6 @@ class LocalGameSetupTask {
 
         if (mDead) {
             mWindow.remove();
-            Trace.formatln("---------------------kill");
             return false;
         }
 
@@ -436,7 +435,6 @@ class LocalGameSetupTask {
         //poll for game death
         if (mGame) {
             if (!mGame.active) {
-                Trace.formatln("-----------------------reactive");
                 //show GUI again
                 gWindowFrame.addWindow(mWindow);
 
