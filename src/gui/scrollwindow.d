@@ -44,6 +44,9 @@ class ScrollArea : SimpleContainer {
 
     this() {
         focusable = false;
+        //what the child widget draws shouldn't be visible outside of this
+        //  ScrollArea widget
+        doClipping = true;
     }
 
     void setEnableScroll(bool[2] enable) {

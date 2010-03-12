@@ -310,6 +310,8 @@ class GameFrame : SimpleContainer {
 
         gDefaultLog("initializeGameGui");
 
+        doClipping = true;
+
         mGui = new SimpleContainer();
 
         //xxx ehrm, lol... config file?

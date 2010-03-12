@@ -65,7 +65,9 @@ char[] boxToString(MyBox box) {
 //xxx the tango to() function should do exactly that, but because the tango
 //    runtime is not compiled with the project, template lookup fails
 T fromStr(T)(char[] s) {
-    static if (is( typeof(T.fromString(s)) : T )) {
+    static if (is(T == char[])) {
+        return s;
+    } else static if (is( typeof(T.fromString(s)) : T )) {
         //Type.fromString()
         return T.fromString(s);
     } else static if (is( typeof(to!(T)(s)) == T )) {
@@ -96,7 +98,9 @@ bool tryFromStr(T)(char[] s, ref T destVal) {
 //reverse of above
 //structs require a fromStringRev() (sry for this name) member
 char[] toStr(T)(T value) {
-    static if (is( typeof(value.fromStringRev()) == char[] )) {
+    static if (is(T == char[])) {
+        return value;
+    } else static if (is( typeof(value.fromStringRev()) == char[] )) {
         //Type.fromStringRev()
         //mostly, value.toString() if for a more "readable" representation
         return value.fromStringRev();

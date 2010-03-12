@@ -194,7 +194,7 @@ class Widget {
     }
 
     ///clip graphics to the inside
-    bool doClipping = true;
+    bool doClipping = false;
 
     ///return value for the default onTestMouse()
     protected bool isClickable = true;
@@ -1551,16 +1551,9 @@ class Widget {
 
         c.pushState();
         onDrawBackground(c, mBorderArea+mAddToPos);
-        if (doClipping) {
-            //map (0,0) to the position of the widget and clip by widget-size
-            c.setWindow(mContainedWidgetBounds.p1+mAddToPos,
-                mContainedWidgetBounds.p2+mAddToPos);
-        } else {
-            //xxx don't know if this enough, since setWindow() also affects the
-            //clientSize() stuff; but then again, GUI widgets which use this
-            //rely on clipping
-            c.translate(mContainedWidgetBounds.p1+mAddToPos);
-        }
+        //map (0,0) to the position of the widget and clip by widget-size
+        c.setWindow(mContainedWidgetBounds.p1+mAddToPos,
+                mContainedWidgetBounds.p2+mAddToPos, doClipping);
         if (canScale && mScale.length != 1.0f)
             c.setScale(mScale);
 

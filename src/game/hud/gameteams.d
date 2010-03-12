@@ -130,9 +130,6 @@ class TeamWindow : Widget {
             //mMaxHealth = max(mMaxHealth, teams[n].totalHealth);
         }
 
-        //no clipping because the animation moves the labels outside the
-        //clipping area
-        table.doClipping = false;
         table.setLayout(WidgetLayout.Aligned(0, 1, Vector2i(0, 7)));
 
         addChild(table);

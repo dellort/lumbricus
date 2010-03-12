@@ -43,6 +43,7 @@ public class LogWindow : Widget, Output {
 
     ///initialize console, consoleFont will be used for rendering text
     public this(Font consoleFont = null) {
+        doClipping = true;
         focusable = false;
         font = consoleFont ? consoleFont : gFontManager.loadFont("console");
         mBackLog = new typeof(mBackLog)(BACKLOG_LENGTH);

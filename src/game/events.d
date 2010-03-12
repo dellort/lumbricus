@@ -321,22 +321,19 @@ final class Events {
     }
     //backend function
     void raise(ID eventID, EventTarget sender, EventPtr params) {
-        if (eventID >= mEvents.length)
-            return;
+        EventType e = eventID < mEvents.length ? mEvents[eventID] : null;
+        //if e doesn't exist, there can't be an event handler anyway
+        if (e) {
+            foreach (ref h; e.handlers) {
+                h.handler(h, sender, params);
+            }
 
-        EventType e = mEvents[eventID];
-        if (!e)
-            return;
+            foreach (h; generic_handlers) {
+                h(e.name, sender, params);
+            }
 
-        foreach (ref h; e.handlers) {
-            h.handler(h, sender, params);
+            raise_to_script(e, sender, params);
         }
-
-        foreach (h; generic_handlers) {
-            h(e.name, sender, params);
-        }
-
-        raise_to_script(e, sender, params);
 
         foreach (Events c; cascade) {
             c.raise(eventID, sender, params);

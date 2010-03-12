@@ -238,8 +238,9 @@ public class Canvas {
     }
 
     /// Set a clipping rect, and use p1 as origin (0, 0)
-    final void setWindow(Vector2i p1, Vector2i p2) {
-        clip(p1, p2);
+    final void setWindow(Vector2i p1, Vector2i p2, bool doclip = true) {
+        if (doclip)
+            clip(p1, p2);
         translate(p1);
         mStack[mStackTop].clientsize = p2 - p1;
         updateAreas();

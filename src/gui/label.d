@@ -26,6 +26,7 @@ class Label : Widget {
     this() {
         focusable = false;
         isClickable = false;
+        doClipping = true;
         mText = new FormattedText();
     }
 
