@@ -2,6 +2,7 @@ module framework.i18n;
 
 import framework.config;
 import framework.filesystem;
+import framework.globalsettings;
 import utils.configfile;
 import utils.log;
 import utils.misc;
@@ -21,16 +22,39 @@ import tango.util.Convert;
 
 private Translator gLocaleRoot;
 //two-character locale id
-public char[] gCurrentLanguage;
+Setting gCurrentLanguage;
 //fallback locale, in case the main locale file is not found
 public char[] gFallbackLanguage;
 
 //called when the language is changed
+//xxx GUI could install a property handler, but still need this because the
+//  setting change callback is called before the translators are switched to
+//  the new language, blergh
 public void delegate() gOnChangeLocale;
 
 private {
     Log log;
     MountId gLocaleMount = MountId.max;
+    char[] gActiveLanguage;
+}
+
+private const cDefLang = "en";
+
+///localePath: Path in VFS where locale files are stored (<langId>.conf)
+///locale-specific files in <localePath>/<langId> will be mounted to root
+private const cLocalePath = "/locale";
+
+static this() {
+    gFallbackLanguage = cDefLang;
+    gCurrentLanguage = addSetting!(char[])("locale", cDefLang,
+        SettingType.Choice);
+    gCurrentLanguage.onChange ~= delegate(Setting g) { initI18N(g.value); };
+    gOnRelistSettings ~= {
+        gCurrentLanguage.choices = null;
+        scanLocales((char[] id, char[] name1, char[] name2) {
+            gCurrentLanguage.choices ~= id;
+        });
+    };
 }
 
 //xxx: should use WeakList, but it has issues, etc.
@@ -173,7 +197,7 @@ public class Translator {
     }
 
     private ConfigNode localeNodeFromPath(char[] localePath) {
-        char[] localeFile = localePath ~ '/' ~ gCurrentLanguage;
+        char[] localeFile = localePath ~ '/' ~ gActiveLanguage;
         char[] fallbackFile = localePath ~ '/' ~ gFallbackLanguage;
         ConfigNode node = loadConfig(localeFile, false, true);
         if (!node)
@@ -181,7 +205,7 @@ public class Translator {
             node = loadConfig(fallbackFile, false, true);
         if (!node)
             log("WARNING: Failed to load any locale file from " ~ localePath
-                ~ " with language '" ~ gCurrentLanguage ~ "', fallback '"
+                ~ " with language '" ~ gActiveLanguage ~ "', fallback '"
                 ~ gFallbackLanguage ~ "'");
         return node;
     }
@@ -332,12 +356,6 @@ public class Translator {
     }
 }
 
-private const cDefLang = "en";
-
-///localePath: Path in VFS where locale files are stored (<langId>.conf)
-///locale-specific files in <localePath>/<langId> will be mounted to root
-private const cLocalePath = "/locale";
-
 //search locale directory for translation files (<lang>.conf)
 //  e.g. cb("de", "German", "Deutsch")
 void scanLocales(void delegate(char[] id, char[] name_en, char[] name) cb) {
@@ -367,9 +385,13 @@ void scanLocales(void delegate(char[] id, char[] name_en, char[] name) cb) {
 ///lang: Language identifier.
 ///um, and I guess it tries to load /locale/<lang>.conf
 public void initI18N(char[] lang) {
+    gCurrentLanguage.set(lang);
+    //prevent recursion from settings stuff
+    if (gActiveLanguage == gCurrentLanguage.value)
+        return;
     log = registerLog("i18n");
-    gCurrentLanguage = lang;
-    gFallbackLanguage = cDefLang;
+
+    gActiveLanguage = gCurrentLanguage.value;
 
     //xxx do we need this?
     try {

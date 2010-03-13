@@ -3,12 +3,14 @@ module framework.drivers.draw_directx;
 import derelict.directx.d3d9;
 import derelict.directx.d3dx9;
 import framework.framework;
+import framework.globalsettings;
 import framework.drawing;
 import tango.sys.win32.Macros;
 import tango.sys.win32.Types;
 import utils.misc;
 import utils.transform;
 
+const cDrvName = "draw_directx";
 
 const uint D3DFVF_TLVERTEX = D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1;
 struct TLVERTEX {
@@ -56,7 +58,7 @@ class DXDrawDriver : DrawDriver {
     IDirect3DDevice9 d3dDevice;
 
     this() {
-        auto opts = driverOptions(this).getval!(Options);
+        opts = getSettingsStruct!(Options)(cDrvName);
         mVsync = opts.vsync;
 
         DerelictD3D9.load();
@@ -167,8 +169,8 @@ class DXDrawDriver : DrawDriver {
     }
 
     static this() {
-        auto opts = registerFrameworkDriver!(typeof(this))("directx");
-        opts.addMembers!(Options)();
+        registerFrameworkDriver!(typeof(this))(cDrvName);
+        addSettingsStruct!(Options)(cDrvName);
     }
 }
 

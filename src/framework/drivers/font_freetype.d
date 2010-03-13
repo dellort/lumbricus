@@ -6,6 +6,7 @@ import derelict.freetype.ft;
 import derelict.util.exception;
 
 import framework.framework;
+import framework.globalsettings;
 import framework.font;
 import framework.texturepack;
 
@@ -16,6 +17,8 @@ import utils.color;
 import utils.configfile;
 
 import utils.stream;
+
+const cDrvName = "font_freetype";
 
 private struct GlyphData {
     SubSurface tex;     //glyph texture
@@ -394,7 +397,7 @@ class FTFontDriver : FontDriver {
     bool useFontPacker;
 
     this() {
-        useFontPacker = driverOptions(this).getT!(bool)("font_packer");
+        useFontPacker = getSetting!(bool)(cDrvName ~ ".font_packer");
         Derelict_SetMissingProcCallback(&missingProcCb);
         DerelictFT.load();
         Derelict_SetMissingProcCallback(null);
@@ -482,8 +485,8 @@ class FTFontDriver : FontDriver {
     }
 
     static this() {
-        auto options = registerFrameworkDriver!(typeof(this))("freetype");
-        options.add!(bool)("font_packer", true);
+        registerFrameworkDriver!(typeof(this))(cDrvName);
+        addSetting!(bool)(cDrvName ~ ".font_packer", true);
     }
 }
 

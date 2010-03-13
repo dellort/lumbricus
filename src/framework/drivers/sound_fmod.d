@@ -286,6 +286,6 @@ class FMODSoundDriver : SoundDriver {
     }
 
     static this() {
-        registerFrameworkDriver!(typeof(this))("fmod");
+        registerFrameworkDriver!(typeof(this))("sound_fmod");
     }
 }

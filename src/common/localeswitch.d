@@ -26,12 +26,12 @@ class LocaleSwitch {
 
     this(char[] args) {
         //if "check" is passed, exit if a language is already set
-        if (args == "check" && gCurrentLanguage.length > 0) {
+        if (args == "check" && gCurrentLanguage.value.length > 0) {
             return;
         }
 
         //for reset on cancel
-        mOldLanguage = gCurrentLanguage;
+        mOldLanguage = gCurrentLanguage.value;
 
         auto loader = new LoadGui(loadConfig("dialogs/locale_gui"));
         loader.load();
@@ -44,7 +44,7 @@ class LocaleSwitch {
         char[][] locList;
         mLocaleIds = null;
         //get the currently displayed locale, to set initial selection
-        char[] curId = gCurrentLanguage;
+        char[] curId = gCurrentLanguage.value;
         if (curId.length == 0)
             curId = gFallbackLanguage;
         //list locale directory and add all files to the dropdownlist
@@ -67,7 +67,7 @@ class LocaleSwitch {
 
     private void cancelClick(Button sender) {
         //locale may have been changed on selection, reset it
-        globals.initLocale(mOldLanguage);
+        initI18N(mOldLanguage);
         mWindow.remove();
     }
 
@@ -86,7 +86,7 @@ class LocaleSwitch {
         if (idx >= 0) {
             //a locale was selected, activate it for preview
             mSelLanguage = mLocaleIds[idx];
-            globals.initLocale(mSelLanguage);
+            initI18N(mSelLanguage);
         }
     }
 

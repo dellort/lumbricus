@@ -3,6 +3,7 @@ module framework.drivers.base_sdl;
 import derelict.sdl.sdl;
 import derelict.sdl.image;
 import framework.framework;
+import framework.globalsettings;
 import framework.event;
 import framework.sdl.rwops;
 import framework.sdl.sdl;
@@ -12,7 +13,6 @@ import utils.time;
 import utils.perf;
 import utils.drawing;
 import utils.misc;
-import utils.proplist;
 import utils.strparser;
 
 import math = tango.math.Math;
@@ -22,6 +22,8 @@ import tango.stdc.stringz;
 import tango.sys.Environment;
 
 import str = utils.string;
+
+const cDrvName = "base_sdl";
 
 package {
     Keycode[int] gSdlToKeycode;
@@ -68,7 +70,7 @@ class SDLDriver : FrameworkDriver {
 
     this() {
         //default (empty) means use OS default
-        char[] wndPos = driverOptions(this).getT!(char[])("window_pos");
+        char[] wndPos = getSetting!(char[])(cDrvName ~ ".window_pos");
 
         if (wndPos == "center") {
             //CENTERED doesn't work - somehow resizing the window enters an endless
@@ -506,6 +508,6 @@ class SDLDriver : FrameworkDriver {
 }
 
 static this() {
-    PropertyList s = registerFrameworkDriver!(SDLDriver)("sdl");
-    s.add!(char[])("window_pos", "center");
+    registerFrameworkDriver!(SDLDriver)(cDrvName);
+    addSetting!(char[])(cDrvName ~ ".window_pos", "center");
 }

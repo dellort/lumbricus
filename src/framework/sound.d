@@ -1,6 +1,6 @@
 module framework.sound;
 
-import framework.framework, utils.proplist, utils.factory, utils.time,
+import framework.framework, framework.globalsettings, utils.factory, utils.time,
     utils.vector2, utils.weaklist, utils.stream, utils.misc, utils.list2;
 
 //sound type is only used for mixing (e.g. sfx may be louder than music)
@@ -101,26 +101,30 @@ class SoundManager : ResourceManagerT!(SoundDriver, Sample) {
         //all loaded sound files (music & samples)
         ObjectList!(Source, "sNode") mSources;
 
-        PropertyValue mVolume;
-        PropertyValue[SoundType.max] mTypeVolume;
+        SettingVar!(float) mVolume;
+
+        SettingVar!(float)[SoundType.max] mTypeVolume;
     }
 
     this() {
         super("sound");
         mSources = new typeof(mSources);
 
-        auto snd = gFrameworkSettings.addList("sound");
+        SettingVar!(float) addsndval(char[] name) {
+            auto res = SettingVar!(float).Add("sound." ~ name, 1.0f);
+            res.setting.type = SettingType.Percent;
+            res.setting.onChange ~= &change_volume;
+            return res;
+        }
 
-        mVolume = snd.add!(PropertyPercent)("master_volume", 1.0f).asValue;
-        mVolume.addListener(&change_volume);
+        mVolume = addsndval("master_volume");
+
         foreach (int idx, ref tv; mTypeVolume) {
-            tv = snd.add!(PropertyPercent)(myformat("volume{}",idx),
-                1.0f).asValue;
-            tv.addListener(&change_volume);
+            tv = addsndval(myformat("volume{}", idx));
         }
     }
 
-    private void change_volume(PropertyValue v) {
+    private void change_volume(Setting v) {
         foreach (s; mSources) {
             s.updateVolume();
         }
@@ -163,19 +167,19 @@ class SoundManager : ResourceManagerT!(SoundDriver, Sample) {
 
     ///set global volume (also see setTypeVolume)
     void volume(float value) {
-        mVolume.setval(value);
+        mVolume.set(value);
     }
     float volume() {
-        return clampRangeC(mVolume.getval!(float)(), 0.0f, 1.0f);
+        return clampRangeC(mVolume.get(), 0.0f, 1.0f);
     }
 
     ///set volume for a specific sample type
     ///actual source volume: <global> * <type volume> * <source volume>
     void setTypeVolume(SoundType v, float value) {
-        mTypeVolume[v].setval(value);
+        mTypeVolume[v].set(value);
     }
     float getTypeVolume(SoundType v) {
-        return clampRangeC(mTypeVolume[v].getval!(float)(), 0.0f, 1.0f);
+        return clampRangeC(mTypeVolume[v].get(), 0.0f, 1.0f);
     }
 
     ///if this is a real sound device (false when this is a null-driver)
@@ -519,6 +523,6 @@ class NullSound : SoundDriver {
     }
 
     static this() {
-        registerFrameworkDriver!(typeof(this))("null");
+        registerFrameworkDriver!(typeof(this))("sound_none");
     }
 }

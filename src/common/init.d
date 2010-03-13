@@ -2,8 +2,8 @@ module common.init;
 
 import framework.config;
 import framework.filesystem;
+import framework.globalsettings;
 import common = common.common;
-import settings = common.settings;
 
 import utils.configfile;
 import utils.log;
@@ -46,9 +46,8 @@ void init(char[][] args) {
     //    fs.mount(MountPath.absolute, extradata, "/", false, -1);
     //}
 
-    settings.prepareSettings();
-
-    settings.loadSettings();
+    relistAllSettings();
+    loadSettings();
 
     //xxx load settings from command line
 

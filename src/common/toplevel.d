@@ -2,6 +2,7 @@
 module common.toplevel;
 
 import framework.font;
+import framework.globalsettings;
 import framework.keysyms;
 import framework.framework;
 import framework.sound;
@@ -20,7 +21,6 @@ import gui.scrollbar;
 import gui.dropdownlist;
 import gui.window;
 import common.common;
-import common.settings;
 //import all restypes because of the factories (more for debugging...)
 import common.allres;
 import common.task;
@@ -32,7 +32,6 @@ import utils.output;
 import utils.misc;
 import utils.mybox;
 import utils.perf;
-import utils.proplist;
 import memory = tango.core.Memory;
 import utils.stream;
 import tango.core.Variant;
@@ -214,9 +213,6 @@ private:
 
         mGui = new GUI();
 
-        gGuiTheme.addListener(&onChangeGuiTheme);
-        onChangeGuiTheme(gGuiTheme);
-
         mFPS = new GuiFps();
         mFPS.zorder = GUIZOrder.FPS;
         mFPS.visible = false;
@@ -261,10 +257,6 @@ private:
     }
 
     public void deinitialize() {
-    }
-
-    private void onChangeGuiTheme(PropertyValue v) {
-        mGui.loadTheme(gGuiTheme.asString());
     }
 
     private void initConsole() {
@@ -325,9 +317,13 @@ private:
         globals.cmdLine.registerCommand("fw_settings", &cmdFwSettings,
             "", null);
 
+        //settings
+        globals.cmdLine.registerCommand("settings_set", &cmdSetSet, "",
+            ["text", "text..."]);
+        globals.cmdLine.registerCommand("settings_list", &cmdSetList, "", []);
+
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "");
-        globals.cmdLine.registerCommand("locale", &cmdLocale, "", ["text"]);
         globals.cmdLine.registerCommand("echo", &cmdEcho, "", ["text..."]);
     }
 
@@ -369,8 +365,33 @@ private:
     }
 
     private void cmdFwSettings(MyBox[] args, Output write) {
-        createPropertyEditWindow(gSettings, false,
-            "Framework settings");
+        createPropertyEditWindow("Framework settings");
+    }
+
+    private void cmdSetSet(MyBox[] args, Output write) {
+        char[] name = args[0].unbox!(char[]);
+        char[] value = args[1].unbox!(char[]);
+        setSetting(name, value);
+    }
+
+    private void cmdSetList(MyBox[] args, Output write) {
+        foreach (s; gSettings) {
+            write.writef("{} = '{}' ", s.name, s.value);
+            switch (s.type) {
+            case SettingType.String:
+                write.writef("[string]");
+                break;
+            case SettingType.Choice:
+                write.writef("[choice:{}]", s.choices);
+                break;
+            case SettingType.Percent:
+                write.writef("[percent]");
+                break;
+            default:
+                write.writef("[?]");
+            }
+            write.writefln("");
+        }
     }
 
     private char[][] complete_fw_info() {
@@ -569,11 +590,6 @@ private:
 
     private void cmdNameit(MyBox[] args, Output write) {
         mKeyNameIt = true;
-    }
-
-    private void cmdLocale(MyBox[] args, Output write) {
-        char[] lid = args[0].unbox!(char[]);
-        globals.initLocale(lid);
     }
 
     private void cmdEcho(MyBox[] args, Output write) {

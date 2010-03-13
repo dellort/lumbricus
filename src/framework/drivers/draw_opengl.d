@@ -5,6 +5,7 @@ import derelict.opengl.gl;
 import derelict.opengl.glu;
 import derelict.opengl.extension.arb.texture_non_power_of_two;
 import framework.framework;
+import framework.globalsettings;
 import framework.drawing;
 import tango.math.Math;
 import tango.stdc.stringz;
@@ -12,11 +13,12 @@ import str = utils.string;
 import utils.configfile;
 import utils.misc;
 import utils.transform;
-import utils.proplist;
 import utils.log;
 import cstdlib = tango.stdc.stdlib;
 
 const GLuint GLID_INVALID = 0;
+
+const cDrvName = "draw_opengl";
 
 private struct Options {
     //when an OpenGL surface is created, and the framework surface has caching
@@ -79,7 +81,7 @@ class GLDrawDriver : DrawDriver {
         DerelictGL.load();
         DerelictGLU.load();
 
-        opts = driverOptions(this).getval!(Options);
+        opts = getSettingsStruct!(Options)(cDrvName);
 
         mCanvas = new GLCanvas(this);
     }
@@ -157,8 +159,8 @@ class GLDrawDriver : DrawDriver {
     }
 
     static this() {
-        auto opts = registerFrameworkDriver!(typeof(this))("opengl");
-        opts.addMembers!(Options)();
+        registerFrameworkDriver!(typeof(this))(cDrvName);
+        addSettingsStruct!(Options)(cDrvName);
     }
 }
 

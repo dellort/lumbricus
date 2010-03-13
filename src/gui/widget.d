@@ -3,6 +3,7 @@ module gui.widget;
 import framework.config;
 import framework.filesystem;
 import framework.framework;
+import framework.globalsettings;
 import framework.event;
 import framework.i18n;
 import gui.global;
@@ -1803,11 +1804,16 @@ final class GUI {
         //properties; the actual GUI styling should be somewhere else
         mStyleRoot = new StylesPseudoCSS();
 
-        //load the theme (it's the theme because this is the top-most widget)
-        auto themes = listThemes();
-        loadTheme(themes.length ? themes[0] : "");
+        //xxx should be a weak reference, not a strong one
+        gThemeSetting.onChange ~= &themeSettingChange;
+
+        doReloadTheme();
 
         mRoot = new MainFrame(this);
+    }
+
+    private void themeSettingChange(Setting g) {
+        doReloadTheme();
     }
 
     MainFrame mainFrame() {
@@ -2216,15 +2222,36 @@ final class GUI {
 
     //theme = relative filename of the theme, can be cThemeNone for no theme
     void loadTheme(char[] theme) {
+        gThemeSetting.set(theme);
+    }
+
+    private bool doReloadTheme() {
+        char[] theme = gThemeSetting.value;
+
         log("load theme '{}'", theme);
+
+        auto themes = listThemes();
+        bool ok = false;
+        foreach (s; themes) {
+            if (s == theme) {
+                ok = true;
+                break;
+            }
+        }
+        if (!ok) {
+            theme = themes[0];
+            log("not found, defaulting to '{}' instead", theme);
+        }
+
+        void loadRules(ConfigNode from) {
+            mStyleRoot.addRules(from.getSubNode("styles"));
+        }
         mStyleRoot.clearRules();
         loadRules(loadConfig("gui_style_root"));
         if (theme != cThemeNone)
             loadRules(loadConfig(cThemeFolder ~ theme, true));
-    }
 
-    void loadRules(ConfigNode from) {
-        mStyleRoot.addRules(from.getSubNode("styles"));
+        return true;
     }
 
     static char[][] listThemes() {
@@ -2243,6 +2270,15 @@ final class GUI {
     static Log getLog() {
         return log;
     }
+}
+
+Setting gThemeSetting;
+
+static this() {
+    gThemeSetting = addSetting!(char[])("gui.theme", "", SettingType.Choice);
+    gOnRelistSettings ~= {
+        gThemeSetting.choices = GUI.listThemes();
+    };
 }
 
 //only used for Widget.loadFrom(), implemented in loader.d

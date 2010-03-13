@@ -19,7 +19,6 @@ import utils.perf;
 import utils.time;
 import utils.weaklist;
 import utils.gzip;
-import utils.proplist;
 
 import utils.stream;
 
@@ -29,6 +28,7 @@ import cstdlib = tango.stdc.stdlib;
 
 import rotozoom = framework.rotozoom;
 
+import framework.globalsettings;
 
 enum Transparency {
     None,
@@ -38,56 +38,53 @@ enum Transparency {
                 //invalid as surface transparency type
 }
 
-PropertyList gFrameworkSettings;
 private {
-    PropertyList gFwDrvList;
-    char[][char[]] gDefaultDrivers;
+    Setting[char[]] gDrivers;
+    Object delegate()[char[]] gDriverFactory;
 }
 
 static this() {
-    gFrameworkSettings = new PropertyList;
-    gFrameworkSettings.name = "framework";
-
-    gFwDrvList = gFrameworkSettings.addList("drivers");
-
-    //hack to force some defaults
-    //this is only so that if the conf file with the defaults can not be loaded,
-    //  you still get sensible defaults (and not some random choice)
-    //those with only one drivers select the only existing one as default
-    gDefaultDrivers["draw"] = "opengl";
-    gDefaultDrivers["sound"] = "none";
-
-    //silly hack
-    auto cmd = new PropertyCommand();
-    cmd.name = "driver_reload";
-    cmd.onCommand = { gFramework.scheduleDriverReload(); };
-    gFrameworkSettings.addNode(cmd);
+    void add(char[] driver_kind, char[] def) {
+        gDrivers[driver_kind] = addSetting!(char[])("driver." ~ driver_kind,
+            def, SettingType.Choice);
+    }
+    add("base", "sdl");
+    add("draw", "opengl");
+    add("sound", "none");
+    add("font", "freetype");
 }
 
-//automatically called by registerFrameworkDriver()
-private void addDriverEntry(char[] type, char[] driver)
-{
-    auto choice = castStrict!(PropertyChoice)(gFwDrvList.find(type));
-    if (!choice) {
-        choice = new PropertyChoice();
-        choice.name = type;
-        gFwDrvList.addNode(choice);
-    }
-    assert(!choice.isValidChoice(driver), "double entry?");
-    choice.add(driver);
-    if (auto p = type in gDefaultDrivers) {
-        //at creation time of that driver; can't set otherwise
-        if (*p == driver) {
-            choice.setAsStringDefault(driver);
+//the driver name is expected to be in the form "driverkind_name"
+//e.g. base sdl driver is "base_sdl" and base sdl draw driver is "draw_sdl"
+void registerFrameworkDriver(T)(char[] name) {
+    char[] orgname = name;
+    foreach (char[] kind, Setting st; gDrivers) {
+        if (str.eatStart(name, kind ~ "_")) {
+            assert(!(orgname in gDriverFactory), "double entry? "~orgname);
+            gDriverFactory[orgname] = delegate Object() { return new T(); };
+            st.choices ~= name;
+            return;
         }
     }
+    assert(false, "driver type not found for driver "~name);
 }
 
 //get what's returned
-
+//return what's get
+//(what?)
+//driver name for a driver kind, e.g. type=="draw" => return "draw_opengl"
 private char[] getSelectedDriver(char[] type) {
-    auto choice = castStrict!(PropertyChoice)(gFwDrvList.find(type));
-    return choice.asString();
+    Setting st = gDrivers[type];
+    //reassemble what was parsed in registerFrameworkDriver()
+    return type ~ "_" ~ st.value;
+}
+
+//name is the full name for the framework driver, e.g. "draw_opengl"
+private T createDriver(T)(char[] name) {
+    auto pctor = name in gDriverFactory;
+    if (!pctor)
+        throw new FrameworkException("framework driver not found: "~name);
+    return castStrict!(T)((*pctor)());
 }
 
 //**** driver stuff
@@ -237,7 +234,6 @@ abstract class ResourceManagerT(DriverT, ResourceT) : ResourceManager {
         assert(!gSingleton);
         gSingleton = this;
         //assert(!!gFramework);
-        registerDriverType!(DriverT)(mDriverType);
         Framework.registerManager(this);
     }
 
@@ -1626,90 +1622,4 @@ class Framework {
 
     ///called when the application gets or loses input focus (also on minimize)
     public void delegate(bool focused) onFocusChange;
-}
-
-private {
-    Factory!(Driver)[ClassInfo] gDriverFactories;
-    char[][ClassInfo] gDriverTypeName;
-
-    //find the class that derives directly from "Driver"
-    //the simpler solution would need more code, especially because FontDriver
-    //  etc. are not reachable from this module
-    //xxx might break if you use interfaces
-    //also xxx looks like this isn't really needed
-    ClassInfo driverType(ClassInfo t) {
-        auto cur = t;
-        ClassInfo prev;
-        while (cur) {
-            if (cur is Driver.classinfo) {
-                assert(!!prev, "'Driver' passed to driverType()?");
-                return prev;
-            }
-            prev = cur;
-            cur = cur.base;
-        }
-        assert(false, "unknown driver type: "~t.name);
-    }
-
-    Factory!(Driver) driverFactory(ClassInfo t) {
-        ClassInfo type = driverType(t);
-        if (auto p = type in gDriverFactories) {
-            return *p;
-        }
-        auto n = new Factory!(Driver)();
-        gDriverFactories[type] = n;
-        return n;
-    }
-}
-
-//register driver T under name; returns empty PropertyList for driver options
-PropertyList registerFrameworkDriver(T)(char[] name) {
-    static assert(is(T : Driver));
-    auto t = driverType(T.classinfo);
-    driverFactory(t).register!(T)(name);
-    assert(t in gDriverTypeName, "driver type not registered yet: "~t.name);
-    char[] type = gDriverTypeName[t];
-    addDriverEntry(type, name);
-    return addOptionNode(T.classinfo, type, name);
-}
-
-private PropertyList addOptionNode(ClassInfo ci, char[] type, char[] name) {
-    //unique options namespace (at least needed for base_sdl, draw_sdl)
-    //be sure it doesn't clash with the driver choice entries
-    char[] options = type ~ "_" ~ name;
-    auto opts = new PropertyList();
-    opts.name = options;
-    gFwDrvList.addNode(opts);
-    return opts;
-}
-
-//get back what was returned by registerFrameworkDriver()
-//the returned PropertyList is where driver implementation store options
-//inst is only for type inference ("driverOptions(this)")
-PropertyList driverOptions(T)(T inst) {
-    ClassInfo t = driverType(T.classinfo);
-    char[] type = gDriverTypeName[t];
-    char[] name = gDriverFactories[t].lookupDynamic(T.classinfo);
-    char[] options = type ~ "_" ~ name;
-    return gFwDrvList.sublist(options);
-}
-
-T createDriver(T)(char[] name) {
-    auto factory = driverFactory(T.classinfo);
-    if (!factory.exists(name)) {
-        assert(false, myformat("{} doesn't exist for type {}", name,
-            T.stringof));
-    }
-    return castStrict!(T)(factory.instantiate(name));
-}
-
-void registerDriverType(T)(char[] name) {
-    auto t = driverType(T.classinfo);
-    assert(!(t in gDriverTypeName), "double driver type entry");
-    gDriverTypeName[t] = name;
-}
-
-static this() {
-    registerDriverType!(FrameworkDriver)(cDrvBase);
-    registerDriverType!(DrawDriver)(cDrvDraw);
 }

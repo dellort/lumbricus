@@ -498,7 +498,7 @@ class ALSoundDriver : SoundDriver {
     }
 
     static this() {
-        registerFrameworkDriver!(typeof(this))("openal");
+        registerFrameworkDriver!(typeof(this))("sound_openal");
     }
 }
 

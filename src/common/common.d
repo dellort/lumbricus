@@ -3,11 +3,11 @@ module common.common;
 public import framework.config;
 import common.resources;
 import common.resset;
-import common.settings;
+import framework.commandline;
 import framework.filesystem;
 import framework.framework;
 import framework.font;
-import framework.commandline;
+import framework.globalsettings;
 import utils.timesource;
 import framework.i18n;
 import gui.global;
@@ -43,19 +43,11 @@ class Common {
     long[char[]] counters;
     size_t[char[]] size_stats;
 
-    private {
-        //another hack, see addFrameCallback()
-        bool delegate()[] mFrameCallbacks;
-    }
-
     //moved to here from TopLevel
     //xxx move this to where-ever
     Translator localizedKeynames;
 
-    //PropertyValue currentLocaleID;
-
     private this() {
-        //currentLocaleID = gSettings.add!(char[])("locale_id", cDefLang);
     }
 
     void do_init() {
@@ -69,9 +61,7 @@ class Common {
 
         loadColors(loadConfig("colors"));
 
-        ConfigNode langconf = loadConfigDef("language");
-        auto langId = langconf.getStringValue("language_id", "");
-        initLocale(langId);
+        initI18N(gCurrentLanguage.value);
 
         localizedKeynames = localeRoot.bindNamespace("keynames");
     }
@@ -96,43 +86,42 @@ class Common {
         gGuiResources = gResources.loadResSet("guires.conf");
 
         gFontManager.readFontDefinitions(loadConfig("fonts"));
+    }
 
+    const cVideoFS = "video.fullscreen";
+    const cVideoSizeWnd = "video.size.window";
+    const cVideoSizeFS = "video.size.fullscreen";
+
+    static this() {
+        addSetting!(bool)(cVideoFS, false);
+        addSetting!(Vector2i)(cVideoSizeWnd, Vector2i(0));
+        addSetting!(Vector2i)(cVideoSizeFS, Vector2i(0));
     }
 
     //read configuration from video.conf and set video mode
     void setVideoFromConf(bool toggleFullscreen = false) {
         auto vconf = loadConfigDef("video");
-        bool fs = vconf.getValue("fullscreen", false);
+        bool fs = getSetting!(bool)(cVideoFS);
         if (toggleFullscreen)
             fs = !gFramework.fullScreen;
-        ConfigNode vnode = vconf.getSubNode(fs ? "fs" : "window");
-        Vector2i res = Vector2i(vnode.getValue("width", 0),
-            vnode.getValue("height", 0));
+        Vector2i res = getSetting!(Vector2i)(fs ? cVideoSizeFS : cVideoSizeWnd);
         //if nothing set, default to desktop resolution
         if (res.x == 0 || res.y == 0) {
             if (fs)
                 res = gFramework.desktopResolution;
             else
-                res = Vector2i(800, 600);
+                res = Vector2i(1024, 768);
         }
-        int d = vnode.getIntValue("depth", 0);
-        gFramework.setVideoMode(res, d, fs);
+        gFramework.setVideoMode(res, 0, fs);
     }
 
     void saveVideoConfig() {
-        //store the current resolution into the config file
-        auto vconf = loadConfigDef("video");
-        bool isFS = gFramework.fullScreen;
-        //xxx save fullscreen state? I would prefer configuring this explicitly
-        //vconf.setValue("fullscreen", isFS);
-        if (!vconf.hasValue("fullscreen"))
-            vconf.setValue("fullscreen", false);
-        ConfigNode vnode = vconf.getSubNode(isFS ? "fs" : "window");
+        bool fs = gFramework.fullScreen;
+        //xxx might be slightly different from code before
+        setSetting!(bool)(cVideoFS, fs);
         Vector2i res = gFramework.screenSize;
-        vnode.setValue("width", res.x);
-        vnode.setValue("height", res.y);
-        //xxx get bit depth somehow?
-        saveConfig(vconf, "video.conf");
+        setSetting!(Vector2i)(fs ? cVideoSizeFS : cVideoSizeWnd, res);
+        saveSettings();
     }
 
     void setDefaultOutput(Output o) {
@@ -153,10 +142,6 @@ class Common {
         }
         if (conf.getValue!(bool)("logconsole", false))
             defaultOut = StdioOutput.output;
-    }
-
-    void initLocale(char[] langId) {
-        initI18N(langId);
     }
 
     //translate into translated user-readable string

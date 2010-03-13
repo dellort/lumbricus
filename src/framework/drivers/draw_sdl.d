@@ -2,18 +2,20 @@ module framework.drivers.draw_sdl;
 
 import derelict.sdl.sdl;
 import framework.framework;
+import framework.globalsettings;
 import framework.drivers.base_sdl;
 import framework.rotozoom;
 import framework.sdl.sdl;
 import utils.vector2;
 import utils.drawing;
 import utils.misc;
-import utils.proplist;
 
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
 
 import str = utils.string;
+
+const cDrvName = "draw_sdl";
 
 private struct Options {
     bool RLE = true;
@@ -36,7 +38,7 @@ class SDLDrawDriver : DrawDriver {
     }
 
     this() {
-        opts = driverOptions(this).getval!(Options)();
+        opts = getSettingsStruct!(Options)(cDrvName);
 
         get_screen();
 
@@ -117,8 +119,8 @@ class SDLDrawDriver : DrawDriver {
     }
 
     static this() {
-        auto opts = registerFrameworkDriver!(typeof(this))("sdl");
-        opts.addMembers!(Options)();
+        registerFrameworkDriver!(typeof(this))(cDrvName);
+        addSettingsStruct!(Options)(cDrvName);
     }
 }
 
