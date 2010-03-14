@@ -66,7 +66,6 @@
 		<Unit filename="..\src\common\animation.d" />
 		<Unit filename="..\src\common\common.d" />
 		<Unit filename="..\src\common\init.d" />
-		<Unit filename="..\src\common\loadsave.d" />
 		<Unit filename="..\src\common\localeswitch.d" />
 		<Unit filename="..\src\common\resfileformats.d" />
 		<Unit filename="..\src\common\resources.d" />
@@ -78,7 +77,6 @@
 		<Unit filename="..\src\common\restypes\sound.d" />
 		<Unit filename="..\src\common\resview.d" />
 		<Unit filename="..\src\common\scene.d" />
-		<Unit filename="..\src\common\settings.d" />
 		<Unit filename="..\src\common\task.d" />
 		<Unit filename="..\src\common\toplevel.d" />
 		<Unit filename="..\src\derelict\directx\d3d9.d" />
@@ -121,6 +119,7 @@
 		<Unit filename="..\src\framework\filesystem.d" />
 		<Unit filename="..\src\framework\font.d" />
 		<Unit filename="..\src\framework\framework.d" />
+		<Unit filename="..\src\framework\globalsettings.d" />
 		<Unit filename="..\src\framework\i18n.d" />
 		<Unit filename="..\src\framework\imgwrite.d" />
 		<Unit filename="..\src\framework\keybindings.d" />
@@ -133,14 +132,6 @@
 		<Unit filename="..\src\framework\sound.d" />
 		<Unit filename="..\src\framework\stuff.d" />
 		<Unit filename="..\src\framework\texturepack.d" />
-		<Unit filename="..\src\game\action\base.d" />
-		<Unit filename="..\src\game\action\common.d" />
-		<Unit filename="..\src\game\action\list.d" />
-		<Unit filename="..\src\game\action\spawn.d" />
-		<Unit filename="..\src\game\action\spriteactions.d" />
-		<Unit filename="..\src\game\action\wcontext.d" />
-		<Unit filename="..\src\game\action\weaponactions.d" />
-		<Unit filename="..\src\game\actionsprite.d" />
 		<Unit filename="..\src\game\animation.d" />
 		<Unit filename="..\src\game\bomberworm.d" />
 		<Unit filename="..\src\game\clientengine.d" />
@@ -148,6 +139,7 @@
 		<Unit filename="..\src\game\controller_events.d" />
 		<Unit filename="..\src\game\controller_plugins.d" />
 		<Unit filename="..\src\game\crate.d" />
+		<Unit filename="..\src\game\effects.d" />
 		<Unit filename="..\src\game\events.d" />
 		<Unit filename="..\src\game\game.d" />
 		<Unit filename="..\src\game\gamemodes\base.d" />
@@ -161,13 +153,11 @@
 		<Unit filename="..\src\game\glue.d" />
 		<Unit filename="..\src\game\gobject.d" />
 		<Unit filename="..\src\game\gui\gamesummary.d" />
-		<Unit filename="..\src\game\gui\leveledit.d" />
 		<Unit filename="..\src\game\gui\levelpaint.d" />
 		<Unit filename="..\src\game\gui\loadingscreen.d" />
 		<Unit filename="..\src\game\gui\preview.d" />
 		<Unit filename="..\src\game\gui\setup_local.d" />
 		<Unit filename="..\src\game\gui\teamedit.d" />
-		<Unit filename="..\src\game\gui\weaponedit.d" />
 		<Unit filename="..\src\game\gui\welcome.d" />
 		<Unit filename="..\src\game\hud\camera.d" />
 		<Unit filename="..\src\game\hud\chatbox.d" />
@@ -206,18 +196,14 @@
 		<Unit filename="..\src\game\temp.d" />
 		<Unit filename="..\src\game\water.d" />
 		<Unit filename="..\src\game\wcontrol.d" />
-		<Unit filename="..\src\game\weapon\actionweapon.d" />
 		<Unit filename="..\src\game\weapon\airstrike.d" />
 		<Unit filename="..\src\game\weapon\drill.d" />
 		<Unit filename="..\src\game\weapon\girder.d" />
 		<Unit filename="..\src\game\weapon\helpers.d" />
 		<Unit filename="..\src\game\weapon\jetpack.d" />
 		<Unit filename="..\src\game\weapon\luaweapon.d" />
-		<Unit filename="..\src\game\weapon\melee.d" />
 		<Unit filename="..\src\game\weapon\napalm.d" />
 		<Unit filename="..\src\game\weapon\parachute.d" />
-		<Unit filename="..\src\game\weapon\projectile.d" />
-		<Unit filename="..\src\game\weapon\ray.d" />
 		<Unit filename="..\src\game\weapon\rope.d" />
 		<Unit filename="..\src\game\weapon\spawn.d" />
 		<Unit filename="..\src\game\weapon\types.d" />
@@ -236,6 +222,7 @@
 		<Unit filename="..\src\gui\list.d" />
 		<Unit filename="..\src\gui\loader.d" />
 		<Unit filename="..\src\gui\logwindow.d" />
+		<Unit filename="..\src\gui\lua.d" />
 		<Unit filename="..\src\gui\mousescroller.d" />
 		<Unit filename="..\src\gui\progress.d" />
 		<Unit filename="..\src\gui\propedit.d" />
@@ -250,7 +237,6 @@
 		<Unit filename="..\src\gui\test.d" />
 		<Unit filename="..\src\gui\widget.d" />
 		<Unit filename="..\src\gui\window.d" />
-		<Unit filename="..\src\gui\wm.d" />
 		<Unit filename="..\src\lumbricus.d" />
 		<Unit filename="..\src\net\announce.d" />
 		<Unit filename="..\src\net\announce_lan.d" />
@@ -295,13 +281,11 @@
 		<Unit filename="..\src\utils\list2.d" />
 		<Unit filename="..\src\utils\log.d" />
 		<Unit filename="..\src\utils\math.d" />
-		<Unit filename="..\src\utils\md.d" />
 		<Unit filename="..\src\utils\misc.d" />
 		<Unit filename="..\src\utils\mybox.d" />
 		<Unit filename="..\src\utils\output.d" />
 		<Unit filename="..\src\utils\path.d" />
 		<Unit filename="..\src\utils\perf.d" />
-		<Unit filename="..\src\utils\proplist.d" />
 		<Unit filename="..\src\utils\queue.d" />
 		<Unit filename="..\src\utils\random.d" />
 		<Unit filename="..\src\utils\randval.d" />
@@ -311,7 +295,6 @@
 		<Unit filename="..\src\utils\stream.d" />
 		<Unit filename="..\src\utils\string.d" />
 		<Unit filename="..\src\utils\strparser.d" />
-		<Unit filename="..\src\utils\test.d" />
 		<Unit filename="..\src\utils\time.d" />
 		<Unit filename="..\src\utils\timer.d" />
 		<Unit filename="..\src\utils\timesource.d" />

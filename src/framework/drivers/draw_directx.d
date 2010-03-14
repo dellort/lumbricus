@@ -52,6 +52,7 @@ class DXDrawDriver : DrawDriver {
         DXCanvas mCanvas;
         D3DPRESENT_PARAMETERS mPresentParams;
         bool mVsync;
+        Options opts;
     }
 
     IDirect3D9 d3dObj;
