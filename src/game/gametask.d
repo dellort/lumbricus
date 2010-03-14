@@ -59,16 +59,6 @@ import tango.io.device.File : File;
 
 //these imports register classes in a factory on module initialization
 import game.animation;
-//BEGIN action stuff imports; to be removed soon --->
-import game.action.common;
-import game.action.list;
-import game.action.spawn;
-import game.action.weaponactions;
-import game.action.spriteactions;
-import game.weapon.projectile;
-import game.weapon.ray;
-import game.weapon.melee;
-//<--- END action stuff imports
 import game.weapon.girder;
 import game.weapon.rope;
 import game.weapon.jetpack;

@@ -9,7 +9,6 @@ import game.controller_events;
 import game.game;
 import game.gfxset;
 import game.gobject;
-import game.weapon.weapon;
 import utils.misc;
 import utils.factory;
 import utils.configfile;
@@ -92,24 +91,7 @@ class Plugin {
     //called from GfxSet.finishLoading(); resources are sealed and can be used
     void finishLoading() {
         log("finish loading '{}'", name);
-        if (mResources) {
-            //load the weapons (they reference resources)
-            char[] weaponsdir = mResources.fixPath("weapons");
-            gFS.listdir(weaponsdir, "*.conf", false,
-                (char[] path) {
-                    //a weapons file can contain resources, collision map
-                    //additions and a list of weapons
-                    auto wp_conf = loadConfig(weaponsdir ~ "/"
-                        ~ path[0..$-5]);
-                    mGfx.addCollideConf(wp_conf.getSubNode("collisions"));
-                    auto list = wp_conf.getSubNode("weapons");
-                    foreach (ConfigNode item; list) {
-                        loadWeaponClass(item);
-                    }
-                    return true;
-                }
-            );
-        }
+        //resources are loaded at this point
     }
 
     //called from GameEngine, to create the runtime part of this plugin
@@ -154,15 +136,5 @@ class Plugin {
                 assert(false, "not loaded: '"~modf~"'");
         }
         //no GameObject? hmm
-    }
-
-    //a weapon subnode of weapons.conf
-    private void loadWeaponClass(ConfigNode weapon) {
-        char[] type = weapon.getStringValue("type", "action");
-        //xxx error handling
-        //hope you never need to debug this code!
-        WeaponClass c = WeaponClassFactory.instantiate(type, mWeaponPrefix,
-            mGfx, weapon);
-        mGfx.registerWeapon(c);
     }
 }

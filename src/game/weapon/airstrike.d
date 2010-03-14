@@ -10,8 +10,6 @@ import game.weapon.weapon;
 import game.wcontrol;
 import game.levelgen.landscape;
 import physics.world;
-import utils.configfile;
-import utils.factory;
 import utils.time;
 import utils.vector2;
 import utils.log;
@@ -99,8 +97,4 @@ class AirstrikeControl : WeaponSelector, Controllable {
         return null;
     }
     //--- /Controllable
-
-    static this() {
-        WeaponSelectorFactory.register!(typeof(this))("airstrike_selector");
-    }
 }

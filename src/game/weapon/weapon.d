@@ -13,18 +13,11 @@ import game.weapon.types;
 import utils.misc;
 import utils.vector2;
 import utils.time;
-import utils.factory;
 import utils.configfile;
 import utils.log;
 
 import tango.util.Convert : to;
 
-
-alias StaticFactory!("WeaponClasses", ConfWeaponClass, char[], GfxSet, ConfigNode)
-    WeaponClassFactory;
-
-alias StaticFactory!("WeaponSelectors", WeaponSelector, Sprite)
-    WeaponSelectorFactory;
 
 alias void delegate(Shooter sh) ShooterCallback;
 
@@ -83,59 +76,6 @@ abstract class WeaponClass : EventTarget {
 
     bool canUse(GameEngine engine) {
         return !isAirstrike || engine.level.airstrikeAllow;
-    }
-}
-
-class ConfWeaponClass : WeaponClass {
-    //argument to WeaponSelectorFactory
-    char[] onSelect;
-
-    this(char[] prefix, GfxSet a_gfx, ConfigNode node) {
-        super(a_gfx, prefix ~ node.name);
-
-        value = node.getIntValue("value", value);
-        category = node.getStringValue("category", category);
-        isAirstrike = node.getBoolValue("airstrike", isAirstrike);
-        allowSecondary = node.getBoolValue("allow_secondary", allowSecondary);
-        dontEndRound = node.getBoolValue("dont_end_round", dontEndRound);
-        deselectAfterFire = node.getBoolValue("deselect", deselectAfterFire);
-        cooldown = node.getValue("cooldown", cooldown);
-        crateAmount = node.getValue("crate_amount", crateAmount);
-
-        icon = gfx.resources.get!(Surface)(node["icon"]);
-
-        auto fire = node.findNode("firemode");
-        if (fire) {
-            fireMode.loadFromConfig(fire);
-        }
-
-        //load the animations
-        animation = node["animation"];
-
-        onSelect = node.getValue!(char[])("on_select", "");
-        if (onSelect.length) {
-            if (!WeaponSelectorFactory.exists(onSelect))
-                throw new CustomException("not in WeaponSelectorFactory: "~onSelect);
-        }
-
-        //load projectiles
-        foreach (ConfigNode pr; node.getSubNode("projectiles")) {
-            //if (pr.name in projectiles)
-            //    throw new CustomException("projectile already exists: "~pr.name);
-            //instantiate a sprite class
-            //xxx error handling?
-            auto spriteclass = gfx.instantiateSpriteClass(pr["type"], pr.name);
-            //projectiles[pr.name] = spriteclass;
-
-            spriteclass.loadFromConfig(pr);
-            gfx.registerSpriteClass(spriteclass);
-        }
-    }
-
-    override WeaponSelector createSelector(Sprite selected_by) {
-        if (!onSelect.length)
-            return null;
-        return WeaponSelectorFactory.instantiate(onSelect, selected_by);
     }
 }
 
