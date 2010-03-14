@@ -61,7 +61,10 @@ class Common {
 
         loadColors(loadConfig("colors"));
 
-        initI18N(gCurrentLanguage.value);
+        //this must be called after the locale directory has been mounted
+        //it will cause i18n.d to re-init the translations, even if the current
+        //  language is the same
+        initI18N();
 
         localizedKeynames = localeRoot.bindNamespace("keynames");
     }
@@ -100,7 +103,6 @@ class Common {
 
     //read configuration from video.conf and set video mode
     void setVideoFromConf(bool toggleFullscreen = false) {
-        auto vconf = loadConfigDef("video");
         bool fs = getSetting!(bool)(cVideoFS);
         if (toggleFullscreen)
             fs = !gFramework.fullScreen;

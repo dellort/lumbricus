@@ -20,11 +20,10 @@ import tango.util.Convert;
 
 //translator for root locale file (read-only, use accessor method below)
 
-private Translator gLocaleRoot;
 //two-character locale id
 Setting gCurrentLanguage;
 //fallback locale, in case the main locale file is not found
-public char[] gFallbackLanguage;
+char[] gFallbackLanguage;
 
 //called when the language is changed
 //xxx GUI could install a property handler, but still need this because the
@@ -36,6 +35,14 @@ private {
     Log log;
     MountId gLocaleMount = MountId.max;
     char[] gActiveLanguage;
+    Translator gLocaleRoot;
+    ConfigNode gRootNode;
+
+    struct LocaleDir {
+        char[] targetId;
+        char[] localePath;
+    }
+    LocaleDir[] gAdditionalDirs;
 }
 
 private const cDefLang = "en";
@@ -45,10 +52,14 @@ private const cDefLang = "en";
 private const cLocalePath = "/locale";
 
 static this() {
+    gRootNode = new ConfigNode();
+    gLocaleRoot = new Translator("", null);
+    log = registerLog("i18n");
     gFallbackLanguage = cDefLang;
-    gCurrentLanguage = addSetting!(char[])("locale", cDefLang,
-        SettingType.Choice);
-    gCurrentLanguage.onChange ~= delegate(Setting g) { initI18N(g.value); };
+    //init value is "", so the GUI can now if the language was not chosen yet
+    //the GUI then will annoy the user with a selection dialog
+    gCurrentLanguage = addSetting!(char[])("locale", "", SettingType.Choice);
+    gCurrentLanguage.onChange ~= delegate(Setting g) { initI18N(); };
     gOnRelistSettings ~= {
         gCurrentLanguage.choices = null;
         scanLocales((char[] id, char[] name1, char[] name2) {
@@ -56,11 +67,6 @@ static this() {
         });
     };
 }
-
-//xxx: should use WeakList, but it has issues, etc.
-//or just keep them forever, and don'r recreate Translators if they already
-//  exist (so that memory usage won't grow anymore at some point)
-private Translator[] createdTranslators;
 
 ///root translator for config file used with initI18N
 public Translator localeRoot() {
@@ -76,6 +82,47 @@ struct LocalizedMessage {
     uint rnd;       ///value for randomized selection of translations
 }
 
+private ConfigNode findNamespaceNode(ConfigNode rel, char[] idpath) {
+    return rel.getPath(idpath, true);
+}
+
+private ConfigNode loadLocaleNodeFromPath(char[] localePath) {
+    char[] localeFile = localePath ~ '/' ~ gActiveLanguage;
+    char[] fallbackFile = localePath ~ '/' ~ gFallbackLanguage;
+    ConfigNode node = loadConfig(localeFile, false, true);
+    if (!node)
+        //try fallback
+        node = loadConfig(fallbackFile, false, true);
+    if (!node) {
+        log("WARNING: Failed to load any locale file from " ~ localePath
+            ~ " with language '" ~ gActiveLanguage ~ "', fallback '"
+            ~ gFallbackLanguage ~ "'");
+        //dummy node; never return null
+        node = new ConfigNode();
+    }
+    return node;
+}
+
+void addLocaleDir(char[] targetId, char[] localePath) {
+    foreach (ref d; gAdditionalDirs) {
+        if (d.localePath == localePath) {
+            //already added
+            return;
+        }
+    }
+    //store for a later reinit call
+    auto dir = LocaleDir(targetId, localePath);
+    gAdditionalDirs ~= dir;
+    reloadLocaleDir(dir);
+}
+
+private void reloadLocaleDir(LocaleDir dir) {
+    ConfigNode newNode = findNamespaceNode(gRootNode, dir.targetId);
+    assert(!!newNode);
+    auto node = loadLocaleNodeFromPath(dir.localePath);
+    newNode.mixinNode(node);
+}
+
 ///Translator
 ///This is used for every translation and contains an open locale file
 ///with a specific namespace
@@ -84,22 +131,9 @@ struct LocalizedMessage {
 ///Use bindNamespace to get a more specific Translator for a sub-namespace
 public class Translator {
     private {
-        ConfigNode mNode;
         bool mErrorString = true;
         bool mFullIdOnError = false;
-        //following 3 values are needed for reinit
-        Translator mParent;
         char[] mSubNs;
-        char[] mLocalePath;
-        //we don't want to keep all Translators ever created from being gc'ed
-        //xxx: should use WeakList (but WeakList has issues)
-        Translator[] mChildren;
-
-        struct LocaleDir {
-            char[] targetId;
-            char[] localePath;
-        }
-        LocaleDir[] mAdditionalDirs;
     }
 
     private this() {
@@ -110,65 +144,13 @@ public class Translator {
     ///will be returned
     ///bindNamespace() is a shortcut for this
     private this(char[] namespace, Translator parent) {
-        this();
-        assert(gFallbackLanguage.length > 0, "Call initI18N() before");
-        mParent = parent;
-        if (!mParent)
-            mParent = gLocaleRoot;
-        assert(!!mParent);
+        if (parent) {
+            char[] pns = parent.fullNamespace();
+            //don't ask me why the length check is needed
+            if (pns.length)
+                namespace = pns ~ "." ~ namespace;
+        }
         mSubNs = namespace;
-        mParent.mChildren ~= this;
-        reinit();
-    }
-
-    ///load a language file from a language/locale directory
-    ///initI18N() must have been called before
-    private this(char[] localePath) {
-        this();
-        assert(gFallbackLanguage.length > 0, "Call initI18N() before");
-        reinit(localePath);
-        //save reference, so the instance can be found when updating locale
-        createdTranslators ~= this;
-    }
-
-    /+
-    ~this() {
-        if (mParent)
-            mParent.mChildren.remove(this, true);
-        else
-            createdTranslators.remove(this, true);
-    }
-    +/
-
-    private void reinit(char[] localePath = null) {
-        ConfigNode node;
-        if (mParent) {
-            assert(!!mParent.mNode);
-            //this translator was bound to a namespace
-            node = mParent.mNode.getPath(mSubNs, false);
-            if (!node)
-                log("WARNING: Namespace "~mSubNs~" doesn't exist");
-        } else {
-            //this is the locale root, or a Translator created with localePath
-            if (localePath.length > 0)
-                mLocalePath = localePath;
-            assert(mLocalePath.length > 0);
-            node = localeNodeFromPath(mLocalePath);
-        }
-
-        //no empty node
-        if (!node)
-            node = new ConfigNode();
-        mNode = node;
-        //remount addLocaleDir() dirs
-        foreach (ref dir; mAdditionalDirs) {
-            doAddLocaleDir(dir);
-        }
-
-        //reassign subnodes of children
-        foreach (tr; mChildren) {
-            tr.reinit();
-        }
     }
 
     ///create a new Translator bound to the specified sub-namespace (relative
@@ -177,49 +159,34 @@ public class Translator {
         return new Translator(namespace, this);
     }
 
-    private void addLocaleDir(char[] targetId, char[] localePath) {
-        auto dir = LocaleDir(targetId, localePath);
-        foreach (ref d; mAdditionalDirs) {
-            if (d.localePath == localePath) {
-                //already added
-                return;
-            }
-        }
-        //store for a later reinit() call
-        mAdditionalDirs ~= dir;
-        doAddLocaleDir(dir);
+    char[] fullNamespace() {
+        return mSubNs;
     }
 
-    private void doAddLocaleDir(ref LocaleDir dir) {
-        ConfigNode newNode = mNode.getSubNode(dir.targetId);
-        auto node = localeNodeFromPath(dir.localePath);
-        newNode.mixinNode(node);
-    }
-
-    private ConfigNode localeNodeFromPath(char[] localePath) {
-        char[] localeFile = localePath ~ '/' ~ gActiveLanguage;
-        char[] fallbackFile = localePath ~ '/' ~ gFallbackLanguage;
-        ConfigNode node = loadConfig(localeFile, false, true);
-        if (!node)
-            //try fallback
-            node = loadConfig(fallbackFile, false, true);
-        if (!node)
-            log("WARNING: Failed to load any locale file from " ~ localePath
-                ~ " with language '" ~ gActiveLanguage ~ "', fallback '"
-                ~ gFallbackLanguage ~ "'");
-        return node;
+    //may return null
+    private ConfigNode node() {
+        //NOTE: can't cache the per-namespace confignode, because the
+        //  ConfigNode reference gets invalid when locales are reloaded
+        //possible alternative: keep a global list of all translators ever
+        //  created, and loop over them as locales get reloaded (to keep memory
+        //  usage bounded, one could cache exactly one Translator for each
+        //  namespace, i.e. cache Translator instances)
+        return findNamespaceNode(gRootNode, mSubNs);
     }
 
     ///hack
     char[][] names() {
         char[][] res;
-        if (!mNode)
+        auto subnode = node();
+        if (!subnode)
             return null;
-        foreach (char[] name, char[] value; mNode) {
+        foreach (char[] name, char[] value; subnode) {
             res ~= name;
         }
         return res;
     }
+
+    //--- the following two properties are only used by dark corners of the GUI
 
     ///true (default): return an error string if no translation was found
     ///false: return the id if no translation was found
@@ -305,7 +272,8 @@ public class Translator {
 
     ///returns true if the passed id is available
     bool hasId(char[] id) {
-        return mNode && mNode.getPath(id, false);
+        auto subnode = node();
+        return subnode && subnode.getPath(id, false);
     }
 
     //like formatfx, only the format string is loaded by id
@@ -319,9 +287,10 @@ public class Translator {
         //empty id, empty result
         if (id.length == 0)
             return "";
-        ConfigNode subnode;
-        if (mNode)
-            subnode = mNode.getPath(id, false);
+        ConfigNode subnode = node();
+        //Trace.formatln("{} '{}'", subnode.locationString(), id);
+        if (subnode)
+            subnode = findNamespaceNode(subnode, id);
         if (subnode && subnode.count > 0) {
             //if the node was found and contains multiple values, select one
             rnd = rnd % subnode.count;
@@ -358,17 +327,17 @@ public class Translator {
 
 //search locale directory for translation files (<lang>.conf)
 //  e.g. cb("de", "German", "Deutsch")
-void scanLocales(void delegate(char[] id, char[] name_en, char[] name) cb) {
+void scanLocales(void delegate(char[] id, char[] name_en, char[] name_loc) cb) {
     gFS.listdir("/locale/", "*.conf", false, (char[] filename) {
         const trail = ".conf";
-        if (filename.length <= trail.length || !str.endsWith(filename, trail))
+        if (!str.endsWith(filename, trail))
             return true;
         auto node = loadConfig(cLocalePath ~ '/' ~ filename, true, true);
         if (node) {
             char[] name_en = node["langname_en"];
-            char[] name = node["langname_local"];
+            char[] name_loc = node["langname_local"];
             char[] id = filename[0..$-trail.length];
-            cb(id, name_en, name);
+            cb(id, name_en, name_loc);
         }
         return true;
     });
@@ -382,18 +351,20 @@ void scanLocales(void delegate(char[] id, char[] name_en, char[] name) cb) {
 ///         idbla = "..."
 ///     }
 ///     ...
-///lang: Language identifier.
-///um, and I guess it tries to load /locale/<lang>.conf
-public void initI18N(char[] lang) {
-    gCurrentLanguage.set(lang);
-    //prevent recursion from settings stuff
-    if (gActiveLanguage == gCurrentLanguage.value)
-        return;
-    log = registerLog("i18n");
+///um, and I guess it tries to load /locale/<current_lang>.conf
+///set the language using gCurrentLanguage, and it will be automatically
+/// reinitialized - this is only to force reinitialization (e.g. after you
+//  mounted new locale directories)
+public void initI18N() {
+    char[] lang = gCurrentLanguage.value;
 
-    gActiveLanguage = gCurrentLanguage.value;
+    gActiveLanguage = lang;
 
     //xxx do we need this?
+    //apparently the idea was that you could load locale specific images etc.
+    //  as well, but it isn't needed for the normal translation mechanism
+    //disabled for now
+    /+
     try {
         //link locale-specific files into root
         gFS.unmount(gLocaleMount);
@@ -402,20 +373,21 @@ public void initI18N(char[] lang) {
         //don't crash if current locale has no locale-specific files
         log("catched {}", e);
     }
+    +/
 
-    if (!gLocaleRoot) {
-        gLocaleRoot = new Translator(cLocalePath);
-    } else {
-        foreach (tr; createdTranslators) {
-            tr.reinit();
-        }
+    //reloading process:
+    //1. clear root node
+    //2. re-read all directories and mix them into the root node
+    gRootNode.clear();
+    //main locale file
+    reloadLocaleDir(LocaleDir("", cLocalePath));
+    //additional locale files, like for weapon names in weapon plugins
+    foreach (d; gAdditionalDirs) {
+        reloadLocaleDir(d);
     }
+
     if (gOnChangeLocale)
         gOnChangeLocale();
-}
-
-void addLocaleDir(char[] targetId, char[] localePath) {
-    localeRoot.addLocaleDir(targetId, localePath);
 }
 
 ///Translate an ID into text in the selected language.

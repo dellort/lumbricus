@@ -4,6 +4,7 @@ import common.common;
 import common.task;
 import framework.framework;
 import framework.font;
+import framework.globalsettings;
 import framework.i18n;
 import gui.loader;
 import gui.widget;
@@ -67,16 +68,13 @@ class LocaleSwitch {
 
     private void cancelClick(Button sender) {
         //locale may have been changed on selection, reset it
-        initI18N(mOldLanguage);
+        gCurrentLanguage.set!(char[])(mOldLanguage);
         mWindow.remove();
     }
 
     private void okClick(Button sender) {
-        assert(mSelLanguage.length > 0);
-        //update config file
-        auto node = loadConfigDef("language");
-        node["language_id"] = mSelLanguage;
-        saveConfig(node, "language.conf");
+        gCurrentLanguage.set!(char[])(mSelLanguage);
+        saveSettings();
         //locale should already be active
         mWindow.remove();
     }
@@ -86,7 +84,7 @@ class LocaleSwitch {
         if (idx >= 0) {
             //a locale was selected, activate it for preview
             mSelLanguage = mLocaleIds[idx];
-            initI18N(mSelLanguage);
+            gCurrentLanguage.set!(char[])(mSelLanguage);
         }
     }
 

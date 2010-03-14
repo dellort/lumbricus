@@ -72,23 +72,20 @@ class SDLDriver : FrameworkDriver {
         //default (empty) means use OS default
         char[] wndPos = getSetting!(char[])(cDrvName ~ ".window_pos");
 
-        if (wndPos == "center") {
-            //CENTERED doesn't work - somehow resizing the window enters an endless
-            //loop on IceWM... anyway, it makes me want to beat up the SDL devs
-            //wait, I guess this is why they wrote in the docs:
-            //  "Using these variables isn't recommened"
-            //it also could be our or IceWM's fault
-            version(Windows) {
+        //those environment vars cause trouble for me under Linux/IceWM
+        //maybe there's a reason these are not official features
+        version(Windows) {
+            if (wndPos == "center") {
                 Environment.set("SDL_VIDEO_CENTERED", "center");
-            }
-        } else {
-            try {
-                //empty (or invalid) value will throw and not set the var
-                Vector2i pos = fromStr!(Vector2i)(wndPos);
-                Environment.set("SDL_VIDEO_WINDOW_POS", myformat("{},{}",
-                    pos.x, pos.y));
-            } catch (ConversionException e) {
-                //ignore
+            } else {
+                try {
+                    //empty (or invalid) value will throw and not set the var
+                    Vector2i pos = fromStr!(Vector2i)(wndPos);
+                    Environment.set("SDL_VIDEO_WINDOW_POS", myformat("{},{}",
+                        pos.x, pos.y));
+                } catch (ConversionException e) {
+                    //ignore
+                }
             }
         }
 

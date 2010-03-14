@@ -9,14 +9,6 @@ public V aaIfIn(K, V)(V[K] aa, K key) {
     return pv ? *pv : null;
 }
 
-public K aaReverseLookup(K, V)(V[K] aa, V value, K def) {
-    foreach (K k, V v; aa) {
-        if (v == value)
-            return k;
-    }
-    return def;
-}
-
 //duplicate an AA (why doesn't D provide this?)
 public V[K] aaDup(K, V)(V[K] aa) {
     V[K] res;
@@ -24,11 +16,6 @@ public V[K] aaDup(K, V)(V[K] aa) {
         res[k] = v;
     }
     return res;
-}
-
-//useful for class[] -> interface[] conversion!
-T_to[] arrayCastCopyImplicit(T_to, T_from)(T_from[] arr) {
-    return arrayMap(arr, (T_from x) { T_to f = x; return f; });
 }
 
 //as you know it from your Haskell lessons
@@ -123,20 +110,6 @@ int arraySearch(T)(T[] arr, T value, int def = -1) {
             return i;
     }
     return def;
-}
-
-//find numeric highest entry in the array; prefers higher index for equal values
-//returns -1 if arr.length is 0
-int arrayFindHighest(T)(T[] arr) {
-    T win_val;
-    int win_index = -1;
-    foreach (i, v; arr) {
-        if (win_index < 0 || v >= win_val) {
-            win_index = i;
-            win_val = v;
-        }
-    }
-    return win_index;
 }
 
 //remove first occurence of value from arr; the order is not changed
