@@ -80,6 +80,7 @@ do
             Game_explosionAt(hitpoint, 25, shooter)
         end
         if ctx.shots <= 0 then
+            printf("FINISH!")
             Shooter_finished(shooter)
         end
     end
@@ -87,7 +88,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = function(shooter, fireinfo)
-            -- LuaShooter_set_isFixed(shooter, true)
+            LuaShooter_set_isFixed(shooter, true)
             Shooter_reduceAmmo(shooter)
             set_context_var(shooter, "shots", 2)
             doshot(shooter)
