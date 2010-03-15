@@ -33,6 +33,7 @@ import game.controller_events;
 import game.game;
 import game.gobject;
 import game.weapon.weapon;
+import game.weapon.weaponset;
 import game.weapon.types;
 //import levelgen.level;
 import utils.interpolate;

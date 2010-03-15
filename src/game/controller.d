@@ -12,12 +12,14 @@ import game.crate;
 import game.sprite;
 import game.weapon.types;
 import game.weapon.weapon;
+import game.weapon.weaponset;
 import game.temp;
 import game.sequence;
 import game.setup;
 import game.controller_events;
 import game.wcontrol;
 import physics.world;
+import utils.factory;
 import utils.vector2;
 import utils.configfile;
 import utils.log;
@@ -689,6 +691,7 @@ class GameController {
         mEngine.finishPlace();
 
         OnCollectTool.handler(engine.events, &doCollectTool);
+        OnCrateCollect.handler(engine.events, &collectCrate);
     }
 
     //--- start GameLogicPublic
@@ -1036,6 +1039,7 @@ class GameController {
             mLastCrate.unParachute();
     }
 
+    //xxx wouldn't need this anymore, but doubletime still makes it a bit messy
     private void doCollectTool(TeamMember collector, CollectableTool tool) {
         if (auto t = cast(CollectableToolCrateSpy)tool) {
             collector.team.addCrateSpy();
@@ -1052,4 +1056,142 @@ class GameController {
         engine.nukeSplatEffect();
         OnSuddenDeath.raise(engine.globalEvents);
     }
+
+    private void collectCrate(CrateSprite crate, GameObject finder) {
+        if (crate.wasCollected())
+            return;
+        //for some weapons like animal-weapons, transitive should be true
+        //and normally a non-collecting weapon should just explode here??
+        auto member = engine.controller.memberFromGameObject(finder, true);
+        if (!member)
+            return;
+        //only collect crates when it's your turn
+        if (!member.active)
+            return;
+        OnTeamMemberCollectCrate.raise(member, crate);
+        //transfer stuffies
+        foreach (Collectable c; crate.stuffies) {
+            c.collect(crate, finder);
+            if (auto tc = cast(TeamCollectable)c)
+                tc.teamcollect(crate, member);
+        }
+        //and destroy crate
+        crate.collected();
+    }
 }
+
+class TeamCollectable : Collectable {
+    override void collect(CrateSprite parent, GameObject finder) {
+    }
+
+    abstract void teamcollect(CrateSprite parent, TeamMember member);
+}
+
+///Adds a weapon to your inventory
+class CollectableWeapon : TeamCollectable {
+    WeaponClass weapon;
+    int quantity;
+
+    this(WeaponClass w, int quantity = 1) {
+        weapon = w;
+        this.quantity = quantity;
+    }
+
+    void teamcollect(CrateSprite parent, TeamMember member) {
+        member.team.addWeapon(weapon, quantity);
+    }
+
+    CrateType type() {
+        return CrateType.weapon;
+    }
+
+    char[] id() {
+        return "weapons." ~ weapon.name;
+    }
+
+    override void blow(CrateSprite parent) {
+        //think about the crate-sheep
+        //ok, made more generic
+        OnWeaponCrateBlowup.raise(weapon, parent);
+    }
+}
+
+///Gives the collecting worm some health
+class CollectableMedkit : TeamCollectable {
+    int amount;
+
+    this(int amount = 50) {
+        this.amount = amount;
+    }
+
+    CrateType type() {
+        return CrateType.med;
+    }
+
+    char[] id() {
+        return "game_msg.crate.medkit";
+    }
+
+    void teamcollect(CrateSprite parent, TeamMember member) {
+        member.addHealth(amount);
+    }
+}
+
+abstract class CollectableTool : TeamCollectable {
+    this() {
+    }
+
+    CrateType type() {
+        return CrateType.tool;
+    }
+
+    void teamcollect(CrateSprite parent, TeamMember member) {
+        //roundabout way, but I hope it makes a bit sense with double time tool?
+        OnCollectTool.raise(member, this);
+    }
+}
+
+StaticFactory!("CrateTools", CollectableTool) CrateToolFactory;
+
+//xxx reduce bloat by making the type (e.g. "cratespy") just a member variable?
+
+class CollectableToolCrateSpy : CollectableTool {
+    this() {
+    }
+
+    char[] id() {
+        return "game_msg.crate.cratespy";
+    }
+
+    static this() {
+        CrateToolFactory.register!(typeof(this))("cratespy");
+    }
+}
+
+//for now only for turnbased gamemode, but maybe others will follow
+class CollectableToolDoubleTime : CollectableTool {
+    this() {
+    }
+
+    char[] id() {
+        return "game_msg.crate.doubletime";
+    }
+
+    static this() {
+        CrateToolFactory.register!(typeof(this))("doubletime");
+    }
+}
+
+class CollectableToolDoubleDamage : CollectableTool {
+    this() {
+    }
+
+    char[] id() {
+        return "game_msg.crate.doubledamage";
+    }
+
+    static this() {
+        CrateToolFactory.register!(typeof(this))("doubledamage");
+    }
+}
+

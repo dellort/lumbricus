@@ -260,17 +260,6 @@ class GameEngine {
         physicworld.add(mWaterChanger);
 
         //initialize loaded plugins
-        foreach (plg; gfx.plugins) {
-            //xxx controller is not yet available; plugins have to be careful
-            //    best way around: add more events for different states of
-            //    game initialization
-            try {
-                plg.init(this);
-            } catch (CustomException e) {
-                error("Plugin '{}' failed to init(): {}", plg.name, e.msg);
-            }
-        }
-
         OnGameInit.raise(globalEvents);
 
         //NOTE: GameController relies on many stuff at initialization

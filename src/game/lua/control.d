@@ -3,6 +3,7 @@ module game.lua.control;
 import game.lua.base;
 import game.controller;
 import game.crate;
+import game.gfxset;
 import game.weapon.weapon;
 import game.worm;
 import game.wcontrol;
@@ -36,6 +37,9 @@ static this() {
 
     gScripting.setClassPrefix!(WormSprite)("Worm");
     gScripting.methods!(WormSprite, "beamTo");
+
+    gScripting.ctor!(WormSpriteClass, GfxSet, char[])();
+    gScripting.ctor!(CrateSpriteClass, GfxSet, char[])();
 
     gScripting.ctor!(TimeStatus)();
     gScripting.properties!(TimeStatus, "showTurnTime", "showGameTime",

@@ -1,5 +1,6 @@
 module game.lua.base;
 
+import framework.config;
 import framework.framework;
 import framework.lua;
 import gui.lua;
@@ -43,6 +44,7 @@ static this() {
     gScripting.method!(ConfigNode, "setStringValue")("set");
     gScripting.method!(ConfigNode, "getStringArray")("getArray");
     gScripting.method!(ConfigNode, "setStringArray")("setArray");
+    gScripting.func!(loadConfig)();
 }
 
 void loadScript(LuaState state, char[] filename) {

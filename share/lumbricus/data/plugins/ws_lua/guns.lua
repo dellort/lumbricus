@@ -80,7 +80,6 @@ do
             Game_explosionAt(hitpoint, 25, shooter)
         end
         if ctx.shots <= 0 then
-            printf("FINISH!")
             Shooter_finished(shooter)
         end
     end

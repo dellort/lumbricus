@@ -15,6 +15,7 @@ import game.glue;
 import game.game;
 import game.gfxset;
 import game.gobject;
+import game.plugins;
 import game.levelgen.generator;
 import game.levelgen.landscape;
 import game.levelgen.level;
@@ -239,6 +240,7 @@ class GameLoader {
         }
 
         mGfx = new GfxSet(mGameConfig);
+        auto plugins = new PluginBase(mGfx, mGameConfig);
 
         mResPreloader = gResources.createPreloader(mGfx.load_resources);
         mGfx.load_resources = null;

@@ -1,11 +1,9 @@
 module game.weapon.spawn;
 
 import game.game;
-import game.gfxset;
 import game.gobject;
 import game.sprite;
-import game.weapon.weapon;
-import utils.configfile;
+import game.weapon.weapon; //only for FireInfo, which again needs only Sprite
 import utils.vector2;
 import utils.random;
 import utils.randval;

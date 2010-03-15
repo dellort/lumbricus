@@ -21,15 +21,10 @@ import utils.misc;
 import utils.log;
 import utils.math;
 import tango.math.Math : abs, PI;
-import utils.factory;
 import utils.time;
 import utils.mybox;
 
 private LogStruct!("game.sprite") log;
-
-//factory to instantiate StateSprite classes, this is a small wtf
-alias StaticFactory!("Sprites", SpriteClass, GfxSet, char[])
-    SpriteClassFactory;
 
 //version = RotateDebug;
 

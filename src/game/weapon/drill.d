@@ -6,13 +6,9 @@ import game.gfxset;
 import game.sprite;
 import game.weapon.weapon;
 import game.worm;
-import game.sequence;
 import physics.world;
-import utils.configfile;
-import utils.factory;
 import utils.time;
 import utils.vector2;
-import utils.log;
 import utils.misc;
 import utils.randval;
 

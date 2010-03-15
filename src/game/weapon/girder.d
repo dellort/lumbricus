@@ -11,9 +11,7 @@ import game.levelgen.landscape;
 import physics.world;
 import utils.time;
 import utils.vector2;
-import utils.log;
 import utils.misc;
-import utils.randval;
 
 import math = tango.math.Math;
 import mymath = utils.math;

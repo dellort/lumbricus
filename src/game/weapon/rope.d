@@ -12,8 +12,6 @@ import game.worm;
 import game.sequence;
 import game.temp : GameZOrder;
 import physics.world;
-import utils.configfile;
-import utils.factory;
 import utils.time;
 import utils.vector2;
 import utils.color;

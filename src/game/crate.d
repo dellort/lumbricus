@@ -4,10 +4,8 @@ import game.gobject;
 import physics.world;
 import game.game;
 import game.gfxset;
-import game.controller;
 import game.controller_events;
 import game.sequence;
-import game.weapon.weapon;
 import game.weapon.spawn;
 import game.sprite;
 import game.temp;
@@ -18,18 +16,21 @@ import utils.time;
 import utils.log;
 import utils.misc;
 import utils.configfile;
-import utils.factory;
-import tango.math.Math;
-import tango.util.Convert;
 
 ///Base class for stuff in crates that can be collected by worms
+///most Collectable subclasses have been moved to controller.d (dependencies...)
 class Collectable {
     ///The crate is being collected by a worm
-    abstract void collect(CrateSprite parent, TeamMember member);
+    abstract void collect(CrateSprite parent, GameObject finder);
 
     //translation ID for contents; used to display collect messages
     //could also be used for crate-spy
     abstract char[] id();
+
+    //what animation to show
+    CrateType type() {
+        return CrateType.unknown;
+    }
 
     ///The crate explodes
     void blow(CrateSprite parent) {
@@ -44,107 +45,6 @@ class Collectable {
     }
 }
 
-///Adds a weapon to your inventory
-class CollectableWeapon : Collectable {
-    WeaponClass weapon;
-    int quantity;
-
-    this(WeaponClass w, int quantity = 1) {
-        weapon = w;
-        this.quantity = quantity;
-    }
-
-    void collect(CrateSprite parent, TeamMember member) {
-        member.team.addWeapon(weapon, quantity);
-    }
-
-    char[] id() {
-        return "weapons." ~ weapon.name;
-    }
-
-    override void blow(CrateSprite parent) {
-        //think about the crate-sheep
-        /+
-        //xxx maybe make this more generic
-        auto aw = cast(ActionWeapon)weapon;
-        if (aw && aw.onBlowup) {
-            //run in context of parent crate
-            auto ctx = parent.createContext;
-            aw.onBlowup.execute(ctx);
-        }
-        +/
-        //ok, made more generic
-        OnWeaponCrateBlowup.raise(weapon, parent);
-    }
-}
-
-///Gives the collecting worm some health
-class CollectableMedkit : Collectable {
-    int amount;
-
-    this(int amount = 50) {
-        this.amount = amount;
-    }
-
-    char[] id() {
-        return "game_msg.crate.medkit";
-    }
-
-    void collect(CrateSprite parent, TeamMember member) {
-        member.addHealth(amount);
-    }
-}
-
-abstract class CollectableTool : Collectable {
-    this() {
-    }
-
-    void collect(CrateSprite parent, TeamMember member) {
-        //roundabout way, but I hope it makes a bit sense with double time tool?
-        OnCollectTool.raise(member, this);
-    }
-}
-
-class CollectableToolCrateSpy : CollectableTool {
-    this() {
-    }
-
-    char[] id() {
-        return "game_msg.crate.cratespy";
-    }
-
-    static this() {
-        CrateToolFactory.register!(typeof(this))("cratespy");
-    }
-}
-
-//for now only for turnbased gamemode, but maybe others will follow
-class CollectableToolDoubleTime : CollectableTool {
-    this() {
-    }
-
-    char[] id() {
-        return "game_msg.crate.doubletime";
-    }
-
-    static this() {
-        CrateToolFactory.register!(typeof(this))("doubletime");
-    }
-}
-
-class CollectableToolDoubleDamage : CollectableTool {
-    this() {
-    }
-
-    char[] id() {
-        return "game_msg.crate.doubledamage";
-    }
-
-    static this() {
-        CrateToolFactory.register!(typeof(this))("doubledamage");
-    }
-}
-
 ///Blows up the crate without giving the worm anything
 ///Note that you can add other collectables in the same crate
 class CollectableBomb : Collectable {
@@ -155,7 +55,7 @@ class CollectableBomb : Collectable {
         return "game_msg.crate.bomb";
     }
 
-    void collect(CrateSprite parent, TeamMember member) {
+    void collect(CrateSprite parent, GameObject finder) {
         //harharhar :D
         parent.detonate();
     }
@@ -192,9 +92,13 @@ class CrateSprite : StateSprite {
         engine.physicworld.add(collectTrigger);
     }
 
-    private void collected() {
+    void collected() {
         stuffies = null;
         kill();
+    }
+
+    bool wasCollected() {
+        return stuffies.length == 0;
     }
 
     void blowStuffies() {
@@ -227,31 +131,15 @@ class CrateSprite : StateSprite {
         if (other is physics)
             return; //lol
         auto goOther = cast(GameObject)(other.backlink);
-        if (goOther)
-            collectCrate(goOther);
-    }
-
-    void collectCrate(GameObject finder) {
-        //xxx: the whole code should be moved into controller
-        //  the controller would register an event handler for it
-
-        //for some weapons like animal-weapons, transitive should be true
-        //and normally a non-collecting weapon should just explode here??
-        auto member = engine.controller.memberFromGameObject(finder, true);
-        if (!member) {
-            log("crate {} can't be collected by {}", this, finder);
-            return;
+        if (goOther) {
+            //callee is expected to call .collect() on each item, and then
+            //  .collected() on the crate; if the finder (goOther) can't collect
+            //  the crate (e.g. because it's a weapon), just do nothing
+            //(crates explode because of the weapon's impact explosion)
+            OnCrateCollect.raise(this, goOther);
+            if (!wasCollected)
+                log("crate {} can't be collected by {}", this, goOther);
         }
-        //only collect crates when it's your turn
-        if (!member.active)
-            return;
-        OnCrateCollect.raise(this, member);
-        //transfer stuffies
-        foreach (Collectable c; stuffies) {
-            c.collect(this, member);
-        }
-        //and destroy crate
-        collected();
     }
 
     void unParachute() {
@@ -271,12 +159,8 @@ class CrateSprite : StateSprite {
         bool bomb;
         if (internal_active) {
             foreach (coll; stuffies) {
-                if (cast(CollectableMedkit)coll) {
-                    mCrateType = CrateType.med;
-                    break;
-                }
-                if (cast(CollectableTool)coll) {
-                    mCrateType = CrateType.tool;
+                if (coll.type != CrateType.unknown) {
+                    mCrateType = coll.type;
                     break;
                 }
             }
@@ -330,6 +214,7 @@ class CrateSprite : StateSprite {
     }
 
     private bool spyVisible(Sequence s) {
+        //only controller dependency left in this file
         auto m = engine.callbacks.getControlledTeamMember();
         if (!m)
             return false;
@@ -381,6 +266,7 @@ class CrateSpriteClass : StateSpriteClass {
         SequenceType sq(char[] name) {
             return gfx.resources.get!(SequenceType)(config[name]);
         }
+        mySequences[CrateType.unknown] = sq("sequence_object");
         mySequences[CrateType.weapon] = sq("sequence_object");
         mySequences[CrateType.med] = sq("sequence_object_med");
         mySequences[CrateType.tool] = sq("sequence_object_tool");
@@ -415,10 +301,5 @@ class CrateSpriteClass : StateSpriteClass {
         if (spr)
             spr.onZeroHp();
     }
-
-    static this() {
-        SpriteClassFactory.register!(typeof(this))("crate_mc");
-    }
 }
 
-StaticFactory!("CrateTools", CollectableTool) CrateToolFactory;

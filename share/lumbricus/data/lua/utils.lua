@@ -299,7 +299,7 @@ local function dodir(t, match, level, done)
         printf("[recursive metatable]")
         return
     end
-    dodir(meta, level .. ":", done)
+    dodir(meta, match, level .. ":", done)
 end
 -- show list of members in current scope
 -- if t is not nil, list members of t instead

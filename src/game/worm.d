@@ -1210,10 +1210,6 @@ class WormSpriteClass : StateSpriteClass {
     override WormStateInfo findState(char[] name, bool canfail = false) {
         return cast(WormStateInfo)super.findState(name, canfail);
     }
-
-    static this() {
-        SpriteClassFactory.register!(WormSpriteClass)("worm_mc");
-    }
 }
 
 //move elsewhere?

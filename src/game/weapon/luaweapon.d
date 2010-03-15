@@ -8,7 +8,6 @@ import game.gobject;
 import game.sprite;
 import game.weapon.weapon;
 import game.weapon.types;
-import utils.configfile;
 import utils.misc;
 import utils.time;
 

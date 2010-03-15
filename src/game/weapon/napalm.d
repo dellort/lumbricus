@@ -13,11 +13,8 @@ import tango.math.Math;
 import utils.misc;
 import utils.vector2;
 import utils.time;
-import utils.configfile;
-import utils.log;
 import utils.random;
 import utils.randval;
-import utils.factory;
 
 class NapalmSprite : Sprite {
     private {
@@ -120,32 +117,11 @@ class NapalmSpriteClass : SpriteClass {
     float lightupVelocity = 400;
     ParticleType emitOnWater;
 
-    override NapalmSprite createSprite(GameEngine engine) {
-        return new NapalmSprite(engine, this);
-    }
-
-    override void loadFromConfig(ConfigNode config) {
-        super.loadFromConfig(config);
-        damage = config.getValue("damage", damage);
-        initialDelay = config.getValue("initial_delay", initialDelay);
-        repeatDelay = config.getValue("repeat_delay", repeatDelay);
-        decayTime = config.getValue("decay_time", decayTime);
-        physMedium = initPhysic.copy;
-        physMedium.radius = config.getFloatValue("radius_m", 2);
-        physSmall = initPhysic.copy;
-        physSmall.radius = config.getFloatValue("radius_s", 1);
-        lightupVelocity = config.getFloatValue("lightup_velocity",
-            lightupVelocity);
-        auto odp = config["on_drown_particle"];
-        if (odp.length)
-            emitOnWater = gfx.resources.get!(ParticleType)(odp);
-    }
-
     this(GfxSet e, char[] r) {
         super(e, r);
     }
 
-    static this() {
-        SpriteClassFactory.register!(typeof(this))("napalm_mc");
+    override NapalmSprite createSprite(GameEngine engine) {
+        return new NapalmSprite(engine, this);
     }
 }

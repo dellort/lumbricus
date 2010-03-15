@@ -12,6 +12,7 @@ enum JumpMode {
 }
 
 enum CrateType {
+    unknown,
     weapon,
     med,
     tool,

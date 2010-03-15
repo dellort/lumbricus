@@ -5,7 +5,6 @@ import common.scene;
 import game.controller; //: Team, TeamMember
 import game.events;
 import game.particles;
-import game.weapon.weapon;
 import utils.vector2;
 import utils.time;
 import utils.misc;

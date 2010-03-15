@@ -2,7 +2,6 @@
 //with dmd+Tango
 module game.weapon.types;
 
-import utils.configfile;
 import utils.randval;
 import utils.strparser;
 import utils.time;
@@ -43,65 +42,4 @@ struct FireMode {
     Time timerFrom; //minimal time chooseable, only used if hasTimer==true
     Time timerTo;   //maximal time
     Time relaxtime = timeSecs(1);
-
-
-    void loadFromConfig(ConfigNode node) {
-        switch (node.getStringValue("direction", "fixed")) {
-            case "any":
-                direction = ThrowDirection.any;
-                break;
-            case "threeway":
-                direction = ThrowDirection.threeway;
-                break;
-            case "limit90":
-                direction = ThrowDirection.limit90;
-                break;
-            default:
-                direction = ThrowDirection.fixed;
-        }
-        variableThrowStrength = node["strength_mode"] == "variable";
-        if (node.hasValue("strength_value")) {
-            //for "compatibility" only
-            throwStrengthFrom = throwStrengthTo =
-                node.getFloatValue("strength_value");
-        } else {
-            throwStrengthFrom = node.getFloatValue("strength_from",
-                throwStrengthFrom);
-            throwStrengthTo = node.getFloatValue("strength_to",
-                throwStrengthTo);
-        }
-        hasTimer = node.getBoolValue("timer");
-
-        //abusing RandomValue as tange type
-        RandomValue!(Time) vals;
-        vals = node.getValue("timerrange", vals);
-        timerFrom = vals.min;
-        timerTo = vals.max;
-        //some kind of post-validation?
-        if (vals.min == vals.max) {
-            assert(!hasTimer, "user error in .conf file");
-        }
-
-        relaxtime = node.getValue("relaxtime", relaxtime);
-        char[] pm = node.getStringValue("point");
-        switch (pm) {
-            case "target":
-                point = PointMode.target;
-                break;
-            case "target_tracking":
-                point = PointMode.targetTracking;
-                break;
-            case "instant":
-                point = PointMode.instant;
-                break;
-            case "instant_free":
-                point = PointMode.instantFree;
-                break;
-            case "":
-                break;
-            default:
-                //no more ignore errors silently
-                assert(false, "user error in .conf file");
-        }
-    }
 }

@@ -9,6 +9,7 @@ import game.controller_events;
 import game.game;
 import game.gfxset;
 import game.gobject;
+import game.setup;
 import utils.misc;
 import utils.factory;
 import utils.configfile;
@@ -20,6 +21,96 @@ import utils.string : isIdentifier;
 class PluginException : CustomException {
     this(char[] msg) {
         super(msg);
+    }
+}
+
+//another dumb singleton
+class PluginBase {
+    private {
+        GfxSet mGfx;
+        bool[char[]] mLoadedPlugins;
+        //list of active plugins, in load order
+        Plugin[] mPlugins;
+    }
+
+    this(GfxSet gfx, GameConfig cfg) {
+        mGfx = gfx;
+
+        foreach (ConfigNode sub; cfg.plugins) {
+            //either an unnamed value, or a subnode with config items
+            char[] pid = sub.value.length ? sub.value : sub.name;
+            try {
+                loadPlugin(pid, sub, cfg.plugins);
+            } catch (PluginException e) {
+                //xxx we need "something" to handle non-fatal errors
+                Trace.formatln("Plugin '{}' failed to load: {}", pid, e.msg);
+            }
+        }
+
+        OnGameInit.handler(gfx.events, &initplugins);
+    }
+
+    void loadPlugin(char[] pluginId, ConfigNode cfg, ConfigNode allPlugins) {
+        assert(!!allPlugins);
+        if (pluginId in mLoadedPlugins) {
+            return;
+        }
+
+        ConfigNode conf;
+        if (GamePluginFactory.exists(pluginId)) {
+            //internal plugin with no confignode
+            conf = new ConfigNode();
+            conf["internal_plugin"] = pluginId;
+        } else {
+            //normal case: plugin with plugin.conf
+            char[] confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
+            //load plugin.conf as gfx set (resources and sequences)
+            try {
+                conf = gResources.loadConfigForRes(confFile);
+            } catch (CustomException e) {
+                throw new PluginException("Failed to load plugin.conf ("
+                    ~ e.msg ~ ")");
+            }
+        }
+
+        //mixin dynamic configuration
+        if (cfg) {
+            conf.getSubNode("config").mixinNode(cfg, true);
+        }
+
+        Plugin newPlugin = new Plugin(pluginId, mGfx, conf);
+
+        //this will place dependencies in the plugins[] first, making them load
+        //  before the current plugin
+        foreach (dep; newPlugin.dependencies) {
+            try {
+                loadPlugin(dep, allPlugins.findNode(dep), allPlugins);
+            } catch (PluginException e) {
+                throw new PluginException("Dependency '" ~ dep
+                    ~ "' failed to load: " ~ e.msg);
+            }
+        }
+
+        mPlugins ~= newPlugin;
+        mLoadedPlugins[pluginId] = true;
+    }
+
+    private void initplugins(GameObject sender) {
+        GameEngine engine = sender.engine;
+        foreach (plg; mPlugins) {
+            //xxx controller is not yet available; plugins have to be careful
+            //    best way around: add more events for different states of
+            //    game initialization
+            try {
+                plg.init(engine);
+            } catch (CustomException e) {
+                //wtfwtfwtfwtf
+                Trace.formatln("Plugin '{}' failed to init(): {}", plg.name,
+                    e.msg);
+                engine.error("Plugin '{}' failed to init(): {}", plg.name,
+                    e.msg);
+            }
+        }
     }
 }
 
@@ -37,8 +128,6 @@ class Plugin {
         ResourceFile mResources;
         GfxSet mGfx;
         char[][] mModules;
-        //temporary hack
-        char[] mWeaponPrefix;
     }
 
     //called in resource-loading phase; currently name comes from plugin path
@@ -53,8 +142,6 @@ class Plugin {
         mConfig = conf;
         assert(!!conf);
         dependencies = mConfig.getValue("dependencies", dependencies);
-        //temporary hack
-        mWeaponPrefix = mConfig.getValue!(char[])("weapon_prefix");
 
         //load resources
         if (gResources.isResourceFile(mConfig)) {
@@ -86,12 +173,6 @@ class Plugin {
 
         //?
         mConfigWhateverTheFuckThisIs = mConfig.getSubNode("config");
-    }
-
-    //called from GfxSet.finishLoading(); resources are sealed and can be used
-    void finishLoading() {
-        log("finish loading '{}'", name);
-        //resources are loaded at this point
     }
 
     //called from GameEngine, to create the runtime part of this plugin

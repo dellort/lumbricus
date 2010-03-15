@@ -8,6 +8,7 @@ import framework.i18n;
 import game.game;
 import game.controller;
 import game.weapon.weapon;
+import game.weapon.weaponset;
 import gui.boxcontainer;
 import gui.button;
 import gui.container;

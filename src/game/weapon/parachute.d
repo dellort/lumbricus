@@ -9,11 +9,8 @@ import game.worm;
 import game.sequence;
 import game.wcontrol;
 import physics.world;
-import utils.configfile;
-import utils.factory;
 import utils.time;
 import utils.vector2;
-import utils.log;
 import utils.misc;
 
 import tango.math.Math : abs;

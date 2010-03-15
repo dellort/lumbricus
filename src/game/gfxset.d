@@ -25,7 +25,6 @@ import game.sequence;
 import game.setup;
 import game.sprite;
 import game.weapon.weapon;
-import game.plugins;
 import game.controller_events;
 
 class ClassNotRegisteredException : CustomException {
@@ -39,7 +38,6 @@ class ClassNotRegisteredException : CustomException {
 class GfxSet {
     private {
         //bits from GameConfig; during loading
-        ConfigNode mSprites;
         ConfigNode[] mSequenceConfig;
         ConfigNode[] mCollNodes;
 
@@ -53,8 +51,6 @@ class GfxSet {
 
         bool mFinished;
         Font mFlashFont;
-
-        bool[char[]] mLoadedPlugins;
     }
 
     //xxx only needed by sky.d
@@ -82,8 +78,6 @@ class GfxSet {
     CrosshairSettings crosshair;
 
     ExplosionSettings expl;
-    //list of active plugins, in load order
-    Plugin[] plugins;
 
     private void loadTeamThemes() {
         for (int n = 0; n < TeamTheme.cTeamColors.length; n++) {
@@ -136,66 +130,9 @@ class GfxSet {
 
         //xxx this file is loaded at two places (gravity in game engine)
         auto gameConf = loadConfig("game.conf", true);
-        mSprites = gameConf.getSubNode("sprites");
 
         mCollisionMap = new CollisionMap();
         addCollideConf(gameConf.getSubNode("collisions"));
-
-        foreach (ConfigNode sub; cfg.plugins) {
-            //either an unnamed value, or a subnode with config items
-            char[] pid = sub.value.length ? sub.value : sub.name;
-            try {
-                loadPlugin(pid, sub, cfg.plugins);
-            } catch (PluginException e) {
-                //xxx we need "something" to handle non-fatal errors
-                Trace.formatln("Plugin '{}' failed to load: {}", pid, e.msg);
-            }
-        }
-    }
-
-    void loadPlugin(char[] pluginId, ConfigNode cfg, ConfigNode allPlugins) {
-        assert(!!allPlugins);
-        if (pluginId in mLoadedPlugins) {
-            return;
-        }
-
-        ConfigNode conf;
-        if (GamePluginFactory.exists(pluginId)) {
-            //internal plugin with no confignode
-            conf = new ConfigNode();
-            conf["internal_plugin"] = pluginId;
-        } else {
-            //normal case: plugin with plugin.conf
-            char[] confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
-            //load plugin.conf as gfx set (resources and sequences)
-            try {
-                conf = gResources.loadConfigForRes(confFile);
-            } catch (CustomException e) {
-                throw new PluginException("Failed to load plugin.conf ("
-                    ~ e.msg ~ ")");
-            }
-        }
-
-        //mixin dynamic configuration
-        if (cfg) {
-            conf.getSubNode("config").mixinNode(cfg, true);
-        }
-
-        Plugin newPlugin = new Plugin(pluginId, this, conf);
-
-        //this will place dependencies in the plugins[] first, making them load
-        //  before the current plugin
-        foreach (dep; newPlugin.dependencies) {
-            try {
-                loadPlugin(dep, allPlugins.findNode(dep), allPlugins);
-            } catch (PluginException e) {
-                throw new PluginException("Dependency '" ~ dep
-                    ~ "' failed to load: " ~ e.msg);
-            }
-        }
-
-        plugins ~= newPlugin;
-        mLoadedPlugins[pluginId] = true;
     }
 
     //this also means that a bogus/changed resource file could cause scripting
@@ -274,24 +211,6 @@ class GfxSet {
                 resources.addResource(t, t.name);
             }
         }
-
-        //load sprites
-        foreach (char[] name, char[] value; mSprites) {
-            auto sprite = loadConfig(value, true);
-            loadSpriteClass(sprite);
-        }
-
-        //load weapons
-        foreach (plg; plugins) {
-            plg.finishLoading();
-        }
-    }
-
-    //factory for SpriteClasses
-    //the constructor of SpriteClasses will call:
-    //  engine.registerSpriteClass(registerName, this);
-    SpriteClass instantiateSpriteClass(char[] name, char[] registerName) {
-        return SpriteClassFactory.instantiate(name, this, registerName);
     }
 
     //called by sprite.d/SpriteClass.this() only
@@ -317,15 +236,6 @@ class GfxSet {
         //not found? xxx better error handling (as usual...)
         throw new ClassNotRegisteredException("sprite class " ~ name
             ~ " not found");
-    }
-
-    //currently just worm.conf
-    void loadSpriteClass(ConfigNode sprite) {
-        char[] type = sprite.getStringValue("type", "notype");
-        char[] name = sprite.getStringValue("name", "unnamed");
-        SpriteClass res = instantiateSpriteClass(type, name);
-        res.loadFromConfig(sprite);
-        registerSpriteClass(res);
     }
 
     //mainly for scripts

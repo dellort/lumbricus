@@ -8,14 +8,14 @@ works with the version of WWP which was available to us. You need to compile and
 run the program "extractdata" and place the resulting files into the data/data2
 directory.
 
-WARNING 2: Unless you are seriously masochistic, don't try to compile the sourcecode. Just don't. You'll fail and end up hating the whole world (but especially you'll hate the bit about the D toolchain).
+WARNING 2: Unless you are seriously masochistic, don't try to compile the sourcecode. Just don't. You'll fail and end up hating us and D.
 
 Actually, Lumbricus is completely independent from WWP and can't read WWP
 datafiles (which is why there's an extra converter).
 At some time we'll make sure it works just with the data from this SVN.
 We would need a graphic artists to produce a free, nice-looking game.
 
-The code is written in the D Programming Language, see:
+The code is written in the D Programming Language version 1.x, see:
 http://www.digitalmars.com/d/1.0/
 
 There's also a little info on our project page:
@@ -31,63 +31,28 @@ Version status for tools and libraries:
         ldc: probably doesn't work at all
         gdc: forget it
     tango:
-        svn r5366 (trunk): works
+        svn r5396 (trunk): works
         release 0.99.9: may work
     Derelict:
         http://svn.dsource.org/projects/derelict/trunk/
-        svn r394: works
+        svn r441: works
             for DerelictUtil, DerelictFT, DerelictGL, DerelictGLU, DerelictSDL, DerelictAL
     NOTE: the corresponding C libs usually are stable, because they're written in C, and not in D (where each new compiler version might break everything, *sigh*)
 
 Building it...
 
-- A D compiler for D 1.x is required, pick up the latest version of dmd:
-  -> http://www.digitalmars.com/d/1.0/changelog.html
-     (Download the latest version available. You'll find the actual download
-      links if you're searching long enough. Treat it as adventure game.)
-  D 2.x will _not_ work, it is a different language from D 1.x!
-
-  DMD should work under x86 Windows and Linux.
-  LDC supports more arches, but unless you hate yourself, don't use it.
-      (also, LLVM doesn't really work on Windows)
-      (general compilation success with LDC depends from current lunar phase)
-  GDC is broken and outdated, and I'll shoot anyone who tries to use it.
-
-- DSSS is the build program we use
-  -> http://www.dsource.org/projects/dsss
-  PS: DSSS sucks donkey balls. Feel free to use compile.sh instead, which uses
-      xfbuild (link is in the file).
-
-- Tango, the non-standard standard library. Well I don't really know why we
-  switched from Phobos to Tango. Maybe for maximum comedy.
-  Needs at least Tango 0.99.8.
-  -> http://www.dsource.org/projects/tango/
-
-- Derelict, which is a bunch of wrappers for C libraries, especially SDL
-  -> http://dsource.org/projects/derelict
-
-  With all your build tools (DMD/DSSS) and Tango set up correctly, you can
-  install all required Derelict libraries automatically by running
-    dsss net deps
-  in the trunk/src directory. Don't worry about the bunch of error messages about
-  missing files, this is how this tool works.
-
-- When it's all correctly set up, go into the trunk/src/ dir and compile
-  Lumbricus by executing this command on the commandline:
-    dsss build
-  And to build the WWP data converter:
-    dsss build ../bin/extractdata
-  The resulting binaries are put into trunk/bin/
+    Forget it. There are only two people in the world who can build it.
+    Could ask us on #lumbricus, though.
 
 Required libraries:
 - Dynamic linked (.dll/.so):
   - SDL
   - SDL_image
   - Freetype
-  - ENet (enet.bespin.org)
   - Zlib
   - Lua 5.1
 
+  - ENet (enet.bespin.org) (optional)
   - FMod (optional)
   - OpenAL (optional)
   For Win32, all required .dll files can be found in <svn_root>/downloads/win32_dlls

@@ -11,12 +11,9 @@ import game.controller;
 import game.wcontrol;
 import game.glue;
 import physics.world;
-import utils.configfile;
 import utils.time;
 import utils.vector2;
-import utils.randval;
 import utils.misc;
-import utils.log;
 import utils.color;
 
 //classes derived from this extend the functionality of a Sprite

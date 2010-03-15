@@ -13,6 +13,7 @@ import game.sprite;
 import game.crate;
 import game.events;
 import game.weapon.weapon;
+import game.weapon.weaponset;
 import game.temp;
 import physics.misc;
 import utils.configfile;
@@ -43,7 +44,7 @@ alias DeclareEvent!("game_start", GameObject) OnGameStart;
 alias DeclareEvent!("game_end", GameObject) OnGameEnd;
 alias DeclareEvent!("game_sudden_death", GameObject) OnSuddenDeath;
 alias DeclareEvent!("game_message", GameObject, GameMessage) OnGameMessage;
-//for test code
+//init plugins
 alias DeclareEvent!("game_init", GameObject) OnGameInit;
 //add a HUD object to the GUI;
 //  char[] id = type of the HUD object to add
@@ -83,6 +84,9 @@ alias DeclareEvent!("sprite_zerohp", Sprite) OnSpriteZeroHp;
 alias DeclareEvent!("team_member_start_die", TeamMember) OnTeamMemberStartDie;
 alias DeclareEvent!("team_member_set_active", TeamMember, bool)
     OnTeamMemberSetActive;
+//hack for message display
+alias DeclareEvent!("team_member_collect_crate", TeamMember, CrateSprite)
+    OnTeamMemberCollectCrate;
 //first time a team does an action (should probably be per team member?)
 //xxx actually those should be WormControl events?
 alias DeclareEvent!("team_on_first_action", Team) OnTeamFirstAction;
@@ -98,7 +102,7 @@ alias DeclareEvent!("team_victory", Team) OnVictory;
 //sender is the newly dropped crate
 alias DeclareEvent!("crate_drop", CrateSprite) OnCrateDrop;
 //sender is the crate, first parameter is the collecting team member
-alias DeclareEvent!("crate_collect", CrateSprite, TeamMember) OnCrateCollect;
+alias DeclareEvent!("crate_collect", CrateSprite, GameObject) OnCrateCollect;
 //when a worm collects a tool from a crate
 alias DeclareEvent!("collect_tool", TeamMember, CollectableTool) OnCollectTool;
 //number of weapons changed

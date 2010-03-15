@@ -49,7 +49,7 @@ static this() {
 
     gScripting.ctor!(SpriteClass, GfxSet, char[])();
     gScripting.methods!(SpriteClass, "createSprite", "getInitSequenceState",
-        "getInitSequenceType");
+        "getInitSequenceType", "loadFromConfig" /+ <- worm.conf, crate.conf +/);
     gScripting.property_ro!(SpriteClass, "name");
     gScripting.properties!(SpriteClass, "initialHp", "initPhysic",
         "initParticle", "sequenceType", "sequenceState",

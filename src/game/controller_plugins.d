@@ -9,6 +9,7 @@ import game.sprite;
 import game.temp : CrateType;
 import game.crate;
 import game.weapon.weapon;
+import game.weapon.weaponset;
 import game.gamemodes.base;
 import physics.misc;
 import utils.log;
@@ -46,7 +47,7 @@ class ControllerMsgs : GamePlugin {
         OnTeamSkipTurn.handler(ev, &onTeamSkipTurn);
         OnTeamSurrender.handler(ev, &onTeamSurrender);
         OnCrateDrop.handler(ev, &onCrateDrop);
-        OnCrateCollect.handler(ev, &onCrateCollect);
+        OnTeamMemberCollectCrate.handler(ev, &onCrateCollect);
         OnVictory.handler(ev, &onVictory);
     }
 
@@ -96,8 +97,7 @@ class ControllerMsgs : GamePlugin {
         }
     }
 
-    private void onCrateCollect(CrateSprite crate, TeamMember member)
-    {
+    private void onCrateCollect(TeamMember member, CrateSprite crate) {
         foreach (item; crate.stuffies) {
             if (auto weapon = cast(CollectableWeapon)item) {
                 //weapon
@@ -243,7 +243,7 @@ class ControllerStats : GamePlugin {
         OnDamage.handler(engine.events, &onDamage);
         OnDemolish.handler(engine.events, &onDemolish);
         OnSpriteDie.handler(engine.events, &onSpriteDie);
-        OnCrateCollect.handler(engine.events, &onCrateCollect);
+//        OnCrateCollect.handler(engine.events, &onCrateCollect);
         OnFireWeapon.handler(engine.events, &onFireWeapon);
     }
 
@@ -326,10 +326,12 @@ class ControllerStats : GamePlugin {
         }
     }
 
+/+
     private void onCrateCollect(CrateSprite crate, TeamMember m) {
         log("{} collects crate: {}", m, crate.stuffies);
         mStats.crateCount++;
     }
++/
 
     private void onGameEnd(GameObject dummy) {
         debug mStats.output();
