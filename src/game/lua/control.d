@@ -39,7 +39,11 @@ static this() {
     gScripting.methods!(WormSprite, "beamTo");
 
     gScripting.ctor!(WormSpriteClass, GfxSet, char[])();
+
     gScripting.ctor!(CrateSpriteClass, GfxSet, char[])();
+    gScripting.properties!(CrateSpriteClass, "collectRadius");
+    gScripting.methods!(CrateSprite, "blowStuffies")();
+    gScripting.property_ro!(CrateSprite, "crateType")();
 
     gScripting.ctor!(TimeStatus)();
     gScripting.properties!(TimeStatus, "showTurnTime", "showGameTime",

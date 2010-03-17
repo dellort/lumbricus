@@ -40,47 +40,6 @@ end
 
 -- random helper functions
 
---[[
-stuff that needs to be done:
-- fix createdBy crap
-- fix double damage (d0c needs to make up his mind)
-- add different functions for spawning from airstrike/sprite
-- for spawning from sprite, having something to specify the emit-position would
-  probably be useful (instead of just using weapon-angle and radius); every
-  decent shooter with more complex sprites has this
-  (actually, FireInfo.pos fulfills this role right now)
-- there's spawnFromFireInfo, but this concept sucks hard and should be replaced
-]]
--- parent = any GameObject, from which this is spawned (shooter or sprite)
--- sprite_class = a D SpriteClass (doesn't accept a name string anymore)
--- pos = a Vector2
--- velocity = optional Vector2, if nil no velocity is set
-function spawnSprite(parent, sprite_class, pos, velocity)
-    local s = SpriteClass_createSprite(sprite_class, Game)
-    GameObject_set_createdBy(s, parent)
-    if velocity then
-        Phys_setInitialVelocity(Sprite_physics(s), velocity)
-    end
-    Sprite_activate(s, pos)
-    return s
-end
-
--- shortcut for spawnFromFireInfo()
--- due to FireInfo this creates quite some tables
-function spawnFromShooter(sprite_class, shooter)
-    spawnFromFireInfo(sprite_class, shooter, Shooter_fireinfo(shooter))
-end
-
--- spawn using the fireinfo settings, and using shooter as parent
-function spawnFromFireInfo(sprite_class, shooter, fireinfo)
-    -- copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
-    -- eh, and why not use those values directly?
-    local dist = (fireinfo.shootbyRadius + 5) * 1.5 + 2
-    local s = spawnSprite(shooter, sprite_class,
-        fireinfo.pos + fireinfo.dir * dist, fireinfo.dir * fireinfo.strength)
-    return s
-end
-
 -- create and return a function that does what most onFire functions will do
 -- incidentally, this just calls spawnFromFireInfo()
 function getStandardOnFire(sprite_class)
@@ -251,7 +210,7 @@ end
 
 -- call fn(sprite) everytime it has been glued for the given time
 function enableOnTimedGlue(sprite_class, time, fn)
-    addSpriteClassEvent(sprite_class, "sprite_gluechanged", function(sender)
+    addSpriteClassEvent(sprite_class, "sprite_glue_changed", function(sender)
         local state = Phys_isGlued(Sprite_physics(sender))
         local ctx = get_context(sender)
         local timer = ctx.glue_timer

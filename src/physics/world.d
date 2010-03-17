@@ -101,6 +101,10 @@ class PhysicWorld {
         //checkUpdates();
     }
 
+    final ContactHandling canCollide(PhysicBase a, PhysicBase b) {
+        return collide.canCollide(a.collision, b.collision);
+    }
+
     // --- simulation, all in one function
 
     private void doSimulate(float deltaT) {
@@ -127,7 +131,7 @@ class PhysicWorld {
             //check glued objects too, or else not checking would be
             //misinterpreted as not active
             foreach (PhysicTrigger tr; mTriggers) {
-                if (collide.canCollide(tr, me))
+                if (canCollide(tr, me))
                     tr.collide(me);
             }
         }
@@ -144,7 +148,7 @@ class PhysicWorld {
                 checkGeometryCollisions(me, &handleContact);
                 foreach (PhysicCollider co; mObjectColliders) {
                     //no collision if unwanted
-                    ContactHandling ch = collide.canCollide(me, co);
+                    ContactHandling ch = canCollide(me, co);
                     if (ch == ContactHandling.none)
                         continue;
                     co.collide(me, &handleContact);
@@ -227,7 +231,7 @@ class PhysicWorld {
             return;
 
         //no collision if unwanted
-        ContactHandling ch = collide.canCollide(obj1, obj2);
+        ContactHandling ch = canCollide(obj1, obj2);
         if (ch == ContactHandling.none)
             return;
 
@@ -331,7 +335,7 @@ class PhysicWorld {
         bool collided = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
             GeomContact ncont;
-            ContactHandling ch = collide.canCollide(o, gm);
+            ContactHandling ch = canCollide(o, gm);
             if (ch && gm.collide(o, extendRadius, ncont))
             {
                 //kind of hack for LevelGeometry

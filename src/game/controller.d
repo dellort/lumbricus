@@ -655,7 +655,6 @@ class GameController {
 
         bool mIsAnythingGoingOn; // (= hack)
 
-        CrateSprite mLastCrate;  //just to drop it on spacebar
         bool mGameEnded;
 
         //Medkit, medkit+tool, medkit+tool+unrigged weapon
@@ -734,11 +733,6 @@ class GameController {
 
         if (!mIsAnythingGoingOn) {
             startGame();
-        } else {
-
-            if (mLastCrate) {
-                if (!mLastCrate.activity) mLastCrate = null;
-            }
         }
     }
 
@@ -1024,8 +1018,6 @@ class GameController {
         }
         //actually start it
         crate.activate(from);
-        mLastCrate = crate;
-        mLastCrate.killVeto(this);
         if (!silent) {
             //xxx move into CrateSprite.activate()
             OnCrateDrop.raise(crate);
@@ -1035,8 +1027,7 @@ class GameController {
     }
 
     void instantDropCrate() {
-        if (mLastCrate)
-            mLastCrate.unParachute();
+        OnGameCrateSkip.raise(engine.globalEvents);
     }
 
     //xxx wouldn't need this anymore, but doubletime still makes it a bit messy

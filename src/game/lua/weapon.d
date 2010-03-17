@@ -32,6 +32,9 @@ static this() {
 
     //------- specific weapons implemented in D
 
+    gScripting.func!(spawnSprite)();
+    gScripting.func!(spawnFromFireInfo)();
+    //gScripting.func!(spawnFromShooter)();
     gScripting.func!(spawnAirstrike)();
     gScripting.func!(spawnCluster)();
 

@@ -3,7 +3,7 @@ module game.weapon.spawn;
 import game.game;
 import game.gobject;
 import game.sprite;
-import game.weapon.weapon; //only for FireInfo, which again needs only Sprite
+import game.weapon.weapon;
 import utils.vector2;
 import utils.random;
 import utils.randval;
@@ -11,9 +11,20 @@ import utils.misc;
 
 import math = tango.math.Math;
 
+/+
+stuff that needs to be done:
+- fix createdBy crap
+- fix double damage (d0c needs to make up his mind)
+  (actually implemented now, in explosionAt)
+- for spawning from sprite, having something to specify the emit-position would
+  probably be useful (instead of just using weapon-angle and radius); every
+  decent shooter with more complex sprites has this
+  (actually, FireInfo.pos fulfills this role right now)
+- there's spawnFromFireInfo, but this concept sucks hard and should be replaced
++/
+
 //core spawn functions; actually, all spawn functions should use this
-//lua has a spawnSprite function for this
-void doSpawnSprite(SpriteClass sclass, GameObject spawned_by, Vector2f pos,
+void spawnSprite(GameObject spawned_by, SpriteClass sclass, Vector2f pos,
     Vector2f init_vel = Vector2f(0))
 {
     argcheck(sclass);
@@ -24,6 +35,20 @@ void doSpawnSprite(SpriteClass sclass, GameObject spawned_by, Vector2f pos,
     sprite.physics.setInitialVelocity(init_vel);
     sprite.activate(pos);
 }
+
+void spawnFromFireInfo(SpriteClass sclass, Shooter shooter, FireInfo fireinfo) {
+    // copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
+    // eh, and why not use those values directly?
+    auto dist = (fireinfo.shootbyRadius + 5) * 1.5 + 2;
+    return spawnSprite(shooter, sclass, fireinfo.pos + fireinfo.dir * dist,
+        fireinfo.dir * fireinfo.strength);
+}
+
+/+
+void spawnFromShooter(SpriteClass sclass, Shooter shooter) {
+    spawnFromFireInfo(sclass, shooter.fireinfo);
+}
++/
 
 //classic airstrike in-a-row positioning, facing down
 void spawnAirstrike(SpriteClass sclass, int count, GameObject shootbyObject,
@@ -61,7 +86,7 @@ void spawnAirstrike(SpriteClass sclass, int count, GameObject shootbyObject,
         pos.x = destPos.x - width/2 + spawnDist * n;
         pos.y = engine.level.airstrikeY;
         auto vel = about.dir*about.strength;
-        doSpawnSprite(sclass, shootbyObject, pos, vel);
+        spawnSprite(shootbyObject, sclass, pos, vel);
     }
 }
 
@@ -86,7 +111,7 @@ void spawnCluster(SpriteClass sclass, Sprite parent, int count,
         //15???
         //-- dir * 15: add some distance from parent to clusters
         //--           (see above, I'm too lazy to do this properly now)
-        doSpawnSprite(sclass, parent, spos + dir.normal * 15, dir * strength);
+        spawnSprite(parent, sclass, spos + dir.normal * 15, dir * strength);
     }
 }
 

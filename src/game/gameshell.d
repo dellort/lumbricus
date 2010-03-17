@@ -283,7 +283,7 @@ class GameLoader {
             mShell.mEngine = new GameEngine(mGfx, mShell.mGameTime);
             mShell.mEngine.events.cascade ~= mShell.mCEvents;
 
-            mShell.mEngine.init(mGameConfig);
+            mShell.mEngine.initGame(mGameConfig);
         } else {
             //code for loading a savegame
 

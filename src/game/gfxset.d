@@ -178,9 +178,8 @@ class GfxSet {
         resources = loaded_resources;
 
         loadParticles();
-        loadSprites();
         //loaded after all this because Sequences depend from Animations etc.
-        //loadSequenceStuff();
+        loadSequences();
 
         resources.seal(); //disallow addition of more resources
 
@@ -203,7 +202,7 @@ class GfxSet {
 
     //--- sprite & weapon stuff (static data)
 
-    private void loadSprites() {
+    private void loadSequences() {
         //load sequences
         foreach (ConfigNode node; mSequenceConfig) {
             foreach (ConfigNode sub; node) {

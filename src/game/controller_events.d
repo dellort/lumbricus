@@ -55,6 +55,8 @@ alias DeclareEvent!("game_hud_add", GameObject, char[], Object) OnHudAdd;
 alias DeclareEvent!("game_reload", GameObject) OnGameReload;
 //called on a non-fatal game error, with a message for the gui
 alias DeclareEvent!("game_error", GameObject, char[]) OnGameError;
+//make crates fall faster by pressing "space" (also known as unParachute)
+alias DeclareEvent!("game_crate_skip", GameObject) OnGameCrateSkip;
 //victim, cause, type, damage
 //  cause can be null (e.g. for fall damage)
 alias DeclareEvent!("sprite_damage", Sprite, GameObject, DamageCause,
@@ -74,7 +76,11 @@ alias DeclareEvent!("sprite_activate", Sprite) OnSpriteActivate;
 //with Sprite.setState()
 alias DeclareEvent!("sprite_setstate", StateSprite) OnSpriteSetState;
 //whenever the glue status changes (checked/called every frame)
-alias DeclareEvent!("sprite_gluechanged", Sprite) OnSpriteGlueChanged;
+alias DeclareEvent!("sprite_glue_changed", Sprite) OnSpriteGlueChanged;
+//see Sprite.exceedVelocity
+alias DeclareEvent!("sprite_exceed_velocity", Sprite) OnSpriteExceedVelocity;
+//not called by default; see Sprite.notifyAnimationEnd
+alias DeclareEvent!("sprite_animation_end", Sprite) OnSpriteAnimationEnd;
 //physics.lifepower <= 0
 alias DeclareEvent!("sprite_zerohp", Sprite) OnSpriteZeroHp;
 //reached the ocean floor

@@ -173,7 +173,7 @@ void main(char[][] args) {
         printf("enum = {}", Foo_muh())
         Foo_set_muh(2)
         printf("enum = {}", Foo_muh())
-        Foo_set_muh("c")
+        Foo_set_muh("c") -- automatic string -> enum conversion
         printf("enum = {}", Foo_muh())
         b = Foo_createBar()
         Bar_test(b, "hurf")
@@ -181,14 +181,14 @@ void main(char[][] args) {
         x = Vector2(1,2)
         rectable = {"bla"}
         rectable["blu"] = rectable
-        utils.formatln("number: {} str: {} table: {} arr: {} " ..
+        printf("number: {} str: {} table: {} arr: {} " ..
             "table_with_tostring: {} mixed_aa_arr: {} empty_table: {} " ..
             "rectable: {} userdata: {} nil: {} " ..
             "noarg: {}",
             123, "hello", {x="this_is_x", y="this_is_y"}, {1,2,3}, Vector2(1,2),
             {[{}] = 123, 4, "huh", [6] = 5, meh = 6}, {}, rectable, b, nil);
 
-        utils.formatln("2={2} 1={1} 2={} 1q={1:q}", "a", "b", "c")
+        printf("2={2} 1={1} 2={} 1q={1:q}", "a", "b", "c")
 
         function test(arg)
             print(string.format("Called Lua function test('%s')", arg))
@@ -204,15 +204,15 @@ void main(char[][] args) {
         Foo_vector({4, 5})
         Foo_vector(Foo_makeVector(23, 42))
 
-        t = Foo_makeTime(500)
-        t:print()
-        timeMins(30):print()
+        --t = Foo_makeTime(500)
+        --t:print()
+        --timeMins(30):print()
 
         r = Rect2(3, 3, 7, 7)
         r:print()
-        utils.formatln("Size: {}", r:size())
+        printf("Size: {}", r:size())
         r2 = Rect2.Span(Vector2(3), Vector2(5))
-        utils.formatln("Size: {} Center: {}", r2:size(), r2:center())
+        printf("Size: {} Center: {}", r2:size(), r2:center())
 
 
         Foo_array({1, 2, 3, 4})
@@ -235,11 +235,11 @@ void main(char[][] args) {
         assert(Bar_blu(b) == 123)
         Bar_set_blo(b, 456)
         assert(Bar_blo(b) == 456)
-        utils.formatln("blo={}", Bar_blo(b))
+        printf("blo={}", Bar_blo(b))
         -- fields
         assert(Bar_something(b) == 456)
         Bar_set_something(b, 789)
-        utils.formatln("something={}", Bar_something(b))
+        printf("something={}", Bar_something(b))
 
         Foo_vectors({Vector2(1,0), Vector2(5,7)})
 

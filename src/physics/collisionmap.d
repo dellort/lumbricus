@@ -1,8 +1,6 @@
 module physics.collisionmap;
 
-import physics.base;
-import physics.contact;
-import physics.misc;
+import physics.misc; // : ContactHandling
 
 import utils.array : arrayMap;
 import utils.configfile;
@@ -15,6 +13,30 @@ import tango.util.Convert;
 private const char[][ContactHandling.max+1] cChNames =
     ["", "hit", "hit_noimpulse", "hit_pushback"];
 
+//the physics stuff uses an ID to test if collision between objects is wanted
+//all physic objects (type PhysicBase) have an CollisionType
+//ok, it's not really an integer ID anymore, but has the same purpose
+final class CollisionType {
+    private {
+        //index into the collision-matrix
+        int mIndex;
+
+        char[] mName;
+
+        //needed because of forward referencing etc.
+        CollisionType mSuperClass;
+        CollisionType[] mSubClasses;
+    }
+
+    char[] name() { return mName; }
+
+    this() {
+    }
+}
+
+//it's illegal to use CollisionType_Invalid in PhysicBase.collision
+const CollisionType CollisionType_Invalid = null;
+
 //handling of the collision map
 final class CollisionMap {
     private {
@@ -26,89 +48,56 @@ final class CollisionMap {
         //CollisionType.index indexes into this, see canCollide()
         ContactHandling[][] mTehMatrix;
 
-        //if there are still unresolved CollisionType forward references
-        //used for faster error checking (in canCollide() which is a hot-spot)
-        bool mHadCTFwRef = true;
-
         //special types
-        CollisionType mCTAlways, mCTNever, mCTAll;
+        CollisionType mCTRoot;   //superclass of all collision types
 
+        //mTehMatrix is outdated
+        bool mDirty;
+        //no further changes allowed
         bool mSealed;
     }
 
     this() {
-        mCTAlways = findCollisionID("always");
-        mCTAll = findCollisionID("all");
-        mCTNever = findCollisionID("never");
+        mCTRoot = newCollisionType("root", null);
     }
 
-    CollisionType newCollisionType(char[] name) {
+    CollisionType newCollisionType(char[] name, CollisionType ct_super) {
+        if (mCTRoot)
+            argcheck(!!ct_super);
         assert(!mSealed);
-        assert(!(name in mCollisionNames));
+        argcheck(name.length > 0, "b");
+        if (name in mCollisionNames)
+            throw new CustomException("collision type already exists: "~name);
         auto t = new CollisionType();
-        t.name = name;
-        mCollisionNames[t.name] = t;
-        t.index = mCollisions.length;
+        t.mName = name;
+        t.mSuperClass = ct_super;
+
+        //this is what we really need (see getAll() in rebuildCollisionStuff())
+        if (ct_super)
+            ct_super.mSubClasses ~= t;
+
+        mCollisionNames[t.mName] = t;
+        t.mIndex = mCollisions.length;
         mCollisions ~= t;
-        mHadCTFwRef = true; //because this is one
+
+        mDirty = true;
+
         return t;
     }
 
-    public CollisionType collideNever() {
-        return mCTNever;
-    }
-    public CollisionType collideAlways() {
-        return mCTAlways;
-    }
-
     public ContactHandling canCollide(CollisionType a, CollisionType b) {
-        if (mHadCTFwRef) {
-            checkCollisionHandlers();
-        }
         assert(a && b, "no null parameters allowed, use collideNever/Always");
-        assert(!a.undefined && !b.undefined, "undefined collision type");
-        return mTehMatrix[a.index][b.index];
-    }
-
-    public ContactHandling canCollide(PhysicBase a, PhysicBase b) {
-        assert(a && b);
-        if (!a.collision)
-            assert(false, "no collision for "~a.toString());
-        if (!b.collision)
-            assert(false, "no collision for "~b.toString());
-        return canCollide(a.collision, b.collision);
-    }
-
-    //check if all collision handlers were set; if not throw an error
-    public void checkCollisionHandlers() {
-        char[][] errors;
-
-        foreach(t; mCollisions) {
-            if (t.undefined) {
-                errors ~= t.name;
-            }
-        }
-
-        if (errors.length > 0) {
-            throw new CustomException(myformat("the following collision names were"
-                " referenced, but not defined: {}", errors));
-        }
-
-        mHadCTFwRef = false;
+        if (mDirty)
+            rebuildCollisionStuff();
+        return mTehMatrix[a.mIndex][b.mIndex];
     }
 
     //find a collision ID by name
     public CollisionType findCollisionID(char[] name) {
-        if (name.length == 0) {
-            return mCTNever;
-        }
+        if (auto pres = name in mCollisionNames)
+            return *pres;
 
-        if (name in mCollisionNames)
-            return mCollisionNames[name];
-
-        //a forward reference
-        //checkCollisionHandlers() verifies if these are resolved
-        return newCollisionType(name);
+        throw new CustomException("collision ID '"~name~"' not found.");
     }
 
     public CollisionType[] collisionTypes() {
@@ -117,30 +106,6 @@ final class CollisionMap {
 
     //will rebuild mTehMatrix
     void rebuildCollisionStuff() {
-        assert(!mSealed);
-
-        //return an array containing all transitive subclasses of cur
-        CollisionType[] getAll(CollisionType cur) {
-            CollisionType[] res = [cur];
-            foreach (s; cur.subclasses) {
-                res ~= getAll(s);
-            }
-            return res;
-        }
-
-        //set if a and b should collide to what
-        void setCollide(CollisionType a, CollisionType b,
-            ContactHandling what = ContactHandling.normal)
-        {
-            mTehMatrix[a.index][b.index] = what;
-            mTehMatrix[b.index][a.index] = what;
-        }
-
-        mCTAlways.undefined = false;
-        mCTNever.undefined = false;
-        mCTAll.undefined = false;
-        mHadCTFwRef = false;
-
         //allocate/clear the matrix
         mTehMatrix.length = mCollisions.length;
         foreach (ref line; mTehMatrix) {
@@ -148,17 +113,20 @@ final class CollisionMap {
             line[] = ContactHandling.none;
         }
 
-        foreach (ct; mCollisions) {
-            mHadCTFwRef |= ct.undefined;
+        //set if a and b should collide to what
+        void setCollide(CollisionType a, CollisionType b, ContactHandling what)
+        {
+            mTehMatrix[a.mIndex][b.mIndex] = what;
+            mTehMatrix[b.mIndex][a.mIndex] = what;
         }
 
-        //relatively hack-like, put in all unparented collisions as subclasses,
-        //without setting their parent member, else loadCollisions could cause
-        //problems etc.; do that only for getAll()
-        mCTAll.subclasses = null;
-        foreach (ct; mCollisions) {
-            if (!ct.superclass && ct !is mCTAll)
-                mCTAll.subclasses ~= ct;
+        //return an array containing all transitive subclasses of cur
+        CollisionType[] getAll(CollisionType cur) {
+            CollisionType[] res = [cur];
+            foreach (s; cur.mSubClasses) {
+                res ~= getAll(s);
+            }
+            return res;
         }
 
         for (ContactHandling ch = ContactHandling.normal;
@@ -175,54 +143,29 @@ final class CollisionMap {
             }
         }
 
-        foreach (ct; mCollisions) {
-            setCollide(mCTAlways, ct, ContactHandling.normal);
-            setCollide(mCTNever, ct, ContactHandling.none);
-        }
-        //lol paradox
-        setCollide(mCTAlways, mCTNever, ContactHandling.none);
+        mDirty = false;
+    }
+
+    void enableCollision(CollisionType a, CollisionType b,
+        ContactHandling ch = ContactHandling.normal)
+    {
+        assert(!mSealed);
+        mHits[ch] ~= [a, b];
+        mDirty = true;
     }
 
     //"collisions" node from i.e. worm.conf
     public void loadCollisions(ConfigNode node) {
-        assert(!mSealed);
-
-        auto defines = str.split(node.getStringValue("define"));
-        foreach (d; defines) {
-            auto cid = findCollisionID(d);
-            if (!cid.undefined) {
-                throw new CustomException("collision name '" ~ cid.name
-                    ~ "' redefined");
-            }
-            cid.undefined = false;
-        }
         foreach (char[] name, char[] value; node.getSubNode("classes")) {
             //each entry is class = superclass
-            auto cls = findCollisionID(name);
             auto supercls = findCollisionID(value);
-            if (cls.superclass) {
-                throw new CustomException("collision class '" ~ cls.name ~ "' already"
-                    ~ " has a superclass");
-            }
-            cls.superclass = supercls;
-            //this is what we really need
-            supercls.subclasses ~= cls;
-            //check for cirular stuff
-            auto t = cls;
-            CollisionType[] trace = [t];
-            while (t) {
-                t = t.superclass;
-                trace ~= t;
-                if (t is cls) {
-                    throw new CustomException("circular subclass relation: " ~
-                        str.join(arrayMap(trace, (CollisionType x) {
-                            return x.name;
-                        }), " -> ") ~ ".");
-                }
-            }
+            newCollisionType(name, supercls);
         }
 
-        void readCH(char[] nname, ContactHandling ch) {
+        for (ContactHandling ch = ContactHandling.normal;
+            ch <= ContactHandling.max; ch++)
+        {
+            char[] nname = cChNames[ch];
             foreach (char[] name, char[] value; node.getSubNode(nname)) {
                 //each value is an array of collision ids which
                 // collide with "name"
@@ -231,25 +174,15 @@ final class CollisionMap {
                 });
                 auto ct = findCollisionID(name);
                 foreach (h; hits) {
-                    mHits[ch] ~= [ct, h];
+                    enableCollision(ct, h, ch);
                 }
             }
         }
-
-        for (ContactHandling ch = ContactHandling.normal;
-            ch <= ContactHandling.max; ch++)
-        {
-            readCH(cChNames[ch], ch);
-        }
-        rebuildCollisionStuff();
     }
 
     //debugging: don't allow any further changes after this hs been called
     void seal() {
-        if (!mSealed) {
-            //error when a reference to a collision type is missing
-            checkCollisionHandlers();
-        }
         mSealed = true;
+        rebuildCollisionStuff();
     }
 }

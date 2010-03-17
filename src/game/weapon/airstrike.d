@@ -8,11 +8,9 @@ import game.sprite;
 import game.temp : JumpMode;
 import game.weapon.weapon;
 import game.wcontrol;
-import game.levelgen.landscape;
 import physics.world;
 import utils.time;
 import utils.vector2;
-import utils.log;
 import utils.misc;
 import utils.interpolate;
 

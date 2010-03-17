@@ -131,4 +131,3 @@ abstract class GameObject : EventTarget {
     void debug_draw(Canvas c) {
     }
 }
-

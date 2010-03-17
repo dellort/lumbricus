@@ -10,4 +10,3 @@ local function loadSpriteClass(ctor, file)
 end
 
 loadSpriteClass(WormSpriteClass_ctor, "worm.conf")
-loadSpriteClass(CrateSpriteClass_ctor, "crate.conf")

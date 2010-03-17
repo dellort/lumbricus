@@ -44,12 +44,13 @@ static this() {
     gScripting.property_ro!(GameObject, "objectAlive");
 
     gScripting.methods!(Sprite, "setPos", "type", "activate", "setParticle");
-    gScripting.properties!(Sprite, "graphic", "noActivityWhenGlued");
+    gScripting.properties!(Sprite, "graphic", "noActivityWhenGlued",
+        "exceedVelocity", "notifyAnimationEnd");
     gScripting.properties_ro!(Sprite, "physics", "isUnderWater", "visible");
 
     gScripting.ctor!(SpriteClass, GfxSet, char[])();
     gScripting.methods!(SpriteClass, "createSprite", "getInitSequenceState",
-        "getInitSequenceType", "loadFromConfig" /+ <- worm.conf, crate.conf +/);
+        "getInitSequenceType", "loadFromConfig" /+ <- worm.conf +/);
     gScripting.property_ro!(SpriteClass, "name");
     gScripting.properties!(SpriteClass, "initialHp", "initPhysic",
         "initParticle", "sequenceType", "sequenceState",

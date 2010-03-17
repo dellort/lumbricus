@@ -127,16 +127,25 @@ def read_and_parse_depfile():
     # use a separate AA to filter double filenames; but keep the flist array so
     #   that the order isn't messed up (more determinism against shaky dmd)
     doubles = {}
+    stat_files, stat_ifiles, stat_deps = 0, 0, 0
     try:
         file = open(DEP_FILE, "r")
     except IOError:
         return None
     for line in file:
         module, file = rex.match(line).groups()
+        stat_deps = stat_deps + 1
         # xxx may want to filter out .di files as well?
-        if not module_is_ignored(module) and file not in doubles:
-            flist.append(file)
+        if file not in doubles:
             doubles[file] = True
+            if not module_is_ignored(module):
+                flist.append(file)
+                stat_files = stat_files + 1
+            else:
+                stat_ifiles = stat_ifiles + 1
+    if False:
+        print("%s files to compile, %s files import only, %s import lines."
+            % (stat_files, stat_ifiles, stat_deps))
     return flist
 
 def build():

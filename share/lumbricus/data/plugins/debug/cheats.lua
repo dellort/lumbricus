@@ -202,7 +202,8 @@ function E.benchNapalm()
             },
         }
     end
-    local spawner = spawnSprite(nil, spawner_class, Vector2(3000, 1700))
+    local spawner = SpriteClass_createSprite(spawner_class, Game)
+    Sprite_activate(spawner, Vector2(3000, 1700))
     local maxtime = currentTime() + time("5s")
     local up = Vector2(0, -1)
     Game_benchStart(time("20s"))

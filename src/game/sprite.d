@@ -55,6 +55,14 @@ class Sprite : GameObject {
     //if true, sprite is considered active only if it's moving (== unglued)
     bool noActivityWhenGlued;
 
+    //if velocity is higher than this value, the OnSpriteExceedVelocity event is
+    //  triggered, and exceedVelocity is reset to infinity
+    float exceedVelocity = float.infinity;
+
+    //if true, the OnSpriteAnimationEnd event is called when the Sequence's
+    //  readyflag is true; notifyAnimationEnd is reset to false as well
+    bool notifyAnimationEnd;
+
     this(GameEngine a_engine, SpriteClass a_type) {
         super(a_engine, a_type.name);
         mType = a_type;
@@ -238,12 +246,22 @@ class Sprite : GameObject {
             OnSpriteGlueChanged.raise(this);
         }
 
-        if (graphic)
+        if (physics.velocity.length >= exceedVelocity) {
+            exceedVelocity = float.infinity;
+            OnSpriteExceedVelocity.raise(this);
+        }
+
+        if (graphic) {
             fillAnimUpdate();
 
-        //xxx: added with sequence-messup
-        if (graphic)
+            //xxx: added with sequence-messup
             graphic.simulate();
+
+            if (graphic.readyflag && notifyAnimationEnd) {
+                notifyAnimationEnd = false;
+                OnSpriteAnimationEnd.raise(this);
+            }
+        }
 
         if (!mWaterUpdated && mIsUnderWater) {
             mIsUnderWater = false;

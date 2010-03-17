@@ -2,32 +2,12 @@ module physics.base;
 
 import utils.list2;
 
+import physics.collisionmap;
 import physics.world;
 
 //if you need to check a normal when there's almost no collision (i.e. when worm
 //  is sitting on ground), add this value to the radius
 final float cNormalCheck = 5;
-
-//the physics stuff uses an ID to test if collision between objects is wanted
-//all physic objects (type PhysicBase) have an CollisionType
-//ok, it's not really an integer ID anymore, but has the same purpose
-class CollisionType {
-    char[] name;
-    bool undefined = true; //true if this is an unresolved forward reference
-
-    //index into the collision-matrix
-    int index;
-
-    //needed because of forward referencing etc.
-    CollisionType superclass;
-    CollisionType[] subclasses;
-
-    this() {
-    }
-}
-
-//it's illegal to use CollisionType_Invalid in PhysicBase.collision
-const CollisionType CollisionType_Invalid = null;
 
 //base type for physic objects (which are contained in a PhysicWorld)
 class PhysicBase {

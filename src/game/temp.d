@@ -11,6 +11,7 @@ enum JumpMode {
     straightUp,  ///jump straight up (backspace)
 }
 
+//keep in sync with Lua
 enum CrateType {
     unknown,
     weapon,

@@ -179,7 +179,7 @@ class GameEngine {
         }
     }
 
-    void init(GameConfig config) {
+    void initGame(GameConfig config) {
         //game initialization must be deterministic; so unless GameConfig
         //contains a good pre-generated seed, use a fixed seed (see above)
         if (config.randomSeed.length > 0) {
@@ -231,7 +231,7 @@ class GameEngine {
         //completely in the deathzone, but graphics are often larger :(
         deathrc.p2.y += 20;
         auto dz = new ZoneTrigger(new PhysicZoneRect(deathrc));
-        dz.collision = physicworld.collide.collideAlways();
+        dz.collision = physicworld.collide.findCollisionID("always");
         dz.onTrigger = &deathzoneTrigger;
         dz.inverse = true;
         physicworld.add(dz);
@@ -241,7 +241,7 @@ class GameEngine {
         //only if completely outside (= touching the game area inverted)
         worldZone.whenTouched = true;
         auto offwTrigger = new ZoneTrigger(worldZone);
-        offwTrigger.collision = physicworld.collide.collideAlways();
+        offwTrigger.collision = physicworld.collide.findCollisionID("always");
         offwTrigger.inverse = true;  //trigger when outside the world area
         offwTrigger.onTrigger = &offworldTrigger;
         physicworld.add(offwTrigger);

@@ -118,7 +118,7 @@ final class POSP {
     Vector2f velocityConstraint = {float.infinity, float.infinity};
     float speedLimit = float.infinity;
 
-    private char[] mCollisionID;
+    private char[] mCollisionID = "none";
     char[] collisionID() {
         return mCollisionID;
     }
