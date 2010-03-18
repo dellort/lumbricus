@@ -187,7 +187,7 @@ final class POSP {
         //xxx: passes true for the second parameter, which means the ID
         //     is created if it doesn't exist; this is for forward
         //     referencing... it should be replaced by collision classes
-        collisionID = node.getStringValue("collide");
+        collisionID = node.getStringValue("collide", collisionID);
     }
 
     typeof(this) copy() {

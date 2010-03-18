@@ -3,6 +3,7 @@ module gui.test;
 import gui.container;
 import gui.console;
 import gui.global;
+import gui.menu;
 import gui.window;
 import gui.widget;
 import gui.button;

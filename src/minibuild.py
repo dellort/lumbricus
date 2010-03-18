@@ -126,7 +126,7 @@ def read_and_parse_depfile():
     flist = [rootfile]
     # use a separate AA to filter double filenames; but keep the flist array so
     #   that the order isn't messed up (more determinism against shaky dmd)
-    doubles = {}
+    doubles = {rootfile: True}
     stat_files, stat_ifiles, stat_deps = 0, 0, 0
     try:
         file = open(DEP_FILE, "r")
