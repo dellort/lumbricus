@@ -24,7 +24,7 @@ stuff that needs to be done:
 +/
 
 //core spawn functions; actually, all spawn functions should use this
-void spawnSprite(GameObject spawned_by, SpriteClass sclass, Vector2f pos,
+Sprite spawnSprite(GameObject spawned_by, SpriteClass sclass, Vector2f pos,
     Vector2f init_vel = Vector2f(0))
 {
     argcheck(sclass);
@@ -34,9 +34,10 @@ void spawnSprite(GameObject spawned_by, SpriteClass sclass, Vector2f pos,
     sprite.createdBy = spawned_by;
     sprite.physics.setInitialVelocity(init_vel);
     sprite.activate(pos);
+    return sprite;
 }
 
-void spawnFromFireInfo(SpriteClass sclass, Shooter shooter, FireInfo fireinfo) {
+Sprite spawnFromFireInfo(SpriteClass sclass, Shooter shooter, FireInfo fireinfo) {
     // copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
     // eh, and why not use those values directly?
     auto dist = (fireinfo.shootbyRadius + 5) * 1.5 + 2;

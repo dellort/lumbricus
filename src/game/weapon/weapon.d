@@ -177,8 +177,8 @@ abstract class Shooter : GameObject {
     FireInfo fireinfo;
 
     //shooters should call this to reduce owner's ammo by 1
-    ShooterCallback ammoCb, finishCb;
-
+    ShooterCallback finishCb;
+    bool delegate(Shooter sh) ammoCb;
     //if non-null, what was created by WeaponClass.createSelector()
     //this is set right after the constructor has been run
     //(xxx: move to ctor... also, use utils.factory to create shooters)
@@ -192,9 +192,10 @@ abstract class Shooter : GameObject {
         createdBy = a_owner;
     }
 
-    final void reduceAmmo() {
+    final bool reduceAmmo() {
         if (ammoCb)
-            ammoCb(this);
+            return ammoCb(this);
+        return true;
     }
 
     final void finished() {
@@ -260,7 +261,7 @@ abstract class Shooter : GameObject {
     //used by a worm to notify that the worm was interrupted while firing
     //for some weapons, this won't do anything, i.e. air strikes, earth quakes...
     //after this, isFiring() will return false (mostly...)
-    void interruptFiring(bool outOfAmmo = false) {
+    void interruptFiring() {
         //default implementation: make inactive
         internal_active = false;
     }

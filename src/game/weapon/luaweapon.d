@@ -14,7 +14,7 @@ import utils.time;
 class LuaWeaponClass : WeaponClass {
     void delegate(Shooter, FireInfo) onFire;
     WeaponSelector delegate(Sprite) onCreateSelector;
-    void delegate(Shooter, bool) onInterrupt;
+    void delegate(Shooter) onInterrupt;
     //if you set onRefire, don't forget canRefire
     bool delegate(Shooter) onRefire;
     bool canRefire = false;
@@ -73,9 +73,9 @@ class LuaShooter : Shooter {
         }
     }
 
-    override void interruptFiring(bool outOfAmmo) {
+    override void interruptFiring() {
         if (myclass.onInterrupt) {
-            myclass.onInterrupt(this, outOfAmmo);
+            myclass.onInterrupt(this);
         }
         //No! will be handled by finished()
         //  super.interruptFiring(outOfAmmo);

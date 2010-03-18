@@ -100,7 +100,9 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
         ctx.fireinfo = fireinfo
         local function doSpawn()
             if per_shot_ammo then
-                Shooter_reduceAmmo(shooter)
+                if not Shooter_reduceAmmo(shooter) then
+                    remains = 1
+                end
             end
             -- only one sprite per timer tick...
             callback(shooter, ctx.fireinfo, remains)
@@ -114,11 +116,7 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
         timer:start(interval, true)
         doSpawn()
     end
-    local function doInterrupt(shooter, outOfAmmo)
-        if outOfAmmo and not per_shot_ammo then
-            -- the current activity used up the last ammo -> don't abort
-            return
-        end
+    local function doInterrupt(shooter)
         local timer = get_context_var(shooter, "firetimer")
         if timer then
             timer:cancel()
@@ -430,6 +428,7 @@ end
 --            or nil, then it's never shown in red
 -- unit = sets the "quantum" per displayed unit; if nil, defaults to Time.Second
 function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
+    assert(sprite)
     local unit = unit or Time.Second
     local txt = Gfx_textCreate()
     local last_visible = false

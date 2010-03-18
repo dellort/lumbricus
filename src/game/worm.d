@@ -49,7 +49,8 @@ interface IControllable {
 interface WormController {
     WeaponTarget getTarget();
 
-    void reduceAmmo(Shooter sh);
+    //returns true if there is more ammo left
+    bool reduceAmmo(Shooter sh);
 
     void firedWeapon(Shooter sh, bool refire);
 
@@ -764,9 +765,10 @@ class WormSprite : StateSprite {
     }
 
     //callback from shooter when a round was fired
-    private void reduceAmmo(Shooter sh) {
+    private bool reduceAmmo(Shooter sh) {
         if (wcontrol)
-            wcontrol.reduceAmmo(sh);
+            return wcontrol.reduceAmmo(sh);
+        return true;
     }
 
     private void shooterFinish(Shooter sh) {

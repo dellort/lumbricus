@@ -402,13 +402,10 @@ class WormControl : WormController {
         return mCurrentTarget;
     }
 
-    void reduceAmmo(Shooter sh) {
+    bool reduceAmmo(Shooter sh) {
         mWeaponSet.decreaseWeapon(sh.weapon);
         //mTeam.parent.updateWeaponStats(this);
-        if (!canUseWeapon(sh.weapon))
-            //weapon ran out of ammo
-            sh.interruptFiring(true);
-        updateWeapon();
+        return canUseWeapon(sh.weapon);
         //xxx select next weapon when current is empty... oh sigh
         //xxx also, select current weapon if we still have one, but weapon is
         //    undrawn! (???)
@@ -424,8 +421,11 @@ class WormControl : WormController {
     void doneFiring(Shooter sh) {
         if (!sh.weapon.dontEndRound)
             mWeaponUsed = true;
-        if (sh.weapon.deselectAfterFire && mWorm.requestedWeapon is sh.weapon)
+        if ((sh.weapon.deselectAfterFire && mWorm.requestedWeapon is sh.weapon)
+            || !canUseWeapon(sh.weapon))
+        {
             selectWeapon(null);
+        }
     }
 
     // <-- End WormController

@@ -155,9 +155,7 @@ class Rope : Shooter {
         return true;
     }
 
-    override void interruptFiring(bool outOfAmmo = false) {
-        if (outOfAmmo)
-            return;
+    override void interruptFiring() {
         if (internal_active) {
             internal_active = false;
             abortShoot();
