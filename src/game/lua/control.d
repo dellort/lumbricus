@@ -39,6 +39,13 @@ static this() {
     gScripting.methods!(WormSprite, "beamTo");
 
     gScripting.ctor!(WormSpriteClass, GfxSet, char[])();
+    gScripting.methods!(WormSpriteClass, "finishLoading", "findState")();
+    gScripting.properties!(WormSpriteClass, "jumpStrengthScript",
+        "rollVelocity", "ropeImpulse", "suicideDamage")();
+
+    gScripting.properties!(WormStateInfo, "physic", "noleave", "animation",
+        "particle", "isGrounded", "canWalk", "canAim", "canFire",
+        "onAnimationEnd")();
 
     gScripting.ctor!(CrateSpriteClass, GfxSet, char[])();
     gScripting.properties!(CrateSpriteClass, "collectRadius");

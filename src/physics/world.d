@@ -3,7 +3,6 @@ module physics.world;
 import tango.math.Math : sqrt, PI;
 import utils.misc;
 import utils.array;
-import utils.configfile;
 import utils.list2;
 import utils.random;
 import utils.time;

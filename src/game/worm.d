@@ -19,7 +19,6 @@ import utils.time;
 import utils.log;
 import utils.misc;
 import utils.math;
-import utils.configfile;
 import tango.math.Math;
 
 //crosshair
@@ -68,9 +67,10 @@ enum FlyMode {
     heavy,
 }
 
-class WormSprite : StateSprite {
+class WormSprite : Sprite {
     private {
         WormSpriteClass wsc;
+        WormStateInfo mCurrentState; //must not be null
 
         float mWeaponAngle = 0, mFixedWeaponAngle = float.nan;
         int mThreewayMoving;
@@ -119,6 +119,30 @@ class WormSprite : StateSprite {
 
     WormController wcontrol;
 
+
+    protected this(GameEngine engine, WormSpriteClass spriteclass) {
+        super(engine, spriteclass);
+        wsc = spriteclass;
+        setStateForced(wsc.st_stand);
+
+        gravestone = 0;
+    }
+
+    WormStateInfo currentState() {
+        assert(!!mCurrentState);
+        return mCurrentState;
+    }
+    private void currentState(WormStateInfo n) {
+        mCurrentState = n;
+    }
+
+    override protected void updateInternalActive() {
+        super.updateInternalActive();
+        if (internal_active) {
+            setCurrentAnimation();
+        }
+    }
+
     override bool activity() {
         return super.activity() || mCharging
             || currentState == wsc.st_jump_start
@@ -126,6 +150,10 @@ class WormSprite : StateSprite {
             || currentState == wsc.st_reverse_beaming
             || currentState == wsc.st_getup
             || isDelayedDying;
+    }
+
+    void youWinNow() {
+        setState(wsc.st_win);
     }
 
     //-PI/2..+PI/2, actual angle depends from whether worm looks left or right
@@ -300,14 +328,7 @@ class WormSprite : StateSprite {
         super.onKill();
     }
 
-    protected this (GameEngine engine, WormSpriteClass spriteclass) {
-        super(engine, spriteclass);
-        wsc = spriteclass;
-
-        gravestone = 0;
-    }
-
-    protected override void setCurrentAnimation() {
+    protected void setCurrentAnimation() {
         if (!graphic)
             return;
 
@@ -326,7 +347,16 @@ class WormSprite : StateSprite {
             }
             return; //?
         }
-        super.setCurrentAnimation();
+
+        graphic.setState(currentState.animation);
+    }
+
+    override protected void waterStateChange() {
+        super.waterStateChange();
+        //do something that involves an object and a lot of water
+        if (isUnderWater) {
+            setState(wsc.st_drowning);
+        }
     }
 
     WeaponClass displayedWeapon() {
@@ -376,7 +406,7 @@ class WormSprite : StateSprite {
     void beamTo(Vector2f npos) {
         //if (!isSitting())
         //    return; //only can beam when standing
-        log("beam to: {}", npos);
+        //log("beam to: {}", npos);
         //xxx: check and lock destination
         mBeamDest = npos;
         setState(wsc.st_beaming);
@@ -393,6 +423,17 @@ class WormSprite : StateSprite {
         physUpdate();
 
         super.simulate(deltaT);
+
+        if (currentState.onAnimationEnd && graphic) {
+            //as requested by d0c, timing is dependend from the animation
+            if (graphic.readyflag) {
+                //log("state transition because of animation end");
+                //time to change; the setState code will reset the animation
+                setState(currentState.onAnimationEnd, true);
+            }
+        }
+
+        setParticle(currentState.particle);
 
         float weaponMove;
         //check if the worm is really allowed to move
@@ -704,7 +745,7 @@ class WormSprite : StateSprite {
             update_actual_weapon(oldweapon);
         }
 
-        log("fire: {}", mRequestedWeapon.name);
+        //log("fire: {}", mRequestedWeapon.name);
 
         FireInfo info;
         if (fixedDir)
@@ -846,13 +887,9 @@ class WormSprite : StateSprite {
         weapon_unselect();
     }
 
-    override protected void stateTransition(StaticStateInfo from,
-        StaticStateInfo to)
+    protected void stateTransition(WormStateInfo from,
+        WormStateInfo to)
     {
-        super.stateTransition(from, to);
-        auto fromW = cast(WormStateInfo)from;
-        auto toW = cast(WormStateInfo)to;
-        //Trace.formatln("state {} -> {}", from.name, to.name);
 
         if (from is wsc.st_beaming) {
             setPos(mBeamDest);
@@ -906,8 +943,7 @@ class WormSprite : StateSprite {
         }
     }
 
-    //xxx sorry for that
-    override void setState(StaticStateInfo nstate, bool for_end = false) {
+    void setState(WormStateInfo nstate, bool for_end = false) {
         if (nstate is wsc.st_stand &&
             (currentState is wsc.st_fly || currentState is wsc.st_jump ||
             currentState is wsc.st_jump_to_fly))
@@ -916,11 +952,57 @@ class WormSprite : StateSprite {
         }
         //if (nstate !is wsc.st_stand)
           //  Trace.formatln(nstate.name);
-        super.setState(nstate, for_end);
+
+        if (currentState is nstate)
+            return;
+
+        if (currentState.noleave && !for_end)
+            return;
+
+        if (for_end) {
+            assert(nstate is currentState.onAnimationEnd);
+        }
+
+        //log("state {} -> {}", currentState.name, nstate.name);
+
+        auto oldstate = currentState;
+        currentState = nstate;
+        physics.posp = nstate.physic;
+        //stop all induced forces (e.g. jetpack)
+        physics.selfForce = Vector2f(0);
+
+        stateTransition(oldstate, currentState);
+        //if this fails, maybe stateTransition called setState()?
+        assert(currentState is nstate);
+
+        if (graphic) {
+            setCurrentAnimation();
+            updateAnimation();
+        }
+
+        //and particles
+        updateParticles();
+
+        //update water state (to catch an underwater state transition)
+        waterStateChange();
     }
 
-    override WormStateInfo currentState() {
-        return cast(WormStateInfo)super.currentState;
+        //do as less as necessary to force a new state
+    void setStateForced(WormStateInfo nstate) {
+        assert(nstate !is null);
+
+        currentState = nstate;
+        physics.posp = nstate.physic;
+        //stop all induced forces (e.g. jetpack)
+        physics.selfForce = Vector2f(0);
+        if (graphic) {
+            setCurrentAnimation();
+            updateAnimation();
+        }
+
+        //log("force state: {}", nstate.name);
+
+        waterStateChange();
     }
 
     bool jetpackActivated() {
@@ -934,7 +1016,7 @@ class WormSprite : StateSprite {
 
         //lolhack: return to stand state, and if that's wrong (i.e. jetpack
         //  deactivated in sky), other code will immediately correct the state
-        StaticStateInfo wanted = activate ? wsc.st_jet : wsc.st_stand;
+        WormStateInfo wanted = activate ? wsc.st_jet : wsc.st_stand;
         setState(wanted);
     }
 
@@ -947,7 +1029,7 @@ class WormSprite : StateSprite {
             return;
 
         mRopeMove = ropeMove;
-        StaticStateInfo wanted = !!ropeMove ? wsc.st_rope : wsc.st_stand;
+        WormStateInfo wanted = !!ropeMove ? wsc.st_rope : wsc.st_stand;
         setState(wanted);
         physics.doUnglue();
         physics.resetLook();
@@ -1122,39 +1204,47 @@ class WormSprite : StateSprite {
 }
 
 //contains custom state attributes for worm sprites
-class WormStateInfo : StaticStateInfo {
+class WormStateInfo {
+    char[] name;
+
+    POSP physic;
+
+    //automatic transition to this state if animation finished
+    WormStateInfo onAnimationEnd;
+    //don't leave this state (explictly excludes onAnimationEnd)
+    bool noleave = false;
+
+    SequenceState animation;
+
+    //if non-null, always ensure a single particle like this is created
+    //this normally should be an invisible particle emitter
+    ParticleType particle;
+
     bool isGrounded = false;    //is this a standing-on-ground state
     bool canWalk = false;       //should the worm be allowed to walk
     bool canAim = false;        //can the target cross be moved
     bool canFire = false;       //can the main weapon be fired
 
     this (char[] a_name) {
-        super(a_name);
-    }
-
-    override void loadFromConfig(ConfigNode sc, ConfigNode physNode,
-        StateSpriteClass owner)
-    {
-        super.loadFromConfig(sc, physNode, owner);
-        isGrounded = sc.getBoolValue("is_grounded", isGrounded);
-        canWalk = sc.getBoolValue("can_walk", canWalk);
-        canAim = sc.getBoolValue("can_aim", canAim);
-        canFire = sc.getBoolValue("can_fire", canFire);
+        name = a_name;
     }
 }
 
 //the factories work over the sprite classes, so we need one
-class WormSpriteClass : StateSpriteClass {
+class WormSpriteClass : SpriteClass {
+    WormStateInfo[char[]] states;
+
     float suicideDamage;
     //SequenceObject[] gravestones;
-    Vector2f jumpStrength[JumpMode.max+1];
+    Vector2f[JumpMode.max+1] jumpStrength;
+    Vector2f[] jumpStrengthScript; //no static arrays with Lua wrapper
     float rollVelocity = 400;
     float ropeImpulse = 700;
 
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
         st_jump_start, st_jump, st_jump_to_fly, st_rope, st_drill, st_blowtorch,
-        st_parachute;
+        st_parachute, st_win;
 
     //alias WormSprite.FlyMode FlyMode;
 
@@ -1162,55 +1252,76 @@ class WormSpriteClass : StateSpriteClass {
 
     this(GfxSet e, char[] r) {
         super(e, r);
-    }
-    override void loadFromConfig(ConfigNode config) {
-        super.loadFromConfig(config);
-        suicideDamage = config.getFloatValue("suicide_damage", 10);
-        ropeImpulse = config.getFloatValue("rope_impulse", ropeImpulse);
 
-        Vector2f getJs(char[] nid) {
-            return config.getValue(nid,Vector2f(100,-100));
+        initNoActivityWhenGlued = true;
+
+        WormStateInfo state(char[] name) {
+            assert(!(name in states));
+            auto nstate = new WormStateInfo(name);
+            states[name] = nstate;
+            return nstate;
         }
-        jumpStrength[JumpMode.normal] = getJs("jump_st_normal");
-        jumpStrength[JumpMode.smallBack] = getJs("jump_st_smallback");
-        jumpStrength[JumpMode.straightUp] = getJs("jump_st_straightup");
-        jumpStrength[JumpMode.backFlip] = getJs("jump_st_backflip");
 
-        //done, read out the stupid states :/
-        st_stand = findState("stand");
-        st_fly = findState("fly");
-        st_walk = findState("walk");
-        st_jet = findState("jetpack");
-        st_weapon = findState("weapon");
-        st_dead = findState("dead");
-        st_die = findState("die");
-        st_drowning = findState("drowning");
-        st_beaming = findState("beaming");
-        st_reverse_beaming = findState("reverse_beaming");
-        st_getup = findState("getup");
-        st_jump_start = findState("jump_start");
-        st_jump = findState("jump");
-        st_jump_to_fly = findState("jump_to_fly");
-        st_rope = findState("rope");
-        st_drill = findState("drill");
-        st_blowtorch = findState("blowtorch");
-        st_parachute = findState("parachute");
+        st_stand = state("stand");
+        st_fly = state("fly");
+        st_walk = state("walk");
+        st_jet = state("jetpack");
+        st_weapon = state("weapon");
+        st_dead = state("dead");
+        st_die = state("die");
+        st_drowning = state("drowning");
+        st_beaming = state("beaming");
+        st_reverse_beaming = state("reverse_beaming");
+        st_getup = state("getup");
+        st_jump_start = state("jump_start");
+        st_jump = state("jump");
+        st_jump_to_fly = state("jump_to_fly");
+        st_rope = state("rope");
+        st_drill = state("drill");
+        st_blowtorch = state("blowtorch");
+        st_parachute = state("parachute");
+        st_win = state("win");
+    }
 
+    void finishLoading() {
         flyState[FlyMode.fall] = findSequenceState("fly_fall",true);
         flyState[FlyMode.slide] = findSequenceState("fly_slide",true);
         flyState[FlyMode.roll] = findSequenceState("fly_roll",true);
         flyState[FlyMode.heavy] = findSequenceState("fly_heavy",true);
+
+        //be aware that D has no array bounds checking in release mode
+        //if not careful, a script could make D read past the end of an array
+        //also the reason why the actual jumpStrength array is still static
+        if (jumpStrengthScript.length == JumpMode.max+1) {
+            jumpStrength[] = jumpStrengthScript;
+        } else {
+            throw new CustomException("jumpStrength invalid");
+        }
     }
+
     override WormSprite createSprite(GameEngine engine) {
         return new WormSprite(engine, this);
     }
 
-    override StaticStateInfo createStateInfo(char[] a_name) {
-        return new WormStateInfo(a_name);
+    WormStateInfo findState(char[] name) {
+        WormStateInfo* state = name in states;
+        if (!state) {
+            //xxx better error handling
+            throw new CustomException("state "~name~" not found");
+        }
+        return *state;
     }
 
-    override WormStateInfo findState(char[] name, bool canfail = false) {
-        return cast(WormStateInfo)super.findState(name, canfail);
+    SequenceState findSequenceState(char[] name,
+        bool allow_not_found = false)
+    {
+        //something in projectile.d seems to need this special case?
+        if (!sequenceType) {
+            if (allow_not_found)
+                return null;
+            assert(false, "bla.: "~name);
+        }
+        return sequenceType.findState(name, allow_not_found);
     }
 }
 

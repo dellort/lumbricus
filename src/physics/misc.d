@@ -1,12 +1,9 @@
 module physics.misc;
 
-import tango.util.Convert;
-import utils.configfile : ConfigNode;
 import utils.vector2;
-import utils.misc : myformat;
 import utils.strparser;
 
-//Important: No physics. references in this file!
+//Important: No physics.* imports in this file!
 
 //moved here because "is forward referenced"...
 enum ContactSource {
@@ -130,65 +127,6 @@ final class POSP {
     //has any data changed that needs further processing by POSP owner?
     //(currently only collisionID)
     protected bool needUpdate = true;
-
-    void loadFromConfig(ConfigNode node)
-    {
-        elasticity = node.getFloatValue("elasticity", elasticity);
-        radius = node.getFloatValue("radius", radius);
-        mass = node.getFloatValue("mass", mass);
-        windInfluence = node.getFloatValue("wind_influence",
-            windInfluence);
-        explosionInfluence = node.getFloatValue("explosion_influence",
-            explosionInfluence);
-        fixate = node.getValue("fixate", fixate);
-        damageUnfixate = node.getBoolValue("damage_unfixate", damageUnfixate);
-        glueForce = node.getFloatValue("glue_force", glueForce);
-        walkingSpeed = node.getFloatValue("walking_speed", walkingSpeed);
-        walkingClimb = node.getFloatValue("walking_climb", walkingClimb);
-        walkLimitSlopeSpeed = node.getBoolValue("walk_limit_slope_speed",
-            walkLimitSlopeSpeed);
-        damageable = node.getFloatValue("damageable", damageable);
-        damageThreshold = node.getFloatValue("damage_threshold",
-            damageThreshold);
-        mediumViscosity = node.getFloatValue("medium_viscosity",
-            mediumViscosity);
-        stokesModifier = node.getFloatValue("stokes_modifier", stokesModifier);
-        airResistance = node.getFloatValue("air_resistance", airResistance);
-        sustainableImpulse = node.getFloatValue("sustainable_impulse",
-            sustainableImpulse);
-        fallDamageFactor = node.getFloatValue("fall_damage_factor",
-            fallDamageFactor);
-        fallDamageIgnoreX = node.getBoolValue("fall_damage_ignore_x",
-            fallDamageIgnoreX);
-        velocityConstraint = node.getValue("velocity_constraint",
-            velocityConstraint);
-        speedLimit = node.getFloatValue("speed_limit", speedLimit);
-        char[] rot = node.getStringValue("rotation", "velocity");
-        switch (rot) {
-            case "velocity":
-                rotation = RotateMode.velocity;
-                break;
-            case "distance":
-                rotation = RotateMode.distance;
-                break;
-            case "selfforce":
-                rotation = RotateMode.selfforce;
-                break;
-            default:
-                assert(false);
-        }
-        gluedForceLook = node.getValue("glued_forcelook", gluedForceLook);
-        friction = node.getFloatValue("friction", friction);
-        slideAbsorb = node.getFloatValue("slide_absorb", slideAbsorb);
-        bounceAbsorb = node.getFloatValue("bounce_absorb", bounceAbsorb);
-        extendNormalcheck = node.getBoolValue("extend_normalcheck",
-            extendNormalcheck);
-        zeroGrav = node.getBoolValue("zero_gravity", zeroGrav);
-        //xxx: passes true for the second parameter, which means the ID
-        //     is created if it doesn't exist; this is for forward
-        //     referencing... it should be replaced by collision classes
-        collisionID = node.getStringValue("collide", collisionID);
-    }
 
     typeof(this) copy() {
         auto other = new typeof(this)();

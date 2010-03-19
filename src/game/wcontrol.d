@@ -537,7 +537,7 @@ class WormControl : WormController {
     }
 
     void youWinNow() {
-        mWorm.setState(mWorm.findState("win"));
+        mWorm.youWinNow();
     }
 
     //check for any activity that might justify control beyond end-of-turn

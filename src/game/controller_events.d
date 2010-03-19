@@ -73,8 +73,6 @@ alias DeclareEvent!("sprite_die", Sprite) OnSpriteDie;
 alias DeclareEvent!("sprite_waterstate", Sprite) OnSpriteWaterState;
 //with Sprite.activate()
 alias DeclareEvent!("sprite_activate", Sprite) OnSpriteActivate;
-//with Sprite.setState()
-alias DeclareEvent!("sprite_setstate", StateSprite) OnSpriteSetState;
 //whenever the glue status changes (checked/called every frame)
 alias DeclareEvent!("sprite_glue_changed", Sprite) OnSpriteGlueChanged;
 //see Sprite.exceedVelocity

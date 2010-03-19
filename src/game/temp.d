@@ -4,6 +4,7 @@ module game.temp;
 //http://d.puremagic.com/issues/show_bug.cgi?id=1160
 
 ///which style a worm should jump
+//keep in sync with worm.lua
 enum JumpMode {
     normal,      ///standard forward jump (return)
     smallBack,   ///little backwards jump (double return)

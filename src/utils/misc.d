@@ -217,6 +217,7 @@ int requiredArgCount(alias Fn)() {
         static if (is(typeof(Fn(p[0..idx+1]))))
             return idx+1;
     }
+    assert(false);
 }
 
 //parse the result of stringof to get a struct member name; see unittest below
@@ -236,6 +237,26 @@ char[] structProcName(char[] tupleString) {
     return tupleString[p+1..$];
 }
 
+/+ this works, but probably it'd instantiate too many templates
+char[] structProcName2(T, int index)() {
+    T x;
+    return structProcName(x.tupleof[index].stringof);
+}
++/
+
+/+ this works, I wonder if it's completely ok to use?
+char[][] structProcNames(T)() {
+    char[][] res;
+    T x;
+    foreach (int idx, _; x.tupleof) {
+        const n = structProcName(x.tupleof[idx].stringof);
+        //const n = structProcName2!(Foo, idx)();
+        res ~= n;
+    }
+    return res;
+}
++/
+
 unittest {
     struct Foo {
         int muh;
@@ -245,9 +266,12 @@ unittest {
     Foo f;
     foreach (int idx, _; f.tupleof) {
         const n = structProcName(f.tupleof[idx].stringof);
+        //const n = structProcName2!(Foo, idx)();
         names ~= n;
     }
     assert(names == ["muh"[], "fool"]);
+    //const n = structProcName3!(Foo)();
+    //assert(n == names);
 }
 
 ///all code should throw this instead of 'Exception'
