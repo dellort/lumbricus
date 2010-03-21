@@ -100,18 +100,13 @@ class GameLoader {
         bool mNetwork;
         GameShell mShell;
 
-        //savegame only
-        ConfigNode mGameData;
-        ConfigNode mTimeConfig;
-        ConfigNode mPersistence;
-        LandscapeBitmap[] mBitmaps;
-
         //demo stuff
         bool mEnableDemoRecording = true;
         //ConfigNode mDemoFile;
         PipeOut mDemoOutput;
         //null = no demo reading
         //OH GOD FUCK IT
+        //^ compiler bug is still in dmd v1.055
         //GameShell.InputLog* mDemoInput;
         void* mDemoInput;
     }
@@ -126,10 +121,6 @@ class GameLoader {
     void delegate(GameShell shell) onLoadDone;
 
     private this() {
-    }
-
-    static GameLoader CreateFromSavegame(TarArchive file) {
-        assert(false, "savegames removed");
     }
 
     static GameLoader CreateNewGame(GameConfig cfg) {
@@ -268,42 +259,27 @@ class GameLoader {
         mShell.mGameTime = new TimeSourceFixFramerate("GameTime",
             mShell.mMasterTime, cFrameLength);
 
-        mShell.mCEvents = new Events();
-        OnGameError.handler(mShell.mCEvents, &mShell.onGameError);
-
-        //registers many objects referenced from mShell for serialization
-        //-- mShell.initSerialization();
-
         if (!mDemoOutput.isNull()) {
             mShell.mDemoOutput = mDemoOutput;
         }
 
-        if (!mGameData) {
-            //for creation of a new game
-            mShell.mEngine = new GameEngine(mGfx, mShell.mGameTime);
-            mShell.mEngine.events.cascade ~= mShell.mCEvents;
+        mShell.mEngine = new GameEngine(mGfx, mShell.mGameTime);
 
-            mShell.mEngine.initGame(mGameConfig);
-        } else {
-            //code for loading a savegame
+        mShell.mEngine.initGame(mGameConfig);
 
-            assert(false, "savegames have been ditched");
-
-        }
+        OnGameError.handler(mShell.mEngine.events, &mShell.onGameError);
 
         auto it = new TimeSourceSimple("GameShell/Interpolated");
         it.reset(mShell.mGameTime.current);
         mShell.mInterpolateTime = it;
+
         mShell.mEngine.callbacks.interpolateTime = it;
-
         mShell.mEngine.callbacks.scene = new Scene();
-
-        mShell.mEngine.callbacks.cevents = mShell.mCEvents;
 
         if (mDemoInput) {
             //changed because replays were ditched (and it looks nicer)
             auto lg = cast(GameShell.InputLog*)mDemoInput;
-            mShell.playback(*lg);
+            mShell.playbackDemo(*lg);
         }
 
         if (onLoadDone)
@@ -342,16 +318,13 @@ class GameShell {
         GameConfig mGameConfig;
         GfxSet mGfx;
         InputLog mCurrentInput;
-        GameSnap mReplaySnapshot;
-        bool mLogReplayInput;
+        bool mLogReplayInput;  //for demo playback
         InputLog mReplayInput;
         bool mReplayMode; //currently replaying
         bool mUseExternalTS; //timestamp advancing is controlled externally
         bool mExtIsLagging;
         debug bool mPrintFrameTime;
         Hasher mGameHasher;
-
-        Events mCEvents; //==GameEngine.callbacks.cevents
 
         //abuse AA as set
         bool[Object] mPauseBlockers;
@@ -372,15 +345,6 @@ class GameShell {
     }
     bool terminated;  //set to exit the game instantly
     Queue!(char[]) errorQueue;
-
-    void delegate() OnRestoreGuiAfterSnapshot;
-
-    struct GameSnap {
-        //Snapshot snapshot;
-        long game_time_ts; //what was mTimeStamp
-        Time game_time;
-        LandscapeBitmap[] bitmaps;
-    }
 
     struct LogEntry {
         long timestamp;
@@ -469,12 +433,6 @@ class GameShell {
 
         if (!mReplayMode && hash_stuff(WriteDemoHashFrames)) {
             writeDemoEntry(e);
-        }
-
-        //(this is here and not in addLoggedInput, because then input could be
-        // logged for replay, that was never executed)
-        if (mLogReplayInput && hash_stuff(ReplayHashFrames)) {
-            mReplayInput.entries ~= e;
         }
 
         if (!for_hash) {
@@ -691,28 +649,7 @@ class GameShell {
         }
     }
 
-    void snapForReplay() {
-        doSnapshot(mReplaySnapshot);
-        mLogReplayInput = true;
-        mReplayInput = mReplayInput.init;
-        log("snapshot for replay at time={} ({} ns)", mGameTime.current,
-            mGameTime.current.nsecs);
-        debug mPrintFrameTime = true;
-    }
-
-    void replay() {
-        /+if (!mReplaySnapshot.snapshot) {
-            log("replay failed: no snapshot saved");
-            return;
-        }
-        debug(debug_save)
-            debug_save();+/
-        mReplayInput.end_ts = mTimeStamp;
-        doUnsnapshot(mReplaySnapshot);
-        playback(mReplayInput);
-    }
-
-    void playback(InputLog input) {
+    void playbackDemo(InputLog input) {
         mLogReplayInput = false;
         mCurrentInput = input.clone;
         mReplayMode = true;
@@ -737,21 +674,6 @@ class GameShell {
         } else {
             return Time.Null;
         }
-    }
-
-    void doSnapshot(ref GameSnap snap) {
-        assert(false);
-    }
-
-    //NOTE: because of the time managment, you must not call this during a
-    //      GameEngine frame (or during doFrame in general)
-    //      if you do, replay-determinism might be destroyed
-    void doUnsnapshot(ref GameSnap snap) {
-        assert(false);
-    }
-
-    void saveGame(TarArchive file) {
-        assert(false, "savegames have been ditched");
     }
 
     GameEngine serverEngine() {

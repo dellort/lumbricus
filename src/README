@@ -27,7 +27,7 @@ Version status for tools and libraries:
         You need one of those...
         dmd:
             no official version works
-            you need 1.055 with docs/dmd-1055-lumbricus.patch
+            you need 1.057 with docs/dmd-1057-lumbricus-linux.patch
         ldc: probably doesn't work at all
         gdc: forget it
     tango:
@@ -36,7 +36,7 @@ Version status for tools and libraries:
     Derelict:
         http://svn.dsource.org/projects/derelict/trunk/
         svn r441: works
-            for DerelictUtil, DerelictFT, DerelictGL, DerelictGLU, DerelictSDL, DerelictAL
+            for DerelictUtil, DerelictFT, DerelictGL, DerelictGLU, DerelictSDL, DerelictSDLImage, DerelictAL
     NOTE: the corresponding C libs usually are stable, because they're written in C, and not in D (where each new compiler version might break everything, *sigh*)
 
 Building it...

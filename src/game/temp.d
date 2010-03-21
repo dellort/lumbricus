@@ -23,6 +23,7 @@ enum CrateType {
 enum GameZOrder {
     Invisible = 0,
     Background,
+    Stars,
     BackLayer,
     BackWater,
     Landscape,

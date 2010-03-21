@@ -12,22 +12,56 @@ import utils.random;
 import utils.time;
 
 import utils.stream : File, ThreadedWriter; //???
+import marray = utils.array;
+import str = utils.string;
 
 import tango.io.Stdout;
 
 //Currently, this is just used in FileSystem to determine data/user paths
 const char[] APP_ID = "lumbricus";
 
+//catched in main function
+class ExitApp : Exception {
+    this() { super(""); }
+}
+
+//why not use the C function? probably Tango misbehaves then
+//works like exit(0), but lets D module dtors etc. run
+void exit() {
+    throw new ExitApp();
+}
+
+void print_help() {
+    char[][] lines;
+    lines ~= "Commandline options:";
+    lines ~= "  -help";
+    foreach (s; gSettings) {
+        lines ~= "  -" ~ s.name~ " VALUE";
+    }
+    lines ~= "Some options can list possible choices by passing help as value.";
+    lines ~= "Most settings passed to the command line will be saved "
+        "permanently in the";
+    lines ~= "settings file.";
+    foreach (l; lines) Stdout(l).newline;
+}
+
 ///args = arguments to main()
-///help = output for help command
-///returns = parsed command line arguments (parseCmdLine())
 void init(char[][] args) {
+    auto progname = args[0];
+    args = args[1..$];
+
+    //command line help, xD.
+    if (getarg(args, "help")) {
+        print_help();
+        exit();
+    }
+
     //buffer log, until FileSystem is initialized
     auto logtmp = new StringOutput();
     gLogEverything.destination = logtmp;
 
     //init filesystem
-    auto fs = new FileSystem(args[0], APP_ID);
+    auto fs = new FileSystem(progname, APP_ID);
     initFSMounts();
 
     //open logfile in user dir
@@ -39,17 +73,37 @@ void init(char[][] args) {
     logstr.writeString(logtmp.text);
     gLogEverything.destination = logstr;
 
-    //yyy
-    //commandline switch: --data=some/dir/to/data
-    //char[] extradata = cmdargs["data"];
-    //if (extradata.length) {
-    //    fs.mount(MountPath.absolute, extradata, "/", false, -1);
-    //}
-
     relistAllSettings();
     loadSettings();
 
-    //xxx load settings from command line
+    //settings from cmd line
+    foreach (s; gSettings) {
+        char[] value;
+        if (getarg(args, s.name, value)) {
+            if (value == "help") {
+                Stdout.formatln("possible values for setting '{}':", s.name);
+                if (s.type == SettingType.Choice) {
+                    foreach (c; s.choices) {
+                        Stdout.formatln("   {}", c);
+                    }
+                } else if (s.type == SettingType.String) {
+                    Stdout.formatln("   <any string>");
+                } else if (s.type == SettingType.Percent) {
+                    Stdout.formatln("   <number between 0 and 100>");
+                } else {
+                    Stdout.formatln("   <unknown>");
+                }
+                exit();
+            }
+            s.set!(char[])(value);
+        }
+    }
+
+    if (args.length) {
+        Stdout.formatln("Unknown command line arguments: {}", args);
+        Stdout.formatln("Try -help instead.");
+        exit();
+    }
 
     common.globals.do_init();
 }
@@ -99,48 +153,31 @@ void initFSMounts() {
         readMountConf(mountConfUser);
 }
 
-//godawful primitive commandline parser
-//it only accepts ["--<argname>", "<arg>"] pairs, and puts them into a config
-//node... the argname is interpreted as path into the config node, so i.e. using
-//"--bla.blo.blu 123" in the argname will create the subnode "bla" under the
-//root, which in turn contains a subnode "blo" with the item "blu" which
-//contains the value "123"
-//also, if <argname> contains a "=", the following string will be interpreted as
-//<arg>
-//now args without values are also allowed; the value is set to "true" then
-ConfigNode parseCmdLine(char[][] args) {
-    bool startsArg(char[] s) {
-        return s.length >= 3 && s[0..2] == "--";
-    }
+//helpers for commandline parsing
+//they use exit() in case of parse errors
 
-    ConfigNode res = new ConfigNode();
-    while (args.length) {
-        auto cur = args[0];
-        args = args[1..$];
-        if (!startsArg(cur)) {
-            Stdout.formatln("command line argument: --argname expected");
-            break;
-        }
-        cur = cur[2..$];
+//find switch "name" and remove it from args (or return false if not found)
+bool getarg(ref char[][] args, char[] name) {
+    return findarg(args, name, null);
+}
 
-        auto has_arg = str.find(cur, '=');
-        auto name = has_arg >= 0 ? cur[0..has_arg] : cur;
+//like getarg(), but with a single parameter
+bool getarg(ref char[][] args, char[] name, out char[] p) {
+    return findarg(args, name, (&p)[0..1]);
+}
 
-        //get value
-        char[] value;
-        if (has_arg >= 0) {
-            value = cur[has_arg+1..$];
-        } else {
-            if (args.length && !startsArg(args[0])) {
-                value = args[0];
-                args = args[1..$];
-            } else {
-                //hurrr, assume it's a boolean switch => default to true
-                value = "true";
+bool findarg(ref char[][] args, char[] name, char[][] getargs) {
+    auto nargs = getargs.length;
+    foreach (int i, a; args) {
+        if (a.length > 0 && a[0] == '-' && a[1..$] == name) {
+            if (i + nargs >= args.length) {
+                Stdout.formatln("argument expected for option {}", a);
+                exit();
             }
+            getargs[] = args[i + 1 .. i + 1 + nargs];
+            marray.arrayRemoveN(args, i, 1 + nargs);
+            return true;
         }
-
-        res.setStringValueByPath(name, value);
     }
-    return res;
+    return false;
 }

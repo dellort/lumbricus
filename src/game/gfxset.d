@@ -14,7 +14,6 @@ import utils.color;
 import utils.configfile;
 import utils.misc;
 import utils.time;
-import utils.factory;
 
 import str = utils.string;
 

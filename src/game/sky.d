@@ -57,43 +57,48 @@ class SkyDrawer : SceneObject {
 }
 
 class GameSky {
-    private ClientGameEngine mEngine;
+    private {
+        ClientGameEngine mEngine;
 
-    private SkyDrawer mSkyDrawer;
-    protected int skyOffset, skyBottom, initialWaterOffset;
-    private Animation[] mCloudAnims;
-    private bool mEnableClouds = true;
-    private bool mEnableDebris = true;
-    private bool mCloudsVisible;
+        SkyDrawer mSkyDrawer;
+        int skyOffset, skyBottom, initialWaterOffset;
+        Animation[] mCloudAnims;
+        bool mEnableClouds = true;
+        bool mEnableDebris = true;
+        bool mCloudsVisible;
+
+        Animation[] mStarAnims;
+
+        const cNumClouds = 50;
+        const cCloudHeightRange = 50;
+        const cCloudSpeedRange = 100;
+        const cWindMultiplier = 150;
+
+        const cNumDebris = 100;
+        //this is not gravity, as debris is not accelerated
+        const cDebrisFallSpeed = 70; //pixels/sec
+
+        struct CloudInfo {
+            Animator anim;
+            int animSizex;
+            float xspeed;
+            int y;
+            float x;
+        }
+        CloudInfo[cNumClouds] mCloudAnimators;
+
+        struct DebrisInfo {
+            Animator anim;
+            float speedPerc;
+            float x, y;
+        }
+        DebrisInfo[cNumDebris] mDebrisAnimators;
+
+        Animation mDebrisAnim;
+    }
 
     bool enableSkyBackdrop = true;
     bool enableSkyTex = true;
-
-    private const cNumClouds = 50;
-    private const cCloudHeightRange = 50;
-    private const cCloudSpeedRange = 100;
-    private const cWindMultiplier = 150;
-
-    private const cNumDebris = 100;
-    //this is not gravity, as debris is not accelerated
-    private const cDebrisFallSpeed = 70; //pixels/sec
-
-    private struct CloudInfo {
-        Animator anim;
-        int animSizex;
-        float xspeed;
-        int y;
-        float x;
-    }
-    private CloudInfo[cNumClouds] mCloudAnimators;
-
-    private struct DebrisInfo {
-        Animator anim;
-        float speedPerc;
-        float x, y;
-    }
-    private DebrisInfo[cNumDebris] mDebrisAnimators;
-    private Animation mDebrisAnim;
 
     Vector2i size;
 
@@ -117,6 +122,11 @@ class GameSky {
             mCloudAnims ~= mEngine.resources.get!(Animation)(value);
         }
 
+        ConfigNode starNode = skyNode.getSubNode("stars");
+        foreach (char[] name, char[] value; starNode) {
+            mStarAnims ~= mEngine.resources.get!(Animation)(value);
+        }
+
         int nAnim = 0;
         foreach (inout CloudInfo ci; mCloudAnimators) {
             ci.anim = new Animator(engine.engineTime);
@@ -134,7 +144,6 @@ class GameSky {
         }
 
         if (mDebrisAnim) {
-            scope (failure) mDebrisAnim = null;
             foreach (inout DebrisInfo di; mDebrisAnimators) {
                 di.anim = new Animator(engine.engineTime);
                 di.anim.setAnimation(mDebrisAnim, timeMsecs(rngShared.nextRange
@@ -142,6 +151,25 @@ class GameSky {
                 scene.add(di.anim, GameZOrder.BackLayer);
                 di.speedPerc = rngShared.nextRange(0.4f, 1.5f);
             }
+        }
+
+        if (skyNode.getValue!(bool)("enableStars", false)) {
+            Scene stars = new Scene();
+            auto worldsz = mEngine.engine.level.worldBounds;
+            nAnim = 0;
+            for (int n = 0; n < 1000; n++) {
+                auto anim = new Animator(engine.engineTime);
+                anim.setAnimation(mStarAnims[nAnim]);
+                float py = rngShared.nextRange(0.0, 1.0);
+                py = py*py; //more stars at top
+                auto y = rngShared.nextRange(worldsz.p1.y, worldsz.p2.y) * py;
+                anim.pos = Vector2i(
+                    rngShared.nextRange(worldsz.p1.x, worldsz.p2.x),
+                    cast(int)y);
+                stars.add(anim);
+                nAnim = (nAnim+1)%mStarAnims.length;
+            }
+            scene.add(stars, GameZOrder.Stars);
         }
 
         mSkyDrawer = new SkyDrawer(this, theme);
@@ -153,7 +181,7 @@ class GameSky {
 
     ///initialize object positions on game start
     ///game-specific values have to be valid (e.g. waterOffset)
-    void initialize() {
+    private void initialize() {
         updateOffsets();
         initialWaterOffset = mEngine.engine.level.waterBottomY;
         foreach (inout CloudInfo ci; mCloudAnimators) {

@@ -12,6 +12,7 @@ import game.weapon.weapon;
 import game.weapon.weaponset;
 import game.gamemodes.base;
 import physics.misc;
+import utils.factory;
 import utils.log;
 import utils.configfile;
 import utils.misc;
@@ -21,6 +22,31 @@ import tango.util.Convert : to;
 
 static this() {
 }
+
+
+//base class for custom plugins
+//now I don't really know what the point of this class was anymore
+//xxx: this is only for "compatibility"; GamePluginFactory now produces
+//  GameObjects (not GamePlugins)
+abstract class GamePlugin : GameObject {
+    this(GameEngine c, ConfigNode opts) {
+        super(c, "plugin");
+        internal_active = true;
+    }
+
+    protected GameController controller() {
+        return engine.controller;
+    }
+
+    override bool activity() {
+        return false;
+    }
+}
+
+//and another factory...
+//plugins register here, so the Controller can load them
+alias StaticFactory!("GamePlugins", GameObject, GameEngine, ConfigNode)
+    GamePluginFactory;
 
 //the idea was that the whole game state should be observable (including
 //events), so you can move displaying all messages into a separate piece of

@@ -380,8 +380,8 @@ class GameFrame : SimpleContainer {
 
         setPosition(game.engine.level.worldCenter);
 
-        OnWeaponSetChanged.handler(game.cevents, &updateWeapons);
-        OnHudAdd.handler(game.cevents, &onHudAdd);
+        OnWeaponSetChanged.handler(game.engine.events, &updateWeapons);
+        OnHudAdd.handler(game.engine.events, &onHudAdd);
 
         foreach (char[] id, Object obj; game.engine.allHudRequests) {
             addHud(id, obj);

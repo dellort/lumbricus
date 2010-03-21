@@ -3,7 +3,6 @@ module game.glue;
 import utils.timesource;
 import common.scene;
 import game.controller; //: Team, TeamMember
-import game.events;
 import game.particles;
 import utils.vector2;
 import utils.time;
@@ -15,9 +14,6 @@ public import game.temp;
 ///for stuff that can't simply be polled
 ///anyone in the client engine can register callbacks here
 class GameEngineCallback {
-
-    //client/hud/GUI code can register game event handlers here
-    Events cevents;
 
     //looks like I'm turning this into a dumping ground for other stuff
 

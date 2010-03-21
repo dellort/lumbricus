@@ -103,7 +103,6 @@ struct EventPtr {
 }
 
 alias void delegate(EventTarget, EventPtr) EventHandler;
-alias void delegate(char[], EventTarget, EventPtr) GenericEventHandler;
 alias void function(ref EventEntry, EventTarget, EventPtr) DispatchEventHandler;
 
 //marshal D -> Lua
@@ -163,10 +162,6 @@ final class Events {
         Events mParent;
     }
 
-    //catch all events
-    GenericEventHandler[] generic_handlers;
-    //send all events to these objects as well
-    Events[] cascade;
     void delegate(char[] event, Exception e) onScriptingError;
 
     this(Events parent = null) {
@@ -228,10 +223,6 @@ final class Events {
 
     char[] scriptingEventsNamespace() {
         return mScriptingEventsNamespace;
-    }
-
-    void genericHandler(GenericEventHandler h) {
-        generic_handlers ~= h;
     }
 
     private EventType get_event(char[] name) {
@@ -328,15 +319,7 @@ final class Events {
                 h.handler(h, sender, params);
             }
 
-            foreach (h; generic_handlers) {
-                h(e.name, sender, params);
-            }
-
             raise_to_script(e, sender, params);
-        }
-
-        foreach (Events c; cascade) {
-            c.raise(eventID, sender, params);
         }
     }
 }

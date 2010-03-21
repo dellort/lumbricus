@@ -79,6 +79,7 @@ int main(char[][] args) {
         //catch all exceptions, write them to logfile and console and exit
         try {
             lmain(args);
+        } catch (ExitApp e) {
         } catch (Exception e) {
             if (gLogEverything.destination) {
                 //logfile output
@@ -94,7 +95,10 @@ int main(char[][] args) {
         }
     } else {
         //using default exception handler (outputs to console)
-        lmain(args);
+        try {
+            lmain(args);
+        } catch (ExitApp e) {
+        }
     }
     return 0;
 }

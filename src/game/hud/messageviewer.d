@@ -55,7 +55,7 @@ class MessageViewer : Label {
         mInterp.init(timeSecs(0), -200, 0);
 
         mMessages = new typeof(mMessages);
-        OnGameMessage.handler(mGame.cevents, &showMessage);
+        OnGameMessage.handler(mGame.engine.events, &showMessage);
     }
 
     void addMessage(char[] msg, Team t = null) {

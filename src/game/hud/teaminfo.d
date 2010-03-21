@@ -27,7 +27,6 @@ public import game.controller : Team, TeamMember;
 class GameInfo {
     ClientGameEngine cengine;
     GameEngine engine;
-    Events cevents;
     GameShell shell;
     GameController logic;
     ClientControl control;
@@ -48,7 +47,6 @@ class GameInfo {
         engine = cengine.engine();
         logic = engine.logic;
         control = ct;
-        cevents = engine.callbacks.cevents;
 
         clientTime = cengine.engineTime;
         serverTime = engine.gameTime;

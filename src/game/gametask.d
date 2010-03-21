@@ -289,7 +289,6 @@ class GameTask {
         if (!mGameShell) {
             mGameShell = mGameLoader.finish();
             mCmds.addSub(mGameShell.commands());
-            mGameShell.OnRestoreGuiAfterSnapshot = &guiRestoreSnapshot;
             mGame = mGameShell.serverEngine;
         }
         if (mConnection) {
@@ -436,8 +435,6 @@ class GameTask {
     private void registerCommands() {
         if (!mConnection) {
             mCmds.register(Command("slow", &cmdSlow, "", ["float", "text?"]));
-            mCmds.register(Command("snap", &cmdSnapTest, "", ["int"]));
-            mCmds.register(Command("replay", &cmdReplay, "", ["text?"]));
             mCmds.register(Command("demo_stop", &cmdDemoStop, ""));
         }
         mCmds.register(Command("show_collide", &cmdShowCollide, ""));
@@ -545,46 +542,6 @@ class GameTask {
         //send command to the server
         char[] srvCmd = args[0].unbox!(char[]);
         mControl.executeCommand(srvCmd);
-    }
-
-    private void cmdSnapTest(MyBox[] args, Output write) {
-        if (!mGameShell)
-            return;
-        int arg = args[0].unbox!(int);
-        if (arg & 1) {
-            doEngineSnap();
-        }
-        if (arg & 2) {
-            doEngineUnsnap();
-        }
-    }
-
-    private void cmdReplay(MyBox[] args, Output write) {
-        char[] arg = args[0].unboxMaybe!(char[]);
-        if (mGameShell.replayMode) {
-            mGameShell.replaySkip();
-        } else {
-            if (arg.length > 0)
-                mGameShell.snapForReplay();
-            else
-                mGameShell.replay();
-        }
-    }
-
-    GameShell.GameSnap snapshot;
-
-    private void doEngineSnap() {
-        mGameShell.doSnapshot(snapshot);
-    }
-
-    private void doEngineUnsnap() {
-        mGameShell.doUnsnapshot(snapshot);
-    }
-
-    private void guiRestoreSnapshot() {
-        //important: readd graphics, because they could have changed
-        mClientEngine.readd_graphics();
-        mGameFrame.gameView.readd_graphics();
     }
 
     ConfigNode gamePersist() {

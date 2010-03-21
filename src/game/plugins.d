@@ -6,6 +6,7 @@ import framework.config;
 import framework.framework;
 import framework.i18n; //just because of weapon loading...
 import game.controller_events;
+import game.controller_plugins;
 import game.game;
 import game.gfxset;
 import game.gobject;

@@ -604,7 +604,13 @@ public class ConfigNode {
             this.value = "";
             clear();
             foreach (int idx, x; value.tupleof) {
-                if (x != T.init.tupleof[idx]) {
+                //bug 3997
+                static if (!isAssocArrayType!(typeof(x))) {
+                    bool unequal = x != T.init.tupleof[idx];
+                } else {
+                    bool unequal = true;
+                }
+                if (unequal) {
                     setValue(structProcName(value.tupleof[idx].stringof), x);
                 }
             }

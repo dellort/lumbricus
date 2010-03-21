@@ -1,0 +1,242 @@
+NOTE: at least mixed line endings make the windows patch utility fail
+      on the other hand, the windows-made patch didn't work for me either
+diff --git a/backend/elfobj.c b/backend/elfobj.c
+index e2cf7ec..bb2f086 100644
+--- a/backend/elfobj.c
++++ b/backend/elfobj.c
+@@ -542,6 +542,11 @@ void obj_init(Outbuffer *objbuf, const char *filename, const char *csegname)
+ {
+     //printf("obj_init()\n");
+ 
++    //bug 3214
++    SegData = NULL;
++    seg_count = 0;
++    seg_max = 0;
++
+     cseg = CODE;
+     fobjbuf = objbuf;
+     
+diff --git a/mars.c b/mars.c
+index 27df001..dc0e3c4 100644
+--- a/mars.c
++++ b/mars.c
+@@ -267,6 +267,7 @@ Usage:\n\
+   -odobjdir      write object & library files to directory objdir\n\
+   -offilename	 name output file to filename\n\
+   -op            do not strip paths from source file\n\
++  -oq            use fully qualified module name for object filenames\n\
+   -profile	 profile runtime performance of generated code\n\
+   -quiet         suppress unnecessary messages\n\
+   -release	 compile release version\n\
+@@ -474,6 +475,12 @@ int main(int argc, char *argv[])
+ 			global.params.preservePaths = 1;
+ 			break;
+ 
++                    case 'q':
++                        if (p[3])
++                            goto Lerror;
++                        global.params.packagePaths = 1;
++                        break;
++
+ 		    case 0:
+ 			error("-o no longer supported, use -of or -od");
+ 			break;
+@@ -887,7 +894,6 @@ int main(int argc, char *argv[])
+     // Create Modules
+     Array modules;
+     modules.reserve(files.dim);
+-    int firstmodule = 1;
+     for (i = 0; i < files.dim; i++)
+     {
+ 	char *ext;
+@@ -1004,11 +1010,6 @@ int main(int argc, char *argv[])
+ 	Identifier *id = new Identifier(name, 0);
+ 	m = new Module((char *) files.data[i], id, global.params.doDocComments, global.params.doHdrGeneration);
+ 	modules.push(m);
+-
+-	if (firstmodule)
+-	{   global.params.objfiles->push(m->objfile->name->str);
+-	    firstmodule = 0;
+-	}
+     }
+ 
+ #if WINDOWS_SEH
+@@ -1037,6 +1038,7 @@ int main(int argc, char *argv[])
+ 
+     // Parse files
+     int anydocfiles = 0;
++    int firstmodule = 1;
+     for (i = 0; i < modules.dim; i++)
+     {
+ 	m = (Module *)modules.data[i];
+@@ -1045,8 +1047,6 @@ int main(int argc, char *argv[])
+ 	if (!Module::rootModule)
+ 	    Module::rootModule = m;
+ 	m->importedFrom = m;
+-	if (!global.params.oneobj || i == 0 || m->isDocFile)
+-	    m->deleteObjFile();
+ #if ASYNCREAD
+ 	if (aw->read(i))
+ 	{
+@@ -1054,6 +1054,9 @@ int main(int argc, char *argv[])
+ 	}
+ #endif
+ 	m->parse();
++        m->prepareObjfile();
++        if (!global.params.oneobj || i == 0 || m->isDocFile)
++            m->deleteObjFile();
+ 	if (m->isDocFile)
+ 	{
+ 	    anydocfiles = 1;
+@@ -1075,7 +1078,12 @@ int main(int argc, char *argv[])
+ 
+ 	    if (global.params.objfiles->dim == 0)
+ 		global.params.link = 0;
+-	}
++        }
++
++        if (firstmodule)
++        {   global.params.objfiles->push(m->objfile->name->str);
++            firstmodule = 0;
++        }
+     }
+ #if ASYNCREAD
+     AsyncRead::dispose(aw);
+diff --git a/mars.h b/mars.h
+index ac82637..0f74f7d 100644
+--- a/mars.h
++++ b/mars.h
+@@ -148,6 +148,7 @@ struct Param
+     char useInline;	// inline expand functions
+     char release;	// build release version
+     char preservePaths;	// !=0 means don't strip path from source file
++    char packagePaths;  // !=0 means use the fully qualified module name as object file output filename
+     char warnings;	// 0: enable warnings
+ 			// 1: warnings as errors
+ 			// 2: informational warnings (no errors)
+diff --git a/module.c b/module.c
+index a30426e..4d40066 100644
+--- a/module.c
++++ b/module.c
+@@ -69,6 +69,7 @@ Module::Module(char *filename, Identifier *ident, int doDocComment, int doHdrGen
+ 
+ //    printf("Module::Module(filename = '%s', ident = '%s')\n", filename, ident->toChars());
+     this->arg = filename;
++    orig_filename = filename;
+     md = NULL;
+     errors = 0;
+     numlines = 0;
+@@ -129,12 +130,40 @@ Module::Module(char *filename, Identifier *ident, int doDocComment, int doHdrGen
+ 	}
+     }
+ 
++    if (doDocComment)
++    {
++        setDocfile();
++    }
++
++    if (doHdrGen)
++    {
++        setHdrfile();
++    }
++
++    srcfile = new File(srcfilename);
++}
++
++void Module::prepareObjfile()
++{
++    char *filename = orig_filename;
++    FileName *objfilename;
++    FileName *symfilename;
++
+     char *argobj;
+     if (global.params.objname)
+ 	argobj = global.params.objname;
+     else if (global.params.preservePaths)
+ 	argobj = filename;
+-    else
++    else if (global.params.packagePaths) {
++        argobj = (char*)toPrettyChars();
++        //FileName::forceExt will think the last part of the package path is an extension
++        //argobj = argobj ~ '.' ~ global.obj_ext;
++        char* tmp = (char*)calloc(1, strlen(argobj) + strlen(global.obj_ext) + 2);
++        memcpy(tmp, argobj, strlen(argobj));
++        tmp[strlen(argobj)] = '.';
++        memcpy(tmp + strlen(argobj) + 1, global.obj_ext, strlen(global.obj_ext));
++        argobj = tmp;
++    } else
+ 	argobj = FileName::name(filename);
+     if (!FileName::absolute(argobj))
+     {
+@@ -148,18 +177,6 @@ Module::Module(char *filename, Identifier *ident, int doDocComment, int doHdrGen
+ 
+     symfilename = FileName::forceExt(filename, global.sym_ext);
+ 
+-    srcfile = new File(srcfilename);
+-
+-    if (doDocComment)
+-    {
+-	setDocfile();
+-    }
+-
+-    if (doHdrGen)
+-    {
+-	setHdrfile();
+-    }
+-
+     objfile = new File(objfilename);
+     symfile = new File(symfilename);
+ }
+@@ -222,7 +239,7 @@ void Module::setHdrfile()
+ 
+ void Module::deleteObjFile()
+ {
+-    if (global.params.obj)
++    if (global.params.obj && objfile)
+ 	objfile->remove();
+     if (docfile)
+ 	docfile->remove();
+@@ -606,6 +623,9 @@ void Module::parse()
+ 	 */
+ 	if (!Lexer::isValidIdentifier(this->ident->toChars()))
+ 	    error("has non-identifier characters in filename, use module declaration instead");
++
++        if (global.params.packagePaths)
++            error("has no module declaration; this is not allowed when using option -oq");
+     }
+ 
+     // Update global list of modules
+diff --git a/module.h b/module.h
+index 7daf787..ee76cb4 100644
+--- a/module.h
++++ b/module.h
+@@ -58,6 +58,7 @@ struct Module : Package
+ 
+ 
+     const char *arg;	// original argument name
++    char *orig_filename; //original filename (passed to Module ctor)
+     ModuleDeclaration *md; // if !NULL, the contents of the ModuleDeclaration declaration
+     File *srcfile;	// input source file
+     File *objfile;	// output .obj file
+@@ -111,6 +112,8 @@ struct Module : Package
+     Module(char *arg, Identifier *ident, int doDocComment, int doHdrGen);
+     ~Module();
+ 
++    void prepareObjfile();
++
+     static Module *load(Loc loc, Array *packages, Identifier *ident);
+ 
+     void toCBuffer(OutBuffer *buf, HdrGenState *hgs);
+diff --git a/mtype.c b/mtype.c
+index 442e49d..3a9c466 100644
+--- a/mtype.c
++++ b/mtype.c
+@@ -3925,7 +3925,7 @@ Expression *TypeEnum::dotExp(Scope *sc, Expression *e, Identifier *ident)
+ 	if (ident == Id::max ||
+ 	    ident == Id::min ||
+ 	    ident == Id::init ||
+-	    ident == Id::stringof ||
++	    //ident == Id::stringof || //bug 2881
+ 	    !sym->memtype
+ 	   )
+ 	{
