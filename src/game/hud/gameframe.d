@@ -363,7 +363,7 @@ class GameFrame : SimpleContainer {
 
         add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
 
-        WeaponClass[] wlist = game.engine.gfx.weaponList();
+        WeaponClass[] wlist = game.engine.gfx.findResources!(WeaponClass)();
         mWeaponSel.init(game.engine, wlist);
 
         mWeaponInterp.init_done(timeSecs(0.4), 0, 1);

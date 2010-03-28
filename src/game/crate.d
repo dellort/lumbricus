@@ -7,6 +7,7 @@ import game.gfxset;
 import game.controller_events;
 import game.sequence;
 import game.sprite;
+import game.teamtheme;
 import game.temp;
 import gui.rendertext;
 import utils.vector2;
@@ -79,11 +80,11 @@ class CrateSprite : Sprite {
         crateZone = new PhysicZoneCircle(Vector2f(), myclass.collectRadius);
         collectTrigger = new ZoneTrigger(crateZone);
         collectTrigger.collision
-            = engine.physicworld.collide.findCollisionID("crate_collect");
+            = engine.physicWorld.collide.findCollisionID("crate_collect");
         collectTrigger.onTrigger = &oncollect;
         //doesntwork
         //collectTrigger.collision = physics.collision;
-        engine.physicworld.add(collectTrigger);
+        engine.physicWorld.add(collectTrigger);
     }
 
     void collected() {
@@ -148,7 +149,7 @@ class CrateSprite : Sprite {
         if (internal_active) {
             //xxx needs a better way to get the contents of the crate
             if (stuffies.length > 0 && mCrateType != CrateType.med) {
-                mSpy = engine.gfx.textCreate();
+                mSpy = WormLabels.textCreate();
                 mSpy.setTextFmt(true, r"{}\t({})", bomb ? r"\c(team_red)" : "",
                     stuffies[0].id());
                 assert(!!graphic);

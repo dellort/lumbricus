@@ -15,8 +15,8 @@ import utils.random;
 import utils.randval;
 import utils.vector2;
 
-import game.game;
-import game.gfxset;
+import game.core;
+import game.teamtheme;
 
 import math = tango.math.Math;
 import ieee = tango.math.IEEE;
@@ -28,14 +28,14 @@ alias StaticFactory!("SequenceStates", SequenceState, SequenceType, ConfigNode)
 //just a namespace for SequenceState
 final class SequenceType {
     private {
-        GfxSet mGfx;
+        GameCore mGfx;
         SequenceState[char[]] mStates;
         char[] mName;
     }
 
     //source = one sequence entry, e.g. wwwp.conf/sequences/s_worm
     //will be added to gfx.resources by the caller (or so)
-    this (GfxSet a_gfx, ConfigNode source) {
+    this (GameCore a_gfx, ConfigNode source) {
         register_stuff(); //no static this possible
         mGfx = a_gfx;
         mName = source.name;
@@ -52,7 +52,7 @@ final class SequenceType {
     }
 
     final char[] name() { return mName; }
-    final GfxSet gfx() { return mGfx; }
+    final GameCore gfx() { return mGfx; }
 
     //helper; may return null
     final SequenceState normalState() {
@@ -120,7 +120,7 @@ class SequenceState {
     }
 
     final SequenceType owner() { return mOwner; }
-    final GfxSet gfx() { return mOwner.gfx; }
+    final GameCore gfx() { return mOwner.gfx; }
 
     protected abstract DisplayType getDisplayType();
 
@@ -143,7 +143,7 @@ class SequenceState {
 ///trigger sound and particle effects (not yet).
 ///This is the public interface to it.
 final class Sequence : SceneObject {
-    final GameEngine engine;
+    final GameCore engine;
 
     private {
         SequenceState mCurrentState;
@@ -200,7 +200,7 @@ final class Sequence : SceneObject {
     //remember that the delegate is called in a non-deterministic way
     bool delegate(Sequence) textVisibility;
 
-    this(GameEngine a_engine, TeamTheme a_team) {
+    this(GameCore a_engine, TeamTheme a_team) {
         engine = a_engine;
         mTeam = a_team;
     }
@@ -256,7 +256,7 @@ final class Sequence : SceneObject {
         const cInterpolate = true;
 
         static if (cInterpolate) {
-            mIP.time = engine.callbacks.interpolateTime.current;
+            mIP.time = engine.interpolateTime.current;
             Time diff = mIP.time - engine.gameTime.current;
             mIP.pos = toVector2i(position + velocity * diff.secsf);
         } else {
@@ -397,7 +397,6 @@ abstract class StateDisplay {
 //  (because I'm paranoid about moving this code into a separate object)
 class AniStateDisplay : StateDisplay {
     private {
-        //GameEngine mOwner; //especially for gameTime
         Time mStart; //engine time when animation was started
         Animation mAnimation;
     }

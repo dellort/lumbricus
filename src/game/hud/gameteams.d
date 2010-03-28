@@ -117,7 +117,7 @@ class TeamWindow : Widget {
                 WidgetLayout.Noexpand());
 
             ti.bar = new Foobar();
-            ti.bar.border = GfxSet.textWormBorderStyle();
+            ti.bar.border = WormLabels.textWormBorderStyle();
             ti.bar.fill = t.color.color;
             WidgetLayout lay; //expand in y, but left-align in x
             lay.alignment[0] = 0;

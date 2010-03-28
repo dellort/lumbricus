@@ -25,7 +25,7 @@ do
     local name = "sheep"
     local function createSprite(name)
         return createSpriteClass {
-            name = name .. "_sprite",
+            name = "x_" .. name,
             initPhysic = relay {
                 collisionID = "projectile_controlled",
                 mass = 10,
@@ -84,7 +84,7 @@ do
     enableExplosionOnImpact(cratesheep_class, 75)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = function(shooter, info)
             Shooter_reduceAmmo(shooter)
             local s = spawnFromFireInfo(sprite_class, shooter, info)
@@ -107,9 +107,9 @@ do
 
     -- sheeplauncher is almost exactly the same, but the sheep spawns with
     --   the "helmet" animation
-    local name = name .. "launcher"
+    local name = "sheeplauncher"
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = function(shooter, info)
             Shooter_reduceAmmo(shooter)
             local s = spawnFromFireInfo(sprite_class, shooter, info)
@@ -135,7 +135,7 @@ end
 do
     local name = "granny"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile_controlled",
             mass = 10,
@@ -159,7 +159,7 @@ do
     })
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(sprite_class),
         value = 10,
         category = "moving",
@@ -177,7 +177,7 @@ end
 do
     local name = "sally_army"
     local main = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile_controlled",
             mass = 10,
@@ -192,7 +192,7 @@ do
         initParticle = "p_sallyarmy",
     }
     local shard = createSpriteClass {
-        name = name .. "shard_sprite",
+        name = "x_" .. name .. "_shard",
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -233,7 +233,7 @@ do
     end)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = function(shooter, info)
             Shooter_reduceAmmo(shooter)
             local spr = spawnFromFireInfo(main, shooter, info)
@@ -257,7 +257,7 @@ end
 do
     local name = "cow"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile_controlled",
             mass = 10,
@@ -284,7 +284,7 @@ do
 
     local fire, interrupt = getMultispawnOnFire(sprite_class, 3, time(0.6), true)
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = fire,
         onInterrupt = interrupt,
         value = 10,
@@ -316,7 +316,7 @@ local function createSuperSheep(name, is_aqua)
     }
 
     local jumping = createSpriteClass {
-        name = name .. "_sprite_jumping",
+        name = "x_" .. name .. "_jumping",
         initPhysic = relay(table_merge(phys, {
             mass = 10,
             walkingSpeed = 50,
@@ -336,7 +336,7 @@ local function createSuperSheep(name, is_aqua)
     })
 
     local flying = createSpriteClass {
-        name = name .. "_sprite_flying",
+        name = "x_" .. name .. "_flying",
         initPhysic = relay(phys),
         sequenceState = "s_sheep:super_" .. iif(is_aqua, "blue", "red"),
         initParticle = "p_supersheep",
@@ -435,7 +435,7 @@ local function createSuperSheep(name, is_aqua)
     })
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = function(shooter, info)
             Shooter_reduceAmmo(shooter)
             local s = spawnFromFireInfo(jumping, shooter, info)

@@ -3,7 +3,7 @@
 do
     local name = "dynamite"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -24,7 +24,7 @@ do
     })
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(sprite_class),
         value = 10,
         category = "sheep",
@@ -42,7 +42,7 @@ end
 do
     local name = "mingvase"
     local main = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         sequenceType = "s_mingvase",
         initPhysic = relay {
             collisionID = "projectile",
@@ -55,7 +55,7 @@ do
         }
     }
     local shard = createSpriteClass {
-        name = name .. "_shard",
+        name = "x_" .. name .. "_shard",
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -106,7 +106,7 @@ do
     end)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(main),
         value = 10,
         category = "sheep",
@@ -127,7 +127,7 @@ do
     -- no "local", this is used in other weapons
     mine_class = createSpriteClass {
         -- newgame.conf/levelobjects references this name!
-        name = "mine",
+        name = "x_mine",
         initNoActivityWhenGlued = true,
         initPhysic = relay {
             collisionID = "projectile",
@@ -168,7 +168,7 @@ do
     })
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(mine_class),
         value = 10,
         category = "sheep",

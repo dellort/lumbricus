@@ -118,7 +118,7 @@ private class AliasResource : ResourceItem {
     }
 }
 
-private void addToResourceSet(ResourceSet rs, ResourceItem[] items) {
+void addToResourceSet(ResourceSet rs, ResourceItem[] items) {
     struct Entry {
         char[] res, new_name;
     }

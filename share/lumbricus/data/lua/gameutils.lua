@@ -349,6 +349,15 @@ function addCircleTrigger(sprite, radius, collision, onTrigger)
     return createZoneTrigger(zone, collision, onTrigger)
 end
 
+-- fstr = string of the form "SequenceType:SequenceState"
+--  e.g. "s_sheep:normal"
+-- this is just a helper
+function findSequenceState(fstr)
+    local pre, post = utils.split2(fstr, ":", true)
+    local seq = Gfx_resource(pre)
+    return SequenceType_findState(seq, post)
+end
+
 autoProperties = {
     WeaponClass_set_icon = {
         string = Gfx_resource
@@ -357,7 +366,7 @@ autoProperties = {
         string = Gfx_resource
     },
     SpriteClass_set_sequenceState = {
-        string = Gfx_findSequenceState,
+        string = findSequenceState,
     },
     SpriteClass_set_initParticle = {
         string = Gfx_resource
@@ -513,6 +522,7 @@ end
 --         (onFire has to follow different rules because it returns something)
 function createWeapon(props)
     local name = pick(props, "name")
+    assert(string.startswith(name, "w_")) -- check convention
     local ctor = pick(props, "ctor", LuaWeaponClass_ctor)
     if type(ctor) == "string" then
         ctor = _G[ctor]
@@ -525,7 +535,7 @@ function createWeapon(props)
         addClassEventHandler(EventTarget_eventTargetType(w),
             "weapon_crate_blowup", onblowup)
     end
-    Gfx_registerWeapon(w)
+    Gfx_registerResource(name, w)
     return w
 end
 
@@ -535,6 +545,7 @@ end
 --  noDrown = if true, don't automatically call enableDrown on the sprite class
 function createSpriteClass(props)
     local name = pick(props, "name")
+    assert(string.startswith(name, "x_")) -- check convention
     local ctor = pick(props, "ctor", SpriteClass_ctor)
     if type(ctor) == "string" then
         ctor = _G[ctor]
@@ -546,7 +557,7 @@ function createSpriteClass(props)
     if not nodrown then
         enableDrown(s)
     end
-    Gfx_registerSpriteClass(s)
+    Gfx_registerResource(name, s)
     return s
 end
 

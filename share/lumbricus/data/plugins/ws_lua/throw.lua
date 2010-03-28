@@ -2,9 +2,9 @@
 
 do
     local name = "banana"
-    local function createSprite(name)
+    local function createSprite(sname)
         return createSpriteClass {
-            name = name .. "_sprite",
+            name = "x_" .. name .. "_" .. sname,
             initPhysic = relay {
                 collisionID = "projectile",
                 mass = 10, -- 10 whatevertheffffunitthisis
@@ -17,8 +17,8 @@ do
             sequenceType = "s_banana"
         }
     end
-    local main = createSprite(name)
-    local shard = createSprite(name .. "shard")
+    local main = createSprite("main")
+    local shard = createSprite("shard")
 
     enableExplosionOnImpact(shard, 75)
     enableSpriteTimer(main, {
@@ -30,7 +30,7 @@ do
     })
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(main),
         category = "throw",
         value = 10,
@@ -52,9 +52,9 @@ end
 
 do
     local name = "superbanana"
-    local function createSprite(name)
+    local function createSprite(sname)
         return createSpriteClass {
-            name = name .. "_sprite",
+            name = "x_" .. name .. "_" .. sname,
             initPhysic = relay {
                 collisionID = "projectile",
                 mass = 10, -- 10 whatevertheffffunitthisis
@@ -67,8 +67,8 @@ do
             sequenceType = "s_banana"
         }
     end
-    local main = createSprite(name)
-    local shard = createSprite(name .. "shard")
+    local main = createSprite("main")
+    local shard = createSprite("shard")
 
     local function dorefire(shooter)
         local ctx = get_context(shooter)
@@ -139,7 +139,7 @@ do
     end)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = function(shooter, info)
             Shooter_reduceAmmo(shooter)
             --Shooter_finished(shooter)
@@ -171,7 +171,7 @@ end
 do
     local name = "grenade"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = "10",
@@ -193,7 +193,7 @@ do
     })
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(sprite_class),
         value = 10,
         category = "throw",
@@ -225,12 +225,12 @@ do
         rotation = "distance",
     }
     local main = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name .. "_cluster",
         sequenceType = "s_cluster",
         initPhysic = phys,
     }
     local shard = createSpriteClass {
-        name = name .. "_shard",
+        name = "x_" .. name .. "_shard",
         sequenceType = "s_clustershard",
         initPhysic = phys,
     }
@@ -245,7 +245,7 @@ do
     })
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(main),
         value = 10,
         category = "throw",
@@ -267,7 +267,7 @@ end
 do
     local name = "holy_grenade"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 20,
@@ -286,7 +286,7 @@ do
     end)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(sprite_class),
         category = "throw",
         value = 10,

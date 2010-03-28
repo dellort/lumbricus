@@ -539,6 +539,12 @@ function array.indexof(arr, item)
     return nil
 end
 
+-- extend Lua standard "packages"
+
+function string.startswith(s, prefix)
+    return string.sub(s, 1, #prefix) == prefix
+end
+
 -- the following functions apparently partially rely on the D wrapper
 -- actually, those should be moved into a plugins.lua
 

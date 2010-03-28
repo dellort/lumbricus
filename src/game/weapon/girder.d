@@ -163,7 +163,7 @@ class GirderControl : WeaponSelector, Controllable {
                 Vector2f crap1, crap3;
                 PhysicObject crap2;
                 auto dir = verts[b] - verts[a];
-                if (mEngine.physicworld.shootRay(verts[a], dir,
+                if (mEngine.physicWorld.shootRay(verts[a], dir,
                     dir.length, crap1, crap2, crap3))
                 {
                     return false;

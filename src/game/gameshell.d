@@ -80,8 +80,6 @@ const bool WriteDemoHashFrames = true;
 //  frame a LogEntry is appended to the replay log
 const bool ReplayHashFrames = true;
 
-//const long cDebugDumpAt = 1;
-
 //to implement a pre-load mechanism
 //for normal games:
 //1. read game configuration
@@ -230,26 +228,8 @@ class GameLoader {
             }
         }
 
-        mGfx = new GfxSet(mGameConfig);
-        auto plugins = new PluginBase(mGfx, mGameConfig);
-
-        mResPreloader = gResources.createPreloader(mGfx.load_resources);
-        mGfx.load_resources = null;
-    }
-
-    GameShell finish() {
-        if (mShell)
-            return mShell;
-        //just to be sure caller didn't mess up
-        mResPreloader.loadAll();
-        assert(mResPreloader.done()); //xxx error handling (failed resources)
-        ResourceSet resset = mResPreloader.createSet();
-        mResPreloader = null;
-        mGfx.finishLoading(resset);
-
         mShell = new GameShell();
         mShell.mGameConfig = mGameConfig;
-        mShell.mGfx = mGfx;
         mShell.mMasterTime = new TimeSource("GameShell/MasterTime");
         if (mNetwork) {
             mShell.mMasterTime.paused = true;
@@ -258,23 +238,45 @@ class GameLoader {
         }
         mShell.mGameTime = new TimeSourceFixFramerate("GameTime",
             mShell.mMasterTime, cFrameLength);
+        auto it = new TimeSourceSimple("GameShell/Interpolated");
+        it.reset(mShell.mGameTime.current);
+        mShell.mInterpolateTime = it;
 
         if (!mDemoOutput.isNull()) {
             mShell.mDemoOutput = mDemoOutput;
         }
 
-        mShell.mEngine = new GameEngine(mGfx, mShell.mGameTime);
+        assert(!!mGameConfig.level);
+        mShell.mEngine = new GameEngine(mGameConfig.level,
+            mShell.mGameTime, mShell.mInterpolateTime);
+        auto engine = mShell.mEngine;
+
+        mGfx = new GfxSet(engine, mGameConfig);
+        engine.gfx = mGfx;
+        engine.scripting.addSingleton(mGfx);
+        engine.loadStdScripts();
+
+        auto plugins = new PluginBase(mGfx, mGameConfig);
+
+        mShell.mGfx = mGfx;
+        mResPreloader = gResources.createPreloader(mGfx.load_resources);
+        mGfx.load_resources = null;
+    }
+
+    GameShell finish() {
+        assert(!!mResPreloader, "loading already finished?");
+
+        //just to be sure caller didn't mess up
+        mResPreloader.loadAll();
+        assert(mResPreloader.done()); //xxx error handling (failed resources)
+        addToResourceSet(mShell.mEngine.resources, mResPreloader.list);
+        mResPreloader = null;
+
+        mGfx.finishLoading();
 
         mShell.mEngine.initGame(mGameConfig);
 
         OnGameError.handler(mShell.mEngine.events, &mShell.onGameError);
-
-        auto it = new TimeSourceSimple("GameShell/Interpolated");
-        it.reset(mShell.mGameTime.current);
-        mShell.mInterpolateTime = it;
-
-        mShell.mEngine.callbacks.interpolateTime = it;
-        mShell.mEngine.callbacks.scene = new Scene();
 
         if (mDemoInput) {
             //changed because replays were ditched (and it looks nicer)
@@ -407,13 +409,10 @@ class GameShell {
                 log("current hash: {}", expect);
                 log("LogEntry hash: {}", e.hash);
                 log("timestamp: {}", mTimeStamp);
-                //debug_save();
                 log("not bothering you anymore, enjoy your day");
                 mSOMETHINGISWRONG = true;
                 woosh();
             }
-            //if (mTimeStamp == cDebugDumpAt)
-            //    debug_save();
         }
 
         //hopefully not too spaghetti code

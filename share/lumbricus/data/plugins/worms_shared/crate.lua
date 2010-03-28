@@ -53,7 +53,7 @@ local seq = {
 }
 
 local s_class = createSpriteClass {
-    name = "crate",
+    name = "x_crate",
     ctor = "CrateSpriteClass_ctor",
     initNoActivityWhenGlued = true,
     initialHp = 2,

@@ -919,8 +919,8 @@ class WormSprite : Sprite {
                 //explosion!
                 engine.explosionAt(physics.pos, wsc.suicideDamage, this);
                 SpriteClass findGrave(int id) {
-                    return engine.gfx.findSpriteClass(
-                        myformat("gravestone{}", mGravestone), true);
+                    return engine.gfx.resources.get!(SpriteClass)
+                        (myformat("x_gravestone{}", mGravestone), true);
                 }
                 auto graveclass = findGrave(mGravestone);
                 if (!graveclass) //try to default to first gravestone

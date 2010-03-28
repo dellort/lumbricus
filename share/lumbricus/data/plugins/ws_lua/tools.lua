@@ -1,7 +1,7 @@
 -- tool weapons (mostly trivial and/or implemented in D, spawn no sprites)
 
 createWeapon {
-    name = "girder",
+    name = "w_girder",
     onCreateSelector = function(sprite)
         return GirderControl_ctor(sprite)
     end,
@@ -24,7 +24,7 @@ createWeapon {
 }
 
 createWeapon {
-    name = "beamer",
+    name = "w_beamer",
     value = 10,
     category = "tools",
     icon = "icon_beamer",
@@ -42,7 +42,7 @@ createWeapon {
 }
 
 createWeapon {
-    name = "drill",
+    name = "w_drill",
     ctor = "DrillClass_ctor",
     value = 10,
     category = "worker",
@@ -56,7 +56,7 @@ createWeapon {
 }
 
 createWeapon {
-    name = "blowtorch",
+    name = "w_blowtorch",
     ctor = "DrillClass_ctor",
     value = 10,
     category = "worker",
@@ -85,7 +85,7 @@ local function teamActionOnFire(action)
 end
 
 createWeapon {
-    name = "surrender",
+    name = "w_surrender",
     value = 10,
     category = "misc4",
     icon = "icon_surrender",
@@ -96,7 +96,7 @@ createWeapon {
 }
 
 createWeapon {
-    name = "skipturn",
+    name = "w_skipturn",
     value = 10,
     category = "misc4",
     icon = "icon_skipgo",
@@ -107,7 +107,7 @@ createWeapon {
 }
 
 createWeapon {
-    name = "wormselect",
+    name = "w_wormselect",
     value = 10,
     category = "misc4",
     icon = "icon_changeworm",
@@ -119,7 +119,7 @@ createWeapon {
 }
 
 createWeapon {
-    name = "hat",
+    name = "w_hat",
     value = 0,
     category = "misc4",
     icon = "icon_unknown",
@@ -138,7 +138,7 @@ createWeapon {
 
 
 createWeapon {
-    name ="parachute",
+    name ="w_parachute",
     ctor = "ParachuteClass_ctor",
     value = 10,
     category = "tools",
@@ -149,7 +149,7 @@ createWeapon {
 }
 
 createWeapon {
-    name = "jetpack",
+    name = "w_jetpack",
     ctor = "JetpackClass_ctor",
     value = 10,
     category = "tools",
@@ -165,7 +165,7 @@ createWeapon {
 }
 
 createWeapon {
-    name = "superrope",
+    name = "w_superrope",
     ctor = "RopeClass_ctor",
     value = 10,
     category = "tools",
@@ -196,7 +196,7 @@ do
     local addlaser = getLaserEffect(time("2s"))
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = function(shooter, fireinfo)
             Shooter_finished(shooter)
             local sprite = Shooter_owner(shooter)

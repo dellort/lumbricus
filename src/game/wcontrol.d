@@ -633,7 +633,7 @@ class WormControl : WormController {
 
         if (mPointMode == PointMode.instantFree) {
             //move point out of landscape
-            if (!mEngine.physicworld.freePoint(where, 6))
+            if (!mEngine.physicWorld.freePoint(where, 6))
                 return;
         }
 
@@ -643,7 +643,7 @@ class WormControl : WormController {
         switch(mPointMode) {
             case PointMode.targetTracking:
                 //find sprite closest to where
-                mEngine.physicworld.objectsAt(where, 10,
+                mEngine.physicWorld.objectsAt(where, 10,
                     (PhysicObject obj) {
                         auto spr = cast(Sprite)obj.backlink;
                         if (spr) {

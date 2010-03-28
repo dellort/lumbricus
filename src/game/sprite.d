@@ -113,7 +113,7 @@ class Sprite : GameObject {
         }
         physics.remove = true;
         if (internal_active) {
-            engine.physicworld.add(physics);
+            engine.physicWorld.add(physics);
             auto member = engine.controller ?
                 engine.controller.memberFromGameObject(this, true) : null;
             auto owner = member ? member.team : null;

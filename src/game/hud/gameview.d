@@ -110,7 +110,7 @@ private class ViewMember : SceneObject {
         wormPoints = theme.textCreate();
         healthHint = theme.textCreate();
         weaponIcon = new BorderImage;
-        weaponIcon.border = GfxSet.textWormBorderStyle();
+        weaponIcon.border = WormLabels.textWormBorderStyle();
 
         owner.mLabels.add(this);
     }
@@ -607,9 +607,9 @@ class GameView : Widget {
         //  (and the level end warning is not drawn on that side)
         GeomContact tmp;
         Vector2i worldSize = mGame.engine.level.worldSize;
-        bool left = !mGame.engine.physicworld.collideGeometry(
+        bool left = !mGame.engine.physicWorld.collideGeometry(
             Vector2f(-100, worldSize.y/2), 1, tmp);
-        bool right = !mGame.engine.physicworld.collideGeometry(
+        bool right = !mGame.engine.physicWorld.collideGeometry(
             Vector2f(worldSize.x + 100, worldSize.y/2), 1, tmp);
         SceneObject levelend = new LevelEndDrawer(left, right);
         levelend.zorder = GameZOrder.RangeArrow;
@@ -753,7 +753,7 @@ class GameView : Widget {
     //find a WeaponClass of the weapon named "name" in the current team's
     //weapon-set (or return null)
     private WeaponClass findWeapon(char[] name) {
-        return mGame.engine.gfx.findWeaponClass(name, true);
+        return mGame.engine.gfx.resources.get!(WeaponClass)(name, true);
     }
 
     void addExternalKeybinds(KeyBindings binds, void delegate(char[]) handler) {

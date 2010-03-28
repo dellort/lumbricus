@@ -12,13 +12,14 @@ import common.common;
 import common.scene;
 import game.controller;
 import game.controller_events;
+import game.core;
+import game.lua.base;
 import game.weapon.weapon;
 import game.events;
 import game.glue;
 import game.sequence;
 import game.setup;
 import game.particles;
-import game.lua.base;
 import gui.rendertext; //oops, the core shouldn't really depend from the GUI
 import net.marshal : Hasher;
 import utils.list2;
@@ -52,36 +53,39 @@ class GlobalEvents : GameObject {
 
 //code to manage a game session (hm, whatever this means)
 //reinstantiated on each "round"
-class GameEngine {
+class GameEngine : GameCore {
+    //xxx how to remove this:
+    //  1. for explosions, this should somehow be handled by the physics,
+    //     because the physic might have some sort of spatial tree making
+    //     position => GameLandscape lookup faster; the rest would somehow be
+    //     handled in applyExplosion, like all normal physic objects
+    //  2. object placing can somehow be handled differently; it is seldomly
+    //     needed and can be moved into some dark corner of the game
     GameLandscape[] gameLandscapes;
-    //the whole fucking world!
-    Scene scene;
-
-    Random rnd;
 
     GameConfig gameConfig;
     ConfigNode persistentState;
-    Events events;
     GlobalEvents globalEvents;
 
     const cDamageToImpulse = 140.0f;
     const cDamageToRadius = 2.0f;
 
+    GfxSet gfx;
+    alias gfx mGfx;
+
     private {
         static LogStruct!("game.game") log;
 
-        TimeSourcePublic mGameTime;
         GameEngineCallback mCallbacks;
 
-        PhysicWorld mPhysicWorld;
         ObjectList!(GameObject, "all_node") mAllObjects, mKillList;
         ObjectList!(GameObject, "sim_node") mActiveObjects;
-        Level mLevel;
 
         PhysicZonePlane mWaterBorder;
         WaterSurfaceGeometry mWaterBouncer;
 
-        GfxSet mGfx;
+        //GfxSet mGfx;
+        ConfigNode mGameConf;
 
         GameController mController;
 
@@ -99,11 +103,6 @@ class GameEngine {
         Object[char[]] mHudRequests;
 
         Sprite[] mPlaceQueue;
-
-        ScriptingObj mScripting;
-
-        //for neutral text, I use GameEngine as key (hacky but simple)
-        FormattedText[Object] mTempTextThemed;
 
         AccessEntry[] mAccessMapping;
         struct AccessEntry {
@@ -132,16 +131,19 @@ class GameEngine {
 
     //config- and gametype-independant initialization
     //(stuff that every possible game always needs)
-    this(GfxSet a_gfx, TimeSourcePublic a_gameTime) {
-        rnd = new Random();
-        rnd.seed(1);
+    this(Level a_level, TimeSourcePublic a_gameTime,
+        TimeSourcePublic a_interpolateTime)
+    {
+        super(a_level, a_gameTime, a_interpolateTime);
 
-        mGfx = a_gfx;
-        events = mGfx.events;
+        scripting.addSingleton(this);
+
         events.onScriptingError = &eventScriptError;
-        mGameTime = a_gameTime;
         createCmd();
         mCallbacks = new GameEngineCallback();
+        mCallbacks.particleEngine = particleWorld;
+        mCallbacks.scene = scene;
+        mCallbacks.interpolateTime = interpolateTime;
 
         mAllObjects = new typeof(mAllObjects)();
         mKillList = new typeof(mKillList)();
@@ -149,32 +151,26 @@ class GameEngine {
 
         globalEvents = new GlobalEvents(this);
 
-        scene = new Scene();
+        mGameConf = loadConfig("game");
 
-        auto gameConf = loadConfig("game");
-
-        mPhysicWorld = new PhysicWorld(rnd);
-        mPhysicWorld.collide = gfx.collision_map;
-        mPhysicWorld.gravity = Vector2f(0, gameConf.getFloatValue("gravity",
+        physicWorld.gravity = Vector2f(0, mGameConf.getFloatValue("gravity",
             100));
         //hm!?!?
-        mPhysicWorld.onCollide = &onPhysicHit;
+        physicWorld.onCollide = &onPhysicHit;
 
         OnHudAdd.handler(events, &onHudAdd);
 
         //scripting initialization
         //code loaded here can be considered "internal" and should explode
         //  on errors
-        mScripting = createScriptingObj();
-        mScripting.onError = &scriptingObjError;
-        mScripting.addSingleton(this);
-        mScripting.addSingleton(gfx);
-        mScripting.addSingleton(rnd);
-        mScripting.addSingleton(mPhysicWorld);
-        mScripting.addSingleton(mPhysicWorld.collide);
+        scripting.onError = &scriptingObjError;
 
-        events.setScripting(mScripting, "eventhandlers_global");
-        foreach (char[] name, char[] value; gameConf.getSubNode("scripts")) {
+        events.setScripting(scripting, "eventhandlers_global");
+    }
+
+    //only separate because of the GfxSet singleton; see gameshell.d
+    void loadStdScripts() {
+        foreach (char[] name, char[] value; mGameConf.getSubNode("scripts")) {
             loadScript(value);
         }
     }
@@ -190,8 +186,7 @@ class GameEngine {
         persistentState = config.gamestate.copy();
 
         assert(config.level !is null);
-        mLevel = config.level;
-        scripting.addSingleton(mLevel);
+        assert(level is config.level);
 
         foreach (o; level.objects) {
             if (auto ls = cast(LevelLandscape)o) {
@@ -204,21 +199,21 @@ class GameEngine {
         mWaterBorder = new PhysicZonePlane();
         auto wb = new ZoneTrigger(mWaterBorder);
         wb.onTrigger = &underWaterTrigger;
-        wb.collision = physicworld.collide.findCollisionID("water");
-        physicworld.add(wb);
+        wb.collision = physicWorld.collide.findCollisionID("water");
+        physicWorld.add(wb);
         mWaterBouncer = new WaterSurfaceGeometry();
-        physicworld.add(mWaterBouncer);
+        physicWorld.add(mWaterBouncer);
         //Stokes's drag force
-        physicworld.add(new ForceZone(new StokesDragFixed(5.0f), mWaterBorder));
+        physicWorld.add(new ForceZone(new StokesDragFixed(5.0f), mWaterBorder));
         //xxx additional object-attribute controlled Stokes's drag
-        physicworld.add(new StokesDragObject());
+        physicWorld.add(new StokesDragObject());
         //Earthquake generator
         mEarthquakeForceVis = new EarthQuakeForce(false);
         mEarthquakeForceDmg = new EarthQuakeForce(true);
-        physicworld.add(mEarthquakeForceVis);
-        physicworld.add(mEarthquakeForceDmg);
+        physicWorld.add(mEarthquakeForceVis);
+        physicWorld.add(mEarthquakeForceDmg);
 
-        auto deathrc = toRect2f(mLevel.worldBounds());
+        auto deathrc = toRect2f(level.worldBounds());
         auto sz = deathrc.size;
         //make rect much bigger in all three directions except downwards, so
         //  that the deathzone normally is not noticed (e.g. objects still can
@@ -231,33 +226,33 @@ class GameEngine {
         //completely in the deathzone, but graphics are often larger :(
         deathrc.p2.y += 20;
         auto dz = new ZoneTrigger(new PhysicZoneRect(deathrc));
-        dz.collision = physicworld.collide.findCollisionID("always");
+        dz.collision = physicWorld.collide.findCollisionID("always");
         dz.onTrigger = &deathzoneTrigger;
         dz.inverse = true;
-        physicworld.add(dz);
+        physicWorld.add(dz);
 
         //create trigger to check for objects leaving the playable area
-        auto worldZone = new PhysicZoneXRange(0, mLevel.worldSize.x);
+        auto worldZone = new PhysicZoneXRange(0, level.worldSize.x);
         //only if completely outside (= touching the game area inverted)
         worldZone.whenTouched = true;
         auto offwTrigger = new ZoneTrigger(worldZone);
-        offwTrigger.collision = physicworld.collide.findCollisionID("always");
+        offwTrigger.collision = physicWorld.collide.findCollisionID("always");
         offwTrigger.inverse = true;  //trigger when outside the world area
         offwTrigger.onTrigger = &offworldTrigger;
-        physicworld.add(offwTrigger);
+        physicWorld.add(offwTrigger);
 
         mWindForce = new WindyForce();
         mWindChanger = new PhysicTimedChangerFloat(0, &windChangerUpdate);
         mWindChanger.changePerSec = cWindChange;
-        physicworld.add(new ForceZone(mWindForce, mWaterBorder, true));
-        physicworld.add(mWindChanger);
+        physicWorld.add(new ForceZone(mWindForce, mWaterBorder, true));
+        physicWorld.add(mWindChanger);
         randomizeWind();
 
         //physics timed changer for water offset
-        mWaterChanger = new PhysicTimedChangerFloat(mLevel.waterBottomY,
+        mWaterChanger = new PhysicTimedChangerFloat(level.waterBottomY,
             &waterChangerUpdate);
         mWaterChanger.changePerSec = cWaterRaisingSpeed;
-        physicworld.add(mWaterChanger);
+        physicWorld.add(mWaterChanger);
 
         //initialize loaded plugins
         OnGameInit.raise(globalEvents);
@@ -286,19 +281,12 @@ class GameEngine {
         }
     }
 
-    final ScriptingObj scripting() {
-        //assertion may happen on savegames (when I was writing this, I didn't
-        //  care about savegames at all; they may be broken; enjoy.)
-        assert (!!mScripting);
-        return mScripting;
-    }
-
     final void loadScript(char[] filename) {
         .loadScript(scripting(), filename);
     }
 
     Sprite createSprite(char[] name) {
-        return gfx.findSpriteClass(name).createSprite(this);
+        return gfx.resources.get!(SpriteClass)(name).createSprite(this);
     }
 
     package void setController(GameController ctl) {
@@ -314,18 +302,8 @@ class GameEngine {
 
     //--- start GameEnginePublic
 
-    ///level being played, must not modify returned object
-    final Level level() {
-        return mLevel;
-    }
-
     final GameEngineCallback callbacks() {
         return mCallbacks;
-    }
-
-    ///time of last frame that was simulated
-    final TimeSourcePublic gameTime() {
-        return mGameTime;
     }
 
     ///return y coordinate of waterline
@@ -350,9 +328,9 @@ class GameEngine {
     }
 
     ///game resources, must not modify returned object
-    GfxSet gfx() {
-        return mGfx;
-    }
+    //GfxSet gfx() {
+    //    return mGfx;
+    //}
 
     //--- end GameEnginePublic
 
@@ -411,13 +389,13 @@ class GameEngine {
     }
 
     float gravity() {
-        return mPhysicWorld.gravity.y;
+        return physicWorld.gravity.y;
     }
 
     void raiseWater(int by) {
         //argh why is mCurrentWaterLevel a float??
         int t = cast(int)mCurrentWaterLevel - by;
-        t = max(t, mLevel.waterTopY); //don't grow beyond limit?
+        t = max(t, level.waterTopY); //don't grow beyond limit?
         mWaterChanger.target = t;
     }
 
@@ -431,7 +409,7 @@ class GameEngine {
         auto ef = mEarthquakeForceVis;
         if (bounceObjects)
             ef = mEarthquakeForceDmg;
-        physicworld.add(new EarthQuakeDegrader(strength, duration, degrade,
+        physicWorld.add(new EarthQuakeDegrader(strength, duration, degrade,
             ef));
         log("created earth quake, strength={}, duration={}, degrade={}",
             strength, duration, degrade);
@@ -449,17 +427,13 @@ class GameEngine {
             mActiveObjects.add(obj);
     }
 
-    PhysicWorld physicworld() {
-        return mPhysicWorld;
-    }
-
     void frame() {
         if (mBenchSimTime)
             mBenchSimTime.start();
 
         auto physicTime = globals.newTimer("game_physic");
         physicTime.start();
-        mPhysicWorld.simulate(mGameTime.current);
+        physicWorld.simulate(gameTime.current);
         physicTime.stop();
 
         mController.simulate();
@@ -467,7 +441,7 @@ class GameEngine {
         //update game objects
         //NOTE: objects might be inserted/removed while iterating
         //      List.opApply can deal with that
-        float deltat = mGameTime.difference.secsf;
+        float deltat = gameTime.difference.secsf;
         foreach (GameObject o; mActiveObjects) {
             if (o._is_active()) {
                 o.simulate(deltat);
@@ -610,7 +584,7 @@ class GameEngine {
         //  worms can stand/sit
         //this code also seems to assume that the landscape is in the middle,
         //  which is ok most time
-        auto mid = toVector2f(mLevel.worldSize)/2;
+        auto mid = toVector2f(level.worldSize)/2;
         Rect2f landArea = Rect2f(mid, mid);
         if (gameLandscapes.length > 0)
             landArea = Rect2f(toVector2f(gameLandscapes[0].offset),
@@ -626,7 +600,7 @@ class GameEngine {
         //don't place underwater
         float y_max = waterOffset - 10;
 
-        Rect2f area = Rect2f(0, 0, mLevel.worldSize.x, y_max);
+        Rect2f area = Rect2f(0, 0, level.worldSize.x, y_max);
         area.fitInside(landArea);
         return area;
     }
@@ -695,10 +669,10 @@ class GameEngine {
 
         GeomContact contact;
         //check if origin point is inside geometry
-        if (physicworld.collideGeometry(drop, radius, contact))
+        if (physicWorld.collideGeometry(drop, radius, contact))
             return false;
         //cast a ray downwards from drop
-        if (!physicworld.thickRay(drop, Vector2f(0, 1), area.p2.y - drop.y,
+        if (!physicWorld.thickRay(drop, Vector2f(0, 1), area.p2.y - drop.y,
             radius, drop, contact))
         {
             return false;
@@ -801,7 +775,7 @@ class GameEngine {
                 } else {
                     error("couldn't place '{}'!", sprite);
                     //xxx
-                    npos = toVector2f(mLevel.worldSize)/2;
+                    npos = toVector2f(level.worldSize)/2;
                 }
             }
             log("placed '{}' at {}", sprite.type.name, npos);
@@ -820,53 +794,6 @@ class GameEngine {
     Object[char[]] allHudRequests() {
         return mHudRequests;
     }
-
-    //draw some text with a border around it, in the usual worms label style
-    //see getTempLabel()
-    //the bad:
-    //- slow, may trigger memory allocations (at the very least it will use
-    //  slow array appends, even if no new memory is really allocated)
-    //- does a lot more work than just draw text and a box
-    //- slow because it formats text on each frame
-    //- it sucks, maybe I'll replace it by something else
-    //=> use FormattedText instead with GfxSet.textCreate()
-    //the good:
-    //- uses the same drawing code as other _game_ labels
-    //- for very transient labels, this probably performs better than allocating
-    //  a FormattedText and keeping it around
-    //- no need to be deterministic
-    void drawTextFmt(Canvas c, Vector2i pos, char[] fmt, ...) {
-        auto txt = getTempLabel();
-        txt.setTextFmt_fx(true, fmt, _arguments, _argptr);
-        txt.draw(c, pos);
-    }
-
-    //return a temporary label in worms style
-    //see drawTextFmt() for the why and when to use this
-    //how to use:
-    //- use txt.setTextFmt() to set the text on the returned object
-    //- possibly call txt.textSize() to get the size including label border
-    //- call txt.draw()
-    //- never touch the object again, as it will be used by other code
-    //- you better not change any obscure properties of the label (like font)
-    //if theme is !is null, the label will be in the team's color
-    FormattedText getTempLabel(TeamTheme theme = null) {
-        //xxx: AA lookup could be avoided by using TeamTheme.colorIndex
-        Object idx = theme ? theme : this;
-        if (auto p = idx in mTempTextThemed)
-            return *p;
-
-        FormattedText res;
-        if (theme) {
-            res = theme.textCreate();
-        } else {
-            res = GfxSet.textCreate();
-        }
-        res.shrink = ShrinkMode.none;
-        mTempTextThemed[idx] = res;
-        return res;
-    }
-
 
     //non-deterministic
     private void showExplosion(Vector2f at, int radius) {
@@ -935,18 +862,6 @@ class GameEngine {
         }
     }
 
-    void animationEffect(Animation ani, Vector2i at, AnimationParams p) {
-        //if this function gets used a lot, maybe it would be worth it to fuse
-        //  this with the particle engine (cf. showExplosion())
-        Animator a = new Animator(callbacks.interpolateTime);
-        a.auto_remove = true;
-        a.setAnimation(ani);
-        a.pos = at;
-        a.params = p;
-        a.zorder = GameZOrder.Effects;
-        callbacks.scene.add(a);
-    }
-
     private void applyExplosion(PhysicObject o, Vector2f pos, float damage,
         Object cause = null)
     {
@@ -989,7 +904,7 @@ class GameEngine {
         auto iradius = cast(int)((radius+0.5f)/2.0f);
         if (damage_landscape)
             damageLandscape(toVector2i(pos), iradius, cause);
-        physicworld.objectsAt(pos, radius, (PhysicObject o) {
+        physicWorld.objectsAt(pos, radius, (PhysicObject o) {
             if (selective && !selective(o)) {
                 return true;
             }
@@ -1076,7 +991,7 @@ class GameEngine {
 
     //count sprites with passed spriteclass name currently in the game
     int countSprites(char[] name) {
-        auto sc = gfx.findSpriteClass(name, true);
+        auto sc = gfx.resources.get!(SpriteClass)(name, true);
         if (!sc)
             return 0;
         int ret = 0;
@@ -1315,6 +1230,11 @@ class GameEngine {
         addCmd(name, &pwrap.moo);
     }
 
+    //return null on failure
+    private WeaponClass findWeapon(char[] name) {
+        return gfx.resources.get!(WeaponClass)(name, true);
+    }
+
     private void createCmd() {
         mCmd = new CommandLine(globals.defaultOut);
         mCmds = new CommandBucket();
@@ -1347,7 +1267,7 @@ class GameEngine {
         addWormCmd("weapon", (TeamMember w, char[] weapon) {
             WeaponClass wc;
             if (weapon != "-")
-                wc = w.engine.gfx.findWeaponClass(weapon, true);
+                wc = w.engine.findWeapon(weapon);
             w.control.selectWeapon(wc);
         });
         addWormCmd("set_timer", (TeamMember w, int ms) {
@@ -1357,14 +1277,14 @@ class GameEngine {
             w.control.doSetPoint(Vector2f(x, y));
         });
         addWormCmd("select_fire_refire", (TeamMember w, char[] m, bool down) {
-            WeaponClass wc = w.engine.gfx.findWeaponClass(m);
+            WeaponClass wc = w.engine.findWeapon(m);
             w.control.selectFireRefire(wc, down);
         });
         addWormCmd("selectandfire", (TeamMember w, char[] m, bool down) {
             if (down) {
                 WeaponClass wc;
                 if (m != "-")
-                    wc = w.engine.gfx.findWeaponClass(m, true);
+                    wc = w.engine.findWeapon(m);
                 w.control.selectWeapon(wc);
                 //doFireDown will save the keypress and wait if not ready
                 w.control.doFireDown(true);

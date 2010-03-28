@@ -12,6 +12,8 @@ function getMeleeImpulseOnFire(strength, damage)
         end
         -- hm, why only worms? could be funny to baseball away mines
         -- but that's how it was before
+        -- xxx this allocates memory, isn't elegant, etc.
+        --  better way: use physic collision type for filtering
         if className(spr) == "WormSprite" then
             Phys_addImpulse(obj, info.dir * strength)
         end

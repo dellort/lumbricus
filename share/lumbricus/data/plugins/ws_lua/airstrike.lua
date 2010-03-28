@@ -3,7 +3,7 @@
 do
     local name = "airstrike"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -17,7 +17,7 @@ do
     enableExplosionOnImpact(sprite_class, 35)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class),
         onCreateSelector = AirstrikeControl_ctor,
         value = 10000,
@@ -38,7 +38,7 @@ do
     local name = "minestrike"
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getAirstrikeOnFire(mine_class, 10, 25),
         onCreateSelector = AirstrikeControl_ctor,
         value = 10000,
@@ -58,7 +58,7 @@ end
 do
     local name = "napalmstrike"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -83,7 +83,7 @@ do
     })
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class, 8, 45),
         onCreateSelector = AirstrikeControl_ctor,
         value = 10000,
@@ -104,7 +104,7 @@ end
 do
     local name = "carpetstrike"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -121,7 +121,7 @@ do
     end)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class, 6, 45),
         onCreateSelector = AirstrikeControl_ctor,
         value = 10000,
@@ -141,7 +141,7 @@ end
 do
     local name = "sheepstrike"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -159,7 +159,7 @@ do
     end)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class, 6, 45),
         onCreateSelector = AirstrikeControl_ctor,
         value = 10000,

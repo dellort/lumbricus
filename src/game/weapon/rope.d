@@ -100,7 +100,7 @@ class Rope : Shooter {
     //check if rope anchor is still connected / can be connected
     private bool checkRopeAnchor(Vector2f anchorpos) {
         GeomContact dummy;
-        return engine.physicworld.collideGeometry(anchorpos, cSegmentRadius + 2,
+        return engine.physicWorld.collideGeometry(anchorpos, cSegmentRadius + 2,
             dummy);
     }
 
@@ -216,7 +216,7 @@ class Rope : Shooter {
             }
 
             Vector2f hit1, hit2;
-            if (engine.physicworld.thickRay(mWorm.physics.pos, p2,
+            if (engine.physicWorld.thickRay(mWorm.physics.pos, p2,
                 cSegmentRadius, hit1, hit2))
             {
                 abortShoot();
@@ -233,7 +233,7 @@ class Rope : Shooter {
                     //segmentInit(ropeSegments[0]);
                     mRope = new PhysicConstraint(mWorm.physics, hit1, ropeLen,
                         0.8, false);
-                    engine.physicworld.add(mRope);
+                    engine.physicWorld.add(mRope);
                     mWorm.activateRope(&ropeMove);
                 } else {
                     interruptFiring();
@@ -283,7 +283,7 @@ class Rope : Shooter {
             //I think to make it 100% correct you had to pick the best match
             //of all of the possible collisions, but it isn't worth it
             Vector2f hit1, hit2;
-            if (engine.physicworld.thickRay(ropeSegments[$-1].start, wormPos,
+            if (engine.physicWorld.thickRay(ropeSegments[$-1].start, wormPos,
                 cSegmentRadius, hit1, hit2) && (wormPos-hit1).quad_length > 150)
             {
                 if (hit1 != hit2)

@@ -8,7 +8,7 @@ local function create(id)
         return false
     end
     createSpriteClass {
-        name = "gravestone" .. id,
+        name = "x_gravestone" .. id,
         initNoActivityWhenGlued = true,
         initPhysic = relay {
             collisionID = "grave",

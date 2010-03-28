@@ -179,7 +179,7 @@ class GameLandscape : GameObject {
         mPhysics.ls = this;
 
         //to enable level-bitmap collision
-        engine.physicworld.add(mPhysics);
+        engine.physicWorld.add(mPhysics);
 
         if (!mOriginal)
             return;
@@ -187,7 +187,7 @@ class GameLandscape : GameObject {
         //add borders, sadly they are invisible right now
         void add_wall(Vector2i from, Vector2i to) {
             auto wall = new PlaneGeometry(toVector2f(to), toVector2f(from));
-            engine.physicworld.add(wall);
+            engine.physicWorld.add(wall);
 
             mWalls ~= Wall(from, to);
         }

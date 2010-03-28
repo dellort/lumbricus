@@ -5,6 +5,7 @@ import framework.config;
 import framework.framework;
 import framework.font;
 import game.particles : ParticleType;
+public import game.teamtheme;
 import gui.rendertext;
 import gui.renderbox;
 import common.resset;
@@ -19,47 +20,36 @@ import str = utils.string;
 
 import physics.collisionmap;
 import physics.world;
+import game.core;
 import game.events;
 import game.sequence;
 import game.setup;
-import game.sprite;
-import game.weapon.weapon;
-import game.controller_events;
 
-class ClassNotRegisteredException : CustomException {
-    this(char[] msg) {
-        super(msg);
-    }
-}
 
 //references all graphic/sound (no sounds yet) resources etc.
 //after r866: extended to carry sprites & sequences
+//xxx doesn't seem to have much valur anymore... this used to hold all
+//  resources that are loaded before the GameEngine is created, but now the
+//  GameEngine is created before loading resources
+//- right now, still handles some annoying loading code
 class GfxSet {
     private {
         //bits from GameConfig; during loading
         ConfigNode[] mSequenceConfig;
-        ConfigNode[] mCollNodes;
-
-        //managment of sprite classes, for findSpriteClass()
-        SpriteClass[char[]] mSpriteClasses;
-
-        //same for weapons (also such a two-stage factory, creates Shooters)
-        WeaponClass[char[]] mWeaponClasses;
 
         CollisionMap mCollisionMap;
 
         bool mFinished;
-        Font mFlashFont;
     }
 
     //xxx only needed by sky.d
     ConfigNode config;
 
-    //null until begin of finishLoading()
     ResourceSet resources;
-
-    //lol sorry
     Events events;
+
+    //upper half of the GameEngine
+    GameCore core;
 
     //needed during loading
     //- first, all resources are collected here
@@ -100,12 +90,14 @@ class GfxSet {
 
     //the constructor does allmost all the work, but you have to call
     //finishLoading() too; in between, you can preload the resources
-    this(GameConfig cfg) {
-        events = new Events();
+    this(GameCore a_core, GameConfig cfg)
+    {
+        core = a_core;
+
+        resources = core.resources;
+        events = core.events;
 
         ConfigNode gfx = cfg.gfx;
-
-        mFlashFont = gFontManager.loadFont("wormfont_flash");
 
         char[] gfxconf = gfx.getStringValue("config", "wwp.conf");
         char[] watername = gfx.getStringValue("waterset", "blue");
@@ -130,7 +122,7 @@ class GfxSet {
         //xxx this file is loaded at two places (gravity in game engine)
         auto gameConf = loadConfig("game.conf", true);
 
-        mCollisionMap = new CollisionMap();
+        mCollisionMap = core.physicWorld.collide;
         addCollideConf(gameConf.getSubNode("collisions"));
     }
 
@@ -141,16 +133,9 @@ class GfxSet {
         return resources.get!(Object)(name, canfail);
     }
 
-    //fstr = string of the form "SequenceType:SequenceState"
-    //       e.g. "s_sheep:normal"
-    //this is just a shortcut for the full code
-    SequenceState findSequenceState(char[] fstr, bool canfail = false) {
-        auto s = str.split(fstr, ":");
-        argcheck(s.length == 2);
-        SequenceType seq = resources.get!(SequenceType)(s[0], canfail);
-        if (!seq)
-            return null;
-        return seq.findState(s[1], canfail);
+    //just for scripting
+    static FormattedText textCreate() {
+        return WormLabels.textCreate();
     }
 
     ResourceFile addGfxSet(ConfigNode conf) {
@@ -169,18 +154,17 @@ class GfxSet {
     }
 
     //call after resources have been preloaded
-    void finishLoading(ResourceSet loaded_resources) {
+    void finishLoading() {
         assert(!mFinished);
         assert(load_resources == null, "resources were added after preloading"
             " started => not good, they'll be missing");
-        assert(!resources, "what");
-        resources = loaded_resources;
 
         loadParticles();
         //loaded after all this because Sequences depend from Animations etc.
         loadSequences();
 
-        resources.seal(); //disallow addition of more resources
+        //commented when weapons and sprite classes got managed as resources
+        //--resources.seal(); //disallow addition of more resources
 
         loadTeamThemes();
         loadExplosions();
@@ -205,156 +189,24 @@ class GfxSet {
         //load sequences
         foreach (ConfigNode node; mSequenceConfig) {
             foreach (ConfigNode sub; node) {
-                auto t = new SequenceType(this, sub);
+                auto t = new SequenceType(core, sub);
                 resources.addResource(t, t.name);
             }
         }
     }
 
-    //called by sprite.d/SpriteClass.this() only
-    void registerSpriteClass(SpriteClass sc) {
-        argcheck(sc);
-        if (findSpriteClass(sc.name, true)) {
-            throw new CustomException("Sprite class " ~ sc.name
-                ~ " already registered");
-        }
-        assert(!!sc);
-        mSpriteClasses[sc.name] = sc;
+    //add to resource list
+    //this is typically used for weapons and spriteclasses, which are added
+    //  after resource loading
+    //the name must not be used yet
+    void registerResource(char[] name, Object obj) {
+        resources.addResource(obj, name);
     }
 
-    //find a sprite class
-    SpriteClass findSpriteClass(char[] name, bool canfail = false) {
-        SpriteClass* gosc = name in mSpriteClasses;
-        if (gosc)
-            return *gosc;
-
-        if (canfail)
-            return null;
-
-        //not found? xxx better error handling (as usual...)
-        throw new ClassNotRegisteredException("sprite class " ~ name
-            ~ " not found");
-    }
-
-    //mainly for scripts
-    void registerWeapon(WeaponClass c) {
-        argcheck(c);
-        if (findWeaponClass(c.name, true))
-            throw new CustomException("wepaon already exists: "~c.name);
-        mWeaponClasses[c.name] = c;
-    }
-
-    //find a weapon class
-    WeaponClass findWeaponClass(char[] name, bool canfail = false) {
-        WeaponClass* w = name in mWeaponClasses;
-        if (w)
-            return *w;
-
-        if (canfail)
-            return null;
-
-        //not found? xxx better error handling (as usual...)
-        throw new ClassNotRegisteredException("weapon class "
-            ~ name ~ " not found");
-    }
-
-    ///list of _all_ possible weapons, which are useable during the game
-    ///Team.getWeapons() must never return a Weapon not covered by this list
-    ///not deterministic (arbitrary order of weapons)
-    WeaponClass[] weaponList() {
-        return mWeaponClasses.values;
-    }
-
-    SpriteClass[] allSpriteClasses() {
-        return mSpriteClasses.values;
-    }
-
-    static BoxProperties textWormBorderStyle() {
-        //init to what we had in the GUI in r865
-        BoxProperties border;
-        border.border = Color(0.7);
-        border.back = Color(0,0,0,0.7);
-        border.borderWidth = 1;
-        border.cornerRadius = 3;
-        return border;
-    }
-
-    //and some more hacky hacks
-    static void textApplyWormStyle(FormattedText txt) {
-        txt.setBorder(textWormBorderStyle());
-        txt.font = gFontManager.loadFont("wormfont");
-    }
-
-    static FormattedText textCreate() {
-        auto txt = new FormattedText();
-        textApplyWormStyle(txt);
-        return txt;
-    }
-
-    Font textFlashFont() {
-        return mFlashFont;
-    }
-}
-
-//per-team themeing used by the game engine, by the GUI etc.
-//all members are read only after initialization
-class TeamTheme {
-    Color color;
-    int colorIndex; //index into cTeamColors
-    Font font, font_flash;
-
-    //wwp hardcodes these colors (there are separate bitmaps for each)
-    //the indices are also hardcoded to wwp (0 must be red etc.)
-    static const char[][] cTeamColors = [
-        "red",
-        "blue",
-        "green",
-        "yellow",
-        "magenta",
-        "cyan",
-    ];
-
-    Animation arrow, pointed, change, cursor, click, aim;
-
-    //the name used to identify the theme
-    //does not anymore equal to color string, see colors.conf
-    char[] name() {
-        return cTeamColors[colorIndex];
-    }
-
-    this(ResourceSet resources, int index) {
-        colorIndex = index;
-        char[] colorname = cTeamColors[colorIndex];
-        color = Color.fromString("team_" ~ colorname); //if it fails, it is messed up
-
-        Animation loadanim(char[] node) {
-            Animation ani = resources.get!(Animation)(node ~ "_" ~ name(), true);
-            if (!ani)
-                ani = resources.get!(Animation)(node);
-            return ani;
-        }
-
-        arrow = loadanim("darrow");
-        pointed = loadanim("pointed");
-        change = loadanim("change");
-        cursor = loadanim("point");
-        click = loadanim("click");
-        aim = loadanim("aim");
-
-        font = gFontManager.loadFont("wormfont");
-        //set color; Font is immutable
-        auto style = font.properties;
-        style.fore_color = color;
-        font = new Font(style);
-
-        font_flash = gFontManager.loadFont("wormfont_flash");
-    }
-
-    FormattedText textCreate() {
-        auto txt = new FormattedText();
-        GfxSet.textApplyWormStyle(txt);
-        txt.font = font;
-        return txt;
+    //find all resources of a specific type
+    //e.g. findResources!(WeaponClass)() => array of all possible weapons
+    T[] findResources(T)() {
+        return resources.findAll!(T)();
     }
 }
 

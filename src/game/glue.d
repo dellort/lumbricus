@@ -13,6 +13,8 @@ public import game.temp;
 ///calls from engine into clients
 ///for stuff that can't simply be polled
 ///anyone in the client engine can register callbacks here
+//xxx: this is crap and should go away; all fields can be directly on the
+//  game engine; the only problem is module dependencies (that Team* stuff)
 class GameEngineCallback {
 
     //looks like I'm turning this into a dumping ground for other stuff

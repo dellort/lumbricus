@@ -405,7 +405,7 @@ extern(C) private int scriptEventsRaise(lua_State* state) {
 //this checks event parameter types at compile time
 //xxx would be nice as struct too, but I get forward reference errors
 //xxx 2 the name will add major symbol name bloat, argh.
-template DeclareEvent(char[] name, SenderBase, Args...) {
+class DeclareEvent(char[] name, SenderBase, Args...) {
     static assert(is(SenderBase : EventTarget));
     alias void delegate(SenderBase, Args) Handler;
     alias ParamStruct!(Args) ParamType;

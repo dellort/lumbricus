@@ -456,7 +456,7 @@ class GameTask {
             }
         }
         this() {
-            auto ph = mGameShell.serverEngine.physicworld;
+            auto ph = mGameShell.serverEngine.physicWorld;
             auto types = ph.collide.collisionTypes;
             auto table = new TableContainer(types.length+1, types.length+1,
                 Vector2i(2));

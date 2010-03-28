@@ -1,4 +1,4 @@
-local sprite_class = WormSpriteClass_ctor(Gfx, "worm")
+local sprite_class = WormSpriteClass_ctor(Gfx, "x_worm")
 
 -- selects SequenceObject, which again is provided in wwp.conf
 local sequence_object = Gfx_resource("s_worm")
@@ -279,4 +279,4 @@ for name, state in pairs(states) do
 end
 
 WormSpriteClass_finishLoading(sprite_class)
-Gfx_registerSpriteClass(sprite_class)
+Gfx_registerResource(SpriteClass_name(sprite_class), sprite_class)

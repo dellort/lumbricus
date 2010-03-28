@@ -3,6 +3,7 @@ module game.controller;
 import common.animation;
 import common.common;
 import common.scene;
+import common.resset;
 import framework.commandline;
 import game.game;
 import game.gfxset;
@@ -546,7 +547,7 @@ class TeamMember : GameObject {
         assert (!mWormControl);
         //create and place into the landscape
         //habemus lumbricus
-        Sprite worm = engine.createSprite("worm");
+        Sprite worm = engine.createSprite("x_worm");
         WormSprite xworm = castStrict!(WormSprite)(worm); //xxx no WormSprite
         assert(worm !is null);
         worm.physics.lifepower = mTeam.initialPoints;
@@ -906,7 +907,7 @@ class GameController {
                         mEngine.queuePlaceOnLandscape(
                             mEngine.createSprite(sub["type"]));
                     }
-                } catch (ClassNotRegisteredException e) {
+                } catch (ResourceException e) {
                     engine.error("Warning: Placing {} objects failed",
                         sub["type"]);
                     continue;
@@ -1007,7 +1008,7 @@ class GameController {
             return false;
         }
 
-        Sprite s = engine.createSprite("crate");
+        Sprite s = engine.createSprite("x_crate");
         CrateSprite crate = cast(CrateSprite)s;
         assert(!!crate);
         //put stuffies into it

@@ -991,6 +991,8 @@ class LuaRegistry {
         extern(C) static int demarshal(lua_State* state) {
             const methodName = Class.stringof ~ '.' ~ name;
             alias Class C;
+            //xxx when binding a normal virtual method with static_method, it
+            //  compiles and a segfault happens as the script calls it
             auto fn = mixin("&C."~name);
             return callFromLua(fn, state, 0, methodName);
         }

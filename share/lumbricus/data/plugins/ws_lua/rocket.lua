@@ -3,7 +3,7 @@
 do
     local name = "bazooka"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10, -- 10 whatevertheffffunitthisis
@@ -18,7 +18,7 @@ do
     enableExplosionOnImpact(sprite_class, 50)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(sprite_class),
         category = "fly",
         value = 10,
@@ -37,7 +37,7 @@ end
 do
     local name = "mortar"
     local cluster = createSpriteClass {
-        name = name .. "_cluster",
+        name = "x_" .. name .. "_cluster",
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -50,7 +50,7 @@ do
     }
     enableExplosionOnImpact(cluster, 25)
     local main = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -73,7 +73,7 @@ do
     end)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(main),
         category = "fly",
         value = 10,
@@ -110,7 +110,7 @@ do -- xxx missing: deathzone_immune for active missile
     })
 
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay(inactive_phys),
         sequenceType = "s_homing",
         noDrown = true,
@@ -188,7 +188,7 @@ do -- xxx missing: deathzone_immune for active missile
     end)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(sprite_class),
         category = "fly",
         value = 10,
@@ -205,7 +205,7 @@ do -- xxx missing: deathzone_immune for active missile
 
     -- crate sprite: explodes on impact
     local crate_class = createSpriteClass {
-        name = name .. "crate_sprite",
+        name = "x_" .. name .. "crate_sprite",
         initPhysic = relay(inactive_phys),
         sequenceType = "s_homing",
     }

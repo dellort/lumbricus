@@ -20,18 +20,15 @@ static this() {
         "checkForActivity", "gameObjectFirst", "gameObjectNext",
         "debug_pickObject", "benchStart");
     gScripting.properties_ro!(GameEngine, "events", "globalEvents",
-        "benchActive");
-    gScripting.properties!(GameEngine, "persistentState", "gameLandscapes",
-        "scene");
+        "benchActive", "scene");
+    gScripting.properties!(GameEngine, "persistentState", "gameLandscapes");
 
     gScripting.properties_ro!(GameLandscape, "landscape", "rect");
 
     gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder", "size");
 
     gScripting.setClassPrefix!(GfxSet)("Gfx");
-    gScripting.methods!(GfxSet, "findSpriteClass", "findWeaponClass",
-        "weaponList", "registerWeapon", "registerSpriteClass",
-        "findSequenceState");
+    gScripting.methods!(GfxSet,"registerResource");
     gScripting.static_method!(GfxSet, "textCreate");
     gScripting.method!(GfxSet, "scriptGetRes")("resource");
 

@@ -22,7 +22,7 @@ do
         end
     )
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = fire,
         onInterrupt = interrupt,
         onReadjust = readjust,
@@ -41,7 +41,7 @@ end
 do
     local name = "molotov"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = "10",
@@ -62,7 +62,7 @@ do
     end)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(sprite_class),
         value = 10,
         category = "misc2",
@@ -82,7 +82,7 @@ end
 do
     local name = "penguin"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 200,
@@ -104,7 +104,7 @@ do
     end)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class, 1),
         isAirstrike = true,
         category = "misc1",
@@ -120,7 +120,7 @@ end
 do
     local name = "mbbomb"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 2,
@@ -135,7 +135,7 @@ do
     enableExplosionOnImpact(sprite_class, 75)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class, 1),
         isAirstrike = true,
         category = "misc3",
@@ -151,7 +151,7 @@ end
 do
     local name = "esel"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "weapon",
             mass = 200,
@@ -181,7 +181,7 @@ do
     end)
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class, 1),
         isAirstrike = true,
         category = "misc3",
@@ -198,7 +198,7 @@ end
 do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in old set
     local name = "blackhole_bomb"
     local nuke = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -212,7 +212,7 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
         sequenceType = "s_antimatter_nuke",
     }
     local blackhole = createSpriteClass {
-        name = name .. "_sprite2",
+        name = "x_" .. name .. "_active",
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -250,7 +250,7 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
     })
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = getStandardOnFire(nuke),
         category = "misc1",
         value = 10,
@@ -271,7 +271,7 @@ end
 do
     local name = "armageddon"
     local sprite_class = createSpriteClass {
-        name = name .. "_sprite",
+        name = "x_" .. name,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -286,7 +286,7 @@ do
     enableExplosionOnImpact(sprite_class, utils.range(40, 75))
 
     local w = createWeapon {
-        name = name,
+        name = "w_" .. name,
         onFire = function(shooter, fireinfo)
             Shooter_reduceAmmo(shooter)
             -- xxx can the shooter continue running (for activity) stuff, or
@@ -330,7 +330,7 @@ do
 end
 
 createWeapon {
-    name = "atomtest",
+    name = "w_atomtest",
     value = 10000,
     category = "misc3",
     cooldown = time("5s"),
@@ -349,7 +349,7 @@ createWeapon {
 }
 
 createWeapon {
-    name = "earthquake",
+    name = "w_earthquake",
     value = 10000,
     category = "misc3",
     cooldown = time("5s"),

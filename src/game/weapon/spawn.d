@@ -72,7 +72,7 @@ void spawnAirstrike(SpriteClass sclass, int count, GameObject shootbyObject,
     {
         //correct spawn position, so airstrikes thrown at an angle
         //will still hit the clicked position
-        float a = engine.physicworld.gravity.y;
+        float a = engine.physicWorld.gravity.y;
         float v = about.dir.y*about.strength;
         //elementary physics ;)
         float t = (-v + math.sqrt(v*v+2.0f*a*dy))/a;  //time for drop

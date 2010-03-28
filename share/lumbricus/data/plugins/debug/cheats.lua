@@ -196,7 +196,7 @@ function E.benchNapalm()
     -- this thing is just so we can use spawnCluster()
     if not spawner_class then
         spawner_class = createSpriteClass {
-            name = "some_napalm_spawner",
+            name = "x_some_napalm_spawner",
             initPhysic = relay {
                 fixate = Vector2(0, 0),
             },

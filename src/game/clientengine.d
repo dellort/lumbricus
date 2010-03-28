@@ -105,7 +105,7 @@ class ClientGameEngine : GameEngineCallback {
         cb.getRenderTime = &do_getRenderTime;
 
         //why not use mEngineTime? because higher/non-fixed framerate
-        mParticles = new ParticleWorld();
+        mParticles = mEngine.particleWorld();
         cb.particleEngine = mParticles;
 
         readd_graphics();

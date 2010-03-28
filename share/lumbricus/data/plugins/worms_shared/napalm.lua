@@ -17,7 +17,7 @@ end
 
 -- napalm which doesn't "stick"
 M.standard_napalm = createSpriteClass {
-    name = "standard_napalm",
+    name = "x_standard_napalm",
     ctor = "NapalmSpriteClass_ctor",
     initPhysic = phys(3),
     physMedium = phys(2),

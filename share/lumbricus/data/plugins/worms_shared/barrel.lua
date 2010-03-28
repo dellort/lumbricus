@@ -2,7 +2,7 @@ local M = export_table()
 
 -- depends from napalm
 local s = createSpriteClass {
-    name = "barrel",
+    name = "x_barrel",
     initNoActivityWhenGlued = true,
     initPhysic = relay {
         radius = 10,

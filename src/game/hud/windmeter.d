@@ -48,7 +48,7 @@ class WindMeter : Widget {
         mPosCenter.x = minSize.x/2;
         mPosCenter.y = borderdist;
 
-        mBoxStyle = GfxSet.textWormBorderStyle();
+        mBoxStyle = WormLabels.textWormBorderStyle();
     }
 
     protected void onDraw(Canvas canvas) {

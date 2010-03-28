@@ -21,7 +21,7 @@ local function createGun(params)
 end
 
 createGun {
-    name = "minigun",
+    name = "w_minigun",
     value = 10,
     animation = "weapon_minigun",
     icon = "icon_minigun",
@@ -32,7 +32,7 @@ createGun {
 }
 
 createGun {
-    name = "pistol",
+    name = "w_pistol",
     value = 10,
     animation = "weapon_pistol",
     icon = "icon_pistol",
@@ -43,7 +43,7 @@ createGun {
 }
 
 createGun {
-    name = "uzi",
+    name = "w_uzi",
     value = 10,
     animation = "weapon_uzi",
     icon = "icon_uzi",
@@ -54,7 +54,7 @@ createGun {
 }
 
 createGun {
-    name = "laser",
+    name = "w_laser",
     value = 12,
     animation = "weapon_sheeplauncher",
     icon = "icon_shotgun",
@@ -66,7 +66,7 @@ createGun {
 
 -- shotgun is special because it has refire-handling
 do
-    local name = "shotgun"
+    local name = "w_shotgun"
 
     local function doshot(shooter)
         local ctx = get_context(shooter)

@@ -1,5 +1,6 @@
 module game.weapon.weaponset;
 
+import common.resset;
 import game.controller_events;
 import game.game;
 import game.gfxset;
@@ -45,10 +46,10 @@ class WeaponSet : GameObject {
             uint quantity;
             char[] wname = node.name;
             try {
-                //may throw ClassNotRegisteredException
-                w = engine.gfx.findWeaponClass(wname);
+                //may throw some exception
+                w = engine.gfx.resources.get!(WeaponClass)(wname);
                 assert(!!w);
-            } catch (ClassNotRegisteredException e) {
+            } catch (ResourceException e) {
                 engine.error("Error in weapon set '{}': {}", wname, e.msg);
                 continue;
             }

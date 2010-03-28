@@ -92,7 +92,7 @@ class Jetpack : Shooter, Controllable {
         }
         if (internal_active && myclass.maxTime != Time.Never) {
             assert(!!mWorm.graphic);
-            mTimeLabel = engine.gfx.textCreate();
+            mTimeLabel = WormLabels.textCreate();
             mWorm.graphic.attachText = mTimeLabel;
         } else {
             if (mTimeLabel && mWorm && mWorm.graphic) {
