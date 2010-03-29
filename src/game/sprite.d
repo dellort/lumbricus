@@ -1,18 +1,13 @@
 module game.sprite;
 
 import framework.framework;
+import game.core;
 import game.events;
-import game.game;
-import game.gobject;
 import game.sequence;
 import game.temp : GameZOrder;
-import game.gfxset;
 import game.particles;
-import net.marshal : Hasher;
+import net.marshal; // : Hasher;
 import physics.world;
-
-//temporary?
-import game.controller_events;
 
 import utils.vector2;
 import utils.rect2;
@@ -25,6 +20,28 @@ import utils.time;
 private LogStruct!("game.sprite") log;
 
 //version = RotateDebug;
+
+//called when sprite is finally dead (for worms: when done blowing up)
+alias DeclareEvent!("sprite_die", Sprite) OnSpriteDie;
+//on Sprite.waterStateChange()
+alias DeclareEvent!("sprite_waterstate", Sprite) OnSpriteWaterState;
+//with Sprite.activate()
+alias DeclareEvent!("sprite_activate", Sprite) OnSpriteActivate;
+//whenever the glue status changes (checked/called every frame)
+alias DeclareEvent!("sprite_glue_changed", Sprite) OnSpriteGlueChanged;
+//see Sprite.exceedVelocity
+alias DeclareEvent!("sprite_exceed_velocity", Sprite) OnSpriteExceedVelocity;
+//not called by default; see Sprite.notifyAnimationEnd
+alias DeclareEvent!("sprite_animation_end", Sprite) OnSpriteAnimationEnd;
+//physics.lifepower <= 0
+alias DeclareEvent!("sprite_zerohp", Sprite) OnSpriteZeroHp;
+//victim, cause, type, damage
+//  cause can be null (e.g. for fall damage)
+alias DeclareEvent!("sprite_damage", Sprite, GameObject, DamageCause,
+    float) OnDamage;
+//well whatever this is
+//should be avoided in scripting; the Vector2f will allocate a table
+alias DeclareEvent!("sprite_impact", Sprite, Vector2f) OnSpriteImpact;
 
 //object which represents a PhysicObject and an animation on the screen
 //also provides loading from ConfigFiles
@@ -61,8 +78,8 @@ class Sprite : GameObject {
     //  readyflag is true; notifyAnimationEnd is reset to false as well
     bool notifyAnimationEnd;
 
-    this(GameEngine a_engine, SpriteClass a_type) {
-        super(a_engine, a_type.name);
+    this(SpriteClass a_type) {
+        super(a_type.engine, a_type.name);
         mType = a_type;
         assert(!!mType);
 
@@ -114,10 +131,7 @@ class Sprite : GameObject {
         physics.remove = true;
         if (internal_active) {
             engine.physicWorld.add(physics);
-            auto member = engine.controller ?
-                engine.controller.memberFromGameObject(this, true) : null;
-            auto owner = member ? member.team : null;
-            graphic = new Sequence(engine, owner ? owner.teamColor : null);
+            graphic = new Sequence(engine, engine.teamThemeOf(this));
             graphic.zorder = GameZOrder.Objects;
             if (auto st = type.getInitSequenceState())
                 graphic.setState(st);
@@ -206,7 +220,7 @@ class Sprite : GameObject {
         mParticleEmitter.current = mCurrentParticle;
         mParticleEmitter.pos = physics.pos;
         mParticleEmitter.velocity = physics.velocity;
-        mParticleEmitter.update(engine.callbacks.particleEngine);
+        mParticleEmitter.update(engine.particleWorld);
     }
 
     final void setParticle(ParticleType pt) {
@@ -235,8 +249,8 @@ class Sprite : GameObject {
         OnSpriteWaterState.raise(this);
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
+    override void simulate() {
+        super.simulate();
 
         bool glue = physics.isGlued;
         if (glue != mOldGlueState) {
@@ -299,7 +313,7 @@ class Sprite : GameObject {
 }
 
 class SpriteClass {
-    GfxSet gfx;
+    GameCore engine;
     char[] name;
 
     SequenceType sequenceType;
@@ -316,15 +330,15 @@ class SpriteClass {
     ParticleType initParticle;
     bool initNoActivityWhenGlued = false;
 
-    this (GfxSet gfx, char[] regname) {
-        this.gfx = gfx;
-        name = regname;
+    this (GameCore a_core, char[] a_name) {
+        engine = a_core;
+        name = a_name;
 
         initPhysic = new POSP();
     }
 
-    Sprite createSprite(GameEngine engine) {
-        return new Sprite(engine, this);
+    Sprite createSprite() {
+        return new Sprite(this);
     }
 
     //may return null

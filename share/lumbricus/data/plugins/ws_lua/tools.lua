@@ -179,10 +179,10 @@ createWeapon {
     swingForce = 3000,
     swingForceUp = 2000,
     ropeColor = {0.8, 0.8, 0.8},
-    ropeSegment = Gfx_resource("rope_segment"),
+    ropeSegment = lookupResource("rope_segment"),
 
     animation = "weapon_rope",
-    anchorAnim = Gfx_resource("rope_anchor"),
+    anchorAnim = lookupResource("rope_anchor"),
 
     fireMode = {
         direction = "any",

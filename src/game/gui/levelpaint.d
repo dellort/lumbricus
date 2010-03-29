@@ -3,7 +3,6 @@ module game.gui.levelpaint;
 import framework.framework;
 import framework.i18n;
 import common.common;
-import game.gfxset;
 import game.levelgen.generator;
 import game.levelgen.renderer;
 import game.levelgen.level;

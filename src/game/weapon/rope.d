@@ -4,8 +4,8 @@ import framework.framework;
 import common.animation;
 import common.resset;
 import common.scene;
+import game.core;
 import game.game;
-import game.gfxset;
 import game.sprite;
 import game.weapon.weapon;
 import game.worm;
@@ -33,11 +33,11 @@ class RopeClass : WeaponClass {
 
     Animation anchorAnim;
 
-    this(GfxSet gfx, char[] name) {
-        super(gfx, name);
+    this(GameCore core, char[] name) {
+        super(core, name);
     }
 
-    override Shooter createShooter(Sprite go, GameEngine engine) {
+    override Shooter createShooter(Sprite go) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
@@ -203,8 +203,8 @@ class Rope : Shooter {
         mAnchorAngle = toAnchor.toAngle();
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
+    override void simulate() {
+        super.simulate();
         if (mShooting) {
             float t = (engine.gameTime.current - mShootStart).secsf;
             auto p2 = mWorm.physics.pos + mShootDir*myclass.shootSpeed*t;
@@ -369,8 +369,7 @@ class Rope : Shooter {
         Vector2f anchorPos = mAnchorPosition;
         if (mShooting) {
             //interpolate anchor
-            float t = (engine.callbacks.interpolateTime.current
-                - mShootStart).secsf;
+            float t = (engine.interpolateTime.current - mShootStart).secsf;
             anchorPos = wormPos + mShootDir*myclass.shootSpeed*t;
         }
 

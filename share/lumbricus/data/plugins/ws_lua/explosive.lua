@@ -86,7 +86,7 @@ do
     local seq_states = {}
     local seq_to_drown = {}
     for i, v in ipairs(seqs) do
-        local seq = Gfx_resource(v)
+        local seq = lookupResource(v)
         local state = SequenceType_findState(seq, "normal")
         seq_states[i] = state
         seq_to_drown[state] = SequenceType_findState(seq, "drown")
@@ -145,7 +145,7 @@ do
     local seq = SpriteClass_sequenceType(mine_class)
     assert(seq)
     local flash_graphic = SequenceType_findState(seq, "flashing")
-    local flash_particle = Gfx_resource("p_mine_flash")
+    local flash_particle = lookupResource("p_mine_flash")
     -- timer for initial delay
     enableSpriteTimer(mine_class, {
         defTimer = timeSecs(3),

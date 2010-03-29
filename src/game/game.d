@@ -2,7 +2,6 @@ module game.game;
 import game.effects;
 import game.levelgen.level;
 import game.levelgen.landscape;
-import game.gobject;
 import physics.world;
 import game.gfxset;
 import game.glevel;
@@ -10,15 +9,13 @@ import game.sprite;
 import common.animation;
 import common.common;
 import common.scene;
-import game.controller;
-import game.controller_events;
 import game.core;
 import game.lua.base;
 import game.weapon.weapon;
 import game.events;
-import game.glue;
 import game.sequence;
 import game.setup;
+import game.temp;
 import game.particles;
 import gui.rendertext; //oops, the core shouldn't really depend from the GUI
 import net.marshal : Hasher;
@@ -37,7 +34,6 @@ import common.resset;
 
 import tango.math.Math;
 import tango.util.Convert : to;
-import tango.core.Traits : ParameterTupleOf;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 
@@ -45,10 +41,22 @@ import game.levelgen.renderer;// : LandscapeBitmap;
 //also check physic frame length cPhysTimeStepMs in world.d
 const Time cFrameLength = timeMsecs(20);
 
-//dummy object *sigh*
-class GlobalEvents : GameObject {
-    this(GameEngine aengine) { super(aengine, "root"); }
-    override bool activity() { return false; }
+//legacy crap (makes engine available as GameEngine, instead of GameCore)
+abstract class GameObject2 : GameObject {
+    private GameEngine mEngine;
+
+    //event_target_type: not needed anymore, but leaving it in for now
+    //  basically should give the type of the game object as a string
+    this(GameEngine aengine, char[] event_target_type) {
+        assert(aengine !is null);
+        super(aengine, event_target_type);
+        mEngine = aengine;
+    }
+
+    //reintroduce GameObject.engine()
+    final GameEngine engine() {
+        return mEngine;
+    }
 }
 
 //code to manage a game session (hm, whatever this means)
@@ -63,31 +71,29 @@ class GameEngine : GameCore {
     //     needed and can be moved into some dark corner of the game
     GameLandscape[] gameLandscapes;
 
-    GameConfig gameConfig;
     ConfigNode persistentState;
-    GlobalEvents globalEvents;
 
     const cDamageToImpulse = 140.0f;
     const cDamageToRadius = 2.0f;
 
-    GfxSet gfx;
-    alias gfx mGfx;
+    //helper for profiling
+    //returns the real time or thread time (depends from utils/perf.d) spent
+    //  while drawing the game and non-GUI parts of the game hud (worm labels)
+    Time delegate() getRenderTime;
+
+    //dependency hack
+    void delegate(Sprite s) onOffworld;
 
     private {
         static LogStruct!("game.game") log;
 
-        GameEngineCallback mCallbacks;
-
-        ObjectList!(GameObject, "all_node") mAllObjects, mKillList;
-        ObjectList!(GameObject, "sim_node") mActiveObjects;
-
         PhysicZonePlane mWaterBorder;
         WaterSurfaceGeometry mWaterBouncer;
 
-        //GfxSet mGfx;
-        ConfigNode mGameConf;
+        //only for explosions; lazily initialized
+        GfxSet mGfx;
 
-        GameController mController;
+        ConfigNode mGameConf;
 
         WindyForce mWindForce;
         PhysicTimedChangerFloat mWindChanger;
@@ -100,15 +106,7 @@ class GameEngine : GameCore {
         //generates earthquakes
         EarthQuakeForce mEarthquakeForceVis, mEarthquakeForceDmg;
 
-        Object[char[]] mHudRequests;
-
         Sprite[] mPlaceQueue;
-
-        AccessEntry[] mAccessMapping;
-        struct AccessEntry {
-            char[] tag;
-            Team team;
-        }
 
         bool mBenchMode;
         int mBenchFramesMax;
@@ -131,25 +129,15 @@ class GameEngine : GameCore {
 
     //config- and gametype-independant initialization
     //(stuff that every possible game always needs)
-    this(Level a_level, TimeSourcePublic a_gameTime,
+    this(GameConfig a_config, TimeSourcePublic a_gameTime,
         TimeSourcePublic a_interpolateTime)
     {
-        super(a_level, a_gameTime, a_interpolateTime);
+        super(a_config, a_gameTime, a_interpolateTime);
 
         scripting.addSingleton(this);
 
         events.onScriptingError = &eventScriptError;
-        createCmd();
-        mCallbacks = new GameEngineCallback();
-        mCallbacks.particleEngine = particleWorld;
-        mCallbacks.scene = scene;
-        mCallbacks.interpolateTime = interpolateTime;
 
-        mAllObjects = new typeof(mAllObjects)();
-        mKillList = new typeof(mKillList)();
-        mActiveObjects = new typeof(mActiveObjects)();
-
-        globalEvents = new GlobalEvents(this);
 
         mGameConf = loadConfig("game");
 
@@ -158,30 +146,32 @@ class GameEngine : GameCore {
         //hm!?!?
         physicWorld.onCollide = &onPhysicHit;
 
-        OnHudAdd.handler(events, &onHudAdd);
-
         //scripting initialization
         //code loaded here can be considered "internal" and should explode
         //  on errors
         scripting.onError = &scriptingObjError;
 
         events.setScripting(scripting, "eventhandlers_global");
-    }
 
-    //only separate because of the GfxSet singleton; see gameshell.d
-    void loadStdScripts() {
         foreach (char[] name, char[] value; mGameConf.getSubNode("scripts")) {
             loadScript(value);
         }
     }
 
-    void initGame(GameConfig config) {
+    //wrapper for the cast to make it easier to search for all occurrences where
+    //  going from GameCore -> GameEngine was needed
+    static GameEngine fromCore(GameCore core) {
+        return castStrict!(GameEngine)(core);
+    }
+
+    void initGame() {
+        auto config = gameConfig;
+
         //game initialization must be deterministic; so unless GameConfig
         //contains a good pre-generated seed, use a fixed seed (see above)
         if (config.randomSeed.length > 0) {
             rnd.seed(to!(uint)(config.randomSeed));
         }
-        gameConfig = config;
 
         persistentState = config.gamestate.copy();
 
@@ -232,6 +222,8 @@ class GameEngine : GameCore {
         physicWorld.add(dz);
 
         //create trigger to check for objects leaving the playable area
+        //xxx this can go into the controller; it is only needed to take control
+        //  of worms that leave the level
         auto worldZone = new PhysicZoneXRange(0, level.worldSize.x);
         //only if completely outside (= touching the game area inverted)
         worldZone.whenTouched = true;
@@ -256,54 +248,10 @@ class GameEngine : GameCore {
 
         //initialize loaded plugins
         OnGameInit.raise(globalEvents);
-
-        //NOTE: GameController relies on many stuff at initialization
-        //i.e. physics for worm placement
-        //and a complete weapon class list (when loading team weaponsets)
-        new GameController(this, config);
-
-        //read the shitty access map, need to have access to the controller
-        auto map = config.management.getSubNode("access_map");
-        foreach (ConfigNode sub; map) {
-            //sub is "tag_name { "teamid1" "teamid2" ... }"
-            foreach (char[] key, char[] value; sub) {
-                Team found;
-                foreach (Team t; controller.teams) {
-                    if (t.id() == value) {
-                        found = t;
-                        break;
-                    }
-                }
-                //xxx error handling
-                assert(!!found, "invalid team id: "~value);
-                mAccessMapping ~= AccessEntry(sub.name, found);
-            }
-        }
     }
 
     final void loadScript(char[] filename) {
         .loadScript(scripting(), filename);
-    }
-
-    Sprite createSprite(char[] name) {
-        return gfx.resources.get!(SpriteClass)(name).createSprite(this);
-    }
-
-    package void setController(GameController ctl) {
-        assert(!mController);
-        mController = ctl;
-    }
-
-    //lol.
-    GameController controller() {
-        return mController;
-    }
-    alias controller logic;
-
-    //--- start GameEnginePublic
-
-    final GameEngineCallback callbacks() {
-        return mCallbacks;
     }
 
     ///return y coordinate of waterline
@@ -326,13 +274,6 @@ class GameEngine : GameCore {
     GameConfig config() {
         return gameConfig;
     }
-
-    ///game resources, must not modify returned object
-    //GfxSet gfx() {
-    //    return mGfx;
-    //}
-
-    //--- end GameEnginePublic
 
     private void windChangerUpdate(float val) {
         mWindForce.windSpeed = Vector2f(val,0);
@@ -370,14 +311,9 @@ class GameEngine : GameCore {
 
     private void offworldTrigger(PhysicTrigger sender, PhysicObject other) {
         auto x = cast(Sprite)(other.backlink);
-        auto member = mController.memberFromGameObject(x, false);
-        if (!member)
-            return; //I don't know, try firing lots of mine airstrikes
-        //xxx team stuff should get out of here
-        //  rather, somehow affect the object directly, and the team code has to
-        //  react on it
-        if (member.active)
-            member.active(false);
+        if (x && onOffworld) {
+            onOffworld(x);
+        }
     }
 
     //wind speeds are in [-1.0, 1.0]
@@ -416,15 +352,7 @@ class GameEngine : GameCore {
     }
 
     void nukeSplatEffect() {
-        callbacks.scene.add(new NukeSplatEffect());
-    }
-
-    void ensureAdded(GameObject obj) {
-        assert(obj._is_active());
-        //in case of lazy removal
-        //note that .contains is O(1) if used with .node
-        if (!mActiveObjects.contains(obj))
-            mActiveObjects.add(obj);
+        scene.add(new NukeSplatEffect());
     }
 
     void frame() {
@@ -436,17 +364,7 @@ class GameEngine : GameCore {
         physicWorld.simulate(gameTime.current);
         physicTime.stop();
 
-        mController.simulate();
-
-        //update game objects
-        //NOTE: objects might be inserted/removed while iterating
-        //      List.opApply can deal with that
-        float deltat = gameTime.difference.secsf;
-        foreach (GameObject o; mActiveObjects) {
-            if (o._is_active()) {
-                o.simulate(deltat);
-            }
-        }
+        objects_simulate();
 
         //xxx not sure where script functions should be called
         //  this will handle all script timers and per-frame functions
@@ -457,7 +375,7 @@ class GameEngine : GameCore {
             error("Scripting error: {}", e.msg);
         }
 
-        cleanup_objects();
+        objects_cleanup();
 
         if (mBenchSimTime)
             mBenchSimTime.stop();
@@ -478,54 +396,6 @@ class GameEngine : GameCore {
         }
     }
 
-    //per-frame cleanup for GameObjects
-    private void cleanup_objects() {
-        //remove inactive objects from list before killing the game objects,
-        //  just needed because of debugging memory stomp
-        foreach (GameObject o; mActiveObjects) {
-            if (!o._is_active()) {
-                //remove (it's done lazily, and here it's actually removed)
-                mActiveObjects.remove(o);
-            }
-        }
-
-        //the promise is, that dead objects get invalid only in the "next" game
-        //  frame - and this is here
-        foreach (GameObject o; mKillList) {
-            log("killed GameObject: {}", o);
-            mKillList.remove(o);
-            scripting().call("game_kill_object\0", o);
-            //for debugging: clear the object by memory stomping it
-            //scripting could still access the object, violating the rules; but
-            //  we have to stay memory safe, so that evil scripts can't cause
-            //  security issues
-            //but clearing with 0 should be fine... maybe
-            //ok, case 1 where this will cause failure:
-            //  1. shoot at something (bazooka on barrel)
-            //  2. on explosion, it will crash in Sprite.physDamage, because
-            //     the "cause" parameter refers to an outdated GameObject (the
-            //     dynamic cast will segfault if stomping is enabled)
-            //  3. the "cause" is saved by some PhysicForce object, and that
-            //     object probably exploded and was "killed" (creating that
-            //     PhysicForce with the explosion)
-            //  - not assigning a "cause" in explosionAt() works it around
-            //case 2:
-            //  worm dies => everyone uses a dead sprite
-            //case 3:
-            //  mLastCrate in controller.d
-            //case 4:
-            //  throwing a carpet bomb (don't know why)
-            if (o.dontDieOnMe.length) {
-                log("don't stomp, those still need it: {}", o.dontDieOnMe);
-                continue;
-            }
-            //can uncomment this to enable delicious crashes whenever dead
-            //  objects are being accessed
-            //(cast(ubyte*)cast(void*)o)[0..o.classinfo.init.length] = 0;
-        }
-        mKillList.clear();
-    }
-
     //benchmark mode over simtime game time
     void benchStart(Time simtime) {
         mBenchMode = true;
@@ -533,7 +403,7 @@ class GameEngine : GameCore {
         auto p = registerLog("benchmark");
         p("Start benchmark, {} => {} frames...", simtime, mBenchFramesMax);
         mBenchFramesCur = 0;
-        mBenchDrawTime = mCallbacks.getRenderTime();
+        mBenchDrawTime = getRenderTime();
         if (!mBenchSimTime)
             mBenchSimTime = new PerfTimer(true);
         mBenchSimTime.reset();
@@ -551,7 +421,7 @@ class GameEngine : GameCore {
         assert(mBenchMode);
         mBenchMode = false;
         mBenchRealTime.stop();
-        mBenchDrawTime = mCallbacks.getRenderTime() - mBenchDrawTime;
+        mBenchDrawTime = getRenderTime() - mBenchDrawTime;
         auto p = registerLog("benchmark");
         p("Benchmark done ({} frames)", mBenchFramesCur);
         p("Real time (may or may not include sleep() calls): {}",
@@ -567,15 +437,6 @@ class GameEngine : GameCore {
         //foreach (GameObject o; mObjects) {
         //    o.kill();
         //}
-    }
-
-    //only for gobject.d
-    package void _object_created(GameObject obj) {
-        mAllObjects.add(obj);
-    }
-    package void _object_killed(GameObject obj) {
-        mAllObjects.remove(obj);
-        mKillList.add(obj);
     }
 
     Rect2f placementArea() {
@@ -685,6 +546,7 @@ class GameEngine : GameCore {
             && abs(contact.normal.x) < -contact.normal.y*1.19f)
         {
             //check distance to other sprites
+            //fucking code duplication
             foreach (GameObject o; mAllObjects) {
                 auto s = cast(Sprite)o;
                 if (s && s.visible) {
@@ -784,19 +646,10 @@ class GameEngine : GameCore {
         mPlaceQueue = null;
     }
 
-    private void onHudAdd(GameObject sender, char[] id, Object obj) {
-        assert(!(id in mHudRequests), "id must be unique?");
-        mHudRequests[id] = obj;
-    }
-
-    //just needed for game loading (see gameframe.d)
-    //(actually, this is needed even on normal game start)
-    Object[char[]] allHudRequests() {
-        return mHudRequests;
-    }
-
     //non-deterministic
     private void showExplosion(Vector2f at, int radius) {
+        if (!mGfx)
+            mGfx = singleton!(GfxSet)();
         int d = radius*2;
         int r = 1, s = -1, t = -1;
         if (d < mGfx.expl.sizeTreshold[0]) {
@@ -823,7 +676,7 @@ class GameEngine : GameCore {
         }
 
         void emit(ParticleType t) {
-            callbacks.particleEngine.emitParticle(at, Vector2f(0), t);
+            particleWorld.emitParticle(at, Vector2f(0), t);
         }
 
         if (s >= 0) {
@@ -833,7 +686,7 @@ class GameEngine : GameCore {
             //flaming sparks
             //in WWP, those use a random animation speed
             for (int i = 0; i < rngShared.nextRange(2, 3); i++) {
-                callbacks.particleEngine.emitParticle(at, Vector2f(0, -1)
+                particleWorld.emitParticle(at, Vector2f(0, -1)
                     .rotated(rngShared.nextRange(-PI/2, PI/2))
                     * rngShared.nextRange(0.5f, 1.0f) * radius * 7,
                     mGfx.expl.spark);
@@ -846,8 +699,7 @@ class GameEngine : GameCore {
         if (r > 0) {
             //white smoke bubbles
             for (int i = 0; i < r*3; i++) {
-                callbacks.particleEngine.emitParticle(at
-                    + Vector2f(0, -1)
+                particleWorld.emitParticle(at + Vector2f(0, -1)
                     .rotated(rngShared.nextRange!(float)(0, PI*2)) * radius
                     * rngShared.nextRange(0.25f, 1.0f),
                     Vector2f(0, -1).rotated(rngShared.nextRange(-PI/2, PI/2)),
@@ -885,7 +737,7 @@ class GameEngine : GameCore {
         }
     }
 
-    void explosionAt(Vector2f pos, float damage, GameObject cause,
+    override void explosionAt(Vector2f pos, float damage, GameObject cause,
         bool effect = true, bool damage_landscape = true,
         bool delegate(PhysicObject) selective = null)
     {
@@ -895,8 +747,8 @@ class GameEngine : GameCore {
         //  the "right thing" is: only weapons fired by a worm who has collected
         //  a double damage crate cause double damage
         //in my opinion, a global double damage flag would be enough...
-        if (auto member = controller.memberFromGameObject(cause, true)) {
-            damage *= member.team.hasDoubleDamage ? 2.0f : 1.0f;
+        if (auto actor = actorFromGameObject(cause)) {
+            damage *= actor.damage_multiplier;
         }
         //radius of explosion influence
         float radius = cDamageToRadius * damage;
@@ -925,9 +777,7 @@ class GameEngine : GameCore {
         foreach (ls; gameLandscapes) {
             count += ls.damage(pos, radius);
         }
-        if (cause && count > 0) {
-            OnDemolish.raise(cause, count);
-        }
+        //count was used for statistics
     }
 
     //insert bitmap into the landscape
@@ -991,7 +841,7 @@ class GameEngine : GameCore {
 
     //count sprites with passed spriteclass name currently in the game
     int countSprites(char[] name) {
-        auto sc = gfx.resources.get!(SpriteClass)(name, true);
+        auto sc = resources.get!(SpriteClass)(name, true);
         if (!sc)
             return 0;
         int ret = 0;
@@ -1003,10 +853,6 @@ class GameEngine : GameCore {
             }
         }
         return ret;
-    }
-
-    void crateTest() {
-        mController.dropCrate(true);
     }
 
     void activityDebug(char[] mode = "") {
@@ -1039,49 +885,6 @@ class GameEngine : GameCore {
         log("-- {} objects reporting activity",i);
     }
 
-    void scriptExecute(MyBox[] args, Output write) {
-        char[] cmd = args[0].unbox!(char[]);
-        try {
-            scripting.scriptExec(cmd);
-            write.writefln("OK");
-        } catch (ScriptingException e) {
-            //xxx write is not the console where the command came from,
-            //    but the global output
-            error("{}", e.msg);
-            write.writefln("{}", e.msg);
-        }
-    }
-
-    //calculate a hash value of the game engine state
-    //this is a just quick & dirty test to detect diverging client simulation
-    //it should always prefer speed over accuracy
-    void hash(Hasher hasher) {
-        hasher.hash(rnd.state());
-        foreach (GameObject o; mAllObjects) {
-            o.hash(hasher);
-        }
-    }
-
-    void debug_draw(Canvas c) {
-        foreach (GameObject o; mAllObjects) {
-            o.debug_draw(c);
-        }
-    }
-
-    //this is for iteration from Lua
-    GameObject gameObjectFirst() {
-        return mAllObjects.head();
-    }
-
-    GameObject gameObjectNext(GameObject obj) {
-        if (!obj)
-            return null;
-        //contains is O(1)
-        if (!mAllObjects.contains(obj))
-            throw new CustomException("gameObjectNext() on dead object");
-        return mAllObjects.next(obj);
-    }
-
     GameObject debug_pickObject(Vector2i pos) {
         auto p = toVector2f(pos);
         Sprite best;
@@ -1101,7 +904,7 @@ class GameEngine : GameCore {
 
     //output an error message
     //in contrast to logging, the user will (usually) see this on the screen
-    void error(char[] fmt, ...) {
+    override void error(char[] fmt, ...) {
         char[] msg = formatfx(fmt, _arguments, _argptr);
         //log all errors
         log("{}", msg);
@@ -1115,248 +918,5 @@ class GameEngine : GameCore {
 
     private void scriptingObjError(ScriptingException e) {
         error("Scripting error in delegate call: {}", e.msg);
-    }
-
-    //--------------- client commands
-    //if this wasn't D, I'd put this into a separate source file
-    //but this is D, and the only way to move it to a separate file would be
-    //  either to create bloat by creating a new class, or doing "unclean"
-    //  stuff by putting this into free functions (and what about the vars?)
-
-    CommandBucket mCmds;
-    CommandLine mCmd;
-    //temporary during command execution (sorry)
-    char[] mTmp_CurrentAccessTag;
-
-    //execute a user command
-    //because cmd comes straight from the network, there's an access_tag
-    //  parameter, which kind of identifies the sender of the command. the
-    //  access_tag corresponds to the key in mAccessMapping.
-    //the tag "local" is specially interpreted, and means the command comes
-    //  from a privileged source. this disables access control checking.
-    //be warned: in network game, the engine is replicated, and all nodes
-    //  think they are "local", so using this in network games might cause chaos
-    //  and desynchronization... it's a hack for local games, anyway
-    void executeCommand(char[] access_tag, char[] cmd) {
-        //log("exec: '{}': '{}'", access_tag, cmd);
-        assert(mTmp_CurrentAccessTag == "");
-        mTmp_CurrentAccessTag = access_tag;
-        scope(exit) mTmp_CurrentAccessTag = "";
-        mCmd.execute(cmd);
-    }
-
-    //test if the given team can be accessed with the given access tag
-    //right now used for ClientControl.getOwnedTeams()
-    bool checkTeamAccess(char[] access_tag, Team t) {
-        if (access_tag == "local")
-            return true;
-        foreach (ref entry; mAccessMapping) {
-            if (entry.tag == access_tag && entry.team is t)
-                return true;
-        }
-        return false;
-    }
-
-    //internal clusterfuck follows
-
-    //automatically add an item to the command line parser
-    //compile time magic is used to infer the parameters, and the delegate
-    //is called when the command is invoked (maybe this is overcomplicated)
-    private void addCmd(T)(char[] name, T del) {
-        alias ParameterTupleOf!(T) Params;
-
-        //proxify the function in a commandline call
-        //the wrapper is just to get a delegate, that is valid even after this
-        //function has returned
-        //in D2.0, this Wrapper stuff will be unnecessary
-        struct Wrapper {
-            T callee;
-            char[] name;
-            void cmd(MyBox[] params, Output o) {
-                Params p;
-                //(yes, p[i] will have a different static type in each iteration)
-                foreach (int i, x; Params) {
-                    p[i] = params[i].unbox!(x)();
-                }
-                callee(p);
-            }
-        }
-
-        Wrapper* pwrap = new Wrapper;
-        pwrap.callee = del;
-        pwrap.name = name;
-
-        //build command line argument list according to delegate arguments
-        char[][] cmdargs;
-        foreach (int i, x; Params) {
-            char[]* pt = typeid(x) in gCommandLineParserTypes;
-            if (!pt) {
-                assert(false, "no command line parser for " ~ x.stringof);
-            }
-            cmdargs ~= myformat("{}:param_{}", *pt, i);
-        }
-
-        mCmds.register(Command(name, &pwrap.cmd, "-", cmdargs));
-    }
-
-    //similar to addCmd()
-    //expected is a delegate like void foo(TeamMember w, X); where
-    //X can be further parameters (can be empty)
-    private void addWormCmd(T)(char[] name, T del) {
-        //remove first parameter, because that's the worm
-        alias ParameterTupleOf!(T)[1..$] Params;
-
-        struct Wrapper {
-            GameEngine owner;
-            T callee;
-            void moo(Params p) {
-                bool ok;
-                owner.checkWormCommand(
-                    (TeamMember w) {
-                        ok = true;
-                        //may error here, if del has a wrong type
-                        callee(w, p);
-                    }
-                );
-                if (!ok)
-                    log("denied: {}", owner.mTmp_CurrentAccessTag);
-            }
-        }
-
-        Wrapper* pwrap = new Wrapper;
-        pwrap.owner = this;
-        pwrap.callee = del;
-
-        addCmd(name, &pwrap.moo);
-    }
-
-    //return null on failure
-    private WeaponClass findWeapon(char[] name) {
-        return gfx.resources.get!(WeaponClass)(name, true);
-    }
-
-    private void createCmd() {
-        mCmd = new CommandLine(globals.defaultOut);
-        mCmds = new CommandBucket();
-
-        //usual server "admin" command
-        //xxx: not access checked, although it could
-        addCmd("raise_water", &raiseWater);
-        addCmd("set_wind", &setWindSpeed);
-        addCmd("crate_test", &crateTest);
-        addCmd("shake_test", &addEarthQuake);
-        addCmd("activity", &activityDebug);
-        mCmds.registerCommand("exec", &scriptExecute, "execute script",
-            ["text...:command"]);
-
-        //worm control commands; work like above, but the worm-selection code
-        //is factored out
-
-        //remember that delegate literals must only access their params
-        //if they access members of this class, runtime errors will result
-
-        addWormCmd("next_member", (TeamMember w) {
-            w.team.doChooseWorm();
-        });
-        addWormCmd("jump", (TeamMember w, bool alt) {
-            w.control.jump(alt ? JumpMode.straightUp : JumpMode.normal);
-        });
-        addWormCmd("move", (TeamMember w, int x, int y) {
-            w.control.doMove(Vector2i(x, y));
-        });
-        addWormCmd("weapon", (TeamMember w, char[] weapon) {
-            WeaponClass wc;
-            if (weapon != "-")
-                wc = w.engine.findWeapon(weapon);
-            w.control.selectWeapon(wc);
-        });
-        addWormCmd("set_timer", (TeamMember w, int ms) {
-            w.control.doSetTimer(timeMsecs(ms));
-        });
-        addWormCmd("set_target", (TeamMember w, int x, int y) {
-            w.control.doSetPoint(Vector2f(x, y));
-        });
-        addWormCmd("select_fire_refire", (TeamMember w, char[] m, bool down) {
-            WeaponClass wc = w.engine.findWeapon(m);
-            w.control.selectFireRefire(wc, down);
-        });
-        addWormCmd("selectandfire", (TeamMember w, char[] m, bool down) {
-            if (down) {
-                WeaponClass wc;
-                if (m != "-")
-                    wc = w.engine.findWeapon(m);
-                w.control.selectWeapon(wc);
-                //doFireDown will save the keypress and wait if not ready
-                w.control.doFireDown(true);
-            } else {
-                //key was released (like fire behavior)
-                w.control.doFireUp();
-            }
-        });
-
-        //also a worm cmd, but specially handled
-        addCmd("weapon_fire", &executeWeaponFire);
-        addCmd("remove_control", &removeControl);
-
-        mCmds.bind(mCmd);
-    }
-
-    //during command execution, returns the Team that sent the command
-    //xxx mostly a hack for scriptExecute(), has no real other use
-    Team ownedTeam() {
-        //we must intersect both sets of team members (= worms):
-        // set of active worms (by game controller) and set of worms owned by us
-        //xxx: if several worms are active that belong to us, pick the first one
-        foreach (Team t; controller.teams()) {
-            if (t.active && checkTeamAccess(mTmp_CurrentAccessTag, t)) {
-                return t;
-            }
-        }
-        return null;
-    }
-
-    //if a worm control command is incoming (like move, shoot, etc.), two things
-    //must be done here:
-    //  1. find out which worm is controlled by GameControl
-    //  2. check if the move is allowed
-    private bool checkWormCommand(void delegate(TeamMember w) pass) {
-        Team t = ownedTeam();
-        if (t) {
-            pass(t.current);
-            return true;
-        }
-        return false;
-    }
-
-    //Special handling for fire command: while replaying, fire will skip the
-    //replay (fast-forward to end)
-    //xxx: used to cancel replay mode... can't do this anymore
-    //  instead, it's hacked back into gameshell.d somewhere
-    private void executeWeaponFire(bool is_down) {
-        void fire(TeamMember w) {
-            if (is_down) {
-                w.control.doFireDown();
-            } else {
-                w.control.doFireUp();
-            }
-        }
-
-        if (!checkWormCommand(&fire)) {
-            //no worm active
-            //spacebar for crate
-            controller.instantDropCrate();
-        }
-    }
-
-    //there's remove_control somewhere in cmdclient.d, and apparently this is
-    //  called when a client disconnects; the teams owned by that client
-    //  surrender
-    private void removeControl() {
-        //special handling because teams don't need to be active
-        foreach (Team t; controller.teams()) {
-            if (checkTeamAccess(mTmp_CurrentAccessTag, t)) {
-                t.surrenderTeam();
-            }
-        }
     }
 }

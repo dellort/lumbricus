@@ -2,8 +2,19 @@
 
 local E = {} -- whatever
 
+function ownedTeam()
+    assert(getCurrentInputTeam)
+    return getCurrentInputTeam()
+end
+
 function E.giveWeapon(name, amount)
-    Team_addWeapon(Game_ownedTeam(), Gfx_findWeaponClass(name), amount)
+    Team_addWeapon(ownedTeam(), lookupResource(name), amount or 1)
+end
+
+function weaponList()
+    local cls = d_find_class("WeaponClass")
+    assert(cls)
+    return ResourceSet_findAllDynamic(Game_resources(), cls)
 end
 
 -- drop a crate with a weapon in it; p is a string for the weapon
@@ -17,7 +28,7 @@ function E.dropCrate(p, spy)
     }
     if type(p) ~= "string" then
         printf("pass as parameter any tool of {}, or any weapon name of {}",
-            table_keys(stuff), array.map(Gfx_weaponList(),
+            table_keys(stuff), array.map(weaponList(),
                 function(w) return WeaponClass_name(w) end))
         printf("pass 'defaultcrate' or '' to drop controller-chosen contents")
         printf("will always enable crate spy unless second param is false")
@@ -29,7 +40,7 @@ function E.dropCrate(p, spy)
     elseif p == "defaultcrate" or p == "" then
         fill = {}
     else
-        local w = Gfx_findWeaponClass(p, true)
+        local w = lookupResource(p, true)
         if w then
             fill = {CollectableWeapon_ctor(w, WeaponClass_crateAmount(w))}
         end
@@ -54,7 +65,7 @@ end
 -- the caller wins
 function E.allYourBaseAreBelongToUs()
     for k,t in ipairs(Control_teams()) do
-        if (t ~= Game_ownedTeam()) then
+        if (t ~= ownedTeam()) then
             Team_surrenderTeam(t)
         end
     end
@@ -64,11 +75,12 @@ end
 function E.whosYourDaddy()
     for k,t in ipairs(Control_teams()) do
         for k,m in ipairs(Team_getMembers(t)) do
-            if (t == Game_ownedTeam()) then
+            if (t == ownedTeam()) then
                 Member_addHealth(m, 500)
             else
                 p = Sprite_physics(Member_sprite(m))
-                Phys_applyDamage(p, Phys_lifepower(p) - 1, 2)
+                -- xxx last optional argument doesn't work??
+                Phys_applyDamage(p, Phys_lifepower(p) - 1, 2, nil)
             end
         end
     end
@@ -76,8 +88,8 @@ end
 
 -- amount (or 10 if omitted) of all weapons
 function E.greedIsGood(amount)
-    for k,w in ipairs(Gfx_weaponList()) do
-        Team_addWeapon(Game_ownedTeam(), w, amount or 10)
+    for k,w in ipairs(weaponList()) do
+        Team_addWeapon(ownedTeam(), w, amount or 10)
     end
 end
 
@@ -119,8 +131,8 @@ function E.snowflake(depth, interpolate)
             koch(p_h, s2, l), koch(s2, to, l))
     end
 
-    local fill = Gfx_resource("border_segment") -- just some random bitmap for now
-    local border = Gfx_resource("rope_segment")
+    local fill = lookupResource("border_segment") -- just some random bitmap for now
+    local border = lookupResource("rope_segment")
     local gls = Game_gameLandscapes()[1]
     local ls = GameLandscape_landscape(gls)
     local s = LandscapeBitmap_size(ls)

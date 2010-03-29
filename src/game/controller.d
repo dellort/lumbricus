@@ -5,19 +5,20 @@ import common.common;
 import common.scene;
 import common.resset;
 import framework.commandline;
+import game.core;
+import game.events;
 import game.game;
 import game.gfxset;
-import game.gobject;
 import game.worm;
 import game.crate;
 import game.sprite;
 import game.weapon.types;
 import game.weapon.weapon;
 import game.weapon.weaponset;
+import game.teamtheme;
 import game.temp;
 import game.sequence;
 import game.setup;
-import game.controller_events;
 import game.wcontrol;
 import physics.world;
 import utils.factory;
@@ -35,9 +36,33 @@ import tango.util.Convert : to;
 //time for which it takes to add/remove 1 health point in the animation
 const Time cTimePerHealthTick = timeMsecs(4);
 
+//starting to blow itself up
+//xxx is this really needed
+alias DeclareEvent!("team_member_start_die", TeamMember) OnTeamMemberStartDie;
+alias DeclareEvent!("team_member_set_active", TeamMember, bool)
+    OnTeamMemberSetActive;
+//hack for message display
+alias DeclareEvent!("team_member_collect_crate", TeamMember, CrateSprite)
+    OnTeamMemberCollectCrate;
+//first time a team does an action (should probably be per team member?)
+//xxx actually those should be WormControl events?
+alias DeclareEvent!("team_on_first_action", Team) OnTeamFirstAction;
+alias DeclareEvent!("team_member_on_lost_control", TeamMember) OnTeamMemberLostControl;
+alias DeclareEvent!("team_set_active", Team, bool) OnTeamSetActive;
+alias DeclareEvent!("team_skipturn", Team) OnTeamSkipTurn;
+alias DeclareEvent!("team_surrender", Team) OnTeamSurrender;
+//the team wins; all OnVictory events will be raised before game_end (so you can
+//  know exactly who wins, even if there can be 0 or >1 winners)
+alias DeclareEvent!("team_victory", Team) OnVictory;
+//when a worm collects a tool from a crate
+alias DeclareEvent!("collect_tool", TeamMember, CollectableTool) OnCollectTool;
+
+//make crates fall faster by pressing "space" (also known as unParachute)
+alias DeclareEvent!("game_crate_skip", GameObject) OnGameCrateSkip;
+
 
 //class Team : TeamRef {
-class Team : GameObject {
+class Team : GameObject2 {
     char[] mName = "unnamed team";
     TeamTheme teamColor;
     int gravestone;
@@ -71,7 +96,7 @@ class Team : GameObject {
         mName = node.name;
         //xxx: error handling (when team-theme not found)
         char[] colorId = parent.checkTeamColor(node["color"]);
-        teamColor = engine.gfx.teamThemes[colorId];
+        teamColor = engine.singleton!(GfxSet)().teamThemes[colorId];
         initialPoints = node.getIntValue("power", 100);
         //graveStone = node.getIntValue("grave", 0);
         //the worms currently aren't loaded by theirselves...
@@ -185,6 +210,7 @@ class Team : GameObject {
 
     void crateSpy(int spyCount) {
         mCrateSpy = spyCount;
+        updateHacks();
     }
     int crateSpy() {
         return mCrateSpy;
@@ -192,6 +218,7 @@ class Team : GameObject {
 
     void doubleDmg(int dblCount) {
         mDoubleDmg = dblCount;
+        updateHacks();
     }
     int doubleDmg() {
         return mDoubleDmg;
@@ -276,6 +303,7 @@ class Team : GameObject {
             mAllowSelect = false;
         }
         mActionNotified = false;
+        updateHacks();
         OnTeamSetActive.raise(this, act);
     }
 
@@ -351,7 +379,7 @@ class Team : GameObject {
         return true;
     }
 
-    override void simulate(float deltaT) {
+    override void simulate() {
         bool has_active_worm;
 
         foreach (m; mMembers) {
@@ -426,15 +454,23 @@ class Team : GameObject {
 
     void addDoubleDamage() {
         mDoubleDmg++;
+        updateHacks();
     }
 
     void addCrateSpy() {
         mCrateSpy++;
+        updateHacks();
+    }
+
+    void updateHacks() {
+        foreach (m; mMembers) {
+            m.updateHacks();
+        }
     }
 }
 
 //member of a team, currently (and maybe always) capsulates a WormSprite object
-class TeamMember : GameObject {
+class TeamMember : Actor {
     private {
         Team mTeam;
         char[] mName = "unnamed worm";
@@ -451,11 +487,18 @@ class TeamMember : GameObject {
 
     this(char[] a_name, Team a_team) {
         super(a_team.engine, "team_member");
-        this.mName = a_name;
-        this.mTeam = a_team;
+        mName = a_name;
+        mTeam = a_team;
+        team_theme = team.theme();
+        updateHacks();
         internal_active = true;
     }
 
+    //called by Team to update the Actor fields
+    private void updateHacks() {
+        damage_multiplier = team.hasDoubleDamage() ? 2.0f : 1.0f;
+        crate_spy = team.hasCrateSpy();
+    }
 
     final WormControl control() {
         return mWormControl;
@@ -544,10 +587,14 @@ class TeamMember : GameObject {
     }
 
     private void place() {
+        GameEngine rengine = team.engine;
         assert (!mWormControl);
+
         //create and place into the landscape
         //habemus lumbricus
-        Sprite worm = engine.createSprite("x_worm");
+        SpriteClass worm_cls = engine.resources.get!(SpriteClass)("x_worm");
+        Sprite worm = worm_cls.createSprite();
+        worm.createdBy = this;
         WormSprite xworm = castStrict!(WormSprite)(worm); //xxx no WormSprite
         assert(worm !is null);
         worm.physics.lifepower = mTeam.initialPoints;
@@ -556,7 +603,6 @@ class TeamMember : GameObject {
         mWormControl.setAlternateControl(mTeam.alternateControl);
         //take control over dying, so we can let them die on end of turn
         mWormControl.setDelayedDeath();
-        mTeam.parent.addMemberGameObject(this, worm);
         mLastKnownLifepower = health;
         mCurrentHealth = mHealthTarget = health;
         updateHealth();
@@ -565,7 +611,7 @@ class TeamMember : GameObject {
         xworm.teamColor = mTeam.color;
 
         //let Controller place the worm
-        engine.queuePlaceOnLandscape(worm);
+        rengine.queuePlaceOnLandscape(worm);
     }
 
     Sprite sprite() {
@@ -608,7 +654,7 @@ class TeamMember : GameObject {
         OnTeamMemberSetActive.raise(this, act);
     }
 
-    override void simulate(float deltaT) {
+    override void simulate() {
         mWormControl.simulate();
 
         if (!mLostNotified && lifeLost()) {
@@ -641,14 +687,12 @@ class TeamMember : GameObject {
 //events into worm moves (or weapon moves!), controlls which object is focused
 //by the "camera", and also manages worm teams
 //xxx: move gui parts out of this
-class GameController {
+class GameController : GameObject {
     private {
         GameEngine mEngine;
         static LogStruct!("game.controller") log;
 
         Team[] mTeams;
-
-        TeamMember[GameObject] mGameObjectToMember;
 
         //xxx for loading only
         ConfigNode[char[]] mWeaponSets;
@@ -666,10 +710,17 @@ class GameController {
         int[] mTeamColorCache;
     }
 
-    this(GameEngine engine, GameConfig config) {
+    this(GameEngine engine) {
+        super(engine, "controller");
+
         mEngine = engine;
         mEngine.scripting.addSingleton(this);
-        mEngine.setController(this);
+        mEngine.addSingleton(this);
+
+        GameConfig config = engine.gameConfig;
+
+        assert(mEngine.onOffworld is null);
+        mEngine.onOffworld = &onOffworld;
 
         //those work for all gamemodes
         addCrateTool("cratespy");
@@ -692,6 +743,16 @@ class GameController {
 
         OnCollectTool.handler(engine.events, &doCollectTool);
         OnCrateCollect.handler(engine.events, &collectCrate);
+
+        internal_active = true;
+    }
+
+    private void onOffworld(Sprite x) {
+        auto member = memberFromGameObject(x, false);
+        if (!member)
+            return; //I don't know, try firing lots of mine airstrikes
+        if (member.active)
+            member.active(false);
     }
 
     //--- start GameLogicPublic
@@ -729,12 +790,16 @@ class GameController {
         OnGameStart.raise(engine.globalEvents);
     }
 
-    void simulate() {
-        Time diffT = mEngine.gameTime.difference;
-
+    override void simulate() {
+        //apparently only needed to "start" in the first frame...
         if (!mIsAnythingGoingOn) {
+            internal_active = false;
             startGame();
         }
+    }
+
+    override bool activity() {
+        return false;
     }
 
     ///Called by gamemode, when the game is over
@@ -904,8 +969,8 @@ class GameController {
                 log("count {} type {}", cnt, sub["type"]);
                 try {
                     for (int n = 0; n < cnt; n++) {
-                        mEngine.queuePlaceOnLandscape(
-                            mEngine.createSprite(sub["type"]));
+                        mEngine.queuePlaceOnLandscape(engine.resources
+                            .get!(SpriteClass)(sub["type"]).createSprite());
                     }
                 } catch (ResourceException e) {
                     engine.error("Warning: Placing {} objects failed",
@@ -920,37 +985,25 @@ class GameController {
         log("done placing level objects");
     }
 
-    //associate go with member; used i.e. for who-damages-who reporting
-    //NOTE: tracking membership of projectiles generated by worms works slightly
-    //  differently (projectiles form a singly linked list to who fired them)
-    void addMemberGameObject(TeamMember member, GameObject go) {
-        argcheck(member);
-        argcheck(go);
-        //NOTE: the GameObject stays in this AA for forever
-        //  in some cases, it could be released again (i.e. after a new round
-        //  was started)
-        assert(!go.createdBy, "fix memberFromGameObject and remove this");
-        //maybe just remove sprites from this AA as they die
-        go.killVeto(this);
-        mGameObjectToMember[go] = member;
-    }
-
     //transitive:
     //  false = go must be a team member worm; if not, return null
     //  true = like false, but if go was created by a team member, also return
     //      that team member
-    TeamMember memberFromGameObject(GameObject go, bool transitive) {
+    TeamMember memberFromGameObject(GameObject go, bool transitive = true) {
         //typically, GameObject is transitively (consider spawning projectiles!)
         //created by a Worm
         //"victim" from reportViolence should be directly a Worm
-        if (!go)
-            return null;
 
-        while (transitive && go.createdBy) {
+        //d'uh, do we ignore "transitive" for now
+        //I don't know what use transitive=false had; if it was important, this
+        //  is a bug
+        while (go) {
+            if (auto m = cast(TeamMember)go)
+                return m;
             go = go.createdBy;
         }
 
-        return aaIfIn(mGameObjectToMember, go);
+        return null;
     }
 
     WeaponClass weaponFromGameObject(GameObject go) {
@@ -968,7 +1021,7 @@ class GameController {
 
     //return WormControl, by which go is controlled
     //  transitive: go can also be something spawned by that WormControl
-    WormControl controlFromGameObject(GameObject go, bool transitive) {
+    WormControl controlFromGameObject(GameObject go, bool transitive = true) {
         TeamMember m = memberFromGameObject(go, transitive);
         return m ? m.control : null;
     }
@@ -1008,7 +1061,7 @@ class GameController {
             return false;
         }
 
-        Sprite s = engine.createSprite("x_crate");
+        Sprite s = engine.resources.get!(SpriteClass)("x_crate").createSprite();
         CrateSprite crate = cast(CrateSprite)s;
         assert(!!crate);
         //put stuffies into it
@@ -1054,7 +1107,7 @@ class GameController {
             return;
         //for some weapons like animal-weapons, transitive should be true
         //and normally a non-collecting weapon should just explode here??
-        auto member = engine.controller.memberFromGameObject(finder, true);
+        auto member = memberFromGameObject(finder, true);
         if (!member)
             return;
         //only collect crates when it's your turn

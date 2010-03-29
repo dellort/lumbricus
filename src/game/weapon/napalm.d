@@ -1,9 +1,7 @@
 module game.weapon.napalm;
 
 import framework.framework;
-import game.game;
-import game.gfxset;
-import game.gobject;
+import game.core;
 import game.particles;
 import game.sprite;
 import game.sequence;
@@ -26,10 +24,9 @@ class NapalmSprite : Sprite {
         float mDecayPerc = 1.0f;        //cache for decay percentage
     }
 
-    this(GameEngine engine, NapalmSpriteClass type) {
-        super(engine, type);
+    this(NapalmSpriteClass type) {
+        super(type);
 
-        assert(type !is null);
         myclass = type;
         mDecaySecs = myclass.decayTime.sample(engine.rnd).secsf;
         mRepeatDelay = myclass.initialDelay.sample(engine.rnd);
@@ -53,8 +50,8 @@ class NapalmSprite : Sprite {
         mLightupTime = engine.gameTime.current;
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
+    override void simulate() {
+        super.simulate();
 
         //reset decay if particle got fast enough (this has to do,
         // no way to determine if it was hit by an explosion)
@@ -98,7 +95,7 @@ class NapalmSprite : Sprite {
         if (isUnderWater) {
             if (myclass.emitOnWater) {
                 //emit some particles when we die
-                engine.callbacks.particleEngine.emitParticle(physics.pos,
+                engine.particleWorld.emitParticle(physics.pos,
                     Vector2f(0), myclass.emitOnWater);
             }
             kill();
@@ -117,11 +114,11 @@ class NapalmSpriteClass : SpriteClass {
     float lightupVelocity = 400;
     ParticleType emitOnWater;
 
-    this(GfxSet e, char[] r) {
+    this(GameCore e, char[] r) {
         super(e, r);
     }
 
-    override NapalmSprite createSprite(GameEngine engine) {
-        return new NapalmSprite(engine, this);
+    override NapalmSprite createSprite() {
+        return new NapalmSprite(this);
     }
 }

@@ -5,8 +5,8 @@ import common.scene;
 import framework.framework;
 import framework.font;
 import framework.i18n;
-import game.game;
 import game.controller;
+import game.core;
 import game.weapon.weapon;
 import game.weapon.weaponset;
 import gui.boxcontainer;
@@ -28,7 +28,7 @@ import str = utils.string;
 
 class WeaponSelWindow : Container {
     private {
-        GameEngine mEngine;
+        GameCore mEngine;
 
         //from the config file
         char[][] mCategories;
@@ -96,7 +96,7 @@ class WeaponSelWindow : Container {
                     float p = 0f;
                     if (item.lastFire != Time.Null) {
                         Time diff = (item.lastFire + weapon.cooldown)
-                            - mEngine.callbacks.interpolateTime.current;
+                            - mEngine.interpolateTime.current;
                         p = diff.secsf / weapon.cooldown.secsf;
                     }
                     if (p > float.epsilon) {
@@ -235,11 +235,13 @@ class WeaponSelWindow : Container {
 
     //recreate the whole GUI
     //should be only needed once, at initialization
-    public void init(GameEngine a_engine, WeaponClass[] weapons) {
+    public void init(GameCore a_engine) {
         //set this to true to also show rows with no weapons in them!
         bool showEmpty = false;
 
         mEngine = a_engine;
+
+        WeaponClass[] weapons = mEngine.resources.findAll!(WeaponClass)();
 
         //destroy old GUI, if any
         if (mGrid) {

@@ -28,16 +28,15 @@ alias StaticFactory!("SequenceStates", SequenceState, SequenceType, ConfigNode)
 //just a namespace for SequenceState
 final class SequenceType {
     private {
-        GameCore mGfx;
+        GameCore mEngine;
         SequenceState[char[]] mStates;
         char[] mName;
     }
 
     //source = one sequence entry, e.g. wwwp.conf/sequences/s_worm
-    //will be added to gfx.resources by the caller (or so)
-    this (GameCore a_gfx, ConfigNode source) {
-        register_stuff(); //no static this possible
-        mGfx = a_gfx;
+    //will be added to engine.resources by the caller (or so)
+    this (GameCore a_engine, ConfigNode source) {
+        mEngine = a_engine;
         mName = source.name;
         //substates
         foreach (ConfigNode sub; source) {
@@ -52,7 +51,7 @@ final class SequenceType {
     }
 
     final char[] name() { return mName; }
-    final GameCore gfx() { return mGfx; }
+    final GameCore engine() { return mEngine; }
 
     //helper; may return null
     final SequenceState normalState() {
@@ -120,13 +119,13 @@ class SequenceState {
     }
 
     final SequenceType owner() { return mOwner; }
-    final GameCore gfx() { return mOwner.gfx; }
+    final GameCore engine() { return mOwner.engine; }
 
     protected abstract DisplayType getDisplayType();
 
     //convenience function
     Animation loadanim(ConfigNode node, char[] name) {
-        return gfx.resources.get!(Animation)(node.getValue!(char[])(name));
+        return engine.resources.get!(Animation)(node.getValue!(char[])(name));
     }
 
     char[] toString() {
@@ -221,7 +220,7 @@ final class Sequence : SceneObject {
     ///this (as requested by d0c)
     ///by default, it is signaled on the end of a state change
     final bool readyflag() {
-        //yyy checkQueue();
+        //xxx checkQueue();
         return !mDisplay || mDisplay.isDone();
     }
 
@@ -525,7 +524,7 @@ class SimpleAnimationState : SequenceState {
             ani = node["animation"];
             wire_p2_to_damage = node.getValue!(bool)("wire_p2_to_damage");
         }
-        animation = gfx.resources.get!(Animation)(ani);
+        animation = engine.resources.get!(Animation)(ani);
     }
 
     override DisplayType getDisplayType() {
@@ -957,7 +956,7 @@ class WwpWeaponState : SequenceState {
         super(a_owner, node);
 
         Animation load(char[] name, bool optional = false) {
-            return gfx.resources.get!(Animation)(name, optional);
+            return engine.resources.get!(Animation)(name, optional);
         }
 
         normal = loadanim(node, "animation");
@@ -1007,11 +1006,7 @@ class WwpWeaponState : SequenceState {
 }
 
 
-private bool mStuffRegistered;
-private void register_stuff() {
-    if (mStuffRegistered)
-        return;
-    mStuffRegistered = true;
+static this() {
     SequenceStateFactory.register!(SimpleAnimationState)("simple_animation");
     SequenceStateFactory.register!(WwpNapalmState)("wwp_napalm");
     SequenceStateFactory.register!(WwpJetpackState)("wwp_jetpack");

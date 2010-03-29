@@ -2,10 +2,10 @@ module game.gamemodes.realtime;
 
 import framework.framework;
 import utils.timesource;
-import game.game;
 import game.controller;
-import game.controller_events;
 import game.controller_plugins;
+import game.core;
+import game.game;
 import game.gamemodes.base;
 import game.gamemodes.shared;
 
@@ -59,8 +59,8 @@ class ModeRealtime : Gamemode {
         OnHudAdd.raise(engine.globalEvents, "timer", mStatus);
     }
 
-    override void simulate(float dt) {
-        super.simulate(dt);
+    override void simulate() {
+        super.simulate();
         mStatus.gameRemaining = max(config.gametime - modeTime.current(),
             Time.Null);
 

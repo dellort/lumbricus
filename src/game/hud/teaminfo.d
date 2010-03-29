@@ -9,13 +9,8 @@ import utils.timesource;
 import game.clientengine;
 import game.controller;
 import game.events;
-import game.game;
+import game.core;
 import game.gameshell;
-import game.gfxset;
-import game.weapon.weapon;
-import gui.rendertext;
-import gui.label;
-import gui.widget;
 import utils.rect2;
 import utils.time;
 import utils.misc;
@@ -26,9 +21,10 @@ public import game.controller : Team, TeamMember;
 
 class GameInfo {
     ClientGameEngine cengine;
-    GameEngine engine;
+    GameCore engine;
     GameShell shell;
     GameController logic;
+    alias logic controller;
     ClientControl control;
     SimpleNetConnection connection;
     Time replayRemain;
@@ -45,18 +41,18 @@ class GameInfo {
         shell = a_shell;
         cengine = a_engine;
         engine = cengine.engine();
-        logic = engine.logic;
+        logic = engine.singleton!(GameController)();
         control = ct;
 
         clientTime = cengine.engineTime;
         serverTime = engine.gameTime;
-        interpolateTime = engine.callbacks.interpolateTime;
+        interpolateTime = engine.interpolateTime;
 
         //doesn't necessarily belong here
-        engine.callbacks.getControlledTeamMember = &controlled;
+        engine.getControlledTeamMember = &controlled;
     }
 
-    private TeamMember controlled() {
+    private Actor controlled() {
         return control.getControlledMember();
     }
 }

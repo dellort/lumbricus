@@ -2,8 +2,8 @@ module net.cmdclient;
 
 import common.common;
 import framework.commandline;
+import game.controller;
 import game.gameshell;
-import game.glue;
 import game.levelgen.level;
 import game.setup;
 public import net.cmdprotocol;
@@ -272,7 +272,7 @@ class CmdNetClient : SimpleNetConnection {
             close(DiscReason.internalError);
             return;
         }
-        foreach (team; mShell.serverEngine.controller.teams) {
+        foreach (team; mShell.serverEngine.singleton!(GameController)().teams) {
             uint ownerId = to!(uint)(team.netId);
             if (!(ownerId in mSrvControl))
                 mSrvControl[ownerId] = makeAccessTag(ownerId);

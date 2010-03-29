@@ -1,7 +1,7 @@
-local sprite_class = WormSpriteClass_ctor(Gfx, "x_worm")
+local sprite_class = WormSpriteClass_ctor(Game, "x_worm")
 
 -- selects SequenceObject, which again is provided in wwp.conf
-local sequence_object = Gfx_resource("s_worm")
+local sequence_object = lookupResource("s_worm")
 
 setProperties(sprite_class, {
     suicideDamage = 30,
@@ -264,12 +264,16 @@ end
 for name, state in pairs(states) do
     local dstate = WormSpriteClass_findState(sprite_class, name)
     state.physic = physics[state.physic]
+    if not state.physic then
+        state.physic = physics[name]
+    end
+    assert(state.physic)
     if state.animation then
         state.animation = SequenceType_findState(sequence_object,
             state.animation)
     end
     if state.particle then
-        state.particle = Gfx_resource(state.particle)
+        state.particle = lookupResource(state.particle)
     end
     if state.onAnimationEnd then
         state.onAnimationEnd = WormSpriteClass_findState(sprite_class,
@@ -279,4 +283,4 @@ for name, state in pairs(states) do
 end
 
 WormSpriteClass_finishLoading(sprite_class)
-Gfx_registerResource(SpriteClass_name(sprite_class), sprite_class)
+registerResource(sprite_class, SpriteClass_name(sprite_class))

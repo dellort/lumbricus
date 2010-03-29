@@ -5,6 +5,8 @@ module common.resset;
 
 import utils.misc;
 
+import rtraits = tango.core.RuntimeTraits;
+
 ///a ResourceSet holds a set of resources and can be i.e. used to do level
 ///themes, graphic themes (GPL versus WWP graphics) or to change graphic aspects
 ///of the game (different water colors + associated graphics for objects)
@@ -110,6 +112,10 @@ class ResourceSet {
         return ret;
     }
 
+    Object getDynamic(char[] name, bool canfail = false) {
+        return get!(Object)(name, canfail);
+    }
+
     ///return all resources that are of type T (or a subtype of it)
     T[] findAll(T)() {
         static assert(is(T : Object));
@@ -117,6 +123,19 @@ class ResourceSet {
         foreach (Entry e; mResByName) {
             if (auto r = cast(T)e.resource())
                 res ~= r;
+        }
+        return res;
+    }
+
+    //same as findAll(), but suitable for scripting
+    Object[] findAllDynamic(ClassInfo cls) {
+        if (!cls)
+            return null;
+        Object[] res;
+        foreach (Entry e; mResByName) {
+            Object o = e.resource();
+            if (rtraits.isImplicitly(o.classinfo, cls))
+                res ~= o;
         }
         return res;
     }

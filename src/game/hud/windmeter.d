@@ -4,7 +4,8 @@ import framework.framework;
 import common.common;
 import common.scene;
 import game.clientengine;
-import game.gfxset;
+import game.game;
+import game.teamtheme;
 import game.hud.teaminfo;
 import gui.renderbox;
 import gui.widget;
@@ -55,7 +56,8 @@ class WindMeter : Widget {
         auto time = timeCurrentTime;
         if (mGame.cengine) {
             drawBox(canvas, Vector2i(0), size, mBoxStyle);
-            float wspeed = mGame.engine.windSpeed;
+            auto rengine = GameEngine.fromCore(mGame.engine);
+            float wspeed = rengine.windSpeed;
             int anisize = clampRangeC(cast(int)(wspeed*mMaxWidth),
                 -mMaxWidth,mMaxWidth);
             int texOffset = (cast(int)(time.secsf*mAnimSpeed)

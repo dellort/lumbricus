@@ -1,9 +1,9 @@
 module game.lua.weapon;
 
 import game.lua.base;
+import game.core;
 import game.game;
 import game.controller;
-import game.gfxset;
 import game.sprite;
 import game.weapon.spawn;
 import game.weapon.helpers;
@@ -43,24 +43,24 @@ static this() {
 
     gScripting.ctor!(AirstrikeControl, Sprite);
 
-    gScripting.ctor!(DrillClass, GfxSet, char[]);
+    gScripting.ctor!(DrillClass, GameCore, char[]);
     gScripting.properties!(DrillClass, "duration", "tunnelRadius", "interval",
         "blowtorch");
 
-    gScripting.ctor!(ParachuteClass, GfxSet, char[]);
+    gScripting.ctor!(ParachuteClass, GameCore, char[]);
     gScripting.properties!(ParachuteClass, "sideForce");
 
-    gScripting.ctor!(JetpackClass, GfxSet, char[]);
+    gScripting.ctor!(JetpackClass, GameCore, char[]);
     gScripting.properties!(JetpackClass, "maxTime", "jetpackThrust",
         "stopOnDisable");
 
-    gScripting.ctor!(RopeClass, GfxSet, char[]);
+    gScripting.ctor!(RopeClass, GameCore, char[]);
     gScripting.properties!(RopeClass, "shootSpeed", "maxLength", "moveSpeed",
         "swingForce", "swingForceUp", "ropeColor", "ropeSegment", "anchorAnim");
 
     gScripting.ctor!(WormSelectHelper, GameEngine, TeamMember);
 
-    gScripting.ctor!(NapalmSpriteClass, GfxSet, char[]);
+    gScripting.ctor!(NapalmSpriteClass, GameCore, char[]);
     gScripting.properties!(NapalmSpriteClass, "damage", "initialDelay",
         "repeatDelay", "decayTime", "physMedium", "physSmall",
         "lightupVelocity", "emitOnWater");
@@ -76,7 +76,7 @@ static this() {
 
     //-----
 
-    gScripting.ctor!(LuaWeaponClass, GfxSet, char[])();
+    gScripting.ctor!(LuaWeaponClass, GameCore, char[])();
     gScripting.properties!(LuaWeaponClass, "onFire",
         "onCreateSelector", "onInterrupt", "onRefire", "canRefire",
         "onReadjust");

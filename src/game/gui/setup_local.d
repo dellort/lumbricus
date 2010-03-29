@@ -4,7 +4,6 @@ import framework.framework;
 import framework.i18n;
 import common.task;
 import common.common;
-import game.gfxset;
 import game.gametask;
 import game.setup;
 import game.levelgen.generator;

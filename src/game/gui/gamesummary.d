@@ -5,7 +5,6 @@ import common.task;
 import framework.framework;
 import framework.i18n;
 import framework.font;
-import game.gfxset;
 import gui.loader;
 import gui.window;
 import gui.widget;

@@ -3,8 +3,8 @@ module game.controller_plugins;
 import framework.i18n;
 import game.controller_events;
 import game.controller;
+import game.core;
 import game.game;
-import game.gobject;
 import game.sprite;
 import game.temp : CrateType;
 import game.crate;
@@ -28,14 +28,18 @@ static this() {
 //now I don't really know what the point of this class was anymore
 //xxx: this is only for "compatibility"; GamePluginFactory now produces
 //  GameObjects (not GamePlugins)
-abstract class GamePlugin : GameObject {
+abstract class GamePlugin : GameObject2 {
+    private GameController mController;
+
     this(GameEngine c, ConfigNode opts) {
         super(c, "plugin");
         internal_active = true;
     }
 
     protected GameController controller() {
-        return engine.controller;
+        if (!mController)
+            mController = engine.singleton!(GameController)();
+        return mController;
     }
 
     override bool activity() {
@@ -83,7 +87,7 @@ class ControllerMsgs : GamePlugin {
 
     private void onTeamMemberSetActive(TeamMember m, bool active) {
         if (active) {
-            messageAdd("msgwormstartmove", [m.name], m.team, m.team);
+            messageAdd("msgwormstartmove", [m.name], m.team, true);
         } else {
             mLastMember = m;
         }
@@ -125,23 +129,24 @@ class ControllerMsgs : GamePlugin {
 
     private void onCrateCollect(TeamMember member, CrateSprite crate) {
         foreach (item; crate.stuffies) {
+            //someone lieks code duplication...
             if (auto weapon = cast(CollectableWeapon)item) {
                 //weapon
                 messageAdd("collect_item", [member.name(),
                     "_." ~ item.id(), to!(char[])(weapon.quantity)],
-                    member.team, member.team);
+                    member.team, true);
             } else if (auto medkit = cast(CollectableMedkit)item) {
                 //medkit
                 messageAdd("collect_medkit", [member.name(),
-                    to!(char[])(medkit.amount)], member.team, member.team);
+                    to!(char[])(medkit.amount)], member.team, true);
             } else if (auto tool = cast(CollectableTool)item) {
                 //tool
                 messageAdd("collect_tool", [member.name(),
-                    "_." ~ item.id()], member.team, member.team);
+                    "_." ~ item.id()], member.team, true);
             } else if (auto bomb = cast(CollectableBomb)item) {
                 //crate with bomb
                 messageAdd("collect_bomb", [member.name()],
-                    member.team, member.team);
+                    member.team, true);
             }
         }
     }
@@ -173,7 +178,7 @@ class ControllerMsgs : GamePlugin {
     }
 
     private void messageAdd(char[] msg, char[][] args = null, Team actor = null,
-        Team viewer = null)
+        bool is_private = false)
     {
         activity(); //maybe reset wait time
         if (mMessageCounter == 0)
@@ -185,7 +190,7 @@ class ControllerMsgs : GamePlugin {
         gameMsg.lm.args = args;
         gameMsg.lm.rnd = engine.rnd.next;
         gameMsg.actor = actor;
-        gameMsg.viewer = viewer;
+        gameMsg.is_private = is_private;
         OnGameMessage.raise(engine.globalEvents, gameMsg);
     }
 
@@ -231,7 +236,6 @@ class ControllerStats : GamePlugin {
             int wormsDied, wormsDrowned;
             //shots by all weapons (refire not counted)
             int shotsFired;
-            int pixelsDestroyed;
             //collected crates
             int crateCount;
             int[char[]] weaponStats;
@@ -256,7 +260,6 @@ class ControllerStats : GamePlugin {
                 }
                 if (maxwName.length > 0)
                     log("Favorite weapon: {} ({} shots)", maxwName, c);
-                log("Landscape destroyed: {} pixels", pixelsDestroyed);
                 log("Crates collected: {}", crateCount);
             }
         }
@@ -267,7 +270,6 @@ class ControllerStats : GamePlugin {
         super(c, o);
         OnGameEnd.handler(engine.events, &onGameEnd);
         OnDamage.handler(engine.events, &onDamage);
-        OnDemolish.handler(engine.events, &onDemolish);
         OnSpriteDie.handler(engine.events, &onSpriteDie);
 //        OnCrateCollect.handler(engine.events, &onCrateCollect);
         OnFireWeapon.handler(engine.events, &onFireWeapon);
@@ -313,11 +315,6 @@ class ControllerStats : GamePlugin {
             mStats.collateralDmg += damage;
             log("unknown damage {}", dmgs);
         }
-    }
-
-    private void onDemolish(GameObject cause, int pixelCount) {
-        mStats.pixelsDestroyed += pixelCount;
-        //log("blasted {} pixels of land", pixelCount);
     }
 
     private void onFireWeapon(Shooter sender, bool refire) {

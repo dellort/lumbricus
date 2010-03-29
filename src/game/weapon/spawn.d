@@ -1,7 +1,6 @@
 module game.weapon.spawn;
 
-import game.game;
-import game.gobject;
+import game.core;
 import game.sprite;
 import game.weapon.weapon;
 import utils.vector2;
@@ -28,16 +27,18 @@ Sprite spawnSprite(GameObject spawned_by, SpriteClass sclass, Vector2f pos,
     Vector2f init_vel = Vector2f(0))
 {
     argcheck(sclass);
-    argcheck(spawned_by);
+    //can now be null, although there are few legitimate usages for this
+    //argcheck(spawned_by);
 
-    Sprite sprite = sclass.createSprite(spawned_by.engine);
+    Sprite sprite = sclass.createSprite();
     sprite.createdBy = spawned_by;
     sprite.physics.setInitialVelocity(init_vel);
     sprite.activate(pos);
     return sprite;
 }
 
-Sprite spawnFromFireInfo(SpriteClass sclass, Shooter shooter, FireInfo fireinfo) {
+Sprite spawnFromFireInfo(SpriteClass sclass, Shooter shooter, FireInfo fireinfo)
+{
     // copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
     // eh, and why not use those values directly?
     auto dist = (fireinfo.shootbyRadius + 5) * 1.5 + 2;
@@ -57,7 +58,7 @@ void spawnAirstrike(SpriteClass sclass, int count, GameObject shootbyObject,
 {
     argcheck(sclass);
     argcheck(shootbyObject);
-    auto engine = shootbyObject.engine;
+    auto engine = sclass.engine;
 
     //direct into gravity direction
     if (about.dir.isNaN() || about.strength < float.epsilon)
@@ -99,7 +100,7 @@ void spawnCluster(SpriteClass sclass, Sprite parent, int count,
     argcheck(parent);
     assert(!!parent.physics);
 
-    auto engine = parent.engine;
+    auto engine = sclass.engine;
     auto spos = parent.physics.pos;
     if (custom_dir.x == 0 && custom_dir.y == 0) {
         custom_dir = Vector2f(0, -1);

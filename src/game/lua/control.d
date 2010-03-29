@@ -2,8 +2,8 @@ module game.lua.control;
 
 import game.lua.base;
 import game.controller;
+import game.core;
 import game.crate;
-import game.gfxset;
 import game.weapon.weapon;
 import game.worm;
 import game.wcontrol;
@@ -13,7 +13,7 @@ static this() {
     gScripting.setClassPrefix!(GameController)("Control");
     gScripting.methods!(GameController, "currentRound",
         "checkDyingWorms", "updateHealth", "needUpdateHealth", "teams",
-        "deactivateAll", "addMemberGameObject", "isIdle",
+        "deactivateAll", "isIdle",
         "memberFromGameObject", "weaponFromGameObject", "controlFromGameObject",
         "dropCrate", "startSuddenDeath", "endGame", "addCrateTool");
 
@@ -38,7 +38,7 @@ static this() {
     gScripting.setClassPrefix!(WormSprite)("Worm");
     gScripting.methods!(WormSprite, "beamTo");
 
-    gScripting.ctor!(WormSpriteClass, GfxSet, char[])();
+    gScripting.ctor!(WormSpriteClass, GameCore, char[])();
     gScripting.methods!(WormSpriteClass, "finishLoading", "findState")();
     gScripting.properties!(WormSpriteClass, "jumpStrengthScript",
         "rollVelocity", "ropeImpulse", "suicideDamage")();
@@ -47,7 +47,7 @@ static this() {
         "particle", "isGrounded", "canWalk", "canAim", "canFire",
         "onAnimationEnd")();
 
-    gScripting.ctor!(CrateSpriteClass, GfxSet, char[])();
+    gScripting.ctor!(CrateSpriteClass, GameCore, char[])();
     gScripting.properties!(CrateSpriteClass, "collectRadius");
     gScripting.methods!(CrateSprite, "blowStuffies")();
     gScripting.property_ro!(CrateSprite, "crateType")();

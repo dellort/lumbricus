@@ -1,8 +1,8 @@
 module game.weapon.parachute;
 
 import framework.framework;
-import game.game;
-import game.gfxset;
+import game.controller;
+import game.core;
 import game.sprite;
 import game.weapon.weapon;
 import game.worm;
@@ -19,11 +19,11 @@ import tango.math.Math : abs;
 class ParachuteClass : WeaponClass {
     float sideForce = 0f;
 
-    this(GfxSet gfx, char[] name) {
-        super(gfx, name);
+    this(GameCore engine, char[] name) {
+        super(engine, name);
     }
 
-    override Shooter createShooter(Sprite go, GameEngine engine) {
+    override Shooter createShooter(Sprite go) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
@@ -45,7 +45,8 @@ class Parachute : Shooter, Controllable {
         super(base, a_owner, a_owner.engine);
         mWorm = a_owner;
         myclass = base;
-        mMember = engine.controller.controlFromGameObject(mWorm, false);
+        auto controller = engine.singleton!(GameController)();
+        mMember = controller.controlFromGameObject(mWorm, false);
     }
 
     override bool delayedAction() {
@@ -79,8 +80,8 @@ class Parachute : Shooter, Controllable {
         }
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
+    override void simulate() {
+        super.simulate();
 
         if (!mWorm.parachuteActivated()) {
             internal_active = false;

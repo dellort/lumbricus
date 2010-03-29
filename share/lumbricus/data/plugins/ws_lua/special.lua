@@ -94,7 +94,7 @@ do
         },
         sequenceType = "s_penguin",
     }
-    local bmp = Gfx_resource("penguin_bmp")
+    local bmp = lookupResource("penguin_bmp")
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
         Sprite_kill(sender)
         local at = Phys_pos(Sprite_physics(sender))

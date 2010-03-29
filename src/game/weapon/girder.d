@@ -1,8 +1,8 @@
 module game.weapon.girder;
 
 import framework.framework;
+import game.controller;
 import game.game;
-import game.gfxset;
 import game.sprite;
 import game.temp : JumpMode;
 import game.weapon.weapon;
@@ -49,9 +49,10 @@ class GirderControl : WeaponSelector, Controllable {
     this(Sprite a_owner) {
         super(a_owner);
         mOwner = a_owner;
-        mEngine = mOwner.engine;
+        mEngine = GameEngine.fromCore(mOwner.engine);
 
-        mControl = mEngine.controller.controlFromGameObject(mOwner, true);
+        mControl = mEngine.singleton!(GameController)()
+            .controlFromGameObject(mOwner, true);
 
         Surface girder = mEngine.level.theme.girder;
         mBaseSize = girder.size;

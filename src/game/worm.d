@@ -2,12 +2,11 @@ module game.worm;
 
 import common.animation;
 import framework.framework;
-import game.gobject;
 import physics.world;
-import game.game;
-import game.gfxset;
+import game.core;
 import game.sequence;
 import game.sprite;
+import game.teamtheme;
 import game.temp : GameZOrder;
 import game.weapon.types;
 import game.weapon.weapon;
@@ -120,8 +119,8 @@ class WormSprite : Sprite {
     WormController wcontrol;
 
 
-    protected this(GameEngine engine, WormSpriteClass spriteclass) {
-        super(engine, spriteclass);
+    protected this(WormSpriteClass spriteclass) {
+        super(spriteclass);
         wsc = spriteclass;
         setStateForced(wsc.st_stand);
 
@@ -419,10 +418,10 @@ class WormSprite : Sprite {
     }
 
     //overwritten from GObject.simulate()
-    override void simulate(float deltaT) {
+    override void simulate() {
         physUpdate();
 
-        super.simulate(deltaT);
+        super.simulate();
 
         if (currentState.onAnimationEnd && graphic) {
             //as requested by d0c, timing is dependend from the animation
@@ -740,7 +739,7 @@ class WormSprite : Sprite {
         //xxx shooter is removed when the weapon is inactive?
         if (!sh || sh.weapon != mRequestedWeapon) {
             auto oldweapon = actualWeapon();
-            sh = mRequestedWeapon.createShooter(this, engine);
+            sh = mRequestedWeapon.createShooter(this);
             sh.selector = mWeaponSelector;
             update_actual_weapon(oldweapon);
         }
@@ -919,7 +918,7 @@ class WormSprite : Sprite {
                 //explosion!
                 engine.explosionAt(physics.pos, wsc.suicideDamage, this);
                 SpriteClass findGrave(int id) {
-                    return engine.gfx.resources.get!(SpriteClass)
+                    return engine.resources.get!(SpriteClass)
                         (myformat("x_gravestone{}", mGravestone), true);
                 }
                 auto graveclass = findGrave(mGravestone);
@@ -927,7 +926,7 @@ class WormSprite : Sprite {
                     graveclass = findGrave(0);
                 //no gravestone if not available?
                 if (graveclass) {
-                    auto grave = graveclass.createSprite(engine);
+                    auto grave = graveclass.createSprite();
                     grave.createdBy = this;
                     grave.activate(physics.pos);
                 }
@@ -1250,7 +1249,7 @@ class WormSpriteClass : SpriteClass {
 
     SequenceState[FlyMode.max+1] flyState;
 
-    this(GfxSet e, char[] r) {
+    this(GameCore e, char[] r) {
         super(e, r);
 
         initNoActivityWhenGlued = true;
@@ -1299,8 +1298,8 @@ class WormSpriteClass : SpriteClass {
         }
     }
 
-    override WormSprite createSprite(GameEngine engine) {
-        return new WormSprite(engine, this);
+    override WormSprite createSprite() {
+        return new WormSprite(this);
     }
 
     WormStateInfo findState(char[] name) {
@@ -1325,10 +1324,13 @@ class WormSpriteClass : SpriteClass {
     }
 }
 
+import game.gfxset;
+
 //move elsewhere?
 class RenderCrosshair : SceneObject {
     private {
-        GameEngine mEngine;
+        GameCore mEngine;
+        GfxSet mGfx;
         Sequence mAttach;
         float mLoad = 0.0f;
         bool mDoReset;
@@ -1342,10 +1344,11 @@ class RenderCrosshair : SceneObject {
         }
     }
 
-    this(GameEngine a_engine, Sequence a_attach) {
+    this(GameCore a_engine, Sequence a_attach) {
         mEngine = a_engine;
+        mGfx = mEngine.singleton!(GfxSet)();
         mAttach = a_attach;
-        mSfx = mEngine.gfx.resources.get!(ParticleType)("p_rocketcharge");
+        mSfx = mEngine.resources.get!(ParticleType)("p_rocketcharge");
         zorder = GameZOrder.Crosshair;
         init_ip();
         reset();
@@ -1354,13 +1357,13 @@ class RenderCrosshair : SceneObject {
     override void removeThis() {
         //make sure sound gets stopped
         mEmit.current = null;
-        mEmit.update(mEngine.callbacks.particleEngine);
+        mEmit.update(mEngine.particleWorld);
         super.removeThis();
     }
 
     private void init_ip() {
         mIP.interp.currentTimeDg = &time.current;
-        mIP.interp.init(mEngine.gfx.crosshair.animDur, 1, 0);
+        mIP.interp.init(mGfx.crosshair.animDur, 1, 0);
         mIP.did_init = true;
     }
 
@@ -1376,11 +1379,11 @@ class RenderCrosshair : SceneObject {
     }
 
     private TimeSourcePublic time() {
-        return mEngine.callbacks.interpolateTime;
+        return mEngine.interpolateTime;
     }
 
     override void draw(Canvas canvas) {
-        auto tcs = mEngine.gfx.crosshair;
+        auto tcs = mGfx.crosshair;
 
         if (!mIP.did_init) {
             //if this code is executed, the game was just loaded from a savegame
@@ -1445,6 +1448,6 @@ class RenderCrosshair : SceneObject {
         }
 
         mEmit.pos = toVector2f(pos);
-        mEmit.update(mEngine.callbacks.particleEngine);
+        mEmit.update(mEngine.particleWorld);
     }
 }

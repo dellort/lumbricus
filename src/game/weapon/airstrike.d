@@ -2,8 +2,7 @@ module game.weapon.airstrike;
 
 import common.animation;
 import framework.framework;
-import game.game;
-import game.gfxset;
+import game.controller;
 import game.sprite;
 import game.temp : JumpMode;
 import game.weapon.weapon;
@@ -19,7 +18,6 @@ import math = tango.math.Math;
 //draws the arrow mouse cursor, and updates FireInfo with the selected direction
 class AirstrikeControl : WeaponSelector, Controllable {
     private {
-        GameEngine mEngine;
         Sprite mOwner;
         WormControl mControl;
         InterpolateExp!(float, 3.0f) mIP;  //for rotating the cursor
@@ -33,9 +31,10 @@ class AirstrikeControl : WeaponSelector, Controllable {
     this(Sprite a_owner) {
         super(a_owner);
         mOwner = a_owner;
-        mEngine = mOwner.engine;
 
-        mControl = mEngine.controller.controlFromGameObject(mOwner, true);
+        auto controller = mOwner.engine.singleton!(GameController)();
+
+        mControl = controller.controlFromGameObject(mOwner, true);
         initIP();
     }
 

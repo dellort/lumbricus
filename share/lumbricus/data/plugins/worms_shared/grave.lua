@@ -3,7 +3,7 @@
 --  there are
 -- the gravestone sequences are assumed to be s_grave0 ... s_graveN
 local function create(id)
-    local seq = Gfx_resource("s_grave" .. id, true)
+    local seq = lookupResource("s_grave" .. id, true)
     if not seq then
         return false
     end

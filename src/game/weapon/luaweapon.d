@@ -1,10 +1,7 @@
 module game.weapon.luaweapon;
 
 import framework.framework;
-import game.controller_events;
-import game.game;
-import game.gfxset;
-import game.gobject;
+import game.core;
 import game.sprite;
 import game.weapon.weapon;
 import game.weapon.types;
@@ -20,8 +17,8 @@ class LuaWeaponClass : WeaponClass {
     bool canRefire = false;
     void delegate(Shooter, Vector2f) onReadjust;
 
-    this(GfxSet a_gfx, char[] a_name) {
-        super(a_gfx, a_name);
+    this(GameCore a_engine, char[] a_name) {
+        super(a_engine, a_name);
     }
 
     override WeaponSelector createSelector(Sprite selected_by) {
@@ -30,8 +27,8 @@ class LuaWeaponClass : WeaponClass {
         return onCreateSelector(selected_by);
     }
 
-    override Shooter createShooter(Sprite go, GameEngine engine) {
-        return new LuaShooter(this, go, engine);
+    override Shooter createShooter(Sprite go) {
+        return new LuaShooter(this, go, go.engine);
     }
 }
 
@@ -41,7 +38,7 @@ class LuaShooter : Shooter {
         bool mIsFixed;
     }
 
-    this(LuaWeaponClass base, Sprite a_owner, GameEngine engine) {
+    this(LuaWeaponClass base, Sprite a_owner, GameCore engine) {
         super(base, a_owner, engine);
         myclass = base;
     }

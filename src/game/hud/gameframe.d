@@ -29,9 +29,8 @@ import game.hud.network;
 import game.hud.register;
 import game.hud.chatbox;
 import game.clientengine;
-import game.controller_events;
+import game.core;
 import game.game;
-import game.gobject;
 import game.weapon.weapon;
 import game.weapon.weaponset;
 import game.weapon.types;
@@ -135,7 +134,7 @@ class GameFrame : SimpleContainer {
         mLastFrameTime = curtime;
 
         bool finished = true;
-        foreach (Team t; game.engine.controller.teams) {
+        foreach (Team t; game.controller.teams) {
             foreach (TeamMember tm; t.getMembers) {
                 if (tm.currentHealth != tm.healthTarget())
                     finished = false;
@@ -363,8 +362,7 @@ class GameFrame : SimpleContainer {
 
         add(mWeaponSel, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
 
-        WeaponClass[] wlist = game.engine.gfx.findResources!(WeaponClass)();
-        mWeaponSel.init(game.engine, wlist);
+        mWeaponSel.init(game.engine);
 
         mWeaponInterp.init_done(timeSecs(0.4), 0, 1);
 

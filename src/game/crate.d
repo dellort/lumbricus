@@ -1,18 +1,21 @@
 module game.crate;
 
-import game.gobject;
-import physics.world;
-import game.game;
-import game.gfxset;
-import game.controller_events;
+import game.core;
+import game.events;
 import game.sequence;
 import game.sprite;
 import game.teamtheme;
 import game.temp;
 import gui.rendertext;
+import physics.world;
 import utils.vector2;
 import utils.time;
 import utils.misc;
+
+//sender is the newly dropped crate
+alias DeclareEvent!("crate_drop", CrateSprite) OnCrateDrop;
+//sender is the crate, first parameter is the collecting team member
+alias DeclareEvent!("crate_collect", CrateSprite, GameObject) OnCrateCollect;
 
 ///Base class for stuff in crates that can be collected by worms
 ///most Collectable subclasses have been moved to controller.d (dependencies...)
@@ -73,8 +76,8 @@ class CrateSprite : Sprite {
     //contents of the crate
     Collectable[] stuffies;
 
-    protected this (GameEngine engine, CrateSpriteClass spriteclass) {
-        super(engine, spriteclass);
+    protected this (CrateSpriteClass spriteclass) {
+        super(spriteclass);
         myclass = spriteclass;
 
         crateZone = new PhysicZoneCircle(Vector2f(), myclass.collectRadius);
@@ -106,7 +109,7 @@ class CrateSprite : Sprite {
         if (physics) {
             physics.lifepower = 0;
             //call zero-hp event handler
-            simulate(0);
+            simulate();
         }
     }
 
@@ -166,32 +169,32 @@ class CrateSprite : Sprite {
         return mCrateType;
     }
 
-    override void simulate(float deltaT) {
+    override void simulate() {
         //this also makes it near impossible to implement it in Lua
         //should connect them using constraints (or so)
         crateZone.pos = physics.pos;
 
-        super.simulate(deltaT);
+        super.simulate();
     }
 
     private bool spyVisible(Sequence s) {
         //only controller dependency left in this file
-        auto m = engine.callbacks.getControlledTeamMember();
+        auto m = engine.getControlledTeamMember();
         if (!m)
             return false;
-        return m.team.hasCrateSpy();//&& (currentState !is myclass.st_drowning);
+        return m.crate_spy && !isUnderWater();
     }
 }
 
 class CrateSpriteClass : SpriteClass {
     float collectRadius = 1000;
 
-    this(GfxSet e, char[] r) {
+    this(GameCore e, char[] r) {
         super(e, r);
     }
 
-    override CrateSprite createSprite(GameEngine engine) {
-        return new CrateSprite(engine, this);
+    override CrateSprite createSprite() {
+        return new CrateSprite(this);
     }
 }
 

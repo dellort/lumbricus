@@ -17,6 +17,7 @@ import game.hud.gameframe;
 import game.hud.teaminfo;
 import game.hud.gameview;
 import game.clientengine;
+import game.controller;
 import game.loader;
 import game.gameshell;
 import game.game;
@@ -381,11 +382,15 @@ class GameTask {
         }
     }
 
+    private bool gameEnded() {
+        return mGame.singleton!(GameController)().gameEnded();
+    }
+
     private void doFade() {
         if (mFader && mFader.done) {
             mFader.remove();
             mFader = null;
-            if (mGame.logic.gameEnded)
+            if (gameEnded())
                 kill();
         }
     }
@@ -410,7 +415,7 @@ class GameTask {
                     mClientEngine.paused = mGameShell.paused;
 
                 //maybe
-                if (mGame.logic.gameEnded) {
+                if (gameEnded()) {
                     assert(!!mGameShell && !!mGameShell.serverEngine);
                     mGamePersist = mGameShell.serverEngine.persistentState;
                     terminateWithFadeOut();
@@ -505,7 +510,7 @@ class GameTask {
     private void cmdGameRes(MyBox[] args, Output write) {
         if (!mGameShell)
             return;
-        new ResViewerTask(mGameShell.serverEngine.gfx.resources);
+        new ResViewerTask(mGameShell.serverEngine.resources);
     }
 
     private void cmdLua(MyBox[] args, Output write) {

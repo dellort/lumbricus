@@ -1,8 +1,8 @@
 module game.weapon.drill;
 
 import framework.framework;
+import game.core;
 import game.game;
-import game.gfxset;
 import game.sprite;
 import game.weapon.weapon;
 import game.worm;
@@ -19,11 +19,11 @@ class DrillClass : WeaponClass {
     RandomValue!(Time) interval = {timeMsecs(150), timeMsecs(250)};
     bool blowtorch = false;
 
-    this(GfxSet gfx, char[] name) {
-        super(gfx, name);
+    this(GameCore engine, char[] name) {
+        super(engine, name);
     }
 
-    override Shooter createShooter(Sprite go, GameEngine engine) {
+    override Shooter createShooter(Sprite go) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
@@ -76,8 +76,8 @@ class Drill : Shooter {
         return true;
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
+    override void simulate() {
+        super.simulate();
         if ((!mWorm.drillActivated() && !mWorm.blowtorchActivated())
             || engine.gameTime.current - mStart > myclass.duration)
         {
@@ -102,9 +102,10 @@ class Drill : Shooter {
                 + Vector2f(0, mWorm.physics.posp.radius - myclass.tunnelRadius);
         }
         auto at = mWorm.physics.pos + advVec;
-        engine.damageLandscape(toVector2i(at), myclass.tunnelRadius, mWorm);
+        GameEngine rengine = GameEngine.fromCore(engine);
+        rengine.damageLandscape(toVector2i(at), myclass.tunnelRadius, mWorm);
         const cPush = 3.0f; //multiplier so that other worms get pushed away
-        engine.explosionAt(at,
+        rengine.explosionAt(at,
             myclass.tunnelRadius/GameEngine.cDamageToRadius*cPush, mWorm,
             false, false, &checkApply);
 

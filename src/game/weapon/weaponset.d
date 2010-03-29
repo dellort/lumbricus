@@ -1,10 +1,8 @@
 module game.weapon.weaponset;
 
 import common.resset;
-import game.controller_events;
-import game.game;
-import game.gfxset;
-import game.gobject;
+import game.core;
+import game.events;
 import game.sprite;
 import game.weapon.weapon;
 import utils.configfile;
@@ -13,6 +11,9 @@ import utils.vector2;
 import utils.time;
 
 import tango.util.Convert : to;
+
+//number of weapons changed
+alias DeclareEvent!("weaponset_changed", WeaponSet) OnWeaponSetChanged;
 
 //number and types of weapons a team has available
 class WeaponSet : GameObject {
@@ -39,15 +40,15 @@ class WeaponSet : GameObject {
     }
 
     //config = item from "weapon_sets"
-    this (GameEngine aengine, ConfigNode config, bool crateSet = false) {
-        this(aengine);
+    this (GameCore a_engine, ConfigNode config, bool crateSet = false) {
+        this(a_engine);
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
             WeaponClass w;
             uint quantity;
             char[] wname = node.name;
             try {
                 //may throw some exception
-                w = engine.gfx.resources.get!(WeaponClass)(wname);
+                w = engine.resources.get!(WeaponClass)(wname);
                 assert(!!w);
             } catch (ResourceException e) {
                 engine.error("Error in weapon set '{}': {}", wname, e.msg);
@@ -69,8 +70,8 @@ class WeaponSet : GameObject {
     }
 
     //create empty set
-    this(GameEngine aengine) {
-        super(aengine, "weaponset");
+    this(GameCore a_engine) {
+        super(a_engine, "weaponset");
     }
 
     private void onChange() {

@@ -36,7 +36,7 @@ M.standard_napalm = createSpriteClass {
     --  would require you to register an event handler for all types of
     --  collisions, and do "manual" filtering, which might be S.L.O.W.)
     -- the holy grenade would need something similar
-    emitOnWater = Gfx_resource("p_napalmsmoke_short"),
+    emitOnWater = lookupResource("p_napalmsmoke_short"),
 }
 
 -- napalm which "sticks" a while and fades as the game rounds progress

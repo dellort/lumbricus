@@ -2,10 +2,9 @@ module game.gamemodes.turnbased;
 
 import framework.framework;
 import utils.timesource;
+import game.core;
 import game.game;
-import game.gobject;
 import game.controller;
-import game.controller_events;
 import game.controller_plugins;
 import game.gamemodes.base;
 import game.gamemodes.shared;
@@ -115,8 +114,8 @@ class ModeTurnbased : Gamemode {
         modeTime.paused = true;
     }
 
-    override void simulate(float dt) {
-        super.simulate(dt);
+    override void simulate() {
+        super.simulate();
         mTimeSt.gameRemaining = max(config.gametime - modeTime.current(),
             Time.Null);
         //this ensures that after each transition(), doState() is also run

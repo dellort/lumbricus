@@ -13,7 +13,7 @@ import gui.rendertext;
 import gui.tablecontainer;
 import gui.widget;
 import game.clientengine;
-import game.gfxset;
+import game.teamtheme;
 import game.hud.teaminfo;
 import utils.array;
 import utils.misc;
@@ -94,7 +94,7 @@ class TeamWindow : Widget {
         table.setHomogeneousGroup(0, 0, 1);
         table.setHomogeneousGroup(0, 2, 1);
 
-        Team[] teams = game.engine.controller.teams().dup;
+        Team[] teams = game.controller.teams().dup;
 
         marray.mergeSort(teams, (Team a, Team b) {
             return a.name < b.name;

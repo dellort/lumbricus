@@ -1,7 +1,8 @@
 module physics.misc;
 
-import utils.vector2;
+import utils.misc;
 import utils.strparser;
+import utils.vector2;
 
 //Important: No physics.* imports in this file!
 
@@ -53,7 +54,7 @@ final class POSP {
         return mMass;
     }
     void mass(float m) {
-        assert(m > 0, "Invalid mass value");
+        argcheck(m > 0, "Invalid mass value");
         mMass = m;
         mMassInv = 1.0f/m;
     }

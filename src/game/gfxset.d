@@ -93,6 +93,7 @@ class GfxSet {
     this(GameCore a_core, GameConfig cfg)
     {
         core = a_core;
+        core.addSingleton(this);
 
         resources = core.resources;
         events = core.events;
@@ -124,18 +125,6 @@ class GfxSet {
 
         mCollisionMap = core.physicWorld.collide;
         addCollideConf(gameConf.getSubNode("collisions"));
-    }
-
-    //this also means that a bogus/changed resource file could cause scripting
-    //  type errors, when it receives the wrong object type; maybe add some way
-    //  to enforce a specific type?
-    Object scriptGetRes(char[] name, bool canfail = false) {
-        return resources.get!(Object)(name, canfail);
-    }
-
-    //just for scripting
-    static FormattedText textCreate() {
-        return WormLabels.textCreate();
     }
 
     ResourceFile addGfxSet(ConfigNode conf) {
@@ -193,20 +182,6 @@ class GfxSet {
                 resources.addResource(t, t.name);
             }
         }
-    }
-
-    //add to resource list
-    //this is typically used for weapons and spriteclasses, which are added
-    //  after resource loading
-    //the name must not be used yet
-    void registerResource(char[] name, Object obj) {
-        resources.addResource(obj, name);
-    }
-
-    //find all resources of a specific type
-    //e.g. findResources!(WeaponClass)() => array of all possible weapons
-    T[] findResources(T)() {
-        return resources.findAll!(T)();
     }
 }
 

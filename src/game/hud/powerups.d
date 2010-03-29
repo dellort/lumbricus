@@ -29,7 +29,7 @@ class PowerupDisplay : BoxContainer {
     protected ImageLabel createLabel(char[] iconRes) {
         auto ret = new ImageLabel();
         ret.styles.addClass("powerup-icon");
-        ret.image = mGame.cengine.gfx.resources.get!(Surface)(iconRes);
+        ret.image = mGame.engine.resources.get!(Surface)(iconRes);
         return ret;
     }
 

@@ -1,10 +1,8 @@
 module game.weapon.weapon;
 
 import framework.framework; //: Surface
-import game.gobject;
 import game.events;
-import game.game;
-import game.gfxset;
+import game.core;
 import game.sprite;
 import game.weapon.types;
 import utils.misc;
@@ -13,13 +11,19 @@ import utils.time;
 
 alias void delegate(Shooter sh) ShooterCallback;
 
+//a crate is being blown up, and the crate contains this weapon
+//  Sprite = the sprite for the crate
+alias DeclareEvent!("weapon_crate_blowup", WeaponClass, Sprite)
+    OnWeaponCrateBlowup;
+//sprite firing the weapon, used weapon, refired
+alias DeclareEvent!("shooter_fire", Shooter, bool) OnFireWeapon;
 
 //abstract weapon type; only contains generic infos about a weapon
 //this includes how stuff is fired (for the code which does worm controll)
 //(argument against making classes like i.e. WeaponThrowable: no multiple
 // inheritance *g*; and how would you have a single fire() method then)
 abstract class WeaponClass : EventTarget {
-    private GfxSet mGfx;
+    private GameCore mCore;
 
     //generally read-only fields
     char[] name; //weapon name, translateable string
@@ -41,14 +45,14 @@ abstract class WeaponClass : EventTarget {
     //weapon-holding animations
     char[] animation;
 
-    GfxSet gfx() {
-        return mGfx;
+    GameCore engine() {
+        return mCore;
     }
 
-    this(GfxSet a_gfx, char[] a_name) {
-        assert(a_gfx !is null);
-        super("weapon_" ~ a_name, a_gfx.events);
-        mGfx = a_gfx;
+    this(GameCore a_core, char[] a_name) {
+        assert(a_core !is null);
+        super("weapon_" ~ a_name, a_core.events);
+        mCore = a_core;
         name = a_name.dup;
     }
 
@@ -64,9 +68,9 @@ abstract class WeaponClass : EventTarget {
     //just a factory
     //users call fire() on them to actually activate them
     //  go == entity which fires it (its physical properties will be used)
-    abstract Shooter createShooter(Sprite go, GameEngine engine);
+    abstract Shooter createShooter(Sprite go);
 
-    bool canUse(GameEngine engine) {
+    bool canUse(GameCore engine) {
         return !isAirstrike || engine.level.airstrikeAllow;
     }
 }
@@ -184,7 +188,7 @@ abstract class Shooter : GameObject {
     //(xxx: move to ctor... also, use utils.factory to create shooters)
     WeaponSelector selector;
 
-    protected this(WeaponClass base, Sprite a_owner, GameEngine engine) {
+    protected this(WeaponClass base, Sprite a_owner, GameCore engine) {
         super(engine, "shooter");
         assert(base !is null);
         mClass = base;

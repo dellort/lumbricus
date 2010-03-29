@@ -12,7 +12,6 @@ import game.sky;
 import game.temp : GameZOrder;
 import game.game;
 import game.gfxset;
-import game.glue;
 import game.particles;
 import utils.list2;
 import utils.time;
@@ -29,7 +28,7 @@ import tango.math.Math : PI, pow;
 
 //client-side game engine, manages all stuff that does not affect gameplay,
 //but needs access to the game and is drawn into the game scene
-class ClientGameEngine : GameEngineCallback {
+class ClientGameEngine {
     ResourceSet resources;
     GfxSet gfx;
 
@@ -83,8 +82,8 @@ class ClientGameEngine : GameEngineCallback {
 
     this(GameEngine engine) {
         mEngine = engine;
-        gfx = engine.gfx;
-        resources = gfx.resources;
+        gfx = engine.singleton!(GfxSet)();
+        resources = engine.resources;
 
         mEngineTime = new TimeSource("ClientEngine");
         mEngineTime.paused = true;
@@ -100,13 +99,9 @@ class ClientGameEngine : GameEngineCallback {
 
         initSound();
 
-        auto cb = mEngine.callbacks();
+        mEngine.getRenderTime = &do_getRenderTime;
 
-        cb.getRenderTime = &do_getRenderTime;
-
-        //why not use mEngineTime? because higher/non-fixed framerate
-        mParticles = mEngine.particleWorld();
-        cb.particleEngine = mParticles;
+        mParticles = mEngine.particleWorld;
 
         readd_graphics();
     }
@@ -122,7 +117,6 @@ class ClientGameEngine : GameEngineCallback {
         mUberScene.add(mLocalScene);
 
         mUberScene.add(mEngine.scene);
-        mUberScene.add(mEngine.callbacks.scene);
 
         //xxx
         mGameWater = new GameWater(this);

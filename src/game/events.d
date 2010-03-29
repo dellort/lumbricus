@@ -406,7 +406,8 @@ extern(C) private int scriptEventsRaise(lua_State* state) {
 //xxx would be nice as struct too, but I get forward reference errors
 //xxx 2 the name will add major symbol name bloat, argh.
 class DeclareEvent(char[] name, SenderBase, Args...) {
-    static assert(is(SenderBase : EventTarget));
+//fuck, this crap doesn't work at all anymore!
+//    static assert(is(SenderBase : EventTarget));
     alias void delegate(SenderBase, Args) Handler;
     alias ParamStruct!(Args) ParamType;
     alias name Name;

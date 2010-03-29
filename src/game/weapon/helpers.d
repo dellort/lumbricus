@@ -2,14 +2,11 @@
 module game.weapon.helpers;
 
 import common.scene;
-import game.game;
-import game.gfxset;
-import game.gobject;
+import game.core;
 import game.sprite;
 import game.worm;
 import game.controller;
 import game.wcontrol;
-import game.glue;
 import physics.world;
 import utils.time;
 import utils.vector2;
@@ -32,8 +29,8 @@ class SpriteHandler : GameObject {
         return internal_active;
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
+    override void simulate() {
+        super.simulate();
         if (!mParent.visible())
             kill();
     }
@@ -106,8 +103,8 @@ class StuckTrigger : SpriteHandler {
         }
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
+    override void simulate() {
+        super.simulate();
         Vector2f p = mParent.physics.pos;
         addSample((mPosOld-p).length);
         mPosOld = p;
@@ -135,7 +132,8 @@ class ControlRotate : SpriteHandler, Controllable {
     this(Sprite parent, float rotateSpeed, float thrust)
     {
         super(parent);
-        mMember = engine.controller.controlFromGameObject(mParent, true);
+        auto ctl = engine.singleton!(GameController)();
+        mMember = ctl.controlFromGameObject(mParent, true);
         mMember.pushControllable(this);
         //default to parent velocity (can be changed later)
         mDirection = mParent.physics.velocity.toAngle();
@@ -159,13 +157,14 @@ class ControlRotate : SpriteHandler, Controllable {
         }
     }
 
-    override void simulate(float deltaT) {
+    override void simulate() {
         //die as sprite dies
         if (!mParent.visible())
             kill();
+        float deltaT = engine.gameTime.difference.secsf;
         mDirection += mMoveVector.x * mRotateSpeed * deltaT;
         setForce();
-        super.simulate(deltaT);
+        super.simulate();
     }
 
     private void setForce() {
@@ -201,7 +200,7 @@ class WormSelectHelper : GameObject {
         TeamMember mMember;
     }
 
-    this(GameEngine eng, TeamMember member) {
+    this(GameCore eng, TeamMember member) {
         super(eng, "wormselecthelper");
         internal_active = true;
         mMember = member;
@@ -212,8 +211,8 @@ class WormSelectHelper : GameObject {
         return internal_active;
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
+    override void simulate() {
+        super.simulate();
         //xxx: we just need the 1-frame delay for this because initialStep() is
         //     called from doFire, which will set mMember.mWormAction = true
         //     afterwards and would conflict with the code below
@@ -229,16 +228,16 @@ class WormSelectHelper : GameObject {
 //     if it's needed again, let RayShooter wait until end-time
 class RenderLaser : SceneObject {
     private {
-        GameEngineCallback base;
+        GameCore base;
         Vector2i[2] mP;
         Time mStart, mEnd;
         Color[] mColors;
     }
 
-    this(GameEngine aengine, Vector2f p1, Vector2f p2, Time duration,
+    this(GameCore a_engine, Vector2f p1, Vector2f p2, Time duration,
         Color[] colors)
     {
-        base = aengine.callbacks;
+        base = a_engine;
         zorder = GameZOrder.Effects;
         base.scene.add(this);
         mP[0] = toVector2i(p1);

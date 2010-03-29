@@ -73,8 +73,10 @@ class TeamTheme {
     }
 }
 
-//the struct is just a namespace
-struct WormLabels {
+//the class is just a namespace
+class WormLabels {
+    private this() {}
+
     static BoxProperties textWormBorderStyle() {
         //init to what we had in the GUI in r865
         BoxProperties border;

@@ -6,10 +6,9 @@ module game.wcontrol;
 
 import common.animation;
 import framework.framework;
-import game.controller_events;
-import game.game;
-import game.gfxset;
+import game.core;
 import game.sprite;
+import game.teamtheme;
 import game.temp;
 import game.weapon.types;
 import game.weapon.weapon;
@@ -53,7 +52,7 @@ interface Controllable {
 //      the engine can do more stuff than just... worms
 class WormControl : WormController {
     private {
-        GameEngine mEngine;
+        GameCore mEngine;
         //Sprite mWorm;    //never null
         WormSprite mWorm;
         //SpriteControl mWormControl; //is cast(SpriteControl)mWorm
@@ -95,7 +94,7 @@ class WormControl : WormController {
         OnSpriteDie.handler(mWorm.instanceLocalEvents, &onSpriteDie);
     }
 
-    final GameEngine engine() {
+    final GameCore engine() {
         return mEngine;
     }
 

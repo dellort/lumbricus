@@ -38,6 +38,17 @@ function game_kill_object(d_game_object)
     _dgo_contexts[d_game_object] = nil
 end
 
+-- resources
+
+function lookupResource(name, canfail)
+    canfail = ifnil(canfail, false)
+    return ResourceSet_getDynamic(Game_resources(), name, canfail)
+end
+
+function registerResource(object, name)
+    ResourceSet_addResource(Game_resources(), object, name)
+end
+
 -- random helper functions
 
 -- create and return a function that does what most onFire functions will do
@@ -172,7 +183,7 @@ function getDrownFunc(sprite_class, drown_phys)
     if not drown_graphic then
         warnf("no drown graphic for sprite {}", sprite_class)
     end
-    local particle = Gfx_resource("p_projectiledrown")
+    local particle = lookupResource("p_projectiledrown")
     if not drown_phys then
         -- this is just like projectile.d does it
         drown_phys = POSP_copy(SpriteClass_initPhysic(sprite_class))
@@ -354,22 +365,22 @@ end
 -- this is just a helper
 function findSequenceState(fstr)
     local pre, post = utils.split2(fstr, ":", true)
-    local seq = Gfx_resource(pre)
+    local seq = lookupResource(pre)
     return SequenceType_findState(seq, post)
 end
 
 autoProperties = {
     WeaponClass_set_icon = {
-        string = Gfx_resource
+        string = lookupResource,
     },
     SpriteClass_set_sequenceType = {
-        string = Gfx_resource
+        string = lookupResource,
     },
     SpriteClass_set_sequenceState = {
         string = findSequenceState,
     },
     SpriteClass_set_initParticle = {
-        string = Gfx_resource
+        string = lookupResource,
     },
 }
 
@@ -439,7 +450,7 @@ end
 function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
     assert(sprite)
     local unit = unit or Time.Second
-    local txt = Gfx_textCreate()
+    local txt = WormLabels_textCreate()
     local last_visible = false
     local function setVisible(visible)
         if visible == last_visible then
@@ -529,13 +540,13 @@ function createWeapon(props)
     end
     local onblowup = pick(props, "onBlowup")
     --
-    local w = ctor(Gfx, name)
+    local w = ctor(Game, name)
     setProperties(w, props)
     if onblowup then
         addClassEventHandler(EventTarget_eventTargetType(w),
             "weapon_crate_blowup", onblowup)
     end
-    Gfx_registerResource(name, w)
+    registerResource(w, name)
     return w
 end
 
@@ -552,12 +563,12 @@ function createSpriteClass(props)
     end
     local nodrown = pick(props, "noDrown", false)
     --
-    local s = ctor(Gfx, name)
+    local s = ctor(Game, name)
     setProperties(s, props)
     if not nodrown then
         enableDrown(s)
     end
-    Gfx_registerResource(name, s)
+    registerResource(s, name)
     return s
 end
 
@@ -654,7 +665,7 @@ function initSpriteState(sprite_class, animation, physics, particle)
         end
     end
     if particle then
-        ret.particle = Gfx_resource(particle)
+        ret.particle = lookupResource(particle)
     end
     return ret
 end

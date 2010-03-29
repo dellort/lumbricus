@@ -1,36 +1,41 @@
 module game.lua.engine;
 
-import game.lua.base;
+import common.resset;
+import game.core;
 import game.events;
 import game.game;
-import game.gfxset;
 import game.glevel;
-import game.gobject;
 import game.sequence;
 import game.sprite;
+import game.teamtheme;
 import game.levelgen.level;
 import game.levelgen.renderer;
+import game.lua.base;
 
 static this() {
     gScripting.setClassPrefix!(GameEngine)("Game");
-    gScripting.methods!(GameEngine, "createSprite", "gameTime", "waterOffset",
+    gScripting.setClassPrefix!(GameCore)("Game");
+
+    gScripting.methods!(GameEngine, "gameTime", "waterOffset",
         "windSpeed", "setWindSpeed", "randomizeWind", "gravity", "raiseWater",
         "addEarthQuake", "explosionAt", "damageLandscape",
-        "insertIntoLandscape", "countSprites", "ownedTeam", "nukeSplatEffect",
+        "insertIntoLandscape", "countSprites", "nukeSplatEffect",
         "checkForActivity", "gameObjectFirst", "gameObjectNext",
-        "debug_pickObject", "benchStart");
+        "debug_pickObject", "benchStart", "activityDebug");
     gScripting.properties_ro!(GameEngine, "events", "globalEvents",
-        "benchActive", "scene");
+        "benchActive", "scene", "resources");
     gScripting.properties!(GameEngine, "persistentState", "gameLandscapes");
+
+    gScripting.methods!(GameCore, "animationEffect");
 
     gScripting.properties_ro!(GameLandscape, "landscape", "rect");
 
     gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder", "size");
 
-    gScripting.setClassPrefix!(GfxSet)("Gfx");
-    gScripting.methods!(GfxSet,"registerResource");
-    gScripting.static_method!(GfxSet, "textCreate");
-    gScripting.method!(GfxSet, "scriptGetRes")("resource");
+    gScripting.methods!(ResourceSet, "addResource", "getDynamic",
+        "findAllDynamic");
+
+    gScripting.static_method!(WormLabels, "textCreate");
 
     gScripting.methods!(Level, "worldCenter");
     gScripting.properties_ro!(Level, "airstrikeAllow", "airstrikeY",
@@ -45,7 +50,7 @@ static this() {
         "exceedVelocity", "notifyAnimationEnd");
     gScripting.properties_ro!(Sprite, "physics", "isUnderWater", "visible");
 
-    gScripting.ctor!(SpriteClass, GfxSet, char[])();
+    gScripting.ctor!(SpriteClass, GameCore, char[])();
     gScripting.methods!(SpriteClass, "createSprite", "getInitSequenceState",
         "getInitSequenceType");
     gScripting.property_ro!(SpriteClass, "name");

@@ -5,11 +5,10 @@ import common.resources : gResources, ResourceFile;
 import framework.config;
 import framework.framework;
 import framework.i18n; //just because of weapon loading...
-import game.controller_events;
 import game.controller_plugins;
+import game.core;
 import game.game;
 import game.gfxset;
-import game.gobject;
 import game.setup;
 import utils.misc;
 import utils.factory;
@@ -97,13 +96,13 @@ class PluginBase {
     }
 
     private void initplugins(GameObject sender) {
-        GameEngine engine = sender.engine;
+        auto engine = sender.engine;
         foreach (plg; mPlugins) {
             //xxx controller is not yet available; plugins have to be careful
             //    best way around: add more events for different states of
             //    game initialization
             try {
-                plg.init(engine);
+                plg.doinit(engine);
             } catch (CustomException e) {
                 //wtfwtfwtfwtf
                 Trace.formatln("Plugin '{}' failed to init(): {}", plg.name,
@@ -177,12 +176,13 @@ class Plugin {
     }
 
     //called from GameEngine, to create the runtime part of this plugin
-    void init(GameEngine eng) {
+    void doinit(GameCore eng) {
         log("init '{}'", name);
         //handling of internal plugins (special cased D-only plugin hack)
         char[] internal_plugin = mConfig["internal_plugin"];
         if (internal_plugin.length) {
-            GamePluginFactory.instantiate(internal_plugin, eng,
+            GamePluginFactory.instantiate(internal_plugin,
+                GameEngine.fromCore(eng),
                 mConfigWhateverTheFuckThisIs);
         }
 

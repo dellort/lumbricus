@@ -10,11 +10,11 @@ import framework.i18n;
 
 import game.controller;
 import game.controller_events;
+import game.core;
 import game.events;
-import game.glue;
 import game.game;
 import game.gfxset;
-import game.gobject;
+import game.input;
 import game.plugins;
 import game.levelgen.generator;
 import game.levelgen.landscape;
@@ -247,14 +247,11 @@ class GameLoader {
         }
 
         assert(!!mGameConfig.level);
-        mShell.mEngine = new GameEngine(mGameConfig.level,
+        mShell.mEngine = new GameEngine(mGameConfig,
             mShell.mGameTime, mShell.mInterpolateTime);
         auto engine = mShell.mEngine;
 
         mGfx = new GfxSet(engine, mGameConfig);
-        engine.gfx = mGfx;
-        engine.scripting.addSingleton(mGfx);
-        engine.loadStdScripts();
 
         auto plugins = new PluginBase(mGfx, mGameConfig);
 
@@ -274,7 +271,11 @@ class GameLoader {
 
         mGfx.finishLoading();
 
-        mShell.mEngine.initGame(mGameConfig);
+        mShell.mEngine.initGame();
+
+        new GameController(mShell.mEngine);
+
+        new InputHandler(mShell.mEngine);
 
         OnGameError.handler(mShell.mEngine.events, &mShell.onGameError);
 
@@ -435,7 +436,8 @@ class GameShell {
         }
 
         if (!for_hash) {
-            mEngine.executeCommand(e.access_tag, e.cmd);
+            auto input = mEngine.singleton!(InputHandler);
+            input.executeCommand(e.access_tag, e.cmd);
         }
     }
 
@@ -489,7 +491,7 @@ class GameShell {
     //for now this does:
     //- increase the intraframe time (time between engine frames for
     //  interpolated drawing)
-    //  the time used is mEngine.callbacks.interpolateTime / mInterpolateTime
+    //  the time used is mEngine.interpolateTime / mInterpolateTime
     //- execute a game frame if necessary (for simulation)
     void frame() {
         TimeSourceSimple interpol = mInterpolateTime;
@@ -816,9 +818,11 @@ class ClientControl {
         //xxx: if access map is dynamically changed for any reason, this cache
         //  must be invalidated
         if (!mCachedOwnedTeams.length) {
-            GameEngine engine = mShell.serverEngine;
-            foreach (Team t; engine.controller.teams()) {
-                if (engine.checkTeamAccess(mAccessTag, t))
+            GameCore engine = mShell.serverEngine;
+            auto input = engine.singleton!(InputHandler)();
+            auto controller = engine.singleton!(GameController)();
+            foreach (Team t; controller.teams()) {
+                if (input.checkTeamAccess(mAccessTag, t))
                     mCachedOwnedTeams ~= t;
             }
         }

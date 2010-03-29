@@ -8,15 +8,14 @@ import framework.commandline;
 import utils.timesource;
 import common.animation;
 import common.scene;
-import game.glue;
 import game.game;
 import game.clientengine;
 import game.sequence;
+import game.teamtheme;
 import game.controller;
 import game.hud.camera;
 import game.weapon.weapon;
 import game.hud.teaminfo;
-import game.gfxset;
 import game.worm; //for a hack
 import gui.global;
 import gui.renderbox;
@@ -364,7 +363,8 @@ class DrownLabel : SceneObject {
         mTxt = m.team.color.textCreate();
         mTxt.setTextFmt(false, "{}", lost);
         mFrom = pos;
-        mTo = Vector2i(pos.x, mGame.engine.waterOffset);
+        auto rengine = GameEngine.fromCore(mGame.engine);
+        mTo = Vector2i(pos.x, rengine.waterOffset);
         mStart = mGame.clientTime.current;
         mEffect = MoveLabelEffect.bubble;
         mSpeed = cDrownLabelSpeed;
@@ -514,7 +514,7 @@ class GameView : Widget {
         mCamera = new Camera(mGame.clientTime);
 
         //load the teams and also the members
-        foreach (Team t; game.engine.controller.teams) {
+        foreach (Team t; game.controller.teams) {
             foreach (TeamMember m; t.getMembers) {
                 ViewMember vt = new ViewMember(this, m);
                 mEngineMemberToOurs[m] = vt;
@@ -753,7 +753,7 @@ class GameView : Widget {
     //find a WeaponClass of the weapon named "name" in the current team's
     //weapon-set (or return null)
     private WeaponClass findWeapon(char[] name) {
-        return mGame.engine.gfx.resources.get!(WeaponClass)(name, true);
+        return mGame.engine.resources.get!(WeaponClass)(name, true);
     }
 
     void addExternalKeybinds(KeyBindings binds, void delegate(char[]) handler) {

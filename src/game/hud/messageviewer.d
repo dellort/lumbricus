@@ -4,7 +4,7 @@ import framework.framework;
 import framework.font;
 import framework.i18n;
 import common.scene;
-import game.gobject;
+import game.core;
 import game.hud.teaminfo;
 import game.controller_events;
 import gui.widget;
@@ -77,11 +77,11 @@ class MessageViewer : Label {
     }
 
     private void showMessage(GameObject sender, GameMessage msg) {
-        if (msg.viewer) {
+        if (msg.is_private) {
             //if the message is only for one team, check if it is ours
             bool show = false;
             foreach (Team t; mGame.control.getOwnedTeams()) {
-                if (t is msg.viewer) {
+                if (t is msg.actor) {
                     show = true;
                     break;
                 }

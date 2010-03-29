@@ -4,7 +4,7 @@ import framework.framework;
 import framework.i18n;
 import common.task;
 import common.common;
-import game.gfxset;
+import game.teamtheme;
 import gui.widget;
 import gui.edit;
 import gui.dropdownlist;

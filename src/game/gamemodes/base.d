@@ -1,27 +1,26 @@
 module game.gamemodes.base;
 
 import framework.framework;
-import utils.timesource;
+import game.core;
 import game.game;
-import game.gobject;
 import game.controller;
-import game.controller_events;
-
-import utils.factory;
-import utils.mybox;
 import utils.configfile;
 import utils.time;
+import utils.timesource;
 import utils.misc;
 
 //NOTE: a game mode doesn't need to derive from this object; it's just for
 //  convenience (hud managment, some strange timing helpers)
-class Gamemode : GameObject {
-    private Time[5] mWaitStart, mWaitStartLocal;
+class Gamemode : GameObject2 {
+    private {
+        Time[5] mWaitStart, mWaitStartLocal;
+        GameController mController;
+    }
     protected TimeSource modeTime;
 
     this(GameEngine a_engine) {
         super(a_engine, "gamemode");
-        //static initialization doesn't work
+        //static initialization doesn't work (probably D bug 3198)
         mWaitStart[] = Time.Never;
         mWaitStartLocal[] = Time.Never;
         modeTime = new TimeSource("modeTime", engine.gameTime);
@@ -30,16 +29,19 @@ class Gamemode : GameObject {
     }
 
     GameController logic() {
-        return engine.controller;
+        //the controller is created in a late stage of game initialization
+        assert(!!mController);
+        return mController;
     }
 
     ///Start a new game, called before first simulate call
     protected void startGame(GameObject dummy) {
         modeTime.resetTime();
+        mController = engine.singleton!(GameController)();
     }
 
     ///Called every frame, run gamemode-specific code here
-    override void simulate(float dt) {
+    override void simulate() {
         modeTime.update();
     }
 

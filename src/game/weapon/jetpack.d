@@ -1,12 +1,13 @@
 module game.weapon.jetpack;
 
 import framework.framework;
-import game.game;
-import game.gfxset;
+import game.controller;
+import game.core;
 import game.sprite;
 import game.weapon.weapon;
 import game.worm;
 import game.sequence;
+import game.teamtheme;
 import game.wcontrol;
 import gui.rendertext;
 import physics.world;
@@ -24,11 +25,11 @@ class JetpackClass : WeaponClass {
     Vector2f jetpackThrust = {0f, 0f};
     bool stopOnDisable = true;
 
-    this(GfxSet gfx, char[] name) {
-        super(gfx, name);
+    this(GameCore a_engine, char[] name) {
+        super(a_engine, name);
     }
 
-    override Shooter createShooter(Sprite go, GameEngine engine) {
+    override Shooter createShooter(Sprite go) {
         //for now, only worms are enabled to use tools
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
@@ -52,7 +53,8 @@ class Jetpack : Shooter, Controllable {
         super(base, a_owner, a_owner.engine);
         mWorm = a_owner;
         myclass = base;
-        mMember = engine.controller.controlFromGameObject(mWorm, false);
+        auto controller = engine.singleton!(GameController)();
+        mMember = controller.controlFromGameObject(mWorm, false);
     }
 
     override bool delayedAction() {
@@ -102,8 +104,8 @@ class Jetpack : Shooter, Controllable {
         }
     }
 
-    override void simulate(float deltaT) {
-        super.simulate(deltaT);
+    override void simulate() {
+        super.simulate();
         //if it was used but it's not active anymore => die
         if (!mWorm.jetpackActivated()
             || mJetTimeUsed > myclass.maxTime.secsf)
@@ -128,7 +130,7 @@ class Jetpack : Shooter, Controllable {
         float xm = abs(mMoveVector.x);
         float ym = (mMoveVector.y < 0) ? -mMoveVector.y : 0f;
         //acc. seconds for all active thrusters
-        mJetTimeUsed += (xm + ym) * deltaT;
+        mJetTimeUsed += (xm + ym) * engine.gameTime.difference.secsf;
     }
 
     //Controllable implementation -->

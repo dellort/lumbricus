@@ -3,18 +3,18 @@ module game.glevel;
 import common.resset;
 import common.scene;
 import framework.framework;
-import game.game;
-import game.gobject;
+import game.core;
 import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.renderer;
 import game.temp : GameZOrder;
+import physics.world;
 import utils.vector2;
 import utils.log;
 import utils.misc;
+
 import drawing = utils.drawing;
 import tango.math.Math : sqrt, PI;
-import physics.world;
 
 //if deactivated, use a rectangle (which surrounds the old circle)
 //circular looks better on collisions (reflecting from walls)
@@ -139,9 +139,9 @@ class GameLandscape : GameObject {
         }
     }
 
-    this(GameEngine aengine, LevelLandscape land) {
+    this(GameCore a_engine, LevelLandscape land) {
         assert(land && land.landscape);
-        this(aengine);
+        this(a_engine);
 
         mOriginal = land;
         mSize = land.landscape.size;
@@ -149,13 +149,13 @@ class GameLandscape : GameObject {
 
         //landscape landscape landscape
         mLandscape = land.landscape.copy();
-        mBorderSegment = engine.gfx.resources.get!(Surface)("border_segment");
+        mBorderSegment = engine.resources.get!(Surface)("border_segment");
 
         init();
     }
 
-    this(GameEngine aengine, Rect2i rc) {
-        this(aengine);
+    this(GameCore a_engine, Rect2i rc) {
+        this(a_engine);
 
         mSize = rc.size;
         mOffset = rc.p1;
@@ -165,8 +165,8 @@ class GameLandscape : GameObject {
         init();
     }
 
-    private this(GameEngine aengine) {
-        super(aengine, "landscape");
+    private this(GameCore a_engine) {
+        super(a_engine, "landscape");
         internal_active = true;
     }
 

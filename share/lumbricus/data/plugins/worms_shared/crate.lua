@@ -66,13 +66,13 @@ local s_class = createSpriteClass {
 -- state_map[state_name] = state that can be used with setSpriteState()
 local crate_states = {}
 for crate_type, seq_name in pairs(seq) do
-    local seq = Gfx_resource(seq_name)
+    local seq = lookupResource(seq_name)
     local state_map = {}
     for state_name, state in pairs(states) do
         local cur = {
             seqState = SequenceType_findState(seq, state.animation),
             posp = state.physics and createPOSP(state.physics),
-            particle = state.particle and Gfx_resource(state.particle),
+            particle = state.particle and lookupResource(state.particle),
         }
         -- xxx some type checking to prevent surprises?
         state_map[state_name] = cur
