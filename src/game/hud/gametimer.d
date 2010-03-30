@@ -3,7 +3,6 @@ module game.hud.gametimer;
 import framework.framework;
 import framework.font;
 import common.scene;
-import game.clientengine;
 import game.hud.register;
 import game.hud.teaminfo;
 import game.gamemodes.shared;

@@ -58,6 +58,10 @@ class Foo {
         return myformat("hello from D! got: {} {} '{}'", x, y, msg);
     }
 
+    char[] test2(char[] bla = "huhu") {
+        return bla;
+    }
+
     void passBar(Bar the_bar) {
         Trace.formatln("received a bar: '{}'", the_bar.classinfo.name);
         if (the_bar)
@@ -118,9 +122,10 @@ LuaRegistry scripting;
 
 static this() {
     scripting = new typeof(scripting)();
-    scripting.methods!(Foo, "test", "createBar", "createEvul", "passBar");
-    scripting.methods!(Foo, "vector", "makeVector", "vectors", "array", "aarray",
-        "makeArray", "callCb", "makeTime", "arg");
+    scripting.methods!(Foo, "test", "test2", "createBar", "createEvul",
+        "passBar");
+    scripting.methods!(Foo, "vector", "makeVector", "vectors", "array",
+        "aarray", "makeArray", "callCb", "makeTime", "arg");
     scripting.properties!(Foo, "bla", "muh");
     auto bar = scripting.defClass!(Bar)();
     bar.properties!("blu", "blo", "something")();
@@ -168,6 +173,8 @@ void main(char[][] args) {
         print(Foo_test(1, -4.2, "Foobar"))
         print(Foo_test(1, -4.2))
         print(Foo_test(1))
+        print(Foo_test2())
+        print(Foo_test2("x"))
         Foo_set_bla("durf")
         print(Foo_bla())
         printf("enum = {}", Foo_muh())

@@ -25,18 +25,6 @@ class TimeSourcePublic {
     final Time difference() {
         return mSimTime - mLastSimTime;
     }
-
-    /+ removed; was dangereous and silly
-        - you should chain time sources instead
-        - if you want to set them, use the functions in the subclasses
-    ///warning: if you have chained time sources, these values only refer to
-    ///         the local settings, e.g. the time could be paused even when this
-    ///         paused() property returns false
-    abstract void paused(bool p);
-    abstract bool paused();
-    abstract void slowDown(float factor);
-    abstract float slowDown();
-    +/
 }
 
 final class TimeSource : TimeSourcePublic {

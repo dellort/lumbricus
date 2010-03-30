@@ -6,7 +6,6 @@ import game.controller;
 import game.core;
 import game.game;
 import game.sprite;
-import game.temp : CrateType;
 import game.crate;
 import game.weapon.weapon;
 import game.weapon.weaponset;
@@ -31,7 +30,7 @@ static this() {
 abstract class GamePlugin : GameObject2 {
     private GameController mController;
 
-    this(GameEngine c, ConfigNode opts) {
+    this(GameCore c, ConfigNode opts) {
         super(c, "plugin");
         internal_active = true;
     }
@@ -49,7 +48,7 @@ abstract class GamePlugin : GameObject2 {
 
 //and another factory...
 //plugins register here, so the Controller can load them
-alias StaticFactory!("GamePlugins", GameObject, GameEngine, ConfigNode)
+alias StaticFactory!("GamePlugins", GameObject, GameCore, ConfigNode)
     GamePluginFactory;
 
 //the idea was that the whole game state should be observable (including
@@ -65,7 +64,7 @@ class ControllerMsgs : GamePlugin {
         Team mWinner;
     }
 
-    this(GameEngine c, ConfigNode o) {
+    this(GameCore c, ConfigNode o) {
         super(c, o);
         auto ev = engine.events;
         OnGameStart.handler(ev, &onGameStart);
@@ -266,7 +265,7 @@ class ControllerStats : GamePlugin {
         Stats mStats;
     }
 
-    this(GameEngine c, ConfigNode o) {
+    this(GameCore c, ConfigNode o) {
         super(c, o);
         OnGameEnd.handler(engine.events, &onGameEnd);
         OnDamage.handler(engine.events, &onDamage);
@@ -376,7 +375,7 @@ class ControllerPersistence : GamePlugin {
         const cVictoryCountDef = 2;
     }
 
-    this(GameEngine c, ConfigNode o) {
+    this(GameCore c, ConfigNode o) {
         super(c, o);
         OnGameStart.handler(engine.events, &onGameStart);
         OnGameEnd.handler(engine.events, &onGameEnd);

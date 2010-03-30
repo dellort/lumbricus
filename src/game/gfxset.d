@@ -161,12 +161,6 @@ class GfxSet {
         mFinished = true;
     }
 
-    //only for GameEngine
-    CollisionMap collision_map() {
-        mCollisionMap.seal();
-        return mCollisionMap;
-    }
-
     void addCollideConf(ConfigNode node) {
         if (node)
             mCollisionMap.loadCollisions(node);

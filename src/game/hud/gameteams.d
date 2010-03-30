@@ -12,7 +12,6 @@ import gui.progress;
 import gui.rendertext;
 import gui.tablecontainer;
 import gui.widget;
-import game.clientengine;
 import game.teamtheme;
 import game.hud.teaminfo;
 import utils.array;
@@ -83,7 +82,7 @@ class TeamWindow : Widget {
     this(GameInfo game) {
         setVirtualFrame(false);
 
-        mTimeSource = game.clientTime;
+        mTimeSource = game.engine.interpolateTime;
 
         //cells both expanded and homogeneous in x-dir => centered correctly
         //will give you headaches if you want more than two columns

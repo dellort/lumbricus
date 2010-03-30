@@ -11,6 +11,20 @@
 
 # WARNING: wipes out DEST_DIR (see end of this file)
 
+# after the script has run (successfully), it will have created two directories:
+# ./downloads
+#   all downloaded stuff (dmd.zip, tango svn), you may need to delete this to
+#   get a clean state, especially if the script has failed
+# ./d_env
+#   will contain the directories bin lib include, which reflect the standard
+#   filesystem layout used on Linux; you can copy this e.g. into /usr to
+#   "install" dmd/tango globally
+#   bin contains the dmd executable and dmd.conf; make sure you delete all
+#   other dmd.confs on your system because dmd might use them
+#   places where dmd looks for dmd.conf: current directory, home directory,
+#   the directory where dmd is, /etc/.
+#   this script deletes ./d_env recursively before doing anything
+
 import os
 import os.path
 import sys
@@ -35,10 +49,11 @@ def dostuff():
     dmd_src_dir = mp(dmd, "dmd", "src", "dmd")
     patch(dmd_src_dir, mp(HERE, "dmd-1057-lumbricus-linux.patch"))
     rootprefix = mp('%@P%', "..")
+    relinc = mp(rootprefix, "include", "d")
     compile_install_dmd(dmd_src_dir, mp(DEST_DIR, "bin"),
-        [mp(rootprefix, "include", "d"),
-         mp(rootprefix, "include", "d", "tango"),
-         mp(rootprefix, "include", "d", "tango", "core", "vendor")],
+        [relinc,
+         mp(relinc, "tango"),
+         mp(relinc, "tango", "core", "vendor")],
         [mp(rootprefix, "lib")])
 
     # get, compile and install tango

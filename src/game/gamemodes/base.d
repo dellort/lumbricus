@@ -18,7 +18,7 @@ class Gamemode : GameObject2 {
     }
     protected TimeSource modeTime;
 
-    this(GameEngine a_engine) {
+    this(GameCore a_engine) {
         super(a_engine, "gamemode");
         //static initialization doesn't work (probably D bug 3198)
         mWaitStart[] = Time.Never;
@@ -30,14 +30,16 @@ class Gamemode : GameObject2 {
 
     GameController logic() {
         //the controller is created in a late stage of game initialization
-        assert(!!mController);
+        //I have no idea, in network/realtime mode, this stuff seems to be
+        //  different, for now this works
+        if (!mController)
+            mController = engine.singleton!(GameController)();
         return mController;
     }
 
     ///Start a new game, called before first simulate call
     protected void startGame(GameObject dummy) {
         modeTime.resetTime();
-        mController = engine.singleton!(GameController)();
     }
 
     ///Called every frame, run gamemode-specific code here

@@ -80,7 +80,7 @@ class ModeTurnbased : Gamemode {
         const cNoCrateOnStart = true;
     }
 
-    this(GameEngine a_engine, ConfigNode config) {
+    this(GameCore a_engine, ConfigNode config) {
         super(a_engine);
         mTimeSt = new TimeStatus();
         mPrepareSt = new PrepareStatus();

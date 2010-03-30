@@ -7,7 +7,6 @@ import framework.framework;
 import framework.i18n; //just because of weapon loading...
 import game.controller_plugins;
 import game.core;
-import game.game;
 import game.gfxset;
 import game.setup;
 import utils.misc;
@@ -175,14 +174,13 @@ class Plugin {
         mConfigWhateverTheFuckThisIs = mConfig.getSubNode("config");
     }
 
-    //called from GameEngine, to create the runtime part of this plugin
+    //create the runtime part of this plugin
     void doinit(GameCore eng) {
         log("init '{}'", name);
         //handling of internal plugins (special cased D-only plugin hack)
         char[] internal_plugin = mConfig["internal_plugin"];
         if (internal_plugin.length) {
-            GamePluginFactory.instantiate(internal_plugin,
-                GameEngine.fromCore(eng),
+            GamePluginFactory.instantiate(internal_plugin, eng,
                 mConfigWhateverTheFuckThisIs);
         }
 

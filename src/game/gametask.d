@@ -18,6 +18,7 @@ import game.hud.teaminfo;
 import game.hud.gameview;
 import game.clientengine;
 import game.controller;
+import game.core;
 import game.loader;
 import game.gameshell;
 import game.game;
@@ -116,7 +117,7 @@ class GameTask {
     private {
         GameShell mGameShell; //can be null, if a client in a network game!
         GameLoader mGameLoader; //creates a GameShell
-        GameEngine mGame;
+        GameCore mGame;
         ClientGameEngine mClientEngine;
         ClientControl mControl;
         GameInfo mGameInfo;
@@ -334,13 +335,6 @@ class GameTask {
     }
 
     private void gameLoaded(Loader sender) {
-        //idea: start in paused mode, release poause at end to not need to
-        //      reset the gametime
-        //if (mServerEngine)
-          //  mServerEngine.start();
-        //a small wtf: why does client engine have its own time??
-        mClientEngine.start();
-
         //remove this, so the game becomes visible
         mLoadScreen.remove();
 
@@ -439,7 +433,7 @@ class GameTask {
     //game specific commands
     private void registerCommands() {
         if (!mConnection) {
-            mCmds.register(Command("slow", &cmdSlow, "", ["float", "text?"]));
+            mCmds.register(Command("slow", &cmdSlow, "", ["float"]));
             mCmds.register(Command("demo_stop", &cmdDemoStop, ""));
         }
         mCmds.register(Command("show_collide", &cmdShowCollide, ""));
@@ -517,25 +511,11 @@ class GameTask {
         new LuaInterpreter(mGameShell.serverEngine.scripting);
     }
 
-    //slow time <whatever>
-    //whatever can be "game", "ani" or left out
+    //slow <time>
     private void cmdSlow(MyBox[] args, Output write) {
-        bool setgame, setani;
-        switch (args[1].unboxMaybe!(char[])) {
-            case "game": setgame = true; break;
-            case "ani": setani = true; break;
-            default:
-                setgame = setani = true;
-        }
         float val = args[0].unbox!(float);
-        if (setgame) {
-            write.writefln("set slowdown: game={}", val);
-            mControl.executeCommand(myformat("slow_down {}", val));
-        }
-        if (setani) {
-            write.writefln("set slowdown: client={}", val);
-            mClientEngine.setSlowDown(val);
-        }
+        write.writefln("set slow_down={}", val);
+        mControl.executeCommand(myformat("slow_down {}", val));
     }
 
     private void cmdDemoStop(MyBox[], Output) {

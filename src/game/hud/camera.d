@@ -40,6 +40,10 @@ class Camera {
         mTime = new TimeSource("camera", ts);
     }
 
+    TimeSourcePublic ts() {
+        return mTime;
+    }
+
     void reset() {
         if (control)
             control.noticeAction();

@@ -7,11 +7,11 @@ import framework.sound;
 import utils.timesource;
 import common.scene;
 import common.common;
+import game.core;
 import game.water;
 import game.sky;
 import game.temp : GameZOrder;
 import game.game;
-import game.gfxset;
 import game.particles;
 import utils.list2;
 import utils.time;
@@ -29,9 +29,6 @@ import tango.math.Math : PI, pow;
 //client-side game engine, manages all stuff that does not affect gameplay,
 //but needs access to the game and is drawn into the game scene
 class ClientGameEngine {
-    ResourceSet resources;
-    GfxSet gfx;
-
     //not quite clean: Gui drawers can query this / detailLevel changes it
     bool enableSpiffyGui;
 
@@ -40,14 +37,6 @@ class ClientGameEngine {
         Source mMusic;
 
         uint mDetailLevel;
-
-        Scene mLocalScene;
-        SceneZMix mUberScene;
-
-        //normal position of the scenes nested in mScene
-        Rect2i mSceneRect;
-
-        TimeSource mEngineTime;
 
         GameWater mGameWater;
         GameSky mGameSky;
@@ -61,86 +50,28 @@ class ClientGameEngine {
 
         PerfTimer mGameDrawTime;
         bool mPaused;
-
-        ParticleWorld mParticles;
-        bool mEnableParticles = true;
-
-        class DrawParticles : SceneObject {
-            override void draw(Canvas canvas) {
-                if (!mEnableParticles)
-                    return;
-                //update state
-                //engine.windSpeed is -1..1, don't ask me why
-                mParticles.windSpeed = mEngine.windSpeed()*150f;
-                mParticles.waterLine = mEngine.waterOffset();
-                mParticles.paused = mEngineTime.paused;
-                //simulate & draw
-                mParticles.draw(canvas);
-            }
-        }
     }
 
-    this(GameEngine engine) {
-        mEngine = engine;
-        gfx = engine.singleton!(GfxSet)();
-        resources = engine.resources;
-
-        mEngineTime = new TimeSource("ClientEngine");
-        mEngineTime.paused = true;
+    this(GameCore engine) {
+        mEngine = GameEngine.fromCore(engine);
 
         //newTimer resets time every second to calculate average times
         //mGameDrawTime = globals.newTimer("game_draw_time");
         mGameDrawTime = new PerfTimer(true);
 
-        mLocalScene = new Scene();
-        mUberScene = new SceneZMix();
-
-        mSceneRect = mEngine.level.worldBounds;
-
         initSound();
 
         mEngine.getRenderTime = &do_getRenderTime;
 
-        mParticles = mEngine.particleWorld;
-
-        readd_graphics();
-    }
-
-    //actually start the game (called after resources were preloaded)
-    void start() {
-        mEngineTime.paused = false;
-    }
-
-    void readd_graphics() {
-        mUberScene.clear();
-        mLocalScene.clear();
-        mUberScene.add(mLocalScene);
-
-        mUberScene.add(mEngine.scene);
-
         //xxx
-        mGameWater = new GameWater(this);
-        mGameSky = new GameSky(this);
-
-        SceneObject particles = new DrawParticles();
-        particles.zorder = GameZOrder.Particles;
-        mLocalScene.add(particles);
+        mGameWater = new GameWater(mEngine);
+        mGameSky = new GameSky(mEngine);
 
         detailLevel = 0;
-
-        createGraphics();
     }
 
-    TimeSourcePublic engineTime() {
-        return mEngineTime;
-    }
-
-    GameEngine engine() {
+    GameCore engine() {
         return mEngine;
-    }
-
-    ParticleWorld particles() {
-        return mParticles;
     }
 
     void kill() {
@@ -148,7 +79,7 @@ class ClientGameEngine {
     }
 
     private void initSound() {
-        auto mus = resources.get!(Sample)("game");
+        auto mus = engine.resources.get!(Sample)("game");
         mMusic = mus.createSource();
         mMusic.looping = true;
         mMusic.play();
@@ -156,19 +87,6 @@ class ClientGameEngine {
 
     void fadeoutMusic(Time t) {
         mMusic.stop(t);
-    }
-
-    //synchronize graphics list
-    //graphics currently are removed lazily using the "removed" flag
-    private void createGraphics() {
-        //this case is when:
-        // 1. creating a new game; the game engine is created first, and during
-        //    initialization, the engine might want to create new graphics, but
-        //    the client engine isn't here yet and can't listen to the callbacks
-        // 2. loading from savegames
-        // 3. resuming snapshots
-        //but maybe this should be moved to gemashell.d
-        // - lol nothing here anymore
     }
 
     bool paused() {
@@ -181,10 +99,6 @@ class ClientGameEngine {
     bool oldpause; //hack, so you can pause the music independent from the game
 
     void doFrame() {
-        //lol pause state
-        mEngineTime.paused = mPaused;
-        mEngineTime.update();
-
         if (mMusic) {
             if (oldpause != mPaused)
                 mMusic.paused = mPaused;
@@ -193,7 +107,8 @@ class ClientGameEngine {
 
         //bail out here if game is paused??
 
-        if ((mEngineTime.current - mLastShake).msecs >= cShakeIntervalMs) {
+        Time curtime = mEngine.interpolateTime.current;
+        if ((curtime - mLastShake).msecs >= cShakeIntervalMs) {
             //something similar is being done in earthquake.d
             //the point of not using the physic's value is to reduce client-
             //  server communication a bit
@@ -203,28 +118,23 @@ class ClientGameEngine {
                 * (mEngine.earthQuakeStrength()/100f);
             mShakeOffset = toVector2i(shake);
 
-            mLastShake = mEngineTime.current;
+            mLastShake = curtime;
         }
-
-        //only these are shaked on an earth quake
-        //...used to shake only Objects and Landscape, but now it's ok too
-        mUberScene.pos = mSceneRect.p1 + mShakeOffset;
 
         mGameWater.simulate();
         mGameSky.simulate();
     }
 
     Scene scene() {
-        return mLocalScene;
-    }
-
-    void setViewArea(Rect2i rc) {
-        mParticles.setViewArea(rc);
+        return mEngine.scene;
     }
 
     void draw(Canvas canvas) {
         mGameDrawTime.start();
-        mUberScene.draw(canvas);
+        canvas.pushState();
+        canvas.translate(mShakeOffset);
+        mEngine.scene.draw(canvas);
+        canvas.popState();
         mGameDrawTime.stop();
     }
 
@@ -254,24 +164,12 @@ class ClientGameEngine {
         mGameSky.enableSkyBackdrop = skyBackdrop;
         mGameSky.enableSkyTex = skyTex;
         enableSpiffyGui = gui;
-        mEnableParticles = particles;
-        //set particle count to 0 to disable particle system
-        if (mEnableParticles != (mParticles.particleCount() > 0)) {
-            if (mEnableParticles) {
-                mParticles.reinit();
-            } else {
-                mParticles.reinit(0);
-            }
-        }
+        mEngine.particleWorld.enabled = particles;
     }
 
     //if this returns true, the one who calls .draw() will not clear the
     //background => return true if we overpaint everything anyway
     public bool needBackclear() {
         return !mGameSky.enableSkyTex;
-    }
-
-    void setSlowDown(float sd) {
-        mEngineTime.slowDown = sd;
     }
 }

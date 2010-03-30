@@ -5,7 +5,6 @@ import game.events;
 import game.sequence;
 import game.sprite;
 import game.teamtheme;
-import game.temp;
 import gui.rendertext;
 import physics.world;
 import utils.vector2;
@@ -16,6 +15,14 @@ import utils.misc;
 alias DeclareEvent!("crate_drop", CrateSprite) OnCrateDrop;
 //sender is the crate, first parameter is the collecting team member
 alias DeclareEvent!("crate_collect", CrateSprite, GameObject) OnCrateCollect;
+
+//keep in sync with Lua
+enum CrateType {
+    unknown,
+    weapon,
+    med,
+    tool,
+}
 
 ///Base class for stuff in crates that can be collected by worms
 ///most Collectable subclasses have been moved to controller.d (dependencies...)

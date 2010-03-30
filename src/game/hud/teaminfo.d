@@ -29,24 +29,12 @@ class GameInfo {
     SimpleNetConnection connection;
     Time replayRemain;
 
-    //clientTime is something linear, that stops with pause, but is arbitrary
-    //interpolateTime is synchronous to serverTime (just that it's adjusted
-    //  on every frame, not only engine frames), but time might go backwards on
-    //  replays
-    TimeSourcePublic clientTime, interpolateTime;
-    //frame stepped engine time
-    TimeSourcePublic serverTime;
-
     this(GameShell a_shell, ClientGameEngine a_engine, ClientControl ct) {
         shell = a_shell;
         cengine = a_engine;
-        engine = cengine.engine();
+        engine = shell.serverEngine();
         logic = engine.singleton!(GameController)();
         control = ct;
-
-        clientTime = cengine.engineTime;
-        serverTime = engine.gameTime;
-        interpolateTime = engine.interpolateTime;
 
         //doesn't necessarily belong here
         engine.getControlledTeamMember = &controlled;

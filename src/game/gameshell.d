@@ -54,9 +54,6 @@ struct EngineHash {
     }
 }
 
-//initialized by serialize_register.d
-//Types serialize_types;
-
 //the optimum length of the input queue in network mode (i.e. what the engine
 //  will try to reach)
 //if the queue gets longer, game speed will be increased to catch up
@@ -67,8 +64,6 @@ const int cOptimumInputLag = 1;
 
 private LogStruct!("game.gameshell") log;
 
-//save the game engine to disk on snapshot/replay, stuff goes into path /debug/
-//debug = debug_save;
 
 //for each demo frame, write the game hash value (engineHash())
 //could be easily made a runtime option
@@ -271,7 +266,8 @@ class GameLoader {
 
         mGfx.finishLoading();
 
-        mShell.mEngine.initGame();
+        GameEngine rengine = GameEngine.fromCore(mShell.mEngine);
+        rengine.initGame();
 
         new GameController(mShell.mEngine);
 
@@ -306,7 +302,7 @@ class GameLoader {
 //replaying, which is an awfully important feature)
 class GameShell {
     private {
-        GameEngine mEngine;
+        GameCore mEngine;
         //only used to feed mGameTime and to set offset time when loading
         //savegames
         TimeSource mMasterTime;
@@ -494,7 +490,7 @@ class GameShell {
     //  the time used is mEngine.interpolateTime / mInterpolateTime
     //- execute a game frame if necessary (for simulation)
     void frame() {
-        TimeSourceSimple interpol = mInterpolateTime;
+        auto interpol = mInterpolateTime;
 
         void exec_frame(Time overdue) {
             //xxx this was failing in multiplayer because an empty command
@@ -512,10 +508,17 @@ class GameShell {
             mLastFrameRealTime = timeCurrentTime() - overdue;
             doFrame();
 
+            /+
+            ok... interpolateTime is mainly used for drawing, and it doesn't
+                make sense to update it when nothing is drawn; even worse, if
+                some code relies on TimeSourcePublic.difference, it will be all
+                messed up because it "misses" the "difference" time for frames
+                when it wasn't called
             //skip to next frame, if there's some time "left"
             auto gt = mGameTime.current;
             if (interpol.current < gt)
                 interpol.update(gt);
+            +/
 
         }
 
@@ -573,10 +576,12 @@ class GameShell {
 
         if (mGameTime.paused || mSingleStep) {
             //interpolation off
-            interpol.reset(mGameTime.current);
+            //advancing is handled in exec_frame()
+            //this call is needed to make TimeSourcePublic.difference = 0
+            interpol.update(interpol.current);
         } else if (mLastFrameRealTime !is Time.init) {
             Time cur = mGameTime.current;
-            assert(interpol.current >= cur);
+            //not anymore -- assert(interpol.current >= cur);
             //allow interpolating 2 frames ahead
             Time next = cur + 2*mGameTime.frameLength();
             Time passed = (timeCurrentTime() - mLastFrameRealTime)
@@ -589,8 +594,23 @@ class GameShell {
                 //    passed);
             }
             assert(newt >= cur);
-            interpol.reset(newt);
+            //I have no idea why this happens, but of course the time never
+            //  should run backwards (would complicate all the user code)
+            if (newt < interpol.current)
+                newt = interpol.current;
+            interpol.update(newt);
         }
+
+        /+ forgotten debugging code
+        auto rt = timeCurrentTime();
+        static Time last;
+        Time dt = rt - last;
+        last = rt;
+
+        Trace.formatln("GT: {} / {} ## IT: {} / {} ## RT: {} / {}",
+            mGameTime.current, mGameTime.difference, interpol.current,
+            interpol.difference, rt, dt);
+        +/
     }
 
     //called by network client, whenever all input events at the passed
@@ -644,8 +664,6 @@ class GameShell {
                     mMasterTime.slowDown = 1.0f;
                 mReplayMode = false;
                 log("stop replaying");
-                debug(debug_save)
-                    debug_save();
             }
         }
     }
@@ -677,7 +695,7 @@ class GameShell {
         }
     }
 
-    GameEngine serverEngine() {
+    GameCore serverEngine() {
         return mEngine;
     }
 

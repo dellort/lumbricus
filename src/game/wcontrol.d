@@ -9,7 +9,6 @@ import framework.framework;
 import game.core;
 import game.sprite;
 import game.teamtheme;
-import game.temp;
 import game.weapon.types;
 import game.weapon.weapon;
 import game.weapon.weaponset;
@@ -21,6 +20,10 @@ import utils.time;
 import utils.vector2;
 
 import game.temp : GameZOrder;
+
+//make available for other modules
+//renamed imports being public may actually be a dmd bug
+import game.worm : JumpMode;
 
 /+
 //feedback WormControl -> WormSprite

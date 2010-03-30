@@ -9,7 +9,6 @@ import utils.timesource;
 import common.animation;
 import common.scene;
 import game.game;
-import game.clientengine;
 import game.sequence;
 import game.teamtheme;
 import game.controller;
@@ -29,6 +28,7 @@ import physics.world;
 import utils.configfile;
 import utils.rect2;
 import utils.time;
+import utils.timesource;
 import utils.math;
 import utils.misc;
 import utils.vector2;
@@ -96,7 +96,7 @@ private class ViewMember : SceneObject {
 
     this(GameView a_owner, TeamMember m) {
         owner = a_owner;
-        auto ts = owner.mGame.clientTime;
+        auto ts = owner.mGame.engine.interpolateTime;
         moveLabels.currentTimeDg = &ts.current;
         moveHealth.currentTimeDg = &ts.current;
         moveWeaponIcon.currentTimeDg = &ts.current;
@@ -170,7 +170,7 @@ private class ViewMember : SceneObject {
         }
         void addAnimation(Animation ani) {
             AnimationParams p;
-            Time t = owner.mGame.clientTime.current;
+            Time t = owner.mGame.engine.interpolateTime.current;
             ani.draw(canvas, addThing(ani.bounds.size, true), p, t);
         }
 
@@ -182,7 +182,7 @@ private class ViewMember : SceneObject {
         bool doMoveDown = true;
 
         if (isActiveWorm) {
-            auto currentTime = owner.mGame.serverTime.current;
+            auto currentTime = owner.mGame.engine.gameTime.current;
             bool didmove = (currentTime - owner.mGame.control.
                 getControlledMember.control.lastAction()) < cArrowDelta;
             doMoveDown = !didmove;
@@ -285,8 +285,8 @@ private class ViewMember : SceneObject {
         auto tlv = showLabels && !weapon_icon_visible;
         if (tlv) {
             //flash label color to white for active worm
-            bool flash_on = (isActiveWorm
-                && cast(int)(owner.mGame.clientTime.current.secsf*2)%2 == 0);
+            auto t = owner.mGame.engine.interpolateTime.current;
+            bool flash_on = (isActiveWorm && cast(int)(t.secsf*2)%2 == 0);
             Font f = flash_on ? team.color.font_flash : team.color.font;
             wormName.font = f;
             wormTeam.font = f;
@@ -349,7 +349,7 @@ enum MoveLabelEffect {
 
 class DrownLabel : SceneObject {
     private {
-        GameInfo mGame;
+        TimeSourcePublic mTS;
         MoveLabelEffect mEffect;
         FormattedText mTxt;
         Time mStart;
@@ -359,19 +359,19 @@ class DrownLabel : SceneObject {
 
     //member inf drowned at pos (pos is on the ground)
     this(GameInfo a_game, TeamMember m, int lost, Vector2i pos) {
-        mGame = a_game;
         mTxt = m.team.color.textCreate();
         mTxt.setTextFmt(false, "{}", lost);
         mFrom = pos;
-        auto rengine = GameEngine.fromCore(mGame.engine);
+        auto rengine = GameEngine.fromCore(a_game.engine);
         mTo = Vector2i(pos.x, rengine.waterOffset);
-        mStart = mGame.clientTime.current;
+        mTS = a_game.engine.interpolateTime;
+        mStart = mTS.current;
         mEffect = MoveLabelEffect.bubble;
         mSpeed = cDrownLabelSpeed;
     }
 
     override void draw(Canvas c) {
-        auto now = mGame.clientTime.current;
+        auto now = mTS.current;
 
         auto dir = toVector2f(mTo) - toVector2f(mFrom);
         auto px = (now-mStart).secsf * mSpeed;
@@ -509,9 +509,9 @@ class GameView : Widget {
         mLabels = new Scene();
         mLabels.zorder = GameZOrder.Names;
 
-        readd_graphics();
+        add_graphics();
 
-        mCamera = new Camera(mGame.clientTime);
+        mCamera = new Camera(new TimeSource("camera"));
 
         //load the teams and also the members
         foreach (Team t; game.controller.teams) {
@@ -598,8 +598,8 @@ class GameView : Widget {
         }
     }
 
-    void readd_graphics() {
-        mGame.cengine.scene.add(mLabels);
+    private void add_graphics() {
+        mGame.engine.scene.add(mLabels);
 
         //xxx what a dirty hack...
         //check for a geometry collision outside the world area on the left
@@ -613,7 +613,7 @@ class GameView : Widget {
             Vector2f(worldSize.x + 100, worldSize.y/2), 1, tmp);
         SceneObject levelend = new LevelEndDrawer(left, right);
         levelend.zorder = GameZOrder.RangeArrow;
-        mGame.cengine.scene.add(levelend);
+        mGame.engine.scene.add(levelend);
     }
 
     private void cmdCategory(MyBox[] args, Output write) {
@@ -634,7 +634,7 @@ class GameView : Widget {
     }
 
     private void cmdDetail(MyBox[] args, Output write) {
-        if (!mGame.cengine)
+        if (!mGame.engine)
             return;
         int c = args[0].unboxMaybe!(int)(-1);
         mGame.cengine.detailLevel = c >= 0 ? c : mGame.cengine.detailLevel + 1;
@@ -839,7 +839,7 @@ class GameView : Widget {
 
     override void simulate() {
         float zc = mZoomChange*(cZoomMax-cZoomMin)/cZoomTime.secsf
-            * mGame.clientTime.difference.secsf;
+            * mGame.engine.interpolateTime.difference.secsf;
         mCurZoom = clampRangeC(mCurZoom+zc, cZoomMin, cZoomMax);
         super.simulate();
         sim_camera();
@@ -884,7 +884,7 @@ class GameView : Widget {
     //that moved last
     //xxx: camera should use game objects instead of graphic stuff
     void sim_camera() {
-        Time now = mGame.clientTime.current;
+        Time now = mCamera.ts.current;
 
         Sequence cur;
         TeamMember member = mGame.control.getControlledMember();
@@ -932,6 +932,6 @@ class GameView : Widget {
             mCamera.noFollow();
         }
 
-        mGame.cengine.setViewArea(mCamera.visibleArea);
+        mGame.engine.particleWorld.setViewArea(mCamera.visibleArea);
     }
 }

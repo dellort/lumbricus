@@ -1,16 +1,19 @@
 module game.sky;
 
-import framework.framework;
-import game.clientengine;
-import game.temp : GameZOrder;
-import game.levelgen.level : EnvironmentTheme;
 import common.animation;
 import common.scene;
-import utils.misc;
-import utils.time;
-import utils.vector2;
+import framework.framework;
+import game.core;
+import game.game;
+import game.gfxset;
+import game.temp : GameZOrder;
+import game.levelgen.level : EnvironmentTheme;
 import utils.configfile;
+import utils.misc;
 import utils.random;
+import utils.time;
+import utils.timesource;
+import utils.vector2;
 
 class SkyDrawer : SceneObject {
     private GameSky mParent;
@@ -58,7 +61,9 @@ class SkyDrawer : SceneObject {
 
 class GameSky {
     private {
-        ClientGameEngine mEngine;
+        GameCore mEngine;
+        //used where it's needed
+        GameEngine mREngine;
 
         SkyDrawer mSkyDrawer;
         int skyOffset, skyBottom, initialWaterOffset;
@@ -104,13 +109,16 @@ class GameSky {
 
     ///create data structures and load textures, however no
     ///game-related values are used
-    this(ClientGameEngine engine) {
-        size = engine.engine.level.worldSize;
+    this(GameCore a_engine) {
+        mEngine = a_engine;
+        mREngine = GameEngine.fromCore(a_engine);
 
-        EnvironmentTheme theme = engine.engine.level.theme;
+        size = mEngine.level.worldSize;
 
-        mEngine = engine;
-        ConfigNode skyNode = engine.gfx.config.getSubNode("sky");
+        EnvironmentTheme theme = mEngine.level.theme;
+
+        auto gfx = mEngine.singleton!(GfxSet)();
+        ConfigNode skyNode = gfx.config.getSubNode("sky");
         Color skyColor = theme.skyColor;
 
         mDebrisAnim = theme.skyDebris;
@@ -129,7 +137,7 @@ class GameSky {
 
         int nAnim = 0;
         foreach (inout CloudInfo ci; mCloudAnimators) {
-            ci.anim = new Animator(engine.engineTime);
+            ci.anim = new Animator(ts);
             ci.anim.setAnimation(mCloudAnims[nAnim],
                 timeMsecs(rngShared.nextRange(0,
                     cast(int)(mCloudAnims[nAnim].duration.msecs))));
@@ -145,7 +153,7 @@ class GameSky {
 
         if (mDebrisAnim) {
             foreach (inout DebrisInfo di; mDebrisAnimators) {
-                di.anim = new Animator(engine.engineTime);
+                di.anim = new Animator(ts);
                 di.anim.setAnimation(mDebrisAnim, timeMsecs(rngShared.nextRange
                     (0, cast(int)(mDebrisAnim.duration.msecs))));
                 scene.add(di.anim, GameZOrder.BackLayer);
@@ -155,10 +163,10 @@ class GameSky {
 
         if (skyNode.getValue!(bool)("enableStars", false)) {
             Scene stars = new Scene();
-            auto worldsz = mEngine.engine.level.worldBounds;
+            auto worldsz = mEngine.level.worldBounds;
             nAnim = 0;
             for (int n = 0; n < 1000; n++) {
-                auto anim = new Animator(engine.engineTime);
+                auto anim = new Animator(ts);
                 anim.setAnimation(mStarAnims[nAnim]);
                 float py = rngShared.nextRange(0.0, 1.0);
                 py = py*py; //more stars at top
@@ -179,11 +187,16 @@ class GameSky {
         initialize();
     }
 
+    private TimeSourcePublic ts() {
+        //timesource changed in r1119
+        return mEngine.interpolateTime;
+    }
+
     ///initialize object positions on game start
     ///game-specific values have to be valid (e.g. waterOffset)
     private void initialize() {
         updateOffsets();
-        initialWaterOffset = mEngine.engine.level.waterBottomY;
+        initialWaterOffset = mEngine.level.waterBottomY;
         foreach (inout CloudInfo ci; mCloudAnimators) {
             ci.x = rngShared.nextRange(-ci.animSizex, size.x);
         }
@@ -200,12 +213,12 @@ class GameSky {
     }
 
     private void updateOffsets() {
-        skyOffset = mEngine.engine.level.skyTopY;
+        skyOffset = mEngine.level.skyTopY;
         if (skyOffset > 0)
             mCloudsVisible = true;
         else
             mCloudsVisible = false;
-        skyBottom = mEngine.engine.waterOffset;
+        skyBottom = mREngine.waterOffset;
         //update cloud visibility status
         enableClouds(mEnableClouds);
     }
@@ -254,12 +267,12 @@ class GameSky {
 
         updateOffsets();
 
-        float deltaT = mEngine.engineTime.difference.secsf;
+        float deltaT = ts.difference.secsf;
 
         if (mCloudsVisible && mEnableClouds) {
             foreach (inout ci; mCloudAnimators) {
                 //XXX this is acceleration, how to get a constant speed from this??
-                ci.x += (ci.xspeed + mEngine.engine.windSpeed*cWindMultiplier)
+                ci.x += (ci.xspeed + mREngine.windSpeed*cWindMultiplier)
                     * deltaT;
                 clip(ci.x, ci.animSizex, 0, size.x);
                 ci.anim.pos = Vector2i(cast(int)ci.x, skyOffset + ci.y);
@@ -269,7 +282,7 @@ class GameSky {
             //XXX (and, XXX) handmade physics
             foreach (inout di; mDebrisAnimators) {
                 //XXX same here
-                di.x += 2 * mEngine.engine.windSpeed * cWindMultiplier * deltaT
+                di.x += 2 * mREngine.windSpeed * cWindMultiplier * deltaT
                     * di.speedPerc;
                 di.y += cDebrisFallSpeed*deltaT;
                 clip(di.x, mDebrisAnim.bounds.size.x, 0, size.x);

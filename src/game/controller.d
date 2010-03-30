@@ -16,7 +16,6 @@ import game.weapon.types;
 import game.weapon.weapon;
 import game.weapon.weaponset;
 import game.teamtheme;
-import game.temp;
 import game.sequence;
 import game.setup;
 import game.wcontrol;
@@ -687,9 +686,8 @@ class TeamMember : Actor {
 //events into worm moves (or weapon moves!), controlls which object is focused
 //by the "camera", and also manages worm teams
 //xxx: move gui parts out of this
-class GameController : GameObject {
+class GameController : GameObject2 {
     private {
-        GameEngine mEngine;
         static LogStruct!("game.controller") log;
 
         Team[] mTeams;
@@ -710,17 +708,16 @@ class GameController : GameObject {
         int[] mTeamColorCache;
     }
 
-    this(GameEngine engine) {
-        super(engine, "controller");
+    this(GameCore a_engine) {
+        super(a_engine, "controller");
 
-        mEngine = engine;
-        mEngine.scripting.addSingleton(this);
-        mEngine.addSingleton(this);
+        engine.scripting.addSingleton(this);
+        engine.addSingleton(this);
 
         GameConfig config = engine.gameConfig;
 
-        assert(mEngine.onOffworld is null);
-        mEngine.onOffworld = &onOffworld;
+        assert(engine.onOffworld is null);
+        engine.onOffworld = &onOffworld;
 
         //those work for all gamemodes
         addCrateTool("cratespy");
@@ -739,7 +736,7 @@ class GameController : GameObject {
         //only valid while loading
         mWeaponSets = null;
 
-        mEngine.finishPlace();
+        engine.finishPlace();
 
         OnCollectTool.handler(engine.events, &doCollectTool);
         OnCrateCollect.handler(engine.events, &collectCrate);
@@ -767,10 +764,6 @@ class GameController : GameObject {
     void addCrateTool(char[] id) {
         assert(arraySearch(mActiveCrateTools, id) < 0);
         mActiveCrateTools ~= id;
-    }
-
-    GameEngine engine() {
-        return mEngine;
     }
 
     bool isIdle() {
@@ -912,7 +905,7 @@ class GameController : GameObject {
         }
         //at least the "default" set has to exist
         assert(!!ws);
-        return new WeaponSet(mEngine, ws, forCrate);
+        return new WeaponSet(engine, ws, forCrate);
     }
 
     //like "weapon_sets" in gamemode.conf, but renamed according to game config
@@ -969,7 +962,7 @@ class GameController : GameObject {
                 log("count {} type {}", cnt, sub["type"]);
                 try {
                     for (int n = 0; n < cnt; n++) {
-                        mEngine.queuePlaceOnLandscape(engine.resources
+                        engine.queuePlaceOnLandscape(engine.resources
                             .get!(SpriteClass)(sub["type"]).createSprite());
                     }
                 } catch (ResourceException e) {

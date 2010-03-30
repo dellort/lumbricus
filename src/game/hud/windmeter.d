@@ -3,7 +3,6 @@ module game.hud.windmeter;
 import framework.framework;
 import common.common;
 import common.scene;
-import game.clientengine;
 import game.game;
 import game.teamtheme;
 import game.hud.teaminfo;
@@ -36,8 +35,8 @@ class WindMeter : Widget {
 
         //mBackgroundTex = gResources.resource!(BitmapResource)
         //    ("/windmeter_back").get().createTexture();
-        mWindLeft = mGame.cengine.resources.get!(Surface)("windmeter_left");
-        mWindRight = mGame.cengine.resources.get!(Surface)("windmeter_right");
+        mWindLeft = mGame.engine.resources.get!(Surface)("windmeter_left");
+        mWindRight = mGame.engine.resources.get!(Surface)("windmeter_right");
 
         int borderdist = wmNode.getIntValue("borderdist", 2);
         mTexStep = wmNode.getIntValue("textureStep", 8);
@@ -54,7 +53,7 @@ class WindMeter : Widget {
 
     protected void onDraw(Canvas canvas) {
         auto time = timeCurrentTime;
-        if (mGame.cengine) {
+        if (mGame.engine) {
             drawBox(canvas, Vector2i(0), size, mBoxStyle);
             auto rengine = GameEngine.fromCore(mGame.engine);
             float wspeed = rengine.windSpeed;

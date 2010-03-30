@@ -50,7 +50,7 @@ class ModeRealtime : Gamemode {
         bool mSuddenDeath;
     }
 
-    this(GameEngine a_engine, ConfigNode config) {
+    this(GameCore a_engine, ConfigNode config) {
         super(a_engine);
         mStatus = new TimeStatus();
         mStatus.showGameTime = true;

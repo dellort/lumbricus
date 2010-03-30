@@ -17,7 +17,7 @@ static this() {
     gScripting.setClassPrefix!(GameCore)("Game");
 
     gScripting.methods!(GameEngine, "gameTime", "waterOffset",
-        "windSpeed", "setWindSpeed", "randomizeWind", "gravity", "raiseWater",
+        "windSpeed", "setWindSpeed", "randomizeWind", "raiseWater",
         "addEarthQuake", "explosionAt", "damageLandscape",
         "insertIntoLandscape", "countSprites", "nukeSplatEffect",
         "checkForActivity", "gameObjectFirst", "gameObjectNext",

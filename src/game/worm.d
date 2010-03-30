@@ -10,7 +10,6 @@ import game.teamtheme;
 import game.temp : GameZOrder;
 import game.weapon.types;
 import game.weapon.weapon;
-import game.temp : JumpMode;
 import game.particles;
 import utils.misc;
 import utils.vector2;
@@ -41,6 +40,15 @@ interface IControllable {
     xxx not uptodate
 }
 **/
+
+///which style a worm should jump
+//keep in sync with worm.lua
+enum JumpMode {
+    normal,      ///standard forward jump (return)
+    smallBack,   ///little backwards jump (double return)
+    backFlip,    ///large backwards jump/flip (double backspace)
+    straightUp,  ///jump straight up (backspace)
+}
 
 //feedback worm -> controller (implemented by controller)
 //xxx: there's also WormControl, but I want to remove WormController

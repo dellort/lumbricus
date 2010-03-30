@@ -2,7 +2,6 @@ module game.lua.weapon;
 
 import game.lua.base;
 import game.core;
-import game.game;
 import game.controller;
 import game.sprite;
 import game.weapon.spawn;
@@ -58,7 +57,7 @@ static this() {
     gScripting.properties!(RopeClass, "shootSpeed", "maxLength", "moveSpeed",
         "swingForce", "swingForceUp", "ropeColor", "ropeSegment", "anchorAnim");
 
-    gScripting.ctor!(WormSelectHelper, GameEngine, TeamMember);
+    gScripting.ctor!(WormSelectHelper, GameCore, TeamMember);
 
     gScripting.ctor!(NapalmSpriteClass, GameCore, char[]);
     gScripting.properties!(NapalmSpriteClass, "damage", "initialDelay",
@@ -71,7 +70,7 @@ static this() {
     gScripting.ctor!(ControlRotate, Sprite, float, float)();
     gScripting.properties!(ControlRotate, "direction");
 
-    gScripting.ctor!(RenderLaser, GameEngine, Vector2f, Vector2f, Time,
+    gScripting.ctor!(RenderLaser, GameCore, Vector2f, Vector2f, Time,
         Color[]);
 
     //-----

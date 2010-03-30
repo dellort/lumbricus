@@ -4,7 +4,6 @@ import common.animation;
 import framework.framework;
 import game.controller;
 import game.sprite;
-import game.temp : JumpMode;
 import game.weapon.weapon;
 import game.wcontrol;
 import physics.world;

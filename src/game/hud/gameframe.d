@@ -28,7 +28,6 @@ import game.hud.replaytimer;
 import game.hud.network;
 import game.hud.register;
 import game.hud.chatbox;
-import game.clientengine;
 import game.core;
 import game.game;
 import game.weapon.weapon;
@@ -127,7 +126,7 @@ class GameFrame : SimpleContainer {
     }
 
     override protected void simulate() {
-        auto curtime = game.clientTime.current;
+        auto curtime = game.engine.interpolateTime.current;
         if (mLastFrameTime == Time.init)
             mLastFrameTime = curtime;
         auto delta = curtime - mLastFrameTime;

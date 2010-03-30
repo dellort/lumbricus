@@ -37,25 +37,16 @@ import tango.util.Convert : to;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 
-//fixed framerate for the game logic (all of GameEngine)
-//also check physic frame length cPhysTimeStepMs in world.d
-const Time cFrameLength = timeMsecs(20);
-
 //legacy crap (makes engine available as GameEngine, instead of GameCore)
 abstract class GameObject2 : GameObject {
-    private GameEngine mEngine;
-
-    //event_target_type: not needed anymore, but leaving it in for now
-    //  basically should give the type of the game object as a string
-    this(GameEngine aengine, char[] event_target_type) {
+    this(GameCore aengine, char[] event_target_type) {
         assert(aengine !is null);
         super(aengine, event_target_type);
-        mEngine = aengine;
     }
 
     //reintroduce GameObject.engine()
     final GameEngine engine() {
-        return mEngine;
+        return GameEngine.fromCore(super.engine);
     }
 }
 
@@ -71,15 +62,8 @@ class GameEngine : GameCore {
     //     needed and can be moved into some dark corner of the game
     GameLandscape[] gameLandscapes;
 
-    ConfigNode persistentState;
-
     const cDamageToImpulse = 140.0f;
     const cDamageToRadius = 2.0f;
-
-    //helper for profiling
-    //returns the real time or thread time (depends from utils/perf.d) spent
-    //  while drawing the game and non-GUI parts of the game hud (worm labels)
-    Time delegate() getRenderTime;
 
     //dependency hack
     void delegate(Sprite s) onOffworld;
@@ -108,12 +92,6 @@ class GameEngine : GameCore {
 
         Sprite[] mPlaceQueue;
 
-        bool mBenchMode;
-        int mBenchFramesMax;
-        int mBenchFramesCur;
-        Time mBenchDrawTime;
-        PerfTimer mBenchRealTime, mBenchSimTime;
-
         const cWindChange = 80.0f;
         const cMaxWind = 150f;
 
@@ -125,6 +103,18 @@ class GameEngine : GameCore {
         const cPlaceIncDistance = 55.0f;
         //distance when creating a platform in empty space
         const cPlacePlatformDistance = 90.0f;
+    }
+
+    class DrawParticles : SceneObject {
+        override void draw(Canvas canvas) {
+            //update state
+            //engine.windSpeed is -1..1, don't ask me why
+            particleWorld.windSpeed = windSpeed()*150f;
+            particleWorld.waterLine = waterOffset();
+            //yyy particleWorld.paused = interpolateTime.paused;
+            //simulate & draw
+            particleWorld.draw(canvas);
+        }
     }
 
     //config- and gametype-independant initialization
@@ -145,6 +135,10 @@ class GameEngine : GameCore {
             100));
         //hm!?!?
         physicWorld.onCollide = &onPhysicHit;
+
+        SceneObject particles = new DrawParticles();
+        particles.zorder = GameZOrder.Particles;
+        scene.add(particles);
 
         //scripting initialization
         //code loaded here can be considered "internal" and should explode
@@ -250,10 +244,6 @@ class GameEngine : GameCore {
         OnGameInit.raise(globalEvents);
     }
 
-    final void loadScript(char[] filename) {
-        .loadScript(scripting(), filename);
-    }
-
     ///return y coordinate of waterline
     int waterOffset() {
         return cast(int)mCurrentWaterLevel;
@@ -268,11 +258,6 @@ class GameEngine : GameCore {
     float earthQuakeStrength() {
         return mEarthquakeForceVis.earthQuakeStrength()
             + mEarthquakeForceDmg.earthQuakeStrength();
-    }
-
-    ///game configuration, must not modify returned object
-    GameConfig config() {
-        return gameConfig;
     }
 
     private void windChangerUpdate(float val) {
@@ -324,10 +309,6 @@ class GameEngine : GameCore {
         mWindChanger.target = cMaxWind*rnd.nextDouble3();
     }
 
-    float gravity() {
-        return physicWorld.gravity.y;
-    }
-
     void raiseWater(int by) {
         //argh why is mCurrentWaterLevel a float??
         int t = cast(int)mCurrentWaterLevel - by;
@@ -349,94 +330,6 @@ class GameEngine : GameCore {
             ef));
         log("created earth quake, strength={}, duration={}, degrade={}",
             strength, duration, degrade);
-    }
-
-    void nukeSplatEffect() {
-        scene.add(new NukeSplatEffect());
-    }
-
-    void frame() {
-        if (mBenchSimTime)
-            mBenchSimTime.start();
-
-        auto physicTime = globals.newTimer("game_physic");
-        physicTime.start();
-        physicWorld.simulate(gameTime.current);
-        physicTime.stop();
-
-        objects_simulate();
-
-        //xxx not sure where script functions should be called
-        //  this will handle all script timers and per-frame functions
-        //null termination for efficient toStringz
-        try {
-            scripting().call("game_per_frame\0");
-        } catch (ScriptingException e) {
-            error("Scripting error: {}", e.msg);
-        }
-
-        objects_cleanup();
-
-        if (mBenchSimTime)
-            mBenchSimTime.stop();
-
-        if (mBenchMode) {
-            mBenchFramesCur++;
-            if (mBenchFramesCur >= mBenchFramesMax)
-                benchEnd();
-        }
-
-        debug {
-            globals.setCounter("active_gameobjects", mActiveObjects.count);
-            globals.setCounter("all_gameobjects", mAllObjects.count);
-            globals.setByteSizeStat("game_lua_vm", scripting.vmsize());
-            globals.setCounter("lua_to_d_calls", gLuaToDCalls);
-            globals.setCounter("d_to_lua_calls", gDToLuaCalls);
-            globals.setCounter("Lua ref table size", scripting.reftableSize());
-        }
-    }
-
-    //benchmark mode over simtime game time
-    void benchStart(Time simtime) {
-        mBenchMode = true;
-        mBenchFramesMax = simtime/cFrameLength;
-        auto p = registerLog("benchmark");
-        p("Start benchmark, {} => {} frames...", simtime, mBenchFramesMax);
-        mBenchFramesCur = 0;
-        mBenchDrawTime = getRenderTime();
-        if (!mBenchSimTime)
-            mBenchSimTime = new PerfTimer(true);
-        mBenchSimTime.reset();
-        if (!mBenchRealTime)
-            mBenchRealTime = new PerfTimer(true);
-        mBenchRealTime.reset();
-        mBenchRealTime.start();
-    }
-
-    bool benchActive() {
-        return mBenchMode;
-    }
-
-    private void benchEnd() {
-        assert(mBenchMode);
-        mBenchMode = false;
-        mBenchRealTime.stop();
-        mBenchDrawTime = getRenderTime() - mBenchDrawTime;
-        auto p = registerLog("benchmark");
-        p("Benchmark done ({} frames)", mBenchFramesCur);
-        p("Real time (may or may not include sleep() calls): {}",
-            mBenchRealTime.time());
-        p("Game time: {}", mBenchSimTime.time());
-        p("Draw time (without GUI): {}", mBenchDrawTime);
-    }
-
-    //remove all objects etc. from the scene
-    void kill() {
-        //xxx figure out why this is needed etc. etc.
-        //must iterate savely
-        //foreach (GameObject o; mObjects) {
-        //    o.kill();
-        //}
     }
 
     Rect2f placementArea() {
@@ -826,17 +719,13 @@ class GameEngine : GameCore {
 
     //determine round-active objects
     //just another loop over all GameObjects :(
-    bool checkForActivity() {
+    override bool checkForActivity() {
         bool quake = earthQuakeStrength() > 0;
         if (quake)
             return true;
         if (!mWaterChanger.done)
             return true;
-        foreach (GameObject o; mAllObjects) {
-            if (o.activity)
-                return true;
-        }
-        return false;
+        return super.checkForActivity();
     }
 
     //count sprites with passed spriteclass name currently in the game
@@ -900,23 +789,5 @@ class GameEngine : GameCore {
             }
         }
         return best;
-    }
-
-    //output an error message
-    //in contrast to logging, the user will (usually) see this on the screen
-    override void error(char[] fmt, ...) {
-        char[] msg = formatfx(fmt, _arguments, _argptr);
-        //log all errors
-        log("{}", msg);
-        //xxx I don't know if an event is the right way
-        OnGameError.raise(globalEvents, msg);
-    }
-
-    private void eventScriptError(char[] event, Exception e) {
-        error("Scripting error while handling event '{}': {}", event, e.msg);
-    }
-
-    private void scriptingObjError(ScriptingException e) {
-        error("Scripting error in delegate call: {}", e.msg);
     }
 }

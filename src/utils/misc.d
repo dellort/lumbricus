@@ -220,6 +220,18 @@ int requiredArgCount(alias Fn)() {
     assert(false);
 }
 
+unittest {
+    void foo1(int x) {
+    }
+    void foo2(int x = 123) {
+    }
+    void foo3(int x, int y = 123, int z = 456) {
+    }
+    static assert(requiredArgCount!(foo1)() == 1);
+    static assert(requiredArgCount!(foo2)() == 0);
+    static assert(requiredArgCount!(foo3)() == 1);
+}
+
 //parse the result of stringof to get a struct member name; see unittest below
 //also works with CTFE
 char[] structProcName(char[] tupleString) {

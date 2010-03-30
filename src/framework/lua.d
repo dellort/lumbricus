@@ -815,8 +815,8 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
         //argument count has to be in accepted range (exact match)
         if (numArgs < minArgs || numArgs > maxArgs) {
             if (minArgs == maxArgs) {
-                error(myformat("'{}' requires {} arguments, got {}",
-                    funcName, maxArgs, numArgs));
+                error(myformat("'{}' requires {} arguments, got {}, skip={}",
+                    funcName, maxArgs, numArgs, skipCount));
             } else {
                 error(myformat("'{}' requires {}-{} arguments, got {}",
                     funcName, minArgs, maxArgs, numArgs));

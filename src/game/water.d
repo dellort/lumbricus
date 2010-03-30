@@ -1,7 +1,9 @@
 module game.water;
 
 import framework.framework;
-import game.clientengine;
+import game.core;
+import game.game;
+import game.gfxset;
 import game.temp : GameZOrder;
 import game.particles;
 import common.animation;
@@ -83,35 +85,42 @@ class GameWater {
 
     protected uint waterOffs, animTop, animBottom, backAnimTop;
     private uint mStoredWaterLevel = uint.max;
-    private ClientGameEngine mEngine;
+    private GameCore mEngine;
     private bool mSimpleMode = true;
     private ParticleType mBubbleParticle;
     private Timer mBubbleTimer;
 
     Vector2i size;
 
-    private WaterDrawer wd(T)(GameZOrder z) {
-        auto drawer = new T();
-        drawer.init(this, mEngine.gfx.waterColor);
-        mEngine.scene.add(drawer, z);
-        return drawer;
-    }
-
-    this(ClientGameEngine engine) {
-        size = engine.engine.level.worldSize;
+    this(GameCore engine) {
         mEngine = engine;
 
-        wd!(WaterDrawerFront1)(GameZOrder.FrontWater);
-        wd!(WaterDrawerFront2)(GameZOrder.LevelWater);
-        mWaterDrawerBack = wd!(WaterDrawerBack)(GameZOrder.BackWater);
+        //NOTE: used to be some other timesource, changed in r1119
+        auto ts = mEngine.interpolateTime;
+
+        size = mEngine.level.worldSize;
+
+        //GfxSet just for waterColor
+        GfxSet gfx = mEngine.singleton!(GfxSet)();
+
+        WaterDrawer wd(GameZOrder z, WaterDrawer drawer) {
+            drawer.init(this, gfx.waterColor);
+            mEngine.scene.add(drawer, z);
+            return drawer;
+        }
+
+        wd(GameZOrder.FrontWater, new WaterDrawerFront1);
+        wd(GameZOrder.LevelWater, new WaterDrawerFront2);
+        mWaterDrawerBack = wd(GameZOrder.BackWater, new WaterDrawerBack);
         //that zorder is over FrontWater and under Splat, so it's ok
-        mWaterDrawerBlendOut = wd!(WaterDrawerBlendOut)(GameZOrder.RangeArrow);
+        mWaterDrawerBlendOut = wd(GameZOrder.RangeArrow,
+            new WaterDrawerBlendOut);
 
         mWaveAnim = mEngine.resources.get!(Animation)("water_waves");
         Scene scene = mEngine.scene;
         foreach (int i, inout a; mWaveAnimBack) {
             a = new HorizontalFullsceneAnimator();
-            a.animator = new Animator(mEngine.engineTime);
+            a.animator = new Animator(ts);
             a.animator.setAnimation(mWaveAnim);
             scene.add(a, GameZOrder.BackWater);
             a.xoffs = rngShared.nextRange(0,mWaveAnim.bounds.size.x);
@@ -120,7 +129,7 @@ class GameWater {
         }
         foreach (int i, inout a; mWaveAnimFront) {
             a = new HorizontalFullsceneAnimator();
-            a.animator = new Animator(mEngine.engineTime);
+            a.animator = new Animator(ts);
             a.animator.setAnimation(mWaveAnim);
             scene.add(a, GameZOrder.FrontWater);
             a.xoffs = rngShared.nextRange(0,mWaveAnim.bounds.size.x);
@@ -130,13 +139,13 @@ class GameWater {
 
         mBubbleParticle = mEngine.resources.get!(ParticleType)("p_waterbubble");
         mBubbleTimer = new Timer(cBubbleInterval*(2000f/size.x), &spawnBubble,
-            &mEngine.engineTime.current);
+            &ts.current);
 
         simpleMode(mSimpleMode);
     }
 
     private void spawnBubble(Timer sender) {
-        mEngine.particles.emitParticle(
+        mEngine.particleWorld.emitParticle(
             Vector2f(size.x * rngShared.nextRealOpen, size.y),
             Vector2f(0), mBubbleParticle);
     }
@@ -172,8 +181,10 @@ class GameWater {
     }
 
     void simulate() {
-        if (mEngine.engine.waterOffset != mStoredWaterLevel) {
-            waterOffs = mEngine.engine.waterOffset;
+        //GameEngine just for waterOffset
+        GameEngine rengine = GameEngine.fromCore(mEngine);
+        if (rengine.waterOffset != mStoredWaterLevel) {
+            waterOffs = rengine.waterOffset;
             uint p = waterOffs;
             int waveCenterDiff = 0;
             backAnimTop = waterOffs;
@@ -196,7 +207,7 @@ class GameWater {
 
             animTop = waterOffs + waveCenterDiff;
             animBottom = p;
-            mStoredWaterLevel = mEngine.engine.waterOffset;
+            mStoredWaterLevel = rengine.waterOffset;
         }
         mBubbleTimer.update();
     }

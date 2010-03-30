@@ -4,6 +4,7 @@ module game.core;
 //will kill anyone who makes this module a part of the cycle
 
 import common.animation;
+import common.common;
 import common.scene;
 import common.resset;
 import framework.framework;
@@ -12,15 +13,18 @@ import game.events;
 import game.particles;
 import game.setup; //: GameConfig
 import game.teamtheme;
-import game.temp;
+import game.temp : GameZOrder;
 import game.levelgen.level;
 import game.lua.base;
 import gui.rendertext;
 import physics.world;
+import utils.configfile;
 import utils.list2;
 import utils.log;
 import utils.misc;
+import utils.perf;
 import utils.random;
+import utils.time;
 import utils.timesource;
 
 import net.marshal; // : Hasher;
@@ -41,6 +45,9 @@ alias DeclareEvent!("game_reload", GameObject) OnGameReload;
 //called on a non-fatal game error, with a message for the gui
 alias DeclareEvent!("game_error", GameObject, char[]) OnGameError;
 
+//fixed framerate for the game logic (all of GameEngine)
+//also check physic frame length cPhysTimeStepMs in world.d
+const Time cFrameLength = timeMsecs(20);
 
 abstract class GameObject : EventTarget {
     private bool mIsAlive, mInternalActive;
@@ -182,6 +189,12 @@ abstract class GameCore {
         ResourceSet mResources;
         ParticleWorld mParticleWorld;
         Object[char[]] mHudRequests;
+        //blergh
+        bool mBenchMode;
+        int mBenchFramesMax;
+        int mBenchFramesCur;
+        Time mBenchDrawTime;
+        PerfTimer mBenchRealTime, mBenchSimTime;
         //for neutral text, I use GameCore as key (hacky but simple)
         FormattedText[Object] mTempTextThemed;
     }
@@ -193,11 +206,23 @@ abstract class GameCore {
         static LogStruct!("game.game") log;
     }
 
+    //helper for profiling
+    //returns the real time or thread time (depends from utils/perf.d) spent
+    //  while drawing the game and non-GUI parts of the game hud (worm labels)
+    Time delegate() getRenderTime;
+
+    //I don't like this
+    ConfigNode persistentState;
+
     //xxx maybe the GameConfig should be available only in a later stage of the
     //  game loading
     this(GameConfig a_config, TimeSourcePublic a_gameTime,
         TimeSourcePublic a_interpolateTime)
     {
+        mGameConfig = a_config;
+        mGameTime = a_gameTime;
+        mInterpolateTime = a_interpolateTime;
+
         mAllObjects = new typeof(mAllObjects)();
         mKillList = new typeof(mKillList)();
         mActiveObjects = new typeof(mActiveObjects)();
@@ -213,13 +238,10 @@ abstract class GameCore {
         mEvents = new Events();
         mGlobalEvents = new GlobalEvents(this);
 
-        mParticleWorld = new ParticleWorld();
+        mParticleWorld = new ParticleWorld(mInterpolateTime);
+        //xxx rest of particle initialization in game.d
 
         mResources = new ResourceSet();
-
-        mGameConfig = a_config;
-        mGameTime = a_gameTime;
-        mInterpolateTime = a_interpolateTime;
 
         OnHudAdd.handler(events, &onHudAdd);
 
@@ -274,8 +296,6 @@ abstract class GameCore {
     //needed for rendering team specific stuff (crate spies)
     Actor delegate() getControlledTeamMember;
 
-    abstract void error(char[] fmt, ...);
-
     TeamTheme teamThemeOf(GameObject obj) {
         auto actor = actorFromGameObject(obj);
         return actor ? actor.team_theme : null;
@@ -305,7 +325,128 @@ abstract class GameCore {
         return mHudRequests;
     }
 
+    //remove all objects etc. from the scene
+    void kill() {
+        //xxx figure out why this is needed etc. etc.
+        //must iterate savely
+        //foreach (GameObject o; mObjects) {
+        //    o.kill();
+        //}
+    }
+
+    //determine round-active objects
+    //just another loop over all GameObjects :(
+    //warning: right now overridden in GameEngine to check some other crap
+    bool checkForActivity() {
+        foreach (GameObject o; mAllObjects) {
+            if (o.activity)
+                return true;
+        }
+        return false;
+    }
+
+    //benchmark mode over simtime game time
+    void benchStart(Time simtime) {
+        mBenchMode = true;
+        mBenchFramesMax = simtime/cFrameLength;
+        auto p = registerLog("benchmark");
+        p("Start benchmark, {} => {} frames...", simtime, mBenchFramesMax);
+        mBenchFramesCur = 0;
+        mBenchDrawTime = getRenderTime();
+        if (!mBenchSimTime)
+            mBenchSimTime = new PerfTimer(true);
+        mBenchSimTime.reset();
+        if (!mBenchRealTime)
+            mBenchRealTime = new PerfTimer(true);
+        mBenchRealTime.reset();
+        mBenchRealTime.start();
+    }
+
+    bool benchActive() {
+        return mBenchMode;
+    }
+
+    private void benchEnd() {
+        assert(mBenchMode);
+        mBenchMode = false;
+        mBenchRealTime.stop();
+        mBenchDrawTime = getRenderTime() - mBenchDrawTime;
+        auto p = registerLog("benchmark");
+        p("Benchmark done ({} frames)", mBenchFramesCur);
+        p("Real time (may or may not include sleep() calls): {}",
+            mBenchRealTime.time());
+        p("Game time: {}", mBenchSimTime.time());
+        p("Draw time (without GUI): {}", mBenchDrawTime);
+    }
+
+    //-- error reporting; shouldn't this be left to some sort of logging system?
+
+    //output an error message
+    //in contrast to logging, the user will (usually) see this on the screen
+    final void error(char[] fmt, ...) {
+        char[] msg = formatfx(fmt, _arguments, _argptr);
+        //log all errors
+        log("{}", msg);
+        //xxx I don't know if an event is the right way
+        OnGameError.raise(globalEvents, msg);
+    }
+
+    //-- scripting
+
+    private void eventScriptError(char[] event, Exception e) {
+        error("Scripting error while handling event '{}': {}", event, e.msg);
+    }
+
+    private void scriptingObjError(ScriptingException e) {
+        error("Scripting error in delegate call: {}", e.msg);
+    }
+
+    final void loadScript(char[] filename) {
+        .loadScript(scripting(), filename);
+    }
+
     //-- GameObject managment
+
+    void frame() {
+        if (mBenchSimTime)
+            mBenchSimTime.start();
+
+        auto physicTime = globals.newTimer("game_physic");
+        physicTime.start();
+        physicWorld.simulate(gameTime.current);
+        physicTime.stop();
+
+        objects_simulate();
+
+        //xxx not sure where script functions should be called
+        //  this will handle all script timers and per-frame functions
+        //null termination for efficient toStringz
+        try {
+            scripting().call("game_per_frame\0");
+        } catch (ScriptingException e) {
+            error("Scripting error: {}", e.msg);
+        }
+
+        objects_cleanup();
+
+        if (mBenchSimTime)
+            mBenchSimTime.stop();
+
+        if (mBenchMode) {
+            mBenchFramesCur++;
+            if (mBenchFramesCur >= mBenchFramesMax)
+                benchEnd();
+        }
+
+        debug {
+            globals.setCounter("active_gameobjects", mActiveObjects.count);
+            globals.setCounter("all_gameobjects", mAllObjects.count);
+            globals.setByteSizeStat("game_lua_vm", scripting.vmsize());
+            globals.setCounter("lua_to_d_calls", gLuaToDCalls);
+            globals.setCounter("d_to_lua_calls", gDToLuaCalls);
+            globals.setCounter("Lua ref table size", scripting.reftableSize());
+        }
+    }
 
     //update game objects
     protected void objects_simulate() {
@@ -471,5 +612,9 @@ abstract class GameCore {
         a.params = p;
         a.zorder = GameZOrder.Effects;
         scene.add(a);
+    }
+
+    void nukeSplatEffect() {
+        scene.add(new NukeSplatEffect());
     }
 }

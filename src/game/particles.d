@@ -481,6 +481,8 @@ class ParticleWorld {
     float windSpeed = 0f;
     int waterLine = int.max;
 
+    bool enabled = true;
+
     //protection against float rounding errors when using a too small deltaT
     //this is the smallest deltaT possible... or so
     //not sure if this is a good idea or if it even works
@@ -558,9 +560,17 @@ class ParticleWorld {
     }
 
     void draw(Canvas c) {
+        if (!enabled)
+            return;
+
         debug {
             PerfTimer timer = globals.newTimer("particles");
             timer.start();
+
+            scope(success) {
+                timer.stop();
+                globals.setCounter("particles", mParticles.count);
+            }
         }
 
         if (mTS) {
@@ -583,6 +593,9 @@ class ParticleWorld {
             mLastFrame = now;
         }
 
+        //if (deltaT <= 0)
+          //  return;
+
         Particle* cur = mParticles.head;
 
         while (cur) {
@@ -600,11 +613,6 @@ class ParticleWorld {
 
             cur = next;
         }
-
-        debug {
-            timer.stop();
-            globals.setCounter("particles", mParticles.count);
-        }
     }
 
     //move from freelist to active list
@@ -615,6 +623,9 @@ class ParticleWorld {
 
         if (pin)
             mPin[props] = true;
+
+        if (!enabled)
+            return null;
 
         Particle* cur = mFreeParticles.head;
         if (cur) {
@@ -643,6 +654,9 @@ class ParticleWorld {
     }
 
     void explosion(Vector2f pos, float vAdd = 100f, float radius = 50f) {
+        if (!enabled)
+            return;
+
         foreach (Particle* p; mParticles) {
             float dist = (p.pos - pos).length;
             if (p.dead || dist > radius || dist < float.epsilon)
@@ -656,6 +670,9 @@ class ParticleWorld {
     //     pause state automatically according to whether the _realtime_ is
     //      paused or not (that is, the full TimeSource hierarchy must be
     //      checked); but TimeSource doesn't have this yet
+    //xxx2, much later: pausing is implicit through a TimeSourcePublic, and we
+    //     don't know explicitly if it's paused; the only regression is that
+    //     sound effects continue even if the game is paused
     void paused(bool p) {
         if (mPauseState == p)
             return;

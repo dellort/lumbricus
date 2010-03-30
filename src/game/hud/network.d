@@ -3,7 +3,6 @@ module game.hud.network;
 import framework.framework;
 import framework.font;
 import framework.i18n;
-import game.clientengine;
 import game.hud.teaminfo;
 import gui.container;
 import gui.boxcontainer;

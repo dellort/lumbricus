@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # this script takes a dmd dependency file, and outputs a graph in graphviz format
-# also, detect circles
+# also, detect cycles
 
 # feel free to convert this to D, lol.
 
@@ -42,6 +42,9 @@ parser.add_option("-C", "--cycle-edges-only",
 parser.add_option("-e", "--exclude",
     action="append", dest="ignore", default=[],
     help="ignore module (or if it ends with a '.', ignore all packages starting with this)")
+parser.add_option("-i", "--include",
+    action="append", dest="include", default=[],
+    help="include only this module/package (similar to --exclude)")
 parser.add_option("-p", "--package-mode",
     action="store_true", dest="package_mode", default=False,
     help="show dependencies between packages")
@@ -51,9 +54,6 @@ parser.add_option("--no-std-ignore",
 parser.add_option("--imports",
     action="append", dest="imports", default=[],
     help="include only modules which import this module (transitively)")
-parser.add_option("--include",
-    action="append", dest="include", default=[],
-    help="include only this module/package (similar to --exclude)")
 
 # options contains all "dest" arg names as normal members
 # args are all left non-option arguments as sequence
