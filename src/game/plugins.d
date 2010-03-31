@@ -26,14 +26,16 @@ class PluginException : CustomException {
 //another dumb singleton
 class PluginBase {
     private {
+        GameCore mEngine;
         GfxSet mGfx;
         bool[char[]] mLoadedPlugins;
         //list of active plugins, in load order
         Plugin[] mPlugins;
     }
 
-    this(GfxSet gfx, GameConfig cfg) {
-        mGfx = gfx;
+    this(GameCore a_engine, GameConfig cfg) {
+        mEngine = a_engine;
+        mGfx = mEngine.singleton!(GfxSet)();
 
         foreach (ConfigNode sub; cfg.plugins) {
             //either an unnamed value, or a subnode with config items
@@ -46,7 +48,7 @@ class PluginBase {
             }
         }
 
-        OnGameInit.handler(gfx.events, &initplugins);
+        OnGameInit.handler(mGfx.events, &initplugins);
     }
 
     void loadPlugin(char[] pluginId, ConfigNode cfg, ConfigNode allPlugins) {
@@ -94,19 +96,18 @@ class PluginBase {
         mLoadedPlugins[pluginId] = true;
     }
 
-    private void initplugins(GameObject sender) {
-        auto engine = sender.engine;
+    private void initplugins() {
         foreach (plg; mPlugins) {
             //xxx controller is not yet available; plugins have to be careful
             //    best way around: add more events for different states of
             //    game initialization
             try {
-                plg.doinit(engine);
+                plg.doinit(mEngine);
             } catch (CustomException e) {
                 //wtfwtfwtfwtf
                 Trace.formatln("Plugin '{}' failed to init(): {}", plg.name,
                     e.msg);
-                engine.error("Plugin '{}' failed to init(): {}", plg.name,
+                mEngine.error("Plugin '{}' failed to init(): {}", plg.name,
                     e.msg);
             }
         }

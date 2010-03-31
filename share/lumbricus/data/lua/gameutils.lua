@@ -188,7 +188,7 @@ function getDrownFunc(sprite_class, drown_phys)
         -- this is just like projectile.d does it
         drown_phys = POSP_copy(SpriteClass_initPhysic(sprite_class))
         POSP_set_radius(drown_phys, 1)
-        POSP_set_collisionID(drown_phys, "waterobj")
+        POSP_set_collisionID(drown_phys, CollisionMap_find("waterobj"))
     end
     return function(sender)
         if not Sprite_isUnderWater(sender) then
@@ -348,7 +348,7 @@ end
 --   collision = string collision id
 function createZoneTrigger(zone, collision, onTrigger)
     local trig = ZoneTrigger_ctor(zone)
-    Phys_set_collision(trig, CollisionMap_findCollisionID(collision))
+    Phys_set_collision(trig, CollisionMap_find(collision))
     PhysicTrigger_set_onTrigger(trig, onTrigger)
     World_add(trig)
     return trig
@@ -381,6 +381,11 @@ autoProperties = {
     },
     SpriteClass_set_initParticle = {
         string = lookupResource,
+    },
+    POSP_set_collisionID = {
+        string = function(x)
+            return CollisionMap_find(x)
+        end,
     },
 }
 
@@ -618,6 +623,8 @@ end
 
 function createPOSP(props)
     local ret = POSP_ctor()
+    -- some default value that can't be set in D
+    POSP_set_collisionID(ret, CollisionMap_find("none"))
     setProperties(ret, props)
     return ret
 end

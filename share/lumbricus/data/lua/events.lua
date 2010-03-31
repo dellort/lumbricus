@@ -123,6 +123,6 @@ function eventtest()
     end
     addGlobalEventHandler("game_message", on_message)
     addGlobalEventHandler("game_message", on_message2)
-    addClassEventHandler("bazooka", "sprite_activate", on_bazooka_activate)
-    addClassEventHandler("bazooka", "sprite_die", on_bazooka_die)
+    addClassEventHandler("x_bazooka", "sprite_activate", on_bazooka_activate)
+    addClassEventHandler("x_bazooka", "sprite_die", on_bazooka_die)
 end

@@ -89,12 +89,12 @@ class ModeTurnbased : Gamemode {
 
         OnCollectTool.handler(engine.events, &doCollectTool);
 
-        OnHudAdd.raise(engine.globalEvents, "timer", mTimeSt);
-        OnHudAdd.raise(engine.globalEvents, "prepare", mPrepareSt);
+        OnHudAdd.raise(engine.events, "timer", mTimeSt);
+        OnHudAdd.raise(engine.events, "prepare", mPrepareSt);
     }
 
-    override void startGame(GameObject dummy) {
-        super.startGame(dummy);
+    override void startGame() {
+        super.startGame();
 
         logic.addCrateTool("doubletime");
 

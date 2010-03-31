@@ -248,7 +248,7 @@ class GameLoader {
 
         mGfx = new GfxSet(engine, mGameConfig);
 
-        auto plugins = new PluginBase(mGfx, mGameConfig);
+        auto plugins = new PluginBase(engine, mGameConfig);
 
         mShell.mGfx = mGfx;
         mResPreloader = gResources.createPreloader(mGfx.load_resources);
@@ -764,7 +764,7 @@ class GameShell {
         stopDemoRecorder();
     }
 
-    private void onGameError(GameObject sender, char[] msg) {
+    private void onGameError(char[] msg) {
         errorQueue.push(msg);
     }
 

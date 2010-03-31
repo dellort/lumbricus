@@ -160,12 +160,17 @@ final class Events {
         Events[char[]] mPerClassEvents;
         char[] mTargetType;
         Events mParent;
+
+        //also a hack, referenced by DeclareGlobalEvent
+        EventTarget mGlobalEvents;
     }
 
     void delegate(char[] event, Exception e) onScriptingError;
 
     this(Events parent = null) {
         mParent = parent;
+        if (!parent)
+            mGlobalEvents = new EventTarget("global", this);
     }
 
     //for Events that are for per-class handlers
@@ -407,6 +412,7 @@ extern(C) private int scriptEventsRaise(lua_State* state) {
 //xxx 2 the name will add major symbol name bloat, argh.
 class DeclareEvent(char[] name, SenderBase, Args...) {
 //fuck, this crap doesn't work at all anymore!
+//dmd bugzilla 4033 (but why did it work before?)
 //    static assert(is(SenderBase : EventTarget));
     alias void delegate(SenderBase, Args) Handler;
     alias ParamStruct!(Args) ParamType;
@@ -432,6 +438,8 @@ class DeclareEvent(char[] name, SenderBase, Args...) {
     }
 
     static void raise(SenderBase sender, Args args) {
+        static assert(is(SenderBase : EventTarget));
+
         if (!mOutRegged) {
             mOutRegged = true;
             paramTypeOut!(ParamType)();
@@ -458,6 +466,37 @@ class DeclareEvent(char[] name, SenderBase, Args...) {
         auto h = from.data.unbox!(Handler)();
         auto args = params.get!(ParamType)();
         h(sender2, args.tupleof);
+    }
+}
+
+//for now just a wrapper... actually we'd just need an array of delegates for
+//  each event-type/GameEngine plus something to register an add-event-handler
+//  function for scripting (that handler can be a normal D function, that takes
+//  an event handler delegate as parameter) - I want to simplify it once I
+//  manage to make up my mind
+class DeclareGlobalEvent(char[] name, Args...) {
+    alias void delegate(EventTarget, Args) Handler;
+    alias void delegate(Args) Handler2;
+    alias DeclareEvent!(name, EventTarget, Args) Event;
+
+    static void handler(Events base, Handler2 a_handler) {
+        //closure removes the EventTarget from the function signature
+        //could remove this in D2
+        struct Closure {
+            Handler2 handler;
+            void call(EventTarget t, Args args) {
+                handler(args);
+            }
+        }
+        auto c = new Closure;
+        c.handler = a_handler;
+        Event.handler(base, &c.call);
+    }
+
+    static void raise(Events base, Args args) {
+        auto ev = base.mGlobalEvents;
+        assert(!!ev);
+        Event.raise(ev, args);
     }
 }
 

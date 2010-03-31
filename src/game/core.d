@@ -30,20 +30,20 @@ import utils.timesource;
 import net.marshal; // : Hasher;
 
 //xxx: sender is a dummy object, should be controller or something
-alias DeclareEvent!("game_start", GameObject) OnGameStart;
+alias DeclareGlobalEvent!("game_start") OnGameStart;
 //init plugins
-alias DeclareEvent!("game_init", GameObject) OnGameInit;
-alias DeclareEvent!("game_end", GameObject) OnGameEnd;
-alias DeclareEvent!("game_sudden_death", GameObject) OnSuddenDeath;
+alias DeclareGlobalEvent!("game_init") OnGameInit;
+alias DeclareGlobalEvent!("game_end") OnGameEnd;
+alias DeclareGlobalEvent!("game_sudden_death") OnSuddenDeath;
 //add a HUD object to the GUI;
 //  char[] id = type of the HUD object to add
 //  Object info = status object, that is used to pass information to the HUD
-alias DeclareEvent!("game_hud_add", GameObject, char[], Object) OnHudAdd;
+alias DeclareGlobalEvent!("game_hud_add", char[], Object) OnHudAdd;
 //called when the game is loaded from savegame
 //xxx this event is intederministic and must not have influence on game state
-alias DeclareEvent!("game_reload", GameObject) OnGameReload;
+alias DeclareGlobalEvent!("game_reload") OnGameReload;
 //called on a non-fatal game error, with a message for the gui
-alias DeclareEvent!("game_error", GameObject, char[]) OnGameError;
+alias DeclareGlobalEvent!("game_error", char[]) OnGameError;
 
 //fixed framerate for the game logic (all of GameEngine)
 //also check physic frame length cPhysTimeStepMs in world.d
@@ -163,12 +163,6 @@ abstract class Actor : GameObject {
     bool crate_spy;
 }
 
-//dummy object *sigh*
-class GlobalEvents : GameObject {
-    this(GameCore a_engine) { super(a_engine, "root"); }
-    override bool activity() { return false; }
-}
-
 //for now, this is the base class of GameEngine
 //use GameEngine.fromCore to convert this to GameEngine
 //it makes some parts of GfxSet uneeded as well
@@ -182,7 +176,6 @@ abstract class GameCore {
         Scene mScene;
         Random mRnd;
         Events mEvents;
-        GlobalEvents mGlobalEvents;
         ScriptingObj mScripting;
         GameConfig mGameConfig; //not so good dependency
         PhysicWorld mPhysicWorld;
@@ -236,7 +229,6 @@ abstract class GameCore {
         mScene = new Scene();
 
         mEvents = new Events();
-        mGlobalEvents = new GlobalEvents(this);
 
         mParticleWorld = new ParticleWorld(mInterpolateTime);
         //xxx rest of particle initialization in game.d
@@ -260,7 +252,6 @@ abstract class GameCore {
     final Scene scene() { return mScene; }
     final Random rnd() { return mRnd; }
     final Events events() { return mEvents; }
-    final GameObject globalEvents() { return mGlobalEvents; }
     final ScriptingObj scripting() { return mScripting; }
     ///level being played, must not modify returned object
     final Level level() { return mGameConfig.level; }
@@ -314,7 +305,7 @@ abstract class GameCore {
         return null;
     }
 
-    private void onHudAdd(GameObject sender, char[] id, Object obj) {
+    private void onHudAdd(char[] id, Object obj) {
         assert(!(id in mHudRequests), "id must be unique?");
         mHudRequests[id] = obj;
     }
@@ -388,7 +379,7 @@ abstract class GameCore {
         //log all errors
         log("{}", msg);
         //xxx I don't know if an event is the right way
-        OnGameError.raise(globalEvents, msg);
+        OnGameError.raise(events, msg);
     }
 
     //-- scripting

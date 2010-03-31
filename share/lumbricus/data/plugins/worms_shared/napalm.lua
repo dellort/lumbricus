@@ -1,8 +1,7 @@
 local M = export_table()
 
 local function phys(radius)
-    local p = POSP_ctor()
-    setProperties(p, {
+    return createPOSP {
         collisionID = "napalm",
         mass = 10,
         radius = radius,
@@ -11,8 +10,7 @@ local function phys(radius)
         airResistance = 0.3,
         elasticity = 0.0,
         glueForce = 0,
-    })
-    return p
+    }
 end
 
 -- napalm which doesn't "stick"

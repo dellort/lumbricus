@@ -80,7 +80,7 @@ class ControllerMsgs : GamePlugin {
         OnVictory.handler(ev, &onVictory);
     }
 
-    private void onGameStart(GameObject dummy) {
+    private void onGameStart() {
         messageAdd("msggamestart", null);
     }
 
@@ -150,7 +150,7 @@ class ControllerMsgs : GamePlugin {
         }
     }
 
-    private void onSuddenDeath(GameObject dummy) {
+    private void onSuddenDeath() {
         messageAdd("msgsuddendeath");
     }
 
@@ -167,7 +167,7 @@ class ControllerMsgs : GamePlugin {
         }
     }
 
-    private void onGameEnd(GameObject dummy) {
+    private void onGameEnd() {
         if (!mWinner) {
             messageAdd("msgnowin");
         }
@@ -190,7 +190,7 @@ class ControllerMsgs : GamePlugin {
         gameMsg.lm.rnd = engine.rnd.next;
         gameMsg.actor = actor;
         gameMsg.is_private = is_private;
-        OnGameMessage.raise(engine.globalEvents, gameMsg);
+        OnGameMessage.raise(engine.events, gameMsg);
     }
 
     override bool activity() {
@@ -355,7 +355,7 @@ class ControllerStats : GamePlugin {
     }
 +/
 
-    private void onGameEnd(GameObject dummy) {
+    private void onGameEnd() {
         debug mStats.output();
         engine.persistentState.setValue("stats", mStats);
     }
@@ -381,13 +381,13 @@ class ControllerPersistence : GamePlugin {
         OnGameEnd.handler(engine.events, &onGameEnd);
     }
 
-    private void onGameStart(GameObject dummy) {
+    private void onGameStart() {
         foreach (t; controller.teams) {
             load(t);
         }
     }
 
-    private void onGameEnd(GameObject dummy) {
+    private void onGameEnd() {
         foreach (t; controller.teams) {
             save(t);
         }

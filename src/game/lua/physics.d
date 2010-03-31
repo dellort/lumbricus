@@ -39,7 +39,10 @@ static this() {
     gScripting.properties!(HomingForce, "mover", "forceA", "forceT",
         "targetPos", "targetObj");
 
-    gScripting.method!(CollisionMap, "findCollisionID");
+    gScripting.method!(CollisionMap, "find");
+
+    gScripting.ctor!(PhysicObjectConstraint, PhysicObject, PhysicObject,
+        float, float, bool)();
 
     //oh my
     //NOTE: we could handle classes just like structs and use tupleof on them

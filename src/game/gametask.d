@@ -16,7 +16,6 @@ import game.gui.loadingscreen;
 import game.hud.gameframe;
 import game.hud.teaminfo;
 import game.hud.gameview;
-import game.clientengine;
 import game.controller;
 import game.core;
 import game.loader;
@@ -118,7 +117,6 @@ class GameTask {
         GameShell mGameShell; //can be null, if a client in a network game!
         GameLoader mGameLoader; //creates a GameShell
         GameCore mGame;
-        ClientGameEngine mClientEngine;
         ClientControl mControl;
         GameInfo mGameInfo;
         SimpleNetConnection mConnection;
@@ -241,7 +239,6 @@ class GameTask {
         mGUIGameLoader = new Loader();
         addChunk(&initLoadResources, "resources");
         addChunk(&initGameEngine, "gameengine");
-        addChunk(&initClientEngine, "clientengine");
         addChunk(&initGameGui, "gui");
         mGUIGameLoader.onFinish = &gameLoaded;
 
@@ -263,16 +260,15 @@ class GameTask {
             //mGameShell.getSerializeContext().death_stomp(e);
         }
         mGameShell = null;
-        if (mClientEngine) {
-            mClientEngine.kill();
-            mClientEngine = null;
+        if (mGameFrame) {
+            mGameFrame.kill();
         }
         mGame = null;
         mControl = null;
     }
 
     private bool initGameGui() {
-        mGameInfo = new GameInfo(mGameShell, mClientEngine, mControl);
+        mGameInfo = new GameInfo(mGameShell, mControl);
         mGameInfo.connection = mConnection;
         mGameFrame = new GameFrame(mGameInfo);
         mWindow.add(mGameFrame);
@@ -303,12 +299,6 @@ class GameTask {
             mControl = new ClientControl(mGameShell, "local");
         }
 
-        return true;
-    }
-
-    private bool initClientEngine() {
-        //log("initClientEngine");
-        mClientEngine = new ClientGameEngine(mGame);
         return true;
     }
 
@@ -370,9 +360,11 @@ class GameTask {
 
     void terminateWithFadeOut() {
         if (!mFader) {
+            //xxx GameFrame should handle fadeout graphics as well?
             mFader = new Fader(cFadeOutDuration, false);
             mWindow.add(mFader);
-            mClientEngine.fadeoutMusic(cFadeOutDuration);
+            if (mGameFrame)
+                mGameFrame.fadeoutMusic(cFadeOutDuration);
         }
     }
 
@@ -401,19 +393,12 @@ class GameTask {
                 if (mGameShell.terminated)
                     kill();
             }
-            if (mClientEngine) {
-                mClientEngine.doFrame();
-                //synchronize paused state
-                //still hacky, but better than GCD
-                if (mGameShell)
-                    mClientEngine.paused = mGameShell.paused;
 
-                //maybe
-                if (gameEnded()) {
-                    assert(!!mGameShell && !!mGameShell.serverEngine);
-                    mGamePersist = mGameShell.serverEngine.persistentState;
-                    terminateWithFadeOut();
-                }
+            //maybe
+            if (gameEnded()) {
+                assert(!!mGameShell && !!mGameShell.serverEngine);
+                mGamePersist = mGameShell.serverEngine.persistentState;
+                terminateWithFadeOut();
             }
         } else {
             if (mDelayedFirstFrame) {

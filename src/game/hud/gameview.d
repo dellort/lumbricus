@@ -10,11 +10,13 @@ import common.animation;
 import common.scene;
 import game.game;
 import game.sequence;
+import game.sky;
 import game.teamtheme;
 import game.controller;
 import game.hud.camera;
 import game.weapon.weapon;
 import game.hud.teaminfo;
+import game.water;
 import game.worm; //for a hack
 import gui.global;
 import gui.renderbox;
@@ -31,11 +33,14 @@ import utils.time;
 import utils.timesource;
 import utils.math;
 import utils.misc;
+import utils.perf;
 import utils.vector2;
 import utils.interpolate;
 
 import str = utils.string;
 import math = tango.math.Math;
+
+import utils.random : rngShared;
 
 const Time cArrowDelta = timeSecs(5);
 //time and length (in pixels) the health damage indicator will move upwards
@@ -398,6 +403,7 @@ class DrownLabel : SceneObject {
 //GameView is everything which is scrolled
 //it displays the game directly and also handles input directly
 //also draws worm labels
+//and cooks coffee
 class GameView : Widget {
     //these are all evil hacks and should go away
     void delegate() onTeamChange;
@@ -457,6 +463,20 @@ class GameView : Widget {
         ViewMember lastActiveWorm;
 
         bool mCursorVisible = true;
+
+        GameWater mGameWater;
+        GameSky mGameSky;
+
+        uint mDetailLevel;
+
+        //when shaking, the current offset
+        Vector2i mShakeOffset;
+        //time after which a new shake offset is computed (to make shaking
+        //  framerate independent), in ms
+        const cShakeIntervalMs = 50;
+        Time mLastShake;
+
+        PerfTimer mGameDrawTime;
     } //private
 
     void addSubWidget(Widget w) {
@@ -558,6 +578,20 @@ class GameView : Widget {
         mCmds.register(Command("toggle_scroll", &cmdToggleScroll, "-", []));
         mCmds.register(Command("toggle_chat", &cmdToggleChat, "-", []));
         mCmds.bind(mCmd);
+
+        //hacks
+
+        //newTimer resets time every second to calculate average times
+        //mGameDrawTime = globals.newTimer("game_draw_time");
+        mGameDrawTime = new PerfTimer(true);
+
+        mGame.engine.getRenderTime = &do_getRenderTime;
+
+        detailLevel = 0;
+    }
+
+    private Time do_getRenderTime() {
+        return mGameDrawTime.time();
     }
 
     private class LevelEndDrawer : SceneObject {
@@ -614,6 +648,10 @@ class GameView : Widget {
         SceneObject levelend = new LevelEndDrawer(left, right);
         levelend.zorder = GameZOrder.RangeArrow;
         mGame.engine.scene.add(levelend);
+
+        //xxx
+        mGameWater = new GameWater(mGame.engine);
+        mGameSky = new GameSky(mGame.engine);
     }
 
     private void cmdCategory(MyBox[] args, Output write) {
@@ -637,8 +675,8 @@ class GameView : Widget {
         if (!mGame.engine)
             return;
         int c = args[0].unboxMaybe!(int)(-1);
-        mGame.cengine.detailLevel = c >= 0 ? c : mGame.cengine.detailLevel + 1;
-        write.writefln("set detailLevel to {}", mGame.cengine.detailLevel);
+        detailLevel = c >= 0 ? c : detailLevel + 1;
+        write.writefln("set detailLevel to {}", detailLevel);
     }
 
     private void cmdCameraDisable(MyBox[] args, Output write) {
@@ -844,10 +882,33 @@ class GameView : Widget {
         super.simulate();
         sim_camera();
         doSim();
+
+        //not sure if the following shouldn't be handled in onDraw()?
+
+        //visualize earthquake
+        Time curtime = mGame.engine.interpolateTime.current;
+        if ((curtime - mLastShake).msecs >= cShakeIntervalMs) {
+            GameEngine rengine = GameEngine.fromCore(mGame.engine);
+
+            //100f? I don't know what it means, but it works (kind of)
+            auto shake = Vector2f.fromPolar(1.0f, rngShared.nextDouble()*PI*2)
+                * (rengine.earthQuakeStrength()/100f);
+            mShakeOffset = toVector2i(shake);
+
+            mLastShake = curtime;
+        }
+
+        mGameWater.simulate();
+        mGameSky.simulate();
     }
 
     override void onDraw(Canvas c) {
-        mGame.cengine.draw(c);
+        mGameDrawTime.start();
+        c.pushState();
+        c.translate(mShakeOffset);
+        mGame.engine.scene.draw(c);
+        c.popState();
+        mGameDrawTime.stop();
 
         //mouse stuff at last?
         //if (mouseOverState)
@@ -869,7 +930,32 @@ class GameView : Widget {
     }
 
     override bool doesCover() {
-        return !mGame.cengine.needBackclear();
+        //check if the sky drawer is in a mode where everything is overpainted
+        //(depends from detail level)
+        return !mGameSky.enableSkyTex;
+    }
+
+    public uint detailLevel() {
+        return mDetailLevel;
+    }
+    //the higher the less detail (wtf), wraps around if set too high
+    public void detailLevel(uint level) {
+        level = level % 7;
+        mDetailLevel = level;
+        bool clouds = true, skyDebris = true, skyBackdrop = true, skyTex = true,
+             water = true, particles = true;
+        if (level >= 1) skyDebris = false;
+        if (level >= 2) skyBackdrop = false;
+        if (level >= 3) skyTex = false;
+        if (level >= 4) clouds = false;
+        if (level >= 5) water = false;
+        if (level >= 6) particles = false;
+        mGameWater.simpleMode = !water;
+        mGameSky.enableClouds = clouds;
+        mGameSky.enableDebris = skyDebris;
+        mGameSky.enableSkyBackdrop = skyBackdrop;
+        mGameSky.enableSkyTex = skyTex;
+        mGame.engine.particleWorld.enabled = particles;
     }
 
     //camera priority of objects, from high to low:

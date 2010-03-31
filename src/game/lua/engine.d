@@ -22,7 +22,7 @@ static this() {
         "insertIntoLandscape", "countSprites", "nukeSplatEffect",
         "checkForActivity", "gameObjectFirst", "gameObjectNext",
         "debug_pickObject", "benchStart", "activityDebug");
-    gScripting.properties_ro!(GameEngine, "events", "globalEvents",
+    gScripting.properties_ro!(GameEngine, "events",
         "benchActive", "scene", "resources");
     gScripting.properties!(GameEngine, "persistentState", "gameLandscapes");
 

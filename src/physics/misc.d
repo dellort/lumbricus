@@ -5,25 +5,14 @@ import utils.strparser;
 import utils.vector2;
 
 //Important: No physics.* imports in this file!
+//except if it doesn't lead to cyclic module imports
+import physics.collisionmap;
 
 //moved here because "is forward referenced"...
 enum ContactSource {
     object,
     geometry,
     generator,
-}
-
-//and another one... renaming file from posp.d to misc.d
-//entry in matrix that defines how a collision should be handled
-//for other uses than contact generation (like triggers), any value >0
-//  means it collides
-enum ContactHandling : ubyte {
-    none,       //no collision
-    normal,     //default (physically correct) handling
-    noImpulse,  //no impulses are exchanged (like both objects hit a wall)
-                //this may be useful if you want an object to block,
-                // but not be moved
-    pushBack,   //push object back where it came from (special case for ropes)
 }
 
 enum DamageCause {
@@ -116,18 +105,7 @@ final class POSP {
     Vector2f velocityConstraint = {float.infinity, float.infinity};
     float speedLimit = float.infinity;
 
-    private char[] mCollisionID = "none";
-    char[] collisionID() {
-        return mCollisionID;
-    }
-    void collisionID(char[] id) {
-        mCollisionID = id;
-        needUpdate = true;
-    }
-
-    //has any data changed that needs further processing by POSP owner?
-    //(currently only collisionID)
-    protected bool needUpdate = true;
+    CollisionType collisionID;
 
     typeof(this) copy() {
         auto other = new typeof(this)();

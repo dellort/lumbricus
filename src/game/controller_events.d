@@ -2,7 +2,6 @@ module game.controller_events;
 
 import framework.i18n; //for LocalizedMessage
 import game.controller;
-import game.core;
 import game.events;
 
 ///let the client display a message (like it's done on round's end etc.)
@@ -20,6 +19,6 @@ struct GameMessage {
                     //  in getOwnedTeams() see the message), false for all
 }
 
-alias DeclareEvent!("game_message", GameObject, GameMessage) OnGameMessage;
+alias DeclareGlobalEvent!("game_message", GameMessage) OnGameMessage;
 
 

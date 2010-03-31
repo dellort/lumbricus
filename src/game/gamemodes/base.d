@@ -38,7 +38,7 @@ class Gamemode : GameObject2 {
     }
 
     ///Start a new game, called before first simulate call
-    protected void startGame(GameObject dummy) {
+    protected void startGame() {
         modeTime.resetTime();
     }
 

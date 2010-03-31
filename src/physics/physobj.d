@@ -4,7 +4,7 @@ import tango.math.Math : PI, abs, isNaN;
 import tango.math.IEEE : copysign;
 import utils.list2;
 import utils.vector2;
-import utils.misc: min, max, myformat, argcheck;
+import utils.misc;
 import utils.log;
 
 import physics.base;
@@ -57,8 +57,11 @@ class PhysicObject : PhysicBase {
     }
 
     private void updateCollision() {
-        if (mWorld && mPosp)
-            collision = mWorld.collide.findCollisionID(mPosp.collisionID);
+        collision = mPosp.collisionID;
+        //no null collision ID allowed
+        //if the object should never collide, must use CollisionMap.find("none")
+        if (!collision)
+            throw new CustomException("null collisionID");
     }
 
     package Vector2f mPos; //pixels

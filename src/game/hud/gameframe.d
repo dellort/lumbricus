@@ -7,6 +7,7 @@ import framework.framework;
 import framework.event;
 import framework.i18n;
 import framework.lua;
+import framework.sound;
 import gui.container;
 import gui.label;
 import gui.lua;
@@ -67,6 +68,8 @@ class GameFrame : SimpleContainer {
 
         //if non-null, this dialog is modal and blocks other game input
         Widget mModalDialog;
+
+        Source mMusic;
     }
 
     private void updateWeapons(WeaponSet bla) {
@@ -188,10 +191,20 @@ class GameFrame : SimpleContainer {
         +/
 
         mPauseLabel.visible = game.shell.paused;
+        if (mMusic)
+            mMusic.paused = game.shell.paused;
 
         while (!game.shell.errorQueue.empty) {
             showError(game.shell.errorQueue.pop);
         }
+    }
+
+    void fadeoutMusic(Time t) {
+        mMusic.stop(t);
+    }
+
+    void kill() {
+        mMusic.stop();
     }
 
     override bool doesCover() {
@@ -265,7 +278,7 @@ class GameFrame : SimpleContainer {
     }
 
     //hud elements requested by gamemode
-    private void onHudAdd(GameObject sender, char[] id, Object link) {
+    private void onHudAdd(char[] id, Object link) {
         addHud(id, link);
     }
 
@@ -302,6 +315,13 @@ class GameFrame : SimpleContainer {
     }
     void removeKeybinds(KeyBindings binds) {
         gameView.removeExternalKeybinds(binds);
+    }
+
+    private void initSound() {
+        auto mus = game.engine.resources.get!(Sample)("game");
+        mMusic = mus.createSource();
+        mMusic.looping = true;
+        mMusic.play();
     }
 
     this(GameInfo g) {
@@ -394,6 +414,8 @@ class GameFrame : SimpleContainer {
         state.register(reg);
         state.addSingleton!(GameFrame)(this);
 
-        OnGameReload.raise(game.engine.globalEvents);
+        initSound();
+
+        OnGameReload.raise(game.engine.events);
     }
 }

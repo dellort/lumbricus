@@ -6,7 +6,6 @@ module game.hud.teaminfo;
 import framework.font;
 import framework.framework;
 import utils.timesource;
-import game.clientengine;
 import game.controller;
 import game.events;
 import game.core;
@@ -20,7 +19,6 @@ import utils.time;
 public import game.controller : Team, TeamMember;
 
 class GameInfo {
-    ClientGameEngine cengine;
     GameCore engine;
     GameShell shell;
     GameController logic;
@@ -29,9 +27,8 @@ class GameInfo {
     SimpleNetConnection connection;
     Time replayRemain;
 
-    this(GameShell a_shell, ClientGameEngine a_engine, ClientControl ct) {
+    this(GameShell a_shell, ClientControl ct) {
         shell = a_shell;
-        cengine = a_engine;
         engine = shell.serverEngine();
         logic = engine.singleton!(GameController)();
         control = ct;

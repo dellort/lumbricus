@@ -57,7 +57,7 @@ alias DeclareEvent!("team_victory", Team) OnVictory;
 alias DeclareEvent!("collect_tool", TeamMember, CollectableTool) OnCollectTool;
 
 //make crates fall faster by pressing "space" (also known as unParachute)
-alias DeclareEvent!("game_crate_skip", GameObject) OnGameCrateSkip;
+alias DeclareGlobalEvent!("game_crate_skip") OnGameCrateSkip;
 
 
 //class Team : TeamRef {
@@ -780,7 +780,7 @@ class GameController : GameObject2 {
         //nothing happening? start a round
 
         deactivateAll();
-        OnGameStart.raise(engine.globalEvents);
+        OnGameStart.raise(engine.events);
     }
 
     override void simulate() {
@@ -802,7 +802,7 @@ class GameController : GameObject2 {
             //only call once
             mGameEnded = true;
 
-            OnGameEnd.raise(engine.globalEvents);
+            OnGameEnd.raise(engine.events);
 
             //increase total round count
             engine.persistentState.setValue("round_counter",
@@ -1074,7 +1074,7 @@ class GameController : GameObject2 {
     }
 
     void instantDropCrate() {
-        OnGameCrateSkip.raise(engine.globalEvents);
+        OnGameCrateSkip.raise(engine.events);
     }
 
     //xxx wouldn't need this anymore, but doubletime still makes it a bit messy
@@ -1092,7 +1092,7 @@ class GameController : GameObject2 {
     void startSuddenDeath() {
         engine.addEarthQuake(500, timeSecs(4.5f), true);
         engine.nukeSplatEffect();
-        OnSuddenDeath.raise(engine.globalEvents);
+        OnSuddenDeath.raise(engine.events);
     }
 
     private void collectCrate(CrateSprite crate, GameObject finder) {

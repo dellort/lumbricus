@@ -310,6 +310,10 @@ class Sprite : GameObject {
             c.drawLine(p, p + toVector2i(l), Color(0,0,1));
         }
     }
+
+    char[] toString() {
+        return myformat("[Sprite 0x{:x} {}]", cast(void*)this, type.name);
+    }
 }
 
 class SpriteClass {
@@ -335,6 +339,8 @@ class SpriteClass {
         name = a_name;
 
         initPhysic = new POSP();
+        //be friendly
+        initPhysic.collisionID = engine.physicWorld.collide.find("none");
     }
 
     Sprite createSprite() {

@@ -76,7 +76,7 @@ class MessageViewer : Label {
             gFontManager.create(props));
     }
 
-    private void showMessage(GameObject sender, GameMessage msg) {
+    private void showMessage(GameMessage msg) {
         if (msg.is_private) {
             //if the message is only for one team, check if it is ours
             bool show = false;

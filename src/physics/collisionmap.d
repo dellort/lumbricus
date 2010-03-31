@@ -1,13 +1,23 @@
 module physics.collisionmap;
 
-import physics.misc; // : ContactHandling
-
 import utils.array : arrayMap;
 import utils.configfile;
 import utils.misc;
 
 import str = utils.string;
 import tango.util.Convert;
+
+//entry in matrix that defines how a collision should be handled
+//for other uses than contact generation (like triggers), any value >0
+//  means it collides
+enum ContactHandling : ubyte {
+    none,       //no collision
+    normal,     //default (physically correct) handling
+    noImpulse,  //no impulses are exchanged (like both objects hit a wall)
+                //this may be useful if you want an object to block,
+                // but not be moved
+    pushBack,   //push object back where it came from (special case for ropes)
+}
 
 //for loading from ConfigNode
 private const char[][ContactHandling.max+1] cChNames =
@@ -93,12 +103,14 @@ final class CollisionMap {
     }
 
     //find a collision ID by name
-    public CollisionType findCollisionID(char[] name) {
+    public CollisionType find(char[] name) {
         if (auto pres = name in mCollisionNames)
             return *pres;
 
         throw new CustomException("collision ID '"~name~"' not found.");
     }
+
+    alias find findCollisionID;
 
     public CollisionType[] collisionTypes() {
         return mCollisions.dup;

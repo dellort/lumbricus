@@ -154,6 +154,72 @@ function E.snowflake(depth, interpolate)
     LandscapeBitmap_drawBorder(ls, Lexel_soft, Lexel_free, border, border)
 end
 
+function E.horror()
+    if not bouncy_class then
+        bouncy_class = createSpriteClass {
+            name = "x_bouncy",
+            initPhysic = relay {
+                collisionID = "projectile",
+                radius = 5,
+                mass = 1,
+                elasticity = 0.5,
+                --bounceAbsorb = 0.1,
+                --friction = 0.9,
+            },
+            sequenceType = "s_bazooka",
+        }
+    end
+    -- two objects
+    if false then
+        local o1 = SpriteClass_createSprite(bouncy_class)
+        Sprite_activate(o1, Vector2(3000-100, 1000))
+        local o2 = SpriteClass_createSprite(bouncy_class)
+        Sprite_activate(o2, Vector2(3000+100, 1000))
+        local c1 = PhysicObjectConstraint_ctor(Sprite_physics(o1),
+            Sprite_physics(o2), 200, 0, false)
+        World_add(c1)
+        --local c2 = PhysicObjectConstraint_ctor(Sprite_physics(o2),
+        --    Sprite_physics(o1), 200, 0, false)
+        --World_add(c2)
+    end
+    -- grid
+    local X = {}
+    local S = Vector2(2500, 1000)
+    local D = 50
+    local H = 5
+    local R = 0.0 -- constraint restitution
+    for y = 1, H do
+        X[y] = {}
+        for x = 1, H do
+            local o = SpriteClass_createSprite(bouncy_class)
+            Sprite_activate(o, S + Vector2(x-1, y-1)*D)
+            X[y][x] = o
+        end
+    end
+    -- connect each object with the bottom and right neighbour
+    if true then
+        for y = 1, H-1 do
+            for x = 1, H-1 do
+                local o = Sprite_physics(X[y][x])
+                local r = Sprite_physics(X[y][x+1])
+                local b = Sprite_physics(X[y+1][x])
+                local c1 = PhysicObjectConstraint_ctor(o, r, D, R, false)
+                World_add(c1)
+                local c2 = PhysicObjectConstraint_ctor(o, b, D, R, false)
+                World_add(c2)
+                -- backlinks
+                -- (of course the constraint impl. should be fixed instead)
+                --[[
+                local c1b = PhysicObjectConstraint_ctor(r, o, D, R, false)
+                World_add(c1b)
+                local c2b = PhysicObjectConstraint_ctor(b, o, D, R, false)
+                World_add(c2b)
+                --]]
+            end
+        end
+    end
+end
+
 -- some test
 function E.guitest()
     -- adding something to game scene
@@ -214,7 +280,7 @@ function E.benchNapalm()
             },
         }
     end
-    local spawner = SpriteClass_createSprite(spawner_class, Game)
+    local spawner = SpriteClass_createSprite(spawner_class)
     Sprite_activate(spawner, Vector2(3000, 1700))
     local maxtime = currentTime() + time("5s")
     local up = Vector2(0, -1)

@@ -99,6 +99,29 @@ class PhysicConstraint : PhysicContactGen {
     }
 }
 
+//hacked on top of PhysicConstraint
+//Disclaimer: I know nothing about game physics (hey I didn't read that book)
+class PhysicObjectConstraint : PhysicConstraint {
+    PhysicObject other;
+
+    this(PhysicObject obj1, PhysicObject obj2, float length,
+        float restitution = 0, bool isCable = false)
+    {
+        super(obj1, obj2.pos, length, restitution, isCable);
+        other = obj2;
+    }
+
+    override void process(float deltaT, CollideDelegate contactHandler) {
+        anchor = other.pos;
+        super.process(deltaT, contactHandler);
+    }
+
+    override void afterResolve(float deltaT) {
+        anchor = other.pos;
+        super.afterResolve(deltaT);
+    }
+}
+
 class PhysicFixate : PhysicContactGen {
     PhysicObject obj;
     //fixate vector, x/y != 0 to fixate on that axis

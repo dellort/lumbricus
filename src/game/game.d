@@ -241,7 +241,7 @@ class GameEngine : GameCore {
         physicWorld.add(mWaterChanger);
 
         //initialize loaded plugins
-        OnGameInit.raise(globalEvents);
+        OnGameInit.raise(events);
     }
 
     ///return y coordinate of waterline
