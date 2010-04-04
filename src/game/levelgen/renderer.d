@@ -317,8 +317,8 @@ class LandscapeBitmap {
             auto iter = pixels.get_iter(y, 0, mSize.x);
             Lexel* meta = &mLevelData[y*mSize.x];
             while (iter.x < iter.x2) {
-                *meta = Surface.isTransparent(iter.px) ? Lexel.SolidSoft
-                    : Lexel.Null;
+                *meta = Surface.isTransparent(iter.px) ? Lexel.Null
+                    : Lexel.SolidSoft;
                 meta++;
                 iter.next_x();
             }
@@ -878,7 +878,8 @@ class LandscapeBitmap {
      * No real reason for that, but the code above becomes simpler if circle is
      * precalculated (and it also becomes slower...).
      */
-    private int[] getCircle(int radius) {
+    //public for some other debugging code, actually private
+    final int[] getCircle(int radius) {
         assert(radius >= 0);
 
         if (radius >= mCircles.length) {

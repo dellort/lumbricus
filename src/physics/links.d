@@ -1,6 +1,7 @@
 module physics.links;
 
 import tango.math.Math: abs;
+import utils.misc;
 import utils.vector2;
 
 import physics.base;
@@ -28,6 +29,7 @@ class PhysicConstraint : PhysicContactGen {
     this(PhysicObject obj, Vector2f anchor, float length, float restitution = 0,
         bool isCable = false)
     {
+        argcheck(obj);
         this.obj = obj;
         this.anchor = anchor;
         this.length = length;
@@ -101,24 +103,49 @@ class PhysicConstraint : PhysicContactGen {
 
 //hacked on top of PhysicConstraint
 //Disclaimer: I know nothing about game physics (hey I didn't read that book)
-class PhysicObjectConstraint : PhysicConstraint {
-    PhysicObject other;
+class PhysicObjectsRod : PhysicContactGen {
+    PhysicObject[2] obj;
+    float length;
 
-    this(PhysicObject obj1, PhysicObject obj2, float length,
-        float restitution = 0, bool isCable = false)
-    {
-        super(obj1, obj2.pos, length, restitution, isCable);
-        other = obj2;
+    private const cTolerance = 0.01f;
+
+    //length is intialized from current distance
+    this(PhysicObject obj1, PhysicObject obj2) {
+        argcheck(obj1);
+        argcheck(obj2);
+        obj[0] = obj1;
+        obj[1] = obj2;
+        length = (obj1.pos - obj2.pos).length;
     }
 
     override void process(float deltaT, CollideDelegate contactHandler) {
-        anchor = other.pos;
-        super.process(deltaT, contactHandler);
-    }
+        auto diff = obj[1].pos - obj[0].pos;
+        float currentLen = diff.length;
+        float deltaLen = currentLen - length;
 
-    override void afterResolve(float deltaT) {
-        anchor = other.pos;
-        super.afterResolve(deltaT);
+        if (abs(deltaLen) < cTolerance)
+            return;
+
+        Contact c;
+        c.obj[] = obj;
+        c.source = ContactSource.generator;
+
+        Vector2f n = diff.normal;
+        assert(!n.isNaN);
+
+        if (deltaLen > 0) {
+            //too long
+            c.normal = n;
+            c.depth = deltaLen;
+        } else {
+            //too short
+            c.normal = -n;
+            c.depth = -deltaLen;
+        }
+
+        c.restitution = 0;
+
+        contactHandler(c);
     }
 }
 

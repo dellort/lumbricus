@@ -919,6 +919,19 @@ class GameView : Widget {
             mCursorVisible = true;
 
         mGame.engine.debug_draw(c);
+
+        /+ forgotten debugging code
+        auto p = toVector2f(mousePos);
+        float r = 10;
+        c.drawCircle(toVector2i(p), cast(int)r, Color(1,0,0));
+        GeomContact gcontact;
+        bool hit = mGame.engine.physicWorld.collideGeometry(p, r, gcontact);
+        if (hit) {
+            auto dir = gcontact.normal * gcontact.depth;
+            c.drawLine(toVector2i(p), toVector2i(p+dir), Color(1,0,0));
+            c.drawCircle(toVector2i(p+dir), cast(int)r, Color(0,1,0));
+        }
+        +/
     }
 
     //don't draw the default Widget focus marker if the game is focused

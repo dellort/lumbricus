@@ -805,6 +805,16 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
         throw new LuaError(msg);
     }
 
+/+
+    alias ParameterTupleOf!(typeof(del)) Params4;
+    const aargs = Params4.length;
+    const rargs = requiredArgCount!(del)();
+
+    static if (aargs != rargs) {
+        pragma(msg, T.stringof);
+    }
++/
+
     try {
         int numArgs = lua_gettop(state);
 

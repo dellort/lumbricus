@@ -34,6 +34,9 @@ struct Ray {
     }
 
     //damn, I thought this would be simpler...
+    //xxx there's also Vector2.distance_from_clipped(), doesn't it do the same?
+    //  then the worse implementation should be replaced by the better one
+    //  - see struct Line below
     bool intersect(Vector2f pos, float radius, out float t) {
         Vector2f diff = start-pos;
         float b = 2*diff*dir;
@@ -64,5 +67,40 @@ struct Ray {
             t = t0;
             return true;
         }
+    }
+}
+
+//only collides on the line between start and end point
+//the caps are rounded
+struct Line {
+    //dir not normalized (defines end point)
+    Vector2f start, dir;
+    float width = 0;
+
+    void defineStartEnd(Vector2f start, Vector2f end, float width) {
+        this.start = start;
+        this.dir = end - start;
+        this.width = width;
+    }
+
+    bool collide(Vector2f pos, float radius, out Vector2f normal,
+        out float depth)
+    {
+        radius += width/2;
+        //prj is the point on the line
+        auto prj = pos.project_on_clipped(start, dir);
+        auto to_obj = pos - prj;
+        auto qlen = to_obj.quad_length;
+        if (qlen >= radius*radius)
+            return false;
+        auto len = sqrt(qlen);
+        //stuck, same hack as in glevel.d
+        if (len != len || len < float.epsilon) {
+            depth = float.infinity;
+            return true;
+        }
+        normal = to_obj/len;
+        depth = radius - len;
+        return true;
     }
 }

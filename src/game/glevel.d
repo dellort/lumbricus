@@ -28,9 +28,13 @@ const cLandscapeSnowBit = Lexel.Type_Bit_Min << 0;
 
 //collision handling
 class LandscapeGeometry : PhysicGeometry {
-    GameLandscape ls;
+    Vector2f offset; //not "pos" because I was too lazy to change collide()
+    LandscapeBitmap ls;
 
-    this () {
+    this (Vector2f a_pos, LandscapeBitmap a_ls) {
+        argcheck(a_ls);
+        offset = a_pos;
+        ls = a_ls;
     }
 
     bool collide(Vector2f pos, float radius, out GeomContact contact) {
@@ -39,24 +43,29 @@ class LandscapeGeometry : PhysicGeometry {
         uint collide_bits;
 
         //fast out
-        auto po = ls.mOffset;
-        auto ps = ls.mSize;
+        //xxx should be done by physics by maintaining a bounding box?
+        auto po = offset;
+        auto ps = ls.size;
         if (pos.x + radius < po.x
             || pos.x - radius > po.x + ps.x
             || pos.y + radius < po.y
             || pos.y - radius > po.y + ps.y)
             return false;
 
+        auto ipos = toVector2i(pos);
+        auto ioffset = toVector2i(offset);
         version (CircularCollision) {
             int iradius = cast(int)radius;
-            ls.mLandscape.checkAt(toVector2i(pos) - ls.mOffset,
-                iradius, true, dir, pixelcount, collide_bits);
+            ls.checkAt(ipos - ioffset, iradius, true, dir, pixelcount,
+                collide_bits);
         } else {
             //make it a bit smaller?
             int iradius = cast(int)(radius/5*4);
-            ls.mLandscape.checkAt(toVector2i(pos) - ls.mOffset,
-                iradius, false, dir, pixelcount, collide_bits);
+            ls.checkAt(ipos - ioffset, iradius, false, dir, pixelcount,
+                collide_bits);
         }
+
+        //Trace.formatln("dir={} pix={}", dir, pixelcount);
 
         //no collided pixels
         if (pixelcount == 0)
@@ -123,10 +132,6 @@ class GameLandscape : GameObject {
     private {
         LandscapeBitmap mLandscape;
         LevelLandscape mOriginal;
-        //offset of the level bitmap inside the world coordinates
-        //i.e. worldcoords = mOffset + levelcoords
-        Vector2i mOffset;
-        Vector2i mSize;
 
         LandscapeGeometry mPhysics;
 
@@ -144,25 +149,20 @@ class GameLandscape : GameObject {
         this(a_engine);
 
         mOriginal = land;
-        mSize = land.landscape.size;
-        mOffset = land.position;
 
         //landscape landscape landscape
         mLandscape = land.landscape.copy();
         mBorderSegment = engine.resources.get!(Surface)("border_segment");
 
-        init();
+        init(land.position);
     }
 
     this(GameCore a_engine, Rect2i rc) {
         this(a_engine);
 
-        mSize = rc.size;
-        mOffset = rc.p1;
+        mLandscape = new LandscapeBitmap(rc.size);
 
-        mLandscape = new LandscapeBitmap(mSize);
-
-        init();
+        init(rc.p1);
     }
 
     private this(GameCore a_engine) {
@@ -170,15 +170,13 @@ class GameLandscape : GameObject {
         internal_active = true;
     }
 
-    void init() {
+    void init(Vector2i at) {
         engine.scene.add(new RenderLandscape(this));
 
         mLandscape.prepareForRendering();
 
-        mPhysics = new LandscapeGeometry();
-        mPhysics.ls = this;
-
         //to enable level-bitmap collision
+        mPhysics = new LandscapeGeometry(toVector2f(at), mLandscape);
         engine.physicWorld.add(mPhysics);
 
         if (!mOriginal)
@@ -186,7 +184,10 @@ class GameLandscape : GameObject {
 
         //add borders, sadly they are invisible right now
         void add_wall(Vector2i from, Vector2i to) {
-            auto wall = new PlaneGeometry(toVector2f(to), toVector2f(from));
+            //5 pixels would be ideal for the current border graphic; but it has
+            //  to be larger to look good with the graphics (especially worms
+            //  are "sunken" into the landscape a bit for whatever reason)
+            auto wall = new LineGeometry(toVector2f(to), toVector2f(from), 10);
             engine.physicWorld.add(wall);
 
             mWalls ~= Wall(from, to);
@@ -204,9 +205,9 @@ class GameLandscape : GameObject {
         if (radius <= 0)
             return 0;
         int count;
-        pos -= mOffset;
+        pos -= offset;
         auto vr = Vector2i(radius + cBlastBorder);
-        if (Rect2i(mSize).intersects(Rect2i(-vr, vr) + pos)) {
+        if (Rect2i(size).intersects(Rect2i(-vr, vr) + pos)) {
             count = mLandscape.blastHole(pos, radius, cBlastBorder,
                 mOriginal ? mOriginal.landscape_theme : null);
             mPhysics.generationNo++;
@@ -218,20 +219,21 @@ class GameLandscape : GameObject {
         Vector2i tmp1;
         int tmp2;
         uint collide_bits;
+        pos -= offset;
         mLandscape.checkAt(pos, radius, true, tmp1, tmp2, collide_bits);
         return (collide_bits & bits) > 0;
     }
 
     public void insert(Vector2i pos, Surface bitmap, Lexel bits) {
         //not so often called (like damage()), leave clipping to whoever
-        pos -= mOffset;
+        pos -= offset;
         mLandscape.drawBitmap(pos, bitmap, bitmap.size, Lexel.SolidHard, 0,
             bits);
         mPhysics.generationNo++; //?
     }
 
     private void draw(Canvas c) {
-        mLandscape.draw(c, mOffset);
+        mLandscape.draw(c, offset);
 
         foreach (w; mWalls) {
             c.drawTexLine(w.from, w.to, mBorderSegment, 0, Color(1, 0, 0));
@@ -242,11 +244,11 @@ class GameLandscape : GameObject {
     }
 
     final Vector2i offset() {
-        return mOffset;
+        return toVector2i(mPhysics.offset);
     }
 
     final Vector2i size() {
-        return mSize;
+        return mLandscape.size;
     }
 
     final Rect2i rect() {
@@ -272,3 +274,74 @@ class GameLandscape : GameObject {
         //c.drawRect(rect, Color(1,0,0));
     }
 }
+
+/+
+
+import common.task;
+import gui.widget;
+import gui.window;
+
+class LevelColTest : Widget {
+    LandscapeGeometry geo;
+    LandscapeBitmap ls;
+    Surface blue, black;
+
+    float fscale = 10;
+
+    this() {
+        ls = new LandscapeBitmap(gFramework.loadImage("ltest.png"));
+        geo = new LandscapeGeometry(Vector2f(0), ls);
+        Surface colorpix(Color col) {
+            auto s = new Surface(Vector2i(1), Transparency.None);
+            s.fill(s.rect, col);
+            return s;
+        }
+        blue = colorpix(Color(0,0,1));
+        black = colorpix(Color(0,0,0));
+    }
+
+    override void onDraw(Canvas c) {
+        c.pushState();
+        c.setScale(Vector2f(fscale));
+
+        ls.draw(c, Vector2i(0));
+
+        void pixcircle(Vector2i at, int radius, Surface pixel) {
+            int[] circle = ls.getCircle(radius);
+            for (int y = -radius; y <= radius; y++) {
+                int xoffs = radius - circle[y+radius];
+                int lx1 = at.x - xoffs;
+                int lx2 = at.x + xoffs + 1;
+                if (!(lx1 < lx2))
+                    continue;
+                int max_x = lx2;
+                for (int x = lx1; x < max_x; x++) {
+                    c.draw(pixel, Vector2i(x, y + at.y));
+                }
+            }
+        }
+
+        Vector2i mp = mousePos;
+        auto p = toVector2f(mp) / fscale;
+        float r = 4;
+        pixcircle(toVector2i(p), cast(int)r, black);
+        GeomContact contact;
+        if (geo.collide(p, r, contact)) {
+            auto pn = p + contact.normal * contact.depth;
+            c.drawCircle(toVector2i(pn), cast(int)r, Color(0,1,0));
+        }
+        c.draw(blue, toVector2i(p));
+
+        c.popState();
+
+        c.drawCircle(mp, cast(int)(r*fscale), Color(1,0,0));
+    }
+}
+
+static this() {
+    registerTask("levelcoltest", function(char[] args) {
+        gWindowFrame.createWindowFullscreen(new LevelColTest(), "coltest");
+    });
+}
+
++/

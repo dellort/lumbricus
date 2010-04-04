@@ -987,13 +987,15 @@ class GameController : GameObject2 {
         //created by a Worm
         //"victim" from reportViolence should be directly a Worm
 
-        //d'uh, do we ignore "transitive" for now
-        //I don't know what use transitive=false had; if it was important, this
-        //  is a bug
-        while (go) {
-            if (auto m = cast(TeamMember)go)
+        GameObject cur = go;
+
+        while (cur) {
+            if (auto m = cast(TeamMember)cur) {
+                if (!transitive && m.sprite() !is go)
+                    return null;
                 return m;
-            go = go.createdBy;
+            }
+            cur = cur.createdBy;
         }
 
         return null;

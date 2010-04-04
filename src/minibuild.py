@@ -16,7 +16,7 @@ BUILD_DIR = "/tmp/minibuild/"
 # name of the DMD binary
 DMD = "dmd"
 
-STD_ARGS = ["-g", "-L-lz", "-L-ldl"]
+STD_ARGS = ["-gc", "-L-lz", "-L-ldl"]
 OPT = False
 if not OPT:
     STD_ARGS.extend(["-unittest", "-debug"])

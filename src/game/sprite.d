@@ -300,6 +300,8 @@ class Sprite : GameObject {
         version (RotateDebug) {
             auto p = toVector2i(physics.pos);
 
+            c.drawCircle(p, cast(int)physics.posp.radius, Color(1,0,0));
+
             auto r = Vector2f.fromPolar(30, physics.rotation);
             c.drawLine(p, p + toVector2i(r), Color(1,0,0));
 

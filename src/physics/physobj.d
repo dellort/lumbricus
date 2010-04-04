@@ -501,7 +501,7 @@ class PhysicObject : PhysicBase {
 
             bool hitLast = true;   //did the last test hit any landscape?
             //look where's bottom
-            //NOTE: y1 > y2 means y1 is _blow_ y2
+            //NOTE: y1 > y2 means y1 is _below_ y2
             //      take pixel steps
             //scan from top down for first walkable ground
             for (float y = -posp.walkingClimb; y <= +posp.walkingClimb; y++) {

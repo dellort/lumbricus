@@ -30,6 +30,8 @@ struct GeomContact {
             depth = float.infinity;
             return;
         }
+        assert(depth == depth);
+        assert(other.depth == other.depth);
         Vector2f tmp = (normal*depth) + (other.normal*other.depth);
         depth = tmp.length;
         if (depth < float.epsilon) {
@@ -88,6 +90,27 @@ class PlaneGeometry : PhysicGeometry {
 
     bool collide(Vector2f pos, float radius, out GeomContact contact) {
         bool ret = plane.collide(pos, radius, contact.normal,
+            contact.depth);
+        //contact.calcPoint(pos, radius);
+        return ret;
+    }
+}
+
+//yay for code duplication
+//don't fix this, rather make physic objects, geometry, triggers/zones, forces,
+//  and everything else so that they can use the same shape code
+class LineGeometry : PhysicGeometry {
+    Line line;
+
+    this(Vector2f from, Vector2f to, float width) {
+        line.defineStartEnd(from, to, width);
+    }
+
+    this() {
+    }
+
+    bool collide(Vector2f pos, float radius, out GeomContact contact) {
+        bool ret = line.collide(pos, radius, contact.normal,
             contact.depth);
         //contact.calcPoint(pos, radius);
         return ret;

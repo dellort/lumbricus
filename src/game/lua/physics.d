@@ -41,8 +41,7 @@ static this() {
 
     gScripting.method!(CollisionMap, "find");
 
-    gScripting.ctor!(PhysicObjectConstraint, PhysicObject, PhysicObject,
-        float, float, bool)();
+    gScripting.ctor!(PhysicObjectsRod, PhysicObject, PhysicObject)();
 
     //oh my
     //NOTE: we could handle classes just like structs and use tupleof on them
