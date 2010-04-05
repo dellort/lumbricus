@@ -226,6 +226,39 @@ function E.horror()
     end
 end
 
+-- output contents of any object to console
+-- useful for showing D objects
+function E.dumpObject(obj)
+    local outf = printf
+    if type(obj) == "userdata" then
+        outf("D object:")
+        local md = d_get_obj_metadata(obj)
+        -- dump readable properties
+        local props_w, props_r = {}, {}
+        local classes = {}
+        for i, v in ipairs(md) do
+            if v.type == "Property_R" then
+                -- not sure if clashes could happen in theory
+                props_r[v.name] = v
+            elseif v.type == "Property_W" then
+                props_w[v.name] = v
+            end
+            classes[v.dclass] = true
+        end
+        outf("classes: {}", table_keys(classes))
+        for name, v in pairs(props_r) do
+            local value = _G[v.lua_g_name](obj)
+            local t = "ro"
+            if props_w[name] then
+                t = "rw"
+            end
+            outf("  {}.{} [{}] = {:q}", v.dclass, v.name, t, value)
+        end
+    else
+        outf("value of type '{}': {:q}", type(obj), obj)
+    end
+end
+
 -- some test
 function E.guitest()
     -- adding something to game scene

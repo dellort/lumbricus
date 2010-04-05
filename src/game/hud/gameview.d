@@ -425,6 +425,9 @@ class GameView : Widget {
 
         Scene mLabels;
 
+        //not synchronous to game, never paused, no ideas why we have this
+        TimeSource mClientTime;
+
         Camera mCamera;
         int mCurCamPriority;
         //AnimationGraphic mCurCamObject;
@@ -501,6 +504,8 @@ class GameView : Widget {
     }
 
     private void doSim() {
+        mClientTime.update();
+
         mCamera.doFrame();
 
         activeWorm = null;
@@ -531,7 +536,8 @@ class GameView : Widget {
 
         add_graphics();
 
-        mCamera = new Camera(new TimeSource("camera"));
+        mClientTime = new TimeSource("clienttime");
+        mCamera = new Camera(mClientTime);
 
         //load the teams and also the members
         foreach (Team t; game.controller.teams) {
