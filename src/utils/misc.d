@@ -207,6 +207,16 @@ template Repeat(int count) { //thx h3
     }
 }
 
+/+
+
+This function is dangerous because of dmd bug 4028.
+Basically, if you pass a delegate type, the return value may be more or less
+random. Function types are also affected.
+
+It still works if you pass a function symbol directly (alias parameters pass
+symbols, and there aren't any delegate/function types, which would be affected
+by bug 4028).
+
 //returns number of required function arguments, optional arguments excluded
 int requiredArgCount(alias Fn)() {
     alias ParameterTupleOf!(typeof(Fn)) Params;
@@ -227,10 +237,18 @@ unittest {
     }
     void foo3(int x, int y = 123, int z = 456) {
     }
+    void foo4(int x, int y, int z) {
+    }
     static assert(requiredArgCount!(foo1)() == 1);
     static assert(requiredArgCount!(foo2)() == 0);
     static assert(requiredArgCount!(foo3)() == 1);
+    auto x1 = &foo3;
+    auto x2 = &foo4;
+    static assert(requiredArgCount!(x1)() == 1);
+    static assert(requiredArgCount!(x2)() == 3);
 }
+
++/
 
 //parse the result of stringof to get a struct member name; see unittest below
 //also works with CTFE

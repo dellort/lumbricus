@@ -805,54 +805,21 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
         throw new LuaError(msg);
     }
 
-/+
-    alias ParameterTupleOf!(typeof(del)) Params4;
-    const aargs = Params4.length;
-    const rargs = requiredArgCount!(del)();
-
-    static if (aargs != rargs) {
-        pragma(msg, T.stringof);
-    }
-+/
-
     try {
         int numArgs = lua_gettop(state);
-
-        alias ParameterTupleOf!(typeof(del)) Params;
-        //min/max arguments allowed to be passed from lua (incl. 'this')
-        int maxArgs = Params.length + skipCount;
-        int minArgs = requiredArgCount!(del)() + skipCount;
-        //argument count has to be in accepted range (exact match)
-        if (numArgs < minArgs || numArgs > maxArgs) {
-            if (minArgs == maxArgs) {
-                error(myformat("'{}' requires {} arguments, got {}, skip={}",
-                    funcName, maxArgs, numArgs, skipCount));
-            } else {
-                error(myformat("'{}' requires {}-{} arguments, got {}",
-                    funcName, minArgs, maxArgs, numArgs));
-            }
-        }
-        //number of arguments going to the delegate call
+        //number of arguments going to the D call
         int numRealArgs = numArgs - skipCount;
 
-        //hack: add dummy type, to avoid code duplication
-        alias Tuple!(Params, int) Params2;
-        Params2 p;
+        alias ParameterTupleOf!(typeof(del)) Params;
+
+        if (numRealArgs != Params.length) {
+            error(myformat("'{}' requires {} arguments, got {}, skip={}",
+                funcName, Params.length+skipCount, numArgs, skipCount));
+        }
+
+        Params p;
+
         foreach (int idx, x; p) {
-            //generate code for all possible parameter counts, and select
-            //the right case at runtime
-            static if (is(typeof(del(p[0..idx])) RetType)) {
-                if (numRealArgs == idx) {
-                    static if (is(RetType == void)) {
-                        del(p[0..idx]);
-                        return 0;
-                    } else {
-                        auto ret = del(p[0..idx]);
-                        return luaPush(state, ret);
-                    }
-                }
-            }
-            assert(idx < Params.length);
             alias typeof(x) T;
             try {
                 p[idx] = luaStackValue!(T)(state, skipCount + idx + 1);
@@ -861,7 +828,15 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
                     funcName, e.msg));
             }
         }
-        assert(false);
+
+        static if (is(ReturnTypeOf!(del) == void)) {
+            del(p);
+            return 0;
+        } else {
+            auto ret = del(p);
+            return luaPush(state, ret);
+        }
+
     } catch (Exception e) {
         if (isLuaRecoverableException(e)) {
             raiseLuaError(state, e);
@@ -869,6 +844,8 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
             internalError(state, e);
         }
     }
+
+    assert(false);
 }
 
 bool isLuaRecoverableException(Exception e) {
@@ -985,6 +962,40 @@ class LuaRegistry {
                     Class.classinfo, o);
             }
 
+            //NOTE: the following code is duplicated at least three times, with
+            //  slight modifications. the problem is to unify functions, methods
+            //  and static methods (and ctors if you'd want to be complete), and
+            //  the slight differences seem to make unifying a major PITA. I
+            //  didn't want to use string mixins to configure every aspect of
+            //  the code, and taking the address of a symbol (function ptr,
+            //  delegate) does not work ebcause dmd bug 4028.
+
+            //this crap is ONLY for default arguments
+            //you can remove the code, you'll just lose the default args feature
+            //--- default args start
+
+            int realargs = lua_gettop(state) - 1;
+
+            mixin ("alias Class."~name~" T;");
+            alias ParameterTupleOf!(T) Params;
+            const Params x;
+            foreach (int idx, _; Repeat!(Params.length + 1)) {
+                const fn = "c."~name~"(x[0..idx])";
+                static if (is(typeof( mixin(fn)))) {
+                    if (idx == realargs) {
+                        //delegate indirection => runtime slowdown, additional
+                        //  linker symbols
+                        auto f = delegate(Params[0..idx] x) {
+                            return mixin(fn);
+                        };
+                        return callFromLua(f, state, 1, methodName);
+                    }
+                }
+            }
+
+            //--- default args stop
+
+            //default, whatever
             auto del = mixin("&c."~name);
             return callFromLua(del, state, 1, methodName);
         }
@@ -1001,6 +1012,32 @@ class LuaRegistry {
         extern(C) static int demarshal(lua_State* state) {
             const methodName = Class.stringof ~ '.' ~ name;
             alias Class C;
+
+            //this crap is ONLY for default arguments
+            //you can remove the code, you'll just lose the default args feature
+            //--- default args start
+
+            int realargs = lua_gettop(state);
+
+            mixin ("alias Class."~name~" T;");
+            alias ParameterTupleOf!(T) Params;
+            const Params x;
+            foreach (int idx, _; Repeat!(Params.length + 1)) {
+                const fn = "c."~name~"(x[0..idx])";
+                static if (is(typeof( mixin(fn)))) {
+                    if (idx == realargs) {
+                        //delegate indirection => runtime slowdown, additional
+                        //  linker symbols
+                        auto f = delegate(Params[0..idx] x) {
+                            return mixin(fn);
+                        };
+                        return callFromLua(f, state, 0, methodName);
+                    }
+                }
+            }
+
+            //--- default args stop
+
             //xxx when binding a normal virtual method with static_method, it
             //  compiles and a segfault happens as the script calls it
             auto fn = mixin("&C."~name);
@@ -1115,8 +1152,34 @@ class LuaRegistry {
     //Register a function
     void func(alias Fn)(char[] rename = null) {
         //stringof returns "& functionName", strip that
+        //xxx this is crap, who knows what random strings .stringof will return
+        //  in future compiler versions?
         const funcName = (&Fn).stringof[2..$];
         extern(C) static int demarshal(lua_State* state) {
+            //this crap is ONLY for default arguments
+            //you can remove the code, you'll just lose the default args feature
+            //--- default args start
+
+            int realargs = lua_gettop(state);
+
+            alias ParameterTupleOf!(Fn) Params;
+            const Params x;
+            foreach (int idx, _; Repeat!(Params.length + 1)) {
+                const fn = "Fn(x[0..idx])";
+                static if (is(typeof( mixin(fn)))) {
+                    if (idx == realargs) {
+                        //delegate indirection => runtime slowdown, additional
+                        //  linker symbols
+                        auto f = delegate(Params[0..idx] x) {
+                            return mixin(fn);
+                        };
+                        return callFromLua(f, state, 0, funcName);
+                    }
+                }
+            }
+
+            //--- default args stop
+
             return callFromLua(&Fn, state, 0, funcName);
         }
         registerDMethod(null, rename.length ? rename : funcName, &demarshal,
