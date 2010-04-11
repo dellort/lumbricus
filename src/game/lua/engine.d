@@ -21,10 +21,11 @@ static this() {
         "addEarthQuake", "explosionAt", "damageLandscape",
         "insertIntoLandscape", "countSprites", "nukeSplatEffect",
         "checkForActivity", "gameObjectFirst", "gameObjectNext",
-        "debug_pickObject", "benchStart", "activityDebug");
+        "benchStart");
     gScripting.properties_ro!(GameEngine, "events",
         "benchActive", "scene", "resources");
-    gScripting.properties!(GameEngine, "persistentState", "gameLandscapes");
+    gScripting.properties!(GameEngine, "persistentState", "gameLandscapes",
+        "enableDebugDraw");
 
     gScripting.methods!(GameCore, "animationEffect");
 
@@ -45,10 +46,11 @@ static this() {
     gScripting.property!(GameObject, "createdBy");
     gScripting.property_ro!(GameObject, "objectAlive");
 
-    gScripting.methods!(Sprite, "setPos", "type", "activate", "setParticle");
+    gScripting.methods!(Sprite, "setPos", "activate", "setParticle");
     gScripting.properties!(Sprite, "graphic", "noActivityWhenGlued",
         "exceedVelocity", "notifyAnimationEnd");
-    gScripting.properties_ro!(Sprite, "physics", "isUnderWater", "visible");
+    gScripting.properties_ro!(Sprite, "physics", "isUnderWater", "visible",
+        "type");
 
     gScripting.ctor!(SpriteClass, GameCore, char[])();
     gScripting.methods!(SpriteClass, "createSprite", "getInitSequenceState",

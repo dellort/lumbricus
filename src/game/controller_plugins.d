@@ -6,6 +6,7 @@ import game.controller;
 import game.core;
 import game.game;
 import game.sprite;
+import game.plugins;
 import game.crate;
 import game.weapon.weapon;
 import game.weapon.weaponset;
@@ -45,11 +46,6 @@ abstract class GamePlugin : GameObject2 {
         return false;
     }
 }
-
-//and another factory...
-//plugins register here, so the Controller can load them
-alias StaticFactory!("GamePlugins", GameObject, GameCore, ConfigNode)
-    GamePluginFactory;
 
 //the idea was that the whole game state should be observable (including
 //events), so you can move displaying all messages into a separate piece of

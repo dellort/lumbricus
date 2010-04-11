@@ -76,6 +76,18 @@ void swap(T)(inout T a, inout T b) {
     b = t;
 }
 
+//whether an index into the array is valid
+bool indexValid(T)(T[] array, uint index) {
+    //uint takes care of the >= 0
+    return index < array.length;
+}
+
+//whether array[a..b] would be valid (and not cause an exception)
+bool sliceValid(T)(T[] array, uint a, uint b) {
+    //uint takes care of the >= 0
+    return a <= array.length && b <= array.length && a <= b;
+}
+
 //clamp to closed range, i.e. val is adjusted so that it fits into [low, high]
 T clampRangeC(T)(T val, T low, T high) {
     if (val > high)

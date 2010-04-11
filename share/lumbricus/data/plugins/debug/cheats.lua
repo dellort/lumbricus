@@ -2,6 +2,48 @@
 
 local E = {} -- whatever
 
+function E.activeGameObjects()
+    local cur = Game_gameObjectFirst()
+    local list = {}
+    while cur do
+        if GameObject_activity(cur) then
+            list[#list + 1] = cur
+        end
+        cur = Game_gameObjectNext(cur)
+    end
+    return list
+end
+
+function E.activityList()
+    printf("-- Active game objects:");
+    for i, g in ipairs(activeGameObjects()) do
+        printf("  {}", g)
+    end
+    printf("-- end of list.")
+end
+
+function E.activityFix()
+    -- xxx: sometimes kills of game.controller_plugins.ControllerMsgs
+    --  in game, it also kills the active Team and TeamMember
+    --  all of this above is a bit bogus
+    for i, g in ipairs(activeGameObjects()) do
+        printf("killing {}", g)
+        GameObject_kill(g)
+    end
+end
+
+-- get control over a random worm
+-- will not work in network mode
+function E.takeControl()
+    for i, t in ipairs(Control_teams()) do
+        Team_set_active(t, true)
+        -- will be false if no worm available
+        if Team_active(t) then
+            break
+        end
+    end
+end
+
 function ownedTeam()
     assert(getCurrentInputTeam)
     return getCurrentInputTeam()
@@ -79,8 +121,7 @@ function E.whosYourDaddy()
                 Member_addHealth(m, 500)
             else
                 p = Sprite_physics(Member_sprite(m))
-                -- xxx last optional argument doesn't work??
-                Phys_applyDamage(p, Phys_lifepower(p) - 1, 2, nil)
+                Phys_applyDamage(p, Phys_lifepower(p) - 1, 2)
             end
         end
     end
@@ -160,7 +201,7 @@ function E.horror()
             name = "x_bouncy",
             initPhysic = relay {
                 collisionID = "always",
-                radius = 5,
+                radius = 15,
                 mass = 1,
                 elasticity = 0.5,
                 --bounceAbsorb = 0.1,
@@ -228,34 +269,139 @@ end
 
 -- output contents of any object to console
 -- useful for showing D objects
-function E.dumpObject(obj)
-    local outf = printf
+function E.dumpObject(obj, outf)
+    outf = outf or printf
     if type(obj) == "userdata" then
         outf("D object:")
         local md = d_get_obj_metadata(obj)
-        -- dump readable properties
-        local props_w, props_r = {}, {}
+        -- find classes and sort them by inheritance
         local classes = {}
         for i, v in ipairs(md) do
-            if v.type == "Property_R" then
-                -- not sure if clashes could happen in theory
-                props_r[v.name] = v
-            elseif v.type == "Property_W" then
-                props_w[v.name] = v
-            end
             classes[v.dclass] = true
         end
-        outf("classes: {}", table_keys(classes))
-        for name, v in pairs(props_r) do
-            local value = _G[v.lua_g_name](obj)
-            local t = "ro"
-            if props_w[name] then
-                t = "rw"
+        local sclasses = table_keys(classes)
+        table.sort(sclasses, function(a, b)
+            return not d_is_class(d_find_class(a), d_find_class(b))
+        end)
+        -- find readable properties
+        local props_r, props_w = {}, {}
+        for i, v in ipairs(md) do
+            if not v.inherited then
+                if v.type == "Property_R" then
+                    props_r[v.name] = v
+                elseif v.type == "Property_W" then
+                    props_w[v.name] = v
+                end
             end
-            outf("  {}.{} [{}] = {:q}", v.dclass, v.name, t, value)
         end
+        -- output properties and their values, sorted by class
+        outf("classes: {}", array.join(sclasses))
+        for i, cls in ipairs(sclasses) do
+            for name, v in pairs(props_r) do
+                if cls == v.dclass then
+                    local value = _G[v.lua_g_name](obj)
+                    local t = "ro"
+                    if props_w[name] then
+                        t = "rw"
+                    end
+                    outf("  {}.{} [{}] = {:q}", v.dclass, v.name, t, value)
+                end
+            end
+        end
+    end
+    outf("value of type '{}': {:q}", type(obj), obj)
+end
+
+function E.pickObjectAt(pos)
+    local cls = d_find_class("Sprite")
+    local obj = Game_gameObjectFirst()
+    local best, best_pos
+    while obj do
+        if d_is_class(obj, cls) and Sprite_visible(obj) then
+            local opos = Phys_pos(Sprite_physics(obj))
+            if (not best) or
+                ((pos - opos):length() < (pos - best_pos):length())
+            then
+                best, best_pos = obj, opos
+            end
+        end
+        obj = Game_gameObjectNext(obj)
+    end
+    return best
+end
+
+-- pick with mouse, dump to Lua console
+-- dowhat = optional function to execute on result
+function E.pickObject(dowhat)
+    dowhat = dowhat or dumpObject
+    local w = Gui_ctor()
+    local scene = Scene_ctor()
+    Gui_set_render(w, scene)
+    local circle = SceneDrawCircle_ctor()
+    SceneDrawCircle_set_radius(circle, 10)
+    SceneDrawCircle_set_color(circle, Color(1,0,0))
+    Scene_add(scene, circle)
+    local obj
+    setProperties(w, {
+        OnHandleKeyInput = function(info)
+            if info.isDown and info.code == keycode("mouse_left") then
+                dowhat(obj)
+                GameFrame_removeHudWidget(w)
+            end
+            return true
+        end,
+        OnHandleMouseInput = function(info)
+            obj = pickObjectAt(info.pos)
+            if obj then
+                SceneObjectCentered_set_pos(circle,
+                    Phys_pos(Sprite_physics(obj)))
+            end
+            return true
+        end,
+    })
+    GameFrame_addHudWidget(w, "gameview")
+end
+
+-- show dumpObject() output in a window
+-- if obj is nil, use pickObject to pick an object
+function E.guiPickObject(obj)
+    local function show()
+        local w = Gui_ctor()
+        local txtrender = SceneDrawText_ctor()
+        local txt = SceneDrawText_text(txtrender)
+        Gui_set_render(w, txtrender)
+        local updater
+        local function update()
+            if not Gui_isLinked(w) then
+                updater:cancel()
+                return
+            end
+            local t = ""
+            local function appendf(...)
+                t = t .. utils.anyformat(...) .. "\n"
+            end
+            dumpObject(obj, appendf)
+            FormattedText_setText(txt, false, t)
+        end
+        updater = addPeriodicTimer(time("1s"), update)
+        --[[
+        setProperties(w, {
+            OnUnmap = function()
+                updater:cancel()
+            end,
+        })
+        ]]
+        GameFrame_addHudWidget(w, "window")
+        update()
+    end
+
+    if not obj then
+        pickObject(function(x)
+            obj = x
+            show()
+        end)
     else
-        outf("value of type '{}': {:q}", type(obj), obj)
+        show()
     end
 end
 

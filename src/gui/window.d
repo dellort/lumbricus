@@ -574,6 +574,7 @@ class WindowWidget : Widget {
     class WindowClient : BoxContainer {
         this() {
             super(false);
+            doClipping = true;
         }
         void readdClient() {
             clear();

@@ -50,7 +50,7 @@ class Chatbox : GuiConsole {
         minSize = Vector2i(400, 175);
     }
 
-    override EditLine createEdit() {
+    override ConsoleEditLine createEdit() {
         return new ChatEditLine(mCmdline, mLogWindow);
     }
 

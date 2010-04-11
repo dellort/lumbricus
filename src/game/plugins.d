@@ -5,7 +5,6 @@ import common.resources : gResources, ResourceFile;
 import framework.config;
 import framework.framework;
 import framework.i18n; //just because of weapon loading...
-import game.controller_plugins;
 import game.core;
 import game.gfxset;
 import game.setup;
@@ -22,6 +21,12 @@ class PluginException : CustomException {
         super(msg);
     }
 }
+
+//and another factory...
+//"internal" plugins register here; these plugins don't have their own plugin
+//  folder and are written in D
+alias StaticFactory!("GamePlugins", GameObject, GameCore, ConfigNode)
+    GamePluginFactory;
 
 //another dumb singleton
 class PluginBase {

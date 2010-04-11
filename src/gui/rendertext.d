@@ -28,6 +28,12 @@ enum ShrinkMode {
 struct TextRange {
     //start and end indices
     int start, end;
+
+    TextRange ordered() {
+        auto sstart = min(start, end);
+        auto ssend = max(start, end);
+        return TextRange(sstart, ssend);
+    }
 }
 
 /++

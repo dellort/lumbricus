@@ -22,6 +22,12 @@ class ConsoleEditLine : EditLine {
         LogWindow mLogWindow;
     }
 
+    //if this is set, the framework.commandline tab completion is disabled
+    //instead, hitting a tab character will call this delegate
+    //the caller can output text or change the input line by accessing this
+    //  edit widget and accessing the parent GuiConsole
+    void delegate() customTabCompletion;
+
     this(CommandLineInstance cmd, LogWindow logWin) {
         mCmdline = cmd;
         mLogWindow = logWin;
@@ -34,15 +40,11 @@ class ConsoleEditLine : EditLine {
 
     override protected bool handleKeyPress(KeyInfo infos) {
         if (infos.code == Keycode.TAB) {
-            auto txt = text.dup;
-            mCmdline.tabCompletion(txt, cursorPos,
-                (int start, int end, char[] ins) {
-                    txt = txt[0..start] ~ ins ~ txt[end..$];
-                    //set text and put cursor at end of completion
-                    text = txt;
-                    cursorPos = start + ins.length;
-                }
-            );
+            if (customTabCompletion) {
+                customTabCompletion();
+            } else {
+                mCmdline.tabCompletion(text, cursorPos, &editText);
+            }
         } else if (infos.code == Keycode.UP) {
             selHistory(-1);
         } else if (infos.code == Keycode.DOWN) {
@@ -69,9 +71,19 @@ class GuiConsole : VBoxContainer {
     protected {
         CommandLineInstance mCmdline;
         LogWindow mLogWindow;
-        EditLine mEdit;
+        ConsoleEditLine mEdit;
         Label mPrompt;
+        TabCompleteDelegate mCustomTabComplete;
     }
+
+    //Replace the text between start and end by text
+    //operation: newline = line[0..start] ~ text ~ line[end..$];
+    alias void delegate(int start, int end, char[] text) EditDelegate;
+
+    //line is the current line, cursor1+cursor2 are the selection/cursor-
+    //  position, and edit can be used to change the text
+    alias void delegate(char[] line, int cursor1, int cursor2,
+        EditDelegate edit) TabCompleteDelegate;
 
     //cmdline: use that cmdline, if null create a new one
     this(CommandLine cmdline = null) {
@@ -92,6 +104,21 @@ class GuiConsole : VBoxContainer {
         add(hbox, WidgetLayout.Expand(true));
     }
 
+    //if this is set, normal command tab completion is disabled
+    void setTabCompletion(TabCompleteDelegate dg) {
+        assert(!!dg);
+        mCustomTabComplete = dg;
+        mEdit.customTabCompletion = &onTabComplete;
+    }
+
+    private void onTabComplete() {
+        if (!mCustomTabComplete)
+            return;
+        auto selection = mEdit.selection();
+        mCustomTabComplete(mEdit.text, selection.start, selection.end,
+            &mEdit.editText);
+    }
+
     //needed by chatbox (whatever)
     bool editVisible() {
         return mEdit.visible;
@@ -101,7 +128,7 @@ class GuiConsole : VBoxContainer {
         mPrompt.visible = s;
     }
 
-    protected EditLine createEdit() {
+    protected ConsoleEditLine createEdit() {
         return new ConsoleEditLine(mCmdline, mLogWindow);
     }
 
@@ -112,6 +139,10 @@ class GuiConsole : VBoxContainer {
     alias output console;
     final CommandLine cmdline() {
         return mRealCmdline;
+    }
+
+    void clear() {
+        mLogWindow.clear();
     }
 
     override void readStyles() {

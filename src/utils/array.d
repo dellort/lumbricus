@@ -340,9 +340,15 @@ final class BigArray(T) {
     T[] opSlice() {
         return mData;
     }
+    T[] opSlice(uint low, uint high) {
+        return mData[low..high];
+    }
     void opSliceAssign(T v) {
         T[] slice = opSlice();
         slice[] = v;
+    }
+    T* ptr() {
+        return mData.ptr;
     }
 }
 
@@ -364,7 +370,7 @@ void mergeSort(T, Pred2E = array.IsLess!(T))(T[] a, Pred2E pred = Pred2E.init) {
      *  Merge the two sorted lists
      */
     int lo = 0;
-	int end_lo = mid;
+    int end_lo = mid;
     int start_hi = mid + 1;
     while ((lo <= end_lo) && (start_hi < a.length)) {
         if (pred(a[start_hi], a[lo])) {

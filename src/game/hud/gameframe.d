@@ -1,8 +1,9 @@
 module game.hud.gameframe;
 
 import common.common;
-import common.toplevel;
+import common.lua;
 import common.scene;
+import common.toplevel;
 import framework.framework;
 import framework.event;
 import framework.i18n;
@@ -15,6 +16,9 @@ import gui.tablecontainer;
 import gui.widget;
 import gui.mousescroller;
 import gui.boxcontainer;
+import gui.window;
+import game.core;
+import game.game;
 import game.hud.camera;
 import game.hud.gameteams;
 import game.hud.gametimer;
@@ -29,8 +33,7 @@ import game.hud.replaytimer;
 import game.hud.network;
 import game.hud.register;
 import game.hud.chatbox;
-import game.core;
-import game.game;
+import game.lua.base;
 import game.weapon.weapon;
 import game.weapon.weaponset;
 import game.weapon.types;
@@ -38,6 +41,8 @@ import game.weapon.types;
 import utils.interpolate;
 import utils.time;
 import utils.misc;
+import utils.mybox;
+import utils.output;
 import utils.vector2;
 import utils.log;
 
@@ -61,6 +66,9 @@ class GameFrame : SimpleContainer {
         Label mPauseLabel;
         Chatbox mChatbox;
         BoxContainer mSideBar;
+
+        Chatbox mScriptbox;
+        LuaInterpreter mScriptInterpreter;
 
         Time mLastFrameTime;
         bool mFirstFrame = true;
@@ -160,6 +168,8 @@ class GameFrame : SimpleContainer {
                 }
             }
         }
+        if (!gameView.focused())
+            mode = 0;
         switch (mode) {
             case 1:
                 //direct scrolling
@@ -276,6 +286,9 @@ class GameFrame : SimpleContainer {
     private void toggleChat() {
         mChatbox.activate();
     }
+    private void toggleScript() {
+        mScriptbox.activate();
+    }
 
     //hud elements requested by gamemode
     private void onHudAdd(char[] id, Object link) {
@@ -302,6 +315,8 @@ class GameFrame : SimpleContainer {
         } else if (where == "gameview") {
             w.setLayout(WidgetLayout());
             gameView.addSubWidget(w);
+        } else if (where == "window") {
+            gWindowFrame.createWindow(w, "script", Vector2i(300, 500));
         } else {
             argcheck(false, "invalid 'where' parameter: '"~where~"'");
         }
@@ -322,6 +337,10 @@ class GameFrame : SimpleContainer {
         mMusic = mus.createSource();
         mMusic.looping = true;
         mMusic.play();
+    }
+
+    private void cmdExecScript(MyBox[] args, Output output) {
+        mScriptInterpreter.exec(args[0].unbox!(char[])());
     }
 
     this(GameInfo g) {
@@ -348,6 +367,17 @@ class GameFrame : SimpleContainer {
         mChatbox.cmdline.setPrefix("/", "say");
         mGui.add(mChatbox, WidgetLayout.Aligned(-1, -1, Vector2i(5, 5)));
 
+        mScriptbox = new Chatbox();
+        mScriptInterpreter = new LuaInterpreter(&mScriptbox.output.writeString,
+            g.engine.scripting);
+        mScriptbox.cmdline.commands.addSub(globals.cmdLine.commands);
+        mScriptbox.cmdline.commands.registerCommand("exec", &cmdExecScript,
+            "exec Lua script", ["text..."]);
+        mScriptbox.cmdline.setPrefix("/", "exec");
+        mScriptbox.setTabCompletion(&mScriptInterpreter.tabcomplete);
+        mScriptbox.clear(); //make initial text go away
+        mGui.add(mScriptbox, WidgetLayout.Aligned(-1, 0, Vector2i(5, 5)));
+
         mTeamWindow = new TeamWindow(game);
         mGui.add(mTeamWindow);
 
@@ -358,6 +388,7 @@ class GameFrame : SimpleContainer {
         gameView.onToggleWeaponWindow = &toggleWeaponWindow;
         gameView.onToggleScroll = &toggleScroll;
         gameView.onToggleChat = &toggleChat;
+        gameView.onToggleScript = &toggleScript;
 
         mScroller = new MouseScroller();
         //changed after r845, was WidgetLayout.Aligned(0, -1)

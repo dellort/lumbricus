@@ -3,6 +3,7 @@ module game.input;
 import common.common;
 import framework.commandline;
 import framework.framework;
+import framework.lua;
 import game.controller;
 import game.core;
 import game.events;

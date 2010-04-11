@@ -19,7 +19,6 @@ import utils.time;
 
 private LogStruct!("game.sprite") log;
 
-//version = RotateDebug;
 
 //called when sprite is finally dead (for worms: when done blowing up)
 alias DeclareEvent!("sprite_die", Sprite) OnSpriteDie;
@@ -297,24 +296,26 @@ class Sprite : GameObject {
     }
 
     override void debug_draw(Canvas c) {
-        version (RotateDebug) {
-            auto p = toVector2i(physics.pos);
+        super.debug_draw(c);
 
-            c.drawCircle(p, cast(int)physics.posp.radius, Color(1,0,0));
+        auto p = toVector2i(physics.pos);
 
-            auto r = Vector2f.fromPolar(30, physics.rotation);
-            c.drawLine(p, p + toVector2i(r), Color(1,0,0));
+        c.drawCircle(p, cast(int)physics.posp.radius,
+            physics.isGlued ? Color(0,1,0) : Color(1,0,0));
 
-            auto n = Vector2f.fromPolar(30, physics.ground_angle);
-            c.drawLine(p, p + toVector2i(n), Color(0,1,0));
+        auto r = Vector2f.fromPolar(30, physics.rotation);
+        c.drawLine(p, p + toVector2i(r), Color(1,0,0));
 
-            auto l = Vector2f.fromPolar(30, physics.lookey_smooth);
-            c.drawLine(p, p + toVector2i(l), Color(0,0,1));
-        }
+        auto n = Vector2f.fromPolar(30, physics.ground_angle);
+        c.drawLine(p, p + toVector2i(n), Color(0,1,0));
+
+        auto l = Vector2f.fromPolar(30, physics.lookey_smooth);
+        c.drawLine(p, p + toVector2i(l), Color(0,0,1));
     }
 
     char[] toString() {
-        return myformat("[Sprite 0x{:x} {}]", cast(void*)this, type.name);
+        return myformat("[Sprite 0x{:x} {} at {}]", cast(void*)this, type.name,
+            physics.pos);
     }
 }
 

@@ -165,9 +165,10 @@ class Team : GameObject2 {
         return h;
     }
 
-    TeamMember[] getMembers() {
+    TeamMember[] members() {
         return mMembers;
     }
+    alias members getMembers; //legacy
 
     bool allowSelect() {
         if (!mActive || !mCurrent)

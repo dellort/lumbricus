@@ -6,6 +6,7 @@ import game.controller;
 import game.controller_plugins;
 import game.core;
 import game.game;
+import game.plugins;
 import game.gamemodes.base;
 import game.gamemodes.shared;
 

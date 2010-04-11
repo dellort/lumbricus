@@ -471,13 +471,25 @@ function array.map(arr, conv)
     return narr
 end
 
+-- execute the filter function on each array item
+-- return a new array with all items for which fn returned a truth value
+function array.filter(arr, fn)
+    local narr = {}
+    for i, v in ipairs(arr) do
+        if fn(v) then
+            narr[#narr + 1] = v
+        end
+    end
+    return narr
+end
+
 -- (item == nil is a no-op)
 function array.append(arr, item)
     arr[#arr + 1] = item
 end
 
 -- lua sure is a nice programming language
--- according to #lua, you have to concat array manually
+-- according to #lua, you have to concat arrays manually
 -- table.concat and .. only work for strings or arrays of numbers (?!?!?!)
 -- this function returns the concatenation of all passed arrays
 -- passing non-arrays isn't possible (this isn't D's ~ operator)
@@ -490,6 +502,20 @@ function array.concat(...)
             res[n] = v2
             n = n + 1
         end
+    end
+    return res
+end
+
+-- join table entries as string
+-- not in Lua stdlib??
+function array.join(arr, separator)
+    if not arr[1] then
+        return ""
+    end
+    local res = "" .. arr[1]
+    separator = separator or ", "
+    for i = 2, #arr do
+        res = res .. separator .. arr[i]
     end
     return res
 end
@@ -574,3 +600,158 @@ function export_from_table(table)
         _G[name] = e
     end
 end
+
+-- some command line interpreter support
+-- should probably be moved into its own module
+
+ConsoleUtils = {}
+
+-- execute a line of Lua code (either statement or expression)
+-- print out result
+function ConsoleUtils.exec(line)
+    assert(type(line) == "string")
+    -- first try to prepend return in order to get the value the code returns
+    -- it also allows to execute expressions like "1+2"
+    local real = "return " .. line
+    local fn, err = loadstring(real)
+    if not fn then
+        real = line
+        fn, err = loadstring(real)
+    end
+    -- somehow looks less confusing to include the command in the output
+    printf("> {}", real)
+    if not fn then
+        printf("Error: {}", err)
+        return false
+    end
+    -- execute the function
+    -- if errors happen, let the caller of script_exec handle it?
+    -- it uses the global scope (see loadstring())
+    local function capture(err, ...) -- catch nil return values
+        return err, {n = select("#", ...), ...}
+    end
+    --[[ works, but it looks ugly: backtrace too big, maybe isn't useful either
+    local function errhandler(err)
+        -- if a "recoverable" D exception was thrown, err will be a D Exception,
+        --  and its toString will return something useful - not a full
+        --  backtrace, though
+        -- thus, we do whatever we do
+        if debug then
+            err = utils.format("{}", err) .. "\n" .. debug.traceback()
+        end
+        return err
+    end
+    local ok, res = capture(xpcall(fn, errhandler))
+    ]]
+    local ok, res = capture(pcall(fn))
+    if not ok then
+        printf("Lua error: {}", res[1])
+        return false
+    end
+    -- print result (only if not nil)
+    if res.n > 1 or res[1] ~= nil then
+        local s = "result = "
+        for i = 1, res.n do
+            if i > 1 then
+                s = s .. ", "
+            end
+            s = s .. utils.format("{:q}", res[i])
+        end
+        print(s)
+    end
+    return true
+end
+
+-- return auto-completion possibilities for the given line
+-- the line is a string, with c_start and c_end being indices into line
+-- c_start is the current cursor position
+-- c_end, if present, is the end of the selection
+-- returns a table that in D is defined as:
+--    struct CompletionResult {
+--        //indices of the prefix into the current command line
+--        //e.g. "abc.def<tab>" => match_start, match_end = 4, 7
+--        int match_start, match_end;
+--        //possible matches (only those which match the prefix)
+--        char[][] matches;
+--        //more than the fixed maximum number of matches available
+--        bool more;
+--    }
+function ConsoleUtils.autocomplete(line, c_start, c_end)
+    -- right now, the completion is as simple as possible
+    -- c_start and c_end are ignored for now
+    -- it just looks at the whole string and follows identifiers and . and :
+    --  operators
+    -- feel free to add more capabilities as needed
+    local cur = _G
+    local pos = 1
+    local last_from, last_to, last_id
+    while true do
+        -- get identifier in the beginning
+        local from, to, id = line:find("([%w_]+)", pos)
+        if not from then
+            break
+        end
+        -- follow table and advance search position
+        -- the next find will skip any '.', ':' or unexpected code
+        -- xxx can call user metamethods (which may misbehave)
+        local n = cur[id]
+        to = to + 1 -- find() is weird and returns inclusive-end range
+        pos = to
+        last_from, last_to, last_id = from, to, id
+        if n --[[and type(n) == "table"]] then
+            cur = n
+        else
+            break
+        end
+    end
+    -- end of whatever doesn't fall on end of line => user probably has a '.'
+    --  or ':' at the end => skip previous id, start new id as empty string
+    if (not last_to) or (last_to ~= #line + 1) then
+        last_to = #line + 1
+        last_from = #line + 1
+        last_id = ""
+    end
+    -- in the completion case, we will have some table cur, and a last_id which
+    --  is a prefix that should be used for completion
+    -- find all identifiers in that table, and filter what matches to last_id
+    local matches = {}
+    local MAX = 10
+    local more = false
+    if type(cur) == "table" then
+        while type(cur) == "table" and last_id do
+            for name, val in pairs(cur) do
+                if type(name) == "string" and name:startswith(last_id) then
+                    if #matches >= MAX then
+                        more = true
+                        break
+                    end
+                    matches[#matches+1] = name
+                end
+            end
+            -- xxx not safe against cyclic metatables/metamethods
+            -- this has to follow the "index" metatable event (see Lua manual)
+            -- the code doesn't follow it exactly (e.g. no __index functions)
+            cur = getmetatable(cur)
+            if type(cur) ~= "table" then
+                break
+            end
+            cur = rawget(cur, "__index")
+        end
+    elseif type(cur) == "function" then
+        -- add '()', which is convenient most time
+        last_to = #line + 1
+        last_from = #line + 1
+        last_id = ""
+        matches[#matches+1] = "()"
+    end
+    local res = {
+        -- also adjust to D slice indices
+        match_start = (last_from and last_from - 1) or 0,
+        match_end = (last_to and last_to - 1) or 0,
+        matches = matches,
+        more = more,
+    }
+    --printf(res)
+    return res
+end
+

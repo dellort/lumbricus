@@ -1,5 +1,6 @@
 module game.lua.base;
 
+import common.lua;
 import framework.config;
 import framework.framework;
 import framework.lua;
@@ -14,13 +15,12 @@ import utils.time;
 import utils.random;
 import str = utils.string;
 
-//this alias is just so that we can pretend our scripting interface is generic
-alias LuaException ScriptingException;
-alias LuaState ScriptingObj;
+/+ ?
 debug {
     alias framework.lua.gLuaToDCalls gLuaToDCalls;
     alias framework.lua.gDToLuaCalls gDToLuaCalls;
 }
++/
 
 LuaRegistry gScripting;
 
@@ -47,14 +47,7 @@ static this() {
     gScripting.func!(loadConfig)();
 }
 
-void loadScript(LuaState state, char[] filename) {
-    filename = "lua/" ~ filename;
-    auto st = gFS.open(filename);
-    scope(exit) st.close();
-    state.loadScript(filename, st);
-}
-
-LuaState createScriptingObj() {
+LuaState createScriptingState() {
     auto state = new LuaState(LuaLib.safe);
     state.register(gScripting);
     state.register(gLuaGuiAdapt);

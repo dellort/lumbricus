@@ -1,6 +1,7 @@
 module game.gametask;
 
 import common.common;
+import common.lua;
 import common.task;
 import common.resources;
 import common.resset;
@@ -114,7 +115,7 @@ class Fader : Widget {
 
 class GameTask {
     private {
-        GameShell mGameShell; //can be null, if a client in a network game!
+        GameShell mGameShell;
         GameLoader mGameLoader; //creates a GameShell
         GameCore mGame;
         ClientControl mControl;
@@ -493,7 +494,7 @@ class GameTask {
     }
 
     private void cmdLua(MyBox[] args, Output write) {
-        new LuaInterpreter(mGameShell.serverEngine.scripting);
+        new LuaConsole(mGameShell.serverEngine.scripting);
     }
 
     //slow <time>
@@ -528,47 +529,27 @@ class GameTask {
     }
 }
 
-class LuaInterpreter {
+class LuaConsole : LuaInterpreter {
     private {
         CommandLine mCmdLine;
-        LuaState mLua;
         Output mOut;
     }
 
     this(char[] args = "") {
-        auto state = new LuaState();
-
-        //copy and paste
-        //don't want to put this in framework.lua (too many weird dependencies)
-        void loadscript(char[] filename) {
-            filename = "lua/" ~ filename;
-            auto st = gFS.open(filename);
-            scope(exit) st.close();
-            state.loadScript(filename, cast(char[])st.readAll());
-        }
-
-        loadscript("utils.lua");
-
-        this(state);
+        this(cast(LuaState)null);
     }
 
-    this(LuaState state) {
-        mLua = state;
-
+    this(LuaState a_state) {
         auto w = new GuiConsole();
+        super(&w.output.writeString, a_state);
+
+        w.setTabCompletion(&tabcomplete);
+
         mCmdLine = w.cmdline();
         mCmdLine.setPrefix("/", "exec");
         mCmdLine.registerCommand("exec", &cmdExec, "execute a Lua command",
             ["text...:code"]);
-        mOut = w.output;
-        mOut.writefln("Scripting console using: {}", mLua.cLanguageAndVersion);
         gWindowFrame.createWindow(w, "Lua Console", Vector2i(400, 200));
-
-        //this might be a bit dangerous/unwanted
-        //but we need it for this console
-        //alternatively, maybe one could create a sub-environment or whatever,
-        //  that just shadows the default output function, or so
-        mLua.setPrintOutput(&printOutput);
     }
 
     private void printOutput(char[] s) {
@@ -576,19 +557,7 @@ class LuaInterpreter {
     }
 
     private void cmdExec(MyBox[] args, Output output) {
-        auto code = args[0].unbox!(char[])();
-        //somehow looks less confusing to include the command in the output
-        mOut.writefln("> {}", code);
-        //NOTE: this doesn't implement passing several lines as one piece of
-        //  code; the Lua command line interpreter uses a very hacky way to
-        //  detect the end of lines (it parses the parser error message); should
-        //  we also do this?
-        //http://www.lua.org/source/5.1/lua.c.html
-        try {
-            mLua.loadScript("input", code);
-        } catch (ScriptingException e) {
-            mOut.writefln("Lua error: {}", e);
-        }
+        exec(args[0].unbox!(char[])());
     }
 
     static this() {

@@ -189,7 +189,9 @@ class EditLine : Widget {
         mCurline = mCurline[0..start] ~ replace ~ mCurline[end..$];
         if (mCursor >= start) {
             mCursor = mCursor < end ? start : mCursor - (end - start);
+            mCursor += replace.length;
         }
+        assert(mCursor >= 0 && mCursor <= mCurline.length);
         mRender.setLiteral(mCurline);
     }
 
@@ -197,7 +199,6 @@ class EditLine : Widget {
     void insertEvent(char[] text) {
         deleteSelection();
         editText(mCursor, mCursor, text);
-        mCursor += text.length;
         doOnChange();
     }
 
@@ -209,12 +210,21 @@ class EditLine : Widget {
         updateSelection();
     }
 
+    //selection range (where it may happen that end < start)
+    // .end will be where the cursor is
+    //includes a hack to make .start==.end==cursorPos() in order to simplify
+    //  some code
+    TextRange selection() {
+        auto sel = TextRange(mSelStart, mSelEnd);
+        if (sel.start == sel.end)
+            sel.start = sel.end = cursorPos();
+        return sel;
+    }
+
     //mSelStart can be higher than mSelEnd for backwards selection
     //return properly ordered selection indices
     TextRange orderedSelection() {
-        auto sstart = min(mSelStart, mSelEnd);
-        auto ssend = max(mSelStart, mSelEnd);
-        return TextRange(sstart, ssend);
+        return selection.ordered();
     }
 
     //call whenever mSelStart/mSelEnd change to update the display

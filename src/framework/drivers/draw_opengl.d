@@ -9,11 +9,13 @@ import framework.globalsettings;
 import framework.drawing;
 import tango.math.Math;
 import tango.stdc.stringz;
-import str = utils.string;
 import utils.configfile;
 import utils.misc;
 import utils.transform;
 import utils.log;
+
+import marray = utils.array;
+import str = utils.string;
 import cstdlib = tango.stdc.stdlib;
 
 const GLuint GLID_INVALID = 0;
@@ -406,18 +408,21 @@ class GLCanvas : Canvas3DHelper {
         Surface state_texture, requested_texture;
         bool state_blend, state_alpha_test;
         GLuint state_bindtexid;
+        Vector2f mScale; //switched with transform matrix
 
+        Vector2f mTranslate;
         Color mBlendColor;
 
         //lazy drawing; assuming reducing the number of glDrawArrays calls
         //  improves performance
-        MyVertex[100*4] mVertices;
+        marray.BigArray!(MyVertex) mVertices;
         size_t mVertexCount;
         int mCurrentVertexMode; //primitive type, as in GL_QUADS etc.
     }
 
     this(GLDrawDriver drv) {
         mDrawDriver = drv;
+        mVertices = new typeof(mVertices)(10000);
     }
 
     package void startScreenRendering() {
@@ -433,6 +438,9 @@ class GLCanvas : Canvas3DHelper {
         state_blend = true;
 
         state_bindtexid = GLID_INVALID;
+
+        mScale = Vector2f(1.0);
+        mTranslate = Vector2f(0.0);
 
         //flush() and glDrawArrays use this implicitly
         set_vertex_array(mVertices.ptr);
@@ -594,6 +602,10 @@ class GLCanvas : Canvas3DHelper {
     }
 
     private void end_verts(MyVertex[] verts) {
+        /+foreach (ref v; verts) {
+            v.p += mTranslate;
+        }+/
+
         //may help with state bugs etc.
         if (!mDrawDriver.opts.batch_draw_calls) {
             assert(mVertexCount == verts.length);
@@ -677,13 +689,18 @@ class GLCanvas : Canvas3DHelper {
     }
 
     override void updateTransform(Vector2i trans, Vector2f scale) {
-        flush();
+        //if (mScale != scale) {
+            flush();
 
-        glLoadIdentity();
-        glTranslatef(trans.x, trans.y, 0);
-        glScalef(scale.x, scale.y, 1);
-        checkGLError("update transform", true);
+            mScale = scale;
 
+            glLoadIdentity();
+            glTranslatef(trans.x, trans.y, 0); //not when mTranslate is used
+            glScalef(mScale.x, mScale.y, 1);
+            checkGLError("update transform", true);
+        //}
+
+        mTranslate = toVector2f(trans);
         mBlendColor = currentBlend();
     }
 

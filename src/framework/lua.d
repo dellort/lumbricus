@@ -20,6 +20,10 @@ import utils.time;      //for special Time marshalling
 //doesn't include Lua builtin/stdlib calls or manually registered calls
 debug int gLuaToDCalls, gDToLuaCalls;
 
+//this alias is just so that we can pretend our scripting interface is generic
+alias LuaException ScriptingException;
+alias LuaState ScriptingState;
+
 //--- stuff which might appear as keys in the Lua "Registry"
 
 //mangle value that's unique for each D type
@@ -382,6 +386,8 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
             if (lua_type(state, stackIdx) == LUA_TSTRING)
                 return TempString(lua_todstring_unsafe(state, stackIdx));
         } catch (LuaError e) {
+            //not too sure about this, but tells the user about utf-8 errors
+            expected(myformat("string ({})", e.msg));
         }
         expected("string");
     } else static if (is(T == class) || is(T == interface)) {
@@ -511,8 +517,8 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
             } else {
                 auto index = luaStackValue!(int)(state, -2);
                 if (index < 1 || index > ret.length)
-                    throw new LuaError(myformat("invalid key in lua table:"
-                        " got {} in range 1-{}", index, ret.length+1));
+                    throw new LuaError(myformat("invalid index in lua array"
+                        " table: got {} in range 1-{}", index, ret.length+1));
                 index -= 1; //1-based arrays
                 ret[index] = luaStackValue!(ElementTypeOfArray!(T))(state, -1);
             }
@@ -787,6 +793,13 @@ private void internalError(lua_State* state, Exception e) {
     Trace.formatln("{}", luaStackTrace(state, 1));
     Trace.formatln("done, will die now.");
     //this is really better than trying to continue the program
+    //Warning: if you should change this, be aware that Lua programs are allowed
+    //  to do xpcall(), and Lua programs should in no way be allowed to catch
+    //  internal D errors (that would lead to cascading failures, unability to
+    //  find the real error cause, etc.)
+    //the best way would probably to use skip the Lua C stack with
+    //  setjmp/longjmp, or unwind it via D exceptions; maybe the Lua state
+    //  would then be inconsistent, but you wouldn't access it anyway
     asm { hlt; }
 }
 
@@ -892,9 +905,9 @@ class LuaRegistry {
         char[] name;
         char[] prefix;
         char[] fname;
-        //bool is_static;
         lua_CFunction demarshal;
         MethodType type;
+        bool inherited;
     }
 
     this() {
@@ -907,7 +920,7 @@ class LuaRegistry {
     }
 
     private void registerDMethod(ClassInfo ci, char[] method,
-        lua_CFunction demarshal, MethodType type)
+        lua_CFunction demarshal, MethodType type, bool inherited = false)
     {
         assert(!mSealed);
         Method m;
@@ -938,6 +951,7 @@ class LuaRegistry {
         }
         m.demarshal = demarshal;
         m.type = type;
+        m.inherited = inherited;
         mMethods ~= m;
     }
 
@@ -968,7 +982,7 @@ class LuaRegistry {
             //  the slight differences seem to make unifying a major PITA. I
             //  didn't want to use string mixins to configure every aspect of
             //  the code, and taking the address of a symbol (function ptr,
-            //  delegate) does not work ebcause dmd bug 4028.
+            //  delegate) does not work because dmd bug 4028.
 
             //this crap is ONLY for default arguments
             //you can remove the code, you'll just lose the default args feature
@@ -979,10 +993,10 @@ class LuaRegistry {
             mixin ("alias Class."~name~" T;");
             alias ParameterTupleOf!(T) Params;
             const Params x;
-            foreach (int idx, _; Repeat!(Params.length + 1)) {
+            foreach (int idx, _; Repeat!(Params.length)) {
                 const fn = "c."~name~"(x[0..idx])";
                 static if (is(typeof( mixin(fn)))) {
-                    if (idx == realargs) {
+                    if (idx >= realargs) {
                         //delegate indirection => runtime slowdown, additional
                         //  linker symbols
                         auto f = delegate(Params[0..idx] x) {
@@ -1022,10 +1036,10 @@ class LuaRegistry {
             mixin ("alias Class."~name~" T;");
             alias ParameterTupleOf!(T) Params;
             const Params x;
-            foreach (int idx, _; Repeat!(Params.length + 1)) {
+            foreach (int idx, _; Repeat!(Params.length)) {
                 const fn = "c."~name~"(x[0..idx])";
                 static if (is(typeof( mixin(fn)))) {
-                    if (idx == realargs) {
+                    if (idx >= realargs) {
                         //delegate indirection => runtime slowdown, additional
                         //  linker symbols
                         auto f = delegate(Params[0..idx] x) {
@@ -1164,10 +1178,10 @@ class LuaRegistry {
 
             alias ParameterTupleOf!(Fn) Params;
             const Params x;
-            foreach (int idx, _; Repeat!(Params.length + 1)) {
+            foreach (int idx, _; Repeat!(Params.length)) {
                 const fn = "Fn(x[0..idx])";
                 static if (is(typeof( mixin(fn)))) {
-                    if (idx == realargs) {
+                    if (idx >= realargs) {
                         //delegate indirection => runtime slowdown, additional
                         //  linker symbols
                         auto f = delegate(Params[0..idx] x) {
@@ -1229,7 +1243,7 @@ class LuaRegistry {
                     //  baseMethod.classinfo)
                     //-> Register baseMethod for derivedClass
                     registerDMethod(derivedClass, baseMethod.name,
-                        baseMethod.demarshal, baseMethod.type);
+                        baseMethod.demarshal, baseMethod.type, true);
                 }
             }
         }
@@ -1513,6 +1527,7 @@ class LuaState {
         char[] dclass;      //name/prefix of the D class for the method
         char[] name;        //name of the mthod
         char[] lua_g_name;  //name of the Lua bind function in _G
+        bool inherited;     //automatically added inherited method
     }
     //return MetaData for all known bound D functions for the passed class
     //if from is null, an empty array is returned
@@ -1540,6 +1555,7 @@ class LuaState {
         d.dclass = m.prefix;
         d.name = m.name;
         d.lua_g_name = m.fname;
+        d.inherited = m.inherited;
         return d;
     }
 
@@ -1578,10 +1594,15 @@ class LuaState {
         return win;
     }
 
+    //if obj is a ClassInfo, return if it references a class derived from cls
+    //otherwise, return if obj itself is derived from cls
     private bool script_is_class(Object obj, ClassInfo cls) {
         if (!obj || !cls)
             return false;
-        return rtraits.isDerived(obj.classinfo, cls);
+        ClassInfo cls1 = cast(ClassInfo)obj;
+        if (!cls1)
+            cls1 = obj.classinfo;
+        return rtraits.isDerived(cls1, cls);
     }
 
     void addSingleton(T)(T instance) {
@@ -1657,6 +1678,7 @@ class LuaState {
     //load script in "code", using "name" for error messages
     //there's also scriptExec() if you need to pass parameters
     //environmentId = set to create/reuse a named execution environment
+    //T = apparently either char[] or Stream for the actual source code
     void loadScript(T)(char[] name, T code, char[] environmentId = null) {
         stack0();
         luaLoadAndPush(name, code);
@@ -1792,12 +1814,11 @@ class LuaState {
         scriptExec(`
             local d_out = ...
             _G["print"] = function(...)
-                local args = {...}
-                for i, s in ipairs(args) do
+                for i = 1, select("#", ...) do
                     if i > 1 then
-                        -- Lua uses \t here
-                        d_out("\t")
+                        d_out("\t") -- like Lua's print()
                     end
+                    local s = select(i, ...)
                     d_out(tostring(s))
                 end
                 d_out("\n")

@@ -37,6 +37,7 @@ class LuaGuiAdapter {
     private class WidgetAdapt : Widget {
         this() {
             focusable = true;
+            doClipping = true;
             //this property is practically overridden by the Lua event handler
             isClickable = true;
         }
@@ -117,6 +118,10 @@ class LuaGuiAdapter {
     void requestFocus() {
         mWidget.claimFocus();
     }
+
+    bool isLinked() {
+        return mWidget.isLinked();
+    }
 }
 
 //wrapper prevents memory allocation in D
@@ -134,6 +139,7 @@ static this() {
         "OnHandleKeyInput", "OnHandleMouseInput", "OnSetFocus", "OnDraw",
         "render", "sizeRequest", "canFocus")();
     g.methods!(LuaGuiAdapter, "requestResize", "requestFocus")();
+    g.properties_ro!(LuaGuiAdapter, "isLinked");
     g.ctor!(KeyBindings)();
     g.method!(KeyBindings, "scriptAddBinding")("addBinding");
     g.func!(getKeycode)("keycode");

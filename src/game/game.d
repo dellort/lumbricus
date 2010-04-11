@@ -111,7 +111,6 @@ class GameEngine : GameCore {
             //engine.windSpeed is -1..1, don't ask me why
             particleWorld.windSpeed = windSpeed()*150f;
             particleWorld.waterLine = waterOffset();
-            //yyy particleWorld.paused = interpolateTime.paused;
             //simulate & draw
             particleWorld.draw(canvas);
         }
@@ -742,52 +741,5 @@ class GameEngine : GameCore {
             }
         }
         return ret;
-    }
-
-    void activityDebug(char[] mode = "") {
-        bool all = (mode == "all");
-        bool fix = (mode == "fix");
-        log("-- Active game objects:");
-        int i;
-        foreach (GameObject o; mAllObjects) {
-            char[] sa = "Dormant ";
-            if (o.activity) {
-                sa = "Active ";
-                i++;
-                if (fix) {
-                    sa = "Killed active ";
-                    auto s = cast(Sprite)(o);
-                    if (s)
-                        s.exterminate();
-                    o.kill();
-                }
-            } else {
-                if (!all) continue;
-            }
-            if (cast(Sprite)o) {
-                log("{}{} at {}", sa, o.toString(),
-                    (cast(Sprite)o).physics.pos);
-            } else {
-                log("{}{}", sa, o.toString());
-            }
-        }
-        log("-- {} objects reporting activity",i);
-    }
-
-    GameObject debug_pickObject(Vector2i pos) {
-        auto p = toVector2f(pos);
-        Sprite best;
-        foreach (GameObject o; mAllObjects) {
-            auto sp = cast(Sprite)o;
-            if (sp && sp.visible) {
-                //about the NaN thing, there are such objects *shrug*
-                if (!sp.physics.pos.isNaN() && (!best ||
-                    (p-sp.physics.pos).length < (p-best.physics.pos).length))
-                {
-                    best = sp;
-                }
-            }
-        }
-        return best;
     }
 }

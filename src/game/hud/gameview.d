@@ -406,10 +406,11 @@ class DrownLabel : SceneObject {
 //and cooks coffee
 class GameView : Widget {
     //these are all evil hacks and should go away
+    //it's getting ridiculous arrgh
     void delegate() onTeamChange;
     void delegate() onKeyHelp;
     void delegate() onToggleWeaponWindow, onToggleScroll;
-    void delegate() onToggleChat;
+    void delegate() onToggleChat, onToggleScript;
     void delegate(char[] category) onSelectCategory;
 
     //for setSettings()
@@ -583,6 +584,7 @@ class GameView : Widget {
             []));
         mCmds.register(Command("toggle_scroll", &cmdToggleScroll, "-", []));
         mCmds.register(Command("toggle_chat", &cmdToggleChat, "-", []));
+        mCmds.register(Command("toggle_script", &cmdToggleScript, "-", []));
         mCmds.bind(mCmd);
 
         //hacks
@@ -709,6 +711,11 @@ class GameView : Widget {
         //xxx this is stupid, rethink handling of ingame commands
         if (onToggleChat)
             onToggleChat();
+    }
+    private void cmdToggleScript(MyBox[] args, Output write) {
+        //xxx this is stupid, rethink handling of ingame commands
+        if (onToggleScript)
+            onToggleScript();
     }
 
     //should be moved elsewhere etc.

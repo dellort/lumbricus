@@ -1,13 +1,12 @@
 module game.core;
 
-//should not be part of the game module import cycle
-//will kill anyone who makes this module a part of the cycle
-
 import common.animation;
 import common.common;
-import common.scene;
+import common.lua;
 import common.resset;
+import common.scene;
 import framework.framework;
+import framework.lua;
 import game.effects;
 import game.events;
 import game.particles;
@@ -176,7 +175,7 @@ abstract class GameCore {
         Scene mScene;
         Random mRnd;
         Events mEvents;
-        ScriptingObj mScripting;
+        ScriptingState mScripting;
         GameConfig mGameConfig; //not so good dependency
         PhysicWorld mPhysicWorld;
         ResourceSet mResources;
@@ -203,6 +202,9 @@ abstract class GameCore {
     //returns the real time or thread time (depends from utils/perf.d) spent
     //  while drawing the game and non-GUI parts of the game hud (worm labels)
     Time delegate() getRenderTime;
+
+    //render some more stuff for debugging
+    bool enableDebugDraw;
 
     //I don't like this
     ConfigNode persistentState;
@@ -237,7 +239,7 @@ abstract class GameCore {
 
         OnHudAdd.handler(events, &onHudAdd);
 
-        mScripting = createScriptingObj();
+        mScripting = createScriptingState();
         scripting.addSingleton(this); //doesn't work as expected, see GameEngine
         scripting.addSingleton(rnd);
         scripting.addSingleton(physicWorld);
@@ -252,7 +254,7 @@ abstract class GameCore {
     final Scene scene() { return mScene; }
     final Random rnd() { return mRnd; }
     final Events events() { return mEvents; }
-    final ScriptingObj scripting() { return mScripting; }
+    final ScriptingState scripting() { return mScripting; }
     ///level being played, must not modify returned object
     final Level level() { return mGameConfig.level; }
     final GameConfig gameConfig() { return mGameConfig; }
@@ -525,6 +527,8 @@ abstract class GameCore {
     }
 
     void debug_draw(Canvas c) {
+        if (!enableDebugDraw)
+            return;
         foreach (GameObject o; mAllObjects) {
             o.debug_draw(c);
         }

@@ -576,9 +576,8 @@ class GameShell {
 
         if (mGameTime.paused || mSingleStep) {
             //interpolation off
-            //advancing is handled in exec_frame()
-            //this call is needed to make TimeSourcePublic.difference = 0
-            interpol.update(interpol.current);
+            //this call is also needed to make TimeSourcePublic.difference = 0
+            interpol.update(max(interpol.current, mGameTime.current));
         } else if (mLastFrameRealTime !is Time.init) {
             Time cur = mGameTime.current;
             //not anymore -- assert(interpol.current >= cur);

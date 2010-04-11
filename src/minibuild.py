@@ -138,7 +138,11 @@ def read_and_parse_depfile():
         # xxx may want to filter out .di files as well?
         if file not in doubles:
             doubles[file] = True
-            if not module_is_ignored(module):
+            # .di files never get compiled
+            # this is persistent with dmd, dsss, xfbuild, ...
+            is_inc = os.path.splitext(file)[1] == '.di'
+            is_ign = module_is_ignored(module)
+            if not is_ign and not is_inc:
                 flist.append(file)
                 stat_files = stat_files + 1
             else:

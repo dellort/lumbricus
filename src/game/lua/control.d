@@ -18,17 +18,18 @@ static this() {
         "dropCrate", "startSuddenDeath", "endGame", "addCrateTool");
 
     gScripting.setClassPrefix!(TeamMember)("Member");
-    gScripting.methods!(TeamMember, "control", "updateHealth",
-        "needUpdateHealth", "name", "team", "alive", "currentHealth",
-        "health", "sprite", "lifeLost", "addHealth");
+    gScripting.methods!(TeamMember, "updateHealth", "lifeLost", "addHealth");
     gScripting.properties!(TeamMember, "active");
-    gScripting.methods!(Team, "name", "id", "alive", "totalHealth",
-        "getMembers", "hasCrateSpy", "hasDoubleDamage", "setOnHold",
-        "nextActive","nextWasIdle", "teamAction", "isIdle", "checkDyingMembers",
+    gScripting.properties_ro!(TeamMember, "control", "name", "team", "alive",
+        "needUpdateHealth", "currentHealth", "health", "sprite");
+    gScripting.methods!(Team, "setOnHold", "nextWasIdle", "checkDyingMembers",
         "youWinNow", "updateHealth", "needUpdateHealth", "addWeapon",
         "skipTurn", "surrenderTeam", "addDoubleDamage", "addCrateSpy");
     gScripting.properties!(Team, "current", "allowSelect", "globalWins",
         "active", "crateSpy", "doubleDmg");
+    gScripting.properties_ro!(Team, "weapons", "theme", "name", "id", "alive",
+        "totalHealth", "members", "hasCrateSpy", "hasDoubleDamage",
+        "nextActive", "teamAction", "isIdle");
 
     gScripting.methods!(WormControl, "isAlive", "sprite", "controlledSprite",
         "setLimitedMode", "weaponUsed", "resetActivity", "lastAction",
