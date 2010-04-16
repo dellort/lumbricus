@@ -475,6 +475,8 @@ class CmdNetClientConnection {
         public ObjListNode!(typeof(this)) client_node;
         CmdNetServer mOwner;
         NetPeer mPeer;
+        //this is just to keep the temporary memory without reallocating
+        MarshalBuffer mMarshal;
         ClientConState mState;
         Time mStateEnter, mLastPing;
         char[] mPlayerName;
@@ -512,6 +514,7 @@ class CmdNetClientConnection {
         mPeer.onDisconnect = &onDisconnect;
         mPeer.onReceive = &onReceive;
         mCmdOutBuffer = new StringOutput();
+        mMarshal = new MarshalBuffer();
         state(ClientConState.establish);
         if (mOwner.state != CmdServerState.lobby) {
             close("game started", DiscReason.gameStarted);
@@ -633,18 +636,17 @@ class CmdNetClientConnection {
     private void send(T)(ServerPacket pid, T data, ubyte channelId = 0,
         bool now = false, bool reliable = true)
     {
-        scope marshal = new MarshalBuffer();
-        marshal.write(pid);
-        marshal.write(data);
-        ubyte[] buf = marshal.data();
+        mMarshal.reset();
+        mMarshal.write(pid);
+        mMarshal.write(data);
+        ubyte[] buf = mMarshal.data();
         version(LagDebug) {
             if (mOwner.mSimLagMs > 0)
                 //lag simulation, queue packet
-                mOutputQueue ~= Packet(buf, timeCurrentTime(), channelId,
+                mOutputQueue ~= Packet(buf.dup, timeCurrentTime(), channelId,
                     reliable);
             else
-                mPeer.send(buf.ptr, buf.length, channelId, now, reliable,
-                    reliable);
+                mPeer.send(buf, channelId, now, reliable, reliable);
         } else {
             mPeer.send(buf, channelId, now, reliable, reliable);
         }
@@ -652,13 +654,13 @@ class CmdNetClientConnection {
 
     //broadcast this data to all clients using the SPClientBroadcast message
     private void sendClientBroadcast(ubyte[] data) {
-        scope marshal = new MarshalBuffer();
-        marshal.write(ServerPacket.clientBroadcast);
+        mMarshal.reset();
+        mMarshal.write(ServerPacket.clientBroadcast);
         SPClientBroadcast p;
         p.senderPlayerId = mId;
-        marshal.write(p);
-        marshal.writeRaw(data);
-        ubyte[] buf = marshal.data();
+        mMarshal.write(p);
+        mMarshal.writeRaw(data);
+        ubyte[] buf = mMarshal.data();
         mOwner.listConnectedClients((CmdNetClientConnection cl) {
             cl.mPeer.send(buf, 0, false, true, true);
         });

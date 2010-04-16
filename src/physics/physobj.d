@@ -416,9 +416,6 @@ class PhysicObject : PhysicBase {
         if (abs(delta) > posp.damageThreshold) {
             float before = lifepower;
             lifepower += delta;
-            //make sure object is dead if lifepowerInt() reports <= 0
-            if (lifepower < 0.5f && lifepower > 0f)
-                lifepower = 0f;
             if (mPosp.damageUnfixate && mFixateConstraint) {
                 mFixateConstraint.dead = true;
                 mFixateConstraint = null;
@@ -431,15 +428,10 @@ class PhysicObject : PhysicBase {
                 onDamage(diff, type, cause);
             }
             //die muaha
-            //xxx rather not (WormSprite is died by GameController)
+            //xxx rather not (objects are died by the game logic)
             //if (lifepower <= 0)
               //  dead = true;
         }
-    }
-
-    //sry
-    int lifepowerInt() {
-        return cast(int)(lifepower + 0.5f);
     }
 
     //********** Walking code, xxx put this anywhere but not here ***********
@@ -510,7 +502,7 @@ class PhysicObject : PhysicBase {
                 GeomContact contact;
                 bool res = world.collideGeometry(npos, posp.radius, contact);
                 //also check with objects
-                res |= world.collideObjectsW(npos, posp.radius, this);
+                res |= world.collideObjectsW(npos, this);
 
                 if (!res) {
                     //we found a free area where the worm would fit

@@ -70,6 +70,6 @@ static this() {
 
     //internal functions
     gScripting.properties_ro!(EventTarget, "eventTargetType");
-    gScripting.methods!(Events, "enableScriptHandler", "perClassEvents");
-    gScripting.properties_ro!(Events, "scriptingEventsNamespace");
+    gScripting.methods!(Events, "scriptGetMarshallers", "perClassEvents");
+    gScripting.properties_ro!(Events, "globalDummy");
 }

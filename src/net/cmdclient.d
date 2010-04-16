@@ -35,6 +35,7 @@ class CmdNetClient : SimpleNetConnection {
         NetBase mBase;
         NetHost mHost;
         NetPeer mServerCon;
+        MarshalBuffer mMarshal; //for keeping temporary memory
         char[] mPlayerName;
         uint mId;
         ClientState mState;
@@ -72,6 +73,8 @@ class CmdNetClient : SimpleNetConnection {
 
     this() {
         registerCmds();
+
+        mMarshal = new MarshalBuffer();
 
         mBase = new NetBase();
         mHost = mBase.createClient();
@@ -538,19 +541,19 @@ class CmdNetClient : SimpleNetConnection {
     {
         if (!mServerCon)
             return;
-        scope marshal = new MarshalBuffer();
-        marshal.write(pid);
-        marshal.write(data);
-        ubyte[] buf = marshal.data();
+        mMarshal.reset();
+        mMarshal.write(pid);
+        mMarshal.write(data);
+        ubyte[] buf = mMarshal.data();
         mServerCon.send(buf, channelId, now, reliable, reliable);
     }
 
     private void broadcast(T)(Client2ClientPacket pid, T data) {
-        scope marshal = new MarshalBuffer();
-        marshal.write(ClientPacket.clientBroadcast);
-        marshal.write(pid);
-        marshal.write(data);
-        ubyte[] buf = marshal.data();
+        mMarshal.reset();
+        mMarshal.write(ClientPacket.clientBroadcast);
+        mMarshal.write(pid);
+        mMarshal.write(data);
+        ubyte[] buf = mMarshal.data();
         mServerCon.send(buf, 0, false, true, true);
     }
 

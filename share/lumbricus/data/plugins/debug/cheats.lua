@@ -345,8 +345,8 @@ function E.pickObject(dowhat)
     setProperties(w, {
         OnHandleKeyInput = function(info)
             if info.isDown and info.code == keycode("mouse_left") then
-                dowhat(obj)
                 GameFrame_removeHudWidget(w)
+                dowhat(obj)
             end
             return true
         end,
@@ -454,12 +454,18 @@ end
 
 -- best used with newgame_bench.conf
 function E.benchNapalm()
-    local napalm = worms_shared.standard_napalm
-    assert(napalm)
+    benchSprite(worms_shared.standard_napalm)
+end
+function E.benchMine()
+    benchSprite(ws_lua.mine_class)
+end
+
+function benchSprite(sprite_class)
+    assert(sprite_class)
     -- this thing is just so we can use spawnCluster()
     if not spawner_class then
         spawner_class = createSpriteClass {
-            name = "x_some_napalm_spawner",
+            name = "x_some_spawner",
             initPhysic = relay {
                 fixate = Vector2(0, 0),
             },
@@ -476,7 +482,7 @@ function E.benchNapalm()
             timer:cancel()
             return
         end
-        spawnCluster(napalm, spawner, 50, 50, 100, 20, up)
+        spawnCluster(sprite_class, spawner, 50, 50, 100, 20, up)
     end)
 end
 

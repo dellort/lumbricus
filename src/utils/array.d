@@ -211,7 +211,11 @@ struct Appender(T) {
     private {
         T[] mArray;
         size_t mLength;
-        size_t mCapacity;
+    }
+
+    void setArray(T[] arr) {
+        mArray = arr;
+        mLength = mArray.length;
     }
 
     T opIndex(size_t idx) {
@@ -224,7 +228,7 @@ struct Appender(T) {
     }
     void opCatAssign(T value) {
         mLength++;
-        if (mLength > mCapacity) {
+        if (mLength > mArray.length) {
             do_grow();
         }
         mArray[mLength-1] = value;
@@ -264,15 +268,16 @@ struct Appender(T) {
         }
     }
 
-    //so that mLength <= mCapacity; don't initialize new items
+    //so that mLength <= capacity; don't initialize new items
     private void do_grow() {
-        if (mLength <= mCapacity)
+        if (mLength <= mArray.length)
             return;
         //make larger exponantially
-        mCapacity = max(16, mCapacity);
-        while (mCapacity < mLength)
-            mCapacity *= 2;
-        mArray.length = mCapacity;
+        auto capacity = max(16, mArray.length);
+        while (capacity < mLength)
+            capacity *= 2;
+        //xxx: maybe free previous array if the runtime reallocated it?
+        mArray.length = capacity;
     }
 }
 

@@ -1,31 +1,43 @@
 -- event handler in conjunction with events.d
 
--- this table is used implicitly by the D code for all global event handlers
--- D calls eventhandlers_global["event name"](sender, args...)
--- but only if Events_enableScriptHandler has been called for the event name
--- it is always created automatically
--- eventhandlers_global = {}
+-- used global variables magically created by D:
+-- some methods of class Events and class EventTarget
+-- d_event_marshallers
 
-EventHandlerMeta = {
-    __call = function(self, ...)
-        for i, event_dispatcher in ipairs(self) do
-            event_dispatcher(...)
+-- this is just for reducing the number of D->Lua transitions on events
+-- instead of registering each Lua handler in D, only one Lua handler is
+--  registered per event type, and that handler calls all other Lua handlers
+-- xxx check if this is an useless optimization
+local eventhandlers = {}
+
+local function do_addEventHandler(events, event_name, handler)
+    -- garbage collection: keep each "events" instance forever, assuming there's
+    --  a bounded number of event instances per game
+    local ns = eventhandlers[events]
+    if not ns then
+        ns = {}
+        eventhandlers[events] = ns
+    end
+    local ghandlers = ns[event_name]
+    if not ghandlers then
+        ghandlers = {}
+
+        local function dispatcher(...)
+            -- NOTE: we could try to deal with failing event handlers
+            --  but that's probably not worth the slow down & complexity
+            for i, event_handler in ipairs(ghandlers) do
+                event_handler(...)
+            end
         end
-    end
-}
 
-function do_addEventHandler(events, event_name, handler)
-    local ns_name = Events_scriptingEventsNamespace(events)
-    local ns = _G[ns_name]
-    assert(ns)
-    local ghandler = ns[event_name]
-    if not ghandler then
-        ghandler = {}
-        setmetatable(ghandler, EventHandlerMeta)
-        ns[event_name] = ghandler
-        Events_enableScriptHandler(events, event_name, true)
+        -- this indirection is needed because D is statically typed
+        -- the type of the register function depends on event_name
+        -- to get around the static type system, the actual function is created
+        -- and Lua-registered somewhere in a D template
+        local s = Events_scriptGetMarshallers(events, event_name)
+        d_event_marshallers[s].register(events, event_name, dispatcher)
     end
-    ghandler[#ghandler + 1] = handler
+    ghandlers[#ghandlers + 1] = handler
 end
 
 function addGlobalEventHandler(event_name, handler)
@@ -38,7 +50,7 @@ function addClassEventHandler(class_name, event_name, handler)
 end
 
 -- internally used by addInstanceEventHandler()
-_perInstanceDispatchers = {}
+local _perInstanceDispatchers = {}
 
 -- object = a D EventTarget object
 -- event_name = same as in the other functions
@@ -89,10 +101,24 @@ function addInstanceEventHandler(object, event_name, handler)
     handlers[#handlers + 1] = handler
 end
 
+-- cached
+local raise_fns = {}
+
 -- target must be a D EventTarget
--- name is the event name
-function raiseEvent(target, name, ...)
-    d_events_raise(target, name, ...)
+-- event_name a string
+function raiseEvent(target, event_name, ...)
+    local fn = raise_fns[event_name]
+    if not fn then
+        local s = Events_scriptGetMarshallers(Game_events(), event_name)
+        fn = d_event_marshallers[s].raise
+        assert(fn)
+        raise_fns[event_name] = fn
+    end
+    fn(target, event_name, ...)
+end
+
+function raiseGlobalEvent(event_name, ...)
+    raiseEvent(Events_globalDummy(Game_events()), event_name, ...)
 end
 
 testCounter = 0
@@ -125,4 +151,6 @@ function eventtest()
     addGlobalEventHandler("game_message", on_message2)
     addClassEventHandler("x_bazooka", "sprite_activate", on_bazooka_activate)
     addClassEventHandler("x_bazooka", "sprite_die", on_bazooka_die)
+    raiseGlobalEvent("game_message", { lm = { id = "blabla" } })
+    raiseGlobalEvent("game_message", { lm = { id = "bla" } })
 end

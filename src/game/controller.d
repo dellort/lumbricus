@@ -578,12 +578,12 @@ class TeamMember : Actor {
         //the thing is that a worm can be dead even if the physics report a
         //positive value - OTOH, we do want these negative values... HACK GO!
         //mLastKnownPhysicHealth is there because mWorm could disappear
-        auto h = mWormControl.sprite.physics.lifepowerInt;
-        if (mWormControl.isAlive() || realHp) {
-            return h;
-        } else {
-            return h < 0 ? h : 0;
+        float h = mWormControl.sprite.physics.lifepower;
+        if (!(mWormControl.isAlive() || realHp)) {
+            h = h < 0 ? h : 0;
         }
+        //ceil: never display 0 if the worm is still alive
+        return cast(int)(math.ceil(h));
     }
 
     private void place() {

@@ -141,6 +141,7 @@ do
         },
         sequenceType = "s_mine",
     }
+    export_table().mine_class = mine_class
 
     local seq = SpriteClass_sequenceType(mine_class)
     assert(seq)

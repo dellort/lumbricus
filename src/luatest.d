@@ -132,10 +132,20 @@ static this() {
     bar.methods!("test", "blurgh")();
     scripting.func!(funcBlub)();
     enumStrings!(Test, "a,b,c");
+    scripting.func!(funcBlab)();
 }
 
 void funcBlub(char[] arg) {
     Trace.formatln("Plain old function, yay! Got '{}'", arg);
+}
+
+struct TehEvil {
+    int foo;
+    TehEvil[] sub;
+}
+
+void funcBlab(TehEvil evil) {
+    Trace.formatln("ok");
 }
 
 void main(char[][] args) {
@@ -342,4 +352,8 @@ void main(char[][] args) {
     fail(`Foo_arg(false)`);
     fail("assert(false)");
     //loadexec(`Foo_vector({[1]=1, ["2"]=4})`);
+    //demarshalling s into struct TehEvil would result in an infinite sized data
+    //  structure (demarshaller treats arrays as values, not references)
+    //the Lua stack size is limited and it will be catched quickly by checkstack
+    fail(`local s = {foo=123}; s.sub = {s}; funcBlab(s)`);
 }

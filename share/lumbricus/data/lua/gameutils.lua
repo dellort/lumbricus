@@ -191,7 +191,7 @@ function getDrownFunc(sprite_class, drown_phys)
         POSP_set_collisionID(drown_phys, CollisionMap_find("waterobj"))
     end
     return function(sender)
-        if not Sprite_isUnderWater(sender) then
+        if not (Sprite_isUnderWater(sender) and Sprite_visible(sender)) then
             return
         end
         Phys_set_posp(Sprite_physics(sender), drown_phys)

@@ -571,6 +571,10 @@ function string.startswith(s, prefix)
     return string.sub(s, 1, #prefix) == prefix
 end
 
+function string.endswith(s, suffix)
+    return string.sub(s, #suffix) == suffix
+end
+
 -- the following functions apparently partially rely on the D wrapper
 -- actually, those should be moved into a plugins.lua
 
@@ -579,6 +583,7 @@ end
 function export_table()
     -- use caller's environment
     setfenv(1, getfenv(2))
+    assert(ENV_NAME)
     if not _G[ENV_NAME] then
         _G[ENV_NAME] = {}
     end
@@ -698,9 +703,12 @@ function ConsoleUtils.autocomplete(line, c_start, c_end)
         to = to + 1 -- find() is weird and returns inclusive-end range
         pos = to
         last_from, last_to, last_id = from, to, id
-        if n --[[and type(n) == "table"]] then
+        if n then
             cur = n
         else
+            break
+        end
+        if type(n) ~= "table" then
             break
         end
     end

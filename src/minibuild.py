@@ -6,6 +6,9 @@
 
 # this dmd patch is needed (to add -oq):
 # http://d.puremagic.com/issues/show_bug.cgi?id=3541
+#   but also see USE_OQ in this file
+# fixing this bug would be fine too:
+# http://d.puremagic.com/issues/show_bug.cgi?id=4095
 
 EXE_DIR = "../bin/"
 
@@ -15,6 +18,11 @@ BUILD_DIR = "/tmp/minibuild/"
 
 # name of the DMD binary
 DMD = "dmd"
+
+# USE_OQ = False can be used to compile without the -oq patch, but it's a hack
+#   and doesn't work on Windows (don't know if it could be made working)
+# for one, it will execute dmd with '/' as working directory
+USE_OQ = True
 
 STD_ARGS = ["-gc", "-L-lz", "-L-ldl"]
 OPT = False
@@ -85,7 +93,7 @@ OBJ_DIR = os.path.join(DEST_DIR, "obj")
 EXE_FILE = os.path.join(EXE_DIR, name)
 
 # what = name of the phase (used for naming reponse files and error messages)
-def calldmd(what, pargs):
+def calldmd(what, pargs, **more):
     args = [DMD]
     nargs = []
     nargs.extend(STD_ARGS)
@@ -100,7 +108,7 @@ def calldmd(what, pargs):
         args.append("@" + rspname)
     else:
         args.extend(nargs)
-    p = Popen(args=args,close_fds=True)
+    p = Popen(args=args,close_fds=True,**more)
     p.wait()
     if p.returncode != 0:
         print("dmd failed (%s)." % what)
@@ -186,12 +194,36 @@ def build():
         sys.exit(1)
 
     print("Compiling...")
-    dmdargs = ["-oq", "-od" + OBJ_DIR, "-c"]
-    dmdargs.extend(files)
-    calldmd("compile", dmdargs)
+    if USE_OQ:
+        dmdargs = ["-oq", "-od" + OBJ_DIR, "-c"]
+        dmdargs.extend(files)
+        calldmd("compile", dmdargs)
+    else:
+        # use some kludge to make it work with -oq -od
+        # there are two issues:
+        # 1. dmd will write object files to the same dir as the source file in
+        #    some circumstances: using absolute paths as filename (bug 4095),
+        #    or when using relative filenames with '..' in it (????)
+        # 2. without -oq, dmd will write object files always to the output dir,
+        #    but modules with same name / different package will make dmd use
+        #    the same filename => dmd overwrites its own crap
+        # solution: use relative filenames without ever using '..'; to achieve
+        #    this, just change dmd's working dir to '/', and give it "relative"
+        #    filenames which really are absolute paths with first '/' stripped
+        # this will partially reproduce the filesystem layout in OBJ_DIR
+        # Warning: only works under Unix
+        afiles = [os.path.abspath(f) for f in files]
+        # strip initial '/' (linux specific)
+        # this is neccessary to make it a relative path; if dmd gets an absolute
+        #   path, it will misbehave as noted above
+        afiles = [f[1:] for f in afiles]
+        dmdargs = ["-op", "-od" + OBJ_DIR, "-c"]
+        dmdargs.extend(afiles)
+        calldmd("compile", dmdargs, cwd="/")
 
     # for some unknown reasons, it's better to link separately
-    # calling it with both -oq -od and -of gives wtfish behaviour
+    # calling it with both -oq -od and -of gives wtfish behaviour (it probably
+    # tries to write everything to a single object file, and it's damn slow)
     print("Linking...")
     ofiles = []
     for dirpath, dirnames, filenames in os.walk(OBJ_DIR):

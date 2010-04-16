@@ -2,6 +2,7 @@ module framework.lua;
 
 import derelict.lua.lua;
 import czstr = tango.stdc.stringz;
+import cstdlib = tango.stdc.stdlib;
 import tango.core.Traits : ParameterTupleOf, isIntegerType, isFloatingPointType,
     ElementTypeOfArray, isArrayType, isAssocArrayType, KeyTypeOfAA, ValTypeOfAA,
     ReturnTypeOf, isStaticArrayType;
@@ -15,6 +16,41 @@ import utils.stream;
 import utils.strparser;
 import utils.time;      //for special Time marshalling
 
+/+
+Error handling notes:
+- should never mix Lua C API or D error handling: a piece of code should either
+  use D exceptions, or Lua's error handling (lua_pcall/lua_error)
+  see http://lua-users.org/wiki/ErrorHandlingBetweenLuaAndCplusplus
+- normal D exceptions are "tunneled" through the Lua stack by using the D
+  exception as userdata Lua error value; they can be catched by Lua scripts
+- unrecoverable D exceptions (assertions, out of memory errors, ...) usually
+  lead to a corrupted program state, and should never be catchable by Lua
+- this isn't strictly done right now; instead, there's a messy mix
+  the problem is that out of memory errors could lead to both Lua errors and D
+  exceptions being raised from the same place (like luaPush())
+to fix this...:
+- almost all Lua API functions should be called inside a lua_cpcall() (that's
+  why there's a luaProtected() function in this module, although it doesn't do
+  the right thing)
+- make our own error raising more consistent, e.g. don't throw recoverable D
+  exceptions inside luaPush() but use lua_error()
+- make sure "unrecoverable" exceptions (like assertions, out of memory) never
+  jump through the Lua C stack (or at least, make sure nobody is going to access
+  the "corrupted" Lua state)
+- doLuaCall() actually should be called inside a lua_cpcall (including argument
+  marshalling/demarshalling), and shouldn't need to call the actual Lua
+  function with a lua_pcall (on the other hand, I don't know how one can set
+  the custom error handler function [for Lua backtraces] without lua_pcall)
+- Lua 5.2 work2 deprecates lua_cpcall WELL, WTF
+all this is not really important, because normal error handling works. the
+problem is just with e.g. out of memory errors, but in this case, everything is
+beyond repair anyway; this is just documenting that the current error handling
+is a bit broken in this aspect and the code doesn't make perfect sense.
++/
+
+//comment this to disable unsafe debug extensions
+//Warning: leaving this enabled has security implications
+debug version = DEBUG_UNSAFE;
 
 //counters incremented on each function call
 //doesn't include Lua builtin/stdlib calls or manually registered calls
@@ -39,9 +75,9 @@ private char* envMangle(char[] envName) {
     return czstr.toStringz("chunk_env_" ~ envName);
 }
 
-const cLuaReferenceTable = "D_references";
 // Lua 5.2-work2: they introduce LUA_RIDX_*, which are reserved integer indices
 //                into the Lua registry; then we have to change this
+//actually, all integer keys are already reserved in Lua 5.1, oops.
 const cGlobalErrorFuncIdx = 1;
 
 //--- Lua "Registry" stuff end
@@ -150,6 +186,8 @@ private char[] lua_todstring_protected(lua_State* L, int i) {
 
 //if index is a relative stack index, convert it to an absolute one
 //  e.g. -2 => 4 (if stack size is 5)
+//there's also (unaccessible):
+//  http://www.lua.org/source/5.1/lauxlib.c.html#abs_index
 private int luaRelToAbsIndex(lua_State* state, int index) {
     if (index < 0) {
         //the tricky part is dealing with pseudo-indexes (also non-negative)
@@ -177,7 +215,8 @@ private char[] luaWhere(lua_State* L, int level) {
 
 //Source: http://www.lua.org/source/5.1/ldblib.c.html#db_errorfb
 //License: MIT
-char[] luaStackTrace(lua_State* state, int level = 1) {
+//looks like Lua 5.2 will have luaL_traceback(), making this unneeded
+private char[] luaStackTrace(lua_State* state, int level = 1) {
     const LEVELS1 = 12;      /* size of the first part of the stack */
     const LEVELS2 = 10;      /* size of the second part of the stack */
 
@@ -221,8 +260,8 @@ char[] luaStackTrace(lua_State* state, int level = 1) {
 //call code() in a more or less "protected" environment:
 //- catch Lua errors (lua_error()/error()) properly
 //- if there are stray D exceptions, clean up the Lua stack
-T luaProtected(T)(lua_State* state, T delegate() code) {
-    //xxx I have no idea how to implement this
+private T luaProtected(T)(lua_State* state, T delegate() code) {
+    //xxx see notes at top of this file
     //    for now, just verify stack use
     int stack = lua_gettop(state);
     scope(success) assert(stack == lua_gettop(state));
@@ -304,20 +343,74 @@ class LuaException : CustomException {
 //there's a 3rd case, that takes a different code path: if Lua raises an error
 //  via lua_error()/error(), lua_pcall's error handler will catch that and
 //  create a new LuaException accordingly
-void raiseLuaError(lua_State* state, Exception e) {
+private void raiseLuaError(lua_State* state, Exception e) {
     assert(!!e);
     lua_pushlightuserdata(state, cast(void*)e);
     lua_error(state);
 }
 
 //use this on errors in the wrapper code
-void raiseLuaError(lua_State* state, char[] msg) {
+private void raiseLuaError(lua_State* state, char[] msg) {
     //the exception marks an error in the lua wrapper code (in contrast to
     //  exceptions in unrelated D code)
     //xxx: if the backtracer isn't able to get through the Lua VM functions
     //  in all cases (Windows?), we have to think of something else
     raiseLuaError(state, new LuaError(msg));
 }
+
+//unrecoverable exception encountered
+//print out trace and die on internal exceptions
+private void internalError(lua_State* state, Exception e) {
+    //go boom immediately to avoid confusion
+    //this should also be done for other "runtime" exceptions, but at least
+    //  in D1, the exception class hierarchy is too retarded and you have
+    //  to catch every single specialized exception type (got fixed in D2)
+    Trace.formatln("catching failing irrecoverable error instead of returning"
+        " to Lua:");
+    e.writeOut((char[] s) { Trace.format("{}", s); });
+    Trace.formatln("responsible Lua backtrace:");
+    Trace.formatln("{}", luaStackTrace(state, 1));
+    Trace.formatln("done, will die now.");
+    //this is really better than trying to continue the program
+    //Warning: if you should change this, be aware that Lua programs are allowed
+    //  to do xpcall(), and Lua programs should in no way be allowed to catch
+    //  internal D errors (that would lead to cascading failures, unability to
+    //  find the real error cause, etc.)
+    //the best way would probably to use skip the Lua C stack with
+    //  setjmp/longjmp, or unwind it via D exceptions; maybe the Lua state
+    //  would then be inconsistent, but you wouldn't access it anyway
+    //one reason why I don't just re-throw the D exception is because it's too
+    //  easy to accidentally catch it again in user code (like with:
+    //  try{}finally{}, try{}catch(...){}, scope(success) {})
+    //  feel free to call me stupid and change it
+    //another is that D might not be able to unwind the Lua C stack (but I don't
+    //  know; would have to try with Windows, LuaJIT, etc.)
+    cstdlib.abort();
+}
+
+bool isLuaRecoverableException(Exception e) {
+    //recoverable exceptions
+    if (cast(CustomException)e
+        || cast(ParameterException)e
+        || cast(LuaError)e)
+        return true;
+    //"internal" runtime exceptions
+    //in D2, these are all derived from the same type, but not in D1
+    //list of types from tango/core/Exception.d
+    //add missing types as needed (e.g. I didn't find AccessViolation)
+    if (cast(OutOfMemoryException)e
+        || cast(SwitchException)e
+        || cast(AssertException)e
+        || cast(ArrayBoundsException)e
+        || cast(FinalizeException)e)
+        return false;
+    //other exceptions
+    //not sure about this *shrug*
+    //apparently, we decided that only CustomExceptions are recoverable, which
+    //  means all other exception types are non-recoverable
+    return false;
+}
+
 
 private char[] className(Object o) {
     if (!o) {
@@ -344,7 +437,7 @@ private void luaExpected(lua_State* state, char[] expected, char[] got) {
 
 //if this returns a string, you can use it only until you pop the corresponding
 //  Lua value from the stack (because after this, Lua may garbage collect it)
-T luaStackValue(T)(lua_State *state, int stackIdx) {
+private T luaStackValue(T)(lua_State *state, int stackIdx) {
     void expected(char[] t) { luaExpected(state, stackIdx, t); }
     //xxx no check if stackIdx is valid (is checked in demarshal() anyway)
     static if (isIntegerType!(T) || isFloatingPointType!(T)) {
@@ -419,12 +512,12 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
                 //first try named access
                 static assert(ret.tupleof[idx].stringof[0..4] == "ret.");
                 luaPush(state, (ret.tupleof[idx].stringof)[4..$]);
-                lua_gettable(state, tablepos);   //replaces key by value
+                lua_rawget(state, tablepos);   //replaces key by value
                 if (lua_isnil(state, -1)) {
                     //named access failed, try indexed
                     lua_pop(state, 1);
                     luaPush(state, idx+1);
-                    lua_gettable(state, tablepos);
+                    lua_rawget(state, tablepos);
                 }
                 if (!lua_isnil(state, -1)) {
                     ret.tupleof[idx] = luaStackValue!(typeof(ret.tupleof[idx]))(
@@ -502,12 +595,20 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
         static if (!is_assoc) {
             //static arrays would check if the size is the same
             //but this function will never support static arrays (in D1)
+            //xxx change to lua_rawlen in Lua 5.2
             auto tlen = lua_objlen(state, tablepos);
             //xxx evil Lua scripts could easily cause an out of memory error
             //  due to '#' not returning the array length, but something
             //  along the last integer key (see Lua manual)
             ret.length = tlen;
         }
+        //arrays are the only data structure that cause data to be read
+        //  recursively, and may lead to infinite recursion
+        //so use checkstack to ensure the Lua stack either gets extended, or
+        //  an out of memory Lua error is raised
+        //note that in Lua accessing past the end of the stack causes random
+        //  memory corruption (except if Lua is compiled with LUA_USE_APICHECK)
+        luaL_checkstack(state, 10, "Lua stack out of memory");
         lua_pushnil(state);  //first key
         while (lua_next(state, tablepos) != 0) {
             //lua_next pushes key, then value
@@ -534,7 +635,7 @@ T luaStackValue(T)(lua_State *state, int stackIdx) {
 
 //returns the number of values pushed (for Vectors maybe, I don't know)
 //xxx: that would be a problem, see luaCall()
-int luaPush(T)(lua_State *state, T value) {
+private int luaPush(T)(lua_State *state, T value) {
     static if (isFloatingPointType!(T) || isIntegerType!(T) ||
         (is(T Base == enum) && isIntegerType!(Base)))
     {
@@ -580,30 +681,34 @@ int luaPush(T)(lua_State *state, T value) {
             }
             return argc;
         }
-        lua_newtable(state);
+        lua_createtable(state, 0, value.tupleof.length);
         foreach (int idx, x; value.tupleof) {
             static assert(value.tupleof[idx].stringof[0..6] == "value.");
             luaPush(state, (value.tupleof[idx].stringof)[6..$]);
             luaPush(state, value.tupleof[idx]);
-            lua_settable(state, -3);
+            lua_rawset(state, -3);
         }
         //set the metatable for the type, if it was set by addScriptType()
         lua_getfield(state, LUA_REGISTRYINDEX, C_Mangle!(T).ptr);
         lua_setmetatable(state, -2);
-    } else static if (isArrayType!(T) || isAssocArrayType!(T)) {
-        const bool IsArray = isArrayType!(T);
+    } else static if (isArrayType!(T)) {
+        lua_createtable(state, value.length, 0);
+        foreach (k, v; value) {
+            lua_pushinteger(state, k+1);
+            luaPush(state, v);
+            lua_rawset(state, -3);
+        }
+    } else static if (isAssocArrayType!(T)) {
         lua_newtable(state);
         foreach (k, v; value) {
-            static if (IsArray)
-                lua_pushinteger(state, k+1);
-            else
-                luaPush(state, k);
-
+            luaPush(state, k);
             luaPush(state, v);
-            lua_settable(state, -3);
+            lua_rawset(state, -3);
         }
     } else static if (is(T == delegate)) {
         luaPushDelegate(state, value);
+    } else static if (is(T X : X*) && is(X == function)) {
+        luaPushFunction(state, value);
     } else static if (is(T == void*)) {
         //allow pushing 'nil', but no other void*
         assert(value is null);
@@ -635,6 +740,21 @@ private void luaPushDelegate(T)(lua_State* state, T del) {
     lua_pushcclosure(state, &demarshal, 2);
 }
 
+//similar to luaPushDelegate
+private void luaPushFunction(T)(lua_State* state, T fn) {
+    //needing static if instead of just static assert is a syntax artefact
+    static if (is(T X : X*) && is(X == function)) {
+    } else { static assert(false); }
+
+    extern(C) static int demarshal(lua_State* state) {
+        T fn = cast(T)lua_touserdata(state, lua_upvalueindex(1));
+        return callFromLua(fn, state, 0, "some D function");
+    }
+
+    lua_pushlightuserdata(state, cast(void*)fn);
+    lua_pushcclosure(state, &demarshal, 1);
+}
+
 //holds a persistent reference to an arbitrary Lua value
 private struct LuaReference {
     private {
@@ -651,30 +771,23 @@ private struct LuaReference {
         mState = state;
 
         //put a "Lua ref" to the value into the reference table
-        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaReferenceTable.ptr);
         lua_pushvalue(mState, stackIdx);
-        mLuaRef = luaL_ref(mState, -2);
+        mLuaRef = luaL_ref(mState, LUA_REGISTRYINDEX);
         assert(mLuaRef != LUA_REFNIL);
-        lua_pop(mState, 1);
     }
 
     //push the referenced value on the stack
     void get() {
         assert(mLuaRef != LUA_NOREF, "call .get() after .release()");
         //get ref'ed value from the reference table
-        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaReferenceTable.ptr);
-        lua_rawgeti(mState, -1, mLuaRef);
-        //replace ref to delegate table by value (stack cleanup)
-        lua_replace(mState, -2);
+        lua_rawgeti(mState, LUA_REGISTRYINDEX, mLuaRef);
     }
 
     void release() {
         if (mLuaRef == LUA_NOREF)
             return;
-        lua_getfield(mState, LUA_REGISTRYINDEX, cLuaReferenceTable.ptr);
-        luaL_unref(mState, -1, mLuaRef);
+        luaL_unref(mState, LUA_REGISTRYINDEX, mLuaRef);
         mLuaRef = LUA_NOREF;
-        lua_pop(mState, 1);
     }
 
     bool valid() {
@@ -744,13 +857,14 @@ private T luaStackDelegate(T)(lua_State* state, int stackIdx) {
     return &pwrap.cbfunc;
 }
 
+//call D -> Lua
 //call the function on top of the stack
-//xxx I'm not sure, but I think caller will have to call this inside
-//    luaProtected() to ensure stack cleanup when a (de-)marshaller fails?
+//xxx see error handling notes at beginning of the file how this should be done
 private RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
     debug gDToLuaCalls++;
 
-    lua_rawgeti(state, LUA_REGISTRYINDEX, cGlobalErrorFuncIdx);
+    lua_pushboolean(state, true); //xxx: error function key
+    lua_rawget(state, LUA_REGISTRYINDEX);
     lua_insert(state, -2);
     int argc;
     foreach (int idx, x; args) {
@@ -779,35 +893,12 @@ private RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
     }
 }
 
-//unrecoverable exception encountered
-//print out trace and die on internal exceptions
-private void internalError(lua_State* state, Exception e) {
-    //go boom immediately to avoid confusion
-    //this should also be done for other "runtime" exceptions, but at least
-    //  in D1, the exception class hierarchy is too retarded and you have
-    //  to catch every single specialized exception type (got fixed in D2)
-    Trace.formatln("catching failing irrecoverable error instead of returning"
-        " to Lua:");
-    e.writeOut((char[] s) { Trace.format("{}", s); });
-    Trace.formatln("responsible Lua backtrace:");
-    Trace.formatln("{}", luaStackTrace(state, 1));
-    Trace.formatln("done, will die now.");
-    //this is really better than trying to continue the program
-    //Warning: if you should change this, be aware that Lua programs are allowed
-    //  to do xpcall(), and Lua programs should in no way be allowed to catch
-    //  internal D errors (that would lead to cascading failures, unability to
-    //  find the real error cause, etc.)
-    //the best way would probably to use skip the Lua C stack with
-    //  setjmp/longjmp, or unwind it via D exceptions; maybe the Lua state
-    //  would then be inconsistent, but you wouldn't access it anyway
-    asm { hlt; }
-}
-
+//call Lua -> D
 //Execute the callable del, taking parameters from the lua stack
 //  skipCount: skip this many parameters from beginning
 //  funcName:  used in error messages
 //stack size must match the requirements of del
-static int callFromLua(T)(T del, lua_State* state, int skipCount,
+private int callFromLua(T)(T del, lua_State* state, int skipCount,
     char[] funcName)
 {
     //eh static assert(is(T == delegate) || is(T == function));
@@ -859,29 +950,6 @@ static int callFromLua(T)(T del, lua_State* state, int skipCount,
     }
 
     assert(false);
-}
-
-bool isLuaRecoverableException(Exception e) {
-    //recoverable exceptions
-    if (cast(CustomException)e
-        || cast(ParameterException)e
-        || cast(LuaError)e)
-        return true;
-    //"internal" runtime exceptions
-    //in D2, these are all derived from the same type, but not in D1
-    //list of types from tango/core/Exception.d
-    //add missing types as needed (e.g. I didn't find AccessViolation)
-    if (cast(OutOfMemoryException)e
-        || cast(SwitchException)e
-        || cast(AssertException)e
-        || cast(ArrayBoundsException)e
-        || cast(FinalizeException)e)
-        return false;
-    //other exceptions
-    //not sure about this *shrug*
-    //apparently, we decided that only CustomExceptions are recoverable, which
-    //  means all other exception types are non-recoverable
-    return false;
 }
 
 class LuaRegistry {
@@ -1009,7 +1077,7 @@ class LuaRegistry {
 
             //--- default args stop
 
-            //default, whatever
+            //no default arguments
             auto del = mixin("&c."~name);
             return callFromLua(del, state, 1, methodName);
         }
@@ -1348,9 +1416,7 @@ class LuaState {
         loadStdLibs(stdlibFlags);
 
         //this is security relevant; allow only in debug code
-        //xxx add explicit debugging mode or so, because if it's really security
-        //  relevant, relying on debug alone would be too careless
-        debug {
+        version (DEBUG_UNSAFE) {
             loadStdLibs(LuaLib.debuglib);
             loadStdLibs(LuaLib.packagelib);
         }
@@ -1358,10 +1424,6 @@ class LuaState {
         //set "this" reference
         luaPush(mLua, this);
         lua_setfield(mLua, LUA_REGISTRYINDEX, cLuaStateRegId.ptr);
-
-        //list of D->Lua references
-        lua_newtable(mLua);
-        lua_setfield(mLua, LUA_REGISTRYINDEX, cLuaReferenceTable.ptr);
 
         //own std stuff
         auto reg = new LuaRegistry();
@@ -1425,10 +1487,13 @@ class LuaState {
             lua_pushlightuserdata(state, cast(void*)e);
             return 1;
         }
+        //xxx: error function key
+        //  use just "true" as key, because: integers are not really allowed in
+        //  the lua registry, strings would require rehashing, and booleans are
+        //  the only "simple" type left
+        lua_pushboolean(state, true);
         lua_pushcfunction(mLua, &pcall_err_handler);
-        lua_rawseti(mLua, LUA_REGISTRYINDEX, cGlobalErrorFuncIdx);
-
-        //xxx don't forget to disable the debug library later for security
+        lua_rawset(mLua, LUA_REGISTRYINDEX);
     }
 
     void destroy() {
@@ -1437,7 +1502,7 @@ class LuaState {
     }
 
     //return instance of LuaState from the registry
-    static LuaState getInstance(lua_State* state) {
+    private static LuaState getInstance(lua_State* state) {
         lua_getfield(state, LUA_REGISTRYINDEX, cLuaStateRegId.ptr);
         scope(exit) lua_pop(state, 1);
         return luaStackValue!(LuaState)(state, -1);
@@ -1453,7 +1518,7 @@ class LuaState {
         }
     }
 
-    final lua_State* state() {
+    private final lua_State* state() {
         return mLua;
     }
 
@@ -1465,14 +1530,17 @@ class LuaState {
 
     //return the size of the reference table (may give hints about unfree'd
     //  D delegates referencing Lua functions, and stuff)
+    //return value will be some values too high, because it actually returns
+    //  the size of the registry
     final int reftableSize() {
         //so yeah, need to walk the whole table
         int count = 0;
         stack0();
-        lua_getfield(mLua, LUA_REGISTRYINDEX, cLuaReferenceTable.ptr);
+        lua_pushvalue(mLua, LUA_REGISTRYINDEX);
         lua_pushnil(mLua);
         while (lua_next(mLua, -2) != 0) {
-            count++;
+            if (lua_type(mLua, -2) == LUA_TNUMBER)
+                count++;
             lua_pop(mLua, 1);
         }
         lua_pop(mLua, 1);
@@ -1621,7 +1689,6 @@ class LuaState {
 
         //just rewrite the already registered methods
         //if methods are added after this call, the user is out of luck
-        stack0();
         foreach (m; mMethods) {
             if (m.classinfo !is ci)
                 continue;
@@ -1639,7 +1706,6 @@ class LuaState {
                 _G[fname] = dispatch
             `, m.fname, instance);
         }
-        stack0();
 
         //add a global variable for the singleton (script can use it)
         if (auto pname = ci in mClassNames) {
@@ -1664,13 +1730,13 @@ class LuaState {
     //prepended all very-Lua-specific functions with lua
     //functions starting with lua should be avoided in user code
 
-    void luaLoadAndPush(char[] name, char[] code) {
+    private void luaLoadAndPush(char[] name, char[] code) {
         StringChunk sc;
         sc.data = code;
         lua_loadChecked(&lua_ReadString, &sc, name);
     }
 
-    void luaLoadAndPush(char[] name, Stream input) {
+    private void luaLoadAndPush(char[] name, Stream input) {
         lua_loadChecked(&lua_ReadStream, cast(void*)input, name);
     }
 
@@ -1741,7 +1807,7 @@ class LuaState {
     }
 
     //execute the global scope
-    RetType luaCall(RetType, Args...)(Args args) {
+    private RetType luaCall(RetType, Args...)(Args args) {
         return doLuaCall!(RetType, Args)(mLua, args);
     }
 
@@ -1788,6 +1854,7 @@ class LuaState {
         });
     }
 
+/+ unneeded?
     //copy symbol name1 from env1 to the global name2 in env2
     //if env2 is null, the symbol is copied to the global environment
     void copyEnvSymbol(char[] env1, char[] name1, char[] env2, char[] name2) {
@@ -1804,6 +1871,7 @@ class LuaState {
             lua_pop(mLua, env2.length ? 2 : 1);
         });
     }
++/
 
     //this redirects the print() function from stdio to cb(); the string passed
     //  to cb() should be output literally (the string will contain newlines)

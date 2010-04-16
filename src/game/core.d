@@ -386,10 +386,6 @@ abstract class GameCore {
 
     //-- scripting
 
-    private void eventScriptError(char[] event, Exception e) {
-        error("Scripting error while handling event '{}': {}", event, e.msg);
-    }
-
     private void scriptingObjError(ScriptingException e) {
         error("Scripting error in delegate call: {}", e.msg);
     }

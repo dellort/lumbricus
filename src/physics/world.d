@@ -304,9 +304,9 @@ class PhysicWorld {
     }
 
     //special collision function for walking code
-    bool collideObjectsW(Vector2f pos, float radius, PhysicObject me = null) {
-        //xxx collision matrix? I'm too lazy for that now
-        //    also, what about optimized collision (broadphase); worth it?
+    bool collideObjectsW(Vector2f pos, PhysicObject me) {
+        float radius = me.posp.radius;
+        //xxx also, what about optimized collision (broadphase); worth it?
         foreach (PhysicObject o; mObjects) {
             bool coll(Vector2f p, float r) {
                 float mind = (o.posp.radius + r);
@@ -315,11 +315,14 @@ class PhysicWorld {
                 return false;
             }
 
+            if (!canCollide(o, me))
+                continue;
+
             //no self-collision, no collision with other walking objects
             if (o is me || o.isWalking())
                 continue;
             //no collision if already inside (allow walking out)
-            if (me && coll(me.pos, me.posp.radius))
+            if (coll(me.pos, me.posp.radius))
                 continue;
             if (coll(pos, radius))
                 return true;

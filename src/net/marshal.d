@@ -2,11 +2,12 @@ module net.marshal;
 
 //I don't like text-based protocols :D
 
-import utils.buffer;
 import utils.misc;
 
 import tango.core.Traits;
 import tango.core.ByteSwap;
+
+import marray = utils.array;
 import str = utils.string;
 import base64 = tango.util.encode.Base64; //lol
 
@@ -234,35 +235,45 @@ class UnmarshalException : CustomException {
 ///writes out basic, array and struct types to a byte buffer
 ///using UnmarshalBuffer on the produced data gets the original back
 ///Note: stores no type information at all
+///also note: allocating this as scope object (like
+/// "scope marshal = new MarshalBuffer();" won't free the memory buffer; we
+/// can't implement this, because the GC disallows accessing memory references
+/// in the destructor)
 class MarshalBuffer {
     private {
-        BufferWrite mBuffer;
+        marray.Appender!(ubyte) mBuffer;
     }
 
     this() {
-        mBuffer = new BufferWrite();
+    }
+
+    //clear buffer (same as a new MarshalBuffer object), but keep memory
+    //arrays that have been returned by data() may be overwritten
+    void reset() {
+        mBuffer.length = 0;
     }
 
     ubyte[] data() {
-        return mBuffer.data();
+        return mBuffer[];
     }
 
     void write(T)(T data) {
         Marshaller(&writeRaw).write!(T)(data);
     }
 
-    void writeRaw(ubyte[] bytes) {
-        mBuffer.write(bytes);
+    final void writeRaw(ubyte[] bytes) {
+        mBuffer ~= bytes;
     }
 }
 
 class UnmarshalBuffer {
     private {
-        BufferRead mBuffer;
+        //the array is sliced as stuff is read
+        ubyte[] mBuffer;
     }
 
     this(ubyte[] source) {
-        mBuffer = new BufferRead(source);
+        mBuffer = source;
     }
 
     RetType!(T) read(T)() {
@@ -270,21 +281,21 @@ class UnmarshalBuffer {
     }
 
     private void require(uint nbytes) {
-        if (mBuffer.data.length - mBuffer.position < nbytes) {
+        if (mBuffer.length < nbytes) {
             throw new UnmarshalException("Not enough data");
         }
     }
 
     private size_t readRaw(ubyte[] data) {
         require(data.length);
-        mBuffer.read(data.ptr, data.length);
-        return mBuffer.data.length - mBuffer.position;
+        data[] = mBuffer[0..data.length];
+        mBuffer = mBuffer[data.length .. $];
+        return mBuffer.length;
     }
 
     //reference to raw bytes from current position until end
     ubyte[] getRest() {
-        //xxx bounds checking required because position could have any value?
-        return mBuffer.data()[mBuffer.position .. $];
+        return mBuffer;
     }
 }
 

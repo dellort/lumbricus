@@ -116,7 +116,7 @@ class GameLoader {
     private this() {
     }
 
-    static GameLoader CreateNewGame(GameConfig cfg) {
+    static GameLoader CreateNewGame(GameConfig cfg, bool network = false) {
         auto r = new GameLoader();
         //xxx: should level==null really be allowed?
         if (!cfg.level) {
@@ -126,6 +126,7 @@ class GameLoader {
         }
         assert(!!cfg.level);
         r.mGameConfig = cfg;
+        r.mNetwork = network;
         r.doInit();
         return r;
     }
@@ -133,8 +134,7 @@ class GameLoader {
     static GameLoader CreateNetworkGame(GameConfig cfg,
         void delegate(GameShell shell) loadDone)
     {
-        auto r = CreateNewGame(cfg);
-        r.mNetwork = true;
+        auto r = CreateNewGame(cfg, true);
         r.onLoadDone = loadDone;
         return r;
     }
@@ -615,6 +615,7 @@ class GameShell {
     //called by network client, whenever all input events at the passed
     //timeStamp have been fed to the engine
     void setFrameReady(long timeStamp) {
+        assert(mUseExternalTS);
         assert(timeStamp >= mTimeStamp, "local ts can't be ahead of server");
         assert(timeStamp >= mTimeStampAvail, "monotone time");
         mTimeStampAvail = timeStamp;

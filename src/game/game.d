@@ -125,8 +125,6 @@ class GameEngine : GameCore {
 
         scripting.addSingleton(this);
 
-        events.onScriptingError = &eventScriptError;
-
 
         mGameConf = loadConfig("game");
 
@@ -144,7 +142,7 @@ class GameEngine : GameCore {
         //  on errors
         scripting.onError = &scriptingObjError;
 
-        events.setScripting(scripting, "eventhandlers_global");
+        events.setScripting(scripting);
 
         foreach (char[] name, char[] value; mGameConf.getSubNode("scripts")) {
             loadScript(value);
