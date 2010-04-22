@@ -127,12 +127,12 @@ static this() {
     scripting.methods!(Foo, "vector", "makeVector", "vectors", "array",
         "aarray", "makeArray", "callCb", "makeTime", "arg");
     scripting.properties!(Foo, "bla", "muh");
-    auto bar = scripting.defClass!(Bar)();
-    bar.properties!("blu", "blo", "something")();
-    bar.methods!("test", "blurgh")();
+    scripting.properties!(Bar, "blu", "blo", "something")();
+    scripting.methods!(Bar, "test", "blurgh")();
     scripting.func!(funcBlub)();
     enumStrings!(Test, "a,b,c");
     scripting.func!(funcBlab)();
+    scripting.func!(funcRef)();
 }
 
 void funcBlub(char[] arg) {
@@ -146,6 +146,11 @@ struct TehEvil {
 
 void funcBlab(TehEvil evil) {
     Trace.formatln("ok");
+}
+
+LuaReference funcRef(LuaReference r) {
+    Trace.formatln("ref as int: {}", r.get!(int)());
+    return r;
 }
 
 void main(char[][] args) {
@@ -272,6 +277,8 @@ void main(char[][] args) {
         -- this failed with the old marshaller code, because it assumed lua_next
         --  would iterate the indices in a sorted way
         assert(array.equal(Foo_array(x), {1, 2}))
+
+        printf("12 == {}", funcRef(12))
     `);
 
     s.call("test", "Blubber");

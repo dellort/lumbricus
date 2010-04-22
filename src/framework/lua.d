@@ -8,9 +8,11 @@ import tango.core.Traits : ParameterTupleOf, isIntegerType, isFloatingPointType,
     ReturnTypeOf, isStaticArrayType;
 import rtraits = tango.core.RuntimeTraits;
 import env = tango.sys.Environment;
+import tango.core.WeakRef : WeakRef;
 import tango.core.Exception;
 
 import str = utils.string;
+import utils.list2;
 import utils.misc;
 import utils.stream;
 import utils.strparser;
@@ -74,11 +76,6 @@ private template C_Mangle(T) {
 private char* envMangle(char[] envName) {
     return czstr.toStringz("chunk_env_" ~ envName);
 }
-
-// Lua 5.2-work2: they introduce LUA_RIDX_*, which are reserved integer indices
-//                into the Lua registry; then we have to change this
-//actually, all integer keys are already reserved in Lua 5.1, oops.
-const cGlobalErrorFuncIdx = 1;
 
 //--- Lua "Registry" stuff end
 
@@ -483,6 +480,8 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
             expected(myformat("string ({})", e.msg));
         }
         expected("string");
+    } else static if (is(T == LuaReference)) {
+        return new LuaReference(state, stackIdx);
     } else static if (is(T == class) || is(T == interface)) {
         //allow userdata and nil, nothing else
         if (!lua_islightuserdata(state, stackIdx) && !lua_isnil(state,stackIdx))
@@ -648,6 +647,13 @@ private int luaPush(T)(lua_State *state, T value) {
         lua_pushboolean(state, cast(int)value);
     } else static if (is(T : char[])) {
         lua_pushlstring(state, value.ptr, value.length);
+    } else static if (is(T == LuaReference)) {
+        if (value.valid()) {
+            value.push(state);
+        } else {
+            //good enough (or better raise an error?)
+            lua_pushnil(state);
+        }
     } else static if (is(T == class) || is(T == interface)) {
         if (value is null) {
             lua_pushnil(state);
@@ -755,43 +761,111 @@ private void luaPushFunction(T)(lua_State* state, T fn) {
     lua_pushcclosure(state, &demarshal, 1);
 }
 
-//holds a persistent reference to an arbitrary Lua value
-private struct LuaReference {
-    private {
-        lua_State* mState;
-        int mLuaRef = LUA_NOREF;
-    }
+//helper for cleaning up garbage collected LuaReferences
+//this is just derived from WeakRef to save the overhead for 2 objects
+private final class RealLuaRef : WeakRef {
+private:
+    lua_State* mState;
+    int mLuaRef;
+    LuaState mDState;
+    public ObjListNode!(typeof(this)) mNode;
 
-    lua_State* state() {
-        return mState;
-    }
+    //add the value from the stack at stackIdx to the Lua ref table
+    //the stack itself isn't changed
+    //the Lua ref table entry will be removed as soon as referrer gets free'd
+    this(lua_State* state, int stackIdx, Object referrer) {
+        assert(!!referrer);
+        super(referrer);
 
-    //create a reference to the value at stackIdx; the stack is not changed
-    void set(lua_State* state, int stackIdx) {
         mState = state;
+        mDState = LuaState.getInstance(mState);
 
         //put a "Lua ref" to the value into the reference table
         lua_pushvalue(mState, stackIdx);
         mLuaRef = luaL_ref(mState, LUA_REGISTRYINDEX);
-        assert(mLuaRef != LUA_REFNIL);
+        assert(mLuaRef != LUA_NOREF);
+
+        //add to poll list for deferred freeing
+        mDState.mRefList.add(this);
     }
 
-    //push the referenced value on the stack
-    void get() {
-        assert(mLuaRef != LUA_NOREF, "call .get() after .release()");
+    void push(lua_State* state) {
+        assert(mState is state); //thinking of coroutines
+        assert(mLuaRef != LUA_NOREF, "call .push() after .release()");
         //get ref'ed value from the reference table
-        lua_rawgeti(mState, LUA_REGISTRYINDEX, mLuaRef);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, mLuaRef);
+    }
+
+    //return the Lua value as D value
+    //get() is already taken by class WeakRef
+    T getT(T)() {
+        if (!valid())
+            throw new CustomException("invalid Lua reference");
+        return luaProtected!(T)(mState, {
+            push(mState);
+            T res = luaStackValue!(T)(mState, -1);
+            lua_pop(mState, 1);
+            return res;
+        });
     }
 
     void release() {
-        if (mLuaRef == LUA_NOREF)
+        if (!valid())
             return;
         luaL_unref(mState, LUA_REGISTRYINDEX, mLuaRef);
         mLuaRef = LUA_NOREF;
+        mDState.mRefList.remove(this);
     }
 
+    //returns true if the reference hasn't been released yet
+    //(it doesn't matter if the reference is a nil value; it behaves the same)
     bool valid() {
         return mLuaRef != LUA_NOREF;
+    }
+
+    //called by LuaState
+    //free the ref if the D object has been free'd
+    bool pollRelease() {
+        if (get() || !valid())
+            return false;
+        //no object set anymore; must have been collected or deleted
+        release();
+        return true;
+    }
+}
+
+//holds a persistent reference to an arbitrary Lua value
+final class LuaReference {
+    private {
+        RealLuaRef mRef;
+    }
+
+    //create a reference to the value at stackIdx; the stack is not changed
+    //users can create this object by using LuaReference as normal parameter in
+    //  automatically bound D functions
+    private this(lua_State* state, int stackIdx) {
+        mRef = new RealLuaRef(state, stackIdx, this);
+    }
+
+    //push the referenced value on the stack
+    private void push(lua_State* state) {
+        mRef.push(state);
+    }
+
+    //return as D value
+    T get(T)() {
+        return mRef.getT!(T)();
+    }
+
+    //free reference (valid() -> false, push() will trigger assertion)
+    void release() {
+        mRef.release();
+    }
+
+    //returns true if the reference hasn't been released yet
+    //(it doesn't matter if the reference is a nil value; it behaves the same)
+    bool valid() {
+        return mRef.valid();
     }
 }
 
@@ -802,27 +876,19 @@ private struct LuaReference {
 //  entry could be removed without synchronization problems
 private class LuaDelegateWrapper(T) {
     private lua_State* mState;
-    private LuaReference mRef;
+    private RealLuaRef mRef;
     alias ParameterTupleOf!(T) Params;
     alias ReturnTypeOf!(T) RetType;
 
     //only to be called from luaStackDelegate()
     private this(lua_State* state, int stackIdx) {
         mState = state;
-        mRef.set(state, stackIdx);
-    }
-
-    ~this() {
-        //--D GC is completely asynchronous and indeterministic; if this
-        //--    dtor brings anything, then only segfaults on random
-        //--    occasions; don't know how to solve this (maybe do the
-        //--    same crap as with surfaces in the framework)
-        //--release();
+        mRef = new RealLuaRef(state, stackIdx, this);
     }
 
     //delegate to this is returned by luaStackDelegate/luaStackValue!(T)
     RetType cbfunc(Params args) {
-        mRef.get();
+        mRef.push(mState);
         assert(lua_isfunction(mState, -1));
         try {
             //will pop function from the stack
@@ -1268,12 +1334,6 @@ class LuaRegistry {
             MethodType.FreeFunction);
     }
 
-    DefClass!(Class) defClass(Class)(char[] prefixname = "") {
-        if (prefixname.length)
-            setClassPrefix!(Class)(prefixname);
-        return DefClass!(Class)(this);
-    }
-
     void seal() {
         if (mSealed) {
             return;
@@ -1318,40 +1378,6 @@ class LuaRegistry {
     }
 }
 
-//for convenience; might be completely useless
-//basically saves you from typing the class name all the time again
-//if it shows not to be useful, it should be removed
-//returned by LuaRegistry.defClass!(T)
-struct DefClass(Class) {
-    LuaRegistry registry;
-
-    //documentation see LuaRegistry
-
-    void method(char[] name)() {
-        registry.method!(Class, name)();
-    }
-
-    void methods(Names...)() {
-        registry.methods!(Class, Names)();
-    }
-
-    void property(char[] name, bool rw = true)() {
-        registry.property!(Class, name, rw)();
-    }
-
-    void properties(Names...)() {
-        registry.properties!(Class, Names)();
-    }
-
-    void property_ro(char[] name)() {
-        registry.property!(Class, name, false)();
-    }
-
-    void properties_ro(Names...)() {
-        registry.properties_ro!(Class, Names)();
-    }
-}
-
 //flags for LuaState.loadStdLibs
 enum LuaLib {
     base = 1,
@@ -1387,16 +1413,23 @@ private {
 
 class LuaState {
     private {
-        //handle to LUA whatever-thingy
         lua_State* mLua;
         LuaRegistry.Method[] mMethods;
         char[][ClassInfo] mClassNames;
         Object[ClassInfo] mSingletons;
+        ObjectList!(RealLuaRef, "mNode") mRefList; //D->Lua references
+        int mRefListWatermark; //pseudo-GC
+
         const cLuaStateRegId = "D_LuaState_instance";
     }
 
     //called when an error outside the "normal call path" occurs
     //  (i.e. a D->Lua delegate call fails)
+    //when returning from this function normally, execution will somehow be
+    //  resumed (in D->Lua delegate case, return to D; and if the function has
+    //  a return type, return .init)
+    //you can also throw any exception (including e)
+    //if onError isn't set, "throw e;" is executed instead
     void delegate(LuaException e) onError;
 
     const cLanguageAndVersion = LUA_VERSION;
@@ -1404,6 +1437,8 @@ class LuaState {
     static bool gLibLuaLoaded = false;
 
     this(int stdlibFlags = LuaLib.safe) {
+        mRefList = new typeof(mRefList)();
+
         if (!gLibLuaLoaded) {
             char[] libname = env.Environment.get("LUALIB");
             if (!libname.length)
@@ -1494,6 +1529,8 @@ class LuaState {
         lua_pushboolean(state, true);
         lua_pushcfunction(mLua, &pcall_err_handler);
         lua_rawset(mLua, LUA_REGISTRYINDEX);
+
+        stack0();
     }
 
     void destroy() {
@@ -1504,8 +1541,23 @@ class LuaState {
     //return instance of LuaState from the registry
     private static LuaState getInstance(lua_State* state) {
         lua_getfield(state, LUA_REGISTRYINDEX, cLuaStateRegId.ptr);
-        scope(exit) lua_pop(state, 1);
+        scope(success) lua_pop(state, 1);
         return luaStackValue!(LuaState)(state, -1);
+    }
+
+    //this is needed to free D->Lua references
+    //call it periodically (a good place is per-frame functions)
+    //why not use destructors? I had to give a page-long explanation, but this
+    //  has to do: it would never work correctly
+    void periodicCleanup() {
+        //this watermark stuff is just an attempt to reduce unnecessary work
+        if (mRefList.count < mRefListWatermark)
+            return;
+        foreach (RealLuaRef r; mRefList) {
+            //r might remove itself from mRefList
+            r.pollRelease();
+        }
+        mRefListWatermark = mRefList.count;
     }
 
     //hack for better error handling: delegate wrappers call this on errors
@@ -1902,9 +1954,12 @@ class LuaState {
 
     //assign a lua-defined metatable tableName to a D struct type
     void addScriptType(T)(char[] tableName) {
-        //get the metatable from the global scope and write it into the registry
-        lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(tableName));
-        lua_setfield(mLua, LUA_REGISTRYINDEX, C_Mangle!(T).ptr);
+        luaProtected!(void)(mLua, {
+            //get the metatable from the global scope and write it into the
+            //  registry
+            lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(tableName));
+            lua_setfield(mLua, LUA_REGISTRYINDEX, C_Mangle!(T).ptr);
+        });
     }
 }
 

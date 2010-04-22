@@ -418,6 +418,10 @@ abstract class GameCore {
 
         objects_cleanup();
 
+        //NOTE: it would probably be better to call this, like, every second (in
+        //  realtime), instead of every game simulation frame
+        mScripting.periodicCleanup();
+
         if (mBenchSimTime)
             mBenchSimTime.stop();
 

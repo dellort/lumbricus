@@ -202,7 +202,7 @@ function E.horror()
             initPhysic = relay {
                 collisionID = "always",
                 radius = 15,
-                mass = 1,
+                mass = 10,
                 elasticity = 0.5,
                 --bounceAbsorb = 0.1,
                 --friction = 0.9,
@@ -212,21 +212,24 @@ function E.horror()
     end
 
     if true then
-        local o1 = SpriteClass_createSprite(bouncy_class)
-        Sprite_activate(o1, Vector2(3000-100, 1000))
-        local o2 = SpriteClass_createSprite(bouncy_class)
-        Sprite_activate(o2, Vector2(3000+100, 1000))
-        local c1 = PhysicObjectsRod_ctor(Sprite_physics(o1),
-            Sprite_physics(o2))
-        World_add(c1)
-        local o3 = SpriteClass_createSprite(bouncy_class)
-        Sprite_activate(o3, Vector2(3000, 1000+200))
-        local c2 = PhysicObjectsRod_ctor(Sprite_physics(o1),
-            Sprite_physics(o3))
-        World_add(c2)
-        local c3 = PhysicObjectsRod_ctor(Sprite_physics(o2),
-            Sprite_physics(o3))
-        World_add(c3)
+        -- ring
+        local N = 3
+        local X = {}
+        local R = 100
+        local S = Vector2(3000, 1000)
+        for n = 1, N do
+            local o = SpriteClass_createSprite(bouncy_class)
+            local dir = Vector2.FromPolar(1, math.pi*2/N * (n-1))
+            Sprite_activate(o, S + dir * R)
+            X[n] = o
+        end
+        for n = 1, N do
+            local o1 = X[n]
+            local o2 = X[(n % #X) + 1]
+            local c = PhysicObjectsRod_ctor(Sprite_physics(o1),
+                Sprite_physics(o2))
+            World_add(c)
+        end
     else
         -- grid
         local X = {}
@@ -484,6 +487,22 @@ function benchSprite(sprite_class)
         end
         spawnCluster(sprite_class, spawner, 50, 50, 100, 20, up)
     end)
+end
+
+-- quite specialized functions to clear the freelist created by luaL_unref
+-- only for debugging; messes with lauxlib.c internals, requires debug lib
+-- see http://www.lua.org/source/5.1/lauxlib.c.html#luaL_ref
+function E.sweepRefs()
+    local reg = debug.getregistry()
+    local FREELIST_REF = 0
+    while true do
+        local next = reg[FREELIST_REF]
+        if type(next) ~= "number" or next == 0 then
+            break
+        end
+        reg[FREELIST_REF] = reg[next]
+        reg[next] = nil
+    end
 end
 
 export_from_table(E)
