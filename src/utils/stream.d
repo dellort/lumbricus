@@ -16,6 +16,8 @@ import tango.io.model.IConduit;
 import tango.core.Runtime;
 import utils.misc;
 
+import marray = utils.array;
+
 
 //HAHAHAHAHAHAHAHAHAHAHAHAHA
 //actually, I don't feel like inventing my own I/O API
@@ -180,30 +182,16 @@ struct ArrayReader {
 struct ArrayWriter {
     //buffer that will be used (if large enough, no additional memory alloc.)
     //use data() to get actual data
-    ubyte[] out_buffer;
-    size_t size;
+    marray.Appender!(ubyte) out_buffer;
 
     ubyte[] data() {
-        return out_buffer[0..size];
+        return out_buffer[];
     }
 
     void write(ubyte[] d) {
         if (!d.length)
             return;
-        size_t left = out_buffer.length - size;
-        if (d.length > left) {
-            //grow array to correct size
-            //somehow reduce number of future allocations by preallocating
-            auto ns = out_buffer.length;
-            while (ns < size+d.length) {
-                ns *= 2;
-                if (ns < 64)
-                    ns = 64;
-            }
-            out_buffer.length = ns;
-        }
-        out_buffer[size..size+d.length] = d;
-        size += d.length;
+        out_buffer ~= d;
     }
 
     PipeOut pipe() {

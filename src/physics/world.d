@@ -26,9 +26,6 @@ import physics.collisionmap;
 import physics.broadphase;
 import physics.sortandsweep;
 
-//Uncomment to get detailed physics debugging log (slooooow)
-version = PhysDebug;
-
 class PhysicWorld {
     private ObjectList!(PhysicBase, "base_node") mAllObjects;
     private ObjectList!(PhysicForce, "forces_node") mForceObjects;
@@ -125,11 +122,11 @@ class PhysicWorld {
             me.update(deltaT);
         }
 
-        foreach (PhysicObject me; mObjects) {
-            //check triggers
-            //check glued objects too, or else not checking would be
-            //misinterpreted as not active
-            foreach (PhysicTrigger tr; mTriggers) {
+        //check triggers
+        foreach (PhysicTrigger tr; mTriggers) {
+            foreach (PhysicObject me; mObjects) {
+                //check glued objects too, or else not checking would be
+                //misinterpreted as not active
                 if (canCollide(tr, me))
                     tr.collide(me);
             }

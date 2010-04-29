@@ -123,7 +123,7 @@ except OSError:
 
 def createdepfile():
     print("Getting dependencies...")
-    calldmd("dep", [rootfile, "-oq", "-od" + OBJ_DIR, "-o-", "-deps=" + DEP_FILE])
+    calldmd("dep", [rootfile, "-o-", "-deps=" + DEP_FILE])
 
 # return list of included files; with IGNORE_MODULES filtered out
 def read_and_parse_depfile():

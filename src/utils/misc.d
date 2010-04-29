@@ -264,6 +264,7 @@ unittest {
 
 //parse the result of stringof to get a struct member name; see unittest below
 //also works with CTFE
+//warning: dmd bug 2881 ruins this
 char[] structProcName(char[] tupleString) {
     //struct.tupleof is always fully qualified (obj.x), so get the
     //string after the last .
@@ -279,23 +280,111 @@ char[] structProcName(char[] tupleString) {
     return tupleString[p+1..$];
 }
 
+//can remove this as soon as dmd bug 2881 gets fixed
+version = bug2881;
+
+version (bug2881) {
+} else {
+    //test for http://d.puremagic.com/issues/show_bug.cgi?id=2881
+    //(other static asserts will throw; this is just to output a good error message)
+    private enum _Compiler_Test {
+        x,
+    }
+    private _Compiler_Test _test_enum;
+    static assert(_test_enum.stringof == "_test_enum", "Get a dmd version "
+        "where #2881 is fixed (or patch dmd yourself)");
+}
+
+//once for each type
+//a simpler approach can be used once dmd bug 2881 is fixed
+private template StructMemberNames(T) {
+    version (bug2881) {
+        private char[][] get() {
+            char[][] res;
+            const st = T.tupleof.stringof;
+            //currently, dmd produces something like "tuple((Type).a,(Type).b)"
+            //the really bad thing is that it really inline expands the Type,
+            //  and "Type" can contain further brackets and quoted strings (!!!)
+            //which means it's way too hard to support the general case; so if T
+            //  is a template with strings as parameter, stuff might break
+            static assert(st[0..6] == "tuple(");
+            static assert(st[st.length-1] == ')');
+            const s = st[6..st.length-1];
+            //(Type).a,(Type).b
+            //p = current position in s (slicing is costly in CTFE mode)
+            int p = 0;
+            while (p < s.length) {
+                //skip brackets and nested brackets
+                assert(s[p] == '(');
+                int b = 1;
+                p++;
+                while (b != 0) {
+                    if (s[p] == '(')
+                        b++;
+                    else if (s[p] == ')')
+                        b--;
+                    p++;
+                }
+                //skip dot that "qualifies" the member name (actually, wtf?)
+                assert(s[p] == '.');
+                p++;
+                //start must point to the struct member name
+                int start = p;
+                //find next ',' or end-of-string
+                while (s[p] != ',') {
+                    p++;
+                    if (p == s.length)
+                        break;
+                }
+                res ~= s[start..p];
+                p++;
+            }
+            return res;
+        }
+    } else { //version(bug2881)
+        private char[][] get() {
+            char[][] res;
+            T x;
+            foreach (int idx, _; x.tupleof) {
+                const n = structProcName(x.tupleof[idx].stringof);
+                //const n = structProcName2!(Foo, idx)();
+                res ~= n;
+            }
+            return res;
+        }
+    }
+
+    const StructMemberNames = get();
+}
+
+//similar to structProcName; return an array of all members
+//unlike structProcName, this successfully works around dmd bug 2881
+char[][] structMemberNames(T)() {
+    //the template is to cache the result (no idea if that works as intended)
+    return StructMemberNames!(T).StructMemberNames;
+}
+
+debug {
+    enum E { x }
+
+    struct N(T, char[] S) {
+        T abc;
+        E defg;
+    }
+
+    //brackets in the template parameter string would break it
+    alias N!(int, "foo\"hu") X;
+
+    unittest {
+        const names = structMemberNames!(X);
+        static assert(names == ["abc", "defg"]);
+    }
+}
+
 /+ this works, but probably it'd instantiate too many templates
 char[] structProcName2(T, int index)() {
     T x;
     return structProcName(x.tupleof[index].stringof);
-}
-+/
-
-/+ this works, I wonder if it's completely ok to use?
-char[][] structProcNames(T)() {
-    char[][] res;
-    T x;
-    foreach (int idx, _; x.tupleof) {
-        const n = structProcName(x.tupleof[idx].stringof);
-        //const n = structProcName2!(Foo, idx)();
-        res ~= n;
-    }
-    return res;
 }
 +/
 

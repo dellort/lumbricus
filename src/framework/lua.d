@@ -503,14 +503,14 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
             expected("struct table");
         T ret;
         int tablepos = luaRelToAbsIndex(state, stackIdx);
+        const char[][] membernames = structMemberNames!(T)();
         version (none) {
         //the code below works well, but it can't detect table entries that
         //  are not part of the struct (changing this would make it very
         //  inefficient)
             foreach (int idx, x; ret.tupleof) {
                 //first try named access
-                static assert(ret.tupleof[idx].stringof[0..4] == "ret.");
-                luaPush(state, (ret.tupleof[idx].stringof)[4..$]);
+                luaPush(state, memernames);
                 lua_rawget(state, tablepos);   //replaces key by value
                 if (lua_isnil(state, -1)) {
                     //named access failed, try indexed
@@ -566,9 +566,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
                     char[] name = lua_todstring_unsafe(state, -2);
                     bool ok = false;
                     foreach (int sidx, x; ret.tupleof) {
-                        static assert(ret.tupleof[sidx].stringof[0..4] == "ret.");
-                        const sname = (ret.tupleof[sidx].stringof)[4..$];
-                        if (sname == name) {
+                        if (membernames[sidx] == name) {
                             ret.tupleof[sidx] =
                                 luaStackValue!(typeof(x))(state, -1);
                             ok = true;
@@ -668,6 +666,7 @@ private int luaPush(T)(lua_State *state, T value) {
         //a special "marker constant", and all contained values will be returned
         //separately. S.numReturnValues can be defined to dynamically change
         //the number of return values
+        const membernames = structMemberNames!(T)();
         static if (is(typeof(T.cTupleReturn)) && T.cTupleReturn) {
             int numv = int.max;
             //special marker to set how many values were returned
@@ -678,7 +677,7 @@ private int luaPush(T)(lua_State *state, T value) {
             int argc = 0;
             foreach (int idx, x; value.tupleof) {
                 //lol, better way?
-                static if(value.tupleof[idx].stringof == "value.numReturnValues")
+                static if(membernames[idx] == "numReturnValues")
                     continue;
                 if (numv <= 0)
                     break;
@@ -689,8 +688,7 @@ private int luaPush(T)(lua_State *state, T value) {
         }
         lua_createtable(state, 0, value.tupleof.length);
         foreach (int idx, x; value.tupleof) {
-            static assert(value.tupleof[idx].stringof[0..6] == "value.");
-            luaPush(state, (value.tupleof[idx].stringof)[6..$]);
+            luaPush(state, membernames[idx]);
             luaPush(state, value.tupleof[idx]);
             lua_rawset(state, -3);
         }
@@ -725,13 +723,25 @@ private int luaPush(T)(lua_State *state, T value) {
     return 1;  //default to 1 argument
 }
 
+debug {
+    import tango.core.Memory;
+
+    void assert_gcptr(void* p) {
+        assert(GC.addrOf(p) !is null);
+    }
+}
+
 //convert D delegate to a Lua c-closure, and push it on the Lua stack
 //beware that the D delegate never should be from the stack, because Lua code
 //  may call it even if the containing function returned (thus accessing random
-//  data and the stack and causing corruption)
+//  data on the stack and causing corruption)
 //to be safe, pass only normal object methods (of GC'ed objects)
 private void luaPushDelegate(T)(lua_State* state, T del) {
     static assert(is(T == delegate));
+
+    assert(del !is null);
+    //if this fails, the delegate probably points into the stack (unsafe)
+    debug assert_gcptr(del.ptr);
 
     extern(C) static int demarshal(lua_State* state) {
         T del;
@@ -751,6 +761,8 @@ private void luaPushFunction(T)(lua_State* state, T fn) {
     //needing static if instead of just static assert is a syntax artefact
     static if (is(T X : X*) && is(X == function)) {
     } else { static assert(false); }
+
+    assert(fn !is null);
 
     extern(C) static int demarshal(lua_State* state) {
         T fn = cast(T)lua_touserdata(state, lua_upvalueindex(1));
@@ -1832,6 +1844,10 @@ class LuaState {
             luaPush(mLua, environmentId);
             lua_setfield(mLua, -2, "ENV_NAME");
 
+            //set environment itself as _ENV (similar to _G)
+            lua_pushvalue(mLua, -1);
+            lua_setfield(mLua, -2, "_ENV");
+
             //store for later use
             lua_pushvalue(mLua, -1);
             lua_setfield(mLua, LUA_REGISTRYINDEX, envMangle(environmentId));
@@ -1962,12 +1978,3 @@ class LuaState {
         });
     }
 }
-
-//test for http://d.puremagic.com/issues/show_bug.cgi?id=2881
-//(other static asserts will throw; this is just to output a good error message)
-private enum _Compiler_Test {
-    x,
-}
-private _Compiler_Test _test_enum;
-static assert(_test_enum.stringof == "_test_enum", "Get a dmd version "
-    "where #2881 is fixed (or patch dmd yourself)");
