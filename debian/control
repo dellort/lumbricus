@@ -1,0 +1,15 @@
+Source: lumbricus
+Section: games
+Priority: optional
+Maintainer: faulty <nfxjfg@gmail.com>
+Standards-Version: 3.8.4.0
+Build-Depends: debhelper (>= 5), ldc (>= 0.9.1+hg1634-1), libtango-ldc-dev (>= 0.99.9.dfsg-1), python2.5
+Homepage: https://gna.org/projects/lumbricus/
+
+Package: lumbricus
+Architecture: any
+Depends: ${shlibs:Depends}, libsdl1.2debian, libsdl-image1.2
+Description: Lumbricus Terrestris - a worms clone
+ Clone of the popular 2D game "Worms World Party" (© Team17). Main focus (in
+ contrast to similar projects) is staying as close as possible to the original
+ game regarding gameplay and visuals while extending it at the right places.

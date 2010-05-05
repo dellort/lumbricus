@@ -109,17 +109,17 @@ void setSetting(T)(char[] name, T value) {
 
 void addSettingsStruct(T)(char[] prefix, T init_val = T.init) {
     T x = init_val;
+    const names = structMemberNames!(T)();
     foreach (int idx, i; x.tupleof) {
-        const n = structProcName(x.tupleof[idx].stringof);
-        addSetting!(typeof(i))(prefix ~ "." ~ n, i);
+        addSetting!(typeof(i))(prefix ~ "." ~ names[idx], i);
     }
 }
 //NOTE: this is slow because of string memory allocation
 T getSettingsStruct(T)(char[] prefix, T def = T.init) {
     T x = def;
+    const names = structMemberNames!(T)();
     foreach (int idx, i; x.tupleof) {
-        const n = structProcName(x.tupleof[idx].stringof);
-        x.tupleof[idx] = getSetting!(typeof(i))(prefix ~ "." ~ n, i);
+        x.tupleof[idx] = getSetting!(typeof(i))(prefix ~ "." ~ names[idx], i);
     }
     return x;
 }

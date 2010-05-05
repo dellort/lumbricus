@@ -541,7 +541,7 @@ MyBox parseString(char[] s, MyBox prev) {
 }
 
 MyBox parseFromStr(T)(char[] s, MyBox prev) {
-    return MyBox.Box!(T)(fromStr!(T)(s));
+    return MyBox.Box!(T)(strparser.fromStr!(T)(s));
 }
 
 MyBox parseColor(char[] s, MyBox prev) {

@@ -63,7 +63,7 @@ def dostuff():
 
     # derelict, don't compile them as lib as that's easier
     derdir = mp(DOWNLOAD_DIR, "derelict")
-    svn_get("http://svn.dsource.org/projects/derelict/trunk", "441", derdir)
+    svn_get("http://svn.dsource.org/projects/derelict/trunk", "481", derdir)
     # actually needed (and going to be installed) derelict wrappers
     subdirs = ["DerelictUtil", "DerelictFT", "DerelictGL", "DerelictGLU",
                "DerelictSDL", "DerelictSDLImage", "DerelictAL"]

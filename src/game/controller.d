@@ -567,7 +567,7 @@ class TeamMember : Actor {
         assert(change >= 0);
         int diff = mHealthTarget - mCurrentHealth;
         if (diff != 0) {
-            int c = min(abs(diff), change);
+            int c = min(math.abs(diff), change);
             mCurrentHealth += (diff < 0) ? -c : c;
         }
     }

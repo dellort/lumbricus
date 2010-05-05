@@ -1314,7 +1314,18 @@ class LuaRegistry {
         //stringof returns "& functionName", strip that
         //xxx this is crap, who knows what random strings .stringof will return
         //  in future compiler versions?
-        const funcName = (&Fn).stringof[2..$];
+        const char[] funcName_raw = (&Fn).stringof;
+        //DMD: "& funcname"
+        //LDC: "&funcname"
+        //if the string changes again (for any compiler vendor/version), this
+        //  gives a nice silent regression
+        //(duh, wasn't my idea; let's hope dmd bugzilla 4133 makes it through)
+        static assert(funcName_raw[0] == '&');
+        static if (funcName_raw[1] == ' ') {
+            const funcName = funcName_raw[2..$];
+        } else {
+            const funcName = funcName_raw[1..$];
+        }
         extern(C) static int demarshal(lua_State* state) {
             //this crap is ONLY for default arguments
             //you can remove the code, you'll just lose the default args feature

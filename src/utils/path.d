@@ -42,6 +42,8 @@ version(Windows) {
     return pathStr;
 }
 
+version(Windows) {
+
 ///Return path to application's executable file, with trailing '/'
 char[] getAppPath(char[] arg0) {
     char[] appPath;
@@ -58,6 +60,37 @@ char[] getAppPath(char[] arg0) {
 
     appPath = addTrailingPathDelimiter(appPath);
     return appPath;
+}
+
+} else version(linux) {
+
+//if the exe is in the $PATH, and you call it just by "lumbricus", arg0 will
+//  just contain "lumbricus"
+//until I get to know of a better way, just read the Linux specific
+//  /proc/self/exe symlink, which contains an absolute path to the binary
+import tango.stdc.posix.unistd;
+char[] getAppPath(char[] arg0) {
+    char[] buffer = new char[4];
+    for (;;) {
+        ssize_t res = readlink("/proc/self/exe".ptr, buffer.ptr, buffer.length);
+        if (res < 0)
+            throw new Exception("can't read /proc/self/exe");
+        //probably was too long for the buffer, retry
+        if (res == buffer.length) {
+            buffer.length = buffer.length*2;
+            continue;
+        }
+        buffer = buffer[0..res];
+        break;
+    }
+    //strip away trailing exe name
+    return getFilePath(buffer);
+}
+
+} else {
+
+static assert(false, "add me");
+
 }
 
 ///encapsulates a platform-independant VFS path

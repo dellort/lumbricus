@@ -1,0 +1,4 @@
+bin/*                          /usr/bin/
+share/lumbricus/data           /usr/share/lumbricus/
+share/lumbricus/mount.conf     /usr/share/lumbricus/
+share/lumbricus/wimport        /usr/share/lumbricus/

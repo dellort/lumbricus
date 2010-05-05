@@ -162,7 +162,9 @@ final class CollisionMap {
         ContactHandling ch = ContactHandling.normal)
     {
         assert(!mSealed);
-        mHits[ch] ~= [a, b];
+        //indirection through tmp is to work around a ldc bug
+        CollisionType[2] tmp = [a, b];
+        mHits[ch] ~= tmp;
         mDirty = true;
     }
 

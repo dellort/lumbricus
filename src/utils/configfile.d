@@ -562,10 +562,9 @@ public class ConfigNode {
         } else static if (is(T == struct)) {
             novalue();
             T res;
+            const names = structMemberNames!(T)();
             foreach (int idx, x; res.tupleof) {
-                res.tupleof[idx] = getValue(
-                    structProcName(res.tupleof[idx].stringof),
-                    T.init.tupleof[idx]);
+                res.tupleof[idx] = getValue(names[idx], T.init.tupleof[idx]);
             }
             return res;
         } else {
@@ -603,6 +602,7 @@ public class ConfigNode {
         } else static if (is(T == struct)) {
             this.value = "";
             clear();
+            const names = structMemberNames!(T)();
             foreach (int idx, x; value.tupleof) {
                 //bug 3997
                 static if (!isAssocArrayType!(typeof(x))) {
@@ -611,7 +611,7 @@ public class ConfigNode {
                     bool unequal = true;
                 }
                 if (unequal) {
-                    setValue(structProcName(value.tupleof[idx].stringof), x);
+                    setValue(names[idx], x);
                 }
             }
         } else {

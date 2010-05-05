@@ -262,24 +262,6 @@ unittest {
 
 +/
 
-//parse the result of stringof to get a struct member name; see unittest below
-//also works with CTFE
-//warning: dmd bug 2881 ruins this
-char[] structProcName(char[] tupleString) {
-    //struct.tupleof is always fully qualified (obj.x), so get the
-    //string after the last .
-    //search backwards for '.'
-    int p = -1;
-    for (int n = tupleString.length - 1; n >= 0; n--) {
-        if (tupleString[n] == '.') {
-            p = n;
-            break;
-        }
-    }
-    assert(p > 0 && p < tupleString.length-1);
-    return tupleString[p+1..$];
-}
-
 //can remove this as soon as dmd bug 2881 gets fixed
 version = bug2881;
 
@@ -301,15 +283,15 @@ private template StructMemberNames(T) {
     version (bug2881) {
         private char[][] get() {
             char[][] res;
-            const st = T.tupleof.stringof;
+            const char[] st = T.tupleof.stringof;
             //currently, dmd produces something like "tuple((Type).a,(Type).b)"
             //the really bad thing is that it really inline expands the Type,
             //  and "Type" can contain further brackets and quoted strings (!!!)
             //which means it's way too hard to support the general case; so if T
             //  is a template with strings as parameter, stuff might break
             static assert(st[0..6] == "tuple(");
-            static assert(st[st.length-1] == ')');
-            const s = st[6..st.length-1];
+            static assert(st[$-1] == ')');
+            const s = st[6..$-1];
             //(Type).a,(Type).b
             //p = current position in s (slicing is costly in CTFE mode)
             int p = 0;
@@ -342,12 +324,26 @@ private template StructMemberNames(T) {
             return res;
         }
     } else { //version(bug2881)
+        //warning: dmd bug 2881 ruins this
+        private char[] structProcName(char[] tupleString) {
+            //struct.tupleof is always fully qualified (obj.x), so get the
+            //string after the last .
+            //search backwards for '.'
+            int p = -1;
+            for (int n = tupleString.length - 1; n >= 0; n--) {
+                if (tupleString[n] == '.') {
+                    p = n;
+                    break;
+                }
+            }
+            assert(p > 0 && p < tupleString.length-1);
+            return tupleString[p+1..$];
+        }
         private char[][] get() {
             char[][] res;
             T x;
             foreach (int idx, _; x.tupleof) {
                 const n = structProcName(x.tupleof[idx].stringof);
-                //const n = structProcName2!(Foo, idx)();
                 res ~= n;
             }
             return res;
@@ -359,6 +355,7 @@ private template StructMemberNames(T) {
 
 //similar to structProcName; return an array of all members
 //unlike structProcName, this successfully works around dmd bug 2881
+//this should actually be implemented using __traits (only available in D2)
 char[][] structMemberNames(T)() {
     //the template is to cache the result (no idea if that works as intended)
     return StructMemberNames!(T).StructMemberNames;
@@ -376,33 +373,18 @@ debug {
     alias N!(int, "foo\"hu") X;
 
     unittest {
-        const names = structMemberNames!(X);
+        const names = structMemberNames!(X)();
         static assert(names == ["abc", "defg"]);
     }
 }
-
-/+ this works, but probably it'd instantiate too many templates
-char[] structProcName2(T, int index)() {
-    T x;
-    return structProcName(x.tupleof[index].stringof);
-}
-+/
 
 unittest {
     struct Foo {
         int muh;
         bool fool;
     }
-    char[][] names;
-    Foo f;
-    foreach (int idx, _; f.tupleof) {
-        const n = structProcName(f.tupleof[idx].stringof);
-        //const n = structProcName2!(Foo, idx)();
-        names ~= n;
-    }
+    char[][] names = structMemberNames!(Foo)();
     assert(names == ["muh"[], "fool"]);
-    //const n = structProcName3!(Foo)();
-    //assert(n == names);
 }
 
 ///all code should throw this instead of 'Exception'

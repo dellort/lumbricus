@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 
 # this is just a quick&dirty compilation script
 # if you need something more sophisticated, consider xfbuild:
@@ -16,33 +16,67 @@ EXE_DIR = "../bin/"
 # also note that clean removes the full directory
 BUILD_DIR = "/tmp/minibuild/"
 
-# name of the DMD binary
-DMD = "dmd"
+# debug or release mode
+RELEASE = False
 
-# USE_OQ = False can be used to compile without the -oq patch, but it's a hack
-#   and doesn't work on Windows (don't know if it could be made working)
-# for one, it will execute dmd with '/' as working directory
-USE_OQ = True
+STD_ARGS = ["-L-lz", "-L-ldl"]
 
-STD_ARGS = ["-gc", "-L-lz", "-L-ldl"]
-OPT = False
-if not OPT:
-    STD_ARGS.extend(["-unittest", "-debug"])
-else:
-    STD_ARGS.extend(["-inline", "-release", "-O"])
-#if multiple symbols linker errors happen: add -L-z -Lmuldefs
+COMPILER = "dmd_patched"
 
+COMPILERS = {
+    # uses hack to do without -oq (probably fails on windows)
+    # dmd_patched later sets oq to true
+    "dmd": {
+        "exe": "dmd",
+        "oq": False,
+        "std_args": STD_ARGS,
+        "debug_args": ["-gc", "-unittest", "-debug"],
+        "release_args": ["-inline", "-release", "-O"],
+    },
+    "ldc": {
+        "exe": "ldc",
+        "oq": True,
+        "std_args": STD_ARGS + ["-singleobj"],
+        "debug_args": ["-gc", "-unittest", "-d-debug"],
+        "release_args": ["-enable-inlining", "-release", "-O"],
+    }
+}
+
+# requires patch for -oq
+patched_dmd = COMPILERS["dmd"].copy()
+patched_dmd["oq"] = True
+COMPILERS["dmd_patched"] = patched_dmd
+
+# use response files to pass compiler arguments
 USE_RSP = True
+
+# don't compile std packages/modules
+IGNORE_MODULES = ["object", "tango.", "std.", "core."]
 
 import sys
 import re
 import os
 import os.path
 from subprocess import Popen
-#from optparse import OptionParser
+from optparse import OptionParser
 
-# don't compile std packages/modules
-IGNORE_MODULES = ["object", "tango.", "std.", "core."]
+parser = OptionParser(usage="%prog [options] rootfile.d | clean",
+    description="compile a D module and all D modules imported by it")
+# tons of stuff optparse should do by itself, but doesn't
+parser.add_option("-c", "--compiler",
+    action="store", type="choice", dest="compiler", default=COMPILER,
+    choices=COMPILERS.keys(),
+    help=("compiler preset %s, default: %s" % (COMPILERS.keys(), COMPILER)))
+parser.add_option("-f",
+    action="store_true", dest="clean", default=False,
+    help="force clean (skip check if source was not changed)")
+parser.add_option("-r",
+    action="store_true", dest="release", default=False,
+    help="release mode (no debug, optimizations enabled)")
+
+(options, args) = parser.parse_args()
+
+compiler = COMPILERS[options.compiler]
 
 def compare_module_name(name, pattern):
     if name == pattern: return True
@@ -71,14 +105,12 @@ def remove_recursive(path, remove_self):
         os.rmdir(path)
 
 def usage():
-    print("Usage:")
-    print("./minibuild.py rootfile.d")
-    print("./minibuild.py clean")
+    parser.print_help()
     sys.exit(1)
 
-if len(sys.argv) != 2:
+if len(args) != 1:
     usage()
-rootfile = sys.argv[1]
+rootfile = args[0]
 if rootfile == "clean":
     remove_recursive(BUILD_DIR, True)
     sys.exit(0)
@@ -94,9 +126,13 @@ EXE_FILE = os.path.join(EXE_DIR, name)
 
 # what = name of the phase (used for naming reponse files and error messages)
 def calldmd(what, pargs, **more):
-    args = [DMD]
+    args = [compiler["exe"]]
     nargs = []
-    nargs.extend(STD_ARGS)
+    nargs.extend(compiler["std_args"])
+    if options.release:
+        nargs.extend(compiler["release_args"])
+    else:
+        nargs.extend(compiler["debug_args"])
     nargs.extend(pargs)
     if USE_RSP:
         rspname = os.path.join(DEST_DIR, what+".rsp")
@@ -111,7 +147,7 @@ def calldmd(what, pargs, **more):
     p = Popen(args=args,close_fds=True,**more)
     p.wait()
     if p.returncode != 0:
-        print("dmd failed (%s)." % what)
+        print("compiler failed (%s)." % what)
         sys.exit(1)
 
 
@@ -165,7 +201,7 @@ def build():
     # don't do anything if the exe seems to be up-to-date
     # this is all one can do to reduce "build times" without resorting to
     #   incremental compilation
-    if files:
+    if files and not options.clean:
         def ftime(path):
             try:
                 return os.stat(path).st_mtime
@@ -194,7 +230,7 @@ def build():
         sys.exit(1)
 
     print("Compiling...")
-    if USE_OQ:
+    if compiler["oq"]:
         dmdargs = ["-oq", "-od" + OBJ_DIR, "-c"]
         dmdargs.extend(files)
         calldmd("compile", dmdargs)

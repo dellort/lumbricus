@@ -12,6 +12,7 @@ import game.game;
 import game.sequence;
 import game.sky;
 import game.teamtheme;
+import game.temp : GameZOrder;
 import game.controller;
 import game.hud.camera;
 import game.weapon.weapon;
@@ -904,7 +905,8 @@ class GameView : Widget {
             GameEngine rengine = GameEngine.fromCore(mGame.engine);
 
             //100f? I don't know what it means, but it works (kind of)
-            auto shake = Vector2f.fromPolar(1.0f, rngShared.nextDouble()*PI*2)
+            auto shake = Vector2f.fromPolar(1.0f,
+                rngShared.nextDouble()*math.PI*2)
                 * (rengine.earthQuakeStrength()/100f);
             mShakeOffset = toVector2i(shake);
 

@@ -2,10 +2,11 @@
 module game.weapon.helpers;
 
 import common.scene;
+import game.controller;
 import game.core;
 import game.sprite;
+import game.temp : GameZOrder;
 import game.worm;
-import game.controller;
 import game.wcontrol;
 import physics.world;
 import utils.time;
