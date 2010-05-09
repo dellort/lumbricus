@@ -1,5 +1,11 @@
 module physics.misc;
 
+//different broadphase implementation may deliver different results, but we
+//  want to compare them
+//doesn't really work
+//just remove this and all included code if it gets into the way
+const bool cFixUndeterministicBroadphase = false;
+
 import utils.misc;
 import utils.strparser;
 import utils.vector2;
@@ -96,9 +102,6 @@ final class POSP {
     float friction = 0.05f;
     float bounceAbsorb = 0.0f;
     float slideAbsorb = 0.0f;
-    //extended normalcheck will test the surface normal in a bigger radius,
-    //  without generating a contact in the extended area
-    bool extendNormalcheck = false;
     bool zeroGrav = false;
 
     //maximum absolute value, velocity is cut if over this

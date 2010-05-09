@@ -18,54 +18,26 @@ class PerfTimerImpl : TimerImpl {
     }
 }
 
-version (UseFishyStuff) {
+//per-thread counters; would require extra code for windows
+version (linux) {
+    version = UseFishyStuff;
+}
 
-version (Windows) {
-    //actually almost exactly the same as PerfTimerImpl
-    //also, std.perf seems to implement this for Windows only
-    class ThreadTimerImpl : TimerImpl {
-        ThreadTimesCounter counter;
-        this() {
-            counter = new ThreadTimesCounter();
-            counter.start();
-        }
-        Time time() {
-            counter.stop();
-            return timeMusecs(counter.microseconds());
-        }
-    }
-} else {
+version (UseFishyStuff) {
+    //requires linking to -lrt
     //this uses the POSIX.1-2001 API, which might not be available on all
     //systems; it has undefined effects there...
-    //also, Phobos doesn't provide all the necessary declarations
-    //NOTE: instead of using getcpuclockid, one could also use
-    //  clock_gettime(CLOCK_THREAD_CPUTIME_ID, ...), I guess
-    version (GNU) {
-        import std.c.unix.unix;
-    } else {
-        import std.c.linux.pthread;
-    }
+    import tango.stdc.posix.pthread;
 
-    extern(C) {
-        int clock_gettime(clockid_t clk_id, timespec *tp);
-    }
+    //Tango has this commented, sigh
+    extern(C) int clock_gettime(clockid_t clk_id, timespec* tp);
 
     class ThreadTimerImpl : TimerImpl {
-        clockid_t timerid;
-        debug pthread_t thread;
         this() {
-            pthread_t me = pthread_self();
-            auto res = pthread_getcpuclockid(me, &timerid);
-            if (res != 0) {
-                assert(false, "not supported on your system?");
-            }
-            debug thread = me;
         }
         Time time() {
-            debug assert(thread == pthread_self(), "must be called on the same"
-                " thread");
             timespec tp;
-            auto res = clock_gettime(timerid, &tp);
+            auto res = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp);
             if (res != 0) {
                 assert(false); //should never happen if getcpuclockid was ok?
             }
@@ -75,7 +47,6 @@ version (Windows) {
             return timeNsecs(nsecs);
         }
     }
-}
 
 } else { //version (UseFishyStuff)
 

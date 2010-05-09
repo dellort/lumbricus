@@ -8,7 +8,7 @@ clean:
 	dh_testdir
 	dh_testroot
 	rm -f build
-	rm -f bin/lumbricus bin/extractdata
+	rm -f bin/*
 
 install: build
 	dh_testdir
@@ -18,10 +18,7 @@ install: build
 
 build:
 	dh_testdir
-	# actual game
-	cd src && ./minibuild.py lumbricus.d
-	# data files converter
-	cd src && ./minibuild.py extractdata.d
+	cd src && ./minibuild.py lumbricus.d && ./minibuild.py extractdata.d
 	touch build
 
 binary-indep: install
@@ -30,7 +27,7 @@ binary-indep: install
 # made here.
 
 binary-arch: install
-	dh_installdocs
+	dh_installdocs src/README
 	dh_installchangelogs
 	dh_strip
 	dh_compress

@@ -37,7 +37,7 @@ class LandscapeGeometry : PhysicGeometry {
         ls = a_ls;
     }
 
-    bool collide(Vector2f pos, float radius, out GeomContact contact) {
+    bool collide(Vector2f pos, float radius, out Contact contact) {
         Vector2i dir;
         int pixelcount;
         uint collide_bits;
@@ -72,12 +72,6 @@ class LandscapeGeometry : PhysicGeometry {
             return false;
 
         assert (!!collide_bits);
-
-        //xxx: hardcoded physics properties
-        if (collide_bits & cLandscapeSnowBit) {
-            //this means snow removes all friction (?)
-            contact.friction = 0.0f;
-        }
 
         //collided pixels, but no normal -> stuck
         //there's a hack in physic.d which handles this (the current collide()

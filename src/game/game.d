@@ -418,7 +418,7 @@ class GameEngine : GameCore {
         if (!area.isInside(drop))
             return false;
 
-        GeomContact contact;
+        Contact contact;
         //check if origin point is inside geometry
         if (physicWorld.collideGeometry(drop, radius, contact))
             return false;

@@ -10,6 +10,8 @@ import utils.vector2;
 import utils.log;
 import utils.output;
 
+import tarray = tango.core.Array;
+
 public import physics.base;
 public import physics.earthquake;
 public import physics.force;
@@ -25,6 +27,7 @@ public import physics.links;
 import physics.collisionmap;
 import physics.broadphase;
 import physics.sortandsweep;
+import physics.bih;
 
 class PhysicWorld {
     private ObjectList!(PhysicBase, "base_node") mAllObjects;
@@ -41,6 +44,10 @@ class PhysicWorld {
     private Contact[] mContacts;
     private int mContactCount;
 
+    static if (cFixUndeterministicBroadphase) {
+        private uint mNewSerial;
+    }
+
     private static LogStruct!("physics") log;
     Random rnd;
     CollisionMap collide;
@@ -50,6 +57,10 @@ class PhysicWorld {
         argcheck(obj);
         obj.world = this;
         obj.remove = false;
+        static if (cFixUndeterministicBroadphase) {
+            obj.mSerial = ++mNewSerial;
+            assert(mNewSerial != 0);
+        }
         mAllObjects.insert_tail(obj);
         if (auto o = cast(PhysicForce)obj)
             mForceObjects.insert_tail(o);
@@ -134,6 +145,25 @@ class PhysicWorld {
 
         broadphase.collide(mObjArr, &handleContact);
 
+        static if (cFixUndeterministicBroadphase) {
+            //sort contacts (handleContact is called in arbitrary order)
+            tarray.sort(mContacts[0..mContactCount],
+                (ref Contact a, ref Contact b) {
+                    auto xa = a.contactID;
+                    auto xb = b.contactID;
+                    assert(xa != 0);
+                    assert(xb != 0);
+                    assert(xa != xb);
+                    return xa < xb;
+                });
+            //and objects (because broadphase.collide may permutate it)
+            tarray.sort(mObjArr,
+                (PhysicObject a, PhysicObject b) {
+                    assert(a.mSerial != b.mSerial);
+                    return a.mSerial < b.mSerial;
+                });
+        }
+
         foreach (PhysicObject me; mObjects) {
             //no need to check then? (maybe)
             //xxx if landscape changed => need to check
@@ -171,7 +201,8 @@ class PhysicWorld {
     private void handleContact(ref Contact c) {
         if (mContactCount >= mContacts.length) {
             //no more room
-            mContacts.length = mContacts.length + 64; //another arbitrary number
+            //mContacts.length = max(mContacts.length * 2, 64);
+            mContacts.length = mContacts.length + 64;
         }
         mContacts[mContactCount] = c;
         mContactCount++;
@@ -213,6 +244,7 @@ class PhysicWorld {
         }
     }
 
+    //called by broadphase on potential collision
     private void checkObjectCollision(PhysicObject obj1, PhysicObject obj2,
         CollideDelegate contactHandler)
     {
@@ -238,10 +270,18 @@ class PhysicWorld {
             d = Vector2f(0, dist);
         }
 
+        static if (cFixUndeterministicBroadphase) {
+            ulong a = obj1.mSerial;
+            ulong b = obj2.mSerial;
+            ulong cid = (a << 32) | b;
+        }
+
         //generate contact and resolve immediately (well, as before)
         if (ch == ContactHandling.normal) {
             Contact c;
             c.fromObj(obj1, obj2, d/dist, mindist - dist);
+            static if (cFixUndeterministicBroadphase)
+                c.contactID = cid;
             contactHandler(c);
         } else if (ch == ContactHandling.noImpulse) {
             //lol, generate 2 contacts that behave like the objects hit a wall
@@ -249,11 +289,15 @@ class PhysicWorld {
             if (obj1.velocity.length > float.epsilon || obj1.isWalking()) {
                 Contact c1;
                 c1.fromObj(obj1, null, d/dist, 0.5f*(mindist - dist));
+                static if (cFixUndeterministicBroadphase)
+                    c1.contactID = cid;
                 contactHandler(c1);
             }
             if (obj2.velocity.length > float.epsilon || obj2.isWalking()) {
                 Contact c2;
                 c2.fromObj(obj2, null, -d/dist, 0.5f*(mindist - dist));
+                static if (cFixUndeterministicBroadphase)
+                    c2.contactID = cid | (1L<<63); //unique id
                 contactHandler(c2);
             }
         }
@@ -264,36 +308,27 @@ class PhysicWorld {
     private void checkGeometryCollisions(PhysicObject obj,
         CollideDelegate contactHandler)
     {
-        GeomContact contact;
-        if (obj.posp.extendNormalcheck) {
-            //more expensive check that also yields a normal if the object
-            //is "close by" to the surface
-            if (collideObjectWithGeometry(obj, contact, true))
-                obj.checkGroundAngle(contact);
-        }
+        Contact contact;
         if (!collideObjectWithGeometry(obj, contact))
             return;
 
-        if (!obj.posp.extendNormalcheck)
-            obj.checkGroundAngle(contact);
+        obj.checkGroundAngle(contact);
 
         //generate contact and resolve
-        Contact c;
-        c.fromGeom(contact, obj);
-        contactHandler(c);
+        contactHandler(contact);
     }
 
     //check how an object would collide with all the geometry
-    bool collideGeometry(Vector2f pos, float radius, out GeomContact contact)
+    bool collideGeometry(Vector2f pos, float radius, out Contact contact)
     {
         bool collided = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
-            GeomContact ncont;
+            Contact ncont;
             if (gm.collide(pos, radius, ncont)) {
                 if (!collided)
                     contact = ncont;
                 else
-                    contact.merge(ncont);
+                    contact.mergeFrom(ncont);
                 collided = true;
             }
         }
@@ -327,48 +362,19 @@ class PhysicWorld {
         return false;
     }
 
-    bool collideObjectWithGeometry(PhysicObject o, out GeomContact contact,
-        bool extendRadius = false)
-    {
+    bool collideObjectWithGeometry(PhysicObject o, out Contact contact) {
         argcheck(o);
         bool collided = false;
         foreach (PhysicGeometry gm; mGeometryObjects) {
-            GeomContact ncont;
+            Contact ncont;
             ContactHandling ch = canCollide(o, gm);
-            if (ch && gm.collide(o, extendRadius, ncont))
-            {
-                //kind of hack for LevelGeometry
-                //if the pos didn't change at all, but a collision was
-                //reported, assume the object is completely within the
-                //landscape...
-                //(xxx: uh, actually a dangerous hack)
-                if (ncont.depth == float.infinity) {
-                    if (o.lastPos.isNaN) {
-                        //we don't know a safe position, so pull it out
-                        //  along the velocity vector
-                        ncont.normal = -o.velocity.normal;
-                        //assert(!ncont.normal.isNaN);
-                        ncont.depth = o.posp.radius*2;
-                    } else {
-                        //we know a safe position, so pull it back there
-                        Vector2f d = o.lastPos - o.pos;
-                        ncont.normal = d.normal;
-                        //assert(!ncont.normal.isNaN);
-                        ncont.depth = d.length;
-                    }
-                } else if (ch == ContactHandling.pushBack) {
-                    //back along velocity vector
-                    //only allowed if less than 90° off from surface normal
-                    Vector2f vn = -o.velocity.normal;
-                    float a = vn * ncont.normal;
-                    if (a > 0)
-                        ncont.normal = vn;
-                }
+            if (ch && gm.collide(o, ncont)) {
+                ncont.geomPostprocess(ch);
 
                 if (!collided)
                     contact = ncont;
                 else
-                    contact.merge(ncont);
+                    contact.mergeFrom(ncont);
 
                 collided = true;
             }
@@ -408,9 +414,9 @@ class PhysicWorld {
             }
         }
         //check against landscape
-        GeomContact contact;
         for (float t = 0; t < tmin && t < maxLen; t += t_inc) {
             Vector2f p = start + t*dir;
+            Contact contact;
             if (collideGeometry(p, ray_radius, contact)) {
                 //found collision before hit object -> stop
                 obj = null;
@@ -446,7 +452,7 @@ class PhysicWorld {
         //beside start/end of line
         for (float d = r; d < len-r; d += r) {
             auto p = p1 + ndir*d;
-            GeomContact contact;
+            Contact contact;
             if (collideGeometry(p, r, contact)) {
                 if (contact.depth != float.infinity)
                     //move out of landscape
@@ -461,7 +467,7 @@ class PhysicWorld {
     }
 
     bool thickRay(Vector2f start, Vector2f dir, float maxLen, float r,
-        out Vector2f hit, out GeomContact contact)
+        out Vector2f hit, out Contact contact)
     {
         //subtracting r at both sides to avoid hitting landscape at
         //beside start/end of line
@@ -481,7 +487,7 @@ class PhysicWorld {
     ///Move the passed point out of any geometry it hits inside the radius r
     //xxx what about objects? should be handled too
     bool freePoint(ref Vector2f p, float r) {
-        GeomContact contact;
+        Contact contact;
         //r+4 chosen by experiment
         if (collideGeometry(p, r+4, contact)) {
             if (contact.depth == float.infinity)
@@ -518,6 +524,10 @@ class PhysicWorld {
         rnd = r;
         collide = new CollisionMap();
         broadphase = new BPSortAndSweep(&checkObjectCollision);
+        //broadphase = new BPIterate(&checkObjectCollision);
+        //broadphase = new BPIterate2(&checkObjectCollision);
+        //broadphase = new BPBIH(&checkObjectCollision);
+        //broadphase = new BPTileHash(&checkObjectCollision);
         mObjects = new typeof(mObjects)();
         mAllObjects = new typeof(mAllObjects)();
         mForceObjects = new typeof(mForceObjects)();
@@ -536,7 +546,7 @@ class PhysicWorld {
     struct CollideGeometryStruct {
         const cTupleReturn = true;
         int numReturnValues;
-        GeomContact contact;
+        Contact contact;
     }
     CollideGeometryStruct collideGeometryScript(Vector2f pos, float radius) {
         CollideGeometryStruct ret = void;
@@ -548,11 +558,9 @@ class PhysicWorld {
         }
         return ret;
     }
-    CollideGeometryStruct collideObjectWithGeometryScript(PhysicObject o,
-        bool extendRadius = false)
-    {
+    CollideGeometryStruct collideObjectWithGeometryScript(PhysicObject o) {
         CollideGeometryStruct ret = void;
-        bool hit = collideObjectWithGeometry(o, ret.contact, extendRadius);
+        bool hit = collideObjectWithGeometry(o, ret.contact);
         if (hit) {
             ret.numReturnValues = 1;
         } else {
@@ -606,7 +614,7 @@ class PhysicWorld {
         const cTupleReturn = true;
         int numReturnValues;
         Vector2f hit;
-        GeomContact contact;
+        Contact contact;
     }
     ThickRayStruct thickRayScript(Vector2f start, Vector2f dir, float maxLen,
         float r)

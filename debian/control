@@ -9,7 +9,8 @@ Homepage: https://gna.org/projects/lumbricus/
 Package: lumbricus
 Architecture: any
 Depends: ${shlibs:Depends}, libsdl1.2debian, libsdl-image1.2
-Description: Lumbricus Terrestris - a worms clone
- Clone of the popular 2D game "Worms World Party" (© Team17). Main focus (in
- contrast to similar projects) is staying as close as possible to the original
- game regarding gameplay and visuals while extending it at the right places.
+Description: a worms clone
+ Lumbricus Terrestris is a Clone of the popular 2D game
+ "Worms World Party" (© Team17). Main focus (in contrast to similar projects) is
+ staying as close as possible to the original game regarding gameplay and
+ visuals while extending it at the right places.

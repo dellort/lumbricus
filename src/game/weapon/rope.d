@@ -99,7 +99,7 @@ class Rope : Shooter {
 
     //check if rope anchor is still connected / can be connected
     private bool checkRopeAnchor(Vector2f anchorpos) {
-        GeomContact dummy;
+        Contact dummy;
         return engine.physicWorld.collideGeometry(anchorpos, cSegmentRadius + 2,
             dummy);
     }

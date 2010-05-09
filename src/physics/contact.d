@@ -4,6 +4,7 @@ import utils.list2;
 import utils.vector2;
 
 import physics.base;
+import physics.collisionmap;
 import physics.physobj;
 import physics.geometry;
 import physics.misc;
@@ -30,17 +31,8 @@ struct Contact {
     ///how this contact was generated
     ContactSource source = ContactSource.object;
 
-    ///Fill data from a geometry collision
-    //xxx unify this
-    void fromGeom(GeomContact c, PhysicObject o) {
-        normal = c.normal;
-        depth = c.depth;
-        assert(!normal.isNaN);
-        assert(!ieee.isNaN(depth));
-        obj[0] = o;
-        obj[1] = null;
-        source = ContactSource.geometry;
-        restitution = obj[0].posp.elasticity;
+    static if (cFixUndeterministicBroadphase) {
+        ulong contactID = 0;
     }
 
     void fromObj(PhysicObject obj1, PhysicObject obj2, Vector2f n, float d) {
@@ -176,6 +168,75 @@ struct Contact {
             obj[1].setPos(obj[1].pos + objShift[1], true);
         } else {
             objShift[1] = Vector2f.init;
+        }
+    }
+
+    //merge another Contact into this one
+    //this is for "geometry" objects
+    //obj objShift restitution may contain garbage after this
+    //xxx this may be total crap, we have no testcase
+    void mergeFrom(ref Contact other) {
+        assert(!!obj[0] && !obj[1]); //yyy assumptions for now
+        if (depth == float.infinity)
+            return;
+        if (other.depth == float.infinity) {
+            depth = float.infinity;
+            return;
+        }
+        assert(depth == depth);
+        assert(other.depth == other.depth);
+        Vector2f tmp = (normal*depth) + (other.normal*other.depth);
+        depth = tmp.length;
+        if (depth < float.epsilon) {
+            //depth can become 0, default to a save value
+            normal = Vector2f(0, -1);
+        } else {
+            normal = tmp.normal;
+        }
+        assert (depth == depth);
+        assert (!normal.isNaN);
+        //contactPoint = (contactPoint + other.contactPoint)/2;
+
+        assert(!normal.isNaN);
+        assert(!ieee.isNaN(depth));
+        //obj[0] = o;
+        //obj[1] = null;
+        source = ContactSource.geometry;
+        restitution = obj[0].posp.elasticity;
+    }
+
+    //this used to be in PhysicWorld.collideObjectWithGeometry()
+    //not used with PhysicWorld.collideGeometry()
+    //ch = simply the result of canCollide() (yyy remove)
+    void geomPostprocess(ContactHandling ch) {
+        assert(!!obj[0] && !obj[1]); //yyy assumptions for now
+        PhysicObject o = obj[0]; //non-static one
+        //kind of hack for LevelGeometry
+        //if the pos didn't change at all, but a collision was
+        //reported, assume the object is completely within the
+        //landscape...
+        //(xxx: uh, actually a dangerous hack)
+        if (depth == float.infinity) {
+            if (o.lastPos.isNaN) {
+                //we don't know a safe position, so pull it out
+                //  along the velocity vector
+                normal = -o.velocity.normal;
+                //assert(!ncont.normal.isNaN);
+                depth = o.posp.radius*2;
+            } else {
+                //we know a safe position, so pull it back there
+                Vector2f d = o.lastPos - o.pos;
+                normal = d.normal;
+                //assert(!ncont.normal.isNaN);
+                depth = d.length;
+            }
+        } else if (ch == ContactHandling.pushBack) {
+            //back along velocity vector
+            //only allowed if less than 90° off from surface normal
+            Vector2f vn = -o.velocity.normal;
+            float a = vn * normal;
+            if (a > 0)
+                normal = vn;
         }
     }
 }

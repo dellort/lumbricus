@@ -3,11 +3,14 @@ module physics.physobj;
 import tango.math.Math : PI, abs, isNaN;
 import tango.math.IEEE : copysign;
 import utils.list2;
-import utils.vector2;
-import utils.misc;
 import utils.log;
+import utils.misc;
+import utils.rect2;
+import utils.vector2;
+
 
 import physics.base;
+import physics.contact;
 import physics.misc;
 import physics.geometry;
 import physics.links;
@@ -18,6 +21,12 @@ version = PhysDebug;
 //simple physical object (has velocity, position, mass, radius, ...)
 class PhysicObject : PhysicBase {
     ObjListNode!(typeof(this)) objects_node;
+
+    //hack for BPTileHash broadphase
+    uint broadphaseTimeStamp;
+
+    //call fixBB() to update this from position/radius
+    private Rect2f mBB;
 
     private POSP mPosp;
     private static LogStruct!("physics.obj") log;
@@ -32,6 +41,7 @@ class PhysicObject : PhysicBase {
     final void posp(POSP p) {
         argcheck(p);
         mPosp = p;
+        fixBB();
         //new POSP -> check values
         updateCollision();
         if (mPosp.fixate.x < float.epsilon || mPosp.fixate.y < float.epsilon) {
@@ -49,6 +59,11 @@ class PhysicObject : PhysicBase {
         }
     }
 
+    //hopefully inlined, extensively used by broadphase
+    final Rect2f bb() {
+        return mBB;
+    }
+
     override void addedToWorld() {
         super.addedToWorld();
         if (mFixateConstraint)
@@ -64,7 +79,7 @@ class PhysicObject : PhysicBase {
             throw new CustomException("null collisionID");
     }
 
-    package Vector2f mPos; //pixels
+    private Vector2f mPos; //pixels, call fixBB() when changing
     private PhysicFixate mFixateConstraint;
 
     private bool mIsGlued;    //for sitting worms (can't be moved that easily)
@@ -254,24 +269,6 @@ class PhysicObject : PhysicBase {
             velocity_int.length = cMaxSpeed;
         }
 
-        //xxx what was that for again? seems to work fine without
-        /*if (isGlued) {
-            //argh. so a velocity is compared to a "force"... sigh.
-            //surface_normal is valid, as objects are always glued to the ground
-            if (velocity.length <= mPosp.glueForce
-                && velocity*surface_normal <= 0)
-            {
-                //xxx: reset the velocity vector, because else, the object
-                //     will be unglued even it stands on the ground
-                //     this should be changed such that the object is only
-                //     unglued if it actually could be moved...
-                velocity = Vector2f.init;
-                //skip to next object, don't change position
-                return;
-            }
-            doUnglue();
-        }*/
-
         //Update position
         move(velocity * deltaT);
 
@@ -288,6 +285,7 @@ class PhysicObject : PhysicBase {
     //xxx correction not used anymore, because we have constraints now
     final void setPos(Vector2f npos, bool correction) {
         mPos = npos;
+        fixBB();
         if (mFixateConstraint && !correction)
             mFixateConstraint.updatePos();
         if (!correction)
@@ -297,11 +295,20 @@ class PhysicObject : PhysicBase {
     //move the object by this vector
     final void move(Vector2f delta) {
         mPos += delta;
+        fixBB();
         if (mPosp.rotation == RotateMode.distance) {
             //rotation direction depends from x direction (looks better)
             auto dist = copysign(delta.length(), delta.x);
             rotation += dist/200*2*PI;
         }
+    }
+
+    final void fixBB() {
+        auto r = posp.radius;
+        mBB.p1.x = mPos.x - r;
+        mBB.p1.y = mPos.y - r;
+        mBB.p2.x = mPos.x + r;
+        mBB.p2.y = mPos.y + r;
     }
 
     //******************** Rotation and surface normal **********************
@@ -351,12 +358,12 @@ class PhysicObject : PhysicBase {
 
     //whenever this object touches the ground, call this with the depth*normal
     //  vector
-    package void checkGroundAngle(GeomContact contact) {
+    package void checkGroundAngle(Contact contact) {
         Vector2f dir = contact.normal*contact.depth;
         auto len = dir.length;
         if (len > 0.001) {
             surface_normal = contact.normal;
-            surface_friction = contact.friction;
+            surface_friction = 1.0; //contact.friction;
             ground_angle = surface_normal.toAngle();
             mOnSurface = true;
         }
@@ -479,6 +486,10 @@ class PhysicObject : PhysicBase {
 
     override /+package+/ void simulate(float deltaT) {
         super.simulate(deltaT);
+        void updatePos(Vector2f p) {
+            //xxx: not sure about correction parameter
+            setPos(p, true);
+        }
         //take care of walking, walkingSpeed > 0 marks walking enabled
         if (isWalkingMode()) {
             mIsWalking = false;  //set to true again if object could walk
@@ -499,7 +510,7 @@ class PhysicObject : PhysicBase {
             for (float y = -posp.walkingClimb; y <= +posp.walkingClimb; y++) {
                 Vector2f npos = pos + walkDist;
                 npos.y += y;
-                GeomContact contact;
+                Contact contact;
                 bool res = world.collideGeometry(npos, posp.radius, contact);
                 //also check with objects
                 res |= world.collideObjectsW(npos, this);
@@ -512,24 +523,27 @@ class PhysicObject : PhysicBase {
                     //  --> walk there
                     version(WalkDebug) log("walk: bottom at {}", y);
                     y--;
-                    version(WalkDebug) log("walk at {} -> {}", npos, npos-mPos);
+                    version(WalkDebug) log("walk at {} -> {}", npos, npos-pos);
                     //walk to there...
+                    Vector2f fpos = pos;
                     if (mPosp.walkLimitSlopeSpeed) {
                         //one pixel at a time, even on steep slopes
                         //xxx waiting y/walkingSpeed looks odd, but
                         //    would be more correct
                         if (abs(y) <= 1)
-                            mPos += walkDist;
+                            fpos += walkDist;
                         if (y > 0)
-                            mPos.y += 1;
+                            fpos.y += 1;
                         else if (y < 0)
-                            mPos.y -= 1;
+                            fpos.y -= 1;
                     } else {
                         //full heigth diff at one, constant x speed
-                        mPos += walkDist;
-                        mPos.y += y;
+                        fpos += walkDist;
+                        fpos.y += y;
                     }
                     hitLast = true;
+
+                    updatePos(fpos);
 
                     //jup, did walk
                     mIsWalking = true;
@@ -542,7 +556,7 @@ class PhysicObject : PhysicBase {
                 version(WalkDebug) log("walk: fall-bottom");
                 //if set, don't fall, but stop (mIsWalking will be false)
                 if (!mWalkStopAtCliff) {
-                    mPos += walkDist;
+                    updatePos(pos + walkDist);
                     doUnglue();
                     mIsWalking = true;
                 }
@@ -551,7 +565,7 @@ class PhysicObject : PhysicBase {
             if (mIsWalking) {
                 //check ground normal... not good :)
                 //maybe physics should check the normal properly
-                GeomContact contact;
+                Contact contact;
                 if (world.collideGeometry(pos, posp.radius+cNormalCheck,
                     contact))
                 {

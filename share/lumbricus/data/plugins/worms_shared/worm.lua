@@ -30,7 +30,6 @@ local physics = {
         slideAbsorb = 150,
         damageable = 1.0,
         friction = 0.9,
-        extendNormalcheck = true,
         sustainableImpulse = 5000,
         fallDamageFactor = 0.004,
         fallDamageIgnoreX = true,

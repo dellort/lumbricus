@@ -2,6 +2,7 @@ module physics.broadphase;
 
 public import physics.physobj;
 import physics.contact;
+import utils.rect2;
 
 alias void delegate(PhysicObject obj1, PhysicObject obj2,
     CollideDelegate contactHandler) CollideFineDg;
@@ -14,7 +15,9 @@ abstract class BroadPhase {
         collideFine = col;
     }
 
-    abstract void collide(ref PhysicObject[] shapes,
+    //the callee is allowed to permutate the shapes array
+    //for each potential overlap, contactHandler is called
+    abstract void collide(PhysicObject[] shapes,
         CollideDelegate contactHandler);
 }
 
@@ -24,7 +27,7 @@ class BPIterate : BroadPhase {
         super(col);
     }
 
-    void collide(ref PhysicObject[] shapes, CollideDelegate contactHandler) {
+    void collide(PhysicObject[] shapes, CollideDelegate contactHandler) {
         for (int i = 0; i < shapes.length; i++) {
             for (int j = i+1; j < shapes.length; j++) {
                 collideFine(shapes[i], shapes[j], contactHandler);

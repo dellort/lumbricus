@@ -648,7 +648,7 @@ class GameView : Widget {
         //check for a geometry collision outside the world area on the left
         //  and right. if it collides, there is a PlaneGeometry blocking access
         //  (and the level end warning is not drawn on that side)
-        GeomContact tmp;
+        Contact tmp;
         Vector2i worldSize = mGame.engine.level.worldSize;
         bool left = !mGame.engine.physicWorld.collideGeometry(
             Vector2f(-100, worldSize.y/2), 1, tmp);

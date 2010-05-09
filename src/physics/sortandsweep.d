@@ -17,28 +17,29 @@ class BPSortAndSweep : BroadPhase {
         super(col);
     }
 
-    void collide(ref PhysicObject[] shapes, CollideDelegate contactHandler) {
+    void collide(PhysicObject[] shapes, CollideDelegate contactHandler) {
         shellSort(shapes, mSortAxis);
 
         /// Sweep the array for collisions
         Vector2f s, s2, v;
         for (int i = 0; i < shapes.length; i++)
         {
+            PhysicObject cur = shapes[i];
+
             /// Determine AABB center point
-            Vector2f p = shapes[i].pos;
+            Vector2f p = cur.pos;
 
             /// Update sum and sum2 for computing variance of AABB centers
             s += p;
             s2 += p.mulEntries(p);
 
             /// Test collisions against all possible overlapping AABBs following current one
-            for (int j = i + 1; j < shapes.length; j++)
-            {
+            for (int j = i + 1; j < shapes.length; j++) {
                 /// Stop when tested AABBs are beyond the end of current AABB
-                if (shapes[j].pos[mSortAxis] - shapes[j].posp.radius
-                    > shapes[i].pos[mSortAxis] + shapes[i].posp.radius) break;
+                if (shapes[j].bb.p1[mSortAxis] > cur.bb.p2[mSortAxis])
+                    break;
 
-                collideFine(shapes[i], shapes[j], contactHandler);
+                collideFine(cur, shapes[j], contactHandler);
             }
         }
 
@@ -51,11 +52,10 @@ class BPSortAndSweep : BroadPhase {
     }
 
     ///
-    private void shellSort(inout PhysicObject[] shapes, int sortAxis)
+    private void shellSort(PhysicObject[] shapes, int sortAxis)
     {
         bool compareObj(PhysicObject obj1, PhysicObject obj2) {
-            return (obj1.pos[sortAxis] - obj1.posp.radius
-                > obj2.pos[sortAxis] - obj2.posp.radius);
+            return obj1.bb.p1[sortAxis] > obj2.bb.p1[sortAxis];
         }
 
         int increment = cast(int)(shapes.length * 0.5f + 0.5f);

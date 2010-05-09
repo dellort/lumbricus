@@ -3,6 +3,7 @@ module physics.base;
 import utils.list2;
 
 import physics.collisionmap;
+import physics.misc;
 import physics.world;
 
 //if you need to check a normal when there's almost no collision (i.e. when worm
@@ -24,6 +25,10 @@ class PhysicBase {
     private float mRemainLifeTime;
 
     CollisionType collision = CollisionType_Invalid;
+
+    static if (cFixUndeterministicBroadphase) {
+        uint mSerial;
+    }
 
     //free for use by the rest of the game
     //used for collisions- and damage-reporting

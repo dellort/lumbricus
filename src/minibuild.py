@@ -19,7 +19,9 @@ BUILD_DIR = "/tmp/minibuild/"
 # debug or release mode
 RELEASE = False
 
-STD_ARGS = ["-L-lz", "-L-ldl"]
+# -lrt is just for utils/perf.d version UseFishyStuff (can be disabled)
+LIBS = ["z", "dl", "rt"]
+STD_ARGS = ["-L-l" + x for x in LIBS]
 
 COMPILER = "dmd_patched"
 
@@ -38,7 +40,7 @@ COMPILERS = {
         "oq": True,
         "std_args": STD_ARGS + ["-singleobj"],
         "debug_args": ["-gc", "-unittest", "-d-debug"],
-        "release_args": ["-enable-inlining", "-release", "-O"],
+        "release_args": ["-enable-inlining", "-release", "-O5"],
     }
 }
 
@@ -73,6 +75,9 @@ parser.add_option("-f",
 parser.add_option("-r",
     action="store_true", dest="release", default=False,
     help="release mode (no debug, optimizations enabled)")
+parser.add_option("-I",
+    action="append", dest="include", default=[],
+    help="additional include paths")
 
 (options, args) = parser.parse_args()
 
@@ -134,6 +139,8 @@ def calldmd(what, pargs, **more):
     else:
         nargs.extend(compiler["debug_args"])
     nargs.extend(pargs)
+    for inc in options.include:
+        nargs.append("-I" + inc)
     if USE_RSP:
         rspname = os.path.join(DEST_DIR, what+".rsp")
         rsp = open(rspname, "w")
