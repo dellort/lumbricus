@@ -31,10 +31,6 @@ struct Contact {
     ///how this contact was generated
     ContactSource source = ContactSource.object;
 
-    static if (cFixUndeterministicBroadphase) {
-        ulong contactID = 0;
-    }
-
     void fromObj(PhysicObject obj1, PhysicObject obj2, Vector2f n, float d) {
         obj[0] = obj1;
         obj[1] = obj2;

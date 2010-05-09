@@ -1,11 +1,5 @@
 module physics.misc;
 
-//different broadphase implementation may deliver different results, but we
-//  want to compare them
-//doesn't really work
-//just remove this and all included code if it gets into the way
-const bool cFixUndeterministicBroadphase = false;
-
 import utils.misc;
 import utils.strparser;
 import utils.vector2;

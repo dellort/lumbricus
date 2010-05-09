@@ -27,7 +27,6 @@ public import physics.links;
 import physics.collisionmap;
 import physics.broadphase;
 import physics.sortandsweep;
-import physics.bih;
 
 class PhysicWorld {
     private ObjectList!(PhysicBase, "base_node") mAllObjects;
@@ -44,10 +43,6 @@ class PhysicWorld {
     private Contact[] mContacts;
     private int mContactCount;
 
-    static if (cFixUndeterministicBroadphase) {
-        private uint mNewSerial;
-    }
-
     private static LogStruct!("physics") log;
     Random rnd;
     CollisionMap collide;
@@ -57,10 +52,6 @@ class PhysicWorld {
         argcheck(obj);
         obj.world = this;
         obj.remove = false;
-        static if (cFixUndeterministicBroadphase) {
-            obj.mSerial = ++mNewSerial;
-            assert(mNewSerial != 0);
-        }
         mAllObjects.insert_tail(obj);
         if (auto o = cast(PhysicForce)obj)
             mForceObjects.insert_tail(o);
@@ -144,25 +135,6 @@ class PhysicWorld {
         }
 
         broadphase.collide(mObjArr, &handleContact);
-
-        static if (cFixUndeterministicBroadphase) {
-            //sort contacts (handleContact is called in arbitrary order)
-            tarray.sort(mContacts[0..mContactCount],
-                (ref Contact a, ref Contact b) {
-                    auto xa = a.contactID;
-                    auto xb = b.contactID;
-                    assert(xa != 0);
-                    assert(xb != 0);
-                    assert(xa != xb);
-                    return xa < xb;
-                });
-            //and objects (because broadphase.collide may permutate it)
-            tarray.sort(mObjArr,
-                (PhysicObject a, PhysicObject b) {
-                    assert(a.mSerial != b.mSerial);
-                    return a.mSerial < b.mSerial;
-                });
-        }
 
         foreach (PhysicObject me; mObjects) {
             //no need to check then? (maybe)
@@ -270,18 +242,10 @@ class PhysicWorld {
             d = Vector2f(0, dist);
         }
 
-        static if (cFixUndeterministicBroadphase) {
-            ulong a = obj1.mSerial;
-            ulong b = obj2.mSerial;
-            ulong cid = (a << 32) | b;
-        }
-
         //generate contact and resolve immediately (well, as before)
         if (ch == ContactHandling.normal) {
             Contact c;
             c.fromObj(obj1, obj2, d/dist, mindist - dist);
-            static if (cFixUndeterministicBroadphase)
-                c.contactID = cid;
             contactHandler(c);
         } else if (ch == ContactHandling.noImpulse) {
             //lol, generate 2 contacts that behave like the objects hit a wall
@@ -289,15 +253,11 @@ class PhysicWorld {
             if (obj1.velocity.length > float.epsilon || obj1.isWalking()) {
                 Contact c1;
                 c1.fromObj(obj1, null, d/dist, 0.5f*(mindist - dist));
-                static if (cFixUndeterministicBroadphase)
-                    c1.contactID = cid;
                 contactHandler(c1);
             }
             if (obj2.velocity.length > float.epsilon || obj2.isWalking()) {
                 Contact c2;
                 c2.fromObj(obj2, null, -d/dist, 0.5f*(mindist - dist));
-                static if (cFixUndeterministicBroadphase)
-                    c2.contactID = cid | (1L<<63); //unique id
                 contactHandler(c2);
             }
         }
@@ -525,9 +485,6 @@ class PhysicWorld {
         collide = new CollisionMap();
         broadphase = new BPSortAndSweep(&checkObjectCollision);
         //broadphase = new BPIterate(&checkObjectCollision);
-        //broadphase = new BPIterate2(&checkObjectCollision);
-        //broadphase = new BPBIH(&checkObjectCollision);
-        //broadphase = new BPTileHash(&checkObjectCollision);
         mObjects = new typeof(mObjects)();
         mAllObjects = new typeof(mAllObjects)();
         mForceObjects = new typeof(mForceObjects)();

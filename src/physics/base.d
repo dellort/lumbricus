@@ -26,10 +26,6 @@ class PhysicBase {
 
     CollisionType collision = CollisionType_Invalid;
 
-    static if (cFixUndeterministicBroadphase) {
-        uint mSerial;
-    }
-
     //free for use by the rest of the game
     //used for collisions- and damage-reporting
     //currently is either null or stores a GObjectSprite instance
