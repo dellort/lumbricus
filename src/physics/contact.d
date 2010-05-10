@@ -25,17 +25,20 @@ struct Contact {
     ///coeff. of restitution
     float restitution;
 
-    ///(out) object position change due to penetration resolution
-    Vector2f[2] objShift;
-
     ///how this contact was generated
     ContactSource source = ContactSource.object;
 
+    //only used by links.d anymore
     void fromObj(PhysicObject obj1, PhysicObject obj2, Vector2f n, float d) {
         obj[0] = obj1;
         obj[1] = obj2;
         normal = n;
         depth = d;
+        fromObjInit();
+    }
+
+    //init restitution and source fields
+    void fromObjInit() {
         assert(!normal.isNaN && !ieee.isNaN(depth));
         source = ContactSource.object;
 
@@ -157,13 +160,11 @@ struct Contact {
         Vector2f movePerIMass = normal*(depth/totalInvMass);
 
         //calculate position change relative to object mass and apply
-        objShift[0] = movePerIMass * obj[0].posp.inverseMass;
-        obj[0].setPos(obj[0].pos + objShift[0], true);
+        auto objShift0 = movePerIMass * obj[0].posp.inverseMass;
+        obj[0].setPos(obj[0].pos + objShift0, true);
         if (obj[1]) {
-            objShift[1] = -movePerIMass * obj[1].posp.inverseMass;
-            obj[1].setPos(obj[1].pos + objShift[1], true);
-        } else {
-            objShift[1] = Vector2f.init;
+            auto objShift1 = -movePerIMass * obj[1].posp.inverseMass;
+            obj[1].setPos(obj[1].pos + objShift1, true);
         }
     }
 

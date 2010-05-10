@@ -39,6 +39,10 @@ class BPSortAndSweep : BroadPhase {
                 if (shapes[j].bb.p1[mSortAxis] > cur.bb.p2[mSortAxis])
                     break;
 
+                if (shapes[j].bb.p1[!mSortAxis] > cur.bb.p2[!mSortAxis]
+                    || shapes[j].bb.p2[!mSortAxis] < cur.bb.p1[!mSortAxis])
+                    continue;
+
                 collideFine(cur, shapes[j], contactHandler);
             }
         }

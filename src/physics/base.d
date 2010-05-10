@@ -24,6 +24,7 @@ class PhysicBase {
     private float mLifeTime = float.infinity;
     private float mRemainLifeTime;
 
+    //xxx move into PhysicObject as soon as they are unified with triggers
     CollisionType collision = CollisionType_Invalid;
 
     //free for use by the rest of the game

@@ -84,7 +84,7 @@ class Sprite : GameObject {
 
         noActivityWhenGlued = type.initNoActivityWhenGlued;
 
-        physics = new PhysicObject();
+        physics = new PhysicObjectCircle();
         physics.backlink = this;
         physics.lifepower = type.initialHp;
 

@@ -10,30 +10,49 @@ import utils.vector2;
 
 
 import physics.base;
+import physics.collide;
 import physics.contact;
-import physics.misc;
 import physics.geometry;
 import physics.links;
+import physics.misc;
+import physics.plane;
 
-//version = WalkDebug;
-version = PhysDebug;
+
+debug {
+    //version = WalkDebug;
+    version = PhysDebug;
+}
 
 //simple physical object (has velocity, position, mass, radius, ...)
+//NOTE: for now, this is abstract, and subclasses define the actual shape -
+//      feel free to make it more like normal physic engines (separate Shape
+//      objects?), but it's not like we support rigid bodies
 class PhysicObject : PhysicBase {
     ObjListNode!(typeof(this)) objects_node;
 
-    //hack for BPTileHash broadphase
-    uint broadphaseTimeStamp;
-
-    //call fixBB() to update this from position/radius
-    private Rect2f mBB;
+    //call updatePos() to update this from position/radius
+    protected Rect2f mBB;
 
     private POSP mPosp;
-    private static LogStruct!("physics.obj") log;
+    debug private static LogStruct!("physics.obj") log;
 
-    this() {
-        //
+    package {
+        //for collision function dispatch
+        //stupidly, both variables are actually constant compared to the
+        //  object's class or this ptr => waste of bytes
+        //could make a virtual function instead to retrieve this, which would
+        //  make it slightly slower (and needs slightly more lines of code)
+        void* shape_ptr;    //mostly constant offset to this ptr
+        uint shape_id;      //constant for each .classinfo
     }
+
+    protected this(void* a_shape_ptr, uint a_shape_id) {
+        shape_ptr = a_shape_ptr;
+        shape_id = a_shape_id;
+    }
+
+    //must be overridden by shape subclasses to update position and bb
+    abstract void updatePos();
 
     final POSP posp() {
         return mPosp;
@@ -41,7 +60,7 @@ class PhysicObject : PhysicBase {
     final void posp(POSP p) {
         argcheck(p);
         mPosp = p;
-        fixBB();
+        updatePos();
         //new POSP -> check values
         updateCollision();
         if (mPosp.fixate.x < float.epsilon || mPosp.fixate.y < float.epsilon) {
@@ -59,11 +78,6 @@ class PhysicObject : PhysicBase {
         }
     }
 
-    //hopefully inlined, extensively used by broadphase
-    final Rect2f bb() {
-        return mBB;
-    }
-
     override void addedToWorld() {
         super.addedToWorld();
         if (mFixateConstraint)
@@ -79,7 +93,14 @@ class PhysicObject : PhysicBase {
             throw new CustomException("null collisionID");
     }
 
-    private Vector2f mPos; //pixels, call fixBB() when changing
+    //hopefully inlined, extensively used by broadphase, performance critical
+    final Rect2f bb() {
+        return mBB;
+    }
+
+    //xxx: one could just replace mPos by bb.center, or an abstract function
+    //     PhysicObjectCircle stores its own position anyway
+    private Vector2f mPos; //pixels, call updatePos() when changing
     private PhysicFixate mFixateConstraint;
 
     private bool mIsGlued;    //for sitting worms (can't be moved that easily)
@@ -285,7 +306,7 @@ class PhysicObject : PhysicBase {
     //xxx correction not used anymore, because we have constraints now
     final void setPos(Vector2f npos, bool correction) {
         mPos = npos;
-        fixBB();
+        updatePos();
         if (mFixateConstraint && !correction)
             mFixateConstraint.updatePos();
         if (!correction)
@@ -295,20 +316,12 @@ class PhysicObject : PhysicBase {
     //move the object by this vector
     final void move(Vector2f delta) {
         mPos += delta;
-        fixBB();
+        updatePos();
         if (mPosp.rotation == RotateMode.distance) {
             //rotation direction depends from x direction (looks better)
             auto dist = copysign(delta.length(), delta.x);
             rotation += dist/200*2*PI;
         }
-    }
-
-    final void fixBB() {
-        auto r = posp.radius;
-        mBB.p1.x = mPos.x - r;
-        mBB.p1.y = mPos.y - r;
-        mBB.p2.x = mPos.x + r;
-        mBB.p2.y = mPos.y + r;
     }
 
     //******************** Rotation and surface normal **********************
@@ -578,5 +591,55 @@ class PhysicObject : PhysicBase {
             }
             //if nothing was done, the worm (or the cow :) just can't walk
         }
+    }
+}
+
+class PhysicObjectCircle : PhysicObject {
+    private Circle mCircle;
+
+    this() {
+        super(&mCircle, Circle_ID);
+    }
+
+    override void updatePos() {
+        auto r = posp.radius;
+        mBB.p1.x = pos.x - r;
+        mBB.p1.y = pos.y - r;
+        mBB.p2.x = pos.x + r;
+        mBB.p2.y = pos.y + r;
+        mCircle.pos = pos;
+        //hack: change radius on posp change
+        mCircle.radius = r;
+    }
+}
+
+class PhysicObjectPlane : PhysicObject {
+    private Plane mPlane;
+
+    this(Plane a_init) {
+        super(&mPlane, Plane_ID);
+        mPlane = a_init;
+        mBB.p1.x = float.min;
+        mBB.p1.y = float.min;
+        mBB.p2.x = float.max;
+        mBB.p2.y = float.max;
+    }
+
+    override void updatePos() {
+        //a Plane is infinite, it's also a forced static object (no position)
+    }
+}
+
+class PhysicObjectLine : PhysicObject {
+    private Line mLine;
+
+    this(Line a_init) {
+        super(&mLine, Line_ID);
+        mLine = a_init;
+        mBB = mLine.calcBB();
+    }
+
+    override void updatePos() {
+        //xxx what about position? forced static for now
     }
 }

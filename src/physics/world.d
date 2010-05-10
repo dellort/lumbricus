@@ -24,6 +24,7 @@ public import physics.timedchanger;
 public import physics.contact;
 public import physics.zone;
 public import physics.links;
+import physics.collide;
 import physics.collisionmap;
 import physics.broadphase;
 import physics.sortandsweep;
@@ -220,49 +221,55 @@ class PhysicWorld {
     private void checkObjectCollision(PhysicObject obj1, PhysicObject obj2,
         CollideDelegate contactHandler)
     {
-        //the following stuff handles physically correct collision
-
-        Vector2f d = obj1.pos - obj2.pos;
-        float qdist = d.quad_length;
-        float mindist = obj1.posp.radius + obj2.posp.radius;
-        //check if they collide at all
-        //as a minor optimization, use quad_length to avoid slow sqrt() call xD
-        if (qdist >= mindist*mindist)
-            return;
-
         //no collision if unwanted
         ContactHandling ch = canCollide(obj1, obj2);
         if (ch == ContactHandling.none)
             return;
 
-        float dist = sqrt(qdist);
-        if (dist <= 0) {
-            //objects are exactly at the same pos, move aside anyway
-            dist = mindist/2;
-            d = Vector2f(0, dist);
+        CollideFn fn = *getCollideFnPtr(obj1.shape_id, obj2.shape_id);
+
+        if (!fn) {
+            //try other way around; the matrix isn't symmetric
+            fn = *getCollideFnPtr(obj2.shape_id, obj1.shape_id);
+            //if nothing, can't do anything and let it pass
+            if (!fn)
+                return;
+            //fn expects its arguments in correct order
+            swap(obj1, obj2);
         }
 
-        //generate contact and resolve immediately (well, as before)
+        Contact c;
+        c.obj[0] = obj1;
+        c.obj[1] = obj2;
+
+        //actually collide
+        if (!fn(obj1.shape_ptr, obj2.shape_ptr, c))
+            return;
+
+        //add contact(s)
         if (ch == ContactHandling.normal) {
-            Contact c;
-            c.fromObj(obj1, obj2, d/dist, mindist - dist);
+            c.fromObjInit();
             contactHandler(c);
         } else if (ch == ContactHandling.noImpulse) {
             //lol, generate 2 contacts that behave like the objects hit a wall
             // (avoids special code in contact.d)
             if (obj1.velocity.length > float.epsilon || obj1.isWalking()) {
-                Contact c1;
-                c1.fromObj(obj1, null, d/dist, 0.5f*(mindist - dist));
+                Contact c1 = c;
+                c1.obj[1] = null;
+                c1.depth /= 2;
+                c1.fromObjInit();
                 contactHandler(c1);
             }
             if (obj2.velocity.length > float.epsilon || obj2.isWalking()) {
-                Contact c2;
-                c2.fromObj(obj2, null, -d/dist, 0.5f*(mindist - dist));
+                Contact c2 = c;
+                c2.obj[0] = c2.obj[1];
+                c2.obj[1] = null;
+                c2.depth /= 2;
+                c2.normal = -c2.normal;
+                c2.fromObjInit();
                 contactHandler(c2);
             }
         }
-
-        //xxx: also, should it be possible to glue objects here?
     }
 
     private void checkGeometryCollisions(PhysicObject obj,
@@ -475,13 +482,14 @@ class PhysicWorld {
         }
     }
 
-    ///r = random number generator to use, null will create a new instance
+    ///r = random number generator to use
     public this(Random r) {
         if (!r) {
             //rnd = new Random();
             assert(false, "you must");
         }
         rnd = r;
+        init_collide();
         collide = new CollisionMap();
         broadphase = new BPSortAndSweep(&checkObjectCollision);
         //broadphase = new BPIterate(&checkObjectCollision);

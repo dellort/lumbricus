@@ -19,10 +19,6 @@ import tango.math.Math : abs;
 class PhysicGeometry : PhysicBase {
     ObjListNode!(typeof(this)) geometries_node;
 
-    //generation counter, increased on every change
-    int generationNo = 0;
-    package int lastKnownGen = -1;
-
     this() {
     }
 

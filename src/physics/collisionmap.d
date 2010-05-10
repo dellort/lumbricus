@@ -47,7 +47,9 @@ final class CollisionType {
 //it's illegal to use CollisionType_Invalid in PhysicBase.collision
 const CollisionType CollisionType_Invalid = null;
 
-//handling of the collision map
+//the collision map is a helper for the game logic, and decides which objects
+//  can or can not collide
+//(has nothing to do with the actual collision functions etc.)
 final class CollisionMap {
     private {
         CollisionType[char[]] mCollisionNames;

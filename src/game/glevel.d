@@ -204,7 +204,6 @@ class GameLandscape : GameObject {
         if (Rect2i(size).intersects(Rect2i(-vr, vr) + pos)) {
             count = mLandscape.blastHole(pos, radius, cBlastBorder,
                 mOriginal ? mOriginal.landscape_theme : null);
-            mPhysics.generationNo++;
         }
         return count;
     }
@@ -223,7 +222,6 @@ class GameLandscape : GameObject {
         pos -= offset;
         mLandscape.drawBitmap(pos, bitmap, bitmap.size, Lexel.SolidHard, 0,
             bits);
-        mPhysics.generationNo++; //?
     }
 
     private void draw(Canvas c) {

@@ -1,6 +1,8 @@
+//maybe rename to physics.shapes
 module physics.plane;
 
 import tango.math.Math: sqrt;
+import utils.rect2;
 import utils.vector2;
 import utils.misc;
 
@@ -103,4 +105,17 @@ struct Line {
         depth = radius - len;
         return true;
     }
+
+    Rect2f calcBB() {
+        auto bb = Rect2f.Abnormal();
+        bb.extend(start);
+        bb.extend(start + dir);
+        bb.extendBorder(Vector2f(width));
+        return bb;
+    }
+}
+
+struct Circle {
+    Vector2f pos;
+    float radius;
 }
