@@ -201,9 +201,9 @@ class PhysicFixate : PhysicContactGen {
 }
 
 
-//special geometry to make objects bounce like stones on a water surface
+//special contact gen to make objects bounce like stones on a water surface
 //current implementation only works for horizontal surfaces
-class WaterSurfaceGeometry : PhysicCollider {
+class WaterSurfaceGeometry : PhysicContactGen {
     Plane plane;
 
     this(float yPos) {
@@ -221,26 +221,26 @@ class WaterSurfaceGeometry : PhysicCollider {
         collision = world.collide.findCollisionID("water_surface");
     }
 
-    override bool collide(PhysicObject obj, CollideDelegate contactHandler) {
-        //xxx: only works for horizontal surface
-        float a = abs(obj.velocity.x) / obj.velocity.y;
-        //~20°
-        if (a > 2.7f) {
-            Vector2f n; float d;
-            bool ret = plane.collide(obj.pos, obj.posp.radius, n, d);
-            if (ret) {
-                Contact contact;
-                contact.fromObj(obj, null, n, d);
-                //no y speed reduction, or we get strange "sliding" effects
-                contact.restitution = 1.0f;
-                //don't blow up projectiles
-                contact.source = ContactSource.generator;
-                //xxx lol hack etc.: slow object down a little
-                obj.velocity_int.x *= 0.85f;
-                contactHandler(contact);
-            }
-            return ret;
+    override void process(float deltaT, CollideDelegate contactHandler) {
+        void handler(ref Contact c) {
+            PhysicObject obj = c.obj[0];
+            //only works for horizontal surface
+            float a = abs(obj.velocity.x) / obj.velocity.y;
+            //~20°
+            if (a < 2.7f)
+                return;
+            //xxx shouldn't it check whether the object is already deep under
+            //  water? (and doesn't collide with the water surface)
+            Contact contact;
+            contact.fromObj(obj, null, c.normal, c.depth);
+            //no y speed reduction, or we get strange "sliding" effects
+            contact.restitution = 1.0f;
+            //don't blow up projectiles
+            contact.source = ContactSource.generator;
+            //xxx lol hack etc.: slow object down a little
+            obj.velocity_int.x *= 0.85f;
+            contactHandler(contact);
         }
-        return false;
+        world.dynamicObjects.collideShapeT(plane, collision, &handler);
     }
 }

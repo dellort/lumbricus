@@ -15,7 +15,6 @@ import tarray = tango.core.Array;
 public import physics.base;
 public import physics.earthquake;
 public import physics.force;
-public import physics.geometry;
 public import physics.physobj;
 import physics.plane;
 public import physics.misc;
@@ -24,7 +23,8 @@ public import physics.timedchanger;
 public import physics.contact;
 public import physics.zone;
 public import physics.links;
-import physics.collide;
+public import physics.collide;
+public import physics.plane;
 import physics.collisionmap;
 import physics.broadphase;
 import physics.sortandsweep;
@@ -32,15 +32,14 @@ import physics.sortandsweep;
 class PhysicWorld {
     private ObjectList!(PhysicBase, "base_node") mAllObjects;
     private ObjectList!(PhysicForce, "forces_node") mForceObjects;
-    private ObjectList!(PhysicGeometry, "geometries_node") mGeometryObjects;
-    private ObjectList!(PhysicObject, "objects_node") mObjects;
     private ObjectList!(PhysicTrigger, "triggers_node") mTriggers;
     private ObjectList!(PhysicContactGen, "cgen_node") mContactGenerators;
-    private ObjectList!(PhysicCollider, "coll_node") mObjectColliders;
     private uint mLastTime;
 
-    private PhysicObject[] mObjArr;
-    private BroadPhase broadphase;
+    //dynamic and static object lists
+    //dynamic = can move & mostly small circles, static = can't & large stuff
+    private BroadPhase mDynamic, mStatic;
+
     private Contact[] mContacts;
     private int mContactCount;
 
@@ -49,6 +48,22 @@ class PhysicWorld {
     CollisionMap collide;
     CollideDelegate onCollide;
 
+    ///r = random number generator to use
+    public this(Random r) {
+        argcheck(r);
+        rnd = r;
+        init_collide();
+        collide = new CollisionMap();
+        mAllObjects = new typeof(mAllObjects)();
+        mForceObjects = new typeof(mForceObjects)();
+        mTriggers = new typeof(mTriggers)();
+        mContactGenerators = new typeof(mContactGenerators)();
+        mContacts.length = 1024;  //xxx arbitrary number
+        mDynamic = new BPSortAndSweep(this);
+        //mDynamic = new BPIterate(this);
+        mStatic = new BPIterate(this);
+    }
+
     public void add(PhysicBase obj) {
         argcheck(obj);
         obj.world = this;
@@ -56,36 +71,29 @@ class PhysicWorld {
         mAllObjects.insert_tail(obj);
         if (auto o = cast(PhysicForce)obj)
             mForceObjects.insert_tail(o);
-        if (auto o = cast(PhysicGeometry)obj)
-            mGeometryObjects.insert_tail(o);
         if (auto o = cast(PhysicObject)obj) {
-            mObjects.insert_tail(o);
-            mObjArr ~= o;
+            auto list = o.isStatic ? mStatic : mDynamic;
+            list.add(o);
         }
         if (auto o = cast(PhysicTrigger)obj)
             mTriggers.insert_tail(o);
         if (auto o = cast(PhysicContactGen)obj)
             mContactGenerators.insert_tail(o);
-        if (auto o = cast(PhysicCollider)obj)
-            mObjectColliders.insert_tail(o);
     }
 
     private void remove(PhysicBase obj) {
+        obj.world = null;
         mAllObjects.remove(obj);
         if (auto o = cast(PhysicForce)obj)
             mForceObjects.remove(o);
-        if (auto o = cast(PhysicGeometry)obj)
-            mGeometryObjects.remove(o);
         if (auto o = cast(PhysicObject)obj) {
-            mObjects.remove(o);
-            arrayRemoveUnordered(mObjArr, o);
+            auto list = o.isStatic ? mStatic : mDynamic;
+            list.remove(o);
         }
         if (auto o = cast(PhysicTrigger)obj)
             mTriggers.remove(o);
         if (auto o = cast(PhysicContactGen)obj)
             mContactGenerators.remove(o);
-        if (auto o = cast(PhysicCollider)obj)
-            mObjectColliders.remove(o);
     }
 
     private const cPhysTimeStepMs = 10;
@@ -97,7 +105,6 @@ class PhysicWorld {
             mLastTime += cPhysTimeStepMs;
             doSimulate(cast(float)cPhysTimeStepMs/1000.0f);
         }
-        //checkUpdates();
     }
 
     final ContactHandling canCollide(PhysicBase a, PhysicBase b) {
@@ -112,9 +119,9 @@ class PhysicWorld {
         }
 
         //update all objects (force/velocity/collisions)
-        foreach (PhysicObject me; mObjects) {
-            //xxx pass gravity to object (this avoids a reference to world)
-            me.gravity = gravity;
+        foreach (PhysicObject me; mDynamic.list) {
+            //xxx the old code did something similar, but in a different place
+            me.lastPos = me.pos;
 
             //apply force generators
             foreach (PhysicForce f; mForceObjects) {
@@ -125,9 +132,13 @@ class PhysicWorld {
             me.update(deltaT);
         }
 
+        foreach (PhysicObject o; mStatic.list) {
+            o.update(deltaT);
+        }
+
         //check triggers
         foreach (PhysicTrigger tr; mTriggers) {
-            foreach (PhysicObject me; mObjects) {
+            foreach (PhysicObject me; mDynamic.list) {
                 //check glued objects too, or else not checking would be
                 //misinterpreted as not active
                 if (canCollide(tr, me))
@@ -135,31 +146,11 @@ class PhysicWorld {
             }
         }
 
-        broadphase.collide(mObjArr, &handleContact);
-
-        foreach (PhysicObject me; mObjects) {
-            //no need to check then? (maybe)
-            //xxx if landscape changed => need to check
-            //    <-> landscape changes only after explosions, which unglue
-            //    objects, however land-filling weapons will cause problems
-            if (!me.isGlued) {
-                //check against geometry
-                checkGeometryCollisions(me, &handleContact);
-                foreach (PhysicCollider co; mObjectColliders) {
-                    //no collision if unwanted
-                    ContactHandling ch = canCollide(me, co);
-                    if (ch == ContactHandling.none)
-                        continue;
-                    co.collide(me, &handleContact);
-                }
-            }
-        }
+        mDynamic.collide(&handleContact);
+        mStatic.collideWith(mDynamic, &handleContact);
 
         foreach (PhysicContactGen cg; mContactGenerators) {
-            //xxx may be dead, but not removed yet (why did we have this
-            //    delayed-remove crap again?)
-            if (cg.active)
-                cg.process(deltaT, &handleContact);
+            cg.process(deltaT, &handleContact);
         }
 
         resolveContacts(deltaT);
@@ -168,7 +159,18 @@ class PhysicWorld {
             cg.afterResolve(deltaT);
         }
 
-        checkUpdates();
+        foreach (PhysicObject o; mDynamic.list) {
+            o.checkRotation();
+        }
+
+        //lazy removing & dying
+        foreach (PhysicBase obj; mAllObjects) {
+            if (!obj.active) {
+                if (obj.dead)
+                    obj.doDie();
+                remove(obj);
+            }
+        }
     }
 
     private void handleContact(ref Contact c) {
@@ -183,17 +185,11 @@ class PhysicWorld {
 
     private void resolveContacts(float deltaT) {
         //xxx simple iteration, i heard rumors about better algorithms ;)
-        for (int i = 0; i < mContactCount; i++) {
+        foreach (ref contact; mContacts[0 .. mContactCount]) {
             //resolve contact
-            mContacts[i].resolve(deltaT);
-            //update involved objects
-            foreach (o; mContacts[i].obj) {
-                if (o) {
-                    o.checkRotation();
-                }
-            }
+            contact.resolve(deltaT);
             //call collide event handler
-            callCollide(mContacts[i]); //call collision handler
+            callCollide(contact); //call collision handler
         }
         //clear list of contacts
         mContactCount = 0;
@@ -206,112 +202,43 @@ class PhysicWorld {
         onCollide(c);
     }
 
-    private void checkUpdates() {
-        //do updates
-        foreach (PhysicBase obj; mAllObjects) {
-            if (!obj.active) {
-                if (obj.dead)
-                    obj.doDie();
-                remove(obj);
-            }
-        }
-    }
+    final BroadPhase dynamicObjects() { return mDynamic; }
+    final BroadPhase staticObjects() { return mStatic; }
 
-    //called by broadphase on potential collision
-    private void checkObjectCollision(PhysicObject obj1, PhysicObject obj2,
+    //collide a shape with all objects
+    //see Broadphase.collideShapeT
+    //if you want to test only against all static or dynamic objects, use
+    //  dynamicObjects./staticObjects.collideShapeT
+    void collideShapeT(T)(ref T shape, CollisionType filter,
         CollideDelegate contactHandler)
     {
-        //no collision if unwanted
-        ContactHandling ch = canCollide(obj1, obj2);
-        if (ch == ContactHandling.none)
-            return;
-
-        CollideFn fn = *getCollideFnPtr(obj1.shape_id, obj2.shape_id);
-
-        if (!fn) {
-            //try other way around; the matrix isn't symmetric
-            fn = *getCollideFnPtr(obj2.shape_id, obj1.shape_id);
-            //if nothing, can't do anything and let it pass
-            if (!fn)
-                return;
-            //fn expects its arguments in correct order
-            swap(obj1, obj2);
+        void dolist(Broadphase b) {
+            b.collideShapeT!(T)(shape, filter, contactHandler);
         }
-
-        Contact c;
-        c.obj[0] = obj1;
-        c.obj[1] = obj2;
-
-        //actually collide
-        if (!fn(obj1.shape_ptr, obj2.shape_ptr, c))
-            return;
-
-        //add contact(s)
-        if (ch == ContactHandling.normal) {
-            c.fromObjInit();
-            contactHandler(c);
-        } else if (ch == ContactHandling.noImpulse) {
-            //lol, generate 2 contacts that behave like the objects hit a wall
-            // (avoids special code in contact.d)
-            if (obj1.velocity.length > float.epsilon || obj1.isWalking()) {
-                Contact c1 = c;
-                c1.obj[1] = null;
-                c1.depth /= 2;
-                c1.fromObjInit();
-                contactHandler(c1);
-            }
-            if (obj2.velocity.length > float.epsilon || obj2.isWalking()) {
-                Contact c2 = c;
-                c2.obj[0] = c2.obj[1];
-                c2.obj[1] = null;
-                c2.depth /= 2;
-                c2.normal = -c2.normal;
-                c2.fromObjInit();
-                contactHandler(c2);
-            }
-        }
-    }
-
-    private void checkGeometryCollisions(PhysicObject obj,
-        CollideDelegate contactHandler)
-    {
-        Contact contact;
-        if (!collideObjectWithGeometry(obj, contact))
-            return;
-
-        obj.checkGroundAngle(contact);
-
-        //generate contact and resolve
-        contactHandler(contact);
+        dolist(staticObjects);
+        dolist(dynamicObjects);
     }
 
     //check how an object would collide with all the geometry
-    bool collideGeometry(Vector2f pos, float radius, out Contact contact)
-    {
-        bool collided = false;
-        foreach (PhysicGeometry gm; mGeometryObjects) {
-            Contact ncont;
-            if (gm.collide(pos, radius, ncont)) {
-                if (!collided)
-                    contact = ncont;
-                else
-                    contact.mergeFrom(ncont);
-                collided = true;
-            }
-        }
-        return collided;
+    bool collideGeometry(Vector2f pos, float radius, out Contact contact) {
+        ContactMerger c;
+        Circle circle = Circle(pos, radius);
+        mStatic.collideShapeT(circle, collide.always, &c.handleContact);
+        contact = c.contact;
+        return c.collided;
     }
 
     //special collision function for walking code
+    //assumes walking object is a sphere
     bool collideObjectsW(Vector2f pos, PhysicObject me) {
         float radius = me.posp.radius;
         //xxx also, what about optimized collision (broadphase); worth it?
-        foreach (PhysicObject o; mObjects) {
+        //xxx caller manually checks static objects
+        foreach (PhysicObject o; mDynamic.list) {
             bool coll(Vector2f p, float r) {
-                float mind = (o.posp.radius + r);
-                if ((o.pos - p).quad_length < mind*mind)
-                    return true;
-                return false;
+                Contact ct;
+                Circle c = Circle(p, r);
+                return doCollide(Circle_ID, &c, o.shape_id, o.shape_ptr, ct);
             }
 
             if (!canCollide(o, me))
@@ -329,34 +256,14 @@ class PhysicWorld {
         return false;
     }
 
-    bool collideObjectWithGeometry(PhysicObject o, out Contact contact) {
-        argcheck(o);
-        bool collided = false;
-        foreach (PhysicGeometry gm; mGeometryObjects) {
-            Contact ncont;
-            ContactHandling ch = canCollide(o, gm);
-            if (ch && gm.collide(o, ncont)) {
-                ncont.geomPostprocess(ch);
-
-                if (!collided)
-                    contact = ncont;
-                else
-                    contact.mergeFrom(ncont);
-
-                collided = true;
-            }
-        }
-        if (!collided)
-            o.lastPos = o.pos;
-        return collided;
-    }
-
     ///Shoot a thin ray into the world and test for object and geometry
     ///intersection.
     ///Params:
     ///  maxLen   = length of the ray, in pixels (range)
     ///  hitPoint = returns the absolute coords of the hitpoint
     ///  obj      = return the hit object (null if landscape was hit)
+    //xxx only needed by girder (?) and lua ray weapons
+    //xxx unify with thickRay
     bool shootRay(Vector2f start, Vector2f dir, float maxLen,
         out Vector2f hitPoint, out PhysicObject obj, out Vector2f normal)
     {
@@ -371,7 +278,8 @@ class PhysicWorld {
         r.define(start, dir);
         float tmin = float.max;
         PhysicObject firstColl;
-        foreach (PhysicObject o; mObjects) {
+        //xxx dynamic and static separate
+        foreach (PhysicObject o; mDynamic.list) {
             float t;
             if (r.intersect(o.pos, o.posp.radius, t) && t < tmin
                 && t < maxLen)
@@ -444,8 +352,8 @@ class PhysicWorld {
                 if (contact.depth != float.infinity)
                     //move out of landscape
                     p = p + contact.normal*contact.depth;
-                    hit = p;
-                    return true;
+                hit = p;
+                return true;
             }
         }
         return false;
@@ -471,36 +379,12 @@ class PhysicWorld {
         bool delegate(PhysicObject obj) del)
     {
         argcheck(!!del);
-        foreach (PhysicObject me; mObjects) {
-            Vector2f d = me.pos - pos;
-            float qdist = d.quad_length;
-            float mindist = me.posp.radius + r;
-            if (qdist >= mindist*mindist)
-                continue;
-            if (!del(me))
-                break;
+        Circle circle = Circle(pos, r);
+        void handler(ref Contact c) {
+            del(c.obj[0]);
         }
-    }
-
-    ///r = random number generator to use
-    public this(Random r) {
-        if (!r) {
-            //rnd = new Random();
-            assert(false, "you must");
-        }
-        rnd = r;
-        init_collide();
-        collide = new CollisionMap();
-        broadphase = new BPSortAndSweep(&checkObjectCollision);
-        //broadphase = new BPIterate(&checkObjectCollision);
-        mObjects = new typeof(mObjects)();
-        mAllObjects = new typeof(mAllObjects)();
-        mForceObjects = new typeof(mForceObjects)();
-        mGeometryObjects = new typeof(mGeometryObjects)();
-        mTriggers = new typeof(mTriggers)();
-        mContactGenerators = new typeof(mContactGenerators)();
-        mObjectColliders = new typeof(mObjectColliders)();
-        mContacts.length = 1024;  //xxx arbitrary number
+        //xxx static?
+        dynamicObjects.collideShapeT(circle, collide.always, &handler);
     }
 
     //********************************************************************
@@ -508,6 +392,7 @@ class PhysicWorld {
     //(because most script languages have no ref/out parameters)
     //xxx this looks very messy
 
+/+ xxx bring back
     struct CollideGeometryStruct {
         const cTupleReturn = true;
         int numReturnValues;
@@ -533,6 +418,7 @@ class PhysicWorld {
         }
         return ret;
     }
++/
 
     struct ShootRayStruct {
         const cTupleReturn = true;

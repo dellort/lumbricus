@@ -26,42 +26,50 @@ version = CircularCollision;
 
 const cLandscapeSnowBit = Lexel.Type_Bit_Min << 0;
 
-//collision handling
-class LandscapeGeometry : PhysicGeometry {
-    Vector2f offset; //not "pos" because I was too lazy to change collide()
-    LandscapeBitmap ls;
+uint Landscape_ID;
 
-    this (Vector2f a_pos, LandscapeBitmap a_ls) {
+struct LandscapeData {
+    LandscapeGeometry geo;
+}
+
+static this() {
+    Landscape_ID = getShapeID!(LandscapeData)();
+    collidefn!(Circle, LandscapeData)(&collide_circle2ls);
+}
+
+private bool collide_circle2ls(void* s1, void* s2, ref Contact contact) {
+    Circle* c = cast(Circle*)s1;
+    LandscapeData* ls = cast(LandscapeData*)s2;
+    return ls.geo.collide(c.pos, c.radius, contact);
+}
+
+//collision handling
+class LandscapeGeometry : PhysicObject {
+    LandscapeBitmap ls;
+    LandscapeData data;
+
+    this (LandscapeBitmap a_ls) {
+        super(&data, Landscape_ID);
+        data.geo = this;
         argcheck(a_ls);
-        offset = a_pos;
         ls = a_ls;
     }
 
-    bool collide(Vector2f pos, float radius, out Contact contact) {
+    private bool collide(Vector2f at, float radius, ref Contact contact) {
         Vector2i dir;
         int pixelcount;
         uint collide_bits;
 
-        //fast out
-        //xxx should be done by physics by maintaining a bounding box?
-        auto po = offset;
-        auto ps = ls.size;
-        if (pos.x + radius < po.x
-            || pos.x - radius > po.x + ps.x
-            || pos.y + radius < po.y
-            || pos.y - radius > po.y + ps.y)
-            return false;
-
-        auto ipos = toVector2i(pos);
-        auto ioffset = toVector2i(offset);
+        auto iat = toVector2i(at);
+        auto ioffset = toVector2i(pos);
         version (CircularCollision) {
             int iradius = cast(int)radius;
-            ls.checkAt(ipos - ioffset, iradius, true, dir, pixelcount,
+            ls.checkAt(iat - ioffset, iradius, true, dir, pixelcount,
                 collide_bits);
         } else {
             //make it a bit smaller?
             int iradius = cast(int)(radius/5*4);
-            ls.checkAt(ipos - ioffset, iradius, false, dir, pixelcount,
+            ls.checkAt(iat - ioffset, iradius, false, dir, pixelcount,
                 collide_bits);
         }
 
@@ -76,8 +84,7 @@ class LandscapeGeometry : PhysicGeometry {
         //collided pixels, but no normal -> stuck
         //there's a hack in physic.d which handles this (the current collide()
         //interface is too restricted, can't handle it directly
-        int n_len = dir.quad_length();
-        if (n_len == 0) {
+        if (dir.x == 0 && dir.y == 0) {
             contact.depth = float.infinity;
             return true;
         }
@@ -100,9 +107,15 @@ class LandscapeGeometry : PhysicGeometry {
         //amount of collided pixel by the amount of total pixels in the circle
         float rx = cast(float)pixelcount / totalpixels;
         contact.depth = rx * radius * 2;
-        //contact.calcPoint(pos, radius);
+        //contact.calcPoint(at, radius);
 
         return true;
+    }
+
+    override void updatePos() {
+        //yyy ls can be null because PhysicObject ctor calls this
+        if (ls)
+            mBB = Rect2f(pos.x, pos.y, pos.x + ls.size.x, pos.y + ls.size.y);
     }
 }
 
@@ -170,7 +183,9 @@ class GameLandscape : GameObject {
         mLandscape.prepareForRendering();
 
         //to enable level-bitmap collision
-        mPhysics = new LandscapeGeometry(toVector2f(at), mLandscape);
+        mPhysics = new LandscapeGeometry(mLandscape);
+        mPhysics.setPos(toVector2f(at), false);
+        mPhysics.isStatic = true;
         engine.physicWorld.add(mPhysics);
 
         if (!mOriginal)
@@ -181,7 +196,10 @@ class GameLandscape : GameObject {
             //5 pixels would be ideal for the current border graphic; but it has
             //  to be larger to look good with the graphics (especially worms
             //  are "sunken" into the landscape a bit for whatever reason)
-            auto wall = new LineGeometry(toVector2f(to), toVector2f(from), 10);
+            Line line;
+            line.defineStartEnd(toVector2f(to), toVector2f(from), 10);
+            auto wall = new PhysicObjectLine(line);
+            wall.isStatic = true;
             engine.physicWorld.add(wall);
 
             mWalls ~= Wall(from, to);
@@ -236,7 +254,7 @@ class GameLandscape : GameObject {
     }
 
     final Vector2i offset() {
-        return toVector2i(mPhysics.offset);
+        return toVector2i(mPhysics.pos);
     }
 
     final Vector2i size() {

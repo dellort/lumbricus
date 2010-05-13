@@ -1,12 +1,12 @@
 module physics.contact;
 
 import utils.list2;
+import utils.misc;
 import utils.vector2;
 
 import physics.base;
 import physics.collisionmap;
 import physics.physobj;
-import physics.geometry;
 import physics.misc;
 
 import math = tango.math.Math;
@@ -16,9 +16,11 @@ alias void delegate(ref Contact c) CollideDelegate;
 
 //mostly stolen from "Game Physics Engine Development" by Ian Millington
 struct Contact {
-    ///colliding objects, obj[1] will be null for geometry collisions
+    ///colliding objects
+    ///for collisions with static objects, obj[0] is the non-static one
+    ///Broadphase.checkObjectCollisions specifically reorders obj[] so
     PhysicObject[2] obj;
-    ///normal at contact point, pointing out of obj[1] (or the geometry)
+    ///normal at contact point, pointing out of obj[1]
     Vector2f normal;
     ///penetration depth
     float depth;
@@ -40,14 +42,17 @@ struct Contact {
     //init restitution and source fields
     void fromObjInit() {
         assert(!normal.isNaN && !ieee.isNaN(depth));
-        source = ContactSource.object;
+        assert(!obj[0].isStatic);
+
+        source = obj[1] && obj[1].isStatic
+            ? ContactSource.geometry : ContactSource.object;
 
         //calculate cor (coeff. of restitution) of this collision
         //xxx I have absolutely no idea if this makes sense,
         //    there's no info on this anywhere
         restitution = obj[0].posp.elasticity;
-        if (obj[1])
-            //stupid average, multiplication would also be possible
+        //stupid average, multiplication would also be possible
+        if (obj[1] && source != ContactSource.geometry)
             restitution = (restitution + obj[1].posp.elasticity)/2.0f;
     }
 
@@ -63,7 +68,7 @@ struct Contact {
     ///calculate the initial separating velocity of the contact
     package float calcSepVel() {
         Vector2f vRel = obj[0].velocity;
-        if (obj[1])
+        if (obj[1] && source != ContactSource.geometry)
             vRel -= obj[1].velocity;
         return vRel * normal;
     }
@@ -79,11 +84,9 @@ struct Contact {
             else
                 obj[1].doUnglue();
         }*/
-        if (obj[0].isGlued)
-            obj[0].doUnglue();
-        if (!obj[1])
-            return;
-        if (obj[1].isGlued)
+        //
+        obj[0].doUnglue();
+        if (obj[1])
             obj[1].doUnglue();
     }
 
@@ -108,9 +111,11 @@ struct Contact {
 
         //calculate closing velocity caused by acceleration, and remove it
         //this is supposed to make resting contacts more stable
-        Vector2f acc = obj[0].gravity + obj[0].acceleration;
-        if (obj[1])
-            acc -= obj[1].gravity + obj[1].acceleration;
+        //xxx: ignores acceleration caused by other forces (mForceAccum),
+        //     includes only gravity => probably a bug
+        Vector2f acc = obj[0].fullAcceleration;
+        if (obj[1] && source != ContactSource.geometry)
+            acc -= obj[1].fullAcceleration;
         float accCausedSepVel = acc * normal * deltaT;
         if (accCausedSepVel < 0) {
             vSepNew += restitution*accCausedSepVel;
@@ -145,7 +150,7 @@ struct Contact {
 
         //depth = inf is set for objects entirely inside a geometry object
         if (depth == float.infinity) {
-            assert(!obj[1], "Only for geometry collisions");
+            //assert(!obj[1], "Only for geometry collisions");
             //xxx
             return;
         }
@@ -162,18 +167,21 @@ struct Contact {
         //calculate position change relative to object mass and apply
         auto objShift0 = movePerIMass * obj[0].posp.inverseMass;
         obj[0].setPos(obj[0].pos + objShift0, true);
-        if (obj[1]) {
+        if (obj[1] && source != ContactSource.geometry) {
             auto objShift1 = -movePerIMass * obj[1].posp.inverseMass;
             obj[1].setPos(obj[1].pos + objShift1, true);
         }
     }
 
     //merge another Contact into this one
-    //this is for "geometry" objects
-    //obj objShift restitution may contain garbage after this
+    //this is for collision tests with raw shapes (=> no PhysicObject)
+    //the Contact can't be used for dynamics
     //xxx this may be total crap, we have no testcase
     void mergeFrom(ref Contact other) {
-        assert(!!obj[0] && !obj[1]); //yyy assumptions for now
+        obj[] = null;
+        restitution = float.nan;
+        source = ContactSource.geometry;
+
         if (depth == float.infinity)
             return;
         if (other.depth == float.infinity) {
@@ -196,18 +204,15 @@ struct Contact {
 
         assert(!normal.isNaN);
         assert(!ieee.isNaN(depth));
-        //obj[0] = o;
-        //obj[1] = null;
-        source = ContactSource.geometry;
-        restitution = obj[0].posp.elasticity;
     }
 
     //this used to be in PhysicWorld.collideObjectWithGeometry()
     //not used with PhysicWorld.collideGeometry()
-    //ch = simply the result of canCollide() (yyy remove)
+    //ch = simply the result of canCollide()
+    //  (xxx could remove that, because we have both objects available)
     void geomPostprocess(ContactHandling ch) {
-        assert(!!obj[0] && !obj[1]); //yyy assumptions for now
         PhysicObject o = obj[0]; //non-static one
+        assert(!o.isStatic);
         //kind of hack for LevelGeometry
         //if the pos didn't change at all, but a collision was
         //reported, assume the object is completely within the
@@ -238,6 +243,21 @@ struct Contact {
     }
 }
 
+//for factoring out some code
+struct ContactMerger {
+    bool collided = false;
+    Contact contact;
+
+    void handleContact(ref Contact c) {
+        if (!collided) {
+            contact = c;
+        } else {
+            contact.mergeFrom(c);
+        }
+        collided = true;
+    }
+}
+
 class PhysicContactGen : PhysicBase {
     ObjListNode!(typeof(this)) cgen_node;
 
@@ -248,13 +268,4 @@ class PhysicContactGen : PhysicBase {
 
     this() {
     }
-}
-
-class PhysicCollider : PhysicBase {
-    ObjListNode!(typeof(this)) coll_node;
-
-    this() {
-    }
-
-    abstract bool collide(PhysicObject obj, CollideDelegate contactHandler);
 }

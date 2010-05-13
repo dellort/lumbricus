@@ -8,9 +8,11 @@ static this() {
     gScripting.setClassPrefix!(PhysicWorld)("World");
 
     gScripting.methods!(PhysicWorld, "add", "objectsAt");
+    /+
     gScripting.method!(PhysicWorld, "collideGeometryScript")("collideGeometry");
     gScripting.method!(PhysicWorld, "collideObjectWithGeometryScript")(
         "collideObjectWithGeometry");
+    +/
     gScripting.method!(PhysicWorld, "shootRayScript")("shootRay");
     gScripting.method!(PhysicWorld, "thickLineScript")("thickLine");
     gScripting.method!(PhysicWorld, "thickRayScript")("thickRay");

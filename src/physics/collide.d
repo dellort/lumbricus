@@ -71,6 +71,38 @@ void init_collide() {
     collidefn!(Circle, Line)(&collide_circle2line);
 }
 
+//return whether shapes collided
+//contact.obj should be filled with objects to collide (xxx: never needed?)
+//contact may contain garbage if false is returned
+bool doCollide(uint shape1_id, void* shape1_ptr, uint shape2_id,
+    void* shape2_ptr, ref Contact contact)
+{
+    bool swapped = false;
+    CollideFn fn = *getCollideFnPtr(shape1_id, shape2_id);
+
+    if (!fn) {
+        //try other way around; the matrix isn't symmetric
+        fn = *getCollideFnPtr(shape2_id, shape1_id);
+        //if no collision function, can't do anything and let it pass
+        if (!fn)
+            return false;
+        //fn expects its arguments in correct order
+        swap(contact.obj[0], contact.obj[1]);
+        swap(shape1_ptr, shape2_ptr);
+        swapped = true;
+    }
+
+    //actually collide
+    if (!fn(shape1_ptr, shape2_ptr, contact))
+        return false;
+
+    //swap back, sigh (to get original order in contact.obj)
+    if (swapped)
+        swap(contact.obj[0], contact.obj[1]);
+
+    return true;
+}
+
 //all this crap because one wants to add shape types from other independend
 //  parts of the program (LandscapeGeometry)
 

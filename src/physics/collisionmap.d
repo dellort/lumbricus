@@ -38,9 +38,13 @@ final class CollisionType {
         CollisionType[] mSubClasses;
     }
 
+    this() {
+    }
+
     char[] name() { return mName; }
 
-    this() {
+    char[] toString() {
+        return "[CollisionType "~name~"]";
     }
 }
 
@@ -62,6 +66,7 @@ final class CollisionMap {
 
         //special types
         CollisionType mCTRoot;   //superclass of all collision types
+        CollisionType mCTAlways, mCTNone;
 
         //mTehMatrix is outdated
         bool mDirty;
@@ -71,7 +76,14 @@ final class CollisionMap {
 
     this() {
         mCTRoot = newCollisionType("root", null);
+        mCTAlways = newCollisionType("always", mCTRoot);
+        enableCollision(mCTAlways, mCTRoot);
+        mCTNone = newCollisionType("none", mCTRoot);
     }
+
+    CollisionType root() { return mCTRoot; }
+    CollisionType always() { return mCTAlways; }
+    CollisionType none() { return mCTNone; }
 
     CollisionType newCollisionType(char[] name, CollisionType ct_super) {
         if (mCTRoot)

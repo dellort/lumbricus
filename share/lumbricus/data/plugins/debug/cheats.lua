@@ -365,6 +365,46 @@ function E.pickObject(dowhat)
     GameFrame_addHudWidget(w, "gameview")
 end
 
+function E.pickShowCollide()
+    pickObject(function(obj)
+        printf(Phys_collision(Sprite_physics(obj)))
+    end)
+end
+
+function E.pickObjectIntoVar(var)
+    pickObject(function(obj)
+        _G[var] = obj
+    end)
+end
+
+function E.freePoint(dowhat)
+    dowhat = dowhat or dumpObject
+    local w = Gui_ctor()
+    local scene = Scene_ctor()
+    Gui_set_render(w, scene)
+    local circle = SceneDrawCircle_ctor()
+    SceneDrawCircle_set_radius(circle, 10)
+    SceneDrawCircle_set_color(circle, Color(1,0,0))
+    SceneDrawCircle_set_active(circle, false)
+    Scene_add(scene, circle)
+    local obj
+    setProperties(w, {
+        OnHandleKeyInput = function(info)
+            GameFrame_removeHudWidget(w)
+            return true
+        end,
+        OnHandleMouseInput = function(info)
+            p = World_freePoint(info.pos, 10)
+            if p then
+                SceneObjectCentered_set_pos(circle, p)
+            end
+            SceneDrawCircle_set_active(circle, p ~= nil)
+            return true
+        end,
+    })
+    GameFrame_addHudWidget(w, "gameview")
+end
+
 -- show dumpObject() output in a window
 -- if obj is nil, use pickObject to pick an object
 function E.guiPickObject(obj)

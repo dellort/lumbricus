@@ -55,7 +55,7 @@ local physics = {
     },
     worm_walk = {
         -- walking worm
-        collisionID = "worm_now",
+        collisionID = "worm_walk",
         radius = 5,
         mass = 10,
         walkingSpeed = 50,

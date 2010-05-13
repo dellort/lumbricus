@@ -11,7 +11,7 @@ import physics.collisionmap;
 //moved here because "is forward referenced"...
 enum ContactSource {
     object,
-    geometry,
+    geometry,  //xxx rename to static something?
     generator,
 }
 

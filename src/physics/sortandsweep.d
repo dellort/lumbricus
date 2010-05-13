@@ -7,17 +7,32 @@ module physics.sortandsweep;
 
 import physics.broadphase;
 import physics.contact;
+import physics.world;
 import utils.array;
 import utils.vector2;
 
 class BPSortAndSweep : BroadPhase {
-    private int mSortAxis = 0;
-
-    this(CollideFineDg col) {
-        super(col);
+    private {
+        int mSortAxis = 0;
+        PhysicObject[] mObjArr;
     }
 
-    void collide(PhysicObject[] shapes, CollideDelegate contactHandler) {
+    this(PhysicWorld a_world) {
+        super(a_world);
+    }
+
+    override void add(PhysicObject o) {
+        super.add(o);
+        mObjArr ~= o;
+    }
+    override void remove(PhysicObject o) {
+        super.remove(o);
+        arrayRemoveUnordered(mObjArr, o);
+    }
+
+    override void collide(CollideDelegate contactHandler) {
+        auto shapes = mObjArr;
+
         shellSort(shapes, mSortAxis);
 
         /// Sweep the array for collisions
@@ -43,7 +58,7 @@ class BPSortAndSweep : BroadPhase {
                     || shapes[j].bb.p2[!mSortAxis] < cur.bb.p1[!mSortAxis])
                     continue;
 
-                collideFine(cur, shapes[j], contactHandler);
+                checkObjectCollision(cur, shapes[j], contactHandler);
             }
         }
 
