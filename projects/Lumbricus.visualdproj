@@ -1,0 +1,371 @@
+<DProject>
+ <ProjectGuid>{192456AC-B96C-445E-A278-4A1155A5C89C}</ProjectGuid>
+ <Config name="Debug">
+  <obj>0</obj>
+  <link>0</link>
+  <lib>0</lib>
+  <multiobj>0</multiobj>
+  <oneobj>0</oneobj>
+  <trace>0</trace>
+  <quiet>0</quiet>
+  <verbose>0</verbose>
+  <vtls>0</vtls>
+  <symdebug>1</symdebug>
+  <optimize>0</optimize>
+  <cpu>0</cpu>
+  <isX86_64>0</isX86_64>
+  <isLinux>0</isLinux>
+  <isOSX>0</isOSX>
+  <isWindows>0</isWindows>
+  <isFreeBSD>0</isFreeBSD>
+  <isSolaris>0</isSolaris>
+  <scheduler>0</scheduler>
+  <useDeprecated>0</useDeprecated>
+  <useAssert>0</useAssert>
+  <useInvariants>0</useInvariants>
+  <useIn>0</useIn>
+  <useOut>0</useOut>
+  <useArrayBounds>0</useArrayBounds>
+  <noboundscheck>0</noboundscheck>
+  <useSwitchError>0</useSwitchError>
+  <useUnitTests>0</useUnitTests>
+  <useInline>0</useInline>
+  <release>0</release>
+  <preservePaths>0</preservePaths>
+  <warnings>0</warnings>
+  <pic>0</pic>
+  <cov>0</cov>
+  <nofloat>0</nofloat>
+  <Dversion>1</Dversion>
+  <ignoreUnsupportedPragmas>0</ignoreUnsupportedPragmas>
+  <otherDMD>0</otherDMD>
+  <program>$(DMDInstallDir)windows\bin\dmd.exe</program>
+  <imppath />
+  <fileImppath />
+  <outdir>..\bin</outdir>
+  <objdir>$(ConfigurationName)</objdir>
+  <objname />
+  <libname />
+  <doDocComments>0</doDocComments>
+  <docdir />
+  <docname />
+  <ddocfiles />
+  <doHdrGeneration>0</doHdrGeneration>
+  <hdrdir />
+  <hdrname />
+  <doXGeneration>0</doXGeneration>
+  <xfilename>$(IntDir)\$(ProjectName).json</xfilename>
+  <debuglevel>0</debuglevel>
+  <debugids />
+  <versionlevel>0</versionlevel>
+  <versionids />
+  <dump_source>0</dump_source>
+  <mapverbosity>0</mapverbosity>
+  <createImplib>0</createImplib>
+  <defaultlibname />
+  <debuglibname />
+  <moduleDepsFile />
+  <run>0</run>
+  <runargs />
+  <runCv2pdb>1</runCv2pdb>
+  <pathCv2pdb>$(VisualDInstallDir)cv2pdb\cv2pdb.exe</pathCv2pdb>
+  <objfiles />
+  <linkswitches />
+  <libfiles>zlib.lib DerelictUtil.lib DerelictAL.lib DerelictFT.lib DerelictGL.lib DerelictGLU.lib DerelictSDL.lib DerelictSDLImage.lib</libfiles>
+  <deffile />
+  <resfile />
+  <exefile>$(OutDir)\$(ProjectName).exe</exefile>
+  <additionalOptions />
+  <preBuildCommand />
+  <postBuildCommand />
+  <debugtarget>$(TARGETPATH)</debugtarget>
+  <debugarguments />
+  <debugworkingdir />
+  <debugattach>0</debugattach>
+  <debugremote />
+  <filesToClean>*.obj</filesToClean>
+ </Config>
+ <Folder name="Lumbricus">
+  <Folder name="common">
+   <Folder name="restypes">
+    <File path="..\src\common\restypes\animation.d" />
+    <File path="..\src\common\restypes\atlas.d" />
+    <File path="..\src\common\restypes\bitmap.d" />
+    <File path="..\src\common\restypes\frames.d" />
+    <File path="..\src\common\restypes\sound.d" />
+   </Folder>
+   <File path="..\src\common\allres.d" />
+   <File path="..\src\common\animation.d" />
+   <File path="..\src\common\common.d" />
+   <File path="..\src\common\init.d" />
+   <File path="..\src\common\localeswitch.d" />
+   <File path="..\src\common\lua.d" />
+   <File path="..\src\common\resfileformats.d" />
+   <File path="..\src\common\resources.d" />
+   <File path="..\src\common\resset.d" />
+   <File path="..\src\common\resview.d" />
+   <File path="..\src\common\scene.d" />
+   <File path="..\src\common\task.d" />
+   <File path="..\src\common\toplevel.d" />
+  </Folder>
+  <Folder name="derelict">
+   <Folder name="directx">
+    <File path="..\src\derelict\directx\d3d9.d" />
+    <File path="..\src\derelict\directx\d3d9caps.d" />
+    <File path="..\src\derelict\directx\d3d9types.d" />
+    <File path="..\src\derelict\directx\d3dx9.d" />
+   </Folder>
+   <Folder name="enet">
+    <File path="..\src\derelict\enet\enet.d" />
+    <File path="..\src\derelict\enet\enetfuncs.d" />
+    <File path="..\src\derelict\enet\enettypes.d" />
+   </Folder>
+   <Folder name="fmod">
+    <File path="..\src\derelict\fmod\fmod.d" />
+    <File path="..\src\derelict\fmod\fmodcodec.d" />
+    <File path="..\src\derelict\fmod\fmoddsp.d" />
+    <File path="..\src\derelict\fmod\fmoderrors.d" />
+    <File path="..\src\derelict\fmod\fmodfuncs.d" />
+    <File path="..\src\derelict\fmod\fmodtypes.d" />
+   </Folder>
+   <Folder name="lua">
+    <File path="..\src\derelict\lua\lauxlib.d" />
+    <File path="..\src\derelict\lua\lua.d" />
+    <File path="..\src\derelict\lua\luaconf.d" />
+    <File path="..\src\derelict\lua\luafuncs.d" />
+    <File path="..\src\derelict\lua\lualib.d" />
+    <File path="..\src\derelict\lua\luatypes.d" />
+   </Folder>
+   <Folder name="sdl">
+    <File path="..\src\derelict\sdl\sound.d" />
+   </Folder>
+  </Folder>
+  <Folder name="framework">
+   <Folder name="drivers">
+    <File path="..\src\framework\drivers\base_sdl.d" />
+    <File path="..\src\framework\drivers\clipboard_win32.d" />
+    <File path="..\src\framework\drivers\clipboard_x11.d" />
+    <File path="..\src\framework\drivers\draw_directx.d" />
+    <File path="..\src\framework\drivers\draw_opengl.d" />
+    <File path="..\src\framework\drivers\draw_sdl.d" />
+    <File path="..\src\framework\drivers\fmodstreamfs.d" />
+    <File path="..\src\framework\drivers\font_freetype.d" />
+    <File path="..\src\framework\drivers\sound_fmod.d" />
+    <File path="..\src\framework\drivers\sound_openal.d" />
+   </Folder>
+   <Folder name="sdl">
+    <File path="..\src\framework\sdl\keys.d" />
+    <File path="..\src\framework\sdl\rwops.d" />
+    <File path="..\src\framework\sdl\sdl.d" />
+   </Folder>
+   <File path="..\src\framework\clipboard.d" />
+   <File path="..\src\framework\commandline.d" />
+   <File path="..\src\framework\config.d" />
+   <File path="..\src\framework\drawing.d" />
+   <File path="..\src\framework\event.d" />
+   <File path="..\src\framework\filesystem.d" />
+   <File path="..\src\framework\font.d" />
+   <File path="..\src\framework\framework.d" />
+   <File path="..\src\framework\globalsettings.d" />
+   <File path="..\src\framework\i18n.d" />
+   <File path="..\src\framework\imgwrite.d" />
+   <File path="..\src\framework\keybindings.d" />
+   <File path="..\src\framework\keysyms.d" />
+   <File path="..\src\framework\lua.d" />
+   <File path="..\src\framework\rotozoom.d" />
+   <File path="..\src\framework\sound.d" />
+   <File path="..\src\framework\stuff.d" />
+   <File path="..\src\framework\texturepack.d" />
+  </Folder>
+  <Folder name="game">
+   <Folder name="gamemodes">
+    <File path="..\src\game\gamemodes\base.d" />
+    <File path="..\src\game\gamemodes\realtime.d" />
+    <File path="..\src\game\gamemodes\shared.d" />
+    <File path="..\src\game\gamemodes\turnbased.d" />
+   </Folder>
+   <Folder name="gui">
+    <File path="..\src\game\gui\gamesummary.d" />
+    <File path="..\src\game\gui\levelpaint.d" />
+    <File path="..\src\game\gui\loadingscreen.d" />
+    <File path="..\src\game\gui\preview.d" />
+    <File path="..\src\game\gui\setup_local.d" />
+    <File path="..\src\game\gui\teamedit.d" />
+    <File path="..\src\game\gui\welcome.d" />
+   </Folder>
+   <Folder name="hud">
+    <File path="..\src\game\hud\camera.d" />
+    <File path="..\src\game\hud\chatbox.d" />
+    <File path="..\src\game\hud\gameframe.d" />
+    <File path="..\src\game\hud\gameteams.d" />
+    <File path="..\src\game\hud\gametimer.d" />
+    <File path="..\src\game\hud\gameview.d" />
+    <File path="..\src\game\hud\messageviewer.d" />
+    <File path="..\src\game\hud\network.d" />
+    <File path="..\src\game\hud\powerups.d" />
+    <File path="..\src\game\hud\preparedisplay.d" />
+    <File path="..\src\game\hud\register.d" />
+    <File path="..\src\game\hud\replaytimer.d" />
+    <File path="..\src\game\hud\teaminfo.d" />
+    <File path="..\src\game\hud\weaponsel.d" />
+    <File path="..\src\game\hud\windmeter.d" />
+   </Folder>
+   <Folder name="levelgen">
+    <File path="..\src\game\levelgen\generator.d" />
+    <File path="..\src\game\levelgen\genrandom.d" />
+    <File path="..\src\game\levelgen\landscape.d" />
+    <File path="..\src\game\levelgen\level.d" />
+    <File path="..\src\game\levelgen\placeobjects.d" />
+    <File path="..\src\game\levelgen\renderer.d" />
+   </Folder>
+   <Folder name="lua">
+    <File path="..\src\game\lua\all.d" />
+    <File path="..\src\game\lua\base.d" />
+    <File path="..\src\game\lua\control.d" />
+    <File path="..\src\game\lua\engine.d" />
+    <File path="..\src\game\lua\physics.d" />
+    <File path="..\src\game\lua\weapon.d" />
+   </Folder>
+   <Folder name="weapon">
+    <File path="..\src\game\weapon\airstrike.d" />
+    <File path="..\src\game\weapon\drill.d" />
+    <File path="..\src\game\weapon\girder.d" />
+    <File path="..\src\game\weapon\helpers.d" />
+    <File path="..\src\game\weapon\jetpack.d" />
+    <File path="..\src\game\weapon\luaweapon.d" />
+    <File path="..\src\game\weapon\napalm.d" />
+    <File path="..\src\game\weapon\parachute.d" />
+    <File path="..\src\game\weapon\rope.d" />
+    <File path="..\src\game\weapon\spawn.d" />
+    <File path="..\src\game\weapon\types.d" />
+    <File path="..\src\game\weapon\weapon.d" />
+    <File path="..\src\game\weapon\weaponset.d" />
+   </Folder>
+   <File path="..\src\game\animation.d" />
+   <File path="..\src\game\bomberworm.d" />
+   <File path="..\src\game\controller.d" />
+   <File path="..\src\game\controller_events.d" />
+   <File path="..\src\game\controller_plugins.d" />
+   <File path="..\src\game\core.d" />
+   <File path="..\src\game\crate.d" />
+   <File path="..\src\game\effects.d" />
+   <File path="..\src\game\events.d" />
+   <File path="..\src\game\game.d" />
+   <File path="..\src\game\gameshell.d" />
+   <File path="..\src\game\gametask.d" />
+   <File path="..\src\game\gfxset.d" />
+   <File path="..\src\game\glevel.d" />
+   <File path="..\src\game\input.d" />
+   <File path="..\src\game\loader.d" />
+   <File path="..\src\game\particles.d" />
+   <File path="..\src\game\plugins.d" />
+   <File path="..\src\game\sequence.d" />
+   <File path="..\src\game\setup.d" />
+   <File path="..\src\game\sky.d" />
+   <File path="..\src\game\sprite.d" />
+   <File path="..\src\game\teamtheme.d" />
+   <File path="..\src\game\temp.d" />
+   <File path="..\src\game\water.d" />
+   <File path="..\src\game\wcontrol.d" />
+   <File path="..\src\game\worm.d" />
+   <File path="..\src\game\wtris.d" />
+  </Folder>
+  <Folder name="gui">
+   <File path="..\src\gui\boxcontainer.d" />
+   <File path="..\src\gui\button.d" />
+   <File path="..\src\gui\console.d" />
+   <File path="..\src\gui\container.d" />
+   <File path="..\src\gui\dropdownlist.d" />
+   <File path="..\src\gui\edit.d" />
+   <File path="..\src\gui\fps.d" />
+   <File path="..\src\gui\global.d" />
+   <File path="..\src\gui\label.d" />
+   <File path="..\src\gui\list.d" />
+   <File path="..\src\gui\loader.d" />
+   <File path="..\src\gui\logwindow.d" />
+   <File path="..\src\gui\lua.d" />
+   <File path="..\src\gui\menu.d" />
+   <File path="..\src\gui\mousescroller.d" />
+   <File path="..\src\gui\progress.d" />
+   <File path="..\src\gui\propedit.d" />
+   <File path="..\src\gui\renderbox.d" />
+   <File path="..\src\gui\rendertext.d" />
+   <File path="..\src\gui\scrollbar.d" />
+   <File path="..\src\gui\scrollwindow.d" />
+   <File path="..\src\gui\splitter.d" />
+   <File path="..\src\gui\styles.d" />
+   <File path="..\src\gui\tablecontainer.d" />
+   <File path="..\src\gui\tabs.d" />
+   <File path="..\src\gui\test.d" />
+   <File path="..\src\gui\widget.d" />
+   <File path="..\src\gui\window.d" />
+  </Folder>
+  <Folder name="net">
+   <File path="..\src\net\announce.d" />
+   <File path="..\src\net\announce_lan.d" />
+   <File path="..\src\net\announce_php.d" />
+   <File path="..\src\net\broadcast.d" />
+   <File path="..\src\net\cmdclient.d" />
+   <File path="..\src\net\cmdprotocol.d" />
+   <File path="..\src\net\cmdserver.d" />
+   <File path="..\src\net\cmdserver_gui.d" />
+   <File path="..\src\net\iflist.d" />
+   <File path="..\src\net\lobby.d" />
+   <File path="..\src\net\marshal.d" />
+   <File path="..\src\net\netlayer.d" />
+  </Folder>
+  <Folder name="physics">
+   <File path="..\src\physics\base.d" />
+   <File path="..\src\physics\broadphase.d" />
+   <File path="..\src\physics\collide.d" />
+   <File path="..\src\physics\collisionmap.d" />
+   <File path="..\src\physics\contact.d" />
+   <File path="..\src\physics\earthquake.d" />
+   <File path="..\src\physics\force.d" />
+   <File path="..\src\physics\links.d" />
+   <File path="..\src\physics\misc.d" />
+   <File path="..\src\physics\physobj.d" />
+   <File path="..\src\physics\plane.d" />
+   <File path="..\src\physics\sortandsweep.d" />
+   <File path="..\src\physics\timedchanger.d" />
+   <File path="..\src\physics\trigger.d" />
+   <File path="..\src\physics\world.d" />
+   <File path="..\src\physics\zone.d" />
+  </Folder>
+  <Folder name="utils">
+   <File path="..\src\utils\archive.d" />
+   <File path="..\src\utils\array.d" />
+   <File path="..\src\utils\boxpacker.d" />
+   <File path="..\src\utils\color.d" />
+   <File path="..\src\utils\configfile.d" />
+   <File path="..\src\utils\drawing.d" />
+   <File path="..\src\utils\factory.d" />
+   <File path="..\src\utils\gzip.d" />
+   <File path="..\src\utils\interpolate.d" />
+   <File path="..\src\utils\list2.d" />
+   <File path="..\src\utils\log.d" />
+   <File path="..\src\utils\math.d" />
+   <File path="..\src\utils\misc.d" />
+   <File path="..\src\utils\mybox.d" />
+   <File path="..\src\utils\output.d" />
+   <File path="..\src\utils\path.d" />
+   <File path="..\src\utils\perf.d" />
+   <File path="..\src\utils\queue.d" />
+   <File path="..\src\utils\random.d" />
+   <File path="..\src\utils\randval.d" />
+   <File path="..\src\utils\rect2.d" />
+   <File path="..\src\utils\ringbuffer.d" />
+   <File path="..\src\utils\rndkiss.d" />
+   <File path="..\src\utils\stream.d" />
+   <File path="..\src\utils\string.d" />
+   <File path="..\src\utils\strparser.d" />
+   <File path="..\src\utils\time.d" />
+   <File path="..\src\utils\timer.d" />
+   <File path="..\src\utils\timesource.d" />
+   <File path="..\src\utils\transform.d" />
+   <File path="..\src\utils\vector2.d" />
+   <File path="..\src\utils\weaklist.d" />
+  </Folder>
+  <File path="..\src\lumbricus.d" />
+ </Folder>
+</DProject>
