@@ -302,9 +302,9 @@ class PhysicObject : PhysicBase {
         }
 
         if (mOnSurface)
-            mSurfaceCtr = max(mSurfaceCtr+1, 4);
+            mSurfaceCtr = min(mSurfaceCtr+1, 4);
         else
-            mSurfaceCtr = min(mSurfaceCtr-1, 4);
+            mSurfaceCtr = max(mSurfaceCtr-1, 0);
         mOnSurface = false;
 
         //Update velocity

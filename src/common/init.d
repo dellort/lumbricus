@@ -47,7 +47,6 @@ void print_help() {
 
 ///args = arguments to main()
 void init(char[][] args) {
-    auto progname = args[0];
     args = args[1..$];
 
     //command line help, xD.
@@ -61,7 +60,7 @@ void init(char[][] args) {
     gLogEverything.destination = logtmp;
 
     //init filesystem
-    auto fs = new FileSystem(progname, APP_ID);
+    auto fs = new FileSystem(APP_ID);
     initFSMounts();
 
     //open logfile in user dir

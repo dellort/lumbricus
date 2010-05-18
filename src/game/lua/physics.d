@@ -44,6 +44,7 @@ static this() {
     gScripting.method!(CollisionMap, "find");
 
     gScripting.ctor!(PhysicObjectsRod, PhysicObject, PhysicObject)();
+    gScripting.properties!(PhysicObjectsRod, "springConstant")();
 
     //oh my
     //NOTE: we could handle classes just like structs and use tupleof on them

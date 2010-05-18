@@ -457,7 +457,7 @@ abstract class GameCore {
         //remove inactive objects from list before killing the game objects,
         //  just needed because of debugging memory stomp
         foreach (GameObject o; mActiveObjects) {
-            if (!o.mIsAlive) {
+            if (!o.internal_active()) {
                 //remove (it's done lazily, and here it's actually removed)
                 mActiveObjects.remove(o);
             }

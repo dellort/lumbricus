@@ -519,13 +519,13 @@ class FileSystem {
         Regex mRegFilename;
     }
 
-    this(char[] arg0, char[] appId) {
+    this(char[] appId) {
         assert(!gFS, "FileSystem is singleton");
         gFS = this;
         log = registerLog("FS");
         mAppId = appId;
         mRegFilename = new Regex(`[^-+!.,;a-zA-Z0-9()\[\]]`);
-        initPaths(arg0);
+        initPaths();
     }
 
     ///Returns path to '.<appId>' in user's home directory
@@ -567,8 +567,8 @@ class FileSystem {
     }
 
     ///initialize paths where files/folders to mount will be searched
-    protected void initPaths(char[] arg0) {
-        mAppPath = getAppPath(arg0);
+    protected void initPaths() {
+        mAppPath = getAppPath();
 
         //user path: home directory + .appId
         mUserPath = getUserPath();

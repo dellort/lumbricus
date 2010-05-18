@@ -1142,7 +1142,7 @@ class WormSprite : Sprite {
         if (currentState is wsc.st_fly) {
             //when damaged in-flight, switch to heavy animation
             //xxx better react to impulse rather than damage
-            setFlyAnim(FlyMode.heavy);
+            //setFlyAnim(FlyMode.heavy);
         } else {
             //hit by explosion, abort everything (code below will immediately
             //  correct the state)

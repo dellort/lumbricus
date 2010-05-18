@@ -614,12 +614,14 @@ class GameEngine : GameCore {
         float radius = damage * cDamageToRadius;
         float impulse = damage * cDamageToImpulse;
         Vector2f v = (pos-o.pos);
-        float dist = v.length;
+        float dist = v.length - o.posp.radius;
+
+        float r = max(radius-dist, 0f)/radius;
+        if (r < float.epsilon)
+            return;
+        o.applyDamage(r*damage, DamageCause.explosion, cause);
+
         if (dist > cDistDelta) {
-            float r = max(radius-dist, 0f)/radius;
-            if (r < float.epsilon)
-                return;
-            o.applyDamage(r*damage, DamageCause.explosion, cause);
             o.addImpulse(-v.normal()*impulse*r*o.posp.explosionInfluence);
         } else {
             //unglue objects at center of explosion

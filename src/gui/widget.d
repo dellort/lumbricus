@@ -67,11 +67,11 @@ struct WidgetLayout {
     //not expanded and aligned, with optional border
     //x: -1 = left, 0 = center, 1 = right
     //y: similar
-    static WidgetLayout Aligned(int x, int y, Vector2i border = Vector2i()) {
+    static WidgetLayout Aligned(float x, float y, Vector2i border = Vector2i()) {
         WidgetLayout lay;
         lay.expand[0] = lay.expand[1] = false;
-        lay.alignment[0] = (x+1)/2.0f;
-        lay.alignment[1] = (y+1)/2.0f;
+        lay.alignment[0] = (x+1.0f)/2.0f;
+        lay.alignment[1] = (y+1.0f)/2.0f;
         lay.padA = lay.padB = border;
         return lay;
     }

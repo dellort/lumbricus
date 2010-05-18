@@ -106,6 +106,7 @@ class PhysicConstraint : PhysicContactGen {
 class PhysicObjectsRod : PhysicContactGen {
     PhysicObject[2] obj;
     float length;
+    float springConstant = 100f;
 
     private const cTolerance = 0.01f;
 
@@ -126,26 +127,10 @@ class PhysicObjectsRod : PhysicContactGen {
         if (abs(deltaLen) < cTolerance)
             return;
 
-        Contact c;
-        c.obj[] = obj;
-        c.source = ContactSource.generator;
+        auto diffn = diff.normal();
 
-        Vector2f n = diff.normal;
-        assert(!n.isNaN);
-
-        if (deltaLen > 0) {
-            //too long
-            c.normal = n;
-            c.depth = deltaLen;
-        } else {
-            //too short
-            c.normal = -n;
-            c.depth = -deltaLen;
-        }
-
-        c.restitution = 0;
-
-        contactHandler(c);
+        obj[0].addForce(-springConstant * -diffn * deltaLen);
+        obj[1].addForce(-springConstant * diffn * deltaLen);
     }
 }
 
@@ -227,19 +212,17 @@ class WaterSurfaceGeometry : PhysicContactGen {
             //only works for horizontal surface
             float a = abs(obj.velocity.x) / obj.velocity.y;
             //~20°
-            if (a < 2.7f)
-                return;
-            //xxx shouldn't it check whether the object is already deep under
-            //  water? (and doesn't collide with the water surface)
-            Contact contact;
-            contact.fromObj(obj, null, c.normal, c.depth);
-            //no y speed reduction, or we get strange "sliding" effects
-            contact.restitution = 1.0f;
-            //don't blow up projectiles
-            contact.source = ContactSource.generator;
-            //xxx lol hack etc.: slow object down a little
-            obj.velocity_int.x *= 0.85f;
-            contactHandler(contact);
+            if (a > 2.7f) {
+                Contact contact;
+                contact.fromObj(obj, null, c.normal, c.depth);
+                //no y speed reduction, or we get strange "sliding" effects
+                contact.restitution = 1.0f;
+                //don't blow up projectiles
+                contact.source = ContactSource.generator;
+                //xxx lol hack etc.: slow object down a little
+                obj.velocity_int.x *= 0.85f;
+                contactHandler(contact);
+            }
         }
         world.dynamicObjects.collideShapeT(plane, collision, &handler);
     }

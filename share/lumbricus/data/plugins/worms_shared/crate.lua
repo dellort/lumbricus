@@ -121,7 +121,7 @@ addSpriteClassEvent(s_class, "sprite_glue_changed", function(sprite)
     if Phys_isGlued(Sprite_physics(sprite)) then
         -- normally is already in this state
         setState(sprite, "normal")
-    else
+    elseif not Sprite_isUnderWater(sprite) then
         setState(sprite, "normal")
         Sprite_set_exceedVelocity(sprite, enter_parachute_speed)
     end

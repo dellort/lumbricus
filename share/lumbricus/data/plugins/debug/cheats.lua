@@ -211,9 +211,9 @@ function E.horror()
         }
     end
 
-    if true then
+    if false then
         -- ring
-        local N = 3
+        local N = 10
         local X = {}
         local R = 100
         local S = Vector2(3000, 1000)
@@ -251,11 +251,13 @@ function E.horror()
                 if x < H then
                     local r = Sprite_physics(X[y][x+1])
                     local c1 = PhysicObjectsRod_ctor(o, r)
+                    PhysicObjectsRod_set_springConstant(c1, 20000)
                     World_add(c1)
                 end
                 if y < H then
                     local b = Sprite_physics(X[y+1][x])
                     local c2 = PhysicObjectsRod_ctor(o, b)
+                    PhysicObjectsRod_set_springConstant(c2, 20000)
                     World_add(c2)
                 end
                 --[[
@@ -365,6 +367,20 @@ function E.pickObject(dowhat)
     GameFrame_addHudWidget(w, "gameview")
 end
 
+function E.pickMakeActive()
+    pickObject(function(obj)
+        local member = Control_memberFromGameObject(obj)
+        if not member then
+            printf("nope.")
+            return
+        end
+        local team = Member_team(member)
+        Control_deactivateAll()
+        Team_set_active(team, true)
+        Team_set_current(team, member)
+    end)
+end
+
 function E.pickShowCollide()
     pickObject(function(obj)
         printf(Phys_collision(Sprite_physics(obj)))
@@ -415,10 +431,10 @@ function E.guiPickObject(obj)
         Gui_set_render(w, txtrender)
         local updater
         local function update()
-            if not Gui_isLinked(w) then
+            --[[if not Gui_isLinked(w) then
                 updater:cancel()
                 return
-            end
+            end]]
             local t = ""
             local function appendf(...)
                 t = t .. utils.anyformat(...) .. "\n"

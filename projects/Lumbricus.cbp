@@ -134,10 +134,10 @@
 		<Unit filename="..\src\framework\texturepack.d" />
 		<Unit filename="..\src\game\animation.d" />
 		<Unit filename="..\src\game\bomberworm.d" />
-		<Unit filename="..\src\game\clientengine.d" />
 		<Unit filename="..\src\game\controller.d" />
 		<Unit filename="..\src\game\controller_events.d" />
 		<Unit filename="..\src\game\controller_plugins.d" />
+		<Unit filename="..\src\game\core.d" />
 		<Unit filename="..\src\game\crate.d" />
 		<Unit filename="..\src\game\effects.d" />
 		<Unit filename="..\src\game\events.d" />
@@ -150,8 +150,6 @@
 		<Unit filename="..\src\game\gametask.d" />
 		<Unit filename="..\src\game\gfxset.d" />
 		<Unit filename="..\src\game\glevel.d" />
-		<Unit filename="..\src\game\glue.d" />
-		<Unit filename="..\src\game\gobject.d" />
 		<Unit filename="..\src\game\gui\gamesummary.d" />
 		<Unit filename="..\src\game\gui\levelpaint.d" />
 		<Unit filename="..\src\game\gui\loadingscreen.d" />
@@ -174,6 +172,7 @@
 		<Unit filename="..\src\game\hud\teaminfo.d" />
 		<Unit filename="..\src\game\hud\weaponsel.d" />
 		<Unit filename="..\src\game\hud\windmeter.d" />
+		<Unit filename="..\src\game\input.d" />
 		<Unit filename="..\src\game\levelgen\generator.d" />
 		<Unit filename="..\src\game\levelgen\genrandom.d" />
 		<Unit filename="..\src\game\levelgen\landscape.d" />
@@ -193,6 +192,7 @@
 		<Unit filename="..\src\game\setup.d" />
 		<Unit filename="..\src\game\sky.d" />
 		<Unit filename="..\src\game\sprite.d" />
+		<Unit filename="..\src\game\teamtheme.d" />
 		<Unit filename="..\src\game\temp.d" />
 		<Unit filename="..\src\game\water.d" />
 		<Unit filename="..\src\game\wcontrol.d" />
@@ -252,11 +252,11 @@
 		<Unit filename="..\src\net\netlayer.d" />
 		<Unit filename="..\src\physics\base.d" />
 		<Unit filename="..\src\physics\broadphase.d" />
+		<Unit filename="..\src\physics\collide.d" />
 		<Unit filename="..\src\physics\collisionmap.d" />
 		<Unit filename="..\src\physics\contact.d" />
 		<Unit filename="..\src\physics\earthquake.d" />
 		<Unit filename="..\src\physics\force.d" />
-		<Unit filename="..\src\physics\geometry.d" />
 		<Unit filename="..\src\physics\links.d" />
 		<Unit filename="..\src\physics\misc.d" />
 		<Unit filename="..\src\physics\physobj.d" />
@@ -269,14 +269,12 @@
 		<Unit filename="..\src\utils\archive.d" />
 		<Unit filename="..\src\utils\array.d" />
 		<Unit filename="..\src\utils\boxpacker.d" />
-		<Unit filename="..\src\utils\buffer.d" />
 		<Unit filename="..\src\utils\color.d" />
 		<Unit filename="..\src\utils\configfile.d" />
 		<Unit filename="..\src\utils\drawing.d" />
 		<Unit filename="..\src\utils\factory.d" />
 		<Unit filename="..\src\utils\filetools.d" />
 		<Unit filename="..\src\utils\gzip.d" />
-		<Unit filename="..\src\utils\hashtable.d" />
 		<Unit filename="..\src\utils\interpolate.d" />
 		<Unit filename="..\src\utils\list2.d" />
 		<Unit filename="..\src\utils\log.d" />

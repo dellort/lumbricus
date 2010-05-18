@@ -48,7 +48,7 @@ end
 -- __len doesn't work, table __len takes precedence
 --function Vector2:__len()
 function Vector2:length()
-    return math.sqrt(self.x*self.x, self.y*self.y)
+    return math.sqrt(self.x*self.x + self.y*self.y)
 end
 
 function Vector2:__eq(v)

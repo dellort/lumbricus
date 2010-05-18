@@ -19,7 +19,7 @@ static this() {
 
     gScripting.setClassPrefix!(TeamMember)("Member");
     gScripting.methods!(TeamMember, "updateHealth", "lifeLost", "addHealth");
-    gScripting.properties!(TeamMember, "active");
+    gScripting.property_ro!(TeamMember, "active");
     gScripting.properties_ro!(TeamMember, "control", "name", "team", "alive",
         "needUpdateHealth", "currentHealth", "health", "sprite");
     gScripting.methods!(Team, "setOnHold", "nextWasIdle", "checkDyingMembers",

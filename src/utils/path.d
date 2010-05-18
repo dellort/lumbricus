@@ -43,23 +43,14 @@ version(Windows) {
 }
 
 version(Windows) {
+import tango.sys.win32.UserGdi : GetModuleFileNameW;
+import tango.sys.win32.Types : MAX_PATH;
+import utf = tango.text.convert.Utf;
 
-///Return path to application's executable file, with trailing '/'
-char[] getAppPath(char[] arg0) {
-    char[] appPath;
-    //on win and lin, args[0] is the (sometimes relative to cwd, sometimes
-    //  absolute) path to the executable
-    char[] curDir = addTrailingPathDelimiter(Environment.cwd());
-    auto exePath = new FilePath(arg0);
-    if (exePath.isAbsolute()) {
-        //sometimes, the path is absolute
-        appPath = exePath.path;
-    } else {
-        appPath = normalize(FilePath.join(curDir, exePath.path));
-    }
-
-    appPath = addTrailingPathDelimiter(appPath);
-    return appPath;
+char[] getExePath() {
+    wchar[MAX_PATH] buf;
+    size_t len = GetModuleFileNameW(null, buf.ptr, buf.length);
+    return utf.toString(buf[0..len]);
 }
 
 } else version(linux) {
@@ -69,7 +60,7 @@ char[] getAppPath(char[] arg0) {
 //until I get to know of a better way, just read the Linux specific
 //  /proc/self/exe symlink, which contains an absolute path to the binary
 import tango.stdc.posix.unistd;
-char[] getAppPath(char[] arg0) {
+char[] getExePath() {
     char[] buffer = new char[4];
     for (;;) {
         ssize_t res = readlink("/proc/self/exe".ptr, buffer.ptr, buffer.length);
@@ -83,14 +74,18 @@ char[] getAppPath(char[] arg0) {
         buffer = buffer[0..res];
         break;
     }
-    //strip away trailing exe name
-    return getFilePath(buffer);
+    return buffer;
 }
 
 } else {
 
 static assert(false, "add me");
 
+}
+
+///Return path to application's executable file, with trailing '/'
+char[] getAppPath() {
+    return getFilePath(getExePath());
 }
 
 ///encapsulates a platform-independant VFS path

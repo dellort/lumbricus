@@ -642,7 +642,7 @@ class TeamMember : Actor {
         return mActive;
     }
 
-    void active(bool act) {
+    private void active(bool act) {
         mWormControl.setEngaged(act);
         if (mActive == act)
             return;

@@ -280,7 +280,8 @@ class GameFrame : SimpleContainer {
         //currently just the weapon window; maybe others will be added later
         //  (e.g. pause window)
         return isWeaponWindowVisible() || scrollOverride
-            || gTopLevel.consoleVisible() || game.shell.paused();
+            || gTopLevel.consoleVisible()
+            || (game.shell.paused() && !mPauseLabel.visible());
     }
 
     private void toggleChat() {
@@ -421,7 +422,7 @@ class GameFrame : SimpleContainer {
         mPauseLabel.centerX = true;
         mPauseLabel.styles.addClass("gamepauselabel");
         mPauseLabel.visible = false;
-        add(mPauseLabel, WidgetLayout.Noexpand());
+        add(mPauseLabel, WidgetLayout.Aligned(0, -0.5));
 
         mSideBar = new VBoxContainer();
         add(mSideBar, WidgetLayout.Aligned(-1, -1, Vector2i(30, 50)));
