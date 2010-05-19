@@ -6,7 +6,7 @@ import game.controller;
 import game.sprite;
 import game.weapon.weapon;
 import game.wcontrol;
-import physics.world;
+import physics.all;
 import utils.time;
 import utils.vector2;
 import utils.misc;

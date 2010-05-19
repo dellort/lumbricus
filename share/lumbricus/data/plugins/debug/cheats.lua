@@ -211,9 +211,9 @@ function E.horror()
         }
     end
 
-    if false then
+    if not true then
         -- ring
-        local N = 10
+        local N = 3
         local X = {}
         local R = 100
         local S = Vector2(3000, 1000)
@@ -228,6 +228,7 @@ function E.horror()
             local o2 = X[(n % #X) + 1]
             local c = PhysicObjectsRod_ctor(Sprite_physics(o1),
                 Sprite_physics(o2))
+            PhysicObjectsRod_set_springConstant(c, 20000)
             World_add(c)
         end
     else
@@ -260,10 +261,12 @@ function E.horror()
                     PhysicObjectsRod_set_springConstant(c2, 20000)
                     World_add(c2)
                 end
-                --[[
+                ----[[
+                -- actually adds more stability...
                 if x < H and y < H then
                     local n = Sprite_physics(X[y+1][x+1])
                     local c3 = PhysicObjectsRod_ctor(o, n)
+                    PhysicObjectsRod_set_springConstant(c3, 20000)
                     World_add(c3)
                 end
                 --]]

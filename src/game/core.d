@@ -16,7 +16,7 @@ import game.temp : GameZOrder;
 import game.levelgen.level;
 import game.lua.base;
 import gui.rendertext;
-import physics.world;
+import physics.all;
 import utils.configfile;
 import utils.list2;
 import utils.log;

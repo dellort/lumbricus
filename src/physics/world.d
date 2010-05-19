@@ -12,19 +12,15 @@ import utils.output;
 
 import tarray = tango.core.Array;
 
-public import physics.base;
-public import physics.earthquake;
-public import physics.force;
-public import physics.physobj;
+import physics.base;
+import physics.force;
+import physics.physobj;
 import physics.plane;
-public import physics.misc;
-public import physics.trigger;
-public import physics.timedchanger;
-public import physics.contact;
-public import physics.zone;
-public import physics.links;
-public import physics.collide;
-public import physics.plane;
+import physics.misc;
+import physics.trigger;
+import physics.contact;
+import physics.links;
+import physics.collide;
 import physics.collisionmap;
 import physics.broadphase;
 import physics.sortandsweep;

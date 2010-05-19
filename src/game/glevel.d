@@ -8,7 +8,7 @@ import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.renderer;
 import game.temp : GameZOrder;
-import physics.world;
+import physics.all;
 import utils.vector2;
 import utils.log;
 import utils.misc;

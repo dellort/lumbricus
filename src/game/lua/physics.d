@@ -1,8 +1,7 @@
 module game.lua.physics;
 
 import game.lua.base;
-import physics.world;
-import physics.collisionmap;
+import physics.all;
 
 static this() {
     gScripting.setClassPrefix!(PhysicWorld)("World");

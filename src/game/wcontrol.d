@@ -13,7 +13,7 @@ import game.weapon.types;
 import game.weapon.weapon;
 import game.weapon.weaponset;
 import game.worm;
-import physics.world;
+import physics.all;
 import utils.array;
 import utils.misc;
 import utils.time;

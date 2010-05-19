@@ -19,7 +19,7 @@ import game.teamtheme;
 import game.sequence;
 import game.setup;
 import game.wcontrol;
-import physics.world;
+import physics.all;
 import utils.factory;
 import utils.vector2;
 import utils.configfile;

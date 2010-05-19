@@ -6,7 +6,7 @@ import game.sequence;
 import game.sprite;
 import game.teamtheme;
 import gui.rendertext;
-import physics.world;
+import physics.all;
 import utils.vector2;
 import utils.time;
 import utils.misc;

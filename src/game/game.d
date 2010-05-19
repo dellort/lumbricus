@@ -2,7 +2,7 @@ module game.game;
 import game.effects;
 import game.levelgen.level;
 import game.levelgen.landscape;
-import physics.world;
+import physics.all;
 import game.gfxset;
 import game.glevel;
 import game.sprite;

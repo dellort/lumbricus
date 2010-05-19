@@ -27,7 +27,7 @@ import gui.container;
 import gui.label;
 import gui.mousescroller;
 import gui.tablecontainer;
-import physics.world;
+import physics.all;
 import utils.configfile;
 import utils.rect2;
 import utils.time;

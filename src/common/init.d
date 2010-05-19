@@ -13,7 +13,10 @@ import utils.time;
 
 import utils.stream : File, ThreadedWriter; //???
 import marray = utils.array;
+import path = utils.path;
+import stream = utils.stream;
 import str = utils.string;
+import strparser = utils.strparser;
 
 import tango.io.Stdout;
 
@@ -107,16 +110,67 @@ void init(char[][] args) {
     common.globals.do_init();
 }
 
+struct ExeAttachment {
+    char[] fmt;
+    stream.Stream data;
+}
+
+//return 0 or 1 attachments
+//0 signals failure, while 1 is for the attachment appended by create-fat-exe.sh
+private ExeAttachment* readFatExe() {
+    stream.Stream exe = stream.Stream.OpenFile(path.getExePath());
+    struct Header {
+        uint size;
+        char[4] magic;
+    }
+    ulong s = exe.size;
+    if (s < Header.sizeof)
+        return null;
+    exe.position = s - Header.sizeof;
+    Header header;
+    exe.readExact(cast(ubyte[])((&header)[0..1]));
+    if (header.magic != "LUMB")
+        return null;
+    //point to the byte after the last attachment byte (which is '>')
+    ulong end_offset = s - Header.sizeof;
+    ulong sz = header.size;
+    //sanity check: attachment can't be bigger than the whole file, minus header
+    if (sz > end_offset)
+        return null;
+    auto att = new ExeAttachment;
+    att.fmt = "tar";
+    att.data = new stream.SliceStream(exe, end_offset - sz, end_offset);
+    //Trace.formatln("attachment: {}-{} = {}/{}", end_offset - sz, end_offset, sz,
+      //  att.data.size);
+    return att;
+}
+
+private void readMountConf(ConfigNode mconfig) {
+    foreach (ConfigNode node; mconfig) {
+        char[] physPath = node["path"];
+        char[] mp = node["mountpoint"];
+        MountPath type;
+        switch (node["type"]) {
+            case "data": type = MountPath.data; break;
+            case "user": type = MountPath.user; break;
+            case "absolute":
+            default:
+                type = MountPath.absolute;
+        }
+        int prio = node.getValue!(int)("priority", 0);
+        bool writable = node.getValue!(bool)("writable", false);
+        bool optional = node.getValue!(bool)("optional", false);
+        if (optional) {
+            gFS.tryMount(type, physPath, mp, writable, prio);
+        } else {
+            gFS.mount(type, physPath, mp, writable, prio);
+        }
+    }
+}
 
 //temp-mount user and data dir, read mount.conf and setup mounts from there
 //xxx probably move somewhere else (needs common/config.d, so no filesystem.d ?)
 void initFSMounts() {
-    //temporary mounts to read mount.conf
-    gFS.reset();
-    gFS.mount(MountPath.data, "/", "/", false, 0);
-    auto mountConf = loadConfig("mount");
-
-    gFS.reset();
     //user's mount.conf will not override, but add to internal paths
     gFS.mount(MountPath.user, "/", "/", false, 0);
     ConfigNode mountConfUser;
@@ -125,29 +179,30 @@ void initFSMounts() {
     //clear temp mounts
     gFS.reset();
 
-    void readMountConf(ConfigNode mconfig) {
-        foreach (ConfigNode node; mountConf) {
-            char[] physPath = node["path"];
-            char[] mp = node["mountpoint"];
-            MountPath type;
-            switch (node["type"]) {
-                case "data": type = MountPath.data; break;
-                case "user": type = MountPath.user; break;
-                case "absolute":
-                default:
-                    type = MountPath.absolute;
-            }
-            int prio = node.getValue!(int)("priority", 0);
-            bool writable = node.getValue!(bool)("writable", false);
-            bool optional = node.getValue!(bool)("optional", false);
-            if (optional) {
-                gFS.tryMount(type, physPath, mp, writable, prio);
-            } else {
-                gFS.mount(type, physPath, mp, writable, prio);
-            }
-        }
+    ExeAttachment* stuff = readFatExe();
+    if (stuff) {
+        //using a standalone fs to avoid infinite recursion problem when using
+        //  two links (replace linkExternal() by link() below)
+        auto fs = new FileSystem();
+        fs.mountArchive(MountPath.data, stuff.data, stuff.fmt, "/", 0);
+        //create the mounts manually
+        //the normal mount.conf would cause it to mount system paths, which we
+        //  don't want; we just want to mount paths within the .zip
+        gFS.linkExternal(fs, "/data", "/", false);
+        gFS.linkExternal(fs, "/data2", "/", false);
+        gFS.mount(MountPath.user, "/", "/", true, 0);
+        //NOTE: still read the user's mount conf (not sure about this)
+    } else {
+        //normal code path
+
+        //temporary mounts to read mount.conf
+        gFS.mount(MountPath.data, "/", "/", false, 0);
+        auto mountConf = loadConfig("mount");
+        gFS.reset();
+
+        readMountConf(mountConf);
     }
-    readMountConf(mountConf);
+
     if (mountConfUser)
         readMountConf(mountConfUser);
 }

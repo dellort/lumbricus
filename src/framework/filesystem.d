@@ -349,6 +349,10 @@ private class HandlerTar : HandlerInstance {
         mTarFile = new TarArchive(archFile, true);
     }
 
+    this(Stream archiveStream) {
+        mTarFile = new TarArchive(archiveStream, true);
+    }
+
     bool isWritable() {
         return false;
     }
@@ -508,8 +512,6 @@ class FileSystem {
             }
         }
 
-        char[] mAppId;
-        char[] mAppPath;
         char[] mUserPath;
         char[] mDataPath;
         MountedPath[] mMountedPaths;
@@ -523,20 +525,27 @@ class FileSystem {
         assert(!gFS, "FileSystem is singleton");
         gFS = this;
         log = registerLog("FS");
-        mAppId = appId;
         mRegFilename = new Regex(`[^-+!.,;a-zA-Z0-9()\[\]]`);
-        initPaths();
+        initPaths(appId);
+    }
+
+    //standalone, non-singleton instance of a FileSystem
+    this() {
+        log = registerLog("FS2");
+        mRegFilename = new Regex(`[^-+!.,;a-zA-Z0-9()\[\]]`);
+        mUserPath = "";
+        mDataPath = "";
     }
 
     ///Returns path to '.<appId>' in user's home directory
     ///Created if not existant
-    ///Assuming mAppPath is already initalized
-    protected char[] getUserPath() {
+    ///appPath = directory where exe is located
+    protected char[] getUserPath(char[] appPath, char[] appId) {
         char[] userPath;
 
         //set user directory from os home path
         char[] home = null;
-        char[] os_appid = mAppId;
+        char[] os_appid = appId;
         version(Windows) {
             //windows: Docs & Settings\AppData\Lumbricus
             //home = Environment.get("APPDATA");
@@ -555,7 +564,7 @@ class FileSystem {
             userPath = addTrailingPathDelimiter(home) ~ os_appid;
         else
             //failed to get env var? then use AppPath/.lumbricus instead
-            userPath = mAppPath ~ os_appid;
+            userPath = appPath ~ os_appid;
 
         //try to create user directory
         try {
@@ -567,15 +576,15 @@ class FileSystem {
     }
 
     ///initialize paths where files/folders to mount will be searched
-    protected void initPaths() {
-        mAppPath = getAppPath();
+    protected void initPaths(char[] appId) {
+        auto appPath = getAppPath();
 
         //user path: home directory + .appId
-        mUserPath = getUserPath();
+        mUserPath = getUserPath(appPath, appId);
         version(FSDebug) log("PUser = '{}'",mUserPath);
 
         //data path: prefix/share/appId
-        mDataPath ~= mAppPath ~ "../share/" ~ mAppId ~ "/";
+        mDataPath ~= appPath ~ "../share/" ~ appId ~ "/";
         version(FSDebug) log("PData = '{}'", mDataPath);
     }
 
@@ -620,9 +629,13 @@ class FileSystem {
         char[] absPath;
         switch (mp) {
             case MountPath.data:
+                if (!mDataPath.length)
+                    throw new FilesystemException("no app filesystem");
                 absPath = mDataPath ~ sysPath;
                 break;
             case MountPath.user:
+                if (!mUserPath.length)
+                    throw new FilesystemException("no app filesystem");
                 absPath = mUserPath ~ sysPath;
                 break;
             case MountPath.absolute:
@@ -652,6 +665,34 @@ class FileSystem {
         return mounted.mountId;
     }
 
+    ///Mount a stream as archive on this mount point.
+    ///Read-only access is implied.
+    ///Params:
+    ///  mp = see mount()
+    ///  archive = stream of the archive contents
+    ///  fmt = type of the archive, usually the file extension (e.g. "tar")
+    ///  mountPoint = see mount()
+    ///  precedence = see mount()
+    MountId mountArchive(MountPath mp, Stream archive, char[] fmt,
+        VFSPath mountPoint, uint precedence = 0)
+    {
+        //hardcoded to tar because it's the only one that works
+        //zip with ZipFolder doesn't because ZipFolder expects a real filesystem
+        //  path for the zip, and apparently can't use a tango stream instead
+        if (fmt != "tar")
+            throw new FilesystemException("unsupported archive format");
+        auto handler = new HandlerTar(archive);
+        auto mounted = MountedPath(mountPoint, precedence, handler, false);
+        addMountedPath(mounted);
+        return mounted.mountId;
+    }
+
+    MountId mountArchive(MountPath mp, Stream archive, char[] fmt,
+        char[] mountPoint, uint precedence = 0)
+    {
+        return mountArchive(mp, archive, fmt, VFSPath(mountPoint), precedence);
+    }
+
     public MountId mount(MountPath mp, char[] sysPath, char[] mountPoint,
         bool writable, uint precedence = 0)
     {
@@ -665,7 +706,7 @@ class FileSystem {
         try {
             mount(mp, path, mountPoint, writable, precedence);
             return true;
-        } catch {
+        } catch(FilesystemException e) {
             return false;
         }
     }
@@ -709,6 +750,21 @@ class FileSystem {
         uint precedence = 0)
     {
         return link(VFSPath(relPath), VFSPath(mountPoint), writable, precedence);
+    }
+
+    ///Mount fsPath from fs on mountPoint()
+    ///also see link()
+    ///xxx: not bothering with a VFSPath version
+    public MountId linkExternal(FileSystem fs, char[] fsPath, char[] mountPoint,
+        bool writable, uint precedence = 0)
+    {
+        auto fsPath_ = VFSPath(fsPath);
+        auto mountPoint_ = VFSPath(mountPoint);
+
+        auto mp = MountedPath(mountPoint_, precedence,
+            new HandlerLink(fs, fsPath_), writable);
+        addMountedPath(mp);
+        return mp.mountId;
     }
 
     ///Try unmounting the specified id (result of mount() or link())

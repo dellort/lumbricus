@@ -6,7 +6,7 @@ import game.particles;
 import game.sprite;
 import game.sequence;
 import game.weapon.weapon;
-import physics.world;
+import physics.all;
 import tango.math.Math;
 import utils.misc;
 import utils.vector2;

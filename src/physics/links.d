@@ -106,7 +106,8 @@ class PhysicConstraint : PhysicContactGen {
 class PhysicObjectsRod : PhysicContactGen {
     PhysicObject[2] obj;
     float length;
-    float springConstant = 100f;
+    //negative: magic value to default to old behaviour
+    float springConstant = -1;
 
     private const cTolerance = 0.01f;
 
@@ -129,8 +130,35 @@ class PhysicObjectsRod : PhysicContactGen {
 
         auto diffn = diff.normal();
 
-        obj[0].addForce(-springConstant * -diffn * deltaLen);
-        obj[1].addForce(-springConstant * diffn * deltaLen);
+        if (springConstant >= 0) {
+            //using forces
+
+            obj[0].addForce(-springConstant * -diffn * deltaLen);
+            obj[1].addForce(-springConstant * diffn * deltaLen);
+
+        } else {
+            //using contacts as it was done in that book
+
+            Contact c;
+            c.obj[] = obj;
+            c.source = ContactSource.generator;
+
+            assert(!diffn.isNaN);
+
+            if (deltaLen > 0) {
+                //too long
+                c.normal = diffn;
+                c.depth = deltaLen;
+            } else {
+                //too short
+                c.normal = -diffn;
+                c.depth = -deltaLen;
+            }
+
+            c.restitution = 0;
+
+            contactHandler(c);
+        }
     }
 }
 

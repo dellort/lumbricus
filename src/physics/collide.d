@@ -1,11 +1,12 @@
 module physics.collide;
 
+import physics.contact;
+import physics.plane;
 import utils.misc;
 import utils.rect2;
 import utils.vector2;
 
-import physics.contact;
-import physics.plane;
+import tango.math.Math: sqrt;
 
 //collision functions for use with the physics engine
 //this simulates multimethods (dispatching on 2 object types, instead of 1 like

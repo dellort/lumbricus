@@ -11,7 +11,7 @@ import game.crate;
 import game.weapon.weapon;
 import game.weapon.weaponset;
 import game.gamemodes.base;
-import physics.misc;
+import physics.all;
 import utils.factory;
 import utils.log;
 import utils.configfile;

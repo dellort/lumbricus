@@ -10,7 +10,7 @@ import game.sequence;
 import game.teamtheme;
 import game.wcontrol;
 import gui.rendertext;
-import physics.world;
+import physics.all;
 import utils.time;
 import utils.vector2;
 import utils.misc;

@@ -8,7 +8,7 @@ import game.sprite;
 import game.temp : GameZOrder;
 import game.worm;
 import game.wcontrol;
-import physics.world;
+import physics.all;
 import utils.time;
 import utils.vector2;
 import utils.misc;

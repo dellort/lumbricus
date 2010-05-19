@@ -7,7 +7,7 @@ import game.sequence;
 import game.temp : GameZOrder;
 import game.particles;
 import net.marshal; // : Hasher;
-import physics.world;
+import physics.all;
 
 import utils.vector2;
 import utils.rect2;

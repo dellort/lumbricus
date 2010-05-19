@@ -62,19 +62,3 @@ class PhysicTimedChangerFloat : PhysicBase {
             mValue = target;
     }
 }
-
-class PhysicTimedChangerVector2f : PhysicBase {
-    mixin PhysicTimedChanger!(Vector2f);
-
-    protected void updateStep(float deltaT) {
-        Vector2f diff = target - mValue;
-        mValue.x += copysign(changePerSec.x*deltaT,diff.x);
-        mValue.y += copysign(changePerSec.y*deltaT,diff.y);
-        Vector2f diffn = target - mValue;
-        Vector2f sgn = diff.mulEntries(diffn);
-        if (sgn.x < 0)
-            mValue.x = target.x;
-        if (sgn.y < 0)
-            mValue.y = target.y;
-    }
-}

@@ -7,7 +7,7 @@ import game.sprite;
 import game.wcontrol;
 import game.weapon.weapon;
 import game.levelgen.landscape;
-import physics.world;
+import physics.all;
 import utils.time;
 import utils.vector2;
 import utils.misc;

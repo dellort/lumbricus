@@ -2,7 +2,6 @@ module game.worm;
 
 import common.animation;
 import framework.framework;
-import physics.world;
 import game.core;
 import game.sequence;
 import game.sprite;
@@ -11,6 +10,7 @@ import game.temp : GameZOrder;
 import game.weapon.types;
 import game.weapon.weapon;
 import game.particles;
+import physics.all;
 import utils.misc;
 import utils.vector2;
 import utils.time;

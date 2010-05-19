@@ -18,8 +18,7 @@ import utils.time;
 
 import str = utils.string;
 
-import physics.collisionmap;
-import physics.world;
+import physics.all;
 import game.core;
 import game.events;
 import game.sequence;
