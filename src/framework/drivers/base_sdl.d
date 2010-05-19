@@ -20,6 +20,7 @@ import ieee = tango.math.IEEE;
 import utils.stream;
 import tango.stdc.stringz;
 import tango.sys.Environment;
+import tunicode = tango.text.Unicode;
 
 import str = utils.string;
 
@@ -40,6 +41,10 @@ package {
         }
         if (auto pres = uc in gUniCache)
             return *pres;
+        //SDL is not very accurate here and returns unicode even for control
+        //  keys like ESC
+        if (!tunicode.isPrintable(uc))
+            return null;
         char[] res;
         str.encode(res, uc);
         gUniCache[uc] = res;

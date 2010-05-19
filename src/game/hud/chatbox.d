@@ -37,6 +37,12 @@ class Chatbox : GuiConsole {
             }
             return super.handleKeyPress(infos);
         }
+
+        override protected void execute() {
+            //don't execute empty line
+            if (text.length > 0)
+                super.execute();
+        }
     }
 
     this(CommandLine cmdline = null) {

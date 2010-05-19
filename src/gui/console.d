@@ -54,12 +54,16 @@ class ConsoleEditLine : EditLine {
         } else if (infos.code == Keycode.PAGEDOWN) {
             mLogWindow.scrollBack(-1);
         } else if (infos.code == Keycode.RETURN) {
-            mCmdline.execute(text);
+            execute();
             text = null;
         } else {
             return super.handleKeyPress(infos);
         }
         return true;
+    }
+
+    protected void execute() {
+        mCmdline.execute(text);
     }
 }
 

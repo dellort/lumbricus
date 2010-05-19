@@ -4,6 +4,7 @@
 * großes, langfristiges Feature,
 *** völlig unmöglich,
 [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
+$ sollte behoben sein / works for me (muss getestet werden)
 
 == Sonstiges/Minor ==
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
@@ -12,22 +13,24 @@
 ! capture-zustand vom mousescroller kommt immer durcheinander, z.b. im spiel während maus gefangen ist, konsole öffnen und game_res starten => ärgs; ausserdem: hilfefenster ("h") und mouse scroller wollen beide capture => was tun? (wenn halt GameFrame.simulate() nicht jeden frame den mouse scroll modus setzen würde...)
 
 == bekannte, lösbare Bugs ==
-- wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
+$ wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 - Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
 - Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
   Würmern erlauben, das Wasser wieder zu verlassen (und Zustand korrigieren)
-- Bohrer/Lötlampe stoßen Würmer nicht weg
+[- Bohrer/Lötlampe stoßen Würmer nicht weg]
     notdürftig implementiert, muss verbessert werden (mehr impuls, weniger schaden?)
-- Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
-- wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt (lösung: z.B. könnte die spiellogik pollen, wann Sequence.weapon_fire_oneshot zurückgesetzt wird)
+$ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
+$ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt (lösung: z.B. könnte die spiellogik pollen, wann Sequence.weapon_fire_oneshot zurückgesetzt wird)
+  (works for me; verzögerung am ende könnte etwas größer sein)
 - feuer animation kann verfrüht durch selektion anderer waffe abgebrochen werden (z.B. axt)
 - axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchron
-- superrope: seil fängt in er mitte des wurmes an => passt nicht zur wurm-graphik
+- superrope-feueranimation: seil fängt in er mitte des wurmes an => passt nicht zur wurm-graphik;
+  außerdem falsche waffenanimation (haken ist noch in der waffe beim feuern)
 - minen nicht korrekt rotiert bei levelstart: einfach in Sprite.activate() die rotation prüfen und explizit setzen
+- Konsolen-Katastrophe entfernen (es gibt jetzt 3 Konsolen die alle was anderes machen)
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
-- MiniD integrieren
 - gui muss beim laden von savegames wiederhergestellt werden (spiele-einstellungsdialog)
 - Projektil fliegt durch wenige Pixel dicke Landschaft, wenn der Wurm beim Feuern direkt davorsteht
 ! napalm ist sehr langsam, minenagriff nicht => ?
@@ -50,17 +53,14 @@
 + Waffenset-Editor (mit Kisten-Waffen)
 + Singleplayer-Spiel-Dialog erweitern (Optionen, mehr Team-Einstellungen, Templates laden/speichern)
 [+ Netzwerk-Server-erstell GUI (ähnlich Singleplayer, evtl. verbinden mit s.o.)]
-+ Optionsmenü (Sprache, Video, Sound etc.)
+[+ Optionsmenü (Sprache, Video, Sound etc.)]
 + Locale-Tool ("missing id" finden, Locales vergleichen, aktuelle Locale neu laden)
-+ Waffenfenster wegmachen wenns nicht gebraucht wird (insb. in Höhlenlevels lästig)
-  wie denn?
 + im-spiel-dialog, der folgende aktionen anbietet: pause, spiel verlassen, speichern, demo aufnahmen, key bindings verändern, obiges optionsmenü
 
 
 == Spiellogik/Gameengine ==
 * physik: box stacking
   (zusätzliche ideen: bewegende platformen, jump pads, wurmlöcher)
-[- kein Force objekt für explosionen erzeugen]
 - statt aktive Teams aktive TeamMembers
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
 + Mehr Powerup-Kisten (Niedrige Schwerkraft etc.)
@@ -73,8 +73,7 @@
 - mehrere partikel-emitter an verschiedenen stellen erlauben (am besten in Sequence einbauen), statt ein emitter, der in der mitte des objekts emitiert
 + Partikel-Modifikations-Effekte (Explosion, Schwarzes Loch) in Spiel-Engine integrieren
 + Feuer-, Nachlade-, Wegsteckanimationen (kann evtl. in worm.d gehackt werden, statt sequence)
-* sounds
-* "stub" gpl daten (strichmännchen)
++ Mehr "stub" gpl daten (Fragezeichen ersetzen, z.B. Dummy-Projektile die von der Engine gedreht werden)
 *** gpl daten (vollständig)
 + Kamera:
     - grundzustand: den aktiven, kontrollierten wurm fokusieren (kermacode durchsucht team-liste)
