@@ -611,18 +611,26 @@ class GameEngine : GameCore {
 
         assert(damage != 0f && !ieee.isNaN(damage));
 
+        //influence radius
         float radius = damage * cDamageToRadius;
         float impulse = damage * cDamageToImpulse;
         Vector2f v = (pos-o.pos);
-        float dist = v.length - o.posp.radius;
+        //distance from center of explosion to center of object
+        float dist = v.length;
 
-        float r = max(radius-dist, 0f)/radius;
-        if (r < float.epsilon)
+        //maximum damage when explosion center is inside or directly touching
+        //  the object, linear to 0 at a distance of radius
+        float hitPercent = clampRangeC((radius - dist + o.posp.radius)/radius,
+            0f, 1f);
+        //out of influence area
+        if (hitPercent < float.epsilon)
             return;
-        o.applyDamage(r*damage, DamageCause.explosion, cause);
+        o.applyDamage(hitPercent * damage, DamageCause.explosion, cause);
 
+        //nan-check for v.normal()
         if (dist > cDistDelta) {
-            o.addImpulse(-v.normal()*impulse*r*o.posp.explosionInfluence);
+            o.addImpulse(-v.normal() * impulse * hitPercent
+                * o.posp.explosionInfluence);
         } else {
             //unglue objects at center of explosion
             o.doUnglue();
