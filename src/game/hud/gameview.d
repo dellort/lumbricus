@@ -444,8 +444,15 @@ class GameView : Widget {
         float mZoomChange = 1.0f, mCurZoom = 1.0f;
 
         //key state for LEFT/RIGHT and UP/DOWN
-        Vector2i dirKeyState_lu = {0, 0};  //left/up
-        Vector2i dirKeyState_rd = {0, 0};  //right/down
+        struct MoveStateXY {
+            Vector2i keyState_lu;  //left/up
+            Vector2i keyState_rd;  //right/down
+            Vector2i direction() {
+                return keyState_rd - keyState_lu;
+            }
+        }
+        MoveStateXY mWormMovement;
+        MoveStateXY mCameraMovement;
 
         //key binding identifier to game engine command (wormbinds map_commands)
         char[][char[]] mKeybindToCommand;
@@ -578,6 +585,8 @@ class GameView : Widget {
         mCmds.register(Command("cameradisable", &cmdCameraDisable,
             "disable game camera", ["bool?:disable"]));
         mCmds.register(Command("move", &cmdMove, "-", ["text:key",
+            "bool:down"]));
+        mCmds.register(Command("move_camera", &cmdMoveCamera, "-", ["text:key",
             "bool:down"]));
         //xxx these should be in gameframe.d
         mCmds.register(Command("keybindings_help", &cmdShowKeybinds, "-", []));
@@ -750,27 +759,28 @@ class GameView : Widget {
         return table;
     }
 
-    private Vector2i handleDirKey(char[] key, bool up) {
-        int v = up ? 0 : 1;
+    private Vector2i handleDirKey(ref MoveStateXY mv, char[] key, bool down) {
+        int v = down ? 1 : 0;
         switch (key) {
             case "left":
-                dirKeyState_lu.x = v;
+                mv.keyState_lu.x = v;
                 break;
             case "right":
-                dirKeyState_rd.x = v;
+                mv.keyState_rd.x = v;
                 break;
             case "up":
-                dirKeyState_lu.y = v;
+                mv.keyState_lu.y = v;
                 break;
             case "down":
-                dirKeyState_rd.y = v;
+                mv.keyState_rd.y = v;
                 break;
             default:
                 //xxx reset on invalid key; is this kosher?
-                return Vector2i(0);
+                mv.keyState_rd = Vector2i(0);
+                mv.keyState_lu = Vector2i(0);
         }
 
-        return dirKeyState_rd-dirKeyState_lu;
+        return mv.direction();
     }
 
     private void cmdMove(MyBox[] args, Output write) {
@@ -781,8 +791,15 @@ class GameView : Widget {
         //binding stuff and are incompatible
         //can't do this in GameControl, because handling the dirKeyState in
         //presence of snapshotting etc. would be nasty
-        auto movement = handleDirKey(key, !isDown);
+        auto movement = handleDirKey(mWormMovement, key, isDown);
         executeServerCommand(myformat("move {} {}", movement.x, movement.y));
+    }
+
+    private void cmdMoveCamera(MyBox[] args, Output write) {
+        char[] key = args[0].unbox!(char[]);
+        bool isDown = args[1].unbox!(bool);
+        auto movement = handleDirKey(mCameraMovement, key, isDown);
+        mCamera.setAutoScroll(movement);
     }
 
     Camera camera() {

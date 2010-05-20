@@ -209,6 +209,10 @@ class ScrollArea : SimpleContainer {
     }
 
     public void scrollDeltaSmooth(Vector2i d) {
+        scrollDeltaSmooth(toVector2f(d));
+    }
+
+    public void scrollDeltaSmooth(Vector2f d) {
         if (!mEnableSmoothScrolling) {
             mEnableSmoothScrolling = true;
             mScrollDest = toVector2f(offset);
@@ -216,7 +220,7 @@ class ScrollArea : SimpleContainer {
             //xxx: what exactly is the GUIs timesource?
             mTimeLast = timeCurrentTime.msecs();
         }
-        mScrollDest = clipOffset(mScrollDest - toVector2f(d));
+        mScrollDest = clipOffset(mScrollDest - d);
     }
 
     override protected void simulate() {

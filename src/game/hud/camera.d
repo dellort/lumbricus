@@ -27,6 +27,7 @@ class Camera {
     private bool mCameraFollowLock;
     private TimeSource mTime;
     private Time mLastScrollOur, mLastScrollExtern;
+    private Vector2i mAutoScroll;
 
     //if the scene was scrolled by the mouse, scroll back to the camera focus
     //after this time
@@ -49,11 +50,22 @@ class Camera {
             control.noticeAction();
     }
 
+    void setAutoScroll(Vector2i dir) {
+        mAutoScroll = dir;
+    }
+
     public void doFrame() {
         if (!control)
             return;
 
         mTime.update();
+
+        if (mAutoScroll.x || mAutoScroll.y) {
+            control.noticeAction();
+            const float speed = 3000f; //pixels/sec
+            control.scrollDeltaSmooth(toVector2f(mAutoScroll) * speed
+                * mTime.difference.secsf);
+        }
 
         auto ctime = control.lastMouseScroll();
 

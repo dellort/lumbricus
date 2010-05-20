@@ -24,6 +24,7 @@ Version status for tools and libraries:
     D compiler:
         You need one of those...
         dmd: 1.057 and following should work
+             1.061 doesn't work (dmd bug 4210)
         ldc: newest version may work, though there are often regressions
         gdc: forget it (maybe one day...)
     Tango (alternative D standard library):

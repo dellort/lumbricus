@@ -30,4 +30,4 @@ nasm -o bin-header.tmp -f bin header.tmp
 
 cat bin-header.tmp >> $TARGET
 
-#rm -f bin-header.tmp header.tmp
+rm -f bin-header.tmp header.tmp
