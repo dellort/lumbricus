@@ -67,6 +67,7 @@
 		<Unit filename="..\src\common\common.d" />
 		<Unit filename="..\src\common\init.d" />
 		<Unit filename="..\src\common\localeswitch.d" />
+		<Unit filename="..\src\common\lua.d" />
 		<Unit filename="..\src\common\resfileformats.d" />
 		<Unit filename="..\src\common\resources.d" />
 		<Unit filename="..\src\common\resset.d" />
@@ -208,6 +209,7 @@
 		<Unit filename="..\src\game\weapon\spawn.d" />
 		<Unit filename="..\src\game\weapon\types.d" />
 		<Unit filename="..\src\game\weapon\weapon.d" />
+		<Unit filename="..\src\game\weapon\weaponset.d" />
 		<Unit filename="..\src\game\worm.d" />
 		<Unit filename="..\src\game\wtris.d" />
 		<Unit filename="..\src\gui\boxcontainer.d" />
@@ -223,6 +225,7 @@
 		<Unit filename="..\src\gui\loader.d" />
 		<Unit filename="..\src\gui\logwindow.d" />
 		<Unit filename="..\src\gui\lua.d" />
+		<Unit filename="..\src\gui\menu.d" />
 		<Unit filename="..\src\gui\mousescroller.d" />
 		<Unit filename="..\src\gui\progress.d" />
 		<Unit filename="..\src\gui\propedit.d" />
@@ -250,6 +253,7 @@
 		<Unit filename="..\src\net\lobby.d" />
 		<Unit filename="..\src\net\marshal.d" />
 		<Unit filename="..\src\net\netlayer.d" />
+		<Unit filename="..\src\physics\all.d" />
 		<Unit filename="..\src\physics\base.d" />
 		<Unit filename="..\src\physics\broadphase.d" />
 		<Unit filename="..\src\physics\collide.d" />

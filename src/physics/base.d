@@ -42,11 +42,17 @@ class PhysicBase {
         mWorld = w;
         if (w) {
             addedToWorld();
+        } else {
+            removedFromWorld();
         }
     }
 
     protected void addedToWorld() {
         //override to do something when the object is added to the PhysicWorld
+    }
+
+    protected void removedFromWorld() {
+        //same for remove (kill or doDie are not always called)
     }
 
     void lifeTime(float secs) {
@@ -63,7 +69,7 @@ class PhysicBase {
             onDie();
     }
 
-    void kill() {
+    final void kill() {
         dead = true;
     }
 

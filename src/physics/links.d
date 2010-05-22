@@ -173,6 +173,7 @@ class PhysicFixate : PhysicContactGen {
     private const cTolerance = 0.01f;
 
     this(PhysicObject obj, Vector2f fixate) {
+        argcheck(obj);
         this.obj = obj;
         this.fixate = fixate;
         updatePos();
@@ -188,6 +189,9 @@ class PhysicFixate : PhysicContactGen {
     }
 
     override void process(float deltaT, CollideDelegate contactHandler) {
+        //hack, so it won't generate a contact for a killed object
+        if (!obj.active)
+            return;
         Vector2f dist = (mFixatePos - obj.pos).mulEntries(mFixate);
 
         float distLen = dist.length;

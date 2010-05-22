@@ -104,6 +104,17 @@ class PhysicObject : PhysicBase {
         updateCollision();
     }
 
+    override void removedFromWorld() {
+        super.removedFromWorld();
+        //make sure the constraint is removed, too
+        //xxx because you can't be sure the constraint will actually be removed
+        //    in the same world loop, I added another check
+        //    in PhysicFixate.process()
+        if (mFixateConstraint) {
+            mFixateConstraint.dead = true;
+        }
+    }
+
     private void updateCollision() {
         collision = mPosp.collisionID;
         //yyy shitty legacy hack, remove later
@@ -162,6 +173,7 @@ class PhysicObject : PhysicBase {
     //    or introduce use mAccelerationAccum, or whatever
     //    contact resolver still needs acceleration for some reason (bug?)
     final Vector2f fullAcceleration() {
+        assert(!!world);
         return acceleration + (mPosp.zeroGrav ? Vector2f(0) : world.gravity);
     }
 

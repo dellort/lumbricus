@@ -93,6 +93,7 @@ struct Contact {
     //resolve separating velocity, calculating the post-collide velocities
     //of both objects involved
     private void resolveVel(float deltaT) {
+        assert(obj[0] !is null);
         float vSep = calcSepVel();
         if (vSep >= 0)
             //not moving, or moving apart (for whatever reason, dunno if ever)
@@ -223,14 +224,21 @@ struct Contact {
                 //we don't know a safe position, so pull it out
                 //  along the velocity vector
                 normal = -o.velocity.normal;
-                //assert(!ncont.normal.isNaN);
+                assert(!normal.isNaN);
                 depth = o.posp.radius*2;
             } else {
                 //we know a safe position, so pull it back there
                 Vector2f d = o.lastPos - o.pos;
-                normal = d.normal;
-                //assert(!ncont.normal.isNaN);
-                depth = d.length;
+                if (d.quad_length > float.epsilon) {
+                    normal = d.normal;
+                    assert(!normal.isNaN);
+                    depth = d.length;
+                } else {
+                    //maybe the landscape "appeared" at the object position
+                    //-> default to upwards pullout
+                    normal = Vector2f(0, -1);
+                    depth = o.posp.radius*2;  //step-by-step
+                }
             }
         } else if (ch == ContactHandling.pushBack) {
             //back along velocity vector

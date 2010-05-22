@@ -52,6 +52,15 @@ package {
     }
 }
 
+private struct Options {
+    //empty value means use OS default
+    char[] window_pos = "center";
+    //for SDL_GL_SetAttribute (cannot be set by pure OpenGL)
+    //xxx setting to true introduces huge input lag and weird "stuttering"
+    //    for me (Windows)
+    bool gl_vsync = false;
+}
+
 class SDLDriver : FrameworkDriver {
     private {
         VideoWindowState mCurVideoState;
@@ -74,18 +83,17 @@ class SDLDriver : FrameworkDriver {
     }
 
     this() {
-        //default (empty) means use OS default
-        char[] wndPos = getSetting!(char[])(cDrvName ~ ".window_pos");
+        Options opts = getSettingsStruct!(Options)(cDrvName);
 
         //those environment vars cause trouble for me under Linux/IceWM
         //maybe there's a reason these are not official features
         version(Windows) {
-            if (wndPos == "center") {
+            if (opts.window_pos == "center") {
                 Environment.set("SDL_VIDEO_CENTERED", "center");
             } else {
                 try {
                     //empty (or invalid) value will throw and not set the var
-                    Vector2i pos = fromStr!(Vector2i)(wndPos);
+                    Vector2i pos = fromStr!(Vector2i)(opts.window_pos);
                     Environment.set("SDL_VIDEO_WINDOW_POS", myformat("{},{}",
                         pos.x, pos.y));
                 } catch (ConversionException e) {
@@ -102,6 +110,8 @@ class SDLDriver : FrameworkDriver {
             throw new FrameworkException(myformat(
                 "Could not init SDL video: {}", fromStringz(SDL_GetError())));
         }
+
+        SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, opts.gl_vsync);
 
         //when called before first SetVideoMode, this returns the desktop res
         auto vi = SDL_GetVideoInfo();
@@ -507,9 +517,9 @@ class SDLDriver : FrameworkDriver {
 
         return desc;
     }
-}
 
-static this() {
-    registerFrameworkDriver!(SDLDriver)(cDrvName);
-    addSetting!(char[])(cDrvName ~ ".window_pos", "center");
+    static this() {
+        registerFrameworkDriver!(typeof(this))(cDrvName);
+        addSettingsStruct!(Options)(cDrvName);
+    }
 }
