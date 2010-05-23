@@ -14,12 +14,14 @@ public enum Lexel : ubyte {
     SolidSoft = 1, // destroyable ground
     SolidHard = 2, // undestroyable ground
 
+/+
     //bits that are free for use - they can be used to associate additional
     //  "material" properties with a pixel, which are used in the physic code,
     //  when objects collide with the landscape (or whatever)
     //currently, the first (Type_Bit_Min) is used for snow
     Type_Bit_Min = 4,
     Type_Bit_Max = 128,
++/
 
     INVALID = 255,
     Max = 2,       //marker for highest valid value

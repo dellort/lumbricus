@@ -32,9 +32,7 @@ enum DrawMode {
 
 class PainterWidget : Widget {
     private {
-        Lexel[] mLevelData;
-
-        Surface mImage;
+        LandscapeBitmap mLevel;
 
         //can be overridden by config file
         const Color[Lexel.Max+1] cDefLexelToColor = [Color(0.2, 0.2, 1.0),
@@ -43,16 +41,13 @@ class PainterWidget : Widget {
         const cPenChange = 5;
         const cPenColor = Color(1, 0, 0, 0.5);
 
-        Color[Lexel.Max+1] mLexelToColor;
-        Color.RGBA32[Lexel.Max+1] mLexelToRGBA32;
+        Color[Lexel] mLexelToColor;
 
         float mPaintScale;
         Vector2i mFitInto = Vector2i(650, 250);
-        Vector2i mLevelSize = Vector2i(2000, 700);
-        Rect2i mLevelRect;
+        Vector2i mDrawSize;
         Lexel mPaintLexel = Lexel.INVALID;
         int mPenRadius = 30;
-        Lexel[] mScaledLevel;
         Vector2i mMouseLast, mClickPos, mClickPosLevel;
         bool mMouseInside, mMouseDown;
         DrawMode mDrawMode = DrawMode.circle;
@@ -64,17 +59,16 @@ class PainterWidget : Widget {
         }
     }
 
+    //?
+    const Vector2i cLevelSize = Vector2i(2000, 700);
+
     //called when levelData is changed (also by external calls like setData)
     void delegate(PainterWidget sender) onChange;
 
     this() {
         focusable = true;
         setColors(cDefLexelToColor);
-        setData(null, mLevelSize);
-    }
-
-    this(LandscapeBitmap level) {
-        setData(level.levelData.dup, level.size);
+        setData(null, cLevelSize);
     }
 
     override bool greedyFocus() {
@@ -114,7 +108,8 @@ class PainterWidget : Widget {
     }
 
     protected void onDraw(Canvas c) {
-        c.draw(mImage, Vector2i(0, 0));
+        if (auto img = mLevel.previewImage())
+            c.draw(img, Vector2i(0, 0));
         if (mMouseInside) {
             //draw the current pen for visual feedback of what will be drawn
             int r = cast(int)(mPenRadius*mPaintScale);
@@ -212,8 +207,8 @@ class PainterWidget : Widget {
             (s == PMState.up && !mMouseDown))
             return;
         Vector2i levelPos = Vector2i(
-            cast(int)(mLevelSize.x*(cast(float)mousePos.x)/mImage.size.x),
-            cast(int)(mLevelSize.y*(cast(float)mousePos.y)/mImage.size.y));
+            cast(int)(mLevel.size.x*(cast(float)mousePos.x)/mDrawSize.x),
+            cast(int)(mLevel.size.y*(cast(float)mousePos.y)/mDrawSize.y));
 
         if (s == PMState.up) {
             mMouseDown = false;
@@ -245,99 +240,12 @@ class PainterWidget : Widget {
         mMouseLast = levelPos;
     }
 
-    //called with absolute position in final level (0, 0)-mLevelSize
+    //called with absolute position in final level (0, 0)-mLevel.size
     //draw a line from p1 to p2, using mPaintLexel and mPenRadius
     private void doPaint(Vector2i p1, Vector2i p2, bool square = false) {
         assert(mPaintLexel >= 0 && mPaintLexel < 3);
 
-        //just for convenience
-        void drawRect(Vector2i p, int radius,
-            void delegate(int x1, int x2, int y) dg)
-        {
-            for (int y = p.y-radius; y < p.y+radius; y++) {
-                dg(p.x-radius, p.x+radius-1, y);
-            }
-        }
-
-        void drawThickLine(Vector2i p1, Vector2i p2, int radius, Vector2i size,
-            void delegate(int x1, int x2, int y) dg)
-        {
-            if (square)
-                drawRect(p1, radius, dg);
-            else
-                drawing.circle(p1.x, p1.y, radius, dg);
-            if (p1 != p2) {
-                if (square)
-                    drawRect(p2, radius, dg);
-                else
-                    drawing.circle(p2.x, p2.y, radius, dg);
-                Vector2f[4] poly;
-                if (!square) {
-                    Vector2f line_o = toVector2f(p2-p1).orthogonal.normal;
-                    poly[0] = toVector2f(p1)-line_o*radius;
-                    poly[1] = toVector2f(p1)+line_o*radius;
-                    poly[2] = toVector2f(p2)+line_o*radius;
-                    poly[3] = toVector2f(p2)-line_o*radius;
-                } else {
-                    int r = radius;
-                    if (p1.x > p2.x && p1.y > p2.y
-                        || p1.x < p2.x && p1.y < p2.y)
-                    {
-                        poly[0] = toVector2f(p1+Vector2i(r, -r));
-                        poly[1] = toVector2f(p1+Vector2i(-r, r));
-                        poly[2] = toVector2f(p2+Vector2i(-r, r));
-                        poly[3] = toVector2f(p2+Vector2i(r, -r));
-                    } else {
-                        poly[0] = toVector2f(p1+Vector2i(r, r));
-                        poly[1] = toVector2f(p1+Vector2i(-r, -r));
-                        poly[2] = toVector2f(p2+Vector2i(-r, -r));
-                        poly[3] = toVector2f(p2+Vector2i(r, r));
-                    }
-                }
-                drawing.rasterizePolygon(Rect2i(size), poly, dg);
-            }
-        }
-
-        //draw into final level
-        void scanline(int x1, int x2, int y) {
-            if (y < 0 || y >= mLevelSize.y) return;
-            if (x1 < 0) x1 = 0;
-            if (x2 >= mLevelSize.x) x2 = mLevelSize.x-1;
-            if (x2 < x1) return;
-            int ly = y*mLevelSize.x;
-            mLevelData[ly+x1 .. ly+x2+1] = mPaintLexel;
-        }
-        drawThickLine(p1, p2, mPenRadius, mLevelSize, &scanline);
-
-
-        //points scaled to image width
-        Vector2i p1_sc = toVector2i(toVector2f(p1)*mPaintScale);
-        Vector2i p2_sc = toVector2i(toVector2f(p2)*mPaintScale);
-        int r_sc = cast(int)(mPenRadius*mPaintScale);
-
-        //draw into displayed image
-        Color.RGBA32* pixels; uint pitch;
-        mImage.lockPixelsRGBA32(pixels, pitch);
-
-        void scanline2(int x1, int x2, int y) {
-            if (y < 0 || y >= mImage.size.y) return;
-            if (x1 < 0) x1 = 0;
-            if (x2 >= mImage.size.x) x2 = mImage.size.x-1;
-            if (x2 < x1) return;
-            int ly = y*mImage.size.x;
-            //actually, the following line is not necessary
-            mScaledLevel[ly+x1 .. ly+x2+1] = mPaintLexel;
-            Color.RGBA32* dstptr = pixels+pitch*y;
-            dstptr[x1 .. x2+1] = mLexelToRGBA32[mPaintLexel];
-        }
-        drawThickLine(p1_sc, p2_sc, r_sc, mImage.size, &scanline2);
-
-        //update modified area (for opengl)
-        Rect2i mod = Rect2i(p1_sc, p2_sc);
-        mod.normalize();
-        mod.extendBorder(Vector2i(r_sc+1, r_sc+1));
-        mod.fitInsideB(mImage.rect);
-        mImage.unlockPixels(mod);
+        mLevel.drawSegment(null, mPaintLexel, p1, p2, mPenRadius, square);
 
         if (onChange)
             onChange(this);
@@ -346,10 +254,8 @@ class PainterWidget : Widget {
     //fill the whole level with l
     private void fill(Lexel l) {
         assert(l != Lexel.INVALID);
-        mLevelData[] = l;
-        //this should be faster than calling fullUpdate()
-        mScaledLevel[] = l;
-        mImage.fill(mImage.rect, mLexelToColor[l]);
+        Color* pcol = l in mLexelToColor;
+        mLevel.fill(pcol ? *pcol : Color.Black, l);
         if (onChange)
             onChange(this);
     }
@@ -370,72 +276,54 @@ class PainterWidget : Widget {
     //   or loading an existing level)
     //xxx this is quite slow
     void fullUpdate() {
-        assert(mScaledLevel.length == mImage.size.x*mImage.size.y);
-        assert(mLevelData.length == mLevelSize.x*mLevelSize.y);
 
-        //scale down from full size to image size
-        scaleLexels(mLevelData, mScaledLevel, mLevelSize, mImage.size);
-
-        //transfer lexel data to image
-        Color.RGBA32* pixels; uint pitch;
-        mImage.lockPixelsRGBA32(pixels, pitch);
-        for (int y = 0; y < mImage.size.y; y++) {
-            auto dstptr = pixels+pitch*y;
-            int lsrc = y*mImage.size.x;
-            auto w = mImage.size.x;
-            for (int x = 0; x < w; x++) {
-                //auto col = mLexelToRGBA32[mScaledLevel[lsrc+x]];
-                //makes it a bit (x3.5) faster, but isn't worth the fuzz
-                auto col = *(mLexelToRGBA32.ptr + *(mScaledLevel.ptr+lsrc+x));
-                *dstptr = col;
-                dstptr++;
-            }
-        }
-        mImage.unlockPixels(mImage.rect);
     }
 
     override Vector2i layoutSizeRequest() {
-        return mImage.size;
+        return mDrawSize;
     }
 
     Vector2i levelSize() {
-        return mLevelSize;
+        return mLevel.size;
     }
 
     Lexel[] levelData() {
-        return mLevelData;
+        return mLevel.levelData;
     }
 
     //load a level of passed size
     //pass data = null to create a new, empty level
     void setData(Lexel[] data, Vector2i size) {
-        mLevelSize = size;
-        //fit the level into mFitInto, keeping aspect ratio
-        auto drawSize = mLevelSize.fitKeepAR(mFitInto);
-        mPaintScale = cast(float)drawSize.x/mLevelSize.x;
-        if (mImage)
-            mImage.free;
-        mImage = new Surface(drawSize, Transparency.None, Color(0));
-        mLevelRect.p2 = mLevelSize;
-        mScaledLevel = new Lexel[drawSize.x*drawSize.y];
+        mLevel = new LandscapeBitmap(size, true, data);
+        reinit();
+    }
 
-        if (data.length > 0) {
-            mLevelData = data;
-            fullUpdate();
-        } else {
-            mLevelData = new Lexel[size.x*size.y];
-            clear();
-        }
+    void setData(LandscapeBitmap level) {
+        argcheck(level);
+        //data-only copy; otherwise, it would try to keep the level bitmap
+        //  updated as draw commands are issued, which is slower
+        mLevel = level.copy(true);
+        reinit();
+    }
+
+    //mLevel is set; reinit the rest
+    private void reinit() {
+        //fit the level into mFitInto, keeping aspect ratio
+        mDrawSize = mLevel.size.fitKeepAR(mFitInto);
+        mPaintScale = cast(float)mDrawSize.x/mLevel.size.x;
+
+        mLevel.previewDestroy();
+        mLevel.previewInit(mDrawSize, mLexelToColor);
+
         if (onChange)
             onChange(this);
     }
 
+
     void setColors(Color[] cols) {
-        for (int i = 0; i <= Lexel.Max; i++) {
-            if (i < cols.length) {
-                mLexelToColor[i] = cols[i];
-                mLexelToRGBA32[i] = cols[i].toRGBA32();
-            }
+        mLexelToColor = null;
+        foreach (uint idx, Color c; cols) {
+            mLexelToColor[cast(Lexel)idx] = c;
         }
     }
 

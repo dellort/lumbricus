@@ -49,6 +49,11 @@ function Rect2:center()
     return self.p1 + (self.p2-self.p1)/2
 end
 
+function Rect2:isInside(point)
+    return point.x >= self.p1.x and point.y >= self.p1.y
+        and point.x < self.p2.x and point.y < self.p2.y
+end
+
 function Rect2:print()
     print(tostring(self))
 end

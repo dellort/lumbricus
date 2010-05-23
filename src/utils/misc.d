@@ -47,7 +47,7 @@ class Trace {
 }
 
 //marker type for temporary string
-//possibly use cases:
+//possible use cases:
 //- the Lua interface doesn't allocate+copy a new string if TempString instead
 //  of char[] is demarshalled from Lua->D
 //- other functions that copy the string anyway

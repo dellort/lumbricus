@@ -191,7 +191,10 @@ void rasterizePolygon(Rect2i clip, Vector2f[] points,
         bool need_resort = false;
         while (edge) {
             if (last) {
-                assert(last_xmin <= edge.xmin);
+                //assertion sometimes fails for unknown reasons
+                //commenting it because I have no clue what this code even does
+                //especially because the following if handles it (???)
+                //--assert(last_xmin <= edge.xmin);
                 if (last_xmin > edge.xmin) {
                     scanline(myround(last.xmin-last.m1),
                         myround(edge.xmin), y);

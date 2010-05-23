@@ -289,11 +289,15 @@ void main(char[][] args) {
     s.setGlobal("d_global", 123);
     assert(s.getGlobal!(int)("d_global") == 123);
 
+    struct Closure {
+       int test(int a, char[] b) { return a + b.length; }
+    }
+
     s.scriptExec(`
         local cb = ...
         assert(cb(4, "abc") == 7)
         print("cb test ok")
-    `, (int a, char[] b) { return a + b.length; });
+    `, &(new Closure).test);
 
     //GC test - don't try this without version Lua_In_D_Memory
 

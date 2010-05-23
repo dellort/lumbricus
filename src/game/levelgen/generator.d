@@ -1152,7 +1152,7 @@ LandscapeBitmap landscapeRenderPregenerated(LandscapeLexels lexelData,
 
 /// render a fast, ugly preview; just to see the geometry
 /// returns a surface, which shall be freed by the user himself
-Surface landscapeRenderPreview(T)(T land, Vector2i size,
+Surface landscapeRenderPreview(LandscapeGeometry land, Vector2i size,
     Color[Lexel] colors)
 {
     Surface createPixelSurface(Color c) {
@@ -1173,36 +1173,26 @@ Surface landscapeRenderPreview(T)(T land, Vector2i size,
             markers[lex] = nocolor;
     }
 
-
     Vector2f scale = toVector2f(size) / toVector2f(land.size);
-    static if (is(T: LandscapeGeometry)) {
-        auto renderer = new LandscapeBitmap(size);
 
-        //draw background (not drawn when it's not a cave!)
-        //(actually, a FillRect would be enough, but...)
-        renderer.addPolygon([Vector2i(), size.X, size, size.Y],
-            Vector2i(), markers[Lexel.Null], Lexel.Null, false);
+    auto renderer = new LandscapeBitmap(size);
 
-        foreach (LandscapeGeometry.Polygon p; land.polygons) {
-            //scale down the points first
-            auto npts = p.points.dup;
-            foreach (inout Vector2i point; npts) {
-                point = toVector2i(toVector2f(point).mulEntries(scale));
-            }
-            auto color = (p.marker <= Lexel.Max) ? markers[p.marker] : nocolor;
-            if (p.visible) {
-                renderer.addPolygon(npts, Vector2i(0, 0),
-                    color, p.marker, p.changeable, p.nochange);
-            }
+    //draw background (not drawn when it's not a cave!)
+    //(actually, a FillRect would be enough, but...)
+    renderer.addPolygon([Vector2i(), size.X, size, size.Y],
+        Vector2i(), markers[Lexel.Null], Lexel.Null, false);
+
+    foreach (LandscapeGeometry.Polygon p; land.polygons) {
+        //scale down the points first
+        auto npts = p.points.dup;
+        foreach (inout Vector2i point; npts) {
+            point = toVector2i(toVector2f(point).mulEntries(scale));
         }
-    } else static if (is(T: LandscapeLexels)) {
-        //scale down to preview size
-        Lexel[] data = scaleLexels(land.levelData, land.size, size);
-
-        auto renderer = new LandscapeBitmap(size, false, data);
-        renderer.texturizeData(markers, null);
-    } else {
-        static assert(false);
+        auto color = (p.marker <= Lexel.Max) ? markers[p.marker] : nocolor;
+        if (p.visible) {
+            renderer.addPolygon(npts, Vector2i(0, 0),
+                color, p.marker, false, /+p.changeable,+/ p.nochange);
+        }
     }
 
     foreach (bitmap; markers) {
@@ -1215,44 +1205,14 @@ Surface landscapeRenderPreview(T)(T land, Vector2i size,
     return s;
 }
 
-void scaleLexels(Lexel[] dataIn, Lexel[] dataOut,
-    Vector2i orgSize, Vector2i newSize)
+Surface landscapeRenderPreview(LandscapeLexels land, Vector2i size,
+    Color[Lexel] colors)
 {
-    assert(dataOut.length == newSize.x*newSize.y);
-    assert(dataIn.length == orgSize.x*orgSize.y);
-    assert(newSize.x <= orgSize.x && newSize.y <= orgSize.y,
-        "Can only scale down");
-
-    //scale down from full size to image size
-    Vector2f scale = Vector2f((cast(float)newSize.x)/orgSize.x,
-        (cast(float)newSize.y)/orgSize.y);
-    //precalc scaled x values (speed ~*2)
-    int[] pxt = new int[orgSize.x];
-    for (int x = 0; x < orgSize.x; x++) {
-        pxt[x] = cast(int)(x*scale.x);
-    }
-    Lexel* inPtr = dataIn.ptr, outPtr, outPtrL;
-    for (int y = 0; y < orgSize.y; y++) {
-        int py = cast(int)(y*scale.y)*newSize.x;
-        outPtrL = dataOut.ptr+py;
-        for (int x = 0; x < orgSize.x; x++) {
-            //this is the most stupid scaling algorithm:
-            //if a pixel is set anywhere in the source area, the dest
-            //pixel is set, using the highest lexel found
-            outPtr = outPtrL+*(pxt.ptr+x);
-            *outPtr = max(*outPtr, *inPtr);
-            inPtr++;
-        }
-    }
-}
-
-Lexel[] scaleLexels(Lexel[] data, Vector2i orgSize, Vector2i newSize) {
-    if (newSize == orgSize)
-        return data;
-    Lexel[] ret;
-    ret.length = newSize.x*newSize.y;
-    scaleLexels(data, ret, orgSize, newSize);
-    return ret;
+    auto renderer = new LandscapeBitmap(land.size, true, land.levelData);
+    renderer.previewInit(size, colors);
+    Surface x = renderer.previewImage();
+    renderer.previewDestroy(true);
+    return x;
 }
 
 /// render only the Landscape data, no image

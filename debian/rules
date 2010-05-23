@@ -16,6 +16,14 @@ install: build
 	dh_prep
 	dh_install --exclude=.svn
 
+#ldc build command:
+#with old-derelict containing all derelict includes
+#./minibuild.py -fr -c ldc -I ../old-derelict/ lumbricus.d
+#the debian ldc packages still have the following problems:
+#- zip support got removed, zlib support is broken (no idea why they did this)
+#- tango is compiled without -release => dog slow
+#- ldc.conf doesn't include -L-ltango-user-ldc
+
 build:
 	dh_testdir
 	cd src && ./minibuild.py lumbricus.d && ./minibuild.py extractdata.d

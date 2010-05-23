@@ -31,7 +31,8 @@ static this() {
 
     gScripting.properties_ro!(GameLandscape, "landscape", "rect");
 
-    gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder", "size");
+    gScripting.methods!(LandscapeBitmap, "addPolygon", "drawBorder",
+        "drawSegment", "drawCircle", "drawRect", "size");
 
     gScripting.methods!(ResourceSet, "addResource", "getDynamic",
         "findAllDynamic");

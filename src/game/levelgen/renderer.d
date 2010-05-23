@@ -30,27 +30,39 @@ const int cBlastBorder = 4;
 const int cTileSize = 256;
 
 class LandscapeBitmap {
-    private Vector2i mSize;
-    private bool mDataOnly;
-    private Lexel[] mLevelData;
-    private static LogStruct!("levelrenderer") mLog;
+    private {
+        Vector2i mSize;
+        bool mDataOnly;
+        //indexed mLevelData[y*mSize.x + x]
+        Lexel[] mLevelData;
+        static LogStruct!("levelrenderer") mLog;
 
-    static assert(Lexel.sizeof == 1);
+        static assert(Lexel.sizeof == 1);
 
-    //blastHole: Distance from explosion outer circle to inner (free) circle
-    private const int cBlastCenterDist = 25;
+        //blastHole: Distance from explosion outer circle to inner (free) circle
+        const int cBlastCenterDist = 25;
 
-    private int[][] mCircles; //getCircle()
+        int[][] mCircles; //getCircle()
 
-    //indexed mTiles[ty*mTilesX + tx]
-    //the tiles are sorted by position
-    //all tiles have the same size, except possibly the bottom/right tiles
-    private Tile[] mTiles;
-    //number of tiles
-    private int mTilesX, mTilesY;
+        //indexed mTiles[ty*mTilesX + tx]
+        //the tiles are sorted by position
+        //all tiles have the same size, except possibly the bottom/right tiles
+        Tile[] mTiles;
+        //number of tiles
+        int mTilesX, mTilesY;
 
-    //temporary and for debugging
-    private PixelAccess mAccess;
+        //temporary and for debugging
+        PixelAccess mAccess;
+
+        //downscaled image of the level for previewing, with solid colors
+        //this is updated with mLevelData and the level image tiles
+        //is null as long as previewing wasn't enabled with previewInit()
+        Surface mPreviewImage;
+        Vector2f mPreviewScale;
+        int[] mPreviewScaleX;
+        //user defined color mapping
+        Color.RGBA32[Lexel.Max+1] mPreviewColors;
+    }
 
     private struct Tile {
         Vector2i pos, size; //absolute pixel position and surface.size
@@ -83,10 +95,10 @@ class LandscapeBitmap {
 
         void set(Surface s, Color fallback = Color(0,0,0,0)) {
             mSurface = s;
-            if (s !is null) {
-                s.lockPixelsRGBA32(data, pitch);
+            if (s) {
                 w = s.size.x;
                 h = s.size.y;
+                lock();
             } else {
                 //simulate an image consisting of a single transparent pixel
                 mPixel = fallback.toRGBA32();
@@ -96,8 +108,13 @@ class LandscapeBitmap {
             }
         }
 
+        void lock() {
+            if (mSurface)
+                mSurface.lockPixelsRGBA32(data, pitch);
+        }
+
         void release() {
-            if (mSurface !is null)
+            if (mSurface)
                 mSurface.unlockPixels(Rect2i.init);
         }
     }
@@ -251,6 +268,10 @@ class LandscapeBitmap {
         }
 
         ~this() {
+            //Warning: this is called even when an failed assert (or any
+            //  Exception) unwinds the stack; as a consequence, the following
+            //  asserts may hide and throw away the original Exception
+            //  cf. dmd bug 4223
             assert(_was_released, "done() not called");
             assert(mAccess is this);
             mAccess = null;
@@ -262,16 +283,17 @@ class LandscapeBitmap {
     //create an empty Landscape of passed size
     //  dataOnly: false will also generate a textured Landscape bitmap,
     //            true only creates a Lexel[] (this.image will return null)
-    //  data: set to copy Lexel data, null to start empty (not copied)
+    //  data: set to use Lexel data, null to start empty
+    //data is never copied; xxx change that and use BigArray for store, or so
     this(Vector2i a_size, bool dataOnly = false, Lexel[] data = null) {
-        assert(a_size.x >= 0 && a_size.y >= 0);
+        argcheck(a_size.x >= 0 && a_size.y >= 0);
         mSize = a_size;
         mDataOnly = dataOnly;
         if (data.length > 0)
             mLevelData = data;
         else
             mLevelData.length = mSize.x*mSize.y;
-        assert(mLevelData.length == mSize.x*mSize.y);
+        argcheck(mLevelData.length == mSize.x*mSize.y);
 
         if (mDataOnly)
             return;
@@ -327,7 +349,7 @@ class LandscapeBitmap {
         pixels.done();
     }
 
-    //just an empty ctor for internal use
+    //just an empty ctor for copy()
     private this() {
     }
 
@@ -337,6 +359,7 @@ class LandscapeBitmap {
         }
         mTiles = null;
         delete mLevelData;
+        previewDestroy();
     }
 
     //return a full, untiled surface for the level bitmap
@@ -353,14 +376,19 @@ class LandscapeBitmap {
     LandscapeBitmap copy(bool dataOnly = false) {
         auto ret = new LandscapeBitmap();
         ret.mSize = mSize;
-        ret.mLevelData = dataOnly ? null : mLevelData.dup;
-        ret.mDataOnly = mDataOnly;
-        ret.mTilesX = mTilesX;
-        ret.mTilesY = mTilesY;
-        ret.mTiles = mTiles.dup;
-        foreach (ref Tile t; ret.mTiles) {
-            t.surface = t.surface.clone;
+        ret.mLevelData = mLevelData.dup;
+        if (dataOnly) {
+            ret.mDataOnly = true;
+        } else {
+            ret.mDataOnly = mDataOnly;
+            ret.mTilesX = mTilesX;
+            ret.mTilesY = mTilesY;
+            ret.mTiles = mTiles.dup;
+            foreach (ref Tile t; ret.mTiles) {
+                t.surface = t.surface.clone;
+            }
         }
+        //don't copy preview stuff
         return ret;
     }
 
@@ -383,6 +411,175 @@ class LandscapeBitmap {
         foreach (ref Tile t; mTiles) {
             t.surface.preload();
         }
+    }
+
+    //create a preview image
+    //it can be queried with .previewImage(), which is kept up-to-date
+    void previewInit(Vector2i s, Color[Lexel] lexel2color) {
+        argcheck(!mPreviewImage, "preview image already exists");
+        argcheck(s.x <= mSize.x && s.y <= mSize.y, "Can only scale down");
+        argcheck(s.x >= 0 && s.y >= 0);
+
+        //scale down from full size to image size
+        mPreviewScale = Vector2f((cast(float)s.x)/mSize.x,
+            (cast(float)s.y)/mSize.y);
+        assert(mPreviewScale.x >= 0 && mPreviewScale.y >= 0);
+        //precalc scaled x values (speed ~*2)
+        mPreviewScaleX = new int[s.x];
+        for (int x = 0; x < s.x; x++) {
+            mPreviewScaleX[x] = min(cast(int)(x/mPreviewScale.x), mSize.x);
+        }
+
+        //xxx init with default values, if not in lexel2color?
+        foreach (Lexel l, Color c; lexel2color) {
+            if (l >= mPreviewColors.length)
+                continue;
+            mPreviewColors[l] = c.toRGBA32();
+        }
+
+        mPreviewImage = new Surface(s, Transparency.Colorkey);
+
+        previewUpdate(Rect2i(mSize));
+    }
+
+    //release the preview image, so subsequent drawing commands won't slow
+    //  down everything due to preview image updating
+    //disown: if true, don't free the image; the caller can keep using it
+    //        (use with care)
+    void previewDestroy(bool disown = false) {
+        if (!mPreviewImage)
+            return;
+        if (!disown)
+            mPreviewImage.free();
+        mPreviewImage = null;
+    }
+
+    //return preview image; ownership still belongs to LandscapeBitmap;
+    //  especially it will be updated as draw methods are executed on the
+    //  landscape, and it will be free'd by previewDestroy()
+    //this can be null; call previewInit() to create it
+    Surface previewImage() {
+        return mPreviewImage;
+    }
+
+    //this should be called as mLevelData is updated
+    //  exceptions: .fill(), constructors
+    private void previewUpdate(Rect2i rc) {
+        if (!mPreviewImage || rc.p2.x <= rc.p1.x || rc.p2.y <= rc.p1.y)
+            return;
+
+        rc.fitInsideB(Rect2i(mSize));
+
+        //scale down
+        Rect2i s_rc = void;
+        s_rc.p1 = toVector2i(toVector2f(rc.p1) ^ mPreviewScale);
+        s_rc.p2 = toVector2i(toVector2f(rc.p2) ^ mPreviewScale);
+        s_rc.fitInsideB(mPreviewImage.rect());
+
+        Color.RGBA32* data;
+        uint pitch;
+        mPreviewImage.lockPixelsRGBA32(data, pitch);
+
+        for (int y = s_rc.p1.y; y < s_rc.p2.y; y++) {
+            int py = cast(int)(y/mPreviewScale.y); //unscaled y
+            assert(py >= 0 && py < mSize.y);
+            Lexel* inPtr = &mLevelData[py*mSize.x];
+            Color.RGBA32* outPtr = data + y*pitch + s_rc.p1.x;
+            for (int x = s_rc.p1.x; x < s_rc.p2.x; x++) {
+                /+
+                //this is the most stupid scaling algorithm:
+                //if a pixel is set anywhere in the source area, the dest
+                //pixel is set, using the highest lexel found
+                outPtr = outPtrL+*(pxt.ptr+x);
+                *outPtr = max(*outPtr, *inPtr);
+                inPtr++;
+                +/
+                //minimal scaling effort for speed
+                //though the idea above really made it look somewhat better
+                //microoptimization, out-of-bounds lexels (microbloat?)
+                //-- *outPtr = mPreviewColors[inPtr[mPreviewScaleX[x]]];
+                ubyte p = *(inPtr + *(mPreviewScaleX.ptr + x));
+                *outPtr = mPreviewColors[min(p, mPreviewColors.length)];
+                outPtr++;
+            }
+        }
+
+        mPreviewImage.unlockPixels(s_rc);
+    }
+
+
+    //for rasterize()
+    struct RasterCtx {
+        Vector2i texoffs; //can be set by user for surface displacement
+        void delegate(int x1, int x2, int y) scanline;
+    }
+
+    //you can call c.scanline() to rasterize a span
+    //dorasterize() will use l/s for rendering it, and will clip, draw,
+    //  automatically update the dirty rect, and so on
+    //s can be null (intended for data-only renderers)
+    void rasterize(Surface s, Lexel l, void delegate(ref RasterCtx) dg) {
+        Rect2i drc = Rect2i.Abnormal();
+
+        scope pixels = new PixelAccess();
+
+        TexData tex;
+        tex.set(s, Color(0,0,0,1));
+
+        RasterCtx ctx;
+
+        void scanline(int x1, int x2, int y) {
+            //xxx confusion about x2 being inclusive or exclusive
+            //for now, it's exclusive
+
+            //clipping
+            if (y < 0 || y >= mSize.y) return;
+            if (x1 < 0) x1 = 0;
+            if (x2 > mSize.x) x2 = mSize.x;
+            if (x2 < x1) return;
+            //dirty rect
+            if (x1 < drc.p1.x) drc.p1.x = x1;
+            if (x2 > drc.p2.x) drc.p2.x = x2;
+            if (y < drc.p1.y) drc.p1.y = y;
+            if (y+1 > drc.p2.y) drc.p2.y = y+1;
+            //actually draw
+            int ly = y*mSize.x;
+            mLevelData[ly+x1 .. ly+x2] = l;
+            if (!mDataOnly) {
+                uint ty = (y + ctx.texoffs.y) % tex.h;
+                uint x_offs = ctx.texoffs.x;
+                Color.RGBA32* texptr = tex.data + ty*tex.pitch;
+                auto iter = pixels.get_iter(y, x1, x2);
+                while (iter.x < iter.x2) {
+                    auto texel = texptr + (iter.x + x_offs) % tex.w;
+                    *iter.px = *texel;
+                    iter.next_x();
+                }
+            }
+        }
+
+        ctx.scanline = &scanline;
+        dg(ctx);
+
+        tex.release();
+
+        pixels.done(drc);
+
+        previewUpdate(drc);
+    }
+
+    void drawRect(Surface s, Lexel l, Rect2i rc) {
+        rasterize(s, l, (ref RasterCtx c) {
+            for (int y = rc.p1.y; y < rc.p2.y; y++) {
+                c.scanline(rc.p1.x, rc.p2.x, y);
+            }
+        });
+    }
+
+    void drawCircle(Surface s, Lexel l, Vector2i p, int r) {
+        rasterize(s, l, (ref RasterCtx c) {
+            drawing.circle(p.x, p.y, r, c.scanline);
+        });
     }
 
     //steps = number of subdivisions
@@ -426,9 +623,6 @@ class LandscapeBitmap {
         Lexel marker, bool subdiv = false, uint[] nosubdiv = null,
         float subdivStart = 0.25f)
     {
-        //if no image available, just set the mLevelData[]
-        bool textured = !mDataOnly;
-
         VertexList vertices = new VertexList();
 
         uint curindex = 0;
@@ -470,46 +664,10 @@ class LandscapeBitmap {
             counter.start();
         }
 
-
-        if (true) {
-
-            TexData tex;
-
-            scope PixelAccess pixels = new PixelAccess();
-
-            if (textured) {
-                tex.set(texture);
-                tex.offs = texture_offset;
-            }
-
-            void drawScanline(int x1, int x2, int y) {
-                assert(y >= 0 && y < mSize.y);
-                assert(x1 >= 0 && x1 <= mSize.x);
-                assert(x2 >= 0 && x2 <= mSize.x);
-                assert(x1 < x2);
-                if (textured) {
-                    uint ty = (y + tex.offs.y) % tex.h;
-                    Color.RGBA32* texptr = tex.data + ty*tex.pitch;
-                    auto iter = pixels.get_iter(y, x1, x2);
-                    while (iter.x < iter.x2) {
-                        auto texel = texptr + (iter.x + tex.offs.x) % tex.w;
-                        *iter.px = *texel;
-                        iter.next_x();
-                    }
-                }
-                int ly = y*mSize.x;
-                mLevelData[ly+x1..ly+x2] = marker;
-            }
-
-            drawing.rasterizePolygon(Rect2i(mSize), urgs,
-                &drawScanline);
-
-            pixels.done(Rect2i(mSize));
-
-            if (textured) {
-                tex.release();
-            }
-        }
+        rasterize(texture, marker, (ref RasterCtx ctx) {
+            ctx.texoffs = texture_offset;
+            drawing.rasterizePolygon(Rect2i(mSize), urgs, ctx.scanline);
+        });
 
         debug {
             counter.stop();
@@ -523,11 +681,76 @@ class LandscapeBitmap {
         }
     }
 
+    //thick line with rounded caps
+    //no idea what square is
+    void drawSegment(Surface s, Lexel l, Vector2i p1, Vector2i p2, int radius,
+        bool square = false)
+    {
+        rasterize(s, l, (ref RasterCtx ctx) {
+            //just for convenience
+            void drawRect(Vector2i p, int radius) {
+                for (int y = p.y-radius; y < p.y+radius; y++) {
+                    ctx.scanline(p.x-radius, p.x+radius-1, y);
+                }
+            }
+
+            if (square)
+                drawRect(p1, radius);
+            else
+                drawing.circle(p1.x, p1.y, radius, ctx.scanline);
+            if (p1 == p2)
+                return;
+            if (square)
+                drawRect(p2, radius);
+            else
+                drawing.circle(p2.x, p2.y, radius, ctx.scanline);
+            Vector2f[4] poly;
+            if (!square) {
+                Vector2f line_o = toVector2f(p2-p1).orthogonal.normal;
+                poly[0] = toVector2f(p1)-line_o*radius;
+                poly[1] = toVector2f(p1)+line_o*radius;
+                poly[2] = toVector2f(p2)+line_o*radius;
+                poly[3] = toVector2f(p2)-line_o*radius;
+            } else {
+                int r = radius;
+                if (p1.x > p2.x && p1.y > p2.y
+                    || p1.x < p2.x && p1.y < p2.y)
+                {
+                    poly[0] = toVector2f(p1+Vector2i(r, -r));
+                    poly[1] = toVector2f(p1+Vector2i(-r, r));
+                    poly[2] = toVector2f(p2+Vector2i(-r, r));
+                    poly[3] = toVector2f(p2+Vector2i(r, -r));
+                } else {
+                    poly[0] = toVector2f(p1+Vector2i(r, r));
+                    poly[1] = toVector2f(p1+Vector2i(-r, -r));
+                    poly[2] = toVector2f(p2+Vector2i(-r, -r));
+                    poly[3] = toVector2f(p2+Vector2i(r, r));
+                }
+            }
+            drawing.rasterizePolygon(Rect2i(size), poly, ctx.scanline);
+        });
+    }
+
+    //fast clearing
+    void fill(Color c, Lexel l) {
+        mLevelData[] = l;
+        foreach (ref t; mTiles) {
+            t.surface.fill(t.surface.rect, c);
+        }
+        if (mPreviewImage) {
+            mPreviewImage.fill(mPreviewImage.rect, c);
+        }
+    }
+
     //create a level image from the Lexel[] by applying textures
-    //overrides image if already created
+    //overwrites the existing image
     //arrays are indexed by Lexel
     void texturizeData(Surface[] textures, Vector2i[] texOffsets) {
         assert(mLevelData.length == mSize.x*mSize.y);
+
+        //could create the image
+        //right now, this function is only called with the image pre-created
+        argcheck(!mDataOnly);
 
         //prepare textures (one for each marker)
         TexData[Lexel.Max+1] texData;
@@ -572,6 +795,8 @@ class LandscapeBitmap {
         foreach (ref TexData t; texData) {
             t.release();
         }
+
+        previewUpdate(Rect2i(mSize));
     }
 
     //it's a strange design decision to do it _that_ way. sorry for that.
@@ -582,6 +807,8 @@ class LandscapeBitmap {
     void drawBorder(Lexel a, Lexel b, Surface tex_up, Surface tex_down) {
         assert(!mDataOnly, "No border drawing for data-only renderer");
         ubyte[] apline;
+
+        argcheck(!mDataOnly);
 
         scope pixels = new PixelAccess();
 
@@ -746,7 +973,7 @@ class LandscapeBitmap {
     public int blastHole(Vector2i pos, int radius, int blast_border,
         LandscapeTheme theme = null)
     {
-        assert(!mDataOnly, "Not for data-only renderer");
+        argcheck(!mDataOnly, "Not for data-only renderer");
         const ubyte cAllMeta = Lexel.SolidSoft | Lexel.SolidHard;
 
         assert(radius >= 0);
@@ -807,9 +1034,13 @@ class LandscapeBitmap {
         }
 
         Rect2i bb;
-        bb.p1 = pos - Vector2i(blast_radius);
-        bb.p2 = pos + Vector2i(blast_radius);
-        pixels.done(change ? bb : Rect2i.init);
+        if (change) {
+            bb.p1 = pos - Vector2i(blast_radius);
+            bb.p2 = pos + Vector2i(blast_radius);
+        }
+        pixels.done(bb);
+
+        previewUpdate(bb);
 
         return count;
     }
@@ -961,8 +1192,11 @@ class LandscapeBitmap {
             }
         }
 
-        pixels.done(Rect2i(cx1, cy1, cx2, cy2));
+        auto change = Rect2i(cx1, cy1, cx2, cy2);
+        pixels.done(change);
         source.unlockPixels(Rect2i.init);
+
+        previewUpdate(change);
     }
 
     //draw a bitmap, but also modify the level pixels
@@ -971,7 +1205,7 @@ class LandscapeBitmap {
     public void drawBitmap(Vector2i p, Surface source, Vector2i size,
         ubyte meta_mask, ubyte meta_cmp, Lexel after)
     {
-        assert(!mDataOnly, "Not for data-only renderer");
+        argcheck(!mDataOnly, "Not for data-only renderer");
         //ewww what has this become
         doDrawBmp(p.x, p.y, source, size.x, size.y, meta_mask, meta_cmp, after);
     }

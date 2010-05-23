@@ -370,6 +370,33 @@ function E.pickObject(dowhat)
     GameFrame_addHudWidget(w, "gameview")
 end
 
+-- xxx code duplication, but it's crap code anyway *shrug*
+function E.pickPosition(dowhat)
+    assert(dowhat)
+    local w = Gui_ctor()
+    local scene = Scene_ctor()
+    Gui_set_render(w, scene)
+    local circle = SceneDrawCircle_ctor()
+    SceneDrawCircle_set_radius(circle, 10)
+    SceneDrawCircle_set_color(circle, Color(1,0,0))
+    Scene_add(scene, circle)
+    local pos
+    setProperties(w, {
+        OnHandleKeyInput = function(info)
+            if pos and info.isDown and info.code == keycode("mouse_left") then
+                GameFrame_removeHudWidget(w)
+                dowhat(pos)
+            end
+            return true
+        end,
+        OnHandleMouseInput = function(info)
+            pos = info.pos
+            return true
+        end,
+    })
+    GameFrame_addHudWidget(w, "gameview")
+end
+
 function E.pickMakeActive()
     pickObject(function(obj)
         local member = Control_memberFromGameObject(obj)
@@ -465,6 +492,50 @@ function E.guiPickObject(obj)
     else
         show()
     end
+end
+
+-- sillyness
+
+function landscapeFromPos(pos)
+    assert(pos)
+    local lcl = d_find_class("GameLandscape")
+    assert(lcl)
+    local obj = Game_gameObjectFirst()
+    while obj do
+        if d_is_class(obj, lcl) then
+            local rc = GameLandscape_rect(obj)
+            if rc:isInside(pos) then
+                return obj
+            end
+        end
+        obj = Game_gameObjectNext(obj)
+    end
+end
+
+-- waits for the user to click twice
+-- calls fn(pos1, pos2)
+function E.pickTwoPos(fn)
+    pickPosition(function(p)
+        local pos1 = p
+        pickPosition(function(p)
+            local pos2 = p
+            fn(pos1, pos2)
+        end)
+    end)
+end
+
+function E.blurb()
+    pickTwoPos(function(p1, p2)
+        local gls = landscapeFromPos(p1)
+        if not gls then
+            return
+        end
+        local offset = GameLandscape_rect(gls).p1
+        p1 = p1 - offset
+        p2 = p2 - offset
+        local ls = GameLandscape_landscape(gls)
+        LandscapeBitmap_drawSegment(ls, nil, Lexel_soft, p1, p2, 10)
+    end)
 end
 
 -- some test

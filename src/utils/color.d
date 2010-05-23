@@ -55,6 +55,9 @@ public struct Color {
 
     //black transparent pixel
     const Color Transparent = Color(0, 0, 0, 0);
+    //some other common colors (but not too many)
+    const Color Black = Color(0, 0, 0, 1);
+    const Color White = Color(1, 1, 1, 1);
     //"null" value (for default parameters)
     const Color Invalid = Color(float.infinity, float.infinity,
         float.infinity, float.infinity);
