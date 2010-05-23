@@ -534,7 +534,8 @@ function E.blurb()
         p1 = p1 - offset
         p2 = p2 - offset
         local ls = GameLandscape_landscape(gls)
-        LandscapeBitmap_drawSegment(ls, nil, Lexel_soft, p1, p2, 10)
+        local whatever = lookupResource("rope_segment")
+        LandscapeBitmap_drawSegment(ls, whatever, Lexel_soft, p1, p2, 20)
     end)
 end
 

@@ -524,7 +524,7 @@ class LandscapeBitmap {
         scope pixels = new PixelAccess();
 
         TexData tex;
-        tex.set(s, Color(0,0,0,1));
+        tex.set(s);
 
         RasterCtx ctx;
 

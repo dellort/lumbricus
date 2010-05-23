@@ -2205,8 +2205,10 @@ final class GUI {
 
         mRoot.internalSimulate();
 
-        mMouseCursor = mMouseWidget ? mMouseWidget.mouseCursor()
-            : MouseCursor.Standard;
+        mMouseCursor = MouseCursor.Standard;
+        if (mMouseWidget && mMouseWidget.isLinked()) {
+            mMouseCursor = mMouseWidget.mouseCursor();
+        }
 
         gFramework.mouseCursor = mMouseCursor;
     }
