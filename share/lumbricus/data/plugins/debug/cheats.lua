@@ -195,7 +195,7 @@ function E.snowflake(depth, interpolate)
     LandscapeBitmap_drawBorder(ls, Lexel_soft, Lexel_free, border, border)
 end
 
-function E.horror()
+function E.horror(gridToggle)
     if not bouncy_class then
         bouncy_class = createSpriteClass {
             name = "x_bouncy",
@@ -210,13 +210,22 @@ function E.horror()
             sequenceType = "s_bazooka",
         }
     end
+    
+    local function makeRod(obj1, obj2)
+        local c = PhysicObjectsRod_ctor(obj1, obj2)
+        PhysicObjectsRod_set_springConstant(c, 20000)
+        PhysicObjectsRod_set_dampingCoeff(c, 10)
+        World_add(c)
+    end
 
-    if not true then
+    if not gridToggle then
         -- ring
-        local N = 3
+        local N = 10
         local X = {}
         local R = 100
         local S = Vector2(3000, 1000)
+        local center = SpriteClass_createSprite(bouncy_class)
+        Sprite_activate(center, S)
         for n = 1, N do
             local o = SpriteClass_createSprite(bouncy_class)
             local dir = Vector2.FromPolar(1, math.pi*2/N * (n-1))
@@ -226,10 +235,8 @@ function E.horror()
         for n = 1, N do
             local o1 = X[n]
             local o2 = X[(n % #X) + 1]
-            local c = PhysicObjectsRod_ctor(Sprite_physics(o1),
-                Sprite_physics(o2))
-            PhysicObjectsRod_set_springConstant(c, 20000)
-            World_add(c)
+            makeRod(Sprite_physics(o1), Sprite_physics(o2))
+            makeRod(Sprite_physics(o1), Sprite_physics(center))
         end
     else
         -- grid
@@ -251,28 +258,60 @@ function E.horror()
                 local o = Sprite_physics(X[y][x])
                 if x < H then
                     local r = Sprite_physics(X[y][x+1])
-                    local c1 = PhysicObjectsRod_ctor(o, r)
-                    PhysicObjectsRod_set_springConstant(c1, 20000)
-                    World_add(c1)
+                    makeRod(o, r)
                 end
                 if y < H then
                     local b = Sprite_physics(X[y+1][x])
-                    local c2 = PhysicObjectsRod_ctor(o, b)
-                    PhysicObjectsRod_set_springConstant(c2, 20000)
-                    World_add(c2)
+                    makeRod(o, b)
                 end
                 ----[[
                 -- actually adds more stability...
                 if x < H and y < H then
                     local n = Sprite_physics(X[y+1][x+1])
-                    local c3 = PhysicObjectsRod_ctor(o, n)
-                    PhysicObjectsRod_set_springConstant(c3, 20000)
-                    World_add(c3)
+                    makeRod(o, n)
                 end
                 --]]
             end
         end
     end
+end
+
+function E.springTest()
+    if not springobj_class then
+        springobj_class = createSpriteClass {
+            name = "x_springobj",
+            initPhysic = relay {
+                collisionID = "always",
+                radius = 15,
+                mass = 10,
+                elasticity = 0.5,
+                --bounceAbsorb = 0.1,
+                --friction = 0.9,
+            },
+            sequenceType = "s_grenade",
+        }
+    end
+    
+    local pos = Vector2(3000, 1000)
+    local o = SpriteClass_createSprite(springobj_class)
+    Sprite_activate(o, pos + Vector2(0, 200))
+    
+    local line_colors = {Color(1,0,0), Color(1,0,0), Color(1,0,0)}
+    local function line(from, to)
+        RenderLaser_ctor(Game, from, to, time("50ms"), line_colors)
+    end
+    
+    local c = PhysicObjectsRod_ctor2(Sprite_physics(o), pos)
+    PhysicObjectsRod_set_springConstant(c, 100)
+    PhysicObjectsRod_set_dampingCoeff(c, 5)
+    PhysicObjectsRod_set_length(c, PhysicObjectsRod_length(c))
+    World_add(c)
+
+    local timer = Timer.New()
+    timer:setCallback(function()
+        line(pos, Phys_pos(Sprite_physics(o)))
+    end)
+    timer:start(time("50ms"), true)
 end
 
 -- output contents of any object to console

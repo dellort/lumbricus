@@ -105,9 +105,13 @@ class PhysicConstraint : PhysicContactGen {
 //Disclaimer: I know nothing about game physics (hey I didn't read that book)
 class PhysicObjectsRod : PhysicContactGen {
     PhysicObject[2] obj;
+    //fixed anchor point (used if obj[1] is null)
+    Vector2f anchor;
     float length;
     //negative: magic value to default to old behaviour
     float springConstant = -1;
+    //viscous damper
+    float dampingCoeff = 0;
 
     private const cTolerance = 0.01f;
 
@@ -120,8 +124,27 @@ class PhysicObjectsRod : PhysicContactGen {
         length = (obj1.pos - obj2.pos).length;
     }
 
+    //static anchor point
+    this(PhysicObject obj1, Vector2f anchor) {
+        argcheck(obj1);
+        argcheck(!anchor.isNaN());
+        obj[0] = obj1;
+        this.anchor = anchor;
+        length = (obj1.pos - anchor).length;
+    }
+
     override void process(float deltaT, CollideDelegate contactHandler) {
-        auto diff = obj[1].pos - obj[0].pos;
+        if (obj[0].dead || (obj[1] && obj[1].dead)) {
+            kill();
+            return;
+        }
+        Vector2f pos1 = anchor;
+        Vector2f vel1;
+        if (obj[1]) {
+            pos1 = obj[1].pos;
+            vel1 = obj[1].velocity;
+        }
+        auto diff = pos1 - obj[0].pos;
         float currentLen = diff.length;
         float deltaLen = currentLen - length;
 
@@ -133,9 +156,16 @@ class PhysicObjectsRod : PhysicContactGen {
         if (springConstant >= 0) {
             //using forces
 
-            obj[0].addForce(-springConstant * -diffn * deltaLen);
-            obj[1].addForce(-springConstant * diffn * deltaLen);
+            //relative velocity (for damping)
+            float dv = (obj[0].velocity - vel1) * diffn;
 
+            //see http://en.wikipedia.org/wiki/Damping
+            auto springForce = springConstant * diffn * deltaLen
+                - dampingCoeff * diffn * dv;
+            obj[0].addForce(springForce);
+            if (obj[1]) {
+                obj[1].addForce(-springForce);
+            }
         } else {
             //using contacts as it was done in that book
 

@@ -2,6 +2,7 @@ module game.lua.physics;
 
 import game.lua.base;
 import physics.all;
+import utils.vector2;
 
 static this() {
     gScripting.setClassPrefix!(PhysicWorld)("World");
@@ -43,7 +44,9 @@ static this() {
     gScripting.method!(CollisionMap, "find");
 
     gScripting.ctor!(PhysicObjectsRod, PhysicObject, PhysicObject)();
-    gScripting.properties!(PhysicObjectsRod, "springConstant")();
+    gScripting.ctor!(PhysicObjectsRod, PhysicObject, Vector2f)("ctor2");
+    gScripting.properties!(PhysicObjectsRod, "length", "springConstant",
+        "dampingCoeff")();
 
     //oh my
     //NOTE: we could handle classes just like structs and use tupleof on them
