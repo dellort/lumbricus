@@ -7,7 +7,7 @@ public import tango.stdc.stdarg : va_list;
 public import tango.core.Tuple : Tuple;
 import tango.core.Traits : ParameterTupleOf;
 
-//Tango team = stupid
+//Tango team = stupid (defining your own min/max functions will conflict)
 public import tango.math.Math : min, max;
 
 //because printf debugging is common and usefull

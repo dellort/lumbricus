@@ -117,6 +117,11 @@ class LandscapeGeometry : PhysicObject {
         if (ls)
             mBB = Rect2f(pos.x, pos.y, pos.x + ls.size.x, pos.y + ls.size.y);
     }
+
+    override void debug_draw(Canvas c) {
+        super.debug_draw(c);
+        c.drawRect(toRect2i(mBB), Color(0,1,0));
+    }
 }
 
 //only point of this indirection: keep zorder; could "solve" this by making
@@ -193,11 +198,10 @@ class GameLandscape : GameObject {
 
         //add borders, sadly they are invisible right now
         void add_wall(Vector2i from, Vector2i to) {
-            //5 pixels would be ideal for the current border graphic; but it has
-            //  to be larger to look good with the graphics (especially worms
-            //  are "sunken" into the landscape a bit for whatever reason)
+            //worms are "sunken" into the landscape a bit for whatever reason,
+            //  have to take this into account for line width
             Line line;
-            line.defineStartEnd(toVector2f(to), toVector2f(from), 10);
+            line.defineStartEnd(toVector2f(to), toVector2f(from), 5);
             auto wall = new PhysicObjectLine(line);
             wall.isStatic = true;
             engine.physicWorld.add(wall);

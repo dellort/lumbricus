@@ -298,19 +298,11 @@ class Sprite : GameObject {
     override void debug_draw(Canvas c) {
         super.debug_draw(c);
 
+        //just draw a small circle to signal that a sprite is here
+        //the physic object is drawn by the physic engine's debug_draw
+
         auto p = toVector2i(physics.pos);
-
-        c.drawCircle(p, cast(int)physics.posp.radius,
-            physics.isGlued ? Color(0,1,0) : Color(1,0,0));
-
-        auto r = Vector2f.fromPolar(30, physics.rotation);
-        c.drawLine(p, p + toVector2i(r), Color(1,0,0));
-
-        auto n = Vector2f.fromPolar(30, physics.ground_angle);
-        c.drawLine(p, p + toVector2i(n), Color(0,1,0));
-
-        auto l = Vector2f.fromPolar(30, physics.lookey_smooth);
-        c.drawLine(p, p + toVector2i(l), Color(0,0,1));
+        c.drawCircle(p, 3, Color(1,1,1));
     }
 
     char[] toString() {

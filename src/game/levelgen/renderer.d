@@ -1049,7 +1049,7 @@ class LandscapeBitmap {
     //this is (very?) expensive
     //maybe replace it by other methods as used by other worms clones
     // circle = if true check a circle, else a quad, with sides (radius*2+1)^2
-    // dir = not-notmalized diection which points to the outside of the level
+    // dir = not-normalized diection which points to the outside of the level
     // count = number of colliding pixels
     // bits = lexel bits of all collided landscape pixels or'ed together
     public void checkAt(Vector2i pos, int radius, bool circle,

@@ -1,5 +1,7 @@
 module physics.links;
 
+import framework.drawing;
+
 import tango.math.Math: abs;
 import utils.misc;
 import utils.vector2;
@@ -190,6 +192,17 @@ class PhysicObjectsRod : PhysicContactGen {
             contactHandler(c);
         }
     }
+
+    override void debug_draw(Canvas c) {
+        super.debug_draw(c);
+        Vector2f pos0 = obj[0].pos;
+        Vector2f pos1 = anchor;
+        if (obj[1]) {
+            pos1 = obj[1].pos;
+        }
+        //could change color with length error, or so
+        c.drawLine(toVector2i(pos0), toVector2i(pos1), Color(1,0,0));
+    }
 }
 
 class PhysicFixate : PhysicContactGen {
@@ -244,6 +257,14 @@ class PhysicFixate : PhysicContactGen {
         c.restitution = 0;
 
         contactHandler(c);
+    }
+
+    override void debug_draw(Canvas c) {
+        super.debug_draw(c);
+        //just make it visible in some arbitrary way
+        auto p = toVector2i(obj.pos);
+        auto d = Vector2i(10);
+        c.drawRect(Rect2i(p-d, p+d), Color(0,0,1));
     }
 }
 

@@ -1,10 +1,12 @@
 module physics.base;
 
-import utils.list2;
+import framework.drawing;
 
 import physics.collisionmap;
 import physics.misc;
 import physics.world;
+
+import utils.list2;
 
 //if you need to check a normal when there's almost no collision (i.e. when worm
 //  is sitting on ground), add this value to the radius
@@ -85,5 +87,8 @@ class PhysicBase {
                 dead = true;
             }
         }
+    }
+
+    void debug_draw(Canvas c) {
     }
 }

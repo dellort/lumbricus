@@ -10,8 +10,9 @@ public struct Rect2(T) {
     Point p1, p2;
 
     /+
-     +  p1   pA
-     +  pB   p2
+     +  p1 (0)   pA (3)
+     +  pB (1)   p2 (2)
+     +  number in (x) for return value of Rect2.edge(x)
      +/
     Point pA() {
         return Point(p2.x, p1.y);
@@ -52,6 +53,21 @@ public struct Rect2(T) {
         r.p1 = Point(T.max);
         r.p2 = Point(T.min);
         return r;
+    }
+
+    Point opIndex(uint index) {
+        //is that kosher?
+        return ((&p1)[0..2])[index];
+    }
+    void opIndexAssign(Point val, uint index) {
+        ((&p1)[0..2])[index] = val;
+    }
+
+    //get one of edge 0-3
+    // 0 = p1, 1 = pB(), 2 = p2, 3 = pA()
+    //4 wraps around to 0 etc.
+    Point edge(uint i) {
+        return Point((*this)[(i/2) % 2].x, (*this)[((i+1)/2) % 2].y);
     }
 
     //translate rect by the vector r

@@ -1,5 +1,7 @@
 module physics.world;
 
+import framework.drawing;
+
 import tango.math.Math : sqrt, PI;
 import utils.misc;
 import utils.array;
@@ -90,6 +92,13 @@ class PhysicWorld {
             mTriggers.remove(o);
         if (auto o = cast(PhysicContactGen)obj)
             mContactGenerators.remove(o);
+    }
+
+    void debug_draw(Canvas c) {
+        foreach (o; mAllObjects) {
+            if (!o.dead)
+                o.debug_draw(c);
+        }
     }
 
     private const cPhysTimeStepMs = 10;

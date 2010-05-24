@@ -8,6 +8,9 @@ import utils.vector2;
 
 import tango.math.Math: sqrt;
 
+//this may be handy:
+//  http://www.realtimerendering.com/intersections.html
+
 //collision functions for use with the physics engine
 //this simulates multimethods (dispatching on 2 object types, instead of 1 like
 //  in normal OOP languages like D)

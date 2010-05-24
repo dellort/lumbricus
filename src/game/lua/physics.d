@@ -31,6 +31,7 @@ static this() {
     gScripting.method!(PhysicBase, "kill");
 
     gScripting.ctor!(PhysicZoneCircle, PhysicObject, float)();
+    gScripting.ctor!(PhysicZonePlane, Vector2f, Vector2f)();
     gScripting.ctor!(ZoneTrigger, PhysicZone)();
     gScripting.properties!(PhysicTrigger, "inverse", "onTrigger");
     gScripting.property!(ZoneTrigger, "zone");
@@ -46,7 +47,7 @@ static this() {
     gScripting.ctor!(PhysicObjectsRod, PhysicObject, PhysicObject)();
     gScripting.ctor!(PhysicObjectsRod, PhysicObject, Vector2f)("ctor2");
     gScripting.properties!(PhysicObjectsRod, "length", "springConstant",
-        "dampingCoeff")();
+        "dampingCoeff", "anchor")();
 
     //oh my
     //NOTE: we could handle classes just like structs and use tupleof on them

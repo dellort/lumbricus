@@ -3,6 +3,8 @@ module physics.zone;
 ///A "zone" is a region in space, which objects can occupy (or not)
 ///Base functionality is to check if an object is inside
 
+import framework.drawing;
+
 import utils.vector2;
 import utils.rect2;
 import utils.list2;
@@ -23,6 +25,9 @@ class PhysicZone {
     }
 
     abstract bool checkCircle(Vector2f pos, float radius);
+
+    void debug_draw(Canvas c) {
+    }
 }
 
 //plane separating world, objects can be on one side (in) or the other (out)
@@ -41,6 +46,15 @@ class PhysicZonePlane : PhysicZone {
         Vector2f n;
         float pd;
         return plane.collide(pos, radius, n, pd);
+    }
+
+    override void debug_draw(Canvas c) {
+        super.debug_draw(c);
+        //clip the plane with visible rect to get a line
+        Vector2f[2] outp;
+        if (plane.intersectRect(toRect2f(c.visibleArea), outp)) {
+            c.drawLine(toVector2i(outp[0]), toVector2i(outp[1]), Color(0,1,0));
+        }
     }
 }
 
@@ -68,6 +82,11 @@ class PhysicZoneCircle : PhysicZone {
         }
         return (opos-pos).quad_length < (radius*radius + orad*orad);
     }
+
+    override void debug_draw(Canvas c) {
+        super.debug_draw(c);
+        c.drawCircle(toVector2i(pos), cast(int)radius, Color(0,1,0));
+    }
 }
 
 //rectangular zone
@@ -82,6 +101,11 @@ class PhysicZoneRect : PhysicZone {
     override bool checkCircle(Vector2f pos, float radius) {
         //slightly incorrect results for corner cases
         return rect.collideCircleApprox(pos, radius);
+    }
+
+    override void debug_draw(Canvas c) {
+        super.debug_draw(c);
+        c.drawRect(toRect2i(rect), Color(0,1,0));
     }
 }
 

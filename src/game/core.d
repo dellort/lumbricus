@@ -529,6 +529,7 @@ abstract class GameCore {
     void debug_draw(Canvas c) {
         if (!enableDebugDraw)
             return;
+        mPhysicWorld.debug_draw(c);
         foreach (GameObject o; mAllObjects) {
             o.debug_draw(c);
         }

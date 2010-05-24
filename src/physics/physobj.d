@@ -1,5 +1,7 @@
 module physics.physobj;
 
+import framework.drawing;
+
 import tango.math.Math : PI, abs, isNaN;
 import tango.math.IEEE : copysign;
 import utils.list2;
@@ -7,7 +9,6 @@ import utils.log;
 import utils.misc;
 import utils.rect2;
 import utils.vector2;
-
 
 import physics.base;
 import physics.collide;
@@ -637,6 +638,12 @@ class PhysicObject : PhysicBase {
             //if nothing was done, the worm (or the cow :) just can't walk
         }
     }
+
+    //optional debugging stuff
+    override void debug_draw(Canvas c) {
+        super.debug_draw(c);
+        //could draw bounding box
+    }
 }
 
 class PhysicObjectCircle : PhysicObject {
@@ -656,6 +663,24 @@ class PhysicObjectCircle : PhysicObject {
         //hack: change radius on posp change
         mCircle.radius = r;
     }
+
+    override void debug_draw(Canvas c) {
+        super.debug_draw(c);
+
+        auto p = toVector2i(pos);
+
+        c.drawCircle(p, cast(int)posp.radius,
+            isGlued ? Color(0,1,0) : Color(1,0,0));
+
+        auto r = Vector2f.fromPolar(30, rotation);
+        c.drawLine(p, p + toVector2i(r), Color(1,0,0));
+
+        auto n = Vector2f.fromPolar(30, ground_angle);
+        c.drawLine(p, p + toVector2i(n), Color(0,1,0));
+
+        auto l = Vector2f.fromPolar(30, lookey_smooth);
+        c.drawLine(p, p + toVector2i(l), Color(0,0,1));
+    }
 }
 
 class PhysicObjectPlane : PhysicObject {
@@ -673,8 +698,16 @@ class PhysicObjectPlane : PhysicObject {
     override void updatePos() {
         //a Plane is infinite, it's also a forced static object (no position)
     }
+
+    override void debug_draw(Canvas c) {
+        super.debug_draw(c);
+        //xxx see PhysicZonePlane
+        //apparently we don't use PhysicObjectPlane at all
+        //but PhysicZonePlane should be merged into PhysicObjectPlane
+    }
 }
 
+//xxx should be named "segment"
 class PhysicObjectLine : PhysicObject {
     private Line mLine;
 
@@ -686,5 +719,21 @@ class PhysicObjectLine : PhysicObject {
 
     override void updatePos() {
         //xxx what about position? forced static for now
+    }
+
+    override void debug_draw(Canvas c) {
+        super.debug_draw(c);
+        auto normal = mLine.dir.normal.orthogonal;
+        auto disp = normal*mLine.width;
+        auto col = Color(0,1,0);
+        int w = cast(int)mLine.width;
+        c.drawCircle(toVector2i(mLine.start), w, col);
+        c.drawCircle(toVector2i(mLine.start+mLine.dir), w, col);
+        auto a1 = mLine.start - disp;
+        auto b1 = mLine.start + disp;
+        auto a2 = mLine.start + mLine.dir - disp;
+        auto b2 = mLine.start + mLine.dir + disp;
+        c.drawLine(toVector2i(a1), toVector2i(a2), col);
+        c.drawLine(toVector2i(b1), toVector2i(b2), col);
     }
 }

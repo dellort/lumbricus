@@ -206,11 +206,13 @@ function E.horror(gridToggle)
                 elasticity = 0.5,
                 --bounceAbsorb = 0.1,
                 --friction = 0.9,
+                rotation = "distance",
             },
             sequenceType = "s_bazooka",
+            --sequenceType = "s_antimatter_nuke",
         }
     end
-    
+
     local function makeRod(obj1, obj2)
         local c = PhysicObjectsRod_ctor(obj1, obj2)
         PhysicObjectsRod_set_springConstant(c, 20000)
@@ -276,7 +278,9 @@ function E.horror(gridToggle)
     end
 end
 
-function E.springTest()
+function E.springTest(count)
+    count = count or 1
+
     if not springobj_class then
         springobj_class = createSpriteClass {
             name = "x_springobj",
@@ -291,27 +295,23 @@ function E.springTest()
             sequenceType = "s_grenade",
         }
     end
-    
-    local pos = Vector2(3000, 1000)
-    local o = SpriteClass_createSprite(springobj_class)
-    Sprite_activate(o, pos + Vector2(0, 200))
-    
-    local line_colors = {Color(1,0,0), Color(1,0,0), Color(1,0,0)}
-    local function line(from, to)
-        RenderLaser_ctor(Game, from, to, time("50ms"), line_colors)
-    end
-    
-    local c = PhysicObjectsRod_ctor2(Sprite_physics(o), pos)
-    PhysicObjectsRod_set_springConstant(c, 100)
-    PhysicObjectsRod_set_dampingCoeff(c, 5)
-    PhysicObjectsRod_set_length(c, PhysicObjectsRod_length(c))
-    World_add(c)
 
-    local timer = Timer.New()
-    timer:setCallback(function()
-        line(pos, Phys_pos(Sprite_physics(o)))
-    end)
-    timer:start(time("50ms"), true)
+    local function makeAt(pos)
+        local o = SpriteClass_createSprite(springobj_class)
+        Sprite_activate(o, pos + Vector2(0, 200))
+
+        local c = PhysicObjectsRod_ctor2(Sprite_physics(o), pos)
+        PhysicObjectsRod_set_springConstant(c, 100)
+        PhysicObjectsRod_set_dampingCoeff(c, 5)
+        PhysicObjectsRod_set_length(c, PhysicObjectsRod_length(c))
+        World_add(c)
+    end
+
+    local cpos = Vector2(3000, 1000)
+    for i = 1, count do
+        makeAt(cpos)
+        cpos = cpos + Vector2(30, 0)
+    end
 end
 
 -- output contents of any object to console
@@ -578,6 +578,64 @@ function E.blurb()
     end)
 end
 
+--[[
+function E.makePlane()
+    pickTwoPos(function(p1, p2)
+        local x = PhysicZonePlane_ctor(p1, p2)
+        local z = ZoneTrigger_ctor(x)
+        Phys_set_collision(z, CollisionMap_find("wormsensor"))
+        World_add(z)
+    end)
+end
+--]]
+
+function E.dragObject()
+    dowhat = dowhat or dumpObject
+    local w = Gui_ctor()
+    local scene = Scene_ctor()
+    Gui_set_render(w, scene)
+    local circle = SceneDrawCircle_ctor()
+    SceneDrawCircle_set_radius(circle, 10)
+    SceneDrawCircle_set_color(circle, Color(1,0,0))
+    Scene_add(scene, circle)
+    local obj
+    local link
+    setProperties(w, {
+        OnHandleKeyInput = function(info)
+            if info.code == keycode("mouse_left") then
+                if info.isDown and obj and not link then
+                    Scene_remove(scene, circle)
+                    -- create the constraint
+                    local phys = Sprite_physics(obj)
+                    link = PhysicObjectsRod_ctor2(phys, Phys_pos(phys))
+                    PhysicObjectsRod_set_springConstant(link, 100)
+                    PhysicObjectsRod_set_dampingCoeff(link, 5)
+                    World_add(link)
+                else
+                    if link then
+                        Phys_kill(link)
+                    end
+                    GameFrame_removeHudWidget(w)
+                end
+            end
+            return true
+        end,
+        OnHandleMouseInput = function(info)
+            if link then
+                PhysicObjectsRod_set_anchor(link, info.pos)
+            else
+                obj = pickObjectAt(info.pos)
+                if obj then
+                    SceneObjectCentered_set_pos(circle,
+                        Phys_pos(Sprite_physics(obj)))
+                end
+            end
+            return true
+        end,
+    })
+    GameFrame_addHudWidget(w, "gameview")
+end
+
 -- some test
 function E.guitest()
     -- adding something to game scene
@@ -623,6 +681,46 @@ function E.guitest()
         printf("keybind: '{}'", s)
     end
     GameFrame_addKeybinds(binds, h)
+end
+
+-- utterly pointless, just for debugging and playing around
+do
+    local name = "marble"
+    -- no "local", this is used in other weapons
+    local class = createSpriteClass {
+        name = "x_" .. name,
+        initNoActivityWhenGlued = true,
+        initPhysic = relay {
+            collisionID = "always",
+            mass = 10,
+            radius = 2,
+            explosionInfluence = 1.0,
+            windInfluence = 0.0,
+            elasticity = 0.6,
+            glueForce = 120,
+            rotation = "distance",
+        },
+        sequenceType = "s_clustershard",
+    }
+    local w = createWeapon {
+        name = "w_" .. name,
+        onFire = getStandardOnFire(class),
+        value = 10,
+        category = "sheep",
+        --icon = "icon_mine",
+        --animation = "weapon_mine",
+        fireMode = {
+            direction = "fixed",
+            throwStrengthFrom = 40,
+            throwStrengthTo = 40,
+        }
+    }
+    enableSpriteCrateBlowup(w, class)
+end
+function E.marbles()
+    for i,t in ipairs(Control_teams()) do
+        Team_addWeapon(t, lookupResource("w_marble"), 100)
+    end
 end
 
 -- best used with newgame_bench.conf

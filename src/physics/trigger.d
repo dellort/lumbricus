@@ -1,5 +1,7 @@
 module physics.trigger;
 
+import framework.drawing;
+
 import utils.vector2;
 import utils.list2;
 import utils.misc;
@@ -47,5 +49,10 @@ class ZoneTrigger : PhysicTrigger {
     override bool doCollide(PhysicObject obj) {
         assert(!!zone);
         return zone.check(obj);
+    }
+
+    override void debug_draw(Canvas c) {
+        super.debug_draw(c);
+        zone.debug_draw(c);
     }
 }

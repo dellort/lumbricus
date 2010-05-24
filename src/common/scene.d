@@ -61,7 +61,7 @@ class Scene : SceneObjectCentered {
             obj.zorder = zorder;
         if (obj.mParent is this)
             return;
-        assert(!obj.mParent, "already inserted in another Scene?");
+        argcheck(!obj.mParent, "already inserted in another Scene?");
         int z = obj.zorder();
         extend_zorder(z);
         assert(!mActiveObjects[z].contains(obj));

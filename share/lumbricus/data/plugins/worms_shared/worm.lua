@@ -18,17 +18,20 @@ setProperties(sprite_class, {
 })
 
 -- physical states, used by the "states" section
+local std_phys = {
+    -- these are only used it not overridden in the per-state physics
+    radius = 7,
+    mass = 10,
+    elasticity = 0.5,
+    damageable = 1.0,
+}
 local physics = {
     worm = {
         -- collision class the worm physical object is set to
         collisionID = "worm_air",
-        radius = 5,
-        mass = 10,
         glueForce = 20,
-        elasticity = 0.5,
         bounceAbsorb = 400,
         slideAbsorb = 150,
-        damageable = 1.0,
         friction = 0.9,
         sustainableImpulse = 5000,
         fallDamageFactor = 0.004,
@@ -38,88 +41,58 @@ local physics = {
     worm_stand = {
         -- sitting worm
         collisionID = "worm_noself",
-        radius = 5,
-        mass = 10,
-        elasticity = 0.5,
-        damageable = 1.0,
         gluedForceLook = true,
     },
     worm_getup = {
         -- recovering worm (does not collide with other worms)
         collisionID = "worm_now",
-        radius = 5,
-        mass = 10,
-        elasticity = 0.5,
-        damageable = 1.0,
         gluedForceLook = true,
     },
     worm_walk = {
         -- walking worm
         collisionID = "worm_walk",
-        radius = 5,
-        mass = 10,
         walkingSpeed = 50,
-        elasticity = 0.5,
-        damageable = 1.0,
         gluedForceLook = true,
     },
     beaming = {
         collisionID = "worm_n",
-        radius = 5,
-        mass = 10,
         -- don't move
         fixate = Vector2(0, 0),
         damageUnfixate = true,
-        -- not invulnerable while beaming
-        damageable = 1.0,
         gluedForceLook = true,
+        -- not invulnerable while beaming, use damage from std_phys
     },
     jetworm = {
         collisionID = "worm_freemove",
-        radius = 5,
-        mass = 10,
         glueForce = 0,
-        elasticity = 0.5,
         velocityConstraint = Vector2(200, 250),
-        damageable = 1.0,
         sustainableImpulse = 5000,
         fallDamageFactor = 0.0,
         rotation = "selfforce",
     },
     rope = {
         collisionID = "worm_fm_rope",
-        radius = 5,
-        mass = 10,
         glueForce = 0,
         elasticity = 0.85,
-        damageable = 1.0,
         fallDamageFactor = 0.0,
         -- extend_normalcheck = true,
     },
     parachute = {
         collisionID = "worm_freemove",
-        radius = 5,
-        mass = 10,
         glueForce = 0,
-        elasticity = 0.5,
         airResistance = 0.3,
         mediumViscosity = 0.4,
-        damageable = 1.0,
         sustainableImpulse = 5000,
         fallDamageFactor = 0.0,
     },
     drill = {
         collisionID = "worm_drill",
-        radius = 5,
-        mass = 10,
         glueForce = 0,
         elasticity = 0,
-        damageable = 1.0,
         fallDamageFactor = 0.0,
     },
     grave = { -- duplicated in grave.conf
         collisionID = "grave",
-        radius = 5,
         fixate = Vector2(0, 1),
         elasticity = 0.3,
         glueForce = 50,
@@ -254,6 +227,7 @@ local states = {
 
 -- post-process physics
 for name, posp in pairs(physics) do
+    posp = table_merge(std_phys, posp)
     physics[name] = createPOSP(posp)
 end
 
