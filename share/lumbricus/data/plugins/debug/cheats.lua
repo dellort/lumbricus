@@ -609,7 +609,8 @@ function E.dragObject()
                     local phys = Sprite_physics(obj)
                     link = PhysicObjectsRod_ctor2(phys, Phys_pos(phys))
                     PhysicObjectsRod_set_springConstant(link, 100)
-                    PhysicObjectsRod_set_dampingCoeff(link, 5)
+                    --PhysicObjectsRod_set_dampingCoeff(link, 5)
+                    PhysicObjectsRod_setDampingRatio(link, 0.2)
                     World_add(link)
                 else
                     if link then

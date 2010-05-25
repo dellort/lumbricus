@@ -9,6 +9,7 @@ import tango.core.Traits : ParameterTupleOf;
 
 //Tango team = stupid (defining your own min/max functions will conflict)
 public import tango.math.Math : min, max;
+import tango.math.Math : abs;
 
 //because printf debugging is common and usefull
 //public import tango.util.log.Trace : Trace;
@@ -100,6 +101,17 @@ T clampRangeO(T)(T val, T low, T high) {
     if (val >= high)
         val = high - 1;
     return (val < low) ? low : val;
+}
+
+//[0 .. 0.5 .. 1] -> [valLow .. valMid .. valHigh]
+//T needs opMul(float)
+T map3(T)(float ratio, T valLow, T valMid, T valHigh) {
+    float r_v1 = clampRangeC(1.0f - ratio * 2.0f, 0f, 1f);
+    float r_v2 = clampRangeC!(float)(1.0f - abs((ratio - 0.5f) * 2.0f),
+        0f, 1f);
+    float r_v3 = clampRangeC(ratio * 2.0f - 1.0f, 0f, 1f);
+
+    return valLow * r_v1 + valMid * r_v2 + valHigh * r_v3;
 }
 
 //if input is not a power of two, round up to next power of two (I think)

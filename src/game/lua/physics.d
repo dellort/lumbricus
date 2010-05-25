@@ -46,6 +46,7 @@ static this() {
 
     gScripting.ctor!(PhysicObjectsRod, PhysicObject, PhysicObject)();
     gScripting.ctor!(PhysicObjectsRod, PhysicObject, Vector2f)("ctor2");
+    gScripting.methods!(PhysicObjectsRod, "setDampingRatio");
     gScripting.properties!(PhysicObjectsRod, "length", "springConstant",
         "dampingCoeff", "anchor")();
 

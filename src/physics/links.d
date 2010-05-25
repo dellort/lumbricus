@@ -2,7 +2,7 @@ module physics.links;
 
 import framework.drawing;
 
-import tango.math.Math: abs;
+import tango.math.Math: abs, sqrt;
 import utils.misc;
 import utils.vector2;
 
@@ -135,6 +135,24 @@ class PhysicObjectsRod : PhysicContactGen {
         length = (obj1.pos - anchor).length;
     }
 
+    ///call after objects (for mass) and springConstant have been initialized
+    ///will set dampingCoeff so the spring is damped by dampingRatio (where
+    ///  <1.0f means underdamped, 1.0f critically damped, >1.0f overdamped)
+    void setDampingRatio(float dampingRatio = 1.0f) {
+        //only for spring using force
+        if (springConstant <= 0)
+            return;
+
+        float m = obj[0].posp.mass;
+        if (obj[1]) {
+            //xxx not sure, wikipedia formula is for one object
+            m = (m + obj[1].posp.mass) / 2.0f;
+        }
+        assert(m > 0);
+
+        dampingCoeff = dampingRatio * 2.0f * m * sqrt(springConstant / m);
+    }
+
     override void process(float deltaT, CollideDelegate contactHandler) {
         if (obj[0].dead || (obj[1] && obj[1].dead)) {
             kill();
@@ -200,8 +218,13 @@ class PhysicObjectsRod : PhysicContactGen {
         if (obj[1]) {
             pos1 = obj[1].pos;
         }
+        float curLen = (pos1 - pos0).length;
+        //0 (no deflection) to 1 (half length deflection)
+        float ratio = clampRangeC!(float)(2.0f * abs(curLen - length) / length,
+            0f, 1f);
         //could change color with length error, or so
-        c.drawLine(toVector2i(pos0), toVector2i(pos1), Color(1,0,0));
+        c.drawLine(toVector2i(pos0), toVector2i(pos1), map3(ratio,
+            Color(0,1,0), Color(1,1,0), Color(1,0,0)));
     }
 }
 

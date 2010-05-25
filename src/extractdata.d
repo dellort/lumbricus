@@ -215,7 +215,7 @@ Options:
     -z  pack everything into a zip archive`).newline;
         return 1;
     }
-    char[] appPath = getAppPath(args[0]);
+    char[] appPath = getAppPath();
     char[] outputDir;
     if (args.length >= 3)
         outputDir = args[2];
