@@ -129,9 +129,9 @@ class TestFrame4 : Container {
         override  void onDraw(Canvas canvas) {
             auto rc = canvas.visibleArea();
             rc.extendBorder(-Vector2i(5));
-            canvas.drawFilledRect(rc.p1, rc.p2, Color(1,0,0));
+            canvas.drawFilledRect(rc, Color(1,0,0));
             auto x1 = Vector2i(0), x2 = size-Vector2i(1);
-            canvas.drawRect(x1, x2, Color(0));
+            canvas.drawRect(Rect2i(x1, x2), Color(0));
             canvas.drawLine(x1, x2, Color(0));
             canvas.drawLine(x2.Y, x2.X, Color(0));
         }
@@ -306,7 +306,7 @@ class TestGradient : Container {
                 c.drawVGradient(rc, Color.fromBytes(16,20,40), Color.fromBytes(46,23,0));
                 c.drawVGradient(rc2, Color.fromBytes(46,23,0), Color.fromBytes(2,1,0));
             } else {
-                c.drawFilledRect(rc.p1, rc.p2, Color(1,0,0));
+                c.drawFilledRect(rc, Color(1,0,0));
             }
         }
     }
@@ -440,7 +440,7 @@ class TestTask2 {
         }
 
         override void onDraw(Canvas c) {
-            c.drawFilledRect(Vector2i(0), size, clear);
+            c.drawFilledRect(Rect2i(size), clear);
             f.drawText(c, cBorder, "Ab");
         }
     }
@@ -450,7 +450,7 @@ class TestTask2 {
         Color clear;
 
         override void onDraw(Canvas c) {
-            c.drawFilledRect(Vector2i(0), size, clear);
+            c.drawFilledRect(Rect2i(size), clear);
             auto rc = widgetBounds;
             rc.extendBorder(-cBorder);
             drawBox(c, rc, box);
@@ -845,8 +845,8 @@ class TextColorTest {
             mText.setArea(size, -1, -1);
         }
         override void onDraw(Canvas c) {
-            c.drawRect(Vector2i(0), this.outer.mText.textSize() + Vector2i(2),
-                Color(1,0,0));
+            c.drawRect(Rect2i(Vector2i(0), this.outer.mText.textSize() +
+                Vector2i(2)), Color(1,0,0));
             mText.draw(c, Vector2i(1));
         }
     }

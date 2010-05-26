@@ -382,12 +382,6 @@ end
 function E.pickObject(dowhat)
     dowhat = dowhat or dumpObject
     local w = Gui_ctor()
-    local scene = Scene_ctor()
-    Gui_set_render(w, scene)
-    local circle = SceneDrawCircle_ctor()
-    SceneDrawCircle_set_radius(circle, 10)
-    SceneDrawCircle_set_color(circle, Color(1,0,0))
-    Scene_add(scene, circle)
     local obj
     setProperties(w, {
         OnHandleKeyInput = function(info)
@@ -399,11 +393,13 @@ function E.pickObject(dowhat)
         end,
         OnHandleMouseInput = function(info)
             obj = pickObjectAt(info.pos)
-            if obj then
-                SceneObjectCentered_set_pos(circle,
-                    Phys_pos(Sprite_physics(obj)))
-            end
             return true
+        end,
+        OnDraw = function(canvas)
+            if obj then
+                Canvas_drawCircle(canvas, Phys_pos(Sprite_physics(obj)), 10,
+                    Color(1,0,0))
+            end
         end,
     })
     GameFrame_addHudWidget(w, "gameview")
@@ -413,12 +409,6 @@ end
 function E.pickPosition(dowhat)
     assert(dowhat)
     local w = Gui_ctor()
-    local scene = Scene_ctor()
-    Gui_set_render(w, scene)
-    local circle = SceneDrawCircle_ctor()
-    SceneDrawCircle_set_radius(circle, 10)
-    SceneDrawCircle_set_color(circle, Color(1,0,0))
-    Scene_add(scene, circle)
     local pos
     setProperties(w, {
         OnHandleKeyInput = function(info)
@@ -431,6 +421,11 @@ function E.pickPosition(dowhat)
         OnHandleMouseInput = function(info)
             pos = info.pos
             return true
+        end,
+        OnDraw = function(canvas)
+            if pos then
+                Canvas_drawCircle(canvas, pos, 10, Color(1,0,0))
+            end
         end,
     })
     GameFrame_addHudWidget(w, "gameview")
@@ -465,26 +460,24 @@ end
 function E.freePoint(dowhat)
     dowhat = dowhat or dumpObject
     local w = Gui_ctor()
-    local scene = Scene_ctor()
-    Gui_set_render(w, scene)
-    local circle = SceneDrawCircle_ctor()
-    SceneDrawCircle_set_radius(circle, 10)
-    SceneDrawCircle_set_color(circle, Color(1,0,0))
-    SceneDrawCircle_set_active(circle, false)
-    Scene_add(scene, circle)
-    local obj
+    local pos
     setProperties(w, {
         OnHandleKeyInput = function(info)
             GameFrame_removeHudWidget(w)
             return true
         end,
         OnHandleMouseInput = function(info)
-            p = World_freePoint(info.pos, 10)
-            if p then
-                SceneObjectCentered_set_pos(circle, p)
-            end
-            SceneDrawCircle_set_active(circle, p ~= nil)
+            pos = info.pos
             return true
+        end,
+        OnDraw = function(canvas)
+            if pos then
+                local r = 10
+                p = World_freePoint(pos, r)
+                if p then
+                    Canvas_drawCircle(canvas, p, r, Color(1,0,0))
+                end
+            end
         end,
     })
     GameFrame_addHudWidget(w, "gameview")
@@ -592,19 +585,12 @@ end
 function E.dragObject()
     dowhat = dowhat or dumpObject
     local w = Gui_ctor()
-    local scene = Scene_ctor()
-    Gui_set_render(w, scene)
-    local circle = SceneDrawCircle_ctor()
-    SceneDrawCircle_set_radius(circle, 10)
-    SceneDrawCircle_set_color(circle, Color(1,0,0))
-    Scene_add(scene, circle)
     local obj
     local link
     setProperties(w, {
         OnHandleKeyInput = function(info)
             if info.code == keycode("mouse_left") then
                 if info.isDown and obj and not link then
-                    Scene_remove(scene, circle)
                     -- create the constraint
                     local phys = Sprite_physics(obj)
                     link = PhysicObjectsRod_ctor2(phys, Phys_pos(phys))
@@ -626,12 +612,15 @@ function E.dragObject()
                 PhysicObjectsRod_set_anchor(link, info.pos)
             else
                 obj = pickObjectAt(info.pos)
-                if obj then
-                    SceneObjectCentered_set_pos(circle,
-                        Phys_pos(Sprite_physics(obj)))
-                end
             end
             return true
+        end,
+        OnDraw = function(canvas)
+            if obj and not link then
+                -- quite some lua heap activity (creating Vector2 and Color)
+                Canvas_drawCircle(canvas, Phys_pos(Sprite_physics(obj)), 10,
+                    Color(1,0,0))
+            end
         end,
     })
     GameFrame_addHudWidget(w, "gameview")

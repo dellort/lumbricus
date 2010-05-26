@@ -22,10 +22,18 @@ enum DamageCause {
     special,
 }
 
+static this() {
+    enumStrings!(DamageCause, "death,fall,explosion,special");
+}
+
 enum RotateMode {
     velocity,
     distance,
     selfforce,  //calc looking-angle as needed for worms with jetpacks
+}
+
+static this() {
+    enumStrings!(RotateMode, "velocity,distance,selfforce");
 }
 
 //PhysicalObjectStaticProperties
@@ -114,8 +122,4 @@ final class POSP {
 
     this() {
     }
-}
-
-static this() {
-    enumStrings!(RotateMode, "velocity,distance,selfforce");
 }

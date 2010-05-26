@@ -256,7 +256,7 @@ class StringListWidget : AbstractListWidget {
         mFont.drawText(canvas, rc.p1, mContents[index]);
         //the simple way, hahaha
         if (highlight)
-            canvas.drawFilledRect(rc.p1, rc.p2, Color(0.7, 0.7, 0.7, 0.7));
+            canvas.drawFilledRect(rc, Color(0.7, 0.7, 0.7, 0.7));
     }
 
     override void loadFrom(GuiLoader loader) {

@@ -31,15 +31,15 @@ class WaterDrawer : SceneObject {
 
 class WaterDrawerFront1 : WaterDrawer {
     void draw(Canvas canvas) {
-        canvas.drawFilledRect(Vector2i(0, mParent.animTop),
-            Vector2i(mParent.size.x, mParent.animBottom), mWaterColor);
+        canvas.drawFilledRect(Rect2i(0, mParent.animTop,
+            mParent.size.x, mParent.animBottom), mWaterColor);
     }
 }
 
 class WaterDrawerFront2 : WaterDrawer {
     void draw(Canvas canvas) {
-        canvas.drawFilledRect(Vector2i(0, mParent.animBottom),
-            mParent.size, mWaterColor);
+        canvas.drawFilledRect(Rect2i(Vector2i(0, mParent.animBottom),
+            mParent.size), mWaterColor);
     }
 }
 
@@ -64,8 +64,8 @@ class WaterDrawerBlendOut : WaterDrawer {
 
 class WaterDrawerBack : WaterDrawer {
     void draw(Canvas canvas) {
-        canvas.drawFilledRect(Vector2i(0, mParent.backAnimTop),
-            Vector2i(mParent.size.x, mParent.animTop),
+        canvas.drawFilledRect(Rect2i(0, mParent.backAnimTop,
+            mParent.size.x, mParent.animTop),
             mWaterColor);
     }
 }

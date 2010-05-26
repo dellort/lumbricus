@@ -1,22 +1,35 @@
 -- Utility functions used by other modules; gets loaded first
 
+-- impulse+damage
+-- victim = Phys object on which the impulse/damage is inflicted
+-- sender = sprite for damage statistic tracking
+-- strength = impulse
+-- damage = ...
+-- dir = direction of impulse (normalized)
+function applyMeleeImpulse(victim, sender, strength, damage, dir)
+    local spr = Phys_backlink(victim)
+    if damage > 0 then
+        -- serious wtf: the 3rd param is DamageCause, and the code here used to
+        --  pass the value 3. but there's no enum member for DamageCause that
+        --  maps to 3. replaced by "special", which is 2
+        Phys_applyDamage(victim, damage, "special", sender)
+    end
+    -- hm, why only worms? could be funny to baseball away mines
+    -- but that's how it was before
+    -- xxx this allocates memory, isn't elegant, etc.
+    --  better way: use physic collision type for filtering
+    if className(spr) == "WormSprite" then
+        Phys_addImpulse(victim, dir * strength)
+    end
+end
+
 -- xxx this function is very specific to prod and baseball, so I did not bother
 --     moving it to gameutils
 -- all worms in radius get an impulse of strength in fire direction, and
 --   everything takes some damage
 function getMeleeImpulseOnFire(strength, damage)
     return getMeleeOnFire(10, 15, function(shooter, info, self, obj)
-        local spr = Phys_backlink(obj)
-        if damage > 0 then
-            Phys_applyDamage(obj, damage, 3, self)
-        end
-        -- hm, why only worms? could be funny to baseball away mines
-        -- but that's how it was before
-        -- xxx this allocates memory, isn't elegant, etc.
-        --  better way: use physic collision type for filtering
-        if className(spr) == "WormSprite" then
-            Phys_addImpulse(obj, info.dir * strength)
-        end
+        applyMeleeImpulse(obj, self, strength, damage, info.dir)
     end)
 end
 

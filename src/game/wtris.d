@@ -184,9 +184,9 @@ public class WTris {
         Vector2i p = Vector2i(rx, ry).mulEntries(s);
         p += off;
         if (piece >= 0) {
-            c.draw(boxes, p, Vector2i(piece*PIECE_DRAW_W, 0), s);
+            c.drawPart(boxes, p, Vector2i(piece*PIECE_DRAW_W, 0), s);
             if (blink_on) {
-                c.drawFilledRect(p, p+s, Color(1.0, 1.0, 1.0, 0.5));
+                c.drawFilledRect(Rect2i.Span(p, s), Color(1.0, 1.0, 1.0, 0.5));
             }
         }
     }
@@ -214,7 +214,7 @@ public class WTris {
 
         override protected void onDraw(Canvas c) {
             //draw the complete background; could be quite expensive
-            c.drawFilledRect(Vector2i(0), size, Color(0.7,0.7,0.7));
+            c.drawFilledRect(Rect2i(size), Color(0.7,0.7,0.7));
 
             int diff = (thetime.current - last_piece).msecs;
             int foo = cast(int)(PIECE_DRAW_H*(1.0f*diff/PIECE_DROP_MS));

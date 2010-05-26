@@ -95,7 +95,7 @@ class BitmapHandler : ResViewHandler!(Surface) {
         override void onDraw(Canvas c) {
             Vector2i d = size/2 - resource.size/2;
             c.draw(resource, d);
-            c.drawRect(d-Vector2i(1), d+resource.size+Vector2i(1),
+            c.drawRect(Rect2i(d-Vector2i(1), d+resource.size+Vector2i(1)),
                 Color(0, 0, 0));
         }
 
@@ -285,8 +285,8 @@ class AtlasHandler : ResViewHandler!(Atlas) {
         override void onDraw(Canvas c) {
             Vector2i d = size/2 - mCur.surface.size/2;
             c.draw(mCur.surface, d);
-            c.drawRect(d+mCur.origin-Vector2i(1),
-                d+mCur.origin+mCur.size+Vector2i(1),Color(0, 0, 0));
+            c.drawRect(Rect2i(d+mCur.origin-Vector2i(1),
+                d+mCur.origin+mCur.size+Vector2i(1)),Color(0, 0, 0));
         }
 
         Vector2i layoutSizeRequest() {
@@ -368,7 +368,7 @@ class ViewAniFrames : Container {
 
         override void onDraw(Canvas c) {
             frames.drawFrame(c, offs, p1, p2, p3);
-            c.drawRect(Vector2i(), size-Vector2i(1), Color(1,1,0));
+            c.drawRect(Rect2i(Vector2i(), size-Vector2i(1)), Color(1,1,0));
         }
 
         Vector2i layoutSizeRequest() {
@@ -536,7 +536,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
             Vector2i d = size/2;
             mAnim.pos = d;
             mAnim.draw(c);
-            c.drawRect(bnds.p1-Vector2i(1), bnds.p2+Vector2i(1),
+            c.drawRect(Rect2i(bnds.p1-Vector2i(1), bnds.p2+Vector2i(1)),
                 Color(0, 0, 0));
             //assume p1() in degrees (0..360)
             auto dir = Vector2f.fromPolar(radius, p1()/360.0f*PI*2);

@@ -118,8 +118,8 @@ class PainterWidget : Widget {
                     c.drawFilledCircle(mousePos, r, cPenColor);
                     break;
                 case DrawMode.square:
-                    c.drawFilledRect(mousePos-Vector2i(r), mousePos+Vector2i(r),
-                        cPenColor);
+                    c.drawFilledRect(Rect2i(mousePos-Vector2i(r),
+                        mousePos+Vector2i(r)), cPenColor);
                     break;
                 case DrawMode.line:
                     if (mMouseDown) {

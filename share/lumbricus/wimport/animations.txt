@@ -459,6 +459,10 @@ mainspr {
         worm_baseball = "440 529"
         worm_flamethrower = "449 538"
     }
+    //save specific animation frames as bitmaps
+    bitmaps {
+        arrow_bitmap = "57,0"
+    }
 }
 //this one is used for all available water sets (
 //this is done for all water subdirs in <WWP-root>/data/Water

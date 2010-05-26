@@ -165,7 +165,7 @@ private:
 
         override void draw(Canvas c) {
             auto p = mPos - mSize/2;
-            c.drawRect(p, p+mSize, Color(0,0,1));
+            c.drawRect(Rect2i(p, p+mSize), Color(0,0,1));
             drawArrow(c, mPos, mLastDir);
         }
     }
@@ -310,9 +310,11 @@ private:
                     Cell cell = mCells[x][y];
                     auto offs = fromTile(x, y);
                     if (cell.impwall) {
-                        c.drawFilledRect(offs, offs+TILE_SIZE, Color(1,0,0));
+                        c.drawFilledRect(Rect2i.Span(offs, TILE_SIZE),
+                            Color(1,0,0));
                     } else if (cell.wall) {
-                        c.drawFilledRect(offs, offs+TILE_SIZE, Color(0.7));
+                        c.drawFilledRect(Rect2i.Span(offs, TILE_SIZE),
+                            Color(0.7));
                     }
                 }
             }

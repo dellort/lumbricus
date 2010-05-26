@@ -499,7 +499,7 @@ class LandscapeBitmap {
                 //microoptimization, out-of-bounds lexels (microbloat?)
                 //-- *outPtr = mPreviewColors[inPtr[mPreviewScaleX[x]]];
                 ubyte p = *(inPtr + *(mPreviewScaleX.ptr + x));
-                *outPtr = mPreviewColors[min(p, mPreviewColors.length)];
+                *outPtr = *(mPreviewColors.ptr + min(p, mPreviewColors.length));
                 outPtr++;
             }
         }

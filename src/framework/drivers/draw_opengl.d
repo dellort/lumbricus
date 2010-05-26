@@ -754,7 +754,7 @@ class GLCanvas : Canvas3DHelper {
     {
         if (mDrawDriver.opts.disable_sprites) {
             //disabled; normal code path
-            draw(source.surface, destPos, source.origin, source.size);
+            drawPart(source.surface, destPos, source.origin, source.size);
             return;
         }
 
@@ -777,7 +777,7 @@ class GLCanvas : Canvas3DHelper {
 
     //Note: GL-specific tiling code removed with r932
 
-    override void draw(Surface source, Vector2i destPos,
+    override void drawPart(Surface source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize)
     {
         //clipping, discard anything that would be invisible anyway

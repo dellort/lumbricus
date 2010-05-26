@@ -150,6 +150,7 @@ static this() {
 
 LuaRegistry gLuaScenes;
 
+//xxx possibly remove in favour of directly using Canvas?
 static this() {
     auto g = new LuaRegistry();
     g.ctor!(Scene);
@@ -172,4 +173,19 @@ static this() {
     g.ctor!(SceneDrawBox);
     g.properties!(SceneDrawBox, "box");
     gLuaScenes = g;
+}
+
+LuaRegistry gLuaCanvas;
+
+static this() {
+    auto g = new LuaRegistry();
+    //drawSprite?
+    g.methods!(Canvas, "draw", "drawPart", "drawCircle", "drawFilledCircle",
+        "drawLine", "drawRect", "drawFilledRect", "setWindow", "translate",
+        "clip", "setScale", "setBlend", "pushState", "popState", "drawTiled",
+        "drawTexLine", "drawStretched");
+    g.method!(Canvas, "drawSpriteEffect")("drawSprite");
+    //Note: for text rendering, FormattedText will have to do
+    //      it's already registered in game.lua.base
+    gLuaCanvas = g;
 }

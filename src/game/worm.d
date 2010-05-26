@@ -1111,7 +1111,7 @@ class WormSprite : Sprite {
         }
     }
 
-    override protected void physImpact(PhysicBase other, Vector2f normal) {
+    override protected void physImpact(PhysicObject other, Vector2f normal) {
         super.physImpact(other, normal);
         mRopeCanRefire = false;
         if (currentState is wsc.st_fly) {

@@ -364,11 +364,6 @@ class PhysicObject : PhysicBase {
     final void move(Vector2f delta) {
         mPos += delta;
         updatePos();
-        if (mPosp.rotation == RotateMode.distance) {
-            //rotation direction depends from x direction (looks better)
-            auto dist = copysign(delta.length(), delta.x);
-            rotation += dist/200*2*PI;
-        }
     }
 
     //******************** Rotation and surface normal **********************
@@ -395,8 +390,8 @@ class PhysicObject : PhysicBase {
     //and to flying direction during flying
     private Vector2f mIntendedLook = Vector2f.nan;
 
-    //set rotation (using velocity)
-    final void checkRotation() {
+    //set rotation, done by world.d at the end of a simulation loop
+    package final void checkRotation() {
         switch (mPosp.rotation) {
             case RotateMode.velocity:
                 //when napalm-spamming, 5% of execution time is spent in the
@@ -412,6 +407,14 @@ class PhysicObject : PhysicBase {
                         mIntendedLook = ndir;
                 }
                 break;
+            case RotateMode.distance:
+                if (!lastPos.isNaN()) {
+                    auto delta = pos - lastPos;
+                    //rotation direction depends from x direction (looks better)
+                    auto dist = copysign(delta.length(), delta.x);
+                    //xxx: lol what's 200?
+                    rotation += dist/200*2*PI;
+                }
             default:
         }
     }

@@ -23,6 +23,7 @@ alias FileAnimationParamType Param;
 AnimList gAnimList;  //source animations
 AtlasPacker gPacker; //where the bitmaps go to
 AniFile gAnims;      //where the animation (+ frame descriptors) go to
+char[] gWorkPath;    //output path
 
 //default frame duration (set to 0 to prevent writing a default when time is
 //unknown)
@@ -37,6 +38,8 @@ static this() {
     gAnimationLoadHandlers["general"] = &loadGeneralW;
     //worm holding a weapon (with weapon-angle as param2)
     gAnimationLoadHandlers["worm_weapon"] = &loadWormWeaponAnimation;
+    //bitmaps
+    gAnimationLoadHandlers["bitmaps"] = &loadBitmapFrames;
 }
 
 class AniEntry {
@@ -221,7 +224,7 @@ class AniEntry {
 class AniFile {
     char[] anifile_name, aniframes_name;
     AtlasPacker atlas;
-    ConfigNode output_conf, output_anims;
+    ConfigNode output_conf, output_res, output_anims;
     FileAnimation[] animations;
     FileAnimationFrame[][] animations_frames;
     private char[] mName;
@@ -238,12 +241,13 @@ class AniFile {
         output_conf = new ConfigNode();
         auto first = output_conf.getSubNode("require_resources");
         first.add("", atlas.name ~ ".conf");
-        auto top = output_conf.getSubNode("resources");
-        auto anifile = top.getSubNode("aniframes").getSubNode(aniframes_name);
+        output_res = output_conf.getSubNode("resources");
+        auto anifile = output_res.getSubNode("aniframes")
+            .getSubNode(aniframes_name);
         anifile.setStringValue("atlas", atlas.name);
         anifile.setStringValue("datafile", anifile_name);
 
-        output_anims = top.getSubNode("animations");
+        output_anims = output_res.getSubNode("animations");
 
         first.comment = "//automatically created by animconv\n"
                         "//change animations.txt instead of this file";
@@ -356,6 +360,7 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
     gPacker = new AtlasPacker(name ~ "_atlas");
     gAnims = new AniFile(name, gPacker, config.getIntValue("frametime_def",
         cDefFrameTimeMS));
+    gWorkPath = workPath;
 
     Stdout.formatln("...writing {}...", name);
 
@@ -386,6 +391,7 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
     gPacker = null;
     gAnims = null;
     gAnimList = null;
+    gWorkPath = null;
 }
 
 //val must contain exactly n entries separated by whitespace
@@ -633,4 +639,30 @@ private void loadGeneralW(ConfigNode node) {
 
     AniParams params;
     loadRec([], params, node);
+}
+
+private void loadBitmapFrames(ConfigNode node) {
+    foreach (ConfigNode sub; node) {
+        char[] name = sub.name;
+        //frame is "animationnumber,framenumber"
+        char[] frame = sub.value;
+        char[][] x = str.split(frame, ",");
+        assert(x.length == 2);
+        int[2] f;
+        for (int i = 0; i < 2; i++) {
+            f[i] = fromStr!(int)(x[i]);
+        }
+        if (!indexValid(gAnimList.animations, f[0]))
+            assert(false, "unknown animation: "~frame);
+        auto ani = gAnimList.animations[f[0]];
+        if (!indexValid(ani.frames, f[1]))
+            assert(false, "unknown frame: "~frame);
+        auto fr = ani.frames[f[1]];
+        //xxx assuming png
+        char[] fn = name ~ ".png";
+        fr.save(gWorkPath ~ fn);
+        //abuse
+        auto bmp = gAnims.output_res.getSubNode("bitmaps");
+        bmp.setStringValue(name, fn);
+    }
 }

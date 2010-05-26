@@ -617,7 +617,7 @@ ImageLoadDelegate[char[]] gImageFormats;
 /// reinitialization
 /// NOTE: this class is used for garbage collection of surfaces (bad idea, but
 ///       we need it), so be careful with pointers to it
-class Surface {
+final class Surface {
     private {
         SurfaceData mData;
         SubSurface mFullSubSurface;

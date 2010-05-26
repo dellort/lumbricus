@@ -40,7 +40,8 @@ alias DeclareEvent!("sprite_damage", Sprite, GameObject, DamageCause,
     float) OnDamage;
 //well whatever this is
 //should be avoided in scripting; the Vector2f will allocate a table
-alias DeclareEvent!("sprite_impact", Sprite, Vector2f) OnSpriteImpact;
+alias DeclareEvent!("sprite_impact", Sprite, PhysicObject, Vector2f)
+    OnSpriteImpact;
 
 //object which represents a PhysicObject and an animation on the screen
 //also provides loading from ConfigFiles
@@ -135,7 +136,6 @@ class Sprite : GameObject {
             if (auto st = type.getInitSequenceState())
                 graphic.setState(st);
             engine.scene.add(graphic);
-            physics.checkRotation();
             updateAnimation();
         }
         updateParticles();
@@ -145,13 +145,13 @@ class Sprite : GameObject {
         return internal_active && !(physics.isGlued && noActivityWhenGlued);
     }
 
-    protected void physImpact(PhysicBase other, Vector2f normal) {
+    protected void physImpact(PhysicObject other, Vector2f normal) {
         //it appears no code uses the "other" parameter
-        OnSpriteImpact.raise(this, normal);
+        OnSpriteImpact.raise(this, other, normal);
     }
 
     //normal always points away from other object
-    final void doImpact(PhysicBase other, Vector2f normal) {
+    final void doImpact(PhysicObject other, Vector2f normal) {
         physImpact(other, normal);
     }
 

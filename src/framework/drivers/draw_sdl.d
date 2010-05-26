@@ -613,7 +613,7 @@ class SDLCanvas : Canvas {
             auto c = Color(0,1,0);
             auto dp1 = at - mTrans;
             auto dp2 = dp1 + Vector2i(rc.w, rc.h);
-            drawRect(dp1, dp2, c);
+            drawRect(Rect2i(dp1, dp2), c);
             drawLine(dp1, dp2, c);
             drawLine(dp1 + Vector2i(0, rc.h), dp1 + Vector2i(rc.w, 0), c);
         }
@@ -631,7 +631,7 @@ class SDLCanvas : Canvas {
         sdl_draw(destPos, src, rc);
     }
 
-    void draw(Surface source, Vector2i destPos,
+    void drawPart(Surface source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize)
     {
         SDLSurface sdls = cast(SDLSurface)source.getDriverSurface();
@@ -665,7 +665,7 @@ class SDLCanvas : Canvas {
     {
         circle(center.x, center.y, radius,
             (int x1, int x2, int y) {
-                drawFilledRect(Vector2i(x1, y), Vector2i(x2, y+1), color);
+                drawFilledRect(Rect2i(x1, y, x2, y+1), color);
             }
         );
     }
@@ -681,7 +681,7 @@ class SDLCanvas : Canvas {
                 swap(from.x, to.x);
             to.x++; //because the 2nd border is exclusive in drawFilledRect
             color.a = 1.0f;
-            drawFilledRect(from, to, color);
+            drawFilledRect(Rect2i(from, to), color);
             return;
         }
         if (from.x == to.x) {
@@ -690,7 +690,7 @@ class SDLCanvas : Canvas {
                 swap(from.y, to.y);
             to.y++;
             color.a = 1.0f;
-            drawFilledRect(from, to, color);
+            drawFilledRect(Rect2i(from, to), color);
             return;
         }
 
@@ -758,8 +758,8 @@ class SDLCanvas : Canvas {
             SDL_UnlockSurface(s);
     }
 
-    public void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
-        if (p1.x >= p2.x || p1.y >= p2.y)
+    override void drawFilledRect(Rect2i rc, Color color) {
+        if (rc.p1.x >= rc.p2.x || rc.p1.y >= rc.p2.y)
             return;
         int alpha = Color.toByte(color.a);
         if (!mDrawDriver.opts.high_quality) {
@@ -774,15 +774,14 @@ class SDLCanvas : Canvas {
             //=> we create a solid colored surface with alpha, and blend this
             Texture s = mDrawDriver.insanityCache(color);
             assert(s !is null);
-            drawTiled(s, p1, p2-p1);
+            drawTiled(s, rc.p1, rc.size);
         } else {
             SDL_Rect rect;
-            p1 += mTrans;
-            p2 += mTrans;
-            rect.x = p1.x;
-            rect.y = p1.y;
-            rect.w = p2.x-p1.x;
-            rect.h = p2.y-p1.y;
+            rc += mTrans;
+            rect.x = rc.p1.x;
+            rect.y = rc.p1.y;
+            rect.w = rc.p2.x-rc.p1.x;
+            rect.h = rc.p2.y-rc.p1.y;
             int res = SDL_FillRect(mSurface, &rect, toSDLColor(color));
             assert(res == 0);
         }
@@ -801,7 +800,7 @@ class SDLCanvas : Canvas {
             //SDL's FillRect is probably quite good at drawing solid horizontal
             //lines, so there's no reason not to use it
             //drawFilledRect of course still has a lot of overhead...
-            drawFilledRect(a, b, c1 + dc * (1.0f*y/dy));
+            drawFilledRect(Rect2i(a, b), c1 + dc * (1.0f*y/dy));
             a.y++;
             b.y++;
             y++;

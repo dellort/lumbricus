@@ -48,8 +48,8 @@ class SkyDrawer : SceneObject {
                 canvas.drawVGradient(rc2, mGradient[1], mGradient[2]);
             }
             if (mParent.skyOffset > 0)
-                canvas.drawFilledRect(Vector2i(0, 0),
-                    Vector2i(mParent.size.x, mParent.skyOffset), mSkyColor);
+                canvas.drawFilledRect(Rect2i(0, 0,
+                    mParent.size.x, mParent.skyOffset), mSkyColor);
         }
         if (mSkyBackdrop && mParent.enableSkyBackdrop) {
             int offs = mParent.initialWaterOffset - mSkyBackdrop.size.y;

@@ -19,12 +19,14 @@ static this() {
     gScripting.method!(PhysicWorld, "freePointScript")("freePoint");
 
     gScripting.setClassPrefix!(PhysicObject)("Phys");
-    gScripting.methods!(PhysicObject, "isGlued", "pos", "velocity",
+    gScripting.methods!(PhysicObject,
         "setInitialVelocity", "addForce", "addImpulse", "onSurface",
-        "setPos", "move", "forceLook", "resetLook", "lookey", "applyDamage",
+        "setPos", "move", "forceLook", "resetLook", "applyDamage",
         "setWalking", "isWalkingMode", "isWalking");
-    gScripting.properties!(PhysicObject, "selfForce", "acceleration", "posp");
-    gScripting.properties_ro!(PhysicObject, "surface_normal", "lifepower");
+    gScripting.properties!(PhysicObject, "selfForce", "acceleration", "posp",
+        "isStatic");
+    gScripting.properties_ro!(PhysicObject, "surface_normal", "lifepower",
+        "lookey", "isGlued", "pos", "velocity");
     gScripting.setClassPrefix!(PhysicBase)("Phys");
     gScripting.property_ro!(PhysicBase, "backlink");
     gScripting.property!(PhysicBase, "collision");

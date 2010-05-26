@@ -126,6 +126,7 @@ class PhysicWorld {
         //update all objects (force/velocity/collisions)
         foreach (PhysicObject me; mDynamic.list) {
             //xxx the old code did something similar, but in a different place
+            //position correction and rotation code depend from this
             me.lastPos = me.pos;
 
             //apply force generators
@@ -165,6 +166,7 @@ class PhysicWorld {
         }
 
         foreach (PhysicObject o; mDynamic.list) {
+            //this may use pos/lastPos for advancing rotation
             o.checkRotation();
         }
 

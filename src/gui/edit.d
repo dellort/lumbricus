@@ -322,7 +322,7 @@ class EditLine : Widget {
             mCursorTimer.enabled = true;
             if (mCursorVisible && !mMouseDown) {
                 Rect2i rc = mRender.getCursorPos(mCursor);
-                c.drawFilledRect(rc.p1, Vector2i(rc.p1.x+1, rc.p2.y),
+                c.drawFilledRect(Rect2i(rc.p1, Vector2i(rc.p1.x+1, rc.p2.y)),
                     mRender.font.properties.fore_color);
             }
             mCursorTimer.update();

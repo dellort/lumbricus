@@ -147,10 +147,10 @@ public class Canvas {
     }
 
     public void draw(Surface source, Vector2i destPos) {
-        draw(source, destPos, Vector2i(0, 0), source.size);
+        drawPart(source, destPos, Vector2i(0, 0), source.size);
     }
 
-    public abstract void draw(Surface source, Vector2i destPos,
+    public abstract void drawPart(Surface source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize);
 
     /// more flexible version of draw()
@@ -158,6 +158,15 @@ public class Canvas {
     /// if effect is null, draw normally
     abstract void drawSprite(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null);
+
+
+    //same as drawSprite, but without the pointer
+    //can't disable effects (you still can pass BitmapEffect.init, though)
+    final void drawSpriteEffect(SubSurface source, Vector2i destPos,
+        ref BitmapEffect effect)
+    {
+        drawSprite(source, destPos, &effect);
+    }
 
     public abstract void drawCircle(Vector2i center, int radius, Color color);
     public abstract void drawFilledCircle(Vector2i center, int radius,
@@ -170,7 +179,8 @@ public class Canvas {
     /// the right/bottom border of the passed rectangle (Rect2i(p1, p2) for the
     /// first method) is exclusive!
     /// drivers may override this
-    void drawRect(Vector2i p1, Vector2i p2, Color color, int width = 1) {
+    void drawRect(Rect2i r, Color color, int width = 1) {
+        Vector2i p1 = r.p1, p2 = r.p2; //was too lazy to change this method
         if (p1.x >= p2.x || p1.y >= p2.y || width < 1)
             return;
         if (width > 1) {
@@ -187,29 +197,22 @@ public class Canvas {
 
     private void drawUnfilledRect(Vector2i p1, Vector2i p2, Color c, int w) {
         //oh damn, why is this so complicated?
-        drawFilledRect(p1, Vector2i(p2.x, p1.y+w), c); //top
-        drawFilledRect(Vector2i(p1.x, p2.y-w), p2, c); //bottom
+        drawFilledRect(Rect2i(p1.x, p1.y, p2.x, p1.y+w), c);     //top
+        drawFilledRect(Rect2i(p1.x, p2.y-w, p2.x, p2.y), c);     //bottom
         drawFilledRect(Rect2i(p1.x, p1.y+w, p1.x+w, p2.y-w), c); //left
         drawFilledRect(Rect2i(p2.x-w, p1.y+w, p2.x, p2.y-w), c); //right
-    }
-
-    final void drawRect(Rect2i rc, Color color, int width = 1) {
-        drawRect(rc.p1, rc.p2, color, width);
     }
 
     /// like drawRect(), but stippled lines
     /// length = length of on/off segments in pixels (if supported)
     void drawStippledRect(Rect2i rc, Color color, int length = 1) {
-        drawRect(rc.p1, rc.p2, color); //default to regular line drawing
+        drawRect(rc, color); //default to regular line drawing
     }
 
     /// like with drawRect, bottom/right border is exclusive
     /// use Surface.fill() when the alpha channel should be copied to the
     /// destination surface (without doing alpha blending)
-    abstract void drawFilledRect(Vector2i p1, Vector2i p2, Color color);
-    final void drawFilledRect(Rect2i rc, Color color) {
-        drawFilledRect(rc.p1, rc.p2, color);
-    }
+    abstract void drawFilledRect(Rect2i rc, Color color);
 
     /// draw a vertical gradient at rc from color c1 to c2
     /// bottom/right border is exclusive
@@ -221,8 +224,8 @@ public class Canvas {
     void drawPercentRect(Vector2i p1, Vector2i p2, float perc, Color c) {
         //some simply fall-back implementation; doesn't look like required (see
         //  OpenGL implementation for this; draw_opengl.d), but does the job
-        drawFilledRect(Vector2i(p1.x,
-            p2.y - cast(int)((p2.y-p1.y)*perc)), p2, c);
+        drawFilledRect(Rect2i(p1.x, p2.y - cast(int)((p2.y-p1.y)*perc), p2.x,
+            p2.y), c);
     }
 
     /// clear visible area
@@ -370,7 +373,7 @@ public class Canvas {
                     if (tmp.x + rest.x > mVisibleArea.p1.x
                         && tmp.x < mVisibleArea.p2.x)
                     {
-                        draw(source, tmp, Vector2i(0), rest);
+                        drawPart(source, tmp, Vector2i(0), rest);
                     }
                     x += rest.x;
                 }
@@ -683,11 +686,12 @@ class Canvas3DHelper : Canvas {
         end();
     }
 
-    override void drawRect(Vector2i p1, Vector2i p2, Color color, int width) {
+    override void drawRect(Rect2i r, Color color, int width) {
+        Vector2i p1 = r.p1, p2 = r.p2; //was too lazy to change this method
         if (p1.x >= p2.x || p1.y >= p2.y)
             return;
         if (width != 1) {
-            super.drawRect(p1, p2, color, width);
+            super.drawRect(r, color, width);
             return;
         }
 
@@ -709,14 +713,14 @@ class Canvas3DHelper : Canvas {
 
     override void drawStippledRect(Rect2i rc, Color color, int length) {
         lineStipple(length);
-        drawRect(rc.p1, rc.p2, color, 1);
+        drawRect(rc, color, 1);
         lineStipple(0);
     }
 
-    override void drawFilledRect(Vector2i p1, Vector2i p2, Color color) {
+    override void drawFilledRect(Rect2i rc, Color color) {
         Color[2] c;
         c[0] = c[1] = color;
-        doDrawRect(p1, p2, c);
+        doDrawRect(rc.p1, rc.p2, c);
     }
 
     private void doDrawRect(Vector2i p1, Vector2i p2, Color[2] c) {

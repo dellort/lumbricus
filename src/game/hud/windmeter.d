@@ -62,12 +62,12 @@ class WindMeter : Widget {
             int texOffset = (cast(int)(time.secsf*mAnimSpeed)
                 + (anisize<0?anisize:0)) % mTexStep;
             if (wspeed < 0)
-                canvas.draw(mWindLeft,
+                canvas.drawPart(mWindLeft,
                     Vector2i(mPosCenter.x - 1 + anisize, mPosCenter.y),
                     Vector2i(texOffset, 0),
                     Vector2i(-anisize, mWindLeft.size.y));
             else
-                canvas.draw(mWindRight,
+                canvas.drawPart(mWindRight,
                     Vector2i(mPosCenter.x + 2, mPosCenter.y),
                     Vector2i(mTexStep - texOffset, 0),
                     Vector2i(anisize, mWindRight.size.y));

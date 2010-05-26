@@ -34,6 +34,7 @@ static this() {
     gScripting.methods!(Random, "rangei", "rangef");
 
     gScripting.properties_ro!(Surface, "size");
+    gScripting.methods!(Surface, "rotated");
 
     gScripting.ctor!(FormattedText)();
     //xxx getText is problematic because of out params
@@ -52,6 +53,7 @@ LuaState createScriptingState() {
     state.register(gScripting);
     state.register(gLuaGuiAdapt);
     state.register(gLuaScenes);
+    state.register(gLuaCanvas);
 
     //only load base stuff here
     //don't load game specific stuff here

@@ -64,7 +64,7 @@ do
     }
     -- funfact: on each "impact", a table for the normal will be allocated, even
     --  if it's not in the parameter or
-    addSpriteClassEvent(main, "sprite_impact", function(sender, normal)
+    addSpriteClassEvent(main, "sprite_impact", function(sender, other, normal)
         if spriteIsGone(sender) then
             return
         end
@@ -216,4 +216,70 @@ do -- xxx missing: deathzone_immune for active missile
     end)
 
     enableSpriteCrateBlowup(w, crate_class)
+end
+
+-- the bow is not really a rocket, but behaves like one
+-- actually, it is something in between a gun (fast projectile) and a rocket
+-- (Box2D has "bullet" type objects, which do CCD => can be arbitrarily fast)
+-- xxx I think arrows have 2 shots, and you can still move around between them?
+do
+    local name = "w_bow"
+
+    local sc = createSpriteClass {
+        name = "x_" .. name,
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 9,
+            radius = 1,
+            explosionInfluence = 0.5,
+            windInfluence = 0.1,
+            elasticity = 0.4,
+        },
+        sequenceType = "s_arrow",
+    }
+
+    -- must be defined as extra resource, because extracting the actual frame
+    --  from the animation is too complicated (would require hacks over hacks)
+    local arrow_bmp = lookupResource("arrow_bitmap")
+
+    -- funfact: on each "impact", a table for the normal will be allocated, even
+    --  if it's not in the parameter or
+    addSpriteClassEvent(sc, "sprite_impact", function(sender, other, normal)
+        if spriteIsGone(sender) then
+            return
+        end
+        -- no idea why other is null sometimes (actually, when colliding with
+        --  worms), must be the hit_noimpulse stuff?
+        if other and Phys_isStatic(other) then
+            -- put it as bitmap!
+            local ph = Sprite_physics(sender)
+            local rot = Phys_lookey(ph) + math.pi/2
+            local at = Phys_pos(ph)
+            -- creates a new surface on each impact; could cache it
+            local bmp = Surface_rotated(arrow_bmp, rot, true)
+            at = at - Surface_size(bmp) / 2
+            Game_insertIntoLandscape(at, bmp, Lexel_soft)
+        elseif other then
+            applyMeleeImpulse(other, sender, 20, 50, normal)
+        else
+            -- can happen when it hits via "hit_noimpulse"
+            warnf("arrow impacted on unknown object")
+            spriteExplode(sender, 10)
+        end
+        Sprite_kill(sender)
+    end)
+
+    local w = createWeapon {
+        name = name,
+        onFire = getStandardOnFire(sc),
+        category = "punch",
+        value = 10,
+        animation = "weapon_bow",
+        icon = "icon_bow",
+        fireMode = {
+            direction = "any",
+            throwStrengthFrom = 1200,
+            throwStrengthTo = 1200,
+        }
+    }
 end

@@ -1560,7 +1560,7 @@ class Widget {
 
         auto background = styles.get!(Color)("widget-background");
         if (background.a >= Color.epsilon) {
-            c.drawFilledRect(Vector2i(0), size, background);
+            c.drawFilledRect(Rect2i(Vector2i(0), size), background);
         }
 
         //user's draw routine

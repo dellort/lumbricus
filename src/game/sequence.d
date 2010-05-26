@@ -786,7 +786,7 @@ class WeaponPart {
 
 //compilation fix for LDC - move back into WwpWeaponState as soon as it's fixed
 struct WwpWeaponState_Weapon {
-    //only "fire" can be null
+    //only "fire" and "hold" can be null
     Animation get, hold, fire, unget;
 }
 
@@ -967,7 +967,7 @@ class WwpWeaponState : SequenceState {
                 assert(false, "weapon entry doesn't end with '+': "~value);
             value = value[0..$-1];
             WwpWeaponState_Weapon w;
-            w.get = load(value ~ "get", true);
+            w.get = load(value ~ "get", false);
             w.unget = w.get.reversed;
             //optional
             w.hold = load(value ~ "hold", true);

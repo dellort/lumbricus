@@ -86,10 +86,13 @@ void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props) {
     assert(tex.sides[1].size.x == q.x*2);
 
     //corners
-    c.draw(tex.corners, p, Vector2i(0), q);
-    c.draw(tex.corners, p + Vector2i(s.x - q.x, 0), Vector2i(q.x, 0), q);
-    c.draw(tex.corners, p + Vector2i(0, s.y - q.y), Vector2i(0, q.y), q);
-    c.draw(tex.corners, p + s - q, q, q); //tripple q lol
+    void corner(Vector2i dst_offs, Vector2i src_offs) {
+        c.drawPart(tex.corners, p + dst_offs, src_offs, q);
+    }
+    corner(Vector2i(0), Vector2i(0));
+    corner(Vector2i(s.x - q.x, 0), Vector2i(q.x, 0));
+    corner(Vector2i(0, s.y - q.y), Vector2i(0, q.y));
+    corner(s - q, q);
 
     //borders along X-axis
     int px = p.x + q.x;
@@ -98,10 +101,10 @@ void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props) {
     while (px < ex) {
         auto w = Vector2i(min(sx, ex - px), q.y);
         auto curTex = tex.sides[0];
-        c.draw(curTex, Vector2i(px, p.y + s.y - q.y), Vector2i(0, q.y), w);
+        c.drawPart(curTex, Vector2i(px, p.y + s.y - q.y), Vector2i(0, q.y), w);
         if (props.drawBevel)
             curTex = tex.bevelSides[0];
-        c.draw(curTex, Vector2i(px, p.y), Vector2i(0), w);
+        c.drawPart(curTex, Vector2i(px, p.y), Vector2i(0), w);
         px += w.x;
     }
 
@@ -112,15 +115,15 @@ void drawBox(Canvas c, Vector2i p, Vector2i s, BoxProperties props) {
     while (py < ey) {
         auto h = Vector2i(q.x, min(sy, ey - py));
         auto curTex = tex.sides[1];
-        c.draw(curTex, Vector2i(p.x + s.x - q.x, py), Vector2i(q.x, 0), h);
+        c.drawPart(curTex, Vector2i(p.x + s.x - q.x, py), Vector2i(q.x, 0), h);
         if (props.drawBevel)
             curTex = tex.bevelSides[1];
-        c.draw(curTex, Vector2i(p.x, py), Vector2i(0), h);
+        c.drawPart(curTex, Vector2i(p.x, py), Vector2i(0), h);
         py += h.y;
     }
 
     //interior
-    c.drawFilledRect(p + q, p + s - q, props.back);
+    c.drawFilledRect(Rect2i(p + q, p + s - q), props.back);
 }
 
 //no rounded corners + doesn't need a cache
