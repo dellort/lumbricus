@@ -30,7 +30,7 @@ private {
 }
 
 static this() {
-    mLog = registerLog("LevelGenerator");
+    mLog = registerLog("levelgen");
     mGeneratorFactory = new typeof(mGeneratorFactory);
 }
 
@@ -739,11 +739,11 @@ public class LandscapeTemplate {
         gen.readFrom(mGeometry);
         gen.setConfig(mConfig);
 
-        mLog("generating landscape...");
+        mLog.minor("generating landscape...");
 
         auto res = gen.generate();
 
-        mLog("done.");
+        mLog.minor("done.");
 
         return res;
     }
@@ -1042,7 +1042,8 @@ class LevelThemes {
                 if (theme) {
                     mItems ~= theme;
                 } else {
-                    mLog("could not load '{}' as LevelTheme: {}", filename, err);
+                    mLog.warn("could not load '{}' as LevelTheme: {}", filename,
+                        err);
                 }
                 return true;
             }
@@ -1071,7 +1072,8 @@ class LevelTemplates {
                 if (templ) {
                     mItems ~= templ;
                 } else {
-                    mLog("could not load '{}' as LevelTemplate: {}", path, err);
+                    mLog.warn("could not load '{}' as LevelTemplate: {}", path,
+                        err);
                 }
                 return true;
             }
@@ -1108,7 +1110,7 @@ LandscapeBitmap landscapeRenderGeometry(LandscapeGeometry geometry,
 
     debug {
         counter.stop();
-        mLog("geometry: {}", counter.time());
+        mLog.minor("geometry: {}", counter.time());
         counter.reset();
         counter.start();
     }
@@ -1122,7 +1124,7 @@ LandscapeBitmap landscapeRenderGeometry(LandscapeGeometry geometry,
 
     debug {
         counter.stop();
-        mLog("borders: {}", counter.time());
+        mLog.minor("borders: {}", counter.time());
     }
     return renderer;
 }
@@ -1265,7 +1267,7 @@ LandscapeObjects landscapePlaceObjects(LandscapeBitmap renderer,
 
     debug {
         counter.stop();
-        mLog("placed objects in {}", counter.time());
+        mLog.minor("placed objects in {}", counter.time());
     }
 
     return placer.objects;
@@ -1287,7 +1289,7 @@ void landscapeRenderObjects(LandscapeBitmap renderer, LandscapeObjects objs,
 
     debug {
         counter.stop();
-        mLog("rendered objects in {}", counter.time());
+        mLog.minor("rendered objects in {}", counter.time());
     }
 }
 

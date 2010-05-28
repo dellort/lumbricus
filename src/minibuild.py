@@ -32,6 +32,7 @@ COMPILERS = {
         "exe": "dmd",
         "oq": False,
         "std_args": STD_ARGS,
+        "def": "-version=",
         "debug_args": ["-gc", "-unittest", "-debug"],
         "release_args": ["-inline", "-release", "-O"],
     },
@@ -39,6 +40,7 @@ COMPILERS = {
         "exe": "ldc",
         "oq": True,
         "std_args": STD_ARGS + ["-singleobj"],
+        "def": "-d-version",
         "debug_args": ["-gc", "-unittest", "-d-debug"],
         "release_args": ["-enable-inlining", "-release", "-O5"],
     }
@@ -78,6 +80,9 @@ parser.add_option("-r",
 parser.add_option("-I",
     action="append", dest="include", default=[],
     help="additional include paths")
+parser.add_option("-D",
+    action="append", dest="version", default=[],
+    help="compile in version code identified by this string")
 
 (options, args) = parser.parse_args()
 
@@ -138,6 +143,8 @@ def calldmd(what, pargs, **more):
         nargs.extend(compiler["release_args"])
     else:
         nargs.extend(compiler["debug_args"])
+    for ver in options.version:
+        nargs.append(compiler["def"] + ver)
     nargs.extend(pargs)
     for inc in options.include:
         nargs.append("-I" + inc)

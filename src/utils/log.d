@@ -1,94 +1,241 @@
+//a glorified printf()
+//not multithreading-safe
 module utils.log;
 
-import utils.output;
+import utils.strparser;
 import utils.time;
-import utils.misc : va_list;
+import utils.misc;
+
+import array = utils.array;
+import str = utils.string;
+
+import layout = tango.text.convert.Layout;
 
 /// Access to all Log objects created so far.
 Log[char[]] gAllLogs;
-RedirectOutput gDefaultOutput;
-RedirectOutput gLogEverything;
-Log gDefaultLog;
+
+//anonymous log, if you just want to output something
+Log gLog;
 
 static this() {
-    gDefaultOutput = new RedirectOutput(StdioOutput.output);
-    gDefaultLog = registerLog("unknown");
-    gLogEverything = new RedirectOutput(DevNullOutput.output);
+    gLog = registerLog("general");
+}
+
+//numerical higher values mean more importance
+//would be nice to keep this in sync with utils.lua/log_priorities
+enum LogPriority : int {
+    //noisy debugging messages, sometimes useful, need to explicitly do
+    //  something to display them (like increasing log level)
+    //you almost never want to see them
+    Trace,
+    //message that always should be output somewhere, but not too overt; e.g.
+    //  somewhere on the console or in the log file, but not in the game GUI
+    Minor,
+    //message that should be actually user-visible (e.g. in the game GUI), but
+    //  the message still indicates no danger or possibly malfunction
+    Notice,
+    //non-fatal error or problem, of which the user should be informed
+    Warn,
+    //like Warning, but higher fatality (program may still continue, though)
+    Error,
+}
+
+static this() {
+    enumStrings!(LogPriority, "Trace,Minor,Notice,Warn,Error");
+}
+
+struct LogEntry {
+    LogPriority pri;
+    Log source;
+    Time time;
+    //txt contains only the original log text, use .fmt() to get a full string
+    //warning: txt may point to temporary memory; use .dup() to be sure
+    char[] txt;
+
+    LogEntry dup() {
+        LogEntry e = *this;
+        e.txt = e.txt.dup;
+        return e;
+    }
+
+    //some sort of default formatting
+    void fmt(void delegate(char[]) sink) {
+        //trying to keep heap activity down with that buffer thing
+        char[80] buffer = void;
+        myformat_cb(sink, "[{}] [{}] [{}] {}\n", time.toString_s(buffer),
+            source.category, typeToString(pri), txt);
+    }
+}
+
+//the caller must copy e.txt, as the buffer behind it may be reused
+alias void delegate(LogEntry e) LogSink;
+
+private LogBackend[] gLogBackends;
+
+final class LogBackend {
+    private {
+        LogSink mSink;
+        LogEntry[] mBuffered;
+        char[] mName;
+        bool mEnabled = true;
+    }
+
+    //all log events below that aren't passed to LogBackend.add()
+    //NOTE: most Trace events will be invisible even if LogBackend.minPriority
+    //  is set to Trace, because Log.minPriority is Minor by default
+    LogPriority minPriority;
+
+    this(char[] a_name, LogPriority a_minPriority, LogSink a_sink) {
+        mName = a_name;
+        minPriority = a_minPriority;
+        mSink = a_sink;
+        gLogBackends ~= this;
+    }
+
+    void sink(LogSink a_sink) {
+        mSink = a_sink;
+        if (a_sink) {
+            auto x = mBuffered;
+            mBuffered = null;
+            foreach (e; x) {
+                add(e);
+            }
+        }
+    }
+    LogSink sink() {
+        return mSink;
+    }
+
+    //if enabled=false, log events are never accepted
+    //unlike as when sink is null, events aren't logged either
+    bool enabled() {
+        return mEnabled;
+    }
+    void enabled(bool s) {
+        mEnabled = s;
+        //forget the buffer if disabled
+        if (!mEnabled)
+            mBuffered = null;
+    }
+
+    char[] name() {
+        return mName;
+    }
+
+    //if add() will actually use a LogEntry of that priority
+    bool want(LogPriority pri) {
+        return mEnabled && pri >= minPriority;
+    }
+
+    void add(LogEntry e) {
+        if (!want(e.pri))
+            return;
+
+        if (mSink) {
+            mSink(e);
+        } else {
+            mBuffered ~= e.dup();
+        }
+    }
 }
 
 /// Generic logging class. Implements interface Output, and all lines of text
 /// written to it are prefixed with a descriptive header.
-public final class Log : Output {
-    private char[] mCategory;
-
-    Output backend;
-    char[] backend_name;
-    bool stfu;
-    bool show_time = true;
-
-    public this(char[] category) {
-        mCategory = category;
-        setBackend(gDefaultOutput, "default");
-
-        gAllLogs[category] = this;
+final class Log {
+    private {
+        char[] mCategory;
+        static array.Appender!(char) gBuffer;
     }
 
-    void setBackend(Output backend, char[] backend_name) {
-        this.backend = backend;
-        this.backend_name = backend_name;
-        stfu = false;
+    //this is to selectively disable (potentially costly) Trace log calls
+    LogPriority minPriority = LogPriority.Minor;
+
+    //use registerLog()
+    private this(char[] category) {
+        mCategory = category;
+        gAllLogs[category] = this;
     }
 
     //makes it completely silent, will not even write into logall.txt
     //this also should make all logging calls zero-cost
     void shutup() {
-        stfu = true;
+        minPriority = LogPriority.Minor;
     }
 
     char[] category() {
         return mCategory;
     }
 
-    void writef(char[] fmt, ...) {
-        writef_ind(false, fmt, _arguments, _argptr);
-    }
-    void writefln(char[] fmt, ...) {
-        writef_ind(true, fmt, _arguments, _argptr);
-    }
-
-    void writeString(char[] str) {
-        if (stfu)
-            return;
-
-        assert(backend !is null);
-        //same xxx as in writef_ind.writeTo
-        backend.writeString(str);
-        gLogEverything.writeString(str);
-    }
-
+    //same as calling trace(), mainly for compatibility
     void opCall(char[] fmt, ...) {
-        writef_ind(true, fmt, _arguments, _argptr);
+        emitx(LogPriority.Trace, fmt, _arguments, _argptr);
     }
 
-    void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+    void trace(char[] fmt, ...) {
+        emitx(LogPriority.Trace, fmt, _arguments, _argptr);
+    }
+    void minor(char[] fmt, ...) {
+        emitx(LogPriority.Minor, fmt, _arguments, _argptr);
+    }
+    void notice(char[] fmt, ...) {
+        emitx(LogPriority.Notice, fmt, _arguments, _argptr);
+    }
+    void warn(char[] fmt, ...) {
+        emitx(LogPriority.Warn, fmt, _arguments, _argptr);
+    }
+    void error(char[] fmt, ...) {
+        emitx(LogPriority.Error, fmt, _arguments, _argptr);
+    }
+
+    void emit(LogPriority pri, char[] fmt, ...) {
+        emitx(pri, fmt, _arguments, _argptr);
+    }
+
+    void emitx(LogPriority pri, char[] fmt, TypeInfo[] arguments,
         va_list argptr)
     {
-        if (stfu)
+        //see if there's anything that wants this log entry
+        if (pri < minPriority)
             return;
 
-        void writeTo(Output o) {
-            //xxx: to do it correctly, we had to scan the formatted string for
-            //     newlines, and then prepend the time/category before each line
-            if (show_time) {
-                o.writef("[{}] ", timeCurrentTime());
+        bool want = false;
+        foreach (b; gLogBackends) {
+            if (b.want(pri)) {
+                want = true;
+                break;
             }
-            o.writef("{}: ", mCategory);
-            o.writef_ind(newline, fmt, arguments, argptr);
         }
 
-        assert(backend !is null);
-        writeTo(backend);
-        writeTo(gLogEverything);
+        if (!want)
+            return;
+
+        //format into temporary buffer
+        gBuffer.length = 0;
+        void sink(char[] s) {
+            gBuffer ~= s;
+        }
+        myformat_cb_fx(&sink, fmt, arguments, argptr);
+
+        //distribute log event
+        LogEntry e;
+        e.pri = pri;
+        e.source = this;
+        e.time = timeCurrentTime();
+        char[] txt = gBuffer[];
+        //generate multiple events if there are line breaks
+        while (txt.length) {
+            int idx = str.find(txt, '\n');
+            if (idx >= 0) {
+                e.txt = txt[0 .. idx];
+                txt = txt[idx + 1 .. $];
+            } else {
+                e.txt = txt;
+                txt = null;
+            }
+            foreach (b; gLogBackends) {
+                b.add(e);
+            }
+        }
     }
 
     char[] toString() {
@@ -98,7 +245,7 @@ public final class Log : Output {
 
 /// Register a log-category. There's one Log object per category-string, i.e.
 /// multiple calls with the same argument will return the same object.
-public Log registerLog(char[] category) {
+Log registerLog(char[] category) {
     auto log = findLog(category);
     if (!log) {
         log = new Log(category);
@@ -107,7 +254,7 @@ public Log registerLog(char[] category) {
     return log;
 }
 
-public Log findLog(char[] category) {
+Log findLog(char[] category) {
     auto plog = category in gAllLogs;
     return plog ? *plog : null;
 }
@@ -129,35 +276,40 @@ struct LogStruct(char[] cId) {
         return mLog;
     }
 
-    void opCall(char[] fmt, ...) {
-        writef_ind(true, fmt, _arguments, _argptr);
-    }
-
-    void setBackend(Output backend, char[] backend_name) {
-        check();
-        mLog.setBackend(backend, backend_name);
-    }
-
     char[] category() {
         return cId;
     }
 
-    void writef(char[] fmt, ...) {
-        writef_ind(false, fmt, _arguments, _argptr);
-    }
-    void writefln(char[] fmt, ...) {
-        writef_ind(true, fmt, _arguments, _argptr);
-    }
-
-    void writeString(char[] str) {
-        check();
-        mLog.writeString(str);
-    }
-
-    void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+    void emitx(LogPriority pri, char[] fmt, TypeInfo[] arguments,
         va_list argptr)
     {
         check();
-        mLog.writef_ind(newline, fmt, arguments, argptr);
+        mLog.emitx(pri, fmt, arguments, argptr);
     }
+
+    //------ sigh... copied from Log
+    void opCall(char[] fmt, ...) {
+        emitx(LogPriority.Trace, fmt, _arguments, _argptr);
+    }
+
+    void trace(char[] fmt, ...) {
+        emitx(LogPriority.Trace, fmt, _arguments, _argptr);
+    }
+    void minor(char[] fmt, ...) {
+        emitx(LogPriority.Minor, fmt, _arguments, _argptr);
+    }
+    void notice(char[] fmt, ...) {
+        emitx(LogPriority.Notice, fmt, _arguments, _argptr);
+    }
+    void warn(char[] fmt, ...) {
+        emitx(LogPriority.Warn, fmt, _arguments, _argptr);
+    }
+    void error(char[] fmt, ...) {
+        emitx(LogPriority.Error, fmt, _arguments, _argptr);
+    }
+
+    void emit(LogPriority pri, char[] fmt, ...) {
+        emitx(pri, fmt, _arguments, _argptr);
+    }
+    //------
 }

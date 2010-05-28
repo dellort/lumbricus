@@ -43,6 +43,11 @@ class PainterWidget : Widget {
 
         Color[Lexel] mLexelToColor;
 
+        //normally, this is unused; remove it if it's in the way
+        const Color[Lexel.Max+1] cDefLexelToBmpColor = [Color.Transparent,
+            Color(0.5), Color(0)];
+        Surface[Lexel.Max+1] mTex;
+
         float mPaintScale;
         Vector2i mFitInto = Vector2i(650, 250);
         Vector2i mDrawSize;
@@ -69,6 +74,14 @@ class PainterWidget : Widget {
         focusable = true;
         setColors(cDefLexelToColor);
         setData(null, cLevelSize);
+    }
+
+    //take the level by reference
+    this(LandscapeBitmap lv) {
+        focusable = true;
+        setColors(cDefLexelToColor);
+        mLevel = lv;
+        reinit();
     }
 
     override bool greedyFocus() {
@@ -245,7 +258,10 @@ class PainterWidget : Widget {
     private void doPaint(Vector2i p1, Vector2i p2, bool square = false) {
         assert(mPaintLexel >= 0 && mPaintLexel < 3);
 
-        mLevel.drawSegment(null, mPaintLexel, p1, p2, mPenRadius, square);
+        //NOTE: can pass null as first parameter; if mLevel has no bitmap (data
+        //  only, the common case here), the parameter is ignored anyway
+        mLevel.drawSegment(mTex[mPaintLexel], mPaintLexel, p1, p2, mPenRadius,
+            square);
 
         if (onChange)
             onChange(this);
@@ -324,6 +340,10 @@ class PainterWidget : Widget {
         mLexelToColor = null;
         foreach (uint idx, Color c; cols) {
             mLexelToColor[cast(Lexel)idx] = c;
+        }
+        for (int i = 0; i < cDefLexelToBmpColor.length; i++) {
+            mTex[i] = new Surface(Vector2i(1), Transparency.Alpha);
+            mTex[i].fill(Rect2i(0,0,1,1), cDefLexelToBmpColor[i]);
         }
     }
 

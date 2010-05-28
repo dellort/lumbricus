@@ -2,10 +2,11 @@ module utils.misc;
 
 import layout = tango.text.convert.Layout;
 import intr = tango.core.BitManip;
+import runtime = tango.core.Runtime;
 
 public import tango.stdc.stdarg : va_list;
 public import tango.core.Tuple : Tuple;
-import tango.core.Traits : ParameterTupleOf;
+//import tango.core.Traits : ParameterTupleOf;
 
 //Tango team = stupid (defining your own min/max functions will conflict)
 public import tango.math.Math : min, max;
@@ -18,32 +19,33 @@ import tango.math.Math : abs;
 //the Tango log API may or may not be OK; but I don't trust it (this is more
 //  robust, and it is 2726 lines shorter)
 class Trace {
-    private static Object mutex;
-    import cstdio = tango.stdc.stdio;
+
+    static void write(char[] s) {
+        runtime.Runtime.console.stderr(s);
+    }
+    static void flush() {
+        //Runtime.console should write directly to stderr; no buffering anywhere
+    }
+
     static void format(char[] fmt, ...) {
-        synchronized(mutex) {
+        synchronized(Trace.classinfo) {
             doprint(fmt, _arguments, _argptr);
         }
     }
     static void formatln(char[] fmt, ...) {
-        synchronized(mutex) {
+        synchronized(Trace.classinfo) {
             doprint(fmt, _arguments, _argptr);
-            cstdio.fprintf(cstdio.stderr, "\n");
+            write("\n");
         }
     }
+
     private static void doprint(char[] fmt, TypeInfo[] arguments, void* argptr)
     {
         uint sink(char[] s) {
-            cstdio.fprintf(cstdio.stderr, "%.*s", s.length, s.ptr);
+            write(s);
             return s.length;
         }
         layout.Layout!(char).instance().convert(&sink, arguments, argptr, fmt);
-    }
-    static void flush() {
-        //unlike Tango, C is sane; stderr always flushs itself
-    }
-    static this() {
-        mutex = new Object();
     }
 }
 
@@ -165,7 +167,7 @@ R delegate(T) toDelegate(R, T...)(R function(T) fn) {
     return &res.call;
 }
 
-char[] formatfx(char[] a_fmt, TypeInfo[] arguments, va_list argptr) {
+char[] myformat_fx(char[] a_fmt, TypeInfo[] arguments, va_list argptr) {
     //(yeah, very funny names, Tango guys!)
     return layout.Layout!(char).instance().convert(arguments, argptr, a_fmt);
     //Phobos for now
@@ -178,11 +180,11 @@ char[] formatfx(char[] a_fmt, TypeInfo[] arguments, va_list argptr) {
 //trivial, but Tango really is annoyingly noisy
 //should be in utils.string, but ugh the required changes
 char[] myformat(char[] fmt, ...) {
-    return formatfx(fmt, _arguments, _argptr);
+    return myformat_fx(fmt, _arguments, _argptr);
 }
 
 //if the buffer is too small, allocate a new one
-char[] formatfx_s(char[] buffer, char[] fmt, TypeInfo[] arguments,
+char[] myformat_s_fx(char[] buffer, char[] fmt, TypeInfo[] arguments,
     va_list argptr)
 {
     //NOTE: there's Layout.vprint(), but it simply cuts the output if the buffer
@@ -210,7 +212,18 @@ char[] formatfx_s(char[] buffer, char[] fmt, TypeInfo[] arguments,
 //like myformat(), but use the buffer
 //if the buffer is too small, allocate a new one
 char[] myformat_s(char[] buffer, char[] fmt, ...) {
-    return formatfx_s(buffer, fmt, _arguments, _argptr);
+    return myformat_s_fx(buffer, fmt, _arguments, _argptr);
+}
+
+void myformat_cb_fx(void delegate(char[] s) sink, char[] fmt,
+    TypeInfo[] arguments, va_list argptr)
+{
+    uint xsink(char[] s) { sink(s); return s.length; }
+    return layout.Layout!(char).instance().convert(&xsink, arguments, argptr,
+        fmt);
+}
+void myformat_cb(void delegate(char[] s) sink, char[] fmt, ...) {
+    myformat_cb_fx(sink, fmt, _arguments, _argptr);
 }
 
 //functions cannot return static arrays, so this gets the equivalent

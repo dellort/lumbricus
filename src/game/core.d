@@ -41,8 +41,6 @@ alias DeclareGlobalEvent!("game_hud_add", char[], Object) OnHudAdd;
 //called when the game is loaded from savegame
 //xxx this event is intederministic and must not have influence on game state
 alias DeclareGlobalEvent!("game_reload") OnGameReload;
-//called on a non-fatal game error, with a message for the gui
-alias DeclareGlobalEvent!("game_error", char[]) OnGameError;
 
 //fixed framerate for the game logic (all of GameEngine)
 //also check physic frame length cPhysTimeStepMs in world.d
@@ -181,6 +179,7 @@ abstract class GameCore {
         ResourceSet mResources;
         ParticleWorld mParticleWorld;
         Object[char[]] mHudRequests;
+        Log mLog;
         //blergh
         bool mBenchMode;
         int mBenchFramesMax;
@@ -194,8 +193,6 @@ abstract class GameCore {
     protected {
         ObjectList!(GameObject, "all_node") mAllObjects, mKillList;
         ObjectList!(GameObject, "sim_node") mActiveObjects;
-
-        static LogStruct!("game.game") log;
     }
 
     //helper for profiling
@@ -214,6 +211,8 @@ abstract class GameCore {
     this(GameConfig a_config, TimeSourcePublic a_gameTime,
         TimeSourcePublic a_interpolateTime)
     {
+        mLog = registerLog("game");
+
         mGameConfig = a_config;
         mGameTime = a_gameTime;
         mInterpolateTime = a_interpolateTime;
@@ -267,6 +266,7 @@ abstract class GameCore {
     final TimeSourcePublic interpolateTime() { return mInterpolateTime; }
     ///indeterministic particle engine
     final ParticleWorld particleWorld() { return mParticleWorld; }
+    final Log log() { return mLog; }
 
     //-- can be used to avoid static module dependencies
 
@@ -342,8 +342,8 @@ abstract class GameCore {
     void benchStart(Time simtime) {
         mBenchMode = true;
         mBenchFramesMax = simtime/cFrameLength;
-        auto p = registerLog("benchmark");
-        p("Start benchmark, {} => {} frames...", simtime, mBenchFramesMax);
+        log.notice("Start benchmark, {} => {} frames...", simtime,
+            mBenchFramesMax);
         mBenchFramesCur = 0;
         mBenchDrawTime = getRenderTime();
         if (!mBenchSimTime)
@@ -364,30 +364,26 @@ abstract class GameCore {
         mBenchMode = false;
         mBenchRealTime.stop();
         mBenchDrawTime = getRenderTime() - mBenchDrawTime;
-        auto p = registerLog("benchmark");
-        p("Benchmark done ({} frames)", mBenchFramesCur);
-        p("Real time (may or may not include sleep() calls): {}",
+        log.notice("Benchmark done ({} frames)", mBenchFramesCur);
+        log.notice("  Real time (may or may not include sleep() calls): {}",
             mBenchRealTime.time());
-        p("Game time: {}", mBenchSimTime.time());
-        p("Draw time (without GUI): {}", mBenchDrawTime);
+        log.notice("  Game time: {}", mBenchSimTime.time());
+        log.notice("  Draw time (without GUI): {}", mBenchDrawTime);
     }
 
     //-- error reporting; shouldn't this be left to some sort of logging system?
 
     //output an error message
     //in contrast to logging, the user will (usually) see this on the screen
-    final void error(char[] fmt, ...) {
-        char[] msg = formatfx(fmt, _arguments, _argptr);
-        //log all errors
-        log("{}", msg);
-        //xxx I don't know if an event is the right way
-        OnGameError.raise(events, msg);
-    }
+    //xxx now is just a shortcut for using log
+    //final void error(char[] fmt, ...) {
+      //  log.emitx(LogPriority.Error, fmt, _arguments, _argptr);
+    //}
 
     //-- scripting
 
     private void scriptingObjError(ScriptingException e) {
-        error("Scripting error in delegate call: {}", e.msg);
+        log.error("Scripting error in delegate call: {}", e.msg);
     }
 
     final void loadScript(char[] filename) {
@@ -413,7 +409,7 @@ abstract class GameCore {
         try {
             scripting().call("game_per_frame\0");
         } catch (ScriptingException e) {
-            error("Scripting error: {}", e.msg);
+            log.error("Scripting error: {}", e.msg);
         }
 
         objects_cleanup();
@@ -466,36 +462,9 @@ abstract class GameCore {
         //the promise is, that dead objects get invalid only in the "next" game
         //  frame - and this is here
         foreach (GameObject o; mKillList) {
-            log("killed GameObject: {}", o);
+            log.trace("killed GameObject: {}", o);
             mKillList.remove(o);
             scripting().call("game_kill_object\0", o);
-            //for debugging: clear the object by memory stomping it
-            //scripting could still access the object, violating the rules; but
-            //  we have to stay memory safe, so that evil scripts can't cause
-            //  security issues
-            //but clearing with 0 should be fine... maybe
-            //ok, case 1 where this will cause failure:
-            //  1. shoot at something (bazooka on barrel)
-            //  2. on explosion, it will crash in Sprite.physDamage, because
-            //     the "cause" parameter refers to an outdated GameObject (the
-            //     dynamic cast will segfault if stomping is enabled)
-            //  3. the "cause" is saved by some PhysicForce object, and that
-            //     object probably exploded and was "killed" (creating that
-            //     PhysicForce with the explosion)
-            //  - not assigning a "cause" in explosionAt() works it around
-            //case 2:
-            //  worm dies => everyone uses a dead sprite
-            //case 3:
-            //  mLastCrate in controller.d
-            //case 4:
-            //  throwing a carpet bomb (don't know why)
-            if (o.dontDieOnMe.length) {
-                log("don't stomp, those still need it: {}", o.dontDieOnMe);
-                continue;
-            }
-            //can uncomment this to enable delicious crashes whenever dead
-            //  objects are being accessed
-            //(cast(ubyte*)cast(void*)o)[0..o.classinfo.init.length] = 0;
         }
         mKillList.clear();
     }

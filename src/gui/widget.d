@@ -312,6 +312,7 @@ class Widget {
         foreach (c; mWidgets) {
             c.do_add();
         }
+        onLinkChange();
     }
     private void do_remove() {
         assert(!!mParent);
@@ -324,6 +325,12 @@ class Widget {
         }
         //reset some more transient state
         mMouseIsInside = false;
+        onLinkChange();
+    }
+
+    //called if isLinked may change
+    //must be ultra-careful when using this, see do_add()
+    protected void onLinkChange() {
     }
 
     //called after child has been added/removed, and before relayouting etc.
@@ -833,7 +840,7 @@ class Widget {
         version (ResizeDebug) {
             //assertion must work - checking this subverts optimization
             assert(rsize == layoutContainerSizeRequest());
-            Trace.formatln("parent-alloc {}: {} {}", this, rsize, area);
+            log.trace("parent-alloc {}: {} {}", this, rsize, area);
         }
         //fit the widget with its size into the area
         for (int n = 0; n < 2; n++) {
@@ -856,13 +863,13 @@ class Widget {
         version (ResizeDebug) {
             auto cs = layoutSizeRequest();
             if (area.size.x < cs.x || area.size.y < cs.y) {
-                Trace.formatln("underallocation in {}, {} {}",
+                log.trace("underallocation in {}, {} {}",
                     this.classinfo.name, area.size, cs);
                 area.p2 = area.p1 + cs.max(area.size);
             }
             assert(area.size.x >= cs.x);
             assert(area.size.y >= cs.y);
-            Trace.formatln("sub-alloc {}: {}", this, area);
+            log.trace("sub-alloc {}: {}", this, area);
         }
         //force no negative sizes
         area.p2 = area.p1 + area.size.max(Vector2i(0));
@@ -2241,8 +2248,10 @@ final class GUI {
             }
         }
         if (!ok) {
+            auto old = theme;
             theme = themes[0];
-            log("not found, defaulting to '{}' instead", theme);
+            log.warn("theme '{}' not found, defaulting to '{}' instead", old,
+                theme);
         }
 
         void loadRules(ConfigNode from) {

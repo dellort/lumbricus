@@ -8,45 +8,52 @@ $ sollte behoben sein / works for me (muss getestet werden)
 
 == Sonstiges/Minor ==
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
-    (+ "level editor" töten)
 - weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
 ! capture-zustand vom mousescroller kommt immer durcheinander, z.b. im spiel während maus gefangen ist, konsole öffnen und game_res starten => ärgs; ausserdem: hilfefenster ("h") und mouse scroller wollen beide capture => was tun? (wenn halt GameFrame.simulate() nicht jeden frame den mouse scroll modus setzen würde...)
 
 == bekannte, lösbare Bugs ==
 $ wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
-- Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
+$ Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
 - Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
-  Würmern erlauben, das Wasser wieder zu verlassen (und Zustand korrigieren)
+  1. Würmern erlauben, das Wasser wieder zu verlassen (und Zustand korrigieren)
+  2. unter Wasser keine Bewegung nach oben zulassen
+  3. bei Verlassen des Wasser Objekt einfach löschen
 [- Bohrer/Lötlampe stoßen Würmer nicht weg]
     notdürftig implementiert, muss verbessert werden (mehr impuls, weniger schaden?)
 $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 $ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt (lösung: z.B. könnte die spiellogik pollen, wann Sequence.weapon_fire_oneshot zurückgesetzt wird)
   (works for me; verzögerung am ende könnte etwas größer sein)
+  (^ für mich nicht, baseballschläger)
 - feuer animation kann verfrüht durch selektion anderer waffe abgebrochen werden (z.B. axt)
 - axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchron
 - superrope-feueranimation: seil fängt in er mitte des wurmes an => passt nicht zur wurm-graphik;
   außerdem falsche waffenanimation (haken ist noch in der waffe beim feuern)
-- minen nicht korrekt rotiert bei levelstart: einfach in Sprite.activate() die rotation prüfen und explizit setzen
 - Konsolen-Katastrophe entfernen (es gibt jetzt 3 Konsolen die alle was anderes machen)
+- log nachrichten sollten durch ein globales widget angezeigt werden; z.zt. werden extra umstände gemacht, damit sie in GameFrame/mChatbox angezeigt werden
+- manche Animationen sind falsch:
+    * shotgun: prepare animation ungenutzt, kein blitz bei 2. schuss
+    * baseball: für den letzten schlag wird keine fire animation angezeigt
+    * bow: release & prepare animationen ungenutzt
+    * ...
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
-- gui muss beim laden von savegames wiederhergestellt werden (spiele-einstellungsdialog)
 - Projektil fliegt durch wenige Pixel dicke Landschaft, wenn der Wurm beim Feuern direkt davorsteht
-! napalm ist sehr langsam, minenagriff nicht => ?
-- in broadcast.d, SocketSet allokiert speicher, der der GC überlassen wird (entweder bug report für Tango um eine free() methode hinzuzufügen, oder: blockierender thread?)
+- wurm laufen auf objekten (statt landschaft) ist kaputt
+$ napalm ist sehr langsam, minenagriff nicht => ?
+    ^ weil keine kollisionen zwischen minen
+*** multithreading-unsinn in cmdserver_gui.d ist unsicher
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
-- physik-kollisions callback entfernen, insbesondere den statistik-müll ("wer schadet wen wieviel" => z.b. versuchen, einfach den schaden per runde auszuwerten?)
-- in Lua wird bei jedem physImpact ("sprite_impact") eine Vector2 table für die normale allokiert (wenn der sprite-typ einen event handler registriert)
-- und physik "kollisionsmatrix" vereinfachen (CollisionMap)
-- statt speichern des kompletten zustands (für savegames und replays) nur zwischen den runden speichern? (replays würden input aufzeichnen, man könnte den savegame code verwenden statt snapshot.d)
+- netzwerk server braucht 100% CPU => nicht nett auf moderner hardware
+  (aber dann wieder ist der netzwerk-modus müll)
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)
+- in broadcast.d: SocketSet allokiert speicher, der der GC überlassen wird (entweder bug report für Tango um eine free() methode hinzuzufügen, oder: blockierender thread?)
 
 == GUI (allgemeine Features) ==
-+ richtige GUI listen
 + key bindings editor
-*** GUI enthässlichen
+[*** GUI enthässlichen]
+*** GUI durch was einfacheres ersetzen
 
 == GUI spielspezifisch (Dialoge) ==
 * Netzwerk-GUI (Spielerliste, Scores, Chat, Ping/Lag/Warte-auf-Server)
@@ -59,9 +66,10 @@ $ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation n
 
 
 == Spiellogik/Gameengine ==
+- timing des lebenspunktcountdowns und der teamanzeige abstimmen
 * physik: box stacking
   (zusätzliche ideen: bewegende platformen, jump pads, wurmlöcher)
-- statt aktive Teams aktive TeamMembers
+[- statt aktive Teams aktive TeamMembers]
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
 + Mehr Powerup-Kisten (Niedrige Schwerkraft etc.)
 + Vergiftete Würmer (nach Atomangriff/Sudden death oder Stinktiertreffer)
@@ -91,7 +99,6 @@ $ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation n
 + Lokale-Suche-Waffen (Taube, Zauberkugel)
 + Bungee
 + Einfrieren
-+ Langbogen (Pfeile werden in die Landschaft eingefügt)
 + Nahkampfwaffen (Drachenball, Firepunch, Kamikaze, Kamikaze-Bomber)
 
 - Napalm verbessern (Ruckeln verhindern, Würmer mehr wegstoßen, vll. etwas "klebriger" machen)
@@ -100,11 +107,15 @@ $ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation n
 + Anzahl Projektile über Tasten 1-5 einstellen (Rindviecher)
 
 ! Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)
+    - statt versuchen, wcontrol.d von worm.d unabhängig zu machen, lieber den rest des spiels von wcontrol.d unabhängig machen
+    - alles im spiel sollte abstrakte tastenkombinationen registrieren können ("abstrakt" weil sie user-konfigurierbar sein sollen und über netzwerk funktionieren müssen)
+    - manche davon sind nur zeitweise aktiv (nämlich würmer)
+    - der rest (input.d, wcontrol.d, worm.d) kann das einfach benutzen und muss nicht weiter enthackt werden (oh alptraum)
+    - dann braucht man noch eine kleine schnittstelle zwischen wcontrol.d und control.d und manchen waffen (beamen, bohrer...)
 
 
 == level generator ==
-! generator.d: reduziere komplexität indem "generierte" level nur noch als lexel-array gespeichert werden (statt als gefüllte polygone); verschiebe das laden/speichern von savegames(bzw. netzwerk level) nach level.d; mache strukturen in level.d vllt. serialisierbar (statt manueller lade/speicher code); in generator.d würde nur noch code zum rendern bleiben + müllcode zum laden und speichern von templates (lol leveledit.d); vllt. savegames/netzwerklevels immer als komplette bitmap speichern?; danach kann glevel.d das zeug aus level.d direkt verwenden und ist weniger hackig
-- hashcheck für savegames und insbesondere netzwerklevels
+! generator.d: möglicherweise level einfach als lua generator skript speichern?
 + beliebige game objekte in vorgenerierten leveln (ähnlich minen, aber vom leveldesigner platziert, beispiel: feste levelränder als objekte)
 - Objekt-/Brückenplatzierung überarbeiten (Decke, Wand links/rechts etc.)
 - Objekte und Brücken sind jede Runde anders platziert
@@ -115,7 +126,6 @@ $ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation n
          nicht allein den Client entscheiden lassen (Fairness)]
 + Server im Verbindungs-Dialog pingen bzw. mehr Informationen anzeigen
 - Replays überprüfen/abstellen
-+ Savegames
 - Fix für spielbeeinflussende Befehle (z.B. slowdown), die mom. keine Timestamps haben
 + Ready-Check zum Spielstart
 *** Interpolation/Dead reckoning/Lag compensation/sowas in die Richtung, muhahar (siehe Deadlock)
@@ -124,11 +134,11 @@ $ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation n
 * Client-Netzwerkcode in Thread verlagern (Performance/genaue Ping-Werte)
 
 == nicht wirklich wichtig ==
-[- userdaten (mergen von konfigfiles)]
 - locales: übersetzungen vergleichen (z.b. de mit en -> fehlende einträge finden)
 - task spezifische commandos/hotkeys (ähnlich wie in loadsafe.d)
    (und den gräuslichen hack in commandline.d entfernen)
 - funktionalität von sky.d durch particles.d ersetzen
 - GameConfig code säubern (absurde ansammlung von ConfigNodes)
-! besser methode zum auslesen von confignodes (insbesondere mit fehlerbehandlung, so dass ungültige werte nicht still ignoriert werden, beliebige datentypen, user warnen über unbenutzte einträge)
-- configfile.d so ändern, dass datentypen schon in den nodes/in der syntax deklariert werden?
+- userverzeichnis im VFS unter /user statt / mounten => shadowing von beliebigen dateien im datenverzeichnis verhindern (obwohl das mal als feature gedacht war)
++ datenverzeichnis per kommandozeile setzbar machen
++ server ohne GUI per kommandozeile startbar machen

@@ -6,7 +6,7 @@ import gui.widget;
 import gui.rendertext;
 import utils.time;
 import utils.output;
-import utils.misc : min, max, va_list, formatfx;
+import utils.misc : min, max, va_list, myformat_fx;
 import utils.ringbuffer;
 
 import str = utils.string;
@@ -159,7 +159,7 @@ public class LogWindow : Widget, Output {
     override void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
         va_list argptr)
     {
-        writeString(formatfx(fmt, arguments, argptr));
+        writeString(myformat_fx(fmt, arguments, argptr));
         if (newline)
             writeString("\n");
     }

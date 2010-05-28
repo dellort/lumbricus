@@ -54,12 +54,32 @@ class CmdNetServerTask {
         box.add(mPlayerList);
         mWindow = gWindowFrame.createWindow(box, "Server", Vector2i(350, 0));
 
+        //see comment on thread_run()
+        gLog.warn("lol starting unsafe thread in {}", __FILE__);
+
         mServerThread = new Thread(&thread_run);
         mServerThread.start();
 
         addTask(&onFrame);
     }
 
+    //xxx running this in a separate thread is highly unsafe; at least because
+    //  the thread accesses the log thing, which may call even into the GUI;
+    //  there may be other subtle problems as well
+    //possible solutions:
+    //  1. try to make it safe (e.g. remove all log calls) => lots of PAIN
+    //  2. put the network handling into a separate thread (a simple interface,
+    //     which makes it easy to correctly do multithreading) => also pain
+    //  3. start a new process, which runs the server => why not?
+    //  4. decide that we don't need it (actually, I have no clue why we run the
+    //     server in a separate thread)
+    //  5. make Log threadsafe (transport LogEvent to the main thread) => meh
+    //  6. make the GUI part of Log threadsafe
+    //for 3., one could add an extra command line option, that starts the server
+    //  as separate program
+    //for 6., one could easily change the stuff at the end of gui/window.d: just
+    //  always use the log buffer and add some synchronized blocks; the rest of
+    //  the logging seems to be mostly thread-safe already
     private void thread_run() {
         try {
             mServer = new CmdNetServer(mSrvConf);

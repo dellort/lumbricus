@@ -51,7 +51,7 @@ class WeaponSet : GameObject {
                 w = engine.resources.get!(WeaponClass)(wname);
                 assert(!!w);
             } catch (ResourceException e) {
-                engine.error("Error in weapon set '{}': {}", wname, e.msg);
+                engine.log.warn("Error in weapon set '{}': {}", wname, e.msg);
                 continue;
             }
             if (node.value == "inf") {

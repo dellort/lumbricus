@@ -689,8 +689,6 @@ class TeamMember : Actor {
 //xxx: move gui parts out of this
 class GameController : GameObject2 {
     private {
-        static LogStruct!("game.controller") log;
-
         Team[] mTeams;
 
         //xxx for loading only
@@ -743,6 +741,10 @@ class GameController : GameObject2 {
         OnCrateCollect.handler(engine.events, &collectCrate);
 
         internal_active = true;
+    }
+
+    private Log log() {
+        return engine.log;
     }
 
     private void onOffworld(Sprite x) {
@@ -900,7 +902,7 @@ class GameController : GameObject2 {
             ws = mWeaponSets[id];
         else {
             if (!noError && id.length) {
-                engine.error("Weapon set {} not found.", id);
+                engine.log.warn("Weapon set {} not found.", id);
             }
             ws = mWeaponSets["default"];
         }
@@ -921,7 +923,7 @@ class GameController : GameObject2 {
             }
         }
         if (!firstSet) {
-            engine.error("No weapon sets defined.");
+            engine.log.error("No weapon sets defined.");
             //create empty default set
             firstSet = new ConfigNode();
         }
@@ -929,7 +931,7 @@ class GameController : GameObject2 {
         foreach (ConfigNode item; config) {
             if (item.value.length > 0) {
                 if (!(item.value in mWeaponSets)) {
-                    engine.error("Weapon set {} not found.", item.value);
+                    engine.log.warn("Weapon set {} not found.", item.value);
                     continue;
                 }
                 mWeaponSets[item.name] = mWeaponSets[item.value];
@@ -945,38 +947,38 @@ class GameController : GameObject2 {
 
     //create and place worms when necessary
     private void placeWorms() {
-        log("placing worms...");
+        log.minor("placing worms...");
 
         foreach (t; mTeams) {
             t.placeMembers();
         }
 
-        log("placing worms done.");
+        log.minor("placing worms done.");
     }
 
     private void loadLevelObjects(ConfigNode objs) {
-        log("placing level objects");
+        log.minor("placing level objects");
         foreach (ConfigNode sub; objs) {
             auto mode = sub.getStringValue("mode", "unknown");
             if (mode == "random") {
                 auto cnt = sub.getIntValue("count");
-                log("count {} type {}", cnt, sub["type"]);
+                log.trace("count {} type {}", cnt, sub["type"]);
                 try {
                     for (int n = 0; n < cnt; n++) {
                         engine.queuePlaceOnLandscape(engine.resources
                             .get!(SpriteClass)(sub["type"]).createSprite());
                     }
                 } catch (ResourceException e) {
-                    engine.error("Warning: Placing {} objects failed",
+                    log.warn("Warning: Placing {} objects failed",
                         sub["type"]);
                     continue;
                 }
             } else {
-                engine.error("Warning: unknown placing mode: '{}'",
+                log.warn("Warning: unknown placing mode: '{}'",
                     sub["mode"]);
             }
         }
-        log("done placing level objects");
+        log.minor("done placing level objects");
     }
 
     //transitive:
@@ -1042,7 +1044,7 @@ class GameController : GameObject2 {
                     ret ~= new CollectableBomb();
                 }
             } else {
-                log("failed to create crate contents");
+                log.warn("failed to create crate contents");
             }
         }
         return ret;
@@ -1053,7 +1055,7 @@ class GameController : GameObject2 {
     bool dropCrate(bool silent = false, Collectable[] contents = null) {
         Vector2f from, to;
         if (!engine.placeObjectRandom(10, 25, from, to)) {
-            log("couldn't find a safe drop-position");
+            log.warn("couldn't find a safe drop-position for crate");
             return false;
         }
 
@@ -1072,7 +1074,7 @@ class GameController : GameObject2 {
             //xxx move into CrateSprite.activate()
             OnCrateDrop.raise(crate);
         }
-        log("drop {} -> {}", from, to);
+        log.minor("drop crate {} -> {}", from, to);
         return true;
     }
 

@@ -727,6 +727,7 @@ debug {
     import tango.core.Memory;
 
     void assert_gcptr(void* p) {
+        //if this fails, the delegate probably points into the stack (unsafe)
         assert(GC.addrOf(p) !is null);
     }
 }
@@ -740,7 +741,6 @@ private void luaPushDelegate(T)(lua_State* state, T del) {
     static assert(is(T == delegate));
 
     assert(del !is null);
-    //if this fails, the delegate probably points into the stack (unsafe)
     debug assert_gcptr(del.ptr);
 
     extern(C) static int demarshal(lua_State* state) {

@@ -252,7 +252,7 @@ class CmdNetClient : SimpleNetConnection {
         //--- just dump hash for debugging
         foreach (o; loader.gameConfig.level.objects) {
             if (auto bmp = cast(LevelLandscape)o) {
-                Trace.formatln("- checksum bitmap '{}': {}", bmp.name,
+                gLog.notice("checksum bitmap '{}': {}", bmp.name,
                     bmp.landscape.checksum);
             }
         }

@@ -267,7 +267,7 @@ class ALSound : DriverSound {
         if (mSample) {
             if (mCurrentSource != uint.max) {
                 finishPlay();
-                gLog("ALSound.initPlay warning: tried to"
+                gLog.warn("ALSound.initPlay warning: tried to"
                     " play stream multiple times, current playback cut off");
             }
             Sound_Seek(mSample, startAt.msecs);

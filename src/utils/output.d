@@ -1,7 +1,7 @@
 module utils.output;
 
 import utils.stream;
-import utils.misc : formatfx_s, va_list, Trace;
+import utils.misc : myformat_s_fx, va_list, Trace;
 import ic = tango.io.model.IConduit;
 
 /// interface for a generic text output stream (D currently lacks support for
@@ -30,7 +30,7 @@ public class OutputHelper : Output {
     void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
         va_list argptr)
     {
-        writeString(formatfx_s(buffer, fmt, arguments, argptr));
+        writeString(myformat_s_fx(buffer, fmt, arguments, argptr));
         if (newline)
             writeString("\n");
     }

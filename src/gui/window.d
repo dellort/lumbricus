@@ -1,5 +1,6 @@
 module gui.window;
 
+import common.task;
 import framework.config;
 import framework.event;
 import framework.framework;
@@ -13,6 +14,7 @@ import gui.tablecontainer;
 import gui.widget;
 import utils.array;
 import utils.configfile;
+import utils.log;
 import utils.math;
 import utils.misc;
 import utils.rect2;
@@ -170,6 +172,9 @@ class WindowWidget : Widget {
             }
         }
     }
+
+    //is called to display messages from utils/log.d
+    LogSink guiLogSink;
 
     ///clock on close button or close shortcut
     ///if null, remove the window from the GUI
@@ -905,3 +910,69 @@ class WindowFrame : Container {
     }
 }
 
+//-- log message dispatching
+//this is all stupid, but I couldn't think of anything better right now
+//the main problem is that each game has its own message window in GameFrame
+
+//this also contains a hack to make Log multithreading safe - if log events
+//  don't come from a main thread, they are queued
+//to remove the hack, remove gMainThread, gMutex, and the synchronized
+//  statements (but not their contents) - note that the queue is still needed
+//  in the single threaded case (if no window is visible / no log dg set yet)
+
+import tango.core.Thread;
+
+private {
+    LogBackend gLogBackendGui;
+    LogEntry[] gGuiLogBuffer;
+    Thread gMainThread;
+    Object gMutex;
+}
+
+static this() {
+    gMutex = new Object();
+    gMainThread = Thread.getThis();
+    gLogBackendGui = new LogBackend("gui", LogPriority.Notice, null);
+    gLogBackendGui.sink = toDelegate(&logGui);
+    addTask(toDelegate(&dispatchGuiLog));
+}
+
+private LogSink getGuiLogSink() {
+    //multi-threading hack: force queing the message if not in main thread
+    if (Thread.getThis() !is gMainThread)
+        return null;
+    if (!gWindowFrame)
+        return null;
+    WindowWidget wnd = gWindowFrame.activeWindow();
+    if (!wnd)
+        return null;
+    //no logging set => log message is displayed when a window with a logsink
+    //  finally is on top (= active) again
+    return wnd.guiLogSink;
+}
+
+private void logGui(LogEntry e) {
+    if (auto sink = getGuiLogSink()) {
+        sink(e);
+    } else {
+        //leave it to dispatchGuiLog(), which basically polls if something gets
+        //  available
+        synchronized (gMutex) {
+            gGuiLogBuffer ~= e.dup;
+        }
+    }
+}
+
+private bool dispatchGuiLog() {
+    if (auto sink = getGuiLogSink()) {
+        LogEntry[] buffer;
+        synchronized (gMutex) {
+            buffer = gGuiLogBuffer;
+            gGuiLogBuffer = null;
+        }
+        foreach (x; buffer) {
+            sink(x);
+        }
+    }
+    return true;
+}

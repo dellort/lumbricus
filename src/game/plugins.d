@@ -48,8 +48,7 @@ class PluginBase {
             try {
                 loadPlugin(pid, sub, cfg.plugins);
             } catch (PluginException e) {
-                //xxx we need "something" to handle non-fatal errors
-                Trace.formatln("Plugin '{}' failed to load: {}", pid, e.msg);
+                mEngine.log.error("Plugin '{}' failed to load: {}", pid, e.msg);
             }
         }
 
@@ -109,10 +108,7 @@ class PluginBase {
             try {
                 plg.doinit(mEngine);
             } catch (CustomException e) {
-                //wtfwtfwtfwtf
-                Trace.formatln("Plugin '{}' failed to init(): {}", plg.name,
-                    e.msg);
-                mEngine.error("Plugin '{}' failed to init(): {}", plg.name,
+                mEngine.log.error("Plugin '{}' failed to init(): {}", plg.name,
                     e.msg);
             }
         }
@@ -139,7 +135,7 @@ class Plugin {
     //  conf = static plugin configuration
     this(char[] a_name, GfxSet gfx, ConfigNode conf) {
         name = a_name;
-        log("loading '{}'", name);
+        log.minor("loading '{}'", name);
         if (!isIdentifier(name)) {
             throw new PluginException("Plugin name is not a valid identifier");
         }
@@ -169,8 +165,13 @@ class Plugin {
                 }
             }
             //load locale
-            //xxx fixed id "weapons"; has to change, but how?
-            addLocaleDir("weapons", mResources.fixPath("locale"));
+            //  each entry is name=path
+            //  name is the namespace under which the locales are loaded
+            //  path is a relative path within the plugin's directory
+            auto locales = mConfig.getValue!(char[][char[]])("locales");
+            foreach (char[] name, char[] path; locales) {
+                addLocaleDir(name, mResources.fixPath(path));
+            }
         }
 
         //

@@ -33,6 +33,7 @@ public void delegate() gOnChangeLocale;
 
 private {
     Log log;
+    bool gInitOnce = false;
     MountId gLocaleMount = MountId.max;
     char[] gActiveLanguage;
     Translator gLocaleRoot;
@@ -59,7 +60,7 @@ static this() {
     //init value is "", so the GUI can now if the language was not chosen yet
     //the GUI then will annoy the user with a selection dialog
     gCurrentLanguage = addSetting!(char[])("locale", "", SettingType.Choice);
-    gCurrentLanguage.onChange ~= delegate(Setting g) { initI18N(); };
+    //NOTE: a settings change handler is installed in initI18N()
     gOnRelistSettings ~= {
         gCurrentLanguage.choices = null;
         scanLocales((char[] id, char[] name1, char[] name2) {
@@ -94,7 +95,7 @@ private ConfigNode loadLocaleNodeFromPath(char[] localePath) {
         //try fallback
         node = loadConfig(fallbackFile, false, true);
     if (!node) {
-        log("WARNING: Failed to load any locale file from " ~ localePath
+        log.warn("Failed to load any locale file from " ~ localePath
             ~ " with language '" ~ gActiveLanguage ~ "', fallback '"
             ~ gFallbackLanguage ~ "'");
         //dummy node; never return null
@@ -321,7 +322,7 @@ public class Translator {
         //seems that tango formatting can't handle that case
         if (text.length == 0)
             return "";
-        return formatfx(text, arguments, argptr);
+        return myformat_fx(text, arguments, argptr);
     }
 }
 
@@ -356,6 +357,11 @@ void scanLocales(void delegate(char[] id, char[] name_en, char[] name_loc) cb) {
 /// reinitialized - this is only to force reinitialization (e.g. after you
 //  mounted new locale directories)
 public void initI18N() {
+    if (!gInitOnce) {
+        gInitOnce = true;
+        gCurrentLanguage.onChange ~= delegate(Setting g) { initI18N(); };
+    }
+
     char[] lang = gCurrentLanguage.value;
 
     gActiveLanguage = lang;

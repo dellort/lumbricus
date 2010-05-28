@@ -118,7 +118,7 @@ private class HandlerDirectory : HandlerInstance {
         if (!dirExists(absPath))
             throw new FilesystemException("Directory doesn't exist");
         mDirPath = addTrailingPathDelimiter(absPath);
-        version(FSDebug) log("New dir handler for '{}'",mDirPath);
+        log("New dir handler for '{}'",mDirPath);
     }
 
     bool isWritable() {
@@ -127,7 +127,7 @@ private class HandlerDirectory : HandlerInstance {
 
     bool exists(VFSPath handlerPath) {
         char[] p = handlerPath.makeAbsolute(mDirPath);
-        version(FSDebug) log("Checking for existance: '{}'",p);
+        log("Checking for existance: '{}'",p);
         return tpath.exists(p) && !tpath.isFolder(p);
     }
 
@@ -149,8 +149,7 @@ private class HandlerDirectory : HandlerInstance {
     }
 
     Stream open(VFSPath handlerPath, File.Style mode) {
-        version(FSDebug) log("Handler for '{}': Opening '{}'",mDirPath,
-            handlerPath);
+        log("Handler for '{}': Opening '{}'",mDirPath, handlerPath);
         if (mode.open != File.Open.Exists) {
             //make sure path exists
             createPath(handlerPath.parent);
@@ -414,28 +413,28 @@ private class HandlerLink : HandlerInstance {
     private FileSystem mParent;
 
     this(FileSystem parent, VFSPath relPath) {
-        version(FSDebug) log("New link: {}",relPath);
+        log("New link: {}",relPath);
         mLinkedPath = relPath;
         mParent = parent;
     }
 
     bool isWritable() {
-        version(FSDebug) log("Link: isWritable");
+        log("Link: isWritable");
         return mParent.pathIsWritable(mLinkedPath, this);
     }
 
     bool exists(VFSPath handlerPath) {
-        version(FSDebug) log("Link: exists({})",handlerPath);
+        log("Link: exists({})",handlerPath);
         return mParent.exists(mLinkedPath.join(handlerPath), this);
     }
 
     bool pathExists(VFSPath handlerPath) {
-        version(FSDebug) log("Link: pathexists({})",handlerPath);
+        log("Link: pathexists({})",handlerPath);
         return mParent.pathExists(mLinkedPath.join(handlerPath), this);
     }
 
     Stream open(VFSPath handlerPath, File.Style mode) {
-        version(FSDebug) log("Link: open({})",handlerPath);
+        log("Link: open({})",handlerPath);
         return mParent.open(mLinkedPath.join(handlerPath), mode, this);
     }
 
@@ -491,8 +490,7 @@ class FileSystem {
             ///is relPath a subdirectory of mountPoint?
             ///compares case-sensitive
             public bool matchesPath(VFSPath other) {
-                version(FSDebug) log("Checking for match: '{}' and '{}'",
-                    other,mountPoint);
+                log("Checking for match: '{}' and '{}'",other,mountPoint);
                 return mountPoint.isChild(other);
             }
 
@@ -524,14 +522,14 @@ class FileSystem {
     this(char[] appId) {
         assert(!gFS, "FileSystem is singleton");
         gFS = this;
-        log = registerLog("FS");
+        log = registerLog("fs");
         mRegFilename = new Regex(`[^-+!.,;a-zA-Z0-9()\[\]]`);
         initPaths(appId);
     }
 
     //standalone, non-singleton instance of a FileSystem
     this() {
-        log = registerLog("FS2");
+        log = registerLog("fs2");
         mRegFilename = new Regex(`[^-+!.,;a-zA-Z0-9()\[\]]`);
         mUserPath = "";
         mDataPath = "";
@@ -581,11 +579,11 @@ class FileSystem {
 
         //user path: home directory + .appId
         mUserPath = getUserPath(appPath, appId);
-        version(FSDebug) log("PUser = '{}'",mUserPath);
+        log("PUser = '{}'",mUserPath);
 
         //data path: prefix/share/appId
         mDataPath ~= appPath ~ "../share/" ~ appId ~ "/";
-        version(FSDebug) log("PData = '{}'", mDataPath);
+        log("PData = '{}'", mDataPath);
     }
 
     //find array index after which to insert new MountedPath with precedence
@@ -793,7 +791,7 @@ class FileSystem {
     public Stream open(VFSPath filename, File.Style mode = File.ReadExisting,
         HandlerInstance caller = null)
     {
-        version(FSDebug) log("Trying to open '{}'",filename);
+        log("Trying to open '{}'",filename);
         //always shared reading
         if (mode.share == File.Share.None)
             mode.share = File.Share.Read;
@@ -801,7 +799,7 @@ class FileSystem {
             if (p.handler == caller)
                 continue;
             if (p.matchesPath(filename) && p.matchesMode(mode)) {
-                version(FSDebug) log("Found matching handler");
+                log("Found matching handler");
                 VFSPath handlerPath = p.getHandlerPath(filename);
                 if (p.handler.exists(handlerPath)
                     || (mode.open != File.Open.Exists)) {
@@ -844,7 +842,7 @@ class FileSystem {
             if (p.handler == caller)
                 continue;
             if (p.matchesPathForList(relPath)) {
-                version(FSDebug) log("Found matching handler");
+                log("Found matching handler");
                 VFSPath handlerPath = p.getHandlerPath(relPath);
                 if (p.handler.pathExists(handlerPath)) {
                     //the path exists, list contents

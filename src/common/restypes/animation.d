@@ -7,6 +7,7 @@ import common.restypes.frames;
 import framework.drawing;
 import framework.framework;
 import utils.configfile;
+import utils.log;
 import utils.misc;
 import utils.rect2;
 import utils.time;
@@ -414,7 +415,7 @@ class ComplicatedAnimation : Animation {
         static int doParam(int function(int a, int b) dg, int v, int count) {
             v = dg(v, count);
             if (v < 0 || v >= count) {
-                debug Trace.formatln("WARNING: parameter out of bounds");
+                debug gLog.minor("WARNING: parameter out of bounds");
                 v = 0;
             }
             return v;

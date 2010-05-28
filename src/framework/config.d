@@ -13,7 +13,6 @@ import utils.stream;
 import utils.misc;
 
 private LogStruct!("configfile") logConf;
-private LogStruct!("configerror") logError;
 
 ///load a config file from disk; file will be automatically unpacked
 ///if applicable
@@ -57,14 +56,14 @@ ConfigNode loadConfig(char[] section, bool asfilename = false,
     }
     //xxx: if parsing fails? etc.
     auto f = new ConfigFile(data, file.get(), (char[] log) {
-            logError("{}", log);
+            logConf.error("{}", log);
         });
     if (!f.rootnode)
         throw new CustomException("?");
     return f.rootnode;
 
 error:
-    logError("config file {} failed to load (allowFail = true)", file);
+    logConf.minor("config file {} failed to load (allowFail = true)", file);
     return null;
 }
 
@@ -114,7 +113,7 @@ ubyte[] saveConfigGzBuf(ConfigNode node) {
 ConfigNode loadConfigGzBuf(ubyte[] buf) {
     auto data = cast(char[])gunzipData(buf);
     auto f = new ConfigFile(data, "MemoryBuffer", (char[] log) {
-            logError("{}", log);
+            logConf.error("{}", log);
         });
     if (!f.rootnode)
         throw new CustomException("?");

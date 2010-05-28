@@ -62,7 +62,7 @@ struct EngineHash {
 //     higher introduced lag)
 const int cOptimumInputLag = 1;
 
-private LogStruct!("game.gameshell") log;
+private LogStruct!("gameshell") log;
 
 
 //for each demo frame, write the game hash value (engineHash())
@@ -206,10 +206,10 @@ class GameLoader {
             mEnableDemoRecording = false;
 
         if (mEnableDemoRecording) {
-            registerLog("foowarning")("demo recording enabled!");
             auto demoFile = new ConfigNode();
             demoFile.addNode("game_config", mGameConfig.save());
             char[] filename = "last_demo.";
+            log.notice("Demo recording enabled!");
             //why two files? because I want to output stuff in realtime, and
             //  the output should survive even a crash
             try {
@@ -218,7 +218,7 @@ class GameLoader {
                 mDemoOutput = threadstr.pipeOut();
                 saveConfig(demoFile, filename ~ "conf");
             } catch (IOException e) {
-                Trace.formatln("Warning: Failed to create demo file ({}). Demo"
+                log.warn("Warning: Failed to create demo file ({}). Demo"
                     " writing disabled.", e.msg);
             }
         }
@@ -272,8 +272,6 @@ class GameLoader {
         new GameController(mShell.mEngine);
 
         new InputHandler(mShell.mEngine);
-
-        OnGameError.handler(mShell.mEngine.events, &mShell.onGameError);
 
         if (mDemoInput) {
             //changed because replays were ditched (and it looks nicer)
@@ -343,7 +341,6 @@ class GameShell {
         bool mSOMETHINGISWRONG; //good variable names are an art
     }
     bool terminated;  //set to exit the game instantly
-    Queue!(char[]) errorQueue;
 
     struct LogEntry {
         long timestamp;
@@ -383,8 +380,6 @@ class GameShell {
         mCmds.register(Command("single_step", &cmdSinglestep, "", ["int?=1"]));
 
         mCmds.bind(mCmd);
-
-        errorQueue = new typeof(errorQueue);
     }
 
     private void execEntry(LogEntry e) {
@@ -400,13 +395,15 @@ class GameShell {
         if (e.hash !is EngineHash.init) {
             auto expect = engineHash();
             if (expect != e.hash && !mSOMETHINGISWRONG) {
-                void woosh() { log("------------ wooooosh -------------"); }
+                void woosh() {
+                    log.error("------------ wooooosh -------------");
+                }
                 woosh();
-                log("oh hi, something is severely wrong");
-                log("current hash: {}", expect);
-                log("LogEntry hash: {}", e.hash);
-                log("timestamp: {}", mTimeStamp);
-                log("not bothering you anymore, enjoy your day");
+                log.error("oh hi, something is severely wrong");
+                log.error("current hash: {}", expect);
+                log.error("LogEntry hash: {}", e.hash);
+                log.error("timestamp: {}", mTimeStamp);
+                log.error("not bothering you anymore, enjoy your day");
                 mSOMETHINGISWRONG = true;
                 woosh();
             }
@@ -467,7 +464,7 @@ class GameShell {
             log("received input: {}", e);
 
         if (mReplayMode) {
-            log("previous input denied, because in replay mode");
+            log.minor("previous input denied, because in replay mode");
             return;
         }
 
@@ -663,7 +660,7 @@ class GameShell {
                 if (mMasterTime.slowDown > 1.0f)
                     mMasterTime.slowDown = 1.0f;
                 mReplayMode = false;
-                log("stop replaying");
+                log.minor("stop replaying");
             }
         }
     }
@@ -672,7 +669,7 @@ class GameShell {
         mLogReplayInput = false;
         mCurrentInput = input.clone;
         mReplayMode = true;
-        log("replay start, time={} ({} ns)", mGameTime.current,
+        log.minor("replay start, time={} ({} ns)", mGameTime.current,
             mGameTime.current.nsecs);
         debug mPrintFrameTime = true;
     }
@@ -764,10 +761,6 @@ class GameShell {
         stopDemoRecorder();
     }
 
-    private void onGameError(char[] msg) {
-        errorQueue.push(msg);
-    }
-
     //xxx: not networking save, I guess
     private void cmdSetPaused(MyBox[] params, Output o) {
         bool nstate;
@@ -776,12 +769,12 @@ class GameShell {
         } else {
             nstate = params[0].unbox!(bool)();
         }
-        log("pause: {}", nstate);
+        log.minor("pause: {}", nstate);
         pauseBlock(nstate, this);
     }
     private void cmdSetSlowdown(MyBox[] params, Output o) {
         float state = params[0].unbox!(float)();
-        log("slowndown: {}", state);
+        log.minor("slowdown: {}", state);
         mGameTime.slowDown = state;
     }
     private void cmdSinglestep(MyBox[] params, Output o) {

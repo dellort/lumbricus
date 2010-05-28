@@ -39,8 +39,6 @@ class InputHandler {
 
         //temporary during command execution (sorry)
         char[] mTmp_CurrentAccessTag;
-
-        static LogStruct!("input") log;
     }
 
     this(GameCore a_engine) {
@@ -83,8 +81,8 @@ class InputHandler {
         } catch (ScriptingException e) {
             //xxx write is not the console where the command came from,
             //    but the global output
-            engine.error("{}", e.msg);
-            write.writefln("{}", e.msg);
+            engine.log.error("{}", e.msg);
+            //write.writefln("{}", e.msg);
         }
     }
 
@@ -183,7 +181,8 @@ class InputHandler {
                     }
                 );
                 if (!ok)
-                    log("denied: {}", owner.mTmp_CurrentAccessTag);
+                    owner.engine.log.minor("denied: {}",
+                        owner.mTmp_CurrentAccessTag);
             }
         }
 

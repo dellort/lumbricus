@@ -51,7 +51,7 @@ import common.localeswitch;
 //Also see parseCmdLine() for how parsing works.
 
 void lmain(char[][] args) {
-    init(args);
+    init(args[1..$]);
 
     auto fw = new Framework();
     fw.setCaption("Lumbricus");
@@ -69,11 +69,6 @@ void lmain(char[][] args) {
     Stdout.formatln("Bye!");
 }
 
-version(LogExceptions) {
-    import utils.log;
-    //import tango.util.log.Trace : Trace;
-}
-
 int main(char[][] args) {
     version(LogExceptions) {
         //catch all exceptions, write them to logfile and console and exit
@@ -81,10 +76,10 @@ int main(char[][] args) {
             lmain(args);
         } catch (ExitApp e) {
         } catch (Exception e) {
-            if (gLogEverything.destination) {
+            if (gLogFileSink) {
                 //logfile output
                 e.writeOut((char[] s) {
-                    gLogEverything.destination.writeString(s);
+                    gLogFileSink(s);
                 });
             }
             //console output

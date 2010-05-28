@@ -3,6 +3,7 @@ module game.hud.gameframe;
 import common.common;
 import common.lua;
 import common.scene;
+import common.task;
 import common.toplevel;
 import framework.framework;
 import framework.event;
@@ -45,6 +46,9 @@ import utils.mybox;
 import utils.output;
 import utils.vector2;
 import utils.log;
+
+//remove it if you hate it
+import game.gui.levelpaint;
 
 import tango.math.Math;
 
@@ -137,6 +141,8 @@ class GameFrame : SimpleContainer {
     }
 
     override protected void simulate() {
+        super.simulate();
+
         auto curtime = game.engine.interpolateTime.current;
         if (mLastFrameTime == Time.init)
             mLastFrameTime = curtime;
@@ -203,10 +209,6 @@ class GameFrame : SimpleContainer {
         mPauseLabel.visible = game.shell.paused;
         if (mMusic)
             mMusic.paused = game.shell.paused;
-
-        while (!game.shell.errorQueue.empty) {
-            showError(game.shell.errorQueue.pop);
-        }
     }
 
     void fadeoutMusic(Time t) {
@@ -301,9 +303,34 @@ class GameFrame : SimpleContainer {
         HudFactory.instantiate(id, mGui, game, link);
     }
 
-    private void showError(char[] msg) {
-        //red text (if chatbox formatting enabled)
-        mChatbox.output.writefln("\\c(ff0000){}", msg);
+    private void showLogEntry(LogEntry e) {
+        const char[][] cColorString = [
+            LogPriority.Trace: "0000ff",
+            LogPriority.Minor: "bbbbbb",
+            LogPriority.Notice: "ffffff",
+            LogPriority.Warn: "ffff00",
+            LogPriority.Error: "ff0000"
+        ];
+        char[] c = "ffffff";
+        if (indexValid(cColorString, e.pri))
+            c = cColorString[e.pri];
+        //the \lit prevents tag interpretation between the \0
+        mChatbox.output.writefln("\\c({})\\lit\0{}\0", c, e.txt);
+    }
+
+    private bool mLogAdded;
+    override void onLinkChange() {
+        if (!mLogAdded && isLinked()) {
+            Widget cur = this;
+            while (cur) {
+                if (auto w = cast(WindowWidget)cur) {
+                    mLogAdded = true;
+                    w.guiLogSink = &showLogEntry;
+                    return;
+                }
+                cur = cur.parent;
+            }
+        }
     }
 
     void scriptAddHudWidget(LuaGuiAdapter gui, char[] where = "sidebar") {
@@ -344,10 +371,16 @@ class GameFrame : SimpleContainer {
         mScriptInterpreter.exec(args[0].unbox!(char[])());
     }
 
+    //this is just some sort of joke/easteregg/test/doingitbecauseican
+    private void levelPaintHack() {
+        gWindowFrame.createWindow(new PainterWidget(
+            (cast(GameEngine)game.engine).gameLandscapes[0].landscape), "hi");
+    }
+
     this(GameInfo g) {
         game = g;
 
-        gDefaultLog("initializeGameGui");
+        //yyy gDefaultLog("initializeGameGui");
 
         doClipping = true;
 
@@ -442,7 +475,8 @@ class GameFrame : SimpleContainer {
         LuaRegistry reg = new LuaRegistry();
         reg.method!(GameFrame, "scriptAddHudWidget")("addHudWidget");
         reg.method!(GameFrame, "scriptRemoveHudWidget")("removeHudWidget");
-        reg.methods!(GameFrame, "addKeybinds", "removeKeybinds");
+        reg.methods!(GameFrame, "addKeybinds", "removeKeybinds",
+            "levelPaintHack");
         state.register(reg);
         state.addSingleton!(GameFrame)(this);
 

@@ -8,11 +8,14 @@ import gui.lua;
 import gui.rendertext; //: FormattedText
 import utils.color;
 import utils.configfile;
-import utils.timesource;
-import utils.vector2;
+import utils.log;
+import utils.misc;
+import utils.random;
 import utils.rect2;
 import utils.time;
-import utils.random;
+import utils.timesource;
+import utils.vector2;
+
 import str = utils.string;
 
 /+ ?
@@ -48,6 +51,8 @@ static this() {
     gScripting.func!(loadConfig)();
 }
 
+LogStruct!("lua") gLuaLog;
+
 LuaState createScriptingState() {
     auto state = new LuaState(LuaLib.safe);
     state.register(gScripting);
@@ -74,6 +79,12 @@ LuaState createScriptingState() {
 
     loadScript(state, "color.lua");
     state.addScriptType!(Color)("Color");
+
+    //logging - utils.lua will use the d_logoutput functions if available
+    static void emitlog(LogPriority pri, TempString s) {
+        gLuaLog.emit(pri, "{}", s.raw);
+    }
+    state.setGlobal("d_logoutput", toDelegate(&emitlog));
 
     return state;
 }

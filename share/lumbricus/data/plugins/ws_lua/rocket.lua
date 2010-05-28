@@ -263,7 +263,7 @@ do
             applyMeleeImpulse(other, sender, 20, 50, normal)
         else
             -- can happen when it hits via "hit_noimpulse"
-            warnf("arrow impacted on unknown object")
+            log.warn("arrow impacted on unknown object")
             spriteExplode(sender, 10)
         end
         Sprite_kill(sender)

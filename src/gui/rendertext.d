@@ -343,11 +343,10 @@ public class FormattedText {
             Part* p = addpart(type);
             p.text_start = start_index;
             p.text = t;
-            debug if (start_index >= 0) {
-                assert(mText[start_index..start_index+p.text.length]
-                    == p.text);
+            if (start_index >= 0) {
+                assert(mText[start_index..start_index+p.text.length] == p.text);
+                start_index += t.length;
             }
-            start_index += t.length;
             txt = txt[t.length..$];
             return p;
         }
@@ -720,7 +719,7 @@ public class FormattedText {
         //tries not to change anything if the text to be set is the same
 
         char[80] buffer = void;
-        char[] res = formatfx_s(buffer, fmt, arguments, argptr);
+        char[] res = myformat_s_fx(buffer, fmt, arguments, argptr);
         bool r = setTextCopy(as_markup, TempString(res));
         //formatfx_s allocates on the heap if buffer isn't big enough
         //delete the buffer if it was heap-allocated

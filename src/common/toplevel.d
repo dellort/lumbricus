@@ -264,7 +264,7 @@ private:
         globals.cmdLine.commands.helpTranslator = localeRoot.bindNamespace(
             "console_commands.global");
 
-        globals.setDefaultOutput(mGuiConsole.output);
+        globals.defaultOut = mGuiConsole.output;
 
         globals.cmdLine.registerCommand("gc", &testGC, "", ["bool?=true"]);
         globals.cmdLine.registerCommand("gcmin", &cmdGCmin, "");
@@ -871,19 +871,22 @@ class LogConfig {
     void onToggle(CheckBox sender) {
         foreach (char[] name, CheckBox b; mLogButtons) {
             if (sender is b) {
-                registerLog(name).stfu = !sender.checked;
+                registerLog(name).minPriority =
+                    sender.checked ? LogPriority.Trace : LogPriority.Minor;
                 return;
             }
         }
     }
 
     void onSave(Button sender) {
-        ConfigNode config = loadConfig("logging");
+        char[] fname = "logconfig.conf";
+        ConfigNode config = loadConfig(fname, true, true);
+        config = config ? config : new ConfigNode();
         auto logs = config.getSubNode("logs");
         foreach (char[] name, Log log; gAllLogs) {
-            logs.setValue!(bool)(name, !log.stfu);
+            logs.setValue!(bool)(name, log.minPriority <= LogPriority.Trace);
         }
-        saveConfig(config, "logging.conf");
+        saveConfig(config, fname);
     }
 
     void addLogs() {
@@ -898,7 +901,7 @@ class LogConfig {
                 mLogButtons[name] = button;
                 mLogList.add(button);
             }
-            button.checked = !log.stfu;
+            button.checked = log.minPriority <= LogPriority.Trace;
         }
     }
 

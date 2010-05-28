@@ -182,6 +182,10 @@ class WormControl : WormController {
         if (mEngaged == eng)
             return;
 
+        //some assertion fail if enaged, but not alive
+        if (!isAlive())
+            eng = false;
+
         if (eng) {
             //worm is being activated
             mEngaged = true;

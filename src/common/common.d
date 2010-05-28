@@ -34,7 +34,7 @@ static this() {
 //also contains some important initialization code
 class Common {
     LogStruct!("common") log;
-    Output defaultOut;
+    Output defaultOut; //set by toplevel to main console
     CommandLine cmdLine;
 
     //high resolution timers which are updated each frame, or so
@@ -48,24 +48,6 @@ class Common {
     Translator localizedKeynames;
 
     private this() {
-    }
-
-    void do_init() {
-        readLogconf();
-
-        /+yyy
-        if (args.getBoolValue("logconsole")) {
-            defaultOut = StdioOutput.output;
-        }
-        +/
-
-        loadColors(loadConfig("colors"));
-
-        //this must be called after the locale directory has been mounted
-        //it will cause i18n.d to re-init the translations, even if the current
-        //  language is the same
-        initI18N();
-
         localizedKeynames = localeRoot.bindNamespace("keynames");
     }
 
@@ -74,7 +56,7 @@ class Common {
         setVideoFromConf();
         if (!gFramework.videoActive) {
             //this means we're F****D!!1  ("FOOLED")
-            log("ERROR: couldn't initialize video");
+            log.error("couldn't initialize video");
             throw new CustomException("can't continue");
         }
 
@@ -124,26 +106,6 @@ class Common {
         Vector2i res = gFramework.screenSize;
         setSetting!(Vector2i)(fs ? cVideoSizeFS : cVideoSizeWnd, res);
         saveSettings();
-    }
-
-    void setDefaultOutput(Output o) {
-        if (!defaultOut) {
-            defaultOut = o;
-            gDefaultOutput.destination = defaultOut;
-        }
-    }
-
-    void readLogconf() {
-        ConfigNode conf = loadConfig("logging", false, true);
-        if (!conf)
-            return;
-        foreach (ConfigNode sub; conf.getSubNode("logs")) {
-            Log log = registerLog(sub.name);
-            if (!sub.getCurValue!(bool)())
-                log.shutup();
-        }
-        if (conf.getValue!(bool)("logconsole", false))
-            defaultOut = StdioOutput.output;
     }
 
     //translate into translated user-readable string

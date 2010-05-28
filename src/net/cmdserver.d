@@ -216,7 +216,7 @@ class CmdNetServer {
         if (cl.state != ClientConState.establish)
             //connection was rejected
             return;
-        Trace.formatln("New connection from {}, id = {}", cl.address, cl.id);
+        log.minor("New connection from {}, id = {}", cl.address, cl.id);
         mClients.insert_before(cl, insertBefore);
         mPlayerCount++;
         updateAnnounce();
@@ -225,7 +225,7 @@ class CmdNetServer {
 
     //called from CmdNetClientConnection: peer has been disconnected
     private void clientRemove(CmdNetClientConnection client) {
-        Trace.formatln("Client from {} ({}) disconnected",
+        log.minor("Client from {} ({}) disconnected",
             client.address, client.playerName);
         //store id, to notify other players
         if (mState == CmdServerState.playing && !client.gameTerminated)
@@ -446,12 +446,12 @@ class CmdNetServer {
     }
 
     void printClients() {
-        log("Connected:");
+        log.notice("Connected:");
         foreach (CmdNetClientConnection c; mClients) {
-            log("  address {} state {} name '{}'", c.address, c.state,
+            log.notice("  address {} state {} name '{}'", c.address, c.state,
                 c.playerName);
         }
-        log("playerCount={}", mPlayerCount);
+        log.notice("playerCount={}", mPlayerCount);
     }
 }
 
@@ -552,7 +552,7 @@ class CmdNetClientConnection {
     }
 
     void close(char[] desc, DiscReason why = DiscReason.none) {
-        log("disconnect peer {}, code={}, reason: {}", id(), why, desc);
+        log.notice("disconnect peer {}, code={}, reason: {}", id(), why, desc);
         mPeer.disconnect(why);
         state(ClientConState.closed);
     }
@@ -673,7 +673,7 @@ class CmdNetClientConnection {
         switch (pid) {
             case ClientPacket.error:
                 auto p = unmarshal.read!(CPError)();
-                Trace.formatln("Client reported error: {}", p.errMsg);
+                log.warn("Client reported error: {}", p.errMsg);
                 break;
             case ClientPacket.hello:
                 //this is the first packet a client should send after connecting
@@ -865,7 +865,7 @@ class CmdNetClientConnection {
     private void onDisconnect(NetPeer sender, uint code) {
         assert(sender is mPeer);
         if (code > 0)
-            Trace.formatln("Client disconnected with error: {}",
+            log.error("Client disconnected with error: {}",
                 reasonToString[code]);
         state(ClientConState.closed);
     }
@@ -874,19 +874,20 @@ class CmdNetClientConnection {
 //as command line program
 version (CmdServerMain):
 
-import tango.io.Stdout;
+import xout = tango.io.Stdout;
 
 import common.init;
 import framework.filesystem;
 
 void main(char[][] args) {
-    auto cmdargs = init(args, "no help lol");
-    if (!cmdargs)
-        return;
-    auto server = new CmdNetServer(loadConfigDef("server"));
-    while (true) {
-        server.frame();
+    try {
+        init(args[1..$]);
+        auto server = new CmdNetServer(loadConfigDef("server"));
+        while (true) {
+            server.frame();
+        }
+        server.shutdown();
+    } catch (ExitApp e) {
     }
-    server.shutdown();
-    Stdout.formatln("bye.");
+    xout.Stdout.formatln("bye.");
 }

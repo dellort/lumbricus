@@ -181,7 +181,7 @@ function getDrownFunc(sprite_class, drown_phys)
         drown_graphic = SequenceType_findState(seq, "drown", true)
     end
     if not drown_graphic then
-        warnf("no drown graphic for sprite {}", sprite_class)
+        log.minor("no drown graphic for sprite {}", sprite_class)
     end
     local particle = lookupResource("p_projectiledrown")
     if not drown_phys then

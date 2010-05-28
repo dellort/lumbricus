@@ -77,7 +77,7 @@ class CmdNetClientTask {
         auto ann = config.getSubNode("announce");
         foreach (ConfigNode sub; ann) {
             AnnounceSt as;
-            log("Init announce client: {}", sub.name);
+            log.minor("Init announce client: {}", sub.name);
             as.announce = AnnounceClientFactory.instantiate(sub.name, sub);
             as.marker = loader.lookup(sub["ctl_marker"]);
             as.list = loader.lookup!(StringListWidget)(sub["ctl_list"]);
@@ -109,7 +109,7 @@ class CmdNetClientTask {
     }
 
     private void onConnect(CmdNetClient sender) {
-        log("Connection to {} succeeded", sender.serverAddress);
+        log.notice("Connection to {} succeeded", sender.serverAddress);
         mClient.onConnect = null;
         mClient.onDisconnect = null;
         mClient.onError = null;
@@ -121,20 +121,24 @@ class CmdNetClientTask {
 
     private void onDisconnect(CmdNetClient sender, DiscReason code) {
         assert(code <= DiscReason.max);
-        if (code == 0)
+        LogPriority type;
+        if (code == 0) {
+            type = LogPriority.Notice;
             mLblError.text = "";
-        else
+        } else {
+            type = LogPriority.Error;
             mLblError.text = translate("connect.error", reasonToString[code]);
+        }
         mConnectButton.text = translate("connect.connect");
         mConnectButton.enabled = true;
-        log("Lost connection to {}: {}", sender.serverAddress,
+        log.emit(type, "Lost connection to {}: {}", sender.serverAddress,
             reasonToString[code]);
     }
 
     private void onError(CmdNetClient sender, char[] msg, char[][] args) {
         //connection error
         mLblError.text = translate("connect.error", msg);
-        log("Error from {}: {}", sender.serverAddress, msg);
+        log.error("Error from {}: {}", sender.serverAddress, msg);
     }
 
     private void connectClick(Button sender) {
@@ -145,7 +149,7 @@ class CmdNetClientTask {
                 return;
             addr = mCurServers[sel];
         }
-        log("Trying to connect to {}", NetAddress(addr));
+        log.notice("Trying to connect to {}", NetAddress(addr));
         mClient.connect(NetAddress(addr), mNickname.text);
         sender.text = translate("connect.connecting");
         sender.enabled = false;
@@ -507,7 +511,7 @@ class CmdNetLobbyTask {
 
     private void createStart(GameConfig conf) {
         //really start
-        log("debug dump!");
+        log.minor("debug dump!");
         saveConfig(conf.save(), "dump.conf");
 
         mClient.createGame(conf);

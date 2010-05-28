@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# executes this from trunk directory (with bin and src as immediate subdirs)
+
 # this creates bin/lumbricus-full from bin/lumbricus by appending the tar-ed
 #   contents of the data directory, share/lumbricus/
 # the executable is then supposed to be able to be started without additional

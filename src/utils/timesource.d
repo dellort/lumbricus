@@ -126,13 +126,14 @@ final class TimeSource : TimeSourcePublic {
         //happens when I suspend+resume my Linux system xD
         if (mExternalTime < mLastExternalTime) {
             Time error = mLastExternalTime - mExternalTime;
-            log("[{}] WARNING: time goes backward by {}!", mName, error);
+            log.warn("[{}] Time goes backward by {}!", mName, error);
             //compensate and do as if no time passed
             internalFixTime();
         }
         if (mExternalTime - mLastExternalTime > cMaxFrameTime) {
             Time error = mExternalTime - mLastExternalTime;
-            log("[{}] Time just jumped by {}, discarding frame", mName, error);
+            log.warn("[{}] Time just jumped by {}, discarding frame", mName,
+                error);
             //frame was too long, assume there was a hang/serialize
             //and don't count it
             internalFixTime();

@@ -913,7 +913,7 @@ public class ConfigFile {
         mErrorOut(myformat("ConfigFile, error in {}({},{}): ", mFilename,
             mPos.line, mPos.column));
         //scary D varargs!
-        mErrorOut(formatfx(fmt, _arguments, _argptr));
+        mErrorOut(myformat_fx(fmt, _arguments, _argptr));
         mErrorOut("\n");
 
         //abuse exception handling to abort parsing

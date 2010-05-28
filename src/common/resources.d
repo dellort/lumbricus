@@ -206,7 +206,7 @@ public class Resources {
         char[], ConfigNode) ResFactory;
 
     this() {
-        log = registerLog("Res");
+        log = registerLog("resources");
     }
 
     debug {
@@ -244,7 +244,7 @@ public class Resources {
             ls.count++;
         }
         void showStats() {
-            auto outp = registerLog("resource_stats");
+            auto outp = log;
             outp("Loading stats:");
             foreach (char[] k, ref LoadStat s; mLoadingStats) {
                 assert(!s.timing);
@@ -441,7 +441,7 @@ public class Resources {
 
         private void doload(ResourceItem[] list) {
             mTime = new PerfTimer(true);
-            log("Preloading {} resources", list.length);
+            log.minor("Preloading {} resources", list.length);
 
             mToLoad = list.dup;
         }
@@ -507,7 +507,8 @@ public class Resources {
                     //updateToLoad();
 
                     if (done)
-                        log("Finished preloading, time="~mTime.time.toString());
+                        log.minor("Finished preloading, time={}",
+                            mTime.time.toString());
                 }
             }
         }

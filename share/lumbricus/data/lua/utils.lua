@@ -279,6 +279,44 @@ function utils.range_sample_g(fn, r, b)
     return fn(min, max)
 end
 
+-- global text output functions (for logging/debugging)
+
+-- just print something, and don't be as inconvenient as print()
+-- but trailing (useless) arguments are ignored, unlike with print()
+-- also see the logging API in table log below
+function printf(...)
+    print(utils.anyformat(...))
+end
+
+-- this table contains the logging functions as generated from log_priorities
+-- e.g. there's "Warn" in log_priorities; for that, it generates:
+--  log.Trace = "Warn" -- like the stringified enum member in LogPriority
+--  function log.warn(...) -- like printf(), but pass the resulting string to
+--                            D's d_logoutput() function
+-- Note: unlike the D version, using log.trace() may be quite costly, even if
+--  the log level prevents displaying trace log events
+log = {}
+
+function log.emit(priority, ...)
+    local s = utils.anyformat(...)
+    if d_logoutput then
+        d_logoutput(priority, s)
+    else
+        -- fallback if D host doesn't provide d_logoutput
+        print(priority .. ":", s)
+    end
+end
+
+-- these correspond to LogPriority in src/utils/log.d
+local log_priorities = { "Trace", "Minor", "Notice", "Warn", "Error" }
+for i, name in ipairs(log_priorities) do
+    -- enum-style identifier for a log-level
+    log[name] = name
+    -- output function, basically a shortcut for log.emit()
+    log[string.lower(name)] = function(...)
+        log.emit(name, ...)
+    end
+end
 
 -- global convenience functions (mainly when in interactive interpreter)
 -- I consider them Lua language deficiencies *g*
@@ -320,23 +358,6 @@ function dir(t, x)
     t = t or _G
     assert(type(t) == "table")
     dodir(t, x, "", {})
-end
-
--- just print something, and don't be as inconvenient as print()
--- but trailing (useless) arguments are ignored, unlike with print()
-function printf(...)
-    print(utils.anyformat(...))
-end
-
--- like print, but possibly mark it as an error or something similar
--- defaults to print, but other code can replace this
-function warn(...)
-    print("Warning:", ...)
-end
-
--- like printf(), but use warn() (and not print()) to output the result
-function warnf(...)
-    warn(utils.anyformat(...))
 end
 
 -- there's also math.max, math.min

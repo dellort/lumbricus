@@ -17,8 +17,6 @@ import utils.math;
 import tango.math.Math : abs, PI;
 import utils.time;
 
-private LogStruct!("game.sprite") log;
-
 
 //called when sprite is finally dead (for worms: when done blowing up)
 alias DeclareEvent!("sprite_die", Sprite) OnSpriteDie;
@@ -123,6 +121,23 @@ class Sprite : GameObject {
             fillAnimUpdate();
     }
 
+    //special code to set the rotation of an object to the ground normal
+    //only useful on initialization, and only for some RotateModes
+    //just remove this feature if the code is in the way
+    private void fixRotation() {
+        if (!physics || !physics.posp)
+            return;
+        Contact contact;
+        // +10 for better normal
+        if (engine.physicWorld.collideGeometry(physics.pos,
+            physics.posp.radius + 10, contact))
+        {
+            float rot = contact.normal.toAngle();
+            if (rot == rot)
+                physics.rotation = rot + PI/2;
+        }
+    }
+
     override protected void updateInternalActive() {
         if (graphic) {
             graphic.remove();
@@ -131,6 +146,7 @@ class Sprite : GameObject {
         physics.remove = true;
         if (internal_active) {
             engine.physicWorld.add(physics);
+            fixRotation();
             graphic = new Sequence(engine, engine.teamThemeOf(this));
             graphic.zorder = GameZOrder.Objects;
             if (auto st = type.getInitSequenceState())
@@ -171,7 +187,7 @@ class Sprite : GameObject {
 
     final void exterminate() {
         //_always_ die completely (or are there exceptions?)
-        log("exterminate in deathzone: {}", type.name);
+        engine.log.trace("exterminate in deathzone: {}", type.name);
         kill();
     }
 
@@ -180,7 +196,7 @@ class Sprite : GameObject {
         internal_active = false;
         if (!physics.dead) {
             physics.dead = true;
-            log("really die: {}", type.name);
+            engine.log.trace("really die: {}", type.name);
             OnSpriteDie.raise(this);
         }
     }

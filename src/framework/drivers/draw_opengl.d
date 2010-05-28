@@ -22,6 +22,8 @@ const GLuint GLID_INVALID = 0;
 
 const cDrvName = "draw_opengl";
 
+private LogStruct!("OpenGL") mLog;
+
 private struct Options {
     //when an OpenGL surface is created, and the framework surface has caching
     //  enabled, the framework surface's pixel memory is free'd and stored in the
@@ -61,8 +63,7 @@ private bool checkGLError(lazy char[] operation, bool crash = false) {
     if (!errors.length)
         return false;
     char[] msg = operation;
-    debug Trace.formatln("Warning: GL error at '{}': {}", msg,
-        errors);
+    debug mLog.warn("GL error at '{}': {}", msg, errors);
     if (crash)
         throw new FrameworkException(myformat("OpenGL error: '{}': {}", msg,
             errors));
@@ -73,13 +74,10 @@ class GLDrawDriver : DrawDriver {
     private {
         Vector2i mScreenSize;
         GLCanvas mCanvas;
-        Log mLog;
         Options opts;
     }
 
     this() {
-        mLog = registerLog("OpenGL");
-
         DerelictGL.load();
         DerelictGLU.load();
 
@@ -105,7 +103,7 @@ class GLDrawDriver : DrawDriver {
         assert(screen_size.quad_length > 0);
         mScreenSize = screen_size;
         DerelictGL.loadExtensions();
-        mLog("GL supports non-power-of-two: {}",
+        mLog.minor("GL supports non-power-of-two: {}",
             ARBTextureNonPowerOfTwo.isEnabled);
 
         //initialize some static OpenGL context attributes
@@ -262,8 +260,7 @@ final class GLSurface : DriverSurface {
         if (checkGLError("loading texture")) {
             //set error flag to prevent changing the texture data
             mError = true;
-            debug Trace.formatln("Failed to create texture of size {}.",
-                mTexSize);
+            mLog.warn("Failed to create texture of size {}.", mTexSize);
             //throw new FrameworkException(
             //    "glTexImage2D failed, probably texture was too big. "
             //    ~ "Requested size: "~mTexSize.toString);

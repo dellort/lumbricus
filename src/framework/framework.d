@@ -1053,7 +1053,7 @@ class Framework {
     }
 
     this() {
-        mLog = registerLog("Fw");
+        mLog = registerLog("fw");
 
         if (gFramework !is null) {
             throw new FrameworkException("Framework is a singleton");
@@ -1098,7 +1098,7 @@ class Framework {
         mAppVisible = true;
         mAppFocused = true;
 
-        mLog("reloaded driver");
+        mLog.minor("reloaded driver");
     }
 
     struct DriverReload {

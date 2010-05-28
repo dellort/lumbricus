@@ -69,8 +69,6 @@ class GameEngine : GameCore {
     void delegate(Sprite s) onOffworld;
 
     private {
-        static LogStruct!("game.game") log;
-
         PhysicZonePlane mWaterBorder;
         WaterSurfaceGeometry mWaterBouncer;
 
@@ -325,7 +323,7 @@ class GameEngine : GameCore {
             ef = mEarthquakeForceDmg;
         physicWorld.add(new EarthQuakeDegrader(strength, duration, degrade,
             ef));
-        log("created earth quake, strength={}, duration={}, degrade={}",
+        log.trace("created earth quake, strength={}, duration={}, degrade={}",
             strength, duration, degrade);
     }
 
@@ -523,14 +521,14 @@ class GameEngine : GameCore {
                 if (placeObjectRandom(sprite.physics.posp.radius,
                     50, tmp, npos, true))
                 {
-                    log("placing '{}' in air!", sprite);
+                    log.minor("placing '{}' in air!", sprite);
                 } else {
-                    error("couldn't place '{}'!", sprite);
-                    //xxx
+                    log.warn("couldn't place '{}', defaulting to level center!",
+                        sprite);
                     npos = toVector2f(level.worldSize)/2;
                 }
             }
-            log("placed '{}' at {}", sprite.type.name, npos);
+            log.minor("placed '{}' at {}", sprite.type.name, npos);
             sprite.activate(npos);
         }
         mPlaceQueue = null;
@@ -713,7 +711,7 @@ class GameEngine : GameCore {
             Rect2i[] uncovered = newrc.substractRects(covered);
             foreach (rc; uncovered) {
                 assert(rc.size().x > 0 && rc.size().y > 0);
-                log("insert landscape: {}", rc);
+                log.trace("insert landscape: {}", rc);
                 gameLandscapes ~= new GameLandscape(this, rc);
             }
         }

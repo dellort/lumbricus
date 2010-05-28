@@ -53,6 +53,9 @@ T stringToType(T)(char[] s) {
     }
     return res.unbox!(T)();
 }
+char[] typeToString(T)(T x) {
+    return boxToString(MyBox.Box!(T)(x));
+}
 
 char[] boxToString(MyBox box) {
     return gBoxUnParsers[box.type()](box);
