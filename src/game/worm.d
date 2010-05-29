@@ -725,7 +725,7 @@ class WormSprite : Sprite {
         if (mShooterMain && mShooterMain.activity)
             mShooterMain.readjust(weaponDir());
         if (mShooterSec && mShooterSec.activity)
-            mShooterSec.readjust(weaponDir());
+            mShooterSec.readjust(weaponDirHor());
     }
 
     private bool canReadjust() {

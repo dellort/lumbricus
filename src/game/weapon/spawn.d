@@ -32,8 +32,7 @@ Sprite spawnSprite(GameObject spawned_by, SpriteClass sclass, Vector2f pos,
 
     Sprite sprite = sclass.createSprite();
     sprite.createdBy = spawned_by;
-    sprite.physics.setInitialVelocity(init_vel);
-    sprite.activate(pos);
+    sprite.activate(pos, init_vel);
     return sprite;
 }
 

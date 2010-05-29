@@ -103,6 +103,7 @@ class PhysicObject : PhysicBase {
         if (mFixateConstraint)
             mWorld.add(mFixateConstraint);
         updateCollision();
+        checkRotation(true);  //initialize rotation to sane value
     }
 
     override void removedFromWorld() {
@@ -145,7 +146,6 @@ class PhysicObject : PhysicBase {
         return mIsGlued;
     }
 
-    bool mHadUpdate;  //flag to see if update() has run at least once
     bool mOnSurface;
     int mSurfaceCtr;
 
@@ -184,8 +184,9 @@ class PhysicObject : PhysicBase {
     final Vector2f velocity() {
         return velocity_int;
     }
+    //has to be called before PhysicWorld.add()
     void setInitialVelocity(Vector2f v) {
-        assert(!mHadUpdate, "setInitialVelocity is for object creation only");
+        assert(!mWorld, "setInitialVelocity is for object creation only");
         velocity_int = v;
     }
 
@@ -269,7 +270,6 @@ class PhysicObject : PhysicBase {
     }
 
     void update(float deltaT) {
-        mHadUpdate = true;
         scope(exit) {
             clearAccumulators();
         }
@@ -391,7 +391,9 @@ class PhysicObject : PhysicBase {
     private Vector2f mIntendedLook = Vector2f.nan;
 
     //set rotation, done by world.d at the end of a simulation loop
-    package final void checkRotation() {
+    //  initialize: will be true on the first call after this object was added
+    //  to the world
+    package final void checkRotation(bool initialize = false) {
         switch (mPosp.rotation) {
             case RotateMode.velocity:
                 //when napalm-spamming, 5% of execution time is spent in the
@@ -408,12 +410,26 @@ class PhysicObject : PhysicBase {
                 }
                 break;
             case RotateMode.distance:
-                if (!lastPos.isNaN()) {
-                    auto delta = pos - lastPos;
-                    //rotation direction depends from x direction (looks better)
-                    auto dist = copysign(delta.length(), delta.x);
-                    //xxx: lol what's 200?
-                    rotation += dist/200*2*PI;
+                //special code to set the rotation of an object to the ground normal
+                //only useful on initialization, and only for this RotateMode
+                //just remove this feature if the code is in the way
+                if (initialize) {
+                    Contact contact;
+                    // +10 for better normal
+                    if (world.collideGeometry(pos, posp.radius + 10, contact)) {
+                        float rot = contact.normal.toAngle();
+                        //+PI/2 to align flat to the surface
+                        if (rot == rot)
+                            rotation = rot + PI/2;
+                    }
+                } else {
+                    if (!lastPos.isNaN()) {
+                        auto delta = pos - lastPos;
+                        //rotation direction depends from x direction (looks better)
+                        auto dist = copysign(delta.length(), delta.x);
+                        //xxx: lol what's 200?
+                        rotation += dist/200*2*PI;
+                    }
                 }
             default:
         }

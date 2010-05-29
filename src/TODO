@@ -14,6 +14,7 @@ $ sollte behoben sein / works for me (muss getestet werden)
 == bekannte, lösbare Bugs ==
 $ wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 $ Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
+  ^ nicht behoben; einfacher test: superschaf auswählen, schritt in mine + 2x leertaste -> ...
 - Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
   1. Würmern erlauben, das Wasser wieder zu verlassen (und Zustand korrigieren)
   2. unter Wasser keine Bewegung nach oben zulassen

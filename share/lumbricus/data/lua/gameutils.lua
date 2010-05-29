@@ -107,6 +107,7 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
         local remains = nsprites
         local timer = Timer.New()
         local ctx = get_context(shooter)
+        local sprite_phys = Sprite_physics(Shooter_owner(shooter))
         ctx.firetimer = timer
         ctx.fireinfo = fireinfo
         local function doSpawn()
@@ -115,6 +116,7 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
                     remains = 1
                 end
             end
+            ctx.fireinfo.pos = Phys_pos(sprite_phys)
             -- only one sprite per timer tick...
             callback(shooter, ctx.fireinfo, remains)
             remains = remains - 1

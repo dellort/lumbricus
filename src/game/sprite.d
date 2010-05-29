@@ -104,10 +104,11 @@ class Sprite : GameObject {
         return internal_active;
     }
 
-    void activate(Vector2f pos) {
+    void activate(Vector2f pos, Vector2f velocity = Vector2f(0)) {
         if (physics.dead || mWasActivated)
             return;
         mWasActivated = true;
+        physics.setInitialVelocity(velocity);
         setPos(pos);
         internal_active = true;
 
@@ -121,23 +122,6 @@ class Sprite : GameObject {
             fillAnimUpdate();
     }
 
-    //special code to set the rotation of an object to the ground normal
-    //only useful on initialization, and only for some RotateModes
-    //just remove this feature if the code is in the way
-    private void fixRotation() {
-        if (!physics || !physics.posp)
-            return;
-        Contact contact;
-        // +10 for better normal
-        if (engine.physicWorld.collideGeometry(physics.pos,
-            physics.posp.radius + 10, contact))
-        {
-            float rot = contact.normal.toAngle();
-            if (rot == rot)
-                physics.rotation = rot + PI/2;
-        }
-    }
-
     override protected void updateInternalActive() {
         if (graphic) {
             graphic.remove();
@@ -146,7 +130,6 @@ class Sprite : GameObject {
         physics.remove = true;
         if (internal_active) {
             engine.physicWorld.add(physics);
-            fixRotation();
             graphic = new Sequence(engine, engine.teamThemeOf(this));
             graphic.zorder = GameZOrder.Objects;
             if (auto st = type.getInitSequenceState())
