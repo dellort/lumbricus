@@ -119,6 +119,54 @@ createWeapon {
 }
 
 createWeapon {
+    name = "w_justice",
+    value = 10,
+    category = "misc4",
+    icon = "icon_scales",
+    onFire = teamActionOnFire(function(myteam)
+        -- xxx is this really so complicated?
+        local teams = Control_teams()
+        local sum = 0
+        local count = 0
+        for i, t in ipairs(teams) do
+            local h = Team_totalHealth(t)
+            if h > 0 then
+                sum = sum + h
+                count = count + 1
+            end
+        end
+        if count < 1 then
+            return
+        end
+        -- set every team to average health
+        local avg = sum/count
+        local changed = 0 -- debugging
+        for i, t in ipairs(teams) do
+            -- distribute team health change over (alive) members
+            local alive_worms = {}
+            for i2, m in ipairs(Team_members(t)) do
+                if Member_health(m) > 0 then
+                    alive_worms[#alive_worms + 1] = m
+                end
+            end
+            local perworm = avg / #alive_worms
+            for i2, m in ipairs(alive_worms) do
+                local h = Member_health(m)
+                Member_addHealth(m, perworm - h)
+                h = Member_health(m) - h
+                changed = changed - h
+            end
+        end
+        -- number of health points that got lost due to integer rounding
+        log.minor("heavenly injustice: {}", changed)
+        -- xxx missing: force GUI to update the health points (actually, the
+        --  game mode should do that automatically: 0. detect health point
+        --  change, 1. wait for silence, 2. count down 3. give the GUI time
+        --  4. continue game)
+    end),
+}
+
+createWeapon {
     name = "w_hat",
     value = 0,
     category = "misc4",

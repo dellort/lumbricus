@@ -35,6 +35,8 @@ $ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation n
     * baseball: für den letzten schlag wird keine fire animation angezeigt
     * bow: release & prepare animationen ungenutzt
     * ...
+- wenn datenverzeichnis nicht gefunden wird, bessere fehlermeldung ausgeben
+- mit dem blowtorch nach unten bohren => irgendeine störung in der wurmrichtung
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
@@ -94,7 +96,7 @@ $ napalm ist sehr langsam, minenagriff nicht => ?
     ...
 
 == Waffen ==
-+ Superwaffen (Waage, Briefbomben)
++ Superwaffen (Briefbomben)
 + Tierwaffen (Maulwurf, Maulwurfsangriff, Stinktier mit vergifteten Würmern)
 + Lokale-Suche-Waffen (Taube, Zauberkugel)
 + Bungee

@@ -290,7 +290,7 @@ end
 
 -- this table contains the logging functions as generated from log_priorities
 -- e.g. there's "Warn" in log_priorities; for that, it generates:
---  log.Trace = "Warn" -- like the stringified enum member in LogPriority
+--  log.Warn = "Warn" -- like the stringified enum member in LogPriority
 --  function log.warn(...) -- like printf(), but pass the resulting string to
 --                            D's d_logoutput() function
 -- Note: unlike the D version, using log.trace() may be quite costly, even if
