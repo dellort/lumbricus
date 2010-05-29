@@ -128,7 +128,6 @@ do
     mine_class = createSpriteClass {
         -- newgame.conf/levelobjects references this name!
         name = "x_mine",
-        initNoActivityWhenGlued = true,
         initPhysic = relay {
             collisionID = "projectile",
             mass = 10,
@@ -148,6 +147,7 @@ do
     local flash_graphic = SequenceType_findState(seq, "flashing")
     local flash_particle = lookupResource("p_mine_flash")
     -- timer for initial delay
+    -- xxx causes 3 second wait for inactivity on game start
     enableSpriteTimer(mine_class, {
         defTimer = timeSecs(3),
         callback = function(sender)
@@ -165,6 +165,8 @@ do
                     end)
                 Phys_kill(trig)
             end)
+            -- if it doesn't blow immediately, it is inactive
+            Sprite_set_noActivityWhenGlued(sender, true)
         end
     })
 

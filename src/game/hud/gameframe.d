@@ -53,6 +53,25 @@ import game.gui.levelpaint;
 import tango.math.Math;
 
 
+//like LuaInterpreter, but sends commands via GameInfo.control.executeCommand()
+//also, will not output the version message
+//xxx still dangerous, as it relies on ConsoleUtils.autocomplete not having
+//    any side-effects (else pressing <Tab> could locally change the gamestate)
+class GameLuaInterpreter : LuaInterpreter {
+    private GameInfo mGame;
+
+    this(void delegate(char[]) a_sink, GameInfo game) {
+        super(a_sink, game.engine.scripting, true);
+        mGame = game;
+    }
+
+    override void runLuaCode(char[] code) {
+        //sending the command directly to the Lua state would bypass
+        //  networking/replay logging
+        mGame.control.executeCommand("exec " ~ code);
+    }
+}
+
 class GameFrame : SimpleContainer {
     GameInfo game;
     GameView gameView;
@@ -401,16 +420,19 @@ class GameFrame : SimpleContainer {
         mChatbox.cmdline.setPrefix("/", "say");
         mGui.add(mChatbox, WidgetLayout.Aligned(-1, -1, Vector2i(5, 5)));
 
+        //xxx as a temporary hack, mScriptbox is on the same position as
+        //    mChatbox, but mChatbox is used for output (so for the user,
+        //    the messages are at the right position)
         mScriptbox = new Chatbox();
-        mScriptInterpreter = new LuaInterpreter(&mScriptbox.output.writeString,
-            g.engine.scripting);
+        mScriptInterpreter = new GameLuaInterpreter(
+            &mChatbox.output.writeString, g);
         mScriptbox.cmdline.commands.addSub(globals.cmdLine.commands);
         mScriptbox.cmdline.commands.registerCommand("exec", &cmdExecScript,
             "exec Lua script", ["text..."]);
         mScriptbox.cmdline.setPrefix("/", "exec");
         mScriptbox.setTabCompletion(&mScriptInterpreter.tabcomplete);
         mScriptbox.clear(); //make initial text go away
-        mGui.add(mScriptbox, WidgetLayout.Aligned(-1, 0, Vector2i(5, 5)));
+        mGui.add(mScriptbox, WidgetLayout.Aligned(-1, -1, Vector2i(5, 5)));
 
         mTeamWindow = new TeamWindow(game);
         mGui.add(mTeamWindow);

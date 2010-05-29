@@ -341,7 +341,8 @@ private class ViewMember : SceneObject {
             pos = health_hint_pos;
             pos.y -= moveHealth.value();
             canvas.pushState();
-            canvas.setBlend(Color(1, 1, 1, 1.0f - moveHealth.fvalue()));
+            canvas.setBlend(
+                Color(1, 1, 1, math.sqrt(1.0f - moveHealth.fvalue())));
             addLabel(healthHint);
             canvas.popState();
         }

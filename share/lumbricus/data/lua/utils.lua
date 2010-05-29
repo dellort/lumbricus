@@ -645,9 +645,12 @@ function ConsoleUtils.exec(line)
         fn, err = loadstring(real)
     end
     -- somehow looks less confusing to include the command in the output
-    printf("> {}", real)
+    -- xxx disabled for now, as it depends on console internals (print target,
+    --     prompt string); now handled by LuaInterpreter directly (loses leading
+    --     "return", but that was confusing anyway)
+    -- printf("> {}", real)
     if not fn then
-        printf("Error: {}", err)
+        log.error("Error: {}", err)
         return false
     end
     -- execute the function
@@ -671,7 +674,7 @@ function ConsoleUtils.exec(line)
     ]]
     local ok, res = capture(pcall(fn))
     if not ok then
-        printf("Lua error: {}", res[1])
+        log.error("Lua error: {}", res[1])
         return false
     end
     -- print result (only if not nil)
@@ -683,7 +686,7 @@ function ConsoleUtils.exec(line)
             end
             s = s .. utils.format("{:q}", res[i])
         end
-        print(s)
+        log.notice(s)
     end
     return true
 end

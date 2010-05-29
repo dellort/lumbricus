@@ -327,6 +327,7 @@ do
         icon = "icon_meteorstrike",
         cooldown = time("15s"),
     }
+    enableSpriteCrateBlowup(w, sprite_class, 3)
 end
 
 createWeapon {

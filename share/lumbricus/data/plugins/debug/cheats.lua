@@ -692,17 +692,30 @@ do
         },
         sequenceType = "s_clustershard",
     }
+    -- I name it "The Marbler (tm)"
+    local fire, interrupt, readjust = getMultipleOnFire(50, timeMsecs(60), nil,
+        function(shooter, fireinfo)
+            local spread = 5
+            local a = Random_rangef(-spread/2, spread/2)
+            dir = fireinfo.dir:rotated(a*math.pi/180)
+            local dist = (fireinfo.shootbyRadius + 5) * 1.5 + 9 + 8
+            local s = spawnSprite(shooter, class,
+                fireinfo.pos + dir * dist, dir * 500)
+        end
+    )
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = getStandardOnFire(class),
+        onFire = fire,
+        onInterrupt = interrupt,
+        onReadjust = readjust,
         value = 10,
         category = "sheep",
         --icon = "icon_mine",
-        --animation = "weapon_mine",
+        animation = "weapon_flamethrower",
         fireMode = {
-            direction = "fixed",
-            throwStrengthFrom = 40,
-            throwStrengthTo = 40,
+            direction = "any",
+            --throwStrengthFrom = 40,
+            --throwStrengthTo = 40,
         }
     }
     enableSpriteCrateBlowup(w, class)

@@ -53,7 +53,7 @@ class Chatbox : GuiConsole {
         styles.addClass("chatbox");
         mEdit.styles.addClass("chatbox-edit");
         mPrompt.styles.addClass("chatbox-prompt");
-        minSize = Vector2i(400, 175);
+        minSize = Vector2i(450, 200);
     }
 
     override ConsoleEditLine createEdit() {

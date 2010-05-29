@@ -75,15 +75,8 @@ class InputHandler {
 
     private void scriptExecute(MyBox[] args, Output write) {
         char[] cmd = args[0].unbox!(char[]);
-        try {
-            engine.scripting.scriptExec(cmd);
-            write.writefln("OK");
-        } catch (ScriptingException e) {
-            //xxx write is not the console where the command came from,
-            //    but the global output
-            engine.log.error("{}", e.msg);
-            //write.writefln("{}", e.msg);
-        }
+        //takes care of error reporting (using log functions)
+        engine.scripting.scriptExec("ConsoleUtils.exec(...)", cmd);
     }
 
     private void crateTest() {

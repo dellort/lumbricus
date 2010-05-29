@@ -22,7 +22,9 @@ class LuaInterpreter {
     }
 
     //a_sink = output of Lua and the wrapper, will include '\n's
-    this(void delegate(char[]) a_sink, LuaState a_state = null) {
+    this(void delegate(char[]) a_sink, LuaState a_state = null,
+        bool suppressVersionMessage = false)
+    {
         mSink = a_sink;
         mLua = a_state;
 
@@ -40,13 +42,22 @@ class LuaInterpreter {
         //idea: temporarily set an output handler while a command is executed
         //  (asynchronous output from timers and event handlers would go into
         //  a global default handler)
-        mLua.setPrintOutput(mSink);
+        //xxx disabled for now (changed ConsoleUtils.exec to use log functions)
+        //mLua.setPrintOutput(mSink);
 
-        mSink(myformat("Scripting console using: {}\n",
-            mLua.cLanguageAndVersion));
+        if (!suppressVersionMessage) {
+            mSink(myformat("Scripting console using: {}\n",
+                mLua.cLanguageAndVersion));
+        }
     }
 
-    void exec(char[] code) {
+    final void exec(char[] code) {
+        //print literal command to console
+        mSink("> " ~ code ~ "\n");
+        runLuaCode(code);
+    }
+
+    protected void runLuaCode(char[] code) {
         mLua.scriptExec("ConsoleUtils.exec(...)", code);
     }
 

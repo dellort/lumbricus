@@ -239,6 +239,7 @@ abstract class GameCore {
         OnHudAdd.handler(events, &onHudAdd);
 
         mScripting = createScriptingState();
+        mScripting.setPrintOutput(&luaPrintSink);
         scripting.addSingleton(this); //doesn't work as expected, see GameEngine
         scripting.addSingleton(rnd);
         scripting.addSingleton(physicWorld);
@@ -388,6 +389,12 @@ abstract class GameCore {
 
     final void loadScript(char[] filename) {
         .loadScript(scripting(), filename);
+    }
+
+    private void luaPrintSink(char[] msg) {
+        if (msg == "\n")
+            return;   //hmm
+        log.notice("{}", msg);
     }
 
     //-- GameObject managment

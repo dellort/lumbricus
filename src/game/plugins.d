@@ -124,7 +124,7 @@ class Plugin {
     static LogStruct!("game.plugins") log;
 
     private {
-        ConfigNode mConfig;
+        ConfigNode mConfig, mCollisions;
         ConfigNode mConfigWhateverTheFuckThisIs;
         ResourceFile mResources;
         GfxSet mGfx;
@@ -155,15 +155,9 @@ class Plugin {
             //load collisions
             char[] colFile = mConfig.getStringValue("collisions",
                 "collisions.conf");
-            auto coll_conf = loadConfig(mResources.fixPath(colFile), true,true);
-            if (coll_conf) {
-                try {
-                    gfx.addCollideConf(coll_conf.getSubNode("collisions"));
-                } catch (CustomException e) {
-                    throw new PluginException("Failed to load collisions: "
-                        ~ e.msg);
-                }
-            }
+            mCollisions = loadConfig(mResources.fixPath(colFile), true, true);
+            if (mCollisions)
+                mCollisions = mCollisions.getSubNode("collisions");
             //load locale
             //  each entry is name=path
             //  name is the namespace under which the locales are loaded
@@ -184,6 +178,16 @@ class Plugin {
     //create the runtime part of this plugin
     void doinit(GameCore eng) {
         log("init '{}'", name);
+
+        if (mCollisions) {
+            try {
+                eng.physicWorld.collide.loadCollisions(mCollisions);
+            } catch (CustomException e) {
+                throw new PluginException("Failed to load collisions: "
+                    ~ e.msg);
+            }
+        }
+
         //handling of internal plugins (special cased D-only plugin hack)
         char[] internal_plugin = mConfig["internal_plugin"];
         if (internal_plugin.length) {
