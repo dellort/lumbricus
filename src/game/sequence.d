@@ -41,17 +41,32 @@ final class SequenceType {
         //substates
         foreach (ConfigNode sub; source) {
             char[] sname = sub.name;
-            assert(!(sname in mStates), "double state name: "~sname);
+            loadcheck(!(sname in mStates), "double state name: "~sname);
             char[] type = "simple_animation";
             if (sub.hasSubNodes())
                 type = sub.getValue!(char[])("type");
-            assert(type != "", "blergh: "~sub.filePosition.toString());
-            mStates[sname] = SequenceStateFactory.instantiate(type, this, sub);
+            loadcheck(type != "", "no 'type' field set: {}", sub.filePosition);
+            try {
+                mStates[sname] = SequenceStateFactory.instantiate(type, this,
+                    sub);
+            } catch (CustomException e) {
+                //edit exception to include more information; because catching
+                //  CustomExceptions is "safe", this should be fine too
+                e.msg = myformat("While loading sequence '{}::{}': {}", name,
+                    sname, e.msg);
+                throw e;
+            }
         }
     }
 
     final char[] name() { return mName; }
     final GameCore engine() { return mEngine; }
+
+    //if cond is false, throw load-error as CustomException
+    void loadcheck(bool cond, char[] fmt, ...) {
+        if (!cond)
+            throw new CustomException(myformat_fx(fmt, _arguments, _argptr));
+    }
 
     //helper; may return null
     final SequenceState normalState() {
@@ -121,11 +136,33 @@ class SequenceState {
     final SequenceType owner() { return mOwner; }
     final GameCore engine() { return mOwner.engine; }
 
+    //same as owner.loadcheck
+    void loadcheck(bool cond, char[] fmt, ...) {
+        if (cond)
+            return;
+        //meh, varargs not chainable
+        owner.loadcheck(false, "{}", myformat_fx(fmt, _arguments, _argptr));
+    }
+
     protected abstract DisplayType getDisplayType();
 
     //convenience function
-    Animation loadanim(ConfigNode node, char[] name) {
-        return engine.resources.get!(Animation)(node.getValue!(char[])(name));
+    //load a named animation from node
+    Animation loadanim(ConfigNode node, char[] name, bool optional = false) {
+        try {
+            return engine.resources.get!(Animation)(
+                node.getValue!(char[])(name), optional);
+        } catch (CustomException e) {
+            //same "trick" as in SequenceType ctor
+            e.msg = myformat("While loading animation from {} / '{}': {}",
+                node.locationString(), name, e.msg);
+            throw e;
+        }
+    }
+
+    //load Animation "name" as resource
+    Animation loadanim(char[] name, bool optional = false) {
+        return engine.resources.get!(Animation)(name, optional);
     }
 
     char[] toString() {
@@ -293,7 +330,7 @@ final class Sequence : SceneObject {
 
         mQueuedState = state;
 
-        assert(!!mDisplay); //if mCurrentState is set, mDisplay should be there
+        argcheck(!!mDisplay); //if mCurrentState is set mDisplay should be there
         mDisplay.leave();
 
         checkQueue();
@@ -707,21 +744,33 @@ class WwpJetpackState : SequenceState {
     }
 }
 
-class WwpParachuteDisplay : AniStateDisplay {
-    WwpParachuteState myclass;
+class EnterLeaveDisplay : AniStateDisplay {
+    EnterLeaveState myclass;
+    Time mNextIdle; //just an offset
 
     this (Sequence a_owner) { super(a_owner); }
 
     override void init(SequenceState state) {
-        myclass = castStrict!(WwpParachuteState)(state);
+        myclass = castStrict!(EnterLeaveState)(state);
+        mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
         super.init(state);
-        setAnimation(myclass.enter);
+        if (myclass.enter)
+            setAnimation(myclass.enter);
     }
 
     override void simulate() {
         assert(!!myclass);
 
         std_anim_params();
+
+        //set idle animations
+        if (animation is myclass.normal && myclass.idle_animations.length) {
+            if (animation_start + mNextIdle <= now()) {
+                mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
+                Animation[] arr = myclass.idle_animations;
+                setAnimation(arr[owner.engine.rnd.next(arr.length)]);
+            }
+        }
 
         if (hasFinished()) {
             if (animation is myclass.enter) {
@@ -731,23 +780,32 @@ class WwpParachuteDisplay : AniStateDisplay {
     }
 
     override void leave() {
-        if (animation !is myclass.leave)
+        if (myclass.leave && animation !is myclass.leave)
             setAnimation(myclass.leave);
     }
 }
 
-class WwpParachuteState : SequenceState {
+class EnterLeaveState : SequenceState {
+    //enter and leave can be null
     Animation normal, enter, leave;
+    //idle animations (xxx: maybe should moved into a more generic class?)
+    RandomValue!(Time) idle_wait;
+    Animation[] idle_animations;
 
     this(SequenceType a_owner, ConfigNode node) {
         super(a_owner, node);
         normal = loadanim(node, "normal");
-        enter = loadanim(node, "enter");
-        leave = loadanim(node, "leave");
+        enter = loadanim(node, "enter", true);
+        leave = loadanim(node, "leave", true);
+
+        idle_wait = node.getValue!(typeof(idle_wait))("idle_wait");
+        foreach (char[] k, char[] value; node.getSubNode("idle_animations")) {
+            idle_animations ~= loadanim(value);
+        }
     }
 
     override DisplayType getDisplayType() {
-        return DisplayType.Init!(WwpParachuteDisplay);
+        return DisplayType.Init!(EnterLeaveDisplay);
     }
 }
 
@@ -791,6 +849,9 @@ struct WwpWeaponState_Weapon {
 }
 
 //this handles the normal "stand" state as well as armed worms (stand+weaoon)
+//xxx the idle animation code is duplicated in EnterLeaveState/Display; I found
+//  the code too messy to factor them out; if you ever rewrite the weapon
+//  animation code, think of it
 class WwpWeaponDisplay : AniStateDisplay {
     WwpWeaponState myclass;
     char[] mCurrentW;
@@ -955,33 +1016,29 @@ class WwpWeaponState : SequenceState {
     this(SequenceType a_owner, ConfigNode node) {
         super(a_owner, node);
 
-        Animation load(char[] name, bool optional = false) {
-            return engine.resources.get!(Animation)(name, optional);
-        }
-
         normal = loadanim(node, "animation");
 
         foreach (char[] key, char[] value; node.getSubNode("weapons")) {
             //this '+' thing is just to remind the user that value is a prefix
             if (!str.endsWith(value, "+"))
-                assert(false, "weapon entry doesn't end with '+': "~value);
+                loadcheck(false, "weapon entry doesn't end with '+': {}",value);
             value = value[0..$-1];
             WwpWeaponState_Weapon w;
-            w.get = load(value ~ "get", false);
+            w.get = loadanim(value ~ "get");
             w.unget = w.get.reversed;
             //optional
-            w.hold = load(value ~ "hold", true);
-            w.fire = load(value ~ "fire", true);
-            //w.fire_end = load(value ~ "fire_end", true);
+            w.hold = loadanim(value ~ "hold", true);
+            w.fire = loadanim(value ~ "fire", true);
+            //w.fire_end = loadanim(node, value ~ "fire_end", true);
             weapons[key] = w;
         }
 
         const char[] cUnknown = "#unknown";
 
-        assert(!!(cUnknown in weapons));
+        loadcheck(!!(cUnknown in weapons), "no "~cUnknown~" field.");
         weapon_unknown = weapons[cUnknown];
 
-        assert(!!weapon_unknown.get, "need get animation for "~cUnknown);
+        loadcheck(!!weapon_unknown.get, "need get animation for {}", cUnknown);
         //fix up other weapons that don't have some animations
         foreach (ref w; weapons) {
             if (!w.get)
@@ -996,7 +1053,7 @@ class WwpWeaponState : SequenceState {
 
         idle_wait = node.getValue!(typeof(idle_wait))("idle_wait");
         foreach (char[] k, char[] value; node.getSubNode("idle_animations")) {
-            idle_animations ~= load(value);
+            idle_animations ~= loadanim(value);
         }
     }
 
@@ -1008,9 +1065,9 @@ class WwpWeaponState : SequenceState {
 
 static this() {
     SequenceStateFactory.register!(SimpleAnimationState)("simple_animation");
+    SequenceStateFactory.register!(EnterLeaveState)("enter_leave");
     SequenceStateFactory.register!(WwpNapalmState)("wwp_napalm");
     SequenceStateFactory.register!(WwpJetpackState)("wwp_jetpack");
-    SequenceStateFactory.register!(WwpParachuteState)("wwp_parachute");
     SequenceStateFactory.register!(WwpWeaponState)("wwp_weapon_select");
 }
 

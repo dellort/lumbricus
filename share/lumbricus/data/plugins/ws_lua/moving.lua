@@ -7,7 +7,7 @@ local function enableSheepJumping(sprite_class)
     enableSpriteTimer(sprite_class, {
         defTimer = time(0.2),
         periodic = true,
-        timerId = "jump",
+        --timerId = "jump",
         callback = function(sender)
             local phys = Sprite_physics(sender)
             if not Phys_isGlued(phys) then
@@ -304,7 +304,6 @@ end
 
 
 local function createSuperSheep(name, is_aqua)
-    -- apparently, these properties are almost always the same
     local phys = {
         collisionID = "projectile_controlled",
         radius = 6,
@@ -343,7 +342,18 @@ local function createSuperSheep(name, is_aqua)
         noDrown = true,
     }
 
-    enableExplosionOnImpact(flying, 75)
+    local explode_power = 75
+
+    -- explode the jumping or flying sheep
+    local function explode(ctx)
+        local sprite = ctx.sprite
+        if sprite and not spriteIsGone(sprite) then
+            spriteExplode(sprite, explode_power)
+        end
+        ctx.sprite = nil
+    end
+
+    enableExplosionOnImpact(flying, explode_power)
 
     local state_air = createNormalSpriteState(flying)
 
@@ -363,6 +373,8 @@ local function createSuperSheep(name, is_aqua)
     --  2. or exchange the SpriteClass, then we don't need this
     local dodrown = getDrownFunc(jumping)
 
+    local cleanup_time = timeRange("1s", "5s")
+
     -- sender = shooter or sprite spawned by shooter
     local function cleanup(sender)
         local shooter = gameObjectFindShooter(sender)
@@ -373,6 +385,12 @@ local function createSuperSheep(name, is_aqua)
             ctx.control = nil
         end
         Shooter_finished(shooter)
+        -- if control was taken, wait some time and then blow it up
+        if ctx.sprite then
+            addTimer(utils.range_sample(cleanup_time), function()
+                explode(ctx)
+            end)
+        end
     end
 
     -- sender = shooter or sprite spawned by shooter
@@ -391,17 +409,11 @@ local function createSuperSheep(name, is_aqua)
                 -- and this makes the sheep controllable; hardcoded in D
                 ctx.control = ControlRotate_ctor(ctx.sprite, 5, 10000)
             else
-                spriteExplode(ctx.sprite, 75)
+                explode(ctx)
             end
         end
         return true
     end
-
-    enableSpriteTimer(flying, {
-        defTimer = time("15s"),
-        showDisplay = true,
-        callback = dorefire,
-    })
 
     addSpriteClassEvent(flying, "sprite_waterstate", function(sender)
         local inwater = Sprite_isUnderWater(sender)
@@ -419,6 +431,12 @@ local function createSuperSheep(name, is_aqua)
         cleanup(sender)
     end)
 
+    enableSpriteTimer(flying, {
+        defTimer = time("15s"),
+        showDisplay = true,
+        callback = dorefire,
+    })
+
     addSpriteClassEvent(jumping, "sprite_waterstate", function(sender)
         if Sprite_isUnderWater(sender) then
             cleanup(sender)
@@ -429,7 +447,9 @@ local function createSuperSheep(name, is_aqua)
         defTimer = time("10s"),
         showDisplay = true,
         callback = function(sender)
-            spriteExplode(sender, 75)
+            local shooter = gameObjectFindShooter(sender)
+            local ctx = get_context(shooter)
+            explode(ctx)
             cleanup(sender)
         end
     })

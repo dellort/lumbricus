@@ -62,6 +62,13 @@ local physics = {
         gluedForceLook = true,
         -- not invulnerable while beaming, use damage from std_phys
     },
+    frozen = {
+        -- freezing weapon active
+        collisionID = "worm_noself",
+        glueForce = 20,
+        fixate = Vector2(0, 1),
+        damageable = 0,
+    },
     jetworm = {
         collisionID = "worm_freemove",
         glueForce = 0,
@@ -143,6 +150,18 @@ local states = {
         animation = "reverse_beaming",
         noleave = true,
         onAnimationEnd = "fly",
+    },
+    frozen = {
+        physic = "frozen",
+        animation = "frozen",
+        noleave = true,
+    },
+    unfreeze = {
+        -- hack for leave animation
+        physic = "worm_stand",
+        animation = "unfreeze",
+        onAnimationEnd = "stand",
+        noleave = true,
     },
     fly = {
         physic = "worm",

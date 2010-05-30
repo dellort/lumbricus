@@ -101,6 +101,24 @@ function addInstanceEventHandler(object, event_name, handler)
     handlers[#handlers + 1] = handler
 end
 
+-- undo addInstanceEventHandler - this is even more expensive
+-- Note: if objects die, the event handlers will be removed automatically
+-- Note 2: both automatic and manual removal will leave possibly useful global
+--  event handlers installed
+function removeInstanceEventHandler(object, event_name, handler)
+    local ctx = get_context(object, true)
+    local ev = ctx and ctx._events
+    local handlers = ev and ev[event_name]
+    if handlers then
+        --array.remove_value(handlers, handler)
+        --^ doesn't work, should be able to remove events while they're handled
+        --so, copy the handlers array
+        handlers2 = array.copy(handlers)
+        array.remove_value(handlers2, handler)
+        ev[event_name] = handlers2
+    end
+end
+
 -- cached
 local raise_fns = {}
 

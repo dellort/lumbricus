@@ -4,7 +4,6 @@ import framework.config;
 import framework.filesystem;
 import framework.globalsettings;
 import framework.i18n;
-import common = common.common;
 
 import utils.color;
 import utils.configfile;

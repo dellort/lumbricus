@@ -270,6 +270,8 @@ function enableWalking(sprite_class, onStuck)
     end)
 end
 
+local allocTimerId = 0
+
 -- create a timer as a sprite of that class is spawned
 -- the timer is never called under water or after the sprite has died
 -- args:
@@ -287,7 +289,11 @@ function enableSpriteTimer(sprite_class, args)
     local defTimer = args.defTimer or timeSecs(3)
     local callback = assert(args.callback)
     local periodic = args.periodic
-    local timerId = args.timerId or "timer"
+    local timerId = args.timerId
+    if not timerId then
+        timerId = "timer" .. allocTimerId
+        allocTimerId = allocTimerId + 1
+    end
     local removeUnderwater = ifnil(args.removeUnderwater, true)
     -- xxx need a better way to "cleanup" stuff like timers
     local function cleanup(sender)

@@ -245,6 +245,13 @@ abstract class GameCore {
         scripting.addSingleton(physicWorld);
         scripting.addSingleton(physicWorld.collide);
         scripting.addSingleton(level);
+
+        events.setScripting(scripting);
+
+        //scripting initialization
+        //code loaded here can be considered "internal" and should explode
+        //  on errors
+        scripting.onError = &scriptingObjError;
     }
 
     //-- boring getters (but better than making everything world-writeable)
@@ -371,15 +378,6 @@ abstract class GameCore {
         log.notice("  Game time: {}", mBenchSimTime.time());
         log.notice("  Draw time (without GUI): {}", mBenchDrawTime);
     }
-
-    //-- error reporting; shouldn't this be left to some sort of logging system?
-
-    //output an error message
-    //in contrast to logging, the user will (usually) see this on the screen
-    //xxx now is just a shortcut for using log
-    //final void error(char[] fmt, ...) {
-      //  log.emitx(LogPriority.Error, fmt, _arguments, _argptr);
-    //}
 
     //-- scripting
 

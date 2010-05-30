@@ -34,10 +34,10 @@ static this() {
     gScripting.methods!(WormControl, "isAlive", "sprite", "controlledSprite",
         "setLimitedMode", "weaponUsed", "resetActivity", "lastAction",
         "lastActivity", "actionPerformed", "forceAbort", "pushControllable",
-        "releaseControllable");
+        "releaseControllable", "engaged", "setEngaged");
 
     gScripting.setClassPrefix!(WormSprite)("Worm");
-    gScripting.methods!(WormSprite, "beamTo");
+    gScripting.methods!(WormSprite, "beamTo", "freeze");
 
     gScripting.ctor!(WormSpriteClass, GameCore, char[])();
     gScripting.methods!(WormSpriteClass, "finishLoading", "findState")();

@@ -32,7 +32,7 @@ enum LogPriority : int {
     //  somewhere on the console or in the log file, but not in the game GUI
     Minor,
     //message that should be actually user-visible (e.g. in the game GUI), but
-    //  the message still indicates no danger or possibly malfunction
+    //  the message still indicates no danger or possible malfunction
     Notice,
     //non-fatal error or problem, of which the user should be informed
     Warn,
@@ -71,6 +71,9 @@ struct LogEntry {
 alias void delegate(LogEntry e) LogSink;
 
 private LogBackend[] gLogBackends;
+//this backend is only active if gLogBackends.length==0
+//it's intended as fallback if the user forgets to add any backends
+private LogBackend gDefaultBackend;
 
 final class LogBackend {
     private {
@@ -85,11 +88,14 @@ final class LogBackend {
     //  is set to Trace, because Log.minPriority is Minor by default
     LogPriority minPriority;
 
-    this(char[] a_name, LogPriority a_minPriority, LogSink a_sink) {
+    this(char[] a_name, LogPriority a_minPriority, LogSink a_sink,
+        bool add = true)
+    {
         mName = a_name;
         minPriority = a_minPriority;
         mSink = a_sink;
-        gLogBackends ~= this;
+        if (add)
+            gLogBackends ~= this;
     }
 
     void sink(LogSink a_sink) {
@@ -137,6 +143,14 @@ final class LogBackend {
             mBuffered ~= e.dup();
         }
     }
+}
+
+static this() {
+    void dump(LogEntry e) {
+        void write(char[] s) { Trace.write(s); }
+        e.fmt(&write);
+    }
+    gDefaultBackend = new LogBackend("def", LogPriority.Minor, &dump, false);
 }
 
 /// Generic logging class. Implements interface Output, and all lines of text
@@ -199,14 +213,16 @@ final class Log {
             return;
 
         bool want = false;
+        bool write_to_default = true;
         foreach (b; gLogBackends) {
+            write_to_default = false;
             if (b.want(pri)) {
                 want = true;
                 break;
             }
         }
 
-        if (!want)
+        if (!want && !write_to_default)
             return;
 
         //format into temporary buffer
@@ -235,6 +251,8 @@ final class Log {
             foreach (b; gLogBackends) {
                 b.add(e);
             }
+            if (write_to_default)
+                gDefaultBackend.add(e);
         }
     }
 

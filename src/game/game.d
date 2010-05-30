@@ -121,8 +121,8 @@ class GameEngine : GameCore {
     {
         super(a_config, a_gameTime, a_interpolateTime);
 
+        //xxx: strangely, this is necessary (see core.d)
         scripting.addSingleton(this);
-
 
         mGameConf = loadConfig("game");
 
@@ -134,13 +134,6 @@ class GameEngine : GameCore {
         SceneObject particles = new DrawParticles();
         particles.zorder = GameZOrder.Particles;
         scene.add(particles);
-
-        //scripting initialization
-        //code loaded here can be considered "internal" and should explode
-        //  on errors
-        scripting.onError = &scriptingObjError;
-
-        events.setScripting(scripting);
 
         foreach (char[] name, char[] value; mGameConf.getSubNode("scripts")) {
             loadScript(value);

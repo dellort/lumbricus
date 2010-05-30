@@ -425,6 +425,15 @@ class WormSprite : Sprite {
             setStateForced(wsc.st_stand);
     }
 
+    void freeze(bool frozen) {
+        if (frozen) {
+            setState(wsc.st_frozen);
+        } else {
+            if (currentState is wsc.st_frozen)
+                setStateForced(wsc.st_unfreeze);
+        }
+    }
+
     //overwritten from GObject.simulate()
     override void simulate() {
         physUpdate();
@@ -1251,7 +1260,7 @@ class WormSpriteClass : SpriteClass {
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
         st_jump_start, st_jump, st_jump_to_fly, st_rope, st_drill, st_blowtorch,
-        st_parachute, st_win;
+        st_parachute, st_win, st_frozen, st_unfreeze;
 
     //alias WormSprite.FlyMode FlyMode;
 
@@ -1288,6 +1297,8 @@ class WormSpriteClass : SpriteClass {
         st_blowtorch = state("blowtorch");
         st_parachute = state("parachute");
         st_win = state("win");
+        st_frozen = state("frozen");
+        st_unfreeze = state("unfreeze");
     }
 
     void finishLoading() {

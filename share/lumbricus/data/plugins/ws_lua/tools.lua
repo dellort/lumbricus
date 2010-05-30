@@ -239,6 +239,40 @@ createWeapon {
     }
 }
 
+local function freezeTeam(team, freeze)
+    for i, m in ipairs(Team_members(team)) do
+        local worm = Member_sprite(m)
+        if not spriteIsGone(worm) then
+            -- xxx worm dependency
+            Worm_freeze(worm, freeze)
+        end
+    end
+end
+
+createWeapon {
+    name = "w_freeze",
+    value = 10,
+    category = "misc1",
+    icon = "icon_freeze",
+    animation = "weapon_freeze",
+    onFire = teamActionOnFire(function(team, member)
+        freezeTeam(team, true)
+        -- end round
+        Team_set_active(team, false)
+        -- add callback to unfreeze
+        local function unfreeze(t, active)
+            assert(t == team)
+            if not active then
+                return
+            end
+            removeInstanceEventHandler(team, "team_set_active", unfreeze)
+            -- actual unfreeze
+            freezeTeam(team, false)
+        end
+        addInstanceEventHandler(team, "team_set_active", unfreeze)
+    end),
+}
+
 do
     local name = "laserbeamer"
     local addlaser = getLaserEffect(time("2s"))

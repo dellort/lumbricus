@@ -574,6 +574,7 @@ function array.reversed(arr)
     return narr
 end
 
+-- unittest
 assert(array.equal(array.reversed({1,2,3}), {3,2,1}))
 
 -- use == to find an element; return nil if not found
@@ -586,6 +587,34 @@ function array.indexof(arr, item)
     return nil
 end
 
+-- remove item at index, shift down all elements after this
+-- returns parameter arr (modifies array by reference)
+function array.remove(arr, index)
+    local len = #arr
+    assert(index >= 1 and index <= len)
+    for i = index, len + 1 do
+        arr[i] = arr[i + 1]
+    end
+    return arr
+end
+
+do -- unittest
+    assert(array.equal(array.remove({1,2,3}, 1), {2,3}))
+    assert(array.equal(array.remove({1,2,3}, 2), {1,3}))
+    assert(array.equal(array.remove({1,2,3}, 3), {1,2}))
+end
+
+-- remove first array element that is equal (==) to value
+-- don't do anything if not found
+function array.remove_value(arr, value)
+    local idx = array.indexof(arr, value)
+    if idx then
+        array.remove(arr, idx)
+    end
+end
+
+array.copy = assert(table_copy)
+
 -- extend Lua standard "packages"
 
 function string.startswith(s, prefix)
@@ -595,6 +624,24 @@ end
 function string.endswith(s, suffix)
     return string.sub(s, #suffix) == suffix
 end
+
+--[[
+
+-- getCallerFunction() - very specialized function, duh
+-- xxx if it shows that you
+if not debug then
+    -- maybe you need to implement it in D, or unload the debug table later
+    assert(false, "getCallerFunction() needs debug, lol.")
+end
+-- allow unloading debug table to a later point in time
+-- the function won't get lost if stored in a local variable
+local getinfo = debug.getinfo
+function getCallerFunction()
+    local t = getinfo(1, "f")
+    return assert(f.func)
+end
+
+]]
 
 -- the following functions apparently partially rely on the D wrapper
 -- actually, those should be moved into a plugins.lua

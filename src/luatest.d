@@ -154,7 +154,8 @@ LuaReference funcRef(LuaReference r) {
 }
 
 void main(char[][] args) {
-    cinit.init(args);
+    //xxx this is unkosher, but we need the full filesystem
+    cinit.init(args[1..$]);
     LuaState s = new LuaState();
     s.register(scripting);
 

@@ -148,7 +148,6 @@ do -- xxx missing: deathzone_immune for active missile
     -- go inactive again after some more time
     enableSpriteTimer(sprite_class, {
         defTimer = time(5.6),
-        timerId = "timer2",
         removeUnderwater = false,
         callback = function(sender)
             local ctx = get_context(sender)
