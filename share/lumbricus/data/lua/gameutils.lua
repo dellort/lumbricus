@@ -93,11 +93,12 @@ end
 -- spawn multiple sprites with a single fire call; returns onFire, onInterrupt
 -- and onReadjust function
 --   nsprites = max number to spawn (may be interrupted before)
+--      if nsprites is -1, get from fireinfo.param
 --   interval = delay between spawns (first is spawned immediately)
 --   per_shot_ammo = if true, every spawned projectile reduces ammo
 function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
     assert(callback)
-    assert(nsprites > 0)
+    assert(nsprites > 0 or nsprites == -1)
     local function doFire(shooter, fireinfo)
         if not per_shot_ammo then
             -- this may call onInterrupt if the last piece of ammo is fired
@@ -105,6 +106,9 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
         end
         LuaShooter_set_isFixed(shooter, true)
         local remains = nsprites
+        if remains == -1 then
+            remains = fireinfo.param
+        end
         local timer = Timer.New()
         local ctx = get_context(shooter)
         local sprite_phys = Sprite_physics(Shooter_owner(shooter))
@@ -144,6 +148,7 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
     return doFire, doInterrupt, doReadjust
 end
 
+-- WAY to special and used only by mad cow so far
 function getMultispawnOnFire(sprite_class, nsprites, interval, per_shot_ammo)
     assert(sprite_class)
     return getMultipleOnFire(nsprites, interval, per_shot_ammo,
@@ -317,7 +322,7 @@ function enableSpriteTimer(sprite_class, args)
             -- actually, it should always find a shooter
             local sh = gameObjectFindShooter(sender)
             if sh then
-                t = Shooter_fireinfo(sh).timer
+                t = Shooter_fireinfo(sh).param * timeSecs(1)
             end
         end
         ctx[timerId] = addTimer(t, function()

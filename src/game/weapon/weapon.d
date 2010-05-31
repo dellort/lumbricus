@@ -129,7 +129,7 @@ struct FireInfo {
     Vector2f dir = Vector2f.nan; //normalized throw direction
     Vector2f surfNormal = Vector2f(-1, 0);   //impact surface normal
     float strength = 1.0f; //as allowed in the weapon config
-    Time timer;     //selected time, in the range dictated by the weapon
+    int param;     //selected param, in the range dictated by the weapon
     Vector2f pos;     //position of shooter
     float shootbyRadius = 0.0f;
     WeaponTarget pointto; //if weapon can point to somewhere

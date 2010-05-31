@@ -41,8 +41,8 @@ do
             variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
-            timerFrom = timeSecs(1),
-            timerTo = timeSecs(5),
+            paramFrom = 1,
+            paramTo = 5,
         }
     }
     enableSpriteCrateBlowup(w, shard, 2)
@@ -205,8 +205,8 @@ do
             variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
-            timerFrom = time(1),
-            timerTo = time(5),
+            paramFrom = 1,
+            paramTo = 5,
             relaxtime = timeSecs(1),
         }
     }
@@ -257,8 +257,8 @@ do
             variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
-            timerFrom = time(1),
-            timerTo = time(5),
+            paramFrom = 1,
+            paramTo = 5,
         }
     }
     enableSpriteCrateBlowup(w, shard, 5)

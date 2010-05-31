@@ -293,11 +293,11 @@ class WormControl : WormController {
         mWorm.weapon = selected;
     }
 
-    void doSetTimer(Time t) {
+    void doSetParam(int p) {
         if (!isControllable || mLimitedMode)
             return;
 
-        mWorm.setWeaponTimer(t);
+        mWorm.setWeaponParam(p);
     }
 
     private bool controllableFire(bool keyDown) {

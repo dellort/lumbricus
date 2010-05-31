@@ -114,7 +114,7 @@ class WormSprite : Sprite {
         bool mCharging;
         Time mChargingStarted;
 
-        Time mWeaponTimer;
+        int mWeaponParam;
 
         PhysicConstraint mRope;
         void delegate(Vector2f mv) mRopeMove;
@@ -245,7 +245,7 @@ class WormSprite : Sprite {
 
     //if can move etc.
     bool haveAnyControl() {
-        return isAlive() && currentState !is wsc.st_drowning;
+        return isAlive() && !currentState.isUnderWater;
     }
 
     void gravestone(int grave) {
@@ -361,8 +361,9 @@ class WormSprite : Sprite {
     override protected void waterStateChange() {
         super.waterStateChange();
         //do something that involves an object and a lot of water
-        if (isUnderWater) {
-            setState(wsc.st_drowning);
+        if (isUnderWater && !currentState.isUnderWater) {
+            setStateForced(currentState !is wsc.st_frozen
+                ? wsc.st_drowning : wsc.st_drowning_frozen);
         }
     }
 
@@ -531,7 +532,7 @@ class WormSprite : Sprite {
         mCharging = false;
         //xxx
         //mRequestedWeapon = null;
-        //I don't know if mWeaponTimer should be changed or what
+        //I don't know if mWeaponParam should be changed or what
     }
 
     //xxx: clearify relationship between shooter and so on
@@ -557,16 +558,15 @@ class WormSprite : Sprite {
             mWeaponSelector = w.createSelector(this);
             if (currentState is wsc.st_stand)
                 setState(wsc.st_weapon);
-            if (mWeaponTimer == Time.Null)
-                //xxx should this be configurable?
-                mWeaponTimer = (w.fireMode.timerFrom+w.fireMode.timerTo)/2;
+            if (mWeaponParam == 0)
+                mWeaponParam = w.fireMode.getParamDefault();
             updateCrosshair();
             //replay the cross-moves-out animation
             if (mCrosshair && w !is oldweapon && !firing) {
                 mCrosshair.reset();
             }
         } else {
-            mWeaponTimer = Time.Null;
+            mWeaponParam = 0;
             if (!firing) {
                 if (currentState is wsc.st_weapon)
                     setState(wsc.st_stand);
@@ -716,9 +716,9 @@ class WormSprite : Sprite {
             && mRequestedWeapon && !mRequestedWeapon.allowSecondary;
     }
 
-    void setWeaponTimer(Time t) {
+    void setWeaponParam(int p) {
         //range checked when actually firing
-        mWeaponTimer = t;
+        mWeaponParam = p;
     }
 
     //return the fire strength value, always between 0.0 and 1.0
@@ -781,8 +781,8 @@ class WormSprite : Sprite {
                 info.dir = fDir/s;
             }
         }
-        info.timer = clampRangeC(mWeaponTimer, sh.weapon.fireMode.timerFrom,
-            sh.weapon.fireMode.timerTo);
+        info.param = clampRangeC(mWeaponParam, sh.weapon.fireMode.paramFrom,
+            sh.weapon.fireMode.paramTo);
         if (wcontrol)
             info.pointto = wcontrol.getTarget;
         else
@@ -1241,6 +1241,8 @@ class WormStateInfo {
     bool canAim = false;        //can the target cross be moved
     bool canFire = false;       //can the main weapon be fired
 
+    bool isUnderWater = false;
+
     this (char[] a_name) {
         name = a_name;
     }
@@ -1260,7 +1262,7 @@ class WormSpriteClass : SpriteClass {
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
         st_jump_start, st_jump, st_jump_to_fly, st_rope, st_drill, st_blowtorch,
-        st_parachute, st_win, st_frozen, st_unfreeze;
+        st_parachute, st_win, st_frozen, st_unfreeze, st_drowning_frozen;
 
     //alias WormSprite.FlyMode FlyMode;
 
@@ -1299,6 +1301,7 @@ class WormSpriteClass : SpriteClass {
         st_win = state("win");
         st_frozen = state("frozen");
         st_unfreeze = state("unfreeze");
+        st_drowning_frozen = state("drowning_frozen");
     }
 
     void finishLoading() {

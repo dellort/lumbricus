@@ -106,13 +106,12 @@ $ napalm ist sehr langsam, minenagriff nicht => ?
 + Tierwaffen (Maulwurf, Maulwurfsangriff, Stinktier mit vergifteten Würmern)
 + Lokale-Suche-Waffen (Taube, Zauberkugel)
 + Bungee
-+ Einfrieren
 + Nahkampfwaffen (Drachenball, Firepunch, Kamikaze, Kamikaze-Bomber)
 
 - Napalm verbessern (Ruckeln verhindern, Würmer mehr wegstoßen, vll. etwas "klebriger" machen)
 - Molotov-Cocktail brennt über mehrere Züge
 - Minenverzögerung sollte zufällig sein
-+ Anzahl Projektile über Tasten 1-5 einstellen (Rindviecher)
+$ Anzahl Projektile über Tasten 1-5 einstellen (Rindviecher)
 
 ! Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)
     - statt versuchen, wcontrol.d von worm.d unabhängig zu machen, lieber den rest des spiels von wcontrol.d unabhängig machen

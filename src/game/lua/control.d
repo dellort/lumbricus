@@ -46,7 +46,7 @@ static this() {
 
     gScripting.properties!(WormStateInfo, "physic", "noleave", "animation",
         "particle", "isGrounded", "canWalk", "canAim", "canFire",
-        "onAnimationEnd")();
+        "onAnimationEnd", "isUnderWater")();
 
     gScripting.ctor!(CrateSpriteClass, GameCore, char[])();
     gScripting.properties!(CrateSpriteClass, "collectRadius");

@@ -158,7 +158,7 @@ local states = {
     },
     unfreeze = {
         -- hack for leave animation
-        physic = "worm_stand",
+        physic = "frozen",
         animation = "unfreeze",
         onAnimationEnd = "stand",
         noleave = true,
@@ -221,6 +221,16 @@ local states = {
 
         animation = "drown",
         particle = "p_projectiledrown",
+
+        isUnderWater = true,
+    },
+    drowning_frozen = {
+        physic = "water",
+
+        animation = "frozen_drowning",
+        particle = "p_projectiledrown",
+
+        isUnderWater = true,
     },
     win = {
         physic = "win",

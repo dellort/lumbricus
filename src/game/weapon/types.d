@@ -38,8 +38,15 @@ struct FireMode {
     float throwStrengthFrom = 0;   //1?? wtf?!
     float throwStrengthTo = 0;
     PointMode point = PointMode.none; //by mouse, i.e. target-searching weapon
-    bool hasTimer; //user can select a timer
-    Time timerFrom; //minimal time chooseable, only used if hasTimer==true
-    Time timerTo;   //maximal time
+    //the param is either a time in seconds (e.g. banana bomb), or the count of
+    //  things to spawn (e.g. mad cow)
+    int paramFrom; //minimal param chooseable
+    int paramTo;   //maximal param
     Time relaxtime = timeSecs(1);
+
+    //return default value for weapon param
+    int getParamDefault() {
+        //xxx should this be configurable?
+        return (paramFrom + paramTo)/2;
+    }
 }

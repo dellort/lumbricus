@@ -282,7 +282,8 @@ do
         end
     })
 
-    local fire, interrupt = getMultispawnOnFire(sprite_class, 3, time(0.6), true)
+    local fire, interrupt = getMultispawnOnFire(sprite_class, -1, time(0.6),
+        true)
     local w = createWeapon {
         name = "w_" .. name,
         onFire = fire,
@@ -296,6 +297,8 @@ do
             direction = "fixed",
             throwStrengthFrom = 40,
             throwStrengthTo = 40,
+            paramFrom = 1,
+            paramTo = 5,
         }
     }
     enableSpriteCrateBlowup(w, sprite_class)

@@ -222,8 +222,8 @@ class InputHandler {
                 wc = findWeapon(w.engine, weapon);
             w.control.selectWeapon(wc);
         });
-        addWormCmd("set_timer", (TeamMember w, int ms) {
-            w.control.doSetTimer(timeMsecs(ms));
+        addWormCmd("set_param", (TeamMember w, int p) {
+            w.control.doSetParam(p);
         });
         addWormCmd("set_target", (TeamMember w, int x, int y) {
             w.control.doSetPoint(Vector2f(x, y));
