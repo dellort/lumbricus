@@ -120,6 +120,8 @@ class WormSprite : Sprite {
         void delegate(Vector2f mv) mRopeMove;
         bool mRopeCanRefire;
         bool mBlowtorchActive;
+
+        static LogStruct!("worm") log;
     }
 
     TeamTheme teamColor;
@@ -361,7 +363,9 @@ class WormSprite : Sprite {
     override protected void waterStateChange() {
         super.waterStateChange();
         //do something that involves an object and a lot of water
-        if (isUnderWater && !currentState.isUnderWater) {
+        if (isUnderWater && !currentState.isUnderWater
+            && currentState !is wsc.st_dead)
+        {
             setStateForced(currentState !is wsc.st_frozen
                 ? wsc.st_drowning : wsc.st_drowning_frozen);
         }
@@ -414,7 +418,7 @@ class WormSprite : Sprite {
     void beamTo(Vector2f npos) {
         //if (!isSitting())
         //    return; //only can beam when standing
-        //log("beam to: {}", npos);
+        log.trace("beam to: {}", npos);
         //xxx: check and lock destination
         mBeamDest = npos;
         setState(wsc.st_beaming);
@@ -444,7 +448,7 @@ class WormSprite : Sprite {
         if (currentState.onAnimationEnd && graphic) {
             //as requested by d0c, timing is dependend from the animation
             if (graphic.readyflag) {
-                //log("state transition because of animation end");
+                log.trace("state transition because of animation end");
                 //time to change; the setState code will reset the animation
                 setState(currentState.onAnimationEnd, true);
             }
@@ -761,7 +765,7 @@ class WormSprite : Sprite {
             update_actual_weapon(oldweapon);
         }
 
-        //log("fire: {}", mRequestedWeapon.name);
+        log.trace("fire: {}", mRequestedWeapon.name);
 
         FireInfo info;
         if (fixedDir)
@@ -979,7 +983,7 @@ class WormSprite : Sprite {
             assert(nstate is currentState.onAnimationEnd);
         }
 
-        //log("state {} -> {}", currentState.name, nstate.name);
+        log.trace("state {} -> {}", currentState.name, nstate.name);
 
         auto oldstate = currentState;
         currentState = nstate;
@@ -1016,7 +1020,7 @@ class WormSprite : Sprite {
             updateAnimation();
         }
 
-        //log("force state: {}", nstate.name);
+        log.trace("force state: {}", nstate.name);
 
         waterStateChange();
     }

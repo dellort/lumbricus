@@ -370,7 +370,7 @@ mainspr {
                 //generic release animation for thrown stuff
                 worm_throw_release = "437"
 
-                worm_frozen_enter = "482"
+                worm_frozen_enter = "f:25; 482"
                 worm_dragonball_prepare = "388"
                 worm_dragonball_release = "391"
                 worm_bow_get = "f:25; 504"
@@ -402,7 +402,7 @@ mainspr {
                 _flags = "+backwards_a"
                 worm_beaming_backwards = "f:25; 434"
                 worm_frightened = "212"
-                worm_frozen_leave = "485"
+                worm_frozen_leave = "f:25; 485"
             }
             {
                 //animations that would require time as the third parameter
@@ -476,6 +476,7 @@ water_anims {
         bubble1 = "1"
         bubble2 = "2"
         bubble3 = "3"
+        worm_frozen_drown = "4"
         grave0_drown = "5"
         grave1_drown = "6"
         grave2_drown = "7"
