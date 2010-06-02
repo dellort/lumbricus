@@ -245,6 +245,7 @@ abstract class GameCore {
         scripting.addSingleton(physicWorld);
         scripting.addSingleton(physicWorld.collide);
         scripting.addSingleton(level);
+        scripting.addSingleton(mParticleWorld);
 
         events.setScripting(scripting);
 

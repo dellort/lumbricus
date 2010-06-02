@@ -16,6 +16,7 @@ local function enableSheepJumping(sprite_class)
             if Random_rangei(1, 5) == 1 then
                 local look = lookSide(phys)
                 Phys_addImpulse(phys, Vector2(look * 2500, -2500))
+                emitSpriteParticle("p_sheep", sender)
             end
         end
     })
@@ -37,7 +38,6 @@ do
                 walkingSpeed = 50
             },
             sequenceType = "s_sheep",
-            initParticle = "p_sheep",
         }
     end
 
@@ -115,6 +115,7 @@ do
             local s = spawnFromFireInfo(sprite_class, shooter, info)
             Sequence_setState(Sprite_graphic(s), seqHelmet)
             set_context_var(shooter, "sprite", s)
+            emitShooterParticle("p_rocket_fire", shooter)
         end,
         onRefire = dorefire,
         canRefire = true,
@@ -324,7 +325,6 @@ local function createSuperSheep(name, is_aqua)
             walkingSpeed = 50,
         })),
         sequenceType = "s_sheep",
-        initParticle = "p_sheep",
     }
     enableSheepJumping(jumping)
 
@@ -411,6 +411,7 @@ local function createSuperSheep(name, is_aqua)
                 ctx.phase1 = false
                 -- and this makes the sheep controllable; hardcoded in D
                 ctx.control = ControlRotate_ctor(ctx.sprite, 5, 10000)
+                emitSpriteParticle("p_supersheep_launch", ctx.sprite)
             else
                 explode(ctx)
             end

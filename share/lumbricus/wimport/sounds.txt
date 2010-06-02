@@ -5,6 +5,8 @@
 //each node here produces a resource file
 //the problem is that some sounds are locale dependend (ouch!)
 // => solution: locale specific sound resources
+//^ not exactly; there are user-selectable sound themes (for each team)
+//  that control how the worms "speak" (a lot like team colors)
 sounds {
     normal {
         //path for the sound effects listed here
@@ -14,7 +16,7 @@ sounds {
         conffile = "sounds.conf"
         files {
             a_test1 = "FrenchAnthem.wav"
-            a_test2 = "ScalesOfJustice.wav"
+            a_scales = "ScalesOfJustice.wav"
             a_holy = "HOLYGRENADE.WAV"
 
             a_explosion1 = "Explosion1.wav"
@@ -28,6 +30,7 @@ sounds {
             a_splash = "Splash.wav"   //drown
             a_splish = "Splish.wav"   //surface bounce
             a_supersheep_release = "SUPERSHEEPRELEASE.WAV"
+            a_supersheep_fly = "SUPERSHEEPWHOOSH.WAV"
             a_donkey_create = "HOLYDONKEY.WAV"
             a_armageddon = "Armageddon.wav"
             a_beam = "Teleport.wav"
@@ -40,6 +43,8 @@ sounds {
             a_sallyarmy = "SALVATIONARMY.WAV"
             a_mine_tick = "MINETICK.WAV"
             a_mine_activate = "MineArm.wav"
+            a_girder_place = "GIRDERIMPACT.WAV"
+            a_freeze = "Freeze.wav"    //xxx sounds weird/distorted
         }
     }
     /* -- not implemented

@@ -12,14 +12,12 @@ $ sollte behoben sein / works for me (muss getestet werden)
 ! capture-zustand vom mousescroller kommt immer durcheinander, z.b. im spiel während maus gefangen ist, konsole öffnen und game_res starten => ärgs; ausserdem: hilfefenster ("h") und mouse scroller wollen beide capture => was tun? (wenn halt GameFrame.simulate() nicht jeden frame den mouse scroll modus setzen würde...)
 - lua console:
     $ the Lua console stuff was never meant to be deterministic, and commands like "pickMakeActive()" use the GUI anyway
-    - the independend lua commandline doesn't really work anymore (output wrong)
     - the in-game lua one can't do anything when the game is paused
     - can't scroll in the in-game console
 
 == bekannte, lösbare Bugs ==
 $ wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
   ^ manchmal wird immernoch eine chaotische "schneller fall" animation angezeigt, 
-$ Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
 - Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
   1. Würmern erlauben, das Wasser wieder zu verlassen (und Zustand korrigieren)
   2. unter Wasser keine Bewegung nach oben zulassen
@@ -27,9 +25,8 @@ $ Superschaf fliegt auch 15sec weiter, wenn der Wurm nicht mehr dran ist
 [- Bohrer/Lötlampe stoßen Würmer nicht weg]
     notdürftig implementiert, muss verbessert werden (mehr impuls, weniger schaden?)
 $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
-$ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt (lösung: z.B. könnte die spiellogik pollen, wann Sequence.weapon_fire_oneshot zurückgesetzt wird)
-  (works for me; verzögerung am ende könnte etwas größer sein)
-  (^ für mich nicht, baseballschläger)
+- wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt (lösung: z.B. könnte die spiellogik pollen, wann Sequence.weapon_fire_oneshot zurückgesetzt wird)
+  Beispiel: Baseballschläger
 - feuer animation kann verfrüht durch selektion anderer waffe abgebrochen werden (z.B. axt)
 - axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchron
 - superrope-feueranimation: seil fängt in er mitte des wurmes an => passt nicht zur wurm-graphik;
@@ -51,6 +48,7 @@ $ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation n
 $ napalm ist sehr langsam, minenagriff nicht => ?
     ^ weil keine kollisionen zwischen minen
 *** multithreading-unsinn in cmdserver_gui.d ist unsicher
+    ^ cmdserver_gui eliminieren und nur standalone-server? oder was?
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - netzwerk server braucht 100% CPU => nicht nett auf moderner hardware

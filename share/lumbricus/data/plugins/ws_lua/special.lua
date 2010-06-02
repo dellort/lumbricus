@@ -63,7 +63,7 @@ do
 
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = getStandardOnFire(sprite_class),
+        onFire = getStandardOnFire(sprite_class, "p_throw_fire"),
         value = 10,
         category = "misc2",
         animation = "weapon_molotov",
@@ -251,7 +251,7 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
 
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = getStandardOnFire(nuke),
+        onFire = getStandardOnFire(nuke, "p_throw_fire"),
         category = "misc1",
         value = 10,
         animation = "weapon_holy",

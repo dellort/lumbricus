@@ -10,6 +10,7 @@ createWeapon {
         if not sel then return end
         if GirderControl_fireCheck(sel, fireinfo, true) then
             Shooter_reduceAmmo(shooter)
+            emitParticle("p_girder_place", fireinfo.pointto.pos)
         end
         Shooter_finished(shooter)
     end,
@@ -73,8 +74,11 @@ createWeapon {
 
 -- just a very specific helper function to help with the following weapons
 -- will call action(team, member) on the current team/member
-local function teamActionOnFire(action)
+local function teamActionOnFire(action, particle)
     return function(shooter, fireinfo)
+        if particle then
+            emitShooterParticle(particle, shooter)
+        end
         local team, member = currentTeamFromShooter(shooter)
         if team and member then
             Shooter_reduceAmmo(shooter)
@@ -163,7 +167,7 @@ createWeapon {
         --  game mode should do that automatically: 0. detect health point
         --  change, 1. wait for silence, 2. count down 3. give the GUI time
         --  4. continue game)
-    end),
+    end, "p_scales"),
 }
 
 createWeapon {
@@ -270,7 +274,7 @@ createWeapon {
             freezeTeam(team, false)
         end
         addInstanceEventHandler(team, "team_set_active", unfreeze)
-    end),
+    end, "p_freeze"),
 }
 
 do

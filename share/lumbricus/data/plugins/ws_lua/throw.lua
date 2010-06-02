@@ -31,7 +31,7 @@ do
 
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = getStandardOnFire(main),
+        onFire = getStandardOnFire(main, "p_throw_fire"),
         category = "throw",
         value = 10,
         animation = "weapon_banana",
@@ -151,6 +151,7 @@ do
             end)
             ctx.main = spawnFromFireInfo(main, shooter, info)
             addCountdownDisplay(ctx.main, ctx.timer, 5, 2)
+            emitShooterParticle("p_throw_fire", shooter)
         end,
         onRefire = dorefire,
         canRefire = true,
@@ -194,7 +195,7 @@ do
 
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = getStandardOnFire(sprite_class),
+        onFire = getStandardOnFire(sprite_class, "p_throw_fire"),
         value = 10,
         category = "throw",
         animation = "weapon_grenade",
@@ -246,7 +247,7 @@ do
 
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = getStandardOnFire(main),
+        onFire = getStandardOnFire(main, "p_throw_fire"),
         value = 10,
         category = "throw",
         icon = "icon_cluster",
@@ -287,7 +288,7 @@ do
 
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = getStandardOnFire(sprite_class),
+        onFire = getStandardOnFire(sprite_class, "p_throw_fire"),
         category = "throw",
         value = 10,
         animation = "weapon_holy",

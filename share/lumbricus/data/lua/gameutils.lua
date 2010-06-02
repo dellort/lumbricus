@@ -53,11 +53,14 @@ end
 
 -- create and return a function that does what most onFire functions will do
 -- incidentally, this just calls spawnFromFireInfo()
-function getStandardOnFire(sprite_class)
+function getStandardOnFire(sprite_class, particle_type)
     return function(shooter, info)
         Shooter_reduceAmmo(shooter)
         Shooter_finished(shooter)
         spawnFromFireInfo(sprite_class, shooter, info)
+        if particle_type then
+            emitShooterParticle(particle_type, shooter)
+        end
     end
 end
 
@@ -732,4 +735,23 @@ function castFireRay(sprite, dir, spread)
     end
     local pos = Phys_pos(owner) + dir * dist;
     return World_shootRay(pos, dir, 1000)
+end
+
+-- "emit and forget" particle functions
+-- Make sure to only use particles with a finite lifetime
+-- Use Sprite_setParticle for attached particles with lifetime
+function emitParticle(particle_type, position, velocity)
+    ParticleWorld_emitParticle(position, velocity or Vector2(0), lookupResource(particle_type))
+end
+
+-- Emit at sprite location/speed (not attached)
+function emitSpriteParticle(particle_type, parent)
+    local phys = Sprite_physics(parent)
+    local pos = Phys_pos(phys)
+    local vel = Phys_velocity(phys)
+    emitParticle(particle_type, pos, vel)
+end
+
+function emitShooterParticle(particle_type, shooter)
+    emitSpriteParticle(particle_type, Shooter_owner(shooter))
 end

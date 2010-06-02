@@ -549,7 +549,7 @@ class LuaConsole : LuaInterpreter {
         mCmdLine.setPrefix("/", "exec");
         mCmdLine.registerCommand("exec", &cmdExec, "execute a Lua command",
             ["text...:code"]);
-        gWindowFrame.createWindow(w, "Lua Console", Vector2i(400, 200));
+        gWindowFrame.createWindow(w, "Lua Console", Vector2i(450, 300));
     }
 
     private void printOutput(char[] s) {

@@ -5,6 +5,7 @@ import game.core;
 import game.events;
 import game.game;
 import game.glevel;
+import game.particles;
 import game.sequence;
 import game.sprite;
 import game.teamtheme;
@@ -68,6 +69,8 @@ static this() {
     gScripting.methods!(Sequence, "setState", "queueState");
     gScripting.properties!(Sequence, "attachText");
     gScripting.properties_ro!(Sequence, "currentState");
+
+    gScripting.methods!(ParticleWorld, "emitParticle");
 
     //internal functions
     gScripting.properties_ro!(EventTarget, "eventTargetType");

@@ -646,6 +646,7 @@ class ParticleWorld {
     void emitParticle(Vector2f pos, Vector2f vel, ParticleType props,
         bool pin = true)
     {
+        argcheck(props);
         Particle* p = newparticle(props, pin);
         if (!p)
             return;

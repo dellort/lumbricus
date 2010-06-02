@@ -681,7 +681,17 @@ ConsoleUtils = {}
 
 -- execute a line of Lua code (either statement or expression)
 -- print out result
-function ConsoleUtils.exec(line)
+-- msgSink: void delegate(char[])
+function ConsoleUtils.exec(line, msgSink)
+    local errSink = log.error
+    local noticeSink = log.notice
+    if msgSink then
+        errSink = function(...)
+            msgSink(utils.anyformat(...))
+            msgSink("\n")
+        end
+        noticeSink = errSink
+    end
     assert(type(line) == "string")
     -- first try to prepend return in order to get the value the code returns
     -- it also allows to execute expressions like "1+2"
@@ -697,7 +707,7 @@ function ConsoleUtils.exec(line)
     --     "return", but that was confusing anyway)
     -- printf("> {}", real)
     if not fn then
-        log.error("Error: {}", err)
+        errSink("Error: {}", err)
         return false
     end
     -- execute the function
@@ -721,7 +731,7 @@ function ConsoleUtils.exec(line)
     ]]
     local ok, res = capture(pcall(fn))
     if not ok then
-        log.error("Lua error: {}", res[1])
+        errSink("Lua error: {}", res[1])
         return false
     end
     -- print result (only if not nil)
@@ -733,7 +743,7 @@ function ConsoleUtils.exec(line)
             end
             s = s .. utils.format("{:q}", res[i])
         end
-        log.notice(s)
+        noticeSink(s)
     end
     return true
 end

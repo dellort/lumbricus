@@ -58,7 +58,7 @@ class LuaInterpreter {
     }
 
     protected void runLuaCode(char[] code) {
-        mLua.scriptExec("ConsoleUtils.exec(...)", code);
+        mLua.scriptExec("ConsoleUtils.exec(...)", code, mSink);
     }
 
     struct CompletionResult {

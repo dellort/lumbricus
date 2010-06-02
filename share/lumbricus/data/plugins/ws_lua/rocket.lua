@@ -19,7 +19,7 @@ do
 
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = getStandardOnFire(sprite_class),
+        onFire = getStandardOnFire(sprite_class, "p_rocket_fire"),
         category = "fly",
         value = 10,
         animation = "weapon_bazooka",
@@ -74,7 +74,7 @@ do
 
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = getStandardOnFire(main),
+        onFire = getStandardOnFire(main, "p_rocket_fire"),
         category = "fly",
         value = 10,
         animation = "weapon_mortar",
@@ -141,6 +141,8 @@ do -- xxx missing: deathzone_immune for active missile
             local sh = gameObjectFindShooter(sender)
             local fi = Shooter_fireinfo(sh)
             local homing = setSpriteHoming(sender, fi.pointto, 15000, 15000)
+            -- xxx slightly wrong because the sound is not attached to the sprite
+            emitSpriteParticle("p_homing_activate", sender)
             ctx.active = true
             ctx.force = homing
         end
@@ -188,7 +190,7 @@ do -- xxx missing: deathzone_immune for active missile
 
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = getStandardOnFire(sprite_class),
+        onFire = getStandardOnFire(sprite_class, "p_rocket_fire"),
         category = "fly",
         value = 10,
         animation = "weapon_homing",
