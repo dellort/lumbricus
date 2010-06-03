@@ -129,7 +129,7 @@ void init(char[][] args) {
     if (gLogToFile.get()) {
         //open logfile in user dir
         //xxx why should it be in the user dir? nobody will look for logiles
-        //    _there_; rather they'd expect it in the workign dir or so?
+        //    _there_; rather they'd expect it in the working dir or so?
         char[] logpath = "/logall.txt";
         gLogInit.minor("opening logfile: {}", logpath);
         const File.Style WriteCreateShared =
@@ -169,18 +169,7 @@ void cmdlineLoadSettings(ref char[][] args) {
         if (getarg(args, s.name, value)) {
             if (value == "help") {
                 relistAllSettings(); //load/scan files to init all s.choices
-                Stdout.formatln("possible values for setting '{}':", s.name);
-                if (s.type == SettingType.Choice) {
-                    foreach (c; s.choices) {
-                        Stdout.formatln("   {}", c);
-                    }
-                } else if (s.type == SettingType.String) {
-                    Stdout.formatln("   <any string>");
-                } else if (s.type == SettingType.Percent) {
-                    Stdout.formatln("   <number between 0 and 100>");
-                } else {
-                    Stdout.formatln("   <unknown>");
-                }
+                Stdout.formatln("{}", settingValueHelp(s.name));
                 exit();
             }
             s.set!(char[])(value);

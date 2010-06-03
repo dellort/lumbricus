@@ -3,6 +3,7 @@ module game.hud.gameview;
 import common.common;
 import framework.font;
 import framework.framework;
+import framework.globalsettings;
 import framework.i18n;
 import framework.commandline;
 import utils.timesource;
@@ -61,6 +62,20 @@ const Time cZoomTime = timeMsecs(500);
 //min/max zooming level
 const float cZoomMin = 0.6f;
 const float cZoomMax = 1.0f;
+
+private {
+    SettingVar!(int) gTeamLabels, gDetailLevel;
+}
+
+const cTeamLabelCount = 4;
+const cDetailLevelCount = 7;
+
+static this() {
+    gTeamLabels = gTeamLabels.Add("game.teamlabels", 2);
+    settingMakeIntRange(gTeamLabels.setting, 0, cTeamLabelCount-1);
+    gDetailLevel = gDetailLevel.Add("game.detaillevel", 0);
+    settingMakeIntRange(gDetailLevel.setting, 0, cDetailLevelCount-1);
+}
 
 //just for the weapon image
 class BorderImage : SceneObjectCentered {
@@ -415,7 +430,7 @@ class GameView : Widget {
     void delegate() onToggleChat, onToggleScript;
     void delegate(char[] category) onSelectCategory;
 
-    //for setSettings()
+    //what a stupid type name
     struct GUITeamMemberSettings {
         bool showTeam = false;
         bool showName = true;
@@ -496,21 +511,34 @@ class GameView : Widget {
         addChild(w);
     }
 
-    void setGUITeamMemberSettings(GUITeamMemberSettings s) {
-        mTeamGUISettings = s;
+    private void updateTeamLabels() {
+        uint x = gTeamLabels.get();
+        auto t = x % cTeamLabelCount;
+        mTeamGUISettings.showPoints = t >= 1;
+        mTeamGUISettings.showName = t >= 2;
+        mTeamGUISettings.showTeam = t >= 3;
     }
 
-    int nameLabelLevel() {
-        return mCycleLabels;
-    }
-    void nameLabelLevel(int x) {
-        mCycleLabels = x % 4;
-        auto t = mCycleLabels;
-        GUITeamMemberSettings s; //what a stupid type name
-        s.showPoints = t >= 1;
-        s.showName = t >= 2;
-        s.showTeam = t >= 3;
-        setGUITeamMemberSettings(s);
+    private void updateDetailLevel() {
+        uint level = gDetailLevel.get();
+        //the higher the less detail (wtf), wraps around if set too high
+        level = level % cDetailLevelCount;
+        mDetailLevel = level;
+        bool clouds = true, skyDebris = true, skyBackdrop = true, skyTex = true,
+             water = true, particles = true;
+        if (level >= 1) skyDebris = false;
+        if (level >= 2) skyBackdrop = false;
+        if (level >= 3) skyTex = false;
+        if (level >= 4) clouds = false;
+        if (level >= 5) water = false;
+        if (level >= 6) particles = false;
+        //relies that setters don't do anything if the same value is set
+        mGameWater.simpleMode = !water;
+        mGameSky.enableClouds = clouds;
+        mGameSky.enableDebris = skyDebris;
+        mGameSky.enableSkyBackdrop = skyBackdrop;
+        mGameSky.enableSkyTex = skyTex;
+        mGame.engine.particleWorld.enabled = particles;
     }
 
     private void doSim() {
@@ -579,10 +607,6 @@ class GameView : Widget {
         mCmds.register(Command("category", &cmdCategory, "-",
             ["text:catname"]));
         mCmds.register(Command("zoom", &cmdZoom, "-", ["bool:is_down"]));
-        mCmds.register(Command("cyclenamelabels", &cmdNames, "worm name labels",
-            ["int?:how much to show (if not given: cycle)"]));
-        mCmds.register(Command("detail", &cmdDetail,
-            "switch detail level", ["int?:detail level (if not given: cycle)"]));
         mCmds.register(Command("cameradisable", &cmdCameraDisable,
             "disable game camera", ["bool?:disable"]));
         mCmds.register(Command("move", &cmdMove, "-", ["text:key",
@@ -596,6 +620,7 @@ class GameView : Widget {
         mCmds.register(Command("toggle_scroll", &cmdToggleScroll, "-", []));
         mCmds.register(Command("toggle_chat", &cmdToggleChat, "-", []));
         mCmds.register(Command("toggle_script", &cmdToggleScript, "-", []));
+        mCmds.register(Command("cmd", &cmdCmd, "-", ["text..."]));
         mCmds.bind(mCmd);
 
         //hacks
@@ -606,7 +631,8 @@ class GameView : Widget {
 
         mGame.engine.getRenderTime = &do_getRenderTime;
 
-        detailLevel = 0;
+        updateTeamLabels();
+        updateDetailLevel();
     }
 
     private Time do_getRenderTime() {
@@ -673,6 +699,14 @@ class GameView : Widget {
         mGameSky = new GameSky(mGame.engine);
     }
 
+    //this is an atrocious hack for executing global commands only if the key
+    //  shortcut input went to the game; otherwise the key shortcuts for
+    //  teamlabels ("delete") would be globally catched, and you couldn't use
+    //  them e.g. in a text edit field
+    private void cmdCmd(MyBox[] args, Output write) {
+        globals.cmdLine.execute(args[0].unbox!(char[])());
+    }
+
     private void cmdCategory(MyBox[] args, Output write) {
         char[] catname = args[0].unbox!(char[]);
         if (onSelectCategory)
@@ -682,20 +716,6 @@ class GameView : Widget {
     private void cmdZoom(MyBox[] args, Output write) {
         bool isDown = args[0].unbox!(bool);
         mZoomChange = isDown?-1:1;
-    }
-
-    private void cmdNames(MyBox[] args, Output write) {
-        auto c = args[0].unboxMaybe!(int)(nameLabelLevel + 1);
-        nameLabelLevel = c;
-        write.writefln("set nameLabelLevel to {}", nameLabelLevel);
-    }
-
-    private void cmdDetail(MyBox[] args, Output write) {
-        if (!mGame.engine)
-            return;
-        int c = args[0].unboxMaybe!(int)(-1);
-        detailLevel = c >= 0 ? c : detailLevel + 1;
-        write.writefln("set detailLevel to {}", detailLevel);
     }
 
     private void cmdCameraDisable(MyBox[] args, Output write) {
@@ -908,6 +928,9 @@ class GameView : Widget {
     }
 
     override void simulate() {
+        updateTeamLabels();
+        updateDetailLevel();
+
         float zc = mZoomChange*(cZoomMax-cZoomMin)/cZoomTime.secsf
             * mGame.engine.interpolateTime.difference.secsf;
         mCurZoom = clampRangeC(mCurZoom+zc, cZoomMin, cZoomMax);
@@ -979,29 +1002,6 @@ class GameView : Widget {
         //check if the sky drawer is in a mode where everything is overpainted
         //(depends from detail level)
         return !mGameSky.enableSkyTex;
-    }
-
-    public uint detailLevel() {
-        return mDetailLevel;
-    }
-    //the higher the less detail (wtf), wraps around if set too high
-    public void detailLevel(uint level) {
-        level = level % 7;
-        mDetailLevel = level;
-        bool clouds = true, skyDebris = true, skyBackdrop = true, skyTex = true,
-             water = true, particles = true;
-        if (level >= 1) skyDebris = false;
-        if (level >= 2) skyBackdrop = false;
-        if (level >= 3) skyTex = false;
-        if (level >= 4) clouds = false;
-        if (level >= 5) water = false;
-        if (level >= 6) particles = false;
-        mGameWater.simpleMode = !water;
-        mGameSky.enableClouds = clouds;
-        mGameSky.enableDebris = skyDebris;
-        mGameSky.enableSkyBackdrop = skyBackdrop;
-        mGameSky.enableSkyTex = skyTex;
-        mGame.engine.particleWorld.enabled = particles;
     }
 
     //camera priority of objects, from high to low:

@@ -19,7 +19,10 @@ import utils.factory;
 import utils.misc;
 import utils.vector2;
 
+import array = utils.array;
+
 //xxx deprecated
+//and only for global properties
 class PropertyEditor : Container {
     private {
         TableContainer mStuff;
@@ -30,7 +33,8 @@ class PropertyEditor : Container {
         mStuff = new TableContainer(2, 0, Vector2i(3, 5));
         foreach (s; gSettings) {
             switch (s.type) {
-            case SettingType.String:
+            case SettingType.String, SettingType.Integer, SettingType.IntRange,
+                SettingType.Unknown:
                 addValue!(EditString)(s);
                 break;
             case SettingType.Choice:
@@ -70,6 +74,14 @@ class PropertyEditor : Container {
         name.text = v.name;
         mStuff.add(name, 0, r);
         mStuff.add(edit.widget, 1, r);
+        mEditors ~= edit;
+    }
+
+    override void onLinkChange() {
+        super.onLinkChange();
+        bool l = isLinked();
+        foreach (p; mEditors)
+            p.onLinkChange(l);
     }
 }
 
@@ -79,6 +91,7 @@ class EditProperty {
     private {
         int mChanging;
         bool mDead;
+        bool mAdded;
     }
 
     this(Setting v) {
@@ -90,16 +103,29 @@ class EditProperty {
         onchange();
     }
 
+    void onLinkChange(bool shouldadd) {
+        if (shouldadd != mAdded) {
+            mAdded = shouldadd;
+            if (shouldadd) {
+                value.onChange ~= &changeCB;
+            } else {
+                array.arrayRemove(value.onChange, &changeCB);
+            }
+        }
+    }
+
+    private void changeCB(Setting s) {
+        assert(s is value);
+        if (mChanging <= 0)
+            onchange();
+    }
+
     //call this with code to set a value (to prevent recursion with listener)
     //xxx add handling for invalid values (catch PropertyException)
     protected void set(void delegate() doset) {
         mChanging++;
         scope (exit) mChanging--;
         doset();
-    }
-
-    void unlink() {
-        //xxx: remove listener???
     }
 
     protected void onchange() {

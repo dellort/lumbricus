@@ -141,7 +141,9 @@ class GameWater {
         mBubbleTimer = new Timer(cBubbleInterval*(2000f/size.x), &spawnBubble,
             &ts.current);
 
-        simpleMode(mSimpleMode);
+        //xxx force execution of setter code in hackish way, may be unneeded
+        mSimpleMode = !mSimpleMode;
+        simpleMode(!mSimpleMode);
     }
 
     private void spawnBubble(Timer sender) {
@@ -151,6 +153,8 @@ class GameWater {
     }
 
     public void simpleMode(bool simple) {
+        if (mSimpleMode == simple)
+            return;
         mSimpleMode = simple;
         //no particle bubbles in simple mode
         mBubbleTimer.enabled = !simple;

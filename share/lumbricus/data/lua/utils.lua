@@ -24,6 +24,9 @@ do -- unittest
 end
 
 -- return if i is an integer
+-- it is hoped that this does exactly the same as
+--  http://www.lua.org/source/5.1/luaconf.h.html#lua_number2int
+-- which is used to find out if a key to a hash entry is an int, or just a float
 function utils.isInteger(i)
     -- apparently Lua really makes this bothersome, wtf?
     -- checks: type, fractional numbers + nan, inf
@@ -37,27 +40,25 @@ end
 -- allowed inside {}:
 --      - ':q' if param is a string, quote it (other types aren't quoted)
 --      - index, e.g. '{3}' gets the third parameter
--- returns result_string, highest_used_arg
--- trailing unused arguments are thrown away and ignored
--- use utils.anyformat to print even trailing unused args
+-- returns the result as string
+-- trailing unused arguments are not allowed (they show up as warning)
 function utils.format(fmt, ...)
     return utils.format_r({}, fmt, ...)
 end
 
--- recursive version of format (done is simple used for table2string())
+-- recursive version of format (done is used for table2string())
 -- everything else see utils.format
 function utils.format_r(done, fmt, ...)
-    if type(fmt) ~= "string" then
-        assert(false, "sformat() expects a format string as first argument")
-    end
+    assert(type(fmt) == "string", "format() expects a format string as first"
+        .. " argument")
     local res = ""
     local function out(x)
         res = res .. x
     end
-    local args = {...}
+    local argc = select("#", ...)
+    local argused = {}
     local next = 1
     local nidx = 0
-    local max_arg = 0
     for a, b in string.gmatch(fmt, "(){.-}()") do
         out(string.sub(fmt, next, a - 1))
         local f = string.sub(fmt, a, b - 1)
@@ -75,26 +76,39 @@ function utils.format_r(done, fmt, ...)
                 idx = tmp
             end
         end
-        out(utils._format_value(args[idx], mods, done))
+        if idx >= 1 and idx <= argc then
+            argused[idx] = true
+            local arg = select(idx, ...)
+            out(utils._format_value(arg, mods, done))
+        else
+            out("{error: arg number " .. idx .. " not present}")
+        end
         --
-        max_arg = math.max(max_arg, idx)
         nidx = idx
         next = b
     end
     out(string.sub(fmt, next, #fmt))
-    return res, max_arg
+    -- warn about unused arguments
+    -- Note: if this gets in the way because you actually want to ignore some
+    --  arguments (like for game messages), add an invisible format parameter
+    --  that serves as command to ignore unused args
+    for i = 1, argc do
+        if not argused[i] then
+            out("{error: arg number " .. i .. " unused}")
+        end
+    end
+    return res
 end
 
 -- backend for utils.format; turn a single value into a string
+--  done: set of done tables (prevent recursion); passed to table2string
 function utils._format_value(value, fmt, done)
     local quote_string = false
     fmt = fmt or ""
     if fmt == "q" then
         quote_string = true
-    else
-        if fmt ~= "" then
-            error("unknown format specifier: '"..fmt.."'")
-        end
+    elseif fmt ~= "" then
+        error("unknown format specifier: '"..fmt.."'")
     end
 
     local ptype = type(value)
@@ -116,10 +130,9 @@ function utils._format_value(value, fmt, done)
 end
 
 do -- unittest
-    assert(utils.format("a", 5) == "a", 0)
-    assert(utils.format("a {}", 5) == "a 5", 1)
-    assert(utils.format("a {} {}", 5, 6) == "a 5 6", 2)
-    assert(utils.format("a {3} {2} {}", 5, 6, 7) == "a 7 6 7", 3)
+    assert(utils.format("a {}", 5) == "a 5")
+    assert(utils.format("a {} {}", 5, 6) == "a 5 6")
+    assert(utils.format("a {3} {2} {1}", 5, 6, 7) == "a 7 6 5")
 end
 
 -- format a table for debug purposes
@@ -177,6 +190,7 @@ function utils.table2string(t, done_set)
             local keypart
             if type(k) == "string" then
                 -- xxx should only do this if string is a valid Lua ID
+                --     if not, print it quoted, like in the else case
                 keypart = k .. " = "
             else
                 -- (:q means only quote strings)
@@ -186,31 +200,6 @@ function utils.table2string(t, done_set)
         end
     end
     return res .. "}"
-end
-
--- "somehow" format all arguments and return the result string
--- if fmt is a string, call format(fmt, ...), else format fmt as "{}"
--- then call format() on the remaining args
--- results from multiple format() calls are seperated with \t
--- e.g. utils.anyformat(3, "hu {}", 6, "ar", 7) == "3\thu 6\tar\t7"
-function utils.anyformat(fmt, ...)
-    local argc = select("#", ...)
-    if type(fmt) == "string" then
-        local res, args = utils.format(fmt, ...)
-        if args < argc then
-            -- pass all arguments ignored by format() to anyformat()
-            return res .. "\t" .. utils.anyformat(select(args + 1, ...))
-        else
-            return res
-        end
-    else
-        return utils.anyformat("{}", fmt, ...)
-    end
-end
-
-do -- unittest
-    assert(utils.anyformat("hu {}", "meep") == "hu meep")
-    assert(utils.anyformat(3, "hu {}", 6, "ar", 7) == "3\thu 6\tar\t7")
 end
 
 -- emulation of some features of utils.randval.RandomValue
@@ -285,7 +274,7 @@ end
 -- but trailing (useless) arguments are ignored, unlike with print()
 -- also see the logging API in table log below
 function printf(...)
-    print(utils.anyformat(...))
+    print(utils.format(...))
 end
 
 -- this table contains the logging functions as generated from log_priorities
@@ -293,12 +282,14 @@ end
 --  log.Warn = "Warn" -- like the stringified enum member in LogPriority
 --  function log.warn(...) -- like printf(), but pass the resulting string to
 --                            D's d_logoutput() function
+-- Be aware that they all do formatted printing, e.g. log.warn(s) will translate
+--  '{}' sequences within s, if s is a string.
 -- Note: unlike the D version, using log.trace() may be quite costly, even if
 --  the log level prevents displaying trace log events
 log = {}
 
 function log.emit(priority, ...)
-    local s = utils.anyformat(...)
+    local s = utils.format(...)
     if d_logoutput then
         d_logoutput(priority, s)
     else
@@ -615,6 +606,25 @@ end
 
 array.copy = assert(table_copy)
 
+-- find out if this is a valid array
+-- an array is a table with #table integer keys in range 1, ..., #table
+-- expensive because it checks each element
+function array.is_array(table)
+    if type(table) ~= "table" then
+        return false
+    end
+    -- # returns an integer key i with table[i] ~= nil and table[i+1] == nil
+    local len = #table
+    local count = 0
+    for k, v in pairs(table) do
+        if not (utils.isInteger(k) and k >= 1 and k <= len) then
+            return false
+        end
+        count = count + 1
+    end
+    return count == len
+end
+
 -- extend Lua standard "packages"
 
 function string.startswith(s, prefix)
@@ -687,7 +697,7 @@ function ConsoleUtils.exec(line, msgSink)
     local noticeSink = log.notice
     if msgSink then
         errSink = function(...)
-            msgSink(utils.anyformat(...))
+            msgSink(utils.format(...))
             msgSink("\n")
         end
         noticeSink = errSink
@@ -743,7 +753,7 @@ function ConsoleUtils.exec(line, msgSink)
             end
             s = s .. utils.format("{:q}", res[i])
         end
-        noticeSink(s)
+        noticeSink("{}", s)
     end
     return true
 end

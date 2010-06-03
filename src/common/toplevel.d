@@ -112,7 +112,6 @@ private:
 
     GUI mGui;
     SystemConsole mGuiConsole;
-    GuiFps mFPS;
 
     bool mKeyNameIt = false;
 
@@ -167,11 +166,6 @@ private:
         mFrameTime.start();
     }
 
-    void cmdShowTimers(MyBox[] args, Output write) {
-        write.writefln("Timers:");
-        listTimers((char[] a, Time t) {write.writefln("   {}: {}", a, t);});
-    }
-
     void listTimers(void delegate(char[] name, Time value) cb) {
         foreach (char[] name, PerfTimer cnt; globals.timers) {
             Time* pt = cnt in mLastTimerValues;
@@ -213,10 +207,9 @@ private:
 
         mGui = new GUI();
 
-        mFPS = new GuiFps();
-        mFPS.zorder = GUIZOrder.FPS;
-        mFPS.visible = false;
-        mGui.mainFrame.add(mFPS);
+        GuiFps fps = new GuiFps();
+        fps.zorder = GUIZOrder.FPS;
+        mGui.mainFrame.add(fps);
 
         mGuiConsole = new SystemConsole();
         mGuiConsole.zorder = GUIZOrder.Console;
@@ -281,8 +274,6 @@ private:
         globals.cmdLine.registerCommand("video", &cmdVideo, "",
             ["int", "int", "int?=0", "bool?"]);
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "", ["text?"]);
-        globals.cmdLine.registerCommand("framerate", &cmdFramerate,
-            "", ["int"]);
         globals.cmdLine.registerCommand("screenshot", &cmdScreenshot,
             "", ["text?"]);
         globals.cmdLine.registerCommand("screenshotwnd", &cmdScreenshotWnd,
@@ -298,21 +289,9 @@ private:
 
         globals.cmdLine.registerCommand("release_caches", &cmdReleaseCaches,
             "", ["bool?=true"]);
-        /+
-        globals.cmdLine.registerCommand("caching", &cmdSetCaching,
-            "Set if texture caching should be done", ["bool:if enabled"]);
-        +/
-
-        globals.cmdLine.registerCommand("times", &cmdShowTimers, "", []);
-        globals.cmdLine.registerCommand("show_fps", &cmdShowFps, "", ["bool"]);
-        globals.cmdLine.registerCommand("show_deltas", &cmdShowDeltas, "", []);
 
         globals.cmdLine.registerCommand("fw_info", &cmdInfoString,
             "", ["text?"], [&complete_fw_info]);
-        /+
-        globals.cmdLine.registerCommand("fw_debug", &cmdSetFWDebug,
-            "Switch some debugging stuff in Framework on/off", ["bool:Value"]);
-        +/
 
         globals.cmdLine.registerCommand("fw_settings", &cmdFwSettings,
             "", null);
@@ -320,19 +299,16 @@ private:
         //settings
         globals.cmdLine.registerCommand("settings_set", &cmdSetSet, "",
             ["text", "text..."]);
+        globals.cmdLine.registerCommand("settings_help", &cmdSetHelp, "",
+            ["text"]);
         globals.cmdLine.registerCommand("settings_list", &cmdSetList, "", []);
+        //used for key shortcuts
+        globals.cmdLine.registerCommand("settings_cycle", &cmdSetCycle, "",
+            ["text"]);
 
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "");
         globals.cmdLine.registerCommand("echo", &cmdEcho, "", ["text..."]);
-    }
-
-    private void cmdShowFps(MyBox[] args, Output write) {
-        mFPS.visible = args[0].unbox!(bool);
-    }
-
-    private void cmdShowDeltas(MyBox[] args, Output write) {
-        mFPS.showDeltas = !mFPS.showDeltas;
     }
 
     private void cmdInfoString(MyBox[] args, Output write) {
@@ -374,24 +350,20 @@ private:
         setSetting(name, value);
     }
 
+    private void cmdSetHelp(MyBox[] args, Output write) {
+        char[] name = args[0].unbox!(char[]);
+        write.writefln("{}", settingValueHelp(name));
+    }
+
     private void cmdSetList(MyBox[] args, Output write) {
         foreach (s; gSettings) {
-            write.writef("{} = '{}' ", s.name, s.value);
-            switch (s.type) {
-            case SettingType.String:
-                write.writef("[string]");
-                break;
-            case SettingType.Choice:
-                write.writef("[choice:{}]", s.choices);
-                break;
-            case SettingType.Percent:
-                write.writef("[percent]");
-                break;
-            default:
-                write.writef("[?]");
-            }
-            write.writefln("");
+            write.writefln("{} = {}", s.name, s.value);
         }
+    }
+
+    private void cmdSetCycle(MyBox[] args, Output write) {
+        char[] name = args[0].unbox!(char[]);
+        settingCycle(name, +1);
     }
 
     private char[][] complete_fw_info() {
@@ -467,10 +439,6 @@ private:
 
     private void cmdSpawnHelp(MyBox[] args, Output write) {
         write.writefln("registered task classes: {}", taskList());
-    }
-
-    private void cmdFramerate(MyBox[] args, Output write) {
-        gFramework.fixedFramerate = args[0].unbox!(int)();
     }
 
     private void onVideoInit(bool depth_only) {

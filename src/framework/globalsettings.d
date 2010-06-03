@@ -9,6 +9,10 @@ enum SettingType {
     Unknown,
     String,
     Choice,
+    //unranged integer
+    Integer,
+    //ranged integer (see Setting.choices)
+    IntRange,
     //float or int in range [0,100]
     Percent,
 }
@@ -17,8 +21,11 @@ class Setting {
     char[] name;
     //should not set directly; use set()
     char[] value;
-    //these are just hints (mainly for user interaction)
+    //.type and .choices are just hints (mainly for user interaction)
     SettingType type;
+    //depends from .type:
+    //  SettingType.Choice: list of possible values
+    //  SettingType.IntRange choices[0] = min, choices[1] = max
     char[][] choices;
     //called as a setting gets written
     void delegate(Setting s)[] onChange;
@@ -80,6 +87,8 @@ Setting addSetting(T)(char[] name, T init_val = T.init,
         //auto-guess a bit
         static if (is(T == char[])) {
             s.type = SettingType.String;
+        } else static if (is(T == int)) {
+            s.type = SettingType.Integer;
         } else static if (is(T == bool)) {
             s.type = SettingType.Choice;
             s.choices = ["false"[], "true"];
@@ -124,6 +133,55 @@ T getSettingsStruct(T)(char[] prefix, T def = T.init) {
     return x;
 }
 
+void settingMakeIntRange(Setting s, int min, int max) {
+    argcheck(s.type == SettingType.Integer);
+    s.choices = [toStr(min), toStr(max)];
+    s.type = SettingType.IntRange;
+}
+
+//set the given setting to the next valid value; wrap around if the last valid
+//  setting was reached
+//this works for SettingType.Choice and SettingType.IntRange
+//direction is upwards if dir>=0 or downwards if dir < 0
+//set to first choice if current value is invalid (reason: otherwise, using key
+//  shortcuts to cycle through values would do nothing => confusion)
+//do nothing on other errors
+void settingCycle(char[] name, int dir = +1) {
+    Setting s = findSetting(name);
+    if (!s)
+        return;
+    dir = dir >= 0 ? +1 : -1;
+    if (s.type == SettingType.Choice) {
+        int found = -1;
+        foreach (int i, c; s.choices) {
+            if (s.value == c) {
+                found = i;
+                break;
+            }
+        }
+        if (found >= 0) {
+            s.set(s.choices[realmod!(int)(found + dir, $)]);
+        } else if (s.choices.length) {
+            s.set(s.choices[0]);
+        }
+    } else if (s.type == SettingType.IntRange) {
+        int min, max;
+        if (s.choices.length != 2)
+            return;
+        if (!(tryFromStr(s.choices[0], min) && tryFromStr(s.choices[1], max)))
+            return;
+        if (min >= max)
+            return;
+        int cur = s.get!(int)();
+        if (cur < min || cur > max) {
+            cur = min;
+        } else {
+            cur = realmod!(int)(cur + dir - min, max + 1 - min) + min;
+        }
+        s.set!(int)(cur);
+    }
+}
+
 //synchronize a variable with a Setting
 //I guess this is only some sort of performance optimization helper
 //GuardNan == true => don't accept nan (default/current value is used instead)
@@ -162,6 +220,46 @@ class SettingVar(T, bool GuardNan = true) {
     T get() {
         return mVar;
     }
+}
+
+//helper to show user help string
+char[] settingValueHelp(char[] setting) {
+    char[] res;
+    void write(char[] fmt, ...) {
+        res ~= myformat_fx(fmt, _arguments, _argptr) ~ "\n";
+    }
+
+    Setting s = findSetting(setting);
+
+    if (!s) {
+        write("Unknown setting '{}'!", setting);
+        return res;
+    }
+
+    write("Possible values for setting '{}':", s.name);
+
+    if (s.type == SettingType.Choice) {
+        foreach (c; s.choices) {
+            write("   {}", c);
+        }
+    } else if (s.type == SettingType.String) {
+        write("   <any string>");
+    } else if (s.type == SettingType.Integer) {
+        write("   <integer number>");
+    } else if (s.type == SettingType.IntRange) {
+        if (s.choices.length == 2) {
+            write("   <integer number in range [{}, {}]>", s.choices[0],
+                s.choices[1]);
+        } else {
+            write("   ?");
+        }
+    } else if (s.type == SettingType.Percent) {
+        write("   <number between 0 and 100>");
+    } else {
+        write("   <unknown>");
+    }
+
+    return res;
 }
 
 //helpers to load/save to disk

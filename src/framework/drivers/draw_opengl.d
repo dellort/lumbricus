@@ -38,8 +38,6 @@ private struct Options {
     bool batch_draw_calls = true;
     //some cards can't deal with NPOT textures (even if they "support" it)
     bool non_power_of_two = false;
-    //purely for debugging (can be removed)
-    bool disable_sprites = false;
 }
 
 char[] glErrorToString(GLenum errCode) {
@@ -749,12 +747,6 @@ class GLCanvas : Canvas3DHelper {
     override void drawSprite(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null)
     {
-        if (mDrawDriver.opts.disable_sprites) {
-            //disabled; normal code path
-            drawPart(source.surface, destPos, source.origin, source.size);
-            return;
-        }
-
         //on my nvidia card, this brings a slight speed up
         //and nvidia is known for having _good_ opengl drivers
         if (!spriteVisible(source, destPos, effect))

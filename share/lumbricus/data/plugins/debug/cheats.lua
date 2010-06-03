@@ -499,7 +499,7 @@ function E.guiPickObject(obj)
             end]]
             local t = ""
             local function appendf(...)
-                t = t .. utils.anyformat(...) .. "\n"
+                t = t .. utils.format(...) .. "\n"
             end
             dumpObject(obj, appendf)
             FormattedText_setText(txt, false, t)

@@ -551,6 +551,12 @@ class Canvas3DHelper : Canvas {
     protected abstract void draw_verts(Primitive primitive, Surface tex,
         Vertex2f[] verts);
 
+    //"I needed this"
+    //tex can be null
+    void drawVerts(Primitive primitive, Surface tex, Vertex2f[] verts) {
+        draw_verts(primitive, tex, verts);
+    }
+
     override void drawQuad(Surface tex, Vertex2f[4] quad) {
         draw_verts(Primitive.QUADS, tex, quad);
     }

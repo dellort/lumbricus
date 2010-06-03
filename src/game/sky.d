@@ -224,6 +224,8 @@ class GameSky {
     }
 
     public void enableClouds(bool enable) {
+        if (mEnableClouds == enable)
+            return;
         mEnableClouds = enable;
         if (mCloudsVisible && enable) {
             foreach (inout ci; mCloudAnimators) {
@@ -240,6 +242,8 @@ class GameSky {
     }
 
     public void enableDebris(bool enable) {
+        if (mEnableDebris == enable)
+            return;
         mEnableDebris = enable;
         if (mDebrisAnim) {
             if (enable) {

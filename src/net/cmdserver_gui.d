@@ -80,6 +80,7 @@ class CmdNetServerTask {
     //for 6., one could easily change the stuff at the end of gui/window.d: just
     //  always use the log buffer and add some synchronized blocks; the rest of
     //  the logging seems to be mostly thread-safe already
+    //xxx as a hack to make it work for now, 6. was implemented
     private void thread_run() {
         try {
             mServer = new CmdNetServer(mSrvConf);

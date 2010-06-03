@@ -66,6 +66,8 @@ struct TempString {
     char[] get() { return raw.dup; }
 }
 
+//behave mathematically correctly for negative values
+//e.g. -1 % 3 == -1, but realmod(-1, 3) == 2
 T realmod(T)(T a, T m) {
     T res = a % m;
     if (res < 0)

@@ -45,10 +45,17 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
 - Projektil fliegt durch wenige Pixel dicke Landschaft, wenn der Wurm beim Feuern direkt davorsteht
 - wurm laufen auf objekten (statt landschaft) ist kaputt
-$ napalm ist sehr langsam, minenagriff nicht => ?
-    ^ weil keine kollisionen zwischen minen
 *** multithreading-unsinn in cmdserver_gui.d ist unsicher
     ^ cmdserver_gui eliminieren und nur standalone-server? oder was?
+    ^ wäre eine möglichkeit, das problem ganz loszuwerden; ansonsten siehe kommentare in cmdserver_gui.d
+- physik: "kleben" verbessern, v.a. sollte es möglich sein, dass würmer über andere würmer laufen und wurmtürme gebaut werden können (wie in WWP)
+  idee: features aus rigid-body physic engines klauen und box stacking möglich machen (z.b. chipmunk); dazu bräuchte man aber trotzdem noch "kleben", was chipmunk nicht hat
+  idee fürs "kleben":
+  - objekt bewegt sich nicht mehr, wenn die geschwindigkeit 0 ist und alle kräfte, die auf das objekt wirken sich aufheben
+  - alle kräfte = 0 ist gleichbedeutend mit es gibt keine geschwindigkeitsänderung
+  - geschwindigkeitsänderung ist alles, was auf die geschwindigkeit addiert wird (gravitation, kräfte, impulse durch constraints und kollisionen)
+  - kollisionen mit dem boden lösen impulse aus, die die gravitation aufheben (in der theorie), eventuell muss man mit speziellem code nachhelfen um die gegenkraft permanent aufrechtzuerhalten, oder z.b. leichtes eindringen der objekte in den boden erlauben
+  (bin mit meinen amateurhaften versuchen soweit gescheitert)
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - netzwerk server braucht 100% CPU => nicht nett auf moderner hardware

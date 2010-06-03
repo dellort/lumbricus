@@ -1467,6 +1467,7 @@ class LuaState {
             if (!libname.length)
                 libname = null; //derelict uses "libname is null"
             DerelictLua.load(libname);
+            gLibLuaLoaded = true;
         }
 
         mLua = lua_newstate(&my_lua_alloc, null);
@@ -1515,11 +1516,11 @@ class LuaState {
 
         stack0();
 
-        scriptExec(`_G.d_get_obj_metadata = ...`, &script_get_obj_metadata);
-        scriptExec(`_G.d_get_class_metadata = ...`, &script_get_class_metadata);
-        scriptExec(`_G.d_get_class = ...`, &script_get_class);
-        scriptExec(`_G.d_find_class = ...`, &script_find_class);
-        scriptExec(`_G.d_is_class = ...`, &script_is_class);
+        setGlobal("d_get_obj_metadata", &script_get_obj_metadata);
+        setGlobal("d_get_class_metadata", &script_get_class_metadata);
+        setGlobal("d_get_class", &script_get_class);
+        setGlobal("d_find_class", &script_find_class);
+        setGlobal("d_is_class", &script_is_class);
 
         //install the pcall error handler
         //I'm using plain Lua API calls to avoid bad interactions with the

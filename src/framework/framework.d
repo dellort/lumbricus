@@ -1016,6 +1016,12 @@ enum InfoString {
 const cDrvBase = "base";
 const cDrvDraw = "draw";
 
+private SettingVar!(int) gFrameRate;
+
+static this() {
+    gFrameRate = gFrameRate.Add("fps.max", 0);
+}
+
 class Framework {
     private {
         FrameworkDriver mDriver;
@@ -1033,9 +1039,9 @@ class Framework {
         Time mFPSLastTime;
         uint mFPSFrameCount;
         float mFPSLastValue;
-        //least time per frame; for fixed framerate (0 to disable)
-        Time mTimePerFrame;
-        Time mLastFrameTime;
+        //fixedFramerate() property (0 disables)
+        //to get actual, final fixed framerate, timePerFrame()
+        int mFps = 0;
 
         //contains keystate (key down/up) for each key; indexed by Keycode
         bool[] mKeyStateMap;
@@ -1369,10 +1375,6 @@ class Framework {
 
     //--- time stuff
 
-    Time lastFrameTime() {
-        return mLastFrameTime;
-    }
-
     /// return number of invocations of onFrame pro second
     float FPS() {
         return mFPSLastValue;
@@ -1380,19 +1382,27 @@ class Framework {
 
     /// set a fixed framerate / a maximum framerate
     /// fps = framerate, or 0 to disable fixed framerate
+    /// NOTE: also see gFrameRate
     void fixedFramerate(int fps) {
-        if (fps == 0) {
-            mTimePerFrame = Time.Null;
-        } else {
-            mTimePerFrame = timeMusecs(1000000/fps);
-        }
+        mFps = fps;
+    }
+    int fixedFramerate() {
+        return mFps;
     }
 
-    int fixedFramerate() {
-        if (mTimePerFrame == Time.Null) {
-            return 0;
+    //frame-time from forced fps settings; 0 if no forced fps
+    //foced driver vsync (OpenGL) may override this implicitly
+    Time timePerFrame() {
+        //setting fps via fixedFramerate overrides gFrameRate
+        int forcefps = max(gFrameRate.get(), 0);
+        if (mFps > 0) {
+            forcefps = mFps;
+        }
+
+        if (forcefps <= 0) {
+            return Time.Null;
         } else {
-            return 1000000 / mTimePerFrame.musecs;
+            return timeMusecs(1000000/forcefps);
         }
     }
 
@@ -1445,7 +1455,7 @@ class Framework {
             //wait for fixed framerate?
             Time time = timeCurrentTime();
             //target waiting time
-            waitTime += mTimePerFrame - (time - curtime);
+            waitTime += timePerFrame() - (time - curtime);
             //even if you don't wait, yield the rest of the timeslice
             waitTime = waitTime > Time.Null ? waitTime : Time.Null;
             mDriver.sleepTime(waitTime);
@@ -1455,7 +1465,6 @@ class Framework {
             //subtract the time that was really waited, to cover the
             //inaccuracy of Driver.sleepTime()
             waitTime -= (cur - time);
-            mLastFrameTime = cur - curtime;
 
             //it's a hack!
             //used by toplevel.d
