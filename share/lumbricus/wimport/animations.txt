@@ -360,12 +360,12 @@ mainspr {
                 worm_baseball_release = "f:25; 443"
                 worm_rope_release = "f:25; 495"
 
-                //the 3 animations are chained (I don't really know, is it ok?)
-                //xxx: prepare looks wrong
-                worm_axe_fire = "+append_a_hack; 410 413 416"
-                //worm_axe_prepare = "410"
-                //worm_axe_fire1 = "413"
-                //worm_axe_fire2 = "416"
+                //410 = wind up, 413 = slamming the axe onto the target
+                //we make it so that after prepare and before fire, the damage
+                //  is applied to the target => chain animations
+                worm_axe_prepare = "+append_a_hack; 410 413"
+                //getting the axe back in normal "hold" animation
+                worm_axe_fire = "416"
 
                 //generic release animation for thrown stuff
                 worm_throw_release = "437"

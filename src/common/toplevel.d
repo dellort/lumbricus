@@ -285,7 +285,6 @@ private:
 
         globals.cmdLine.registerCommand("res_load", &cmdResLoad, "", ["text"]);
         globals.cmdLine.registerCommand("res_unload", &cmdResUnload, "", []);
-        globals.cmdLine.registerCommand("res_list", &cmdResList, "", []);
 
         globals.cmdLine.registerCommand("release_caches", &cmdReleaseCaches,
             "", ["bool?=true"]);
@@ -392,23 +391,6 @@ private:
     private void cmdReleaseCaches(MyBox[] args, Output write) {
         int released = gFramework.releaseCaches(args[0].unbox!(bool));
         write.writefln("released {} memory consuming house shoes", released);
-    }
-
-    private void cmdResList(MyBox[] args, Output write) {
-        write.writefln("dumping to res.txt");
-        auto file = new ConduitStream(castStrict!(Conduit)(
-            new File("res.txt", File.WriteCreate)));
-        write = new StreamOutput(file);
-        int count;
-        gResources.enumResources(
-            (char[] full, ResourceItem res) {
-                write.writefln("Full={}, Id={}", full, res.id);
-                write.writefln(" loaded={},", res.isLoaded);
-                count++;
-            }
-        );
-        write.writefln("{} resources.", count);
-        file.close();
     }
 
     private void cmdResUnload(MyBox[] args, Output write) {

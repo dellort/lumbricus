@@ -10,7 +10,6 @@ import utils.random;
 import utils.time;
 import utils.vector2;
 import utils.log;
-import utils.output;
 
 import tarray = tango.core.Array;
 

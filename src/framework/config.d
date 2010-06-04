@@ -7,7 +7,6 @@ import framework.filesystem;
 import utils.configfile;
 import utils.gzip;
 import utils.log;
-import utils.output;
 import utils.path;
 import utils.stream;
 import utils.misc;
@@ -55,9 +54,7 @@ ConfigNode loadConfig(char[] section, bool asfilename = false,
         }
     }
     //xxx: if parsing fails? etc.
-    auto f = new ConfigFile(data, file.get(), (char[] log) {
-            logConf.error("{}", log);
-        });
+    auto f = new ConfigFile(data, file.get());
     if (!f.rootnode)
         throw new CustomException("?");
     return f.rootnode;
@@ -85,8 +82,7 @@ void saveConfig(ConfigNode node, char[] filename, bool compress = false) {
     }
     auto stream = gFS.open(filename, File.WriteCreate);
     try {
-        auto textstream = new StreamOutput(stream);
-        node.writeFile(textstream);
+        node.writeFile(stream.pipeOut());
     } finally {
         stream.close();
     }
@@ -112,9 +108,7 @@ ubyte[] saveConfigGzBuf(ConfigNode node) {
 
 ConfigNode loadConfigGzBuf(ubyte[] buf) {
     auto data = cast(char[])gunzipData(buf);
-    auto f = new ConfigFile(data, "MemoryBuffer", (char[] log) {
-            logConf.error("{}", log);
-        });
+    auto f = new ConfigFile(data, "MemoryBuffer");
     if (!f.rootnode)
         throw new CustomException("?");
     return f.rootnode;

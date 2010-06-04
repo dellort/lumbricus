@@ -24,7 +24,6 @@ import utils.filetools;
 import utils.configfile;
 import utils.path;
 import utils.misc;
-import utils.output : TangoStreamOutput;
 import utils.color;
 import utils.archive;
 import wwpdata.animation;
@@ -47,16 +46,14 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     importDir = importDir ~ "/";
     auto outFolder = new FileFolder(gfxOutputDir);
 
-    void conferr(char[] msg) { Stdout(msg).newline; }
-
     ConfigNode loadWImportConfig(char[] file) {
         return (new ConfigFile(Stream.OpenFile(importDir ~ file),
-            file, &conferr)).rootnode;
+            file)).rootnode;
     }
     void writeConfig(ConfigNode node, char[] dest) {
         scope confst = outFolder.file(dest).create.output;
-        auto textstream = new TangoStreamOutput(confst);
-        node.writeFile(textstream);
+        auto stream = new ConduitStream(confst);
+        node.writeFile(stream.pipeOut);
     }
 
     char[] gfxdirp = wormsDataDir ~ "Gfx/Gfx.dir";

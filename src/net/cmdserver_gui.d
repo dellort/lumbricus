@@ -15,7 +15,6 @@ import net.netlayer;
 import utils.configfile;
 import utils.time;
 import utils.list2;
-import utils.output;
 import utils.log;
 import utils.vector2;
 import utils.misc;

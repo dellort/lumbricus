@@ -754,8 +754,7 @@ class EnterLeaveDisplay : AniStateDisplay {
         myclass = castStrict!(EnterLeaveState)(state);
         mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
         super.init(state);
-        if (myclass.enter)
-            setAnimation(myclass.enter);
+        setAnimation(myclass.enter ? myclass.enter : myclass.normal);
     }
 
     override void simulate() {
@@ -774,6 +773,10 @@ class EnterLeaveDisplay : AniStateDisplay {
 
         if (hasFinished()) {
             if (animation is myclass.enter) {
+                setAnimation(myclass.normal);
+            }
+            if (animation !is myclass.normal && animation !is myclass.leave) {
+                //leave idle animation
                 setAnimation(myclass.normal);
             }
         }
@@ -798,9 +801,12 @@ class EnterLeaveState : SequenceState {
         enter = loadanim(node, "enter", true);
         leave = loadanim(node, "leave", true);
 
-        idle_wait = node.getValue!(typeof(idle_wait))("idle_wait");
-        foreach (char[] k, char[] value; node.getSubNode("idle_animations")) {
-            idle_animations ~= loadanim(value);
+        ConfigNode idlenode = node.findNode("idle_animations");
+        if (idlenode) {
+            idle_wait = node.getValue!(typeof(idle_wait))("idle_wait");
+            foreach (char[] k, char[] value; idlenode) {
+                idle_animations ~= loadanim(value);
+            }
         }
     }
 
@@ -1029,6 +1035,9 @@ class WwpWeaponState : SequenceState {
             //optional
             w.hold = loadanim(value ~ "hold", true);
             w.fire = loadanim(value ~ "fire", true);
+            auto unget = loadanim(value ~ "unget", true);
+            if (unget)
+                w.unget = unget;
             //w.fire_end = loadanim(node, value ~ "fire_end", true);
             weapons[key] = w;
         }

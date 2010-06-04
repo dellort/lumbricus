@@ -7,7 +7,6 @@ import utils.configfile;
 import conv = tango.util.Convert;
 import utils.misc;
 import utils.vector2;
-import utils.output;
 import utils.strparser;
 import wwpdata.animation;
 import wwpdata.reader_bnk;
@@ -323,8 +322,7 @@ class AniFile {
         if (writeConf) {
             scope confst = Stream.OpenFile(outPath ~ fnBase ~ ".conf",
                 File.WriteCreate);
-            auto textstream = new StreamOutput(confst);
-            output_conf.writeFile(textstream);
+            output_conf.writeFile(confst.pipeOut());
             confst.close();
         }
     }

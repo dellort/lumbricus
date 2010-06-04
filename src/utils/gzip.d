@@ -1,6 +1,5 @@
 module utils.gzip;
 
-import utils.output;
 import utils.stream;
 
 import czlib = tango.io.compress.c.zlib;

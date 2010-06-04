@@ -7,7 +7,6 @@ import tango.core.Exception : IOException;
 import tango.text.Regex;  //for filename cleanup
 import utils.misc;
 import utils.log;
-import utils.output;
 import utils.path;
 import utils.archive;
 

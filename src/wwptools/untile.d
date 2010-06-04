@@ -3,7 +3,6 @@ module wwptools.untile;
 import wwptools.image;
 import utils.stream;
 import utils.configfile;
-import utils.output : TangoStreamOutput; //silly wrapper
 import utils.filetools;
 import utils.misc;
 
@@ -94,6 +93,6 @@ void do_untile(Image img, char[] filename, VfsFolder destFolder, char[] imgPath,
     if (conffile) {
         auto outp = destFolder.file(confName).create.output;
         scope(exit) outp.close();
-        conffile.writeFile(new TangoStreamOutput(outp));
+        conffile.writeFile((new ConduitStream(outp)).pipeOut());
     }
 }

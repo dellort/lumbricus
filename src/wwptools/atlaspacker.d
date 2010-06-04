@@ -94,7 +94,7 @@ class AtlasPacker {
             Stdout(msg).newline;
         }
 
-        ConfigNode confOut = (new ConfigFile("","",&confError)).rootnode;
+        ConfigNode confOut = new ConfigNode();
 
         auto resNode = confOut.getSubNode("resources").getSubNode("atlas")
             .getSubNode(fnBase);
@@ -124,8 +124,7 @@ class AtlasPacker {
         scope confst = Stream.OpenFile(outPath ~ fnBase ~ ".conf",
             File.WriteCreate);
         scope(exit)confst.close();
-        auto textstream = new StreamOutput(confst);
-        confOut.writeFile(textstream);
+        confOut.writeFile(confst.pipeOut());
     }
 
     //also frees the images (violently)

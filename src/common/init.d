@@ -9,7 +9,6 @@ import utils.color;
 import utils.configfile;
 import utils.log;
 import utils.misc;
-import utils.output;
 import utils.random;
 import utils.time;
 
@@ -135,11 +134,19 @@ void init(char[][] args) {
         const File.Style WriteCreateShared =
             {File.Access.Write, File.Open.Create, File.Share.Read};
         auto logf = gFS.open(logpath, WriteCreateShared);
-        auto logstr = new PipeOutput((new ThreadedWriter(logf)).pipeOut());
+        //Closure just for converting write(ubyte[]) to sink(char[])...
+        struct Closure {
+            stream.PipeOut writer;
+            void sink(char[] s) {
+                writer.write(cast(ubyte[])s);
+            }
+        }
+        auto c = new Closure;
+        c.writer = (new ThreadedWriter(logf)).pipeOut();
         //write buffered log
-        logstr.writeString(gLogFileTmp);
+        c.sink(gLogFileTmp);
         gLogFileTmp = null;
-        gLogFileSink = &logstr.writeString;
+        gLogFileSink = &c.sink;
     } else {
         gLogFileSink = null;
         gLogFileTmp = null;

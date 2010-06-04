@@ -54,6 +54,9 @@ parser.add_option("--no-std-ignore",
 parser.add_option("--imports",
     action="append", dest="imports", default=[],
     help="include only modules which import this module (transitively)")
+parser.add_option("--imports-depth",
+    action="store", type="int", dest="import_depth", default=0,
+    help="how many indirections max for --imports (0 means no restriction)")
 
 # options contains all "dest" arg names as normal members
 # args are all left non-option arguments as sequence
@@ -134,7 +137,10 @@ if options.imports:
         marked[getnode(i)] = True
     # this is like a reverse GC xD
     # mark all nodes which refer to at least one marked node
-    while True:
+    depth = options.import_depth
+    n = 0
+    while depth == 0 or n < depth:
+        n += 1
         nmark = {}
         for x in nodes.itervalues():
             if x not in marked:

@@ -3,7 +3,6 @@ module utils.archive;
 import utils.stream;
 
 import gzip = utils.gzip;
-import utils.output;
 import utils.configfile;
 import utils.misc;
 import utils.path;

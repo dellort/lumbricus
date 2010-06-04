@@ -1,12 +1,13 @@
 module utils.configfile;
 
+import marray = utils.array;
 import utils.stream;
 import str = utils.string;
 import tango.util.Convert : to, ConversionException;
 import tango.text.convert.Float : toFloat;
 import tango.core.Exception;
 import base64 = tango.util.encode.Base64;
-import utils.output : Output, StringOutput, PipeOutput;
+import utils.log;
 import utils.misc;
 
 //only for byte[]
@@ -325,18 +326,17 @@ public class ConfigNode {
         setStringValue(name, value);
     }
 
-    private void doWrite(Output stream, uint level) {
-        //always use this... on some systems, \n might not be mapped to 0xa
-        char[] newline = "\x0a";
+    private void doWrite(void delegate(char[]) sink, uint level) {
+        char[] newline = "\n";
         const int indent = 4;
         //xxx this could produce major garbage collection thrashing when writing
         //    big files
         char[] indent_str = str.repeat(" ", indent*level);
 
         void writeLine(char[] stuff) {
-            stream.writeString(indent_str);
-            stream.writeString(stuff);
-            stream.writeString(newline);
+            sink(indent_str);
+            sink(stuff);
+            sink(newline);
         }
 
         void writeComment(char[] comment) {
@@ -353,9 +353,9 @@ public class ConfigNode {
         }
 
         void writeValue(char[] v) {
-            stream.writeString("\"");
-            stream.writeString(ConfigFile.doEscape(v));
-            stream.writeString("\"");
+            sink("\"");
+            sink(ConfigFile.doEscape(v));
+            sink("\"");
         }
 
         bool name_is_funny = !is_config_id(name);
@@ -363,10 +363,10 @@ public class ConfigNode {
         void writeName(bool ext) {
             if (ext || !name.length) {
                 //new syntax, which allows spaces etc. in names
-                stream.writeString("+ ");
+                sink("+ ");
                 writeValue(name);
             } else {
-                stream.writeString(name);
+                sink(name);
             }
         }
 
@@ -376,7 +376,7 @@ public class ConfigNode {
             //xxx will throw away endComment for sub-nodes which are empty
             if (name.length > 0) {
                 writeName(name_is_funny);
-                stream.writeString(" = ");
+                sink(" = ");
             }
             writeValue(value);
             return;
@@ -396,28 +396,28 @@ public class ConfigNode {
             if (name.length > 0 || have_value) {
                 writeName(name_is_funny || have_value);
                 if (have_value) {
-                    stream.writeString(" ");
+                    sink(" ");
                     writeValue(value);
                 }
-                stream.writeString(" ");
+                sink(" ");
             }
-            stream.writeString("{");
-            stream.writeString(newline);
+            sink("{");
+            sink(newline);
         }
 
         foreach (ConfigNode item; this) {
             writeComment(item.comment);
-            stream.writeString(indent_str);
-            item.doWrite(stream, level+1);
-            stream.writeString(newline);
+            sink(indent_str);
+            item.doWrite(sink, level+1);
+            sink(newline);
         }
 
         writeComment(endComment);
 
         if (level != 0) {
             //this is a hack
-            stream.writeString(indent_str[0 .. $-indent]);
-            stream.writeString ("}");
+            sink(indent_str[0 .. $-indent]);
+            sink("}");
         }
     }
 
@@ -763,21 +763,23 @@ public class ConfigNode {
         }
     }
 
-    public void writeFile(Output stream) {
-        //xxx: add method to stream to determine if it's a file... or so
-        //stream.writeString(ConfigFile.cUtf8Bom);
-        doWrite(stream, 0);
+    void write(void delegate(char[]) sink) {
+        doWrite(sink, 0);
     }
 
     public void writeFile(PipeOut writer) {
-        //blurghdgfg
-        writeFile(new PipeOutput(writer));
+        //just for the damn cast that does nothing
+        void sink(char[] s) {
+            writer.write(cast(ubyte[])s);
+        }
+        write(&sink);
     }
 
     public char[] writeAsString() {
-        auto sout = new StringOutput;
-        writeFile(sout);
-        return sout.text;
+        marray.Appender!(char) outs;
+        //is this kosher? anyway, I don't care
+        write(&outs.opCatAssign);
+        return outs[];
     }
 }
 
@@ -800,7 +802,6 @@ public class ConfigFile {
     private ConfigNode mRootnode;
     private bool[uint] mUTFErrors;
     private uint mErrorCount;
-    private void delegate(char[]) mErrorOut;
     private bool mHasEncodingErrors;
 
     public ConfigNode rootnode() {
@@ -809,35 +810,31 @@ public class ConfigFile {
 
     /// Read the config file from 'source' and output any errors to 'errors'
     /// 'filename' is used only for error messages
-    public this(char[] source, char[] filename, void delegate(char[]) reportError) {
-        loadFrom(source, filename, reportError);
+    public this(char[] source, char[] filename) {
+        loadFrom(source, filename);
     }
 
-    public this(Stream source, char[] filename, void delegate(char[]) reportError) {
-        loadFrom(source, filename, reportError);
+    public this(Stream source, char[] filename) {
+        loadFrom(source, filename);
     }
 
-    static ConfigNode Parse(char[] source, char[] filename,
-        void delegate(char[]) reportError = null)
-    {
-        auto cf = new ConfigFile(source, filename, reportError);
+    static ConfigNode Parse(char[] source, char[] filename) {
+        auto cf = new ConfigFile(source, filename);
         return cf.rootnode;
     }
 
     /// do the same like the constructor
     /// use hasErrors() to check if there were any errors
-    public void loadFrom(char[] source, char[] filename, void delegate(char[]) reportError) {
+    public void loadFrom(char[] source, char[] filename) {
         mData = source;
-        mErrorOut = reportError;
         mFilename = filename;
         doParse();
     }
 
     /// do the same like the constructor
-    public void loadFrom(Stream source, char[] filename, void delegate(char[]) reportError) {
+    public void loadFrom(Stream source, char[] filename) {
         source.position = 0;
         mData = cast(char[])source.readAll();
-        mErrorOut = reportError;
         mFilename = filename;
         doParse();
     }
@@ -905,25 +902,18 @@ public class ConfigFile {
     private void reportError(bool fatal, char[] fmt, ...) {
         mErrorCount++;
 
-        if (!mErrorOut)
-            throw new CustomException("no configfile error handler set, no detailed"
-                " error messages for you.");
+        auto log = registerLog("configparse");
 
-        //xxx: add possibility to translate error messages
-        mErrorOut(myformat("ConfigFile, error in {}({},{}): ", mFilename,
-            mPos.line, mPos.column));
+        log.error("error in {}({},{}): ", mFilename, mPos.line, mPos.column);
         //scary D varargs!
-        mErrorOut(myformat_fx(fmt, _arguments, _argptr));
-        mErrorOut("\n");
+        log.emitx(LogPriority.Error, fmt, _arguments, _argptr);
 
         //abuse exception handling to abort parsing
         if (fatal) {
-            mErrorOut(myformat("ConfigFile, {}: fatal error, aborting",
-                mFilename));
+            log.error("{}: fatal error, aborting", mFilename);
             throw new ConfigFatalError(2);
         } else if (mErrorCount > cMaxErrors) {
-            mErrorOut(myformat("ConfigFile, {}: too many errors, aborting",
-                mFilename));
+            log.error("{}: too many errors, aborting", mFilename);
             throw new ConfigFatalError(1);
         }
     }
@@ -1506,12 +1496,6 @@ public class ConfigFile {
     public bool hasErrors() {
         return mErrorCount != 0;
     }
-
-    public void writeFile(Output stream) {
-        if (rootnode !is null) {
-            rootnode.writeFile(stream);
-        }
-    }
 }
 
 debug:
@@ -1519,11 +1503,8 @@ debug:
 private bool test_error;
 
 ConfigNode debugParseFile(char[] f) {
-    void err(char[] msg) {
-        Trace.formatln("configfile unittest: {}", msg);
-        test_error = true;
-    }
-    auto p = new ConfigFile(f, "test", &err);
+    auto p = new ConfigFile(f, "test");
+    test_error = p.hasErrors();
     return p.rootnode();
 }
 
