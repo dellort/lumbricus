@@ -282,24 +282,36 @@ abstract class AnimationSimple : Animation {
     }
 }
 
-//supports one animation whose frames are aligned horizontally on one bitmap
+//supports one animation whose frames are aligned horizontally, vertically
+//  or both on one bitmap
 class AnimationStrip : AnimationSimple {
     //frameWidth is the x size (in pixels) of one animation frame,
-    //and needs to be a factor of the total image width
-    //if frameWidth == -1, frames will be square (height x height)
+    //frameHeight is the y size
+    //both need to be a factor of the total image width/height
+    //if frameWidth == -1 && frameHeight == -1, frames will be square (smallest)
+    //else if only one given, other will be full image size
     this(ConfigNode config, char[] filename) {
         super(config);
 
         int frameWidth = config.getIntValue("frame_width", -1);
+        int frameHeight = config.getIntValue("frame_height", -1);
         auto surface = gFramework.loadImage(filename);
-        if (frameWidth < 0)
-            frameWidth = surface.size.y;
-        auto frame_size = Vector2i(frameWidth, surface.size.y);
-        auto framecount = surface.size.x / frameWidth;
+        if (frameWidth < 0 && frameHeight < 0) {
+            //square frames
+            frameWidth = frameHeight = min(surface.size.x, surface.size.y);
+        } else if (frameWidth < 0) {
+            frameWidth = surface.size.x;
+        } else if (frameHeight < 0) {
+            frameHeight = surface.size.y;
+        }
+        auto frame_size = Vector2i(frameWidth, frameHeight);
+
         SubSurface[] frames;
-        for (int i = 0; i < framecount; i++) {
-            frames ~= surface.createSubSurface(Rect2i.Span(
-                Vector2i(frame_size.x*i, 0), frame_size));
+        for (int y = 0; y < surface.size.y; y += frameHeight) {
+            for (int x = 0; x < surface.size.x; x += frameWidth) {
+                frames ~= surface.createSubSurface(Rect2i.Span(
+                    Vector2i(x, y), frame_size));
+            }
         }
         init_frames(frames);
     }

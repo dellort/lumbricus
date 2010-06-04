@@ -27,7 +27,7 @@ do
         name = "w_" .. name,
         onFire = getStandardOnFire(sprite_class),
         value = 10,
-        category = "sheep",
+        category = "explosive",
         icon = "icon_dynamite",
         animation = "weapon_dynamite",
         fireMode = {
@@ -109,7 +109,7 @@ do
         name = "w_" .. name,
         onFire = getStandardOnFire(main),
         value = 10,
-        category = "sheep",
+        category = "explosive",
         icon = "icon_mingvase",
         animation = "weapon_mingvase",
         fireMode = {
@@ -174,7 +174,7 @@ do
         name = "w_" .. name,
         onFire = getStandardOnFire(mine_class),
         value = 10,
-        category = "sheep",
+        category = "explosive",
         icon = "icon_mine",
         animation = "weapon_mine",
         fireMode = {

@@ -49,6 +49,7 @@
 		<Unit filename="..\share\lumbricus\data\lua\utils.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\vector2.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\wrap.lua" />
+		<Unit filename="..\share\lumbricus\data\plugins\debug\cheats.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\worms_shared\barrel.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\worms_shared\grave.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\worms_shared\napalm.lua" />

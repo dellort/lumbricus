@@ -709,7 +709,7 @@ do
         onInterrupt = interrupt,
         onReadjust = readjust,
         value = 10,
-        category = "sheep",
+        category = "explosive",
         --icon = "icon_mine",
         animation = "weapon_flamethrower",
         fireMode = {

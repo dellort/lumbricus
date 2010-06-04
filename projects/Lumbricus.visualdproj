@@ -315,6 +315,7 @@
    <File path="..\src\net\netlayer.d" />
   </Folder>
   <Folder name="physics">
+   <File path="..\src\physics\all.d" />
    <File path="..\src\physics\base.d" />
    <File path="..\src\physics\broadphase.d" />
    <File path="..\src\physics\collide.d" />
