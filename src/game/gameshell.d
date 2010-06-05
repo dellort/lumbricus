@@ -253,6 +253,9 @@ class GameLoader {
         mShell.mGfx = mGfx;
         mResPreloader = gResources.createPreloader(mGfx.load_resources);
         mGfx.load_resources = null;
+
+        //test for time skip on loading
+        //gFramework.sleep(timeSecs(2));
     }
 
     GameShell finish() {
@@ -279,6 +282,13 @@ class GameLoader {
             mShell.playbackDemo(*lg);
         }
 
+        //all resources have been loaded, and that took a while => skip time
+        //if this is omitted, the TimeSource implementation will print a warning
+        //  if loading was slow
+        //a good way to test this is to comment out the sleep call in doInit()
+        //xxx setting pause while it's loaded etc. didn't work for some reason
+        mShell.mMasterTime.resetTime();
+
         if (onLoadDone)
             onLoadDone(mShell);
         return mShell;
@@ -301,6 +311,7 @@ class GameLoader {
 class GameShell {
     private {
         GameCore mEngine;
+        bool mLoading; //for debugging
         //only used to feed mGameTime and to set offset time when loading
         //savegames
         TimeSource mMasterTime;
@@ -488,6 +499,8 @@ class GameShell {
     //- execute a game frame if necessary (for simulation)
     void frame() {
         auto interpol = mInterpolateTime;
+
+        assert(!mLoading);
 
         void exec_frame(Time overdue) {
             //xxx this was failing in multiplayer because an empty command

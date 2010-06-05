@@ -13,7 +13,6 @@ $ sollte behoben sein / works for me (muss getestet werden)
 - lua console:
     $ the Lua console stuff was never meant to be deterministic, and commands like "pickMakeActive()" use the GUI anyway
     - the in-game lua one can't do anything when the game is paused
-    - can't scroll in the in-game console
 
 == bekannte, lösbare Bugs ==
 $ wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
@@ -80,11 +79,17 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 
 
 == Spiellogik/Gameengine ==
-- timing des lebenspunktcountdowns und der teamanzeige abstimmen
+- timing des lebenspunktcountdowns und der teamanzeige abstimmen:
+    - temporäres "einfrieren" des spiels durch spielmodus, wenn etwas "passiert" ist (timer wird gestoppt, derzeitiger spieler muss warten bis der spielmodus die kontrolle wieder freigibt)
+    - countdown der lebenspunkte
+    - sich sprengende würmer
+    - animation der teamanzeige
+    - nachricht, die den tod/die feigheit eines wurmers mitteilt
 * physik: box stacking
   (zusätzliche ideen: bewegende platformen, jump pads, wurmlöcher)
 [- statt aktive Teams aktive TeamMembers]
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
+    ^ die gibt es doch schon; müssen nur angezeigt werden
 + Mehr Powerup-Kisten (Niedrige Schwerkraft etc.)
 + Vergiftete Würmer (nach Atomangriff/Sudden death oder Stinktiertreffer)
 *** KI
@@ -97,7 +102,7 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 + Feuer-, Nachlade-, Wegsteckanimationen (kann evtl. in worm.d gehackt werden, statt sequence)
 + Mehr "stub" gpl daten (Fragezeichen ersetzen, z.B. Dummy-Projektile die von der Engine gedreht werden)
 *** gpl daten (vollständig)
-+ Kamera:
+[+ Kamera:
     - grundzustand: den aktiven, kontrollierten wurm fokusieren (kermacode durchsucht team-liste)
     - kameracode setzt einen callback, der jedesmal aufgerufen wird, wenn ein neues sprite erzeugt wird (man kann herausfinden, welches team das sprite "abgeschossen" hat)
     - neue waffen-sprites vom kontrollierten wurm werden sofort fokusiert
@@ -105,7 +110,7 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
     - bewegt der user die kamera weg, wird der fokus auf waffen-sprites dauerhaft aufgehoben?
     - sonderbehandlung kisten: fokus beim erscheinen immer sofort setzen
       sobald kiste steht, fokus sofort wieder auf das vorherige objekt zurück
-    ...
+    ...]
 
 == Waffen ==
 + Superwaffen (Briefbomben)
@@ -145,6 +150,7 @@ $ Anzahl Projektile über Tasten 1-5 einstellen (Rindviecher)
 *** determinismus garantieren (benutzung der FPU ist ein problem, da nicht alle plattformen die gleiche präzission für floating point haben), z.b. fixed point zahlen benutzen, oder regelmäßig zustand der clienten wieder synchronisieren
 - einfache erkennung von clients mit abweichender simulation (periodisch einen einfachen engine-hash berechnen und an den server schicken)
 * Client-Netzwerkcode in Thread verlagern (Performance/genaue Ping-Werte)
+- chat innerhalb des spieles (es gibt schon GUI-teile dafür in gameframe.d, ausserdem hat die lobby einen [funktionierenden?] chat)
 
 == nicht wirklich wichtig ==
 - locales: übersetzungen vergleichen (z.b. de mit en -> fehlende einträge finden)

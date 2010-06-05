@@ -36,7 +36,7 @@ enum LogPriority : int {
     Notice,
     //non-fatal error or problem, of which the user should be informed
     Warn,
-    //like Warning, but higher fatality (program may still continue, though)
+    //like Warn, but higher fatality (program may still continue, though)
     Error,
 }
 

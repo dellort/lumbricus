@@ -87,10 +87,15 @@ class GameFrame : SimpleContainer {
 
         TeamWindow mTeamWindow;
         Label mPauseLabel;
-        Chatbox mChatbox;
         BoxContainer mSideBar;
 
-        Chatbox mScriptbox;
+        enum ConsoleMode {
+            Chat,
+            Script,
+        }
+
+        Chatbox mConsoleBox;
+        ConsoleMode mConsoleMode;
         LuaInterpreter mScriptInterpreter;
 
         Time mLastFrameTime;
@@ -305,13 +310,6 @@ class GameFrame : SimpleContainer {
             || (game.shell.paused() && !mPauseLabel.visible());
     }
 
-    private void toggleChat() {
-        mChatbox.activate();
-    }
-    private void toggleScript() {
-        mScriptbox.activate();
-    }
-
     //hud elements requested by gamemode
     private void onHudAdd(char[] id, Object link) {
         addHud(id, link);
@@ -334,7 +332,7 @@ class GameFrame : SimpleContainer {
         if (indexValid(cColorString, e.pri))
             c = cColorString[e.pri];
         //the \lit prevents tag interpretation between the \0
-        mChatbox.output.writefln("\\c({})\\lit\0{}\0", c, e.txt);
+        mConsoleBox.output.writefln("\\c({})\\lit\0{}\0", c, e.txt);
     }
 
     private bool mLogAdded;
@@ -386,8 +384,47 @@ class GameFrame : SimpleContainer {
         mMusic.play();
     }
 
-    private void cmdExecScript(MyBox[] args, Output output) {
-        mScriptInterpreter.exec(args[0].unbox!(char[])());
+    //chatbox or whatever it is
+
+    private void cmdExecConsole(MyBox[] args, Output output) {
+        char[] text = args[0].unbox!(char[])();
+        if (mConsoleMode == ConsoleMode.Script) {
+            mScriptInterpreter.exec(text);
+        } else if (mConsoleMode == ConsoleMode.Chat) {
+            mConsoleBox.output.writefln("chat not implemented, lol, but you "
+                "wanted to say: {}", text);
+        }
+    }
+
+    private void tabComplete(char[] line, int cursor1, int cursor2,
+        void delegate(int, int, char[]) edit)
+    {
+        //chat mode could have completion for nicks or common words
+        if (mConsoleMode == ConsoleMode.Script) {
+            mScriptInterpreter.tabcomplete(line, cursor1, cursor2, edit);
+        }
+    }
+
+    private void toggleChat() {
+        setConsoleMode(ConsoleMode.Chat, true);
+    }
+    private void toggleScript() {
+        setConsoleMode(ConsoleMode.Script, true);
+    }
+
+    private void setConsoleMode(ConsoleMode mode, bool activate) {
+        if (mode != mConsoleMode) {
+            mConsoleMode = mode;
+            char[] name = "unknown";
+            if (mode == ConsoleMode.Chat) {
+                name = "chat";
+            } else if (mode == ConsoleMode.Script) {
+                name = "scripting";
+            }
+            mConsoleBox.output.writefln("Chat box set to {} mode.", name);
+        }
+        if (activate)
+            mConsoleBox.activate();
     }
 
     //this is just some sort of joke/easteregg/test/doingitbecauseican
@@ -415,24 +452,15 @@ class GameFrame : SimpleContainer {
         mGui.add(new MessageViewer(game), lay);
         mGui.add(new ReplayTimer(game),
             WidgetLayout.Aligned(-1, -1, Vector2i(10, 0)));
-        mChatbox = new Chatbox();
-        mChatbox.cmdline.commands.addSub(globals.cmdLine.commands);
-        mChatbox.cmdline.setPrefix("/", "say");
-        mGui.add(mChatbox, WidgetLayout.Aligned(-1, -1, Vector2i(5, 5)));
-
-        //xxx as a temporary hack, mScriptbox is on the same position as
-        //    mChatbox, but mChatbox is used for output (so for the user,
-        //    the messages are at the right position)
-        mScriptbox = new Chatbox();
+        mConsoleBox = new Chatbox();
         mScriptInterpreter = new GameLuaInterpreter(
-            &mChatbox.output.writeString, g);
-        mScriptbox.cmdline.commands.addSub(globals.cmdLine.commands);
-        mScriptbox.cmdline.commands.registerCommand("exec", &cmdExecScript,
-            "exec Lua script", ["text..."]);
-        mScriptbox.cmdline.setPrefix("/", "exec");
-        mScriptbox.setTabCompletion(&mScriptInterpreter.tabcomplete);
-        mScriptbox.clear(); //make initial text go away
-        mGui.add(mScriptbox, WidgetLayout.Aligned(-1, -1, Vector2i(5, 5)));
+            &mConsoleBox.output.writeString, g);
+        mConsoleBox.cmdline.commands.addSub(globals.cmdLine.commands);
+        mConsoleBox.cmdline.commands.registerCommand("input", &cmdExecConsole,
+            "text goes here", ["text..."]);
+        mConsoleBox.cmdline.setPrefix("/", "input");
+        mConsoleBox.setTabCompletion(&tabComplete);
+        mGui.add(mConsoleBox, WidgetLayout.Aligned(-1, -1, Vector2i(5, 5)));
 
         mTeamWindow = new TeamWindow(game);
         mGui.add(mTeamWindow);

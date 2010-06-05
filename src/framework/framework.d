@@ -1474,6 +1474,11 @@ class Framework {
         }
     }
 
+    void sleep(Time t) {
+        assert(!!mDriver);
+        mDriver.sleepTime(t);
+    }
+
     private bool doTerminate() {
         bool term = true;
         if (onTerminate != null) {
