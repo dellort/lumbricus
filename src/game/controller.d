@@ -532,7 +532,7 @@ class TeamMember : Actor {
 
     //send new health value to client
     void updateHealth() {
-        mHealthTarget = max(0, health());
+        mHealthTarget = health();
     }
 
     bool needUpdateHealth() {
@@ -542,14 +542,14 @@ class TeamMember : Actor {
     //the displayed health value; this is only updated at special points in the
     //  game (by calling updateHealth()), and then the health value is counted
     //  down/up over time (like an animation)
-    //always capped to 0
-    int currentHealth() {
-        return mCurrentHealth;
+    //capped: if true, capped to 0  (hmm, wtf)
+    int currentHealth(bool capped = true) {
+        return capped ? max(mCurrentHealth, 0) : mCurrentHealth;
     }
 
     //what currentHealth will become (during animating)
-    int healthTarget() {
-        return mHealthTarget;
+    int healthTarget(bool capped = true) {
+        return capped ? max(mHealthTarget, 0) : mHealthTarget;
     }
 
     //take care of counting down (or up) the health value

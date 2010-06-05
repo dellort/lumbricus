@@ -203,6 +203,7 @@ final class Sequence : SceneObject {
     Vector2f position;
     Vector2f velocity;
     float rotation_angle; //worm itself, always 0 .. PI*2
+    float lifepower;    //absolute hp
     float lifePercent;  //percent of initial life remaining, may go > 1.0
     //bool visible;
 
@@ -865,6 +866,8 @@ class WwpWeaponDisplay : AniStateDisplay {
     Time mNextIdle; //just an offset
     int mWeaponDir; //1: get, 0: nothing, -1: unget
 
+    const cLowHpTreshold = 30f;   //different (ill-looking) animation below
+
     this (Sequence a_owner) { super(a_owner); }
 
     override void init(SequenceState state) {
@@ -874,7 +877,15 @@ class WwpWeaponDisplay : AniStateDisplay {
         mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
         mWeaponDir = 0;
         super.init(state);
-        setAnimation(myclass.normal);
+        setNormalAnim();
+    }
+
+    private bool hasLowHp() {
+        return owner.lifepower < cLowHpTreshold;
+    }
+
+    private void setNormalAnim() {
+        setAnimation(hasLowHp ? myclass.lowhp : myclass.normal);
     }
 
     override void simulate() {
@@ -918,9 +929,12 @@ class WwpWeaponDisplay : AniStateDisplay {
                 owner.weapon_fire_oneshot = false;
                 setAnimation(mCurrentAni.hold);
             }
-            if (animation !is myclass.normal && !mCurrentW.length) {
+            //require "normal" animation and correct one not already set
+            if ((!(hasLowHp && animation is myclass.lowhp)
+                || (!hasLowHp && animation is myclass.normal))
+                && !mCurrentW.length) {
                 //end of idle animation or weapon-unget => set to normal again
-                setAnimation(myclass.normal);
+                setNormalAnim();
             }
         }
 
@@ -1011,7 +1025,7 @@ class WwpWeaponDisplay : AniStateDisplay {
 }
 
 class WwpWeaponState : SequenceState {
-    Animation normal; //stand state
+    Animation normal, lowhp; //stand state, normal and "not feeling well"
     //indexed by the name, which is referred to by WeaponClass.animation
     WwpWeaponState_Weapon[char[]] weapons;
     WwpWeaponState_Weapon weapon_unknown;
@@ -1023,6 +1037,7 @@ class WwpWeaponState : SequenceState {
         super(a_owner, node);
 
         normal = loadanim(node, "animation");
+        lowhp = loadanim(node, "lowhp_animation");
 
         foreach (char[] key, char[] value; node.getSubNode("weapons")) {
             //this '+' thing is just to remind the user that value is a prefix

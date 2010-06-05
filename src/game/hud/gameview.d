@@ -20,6 +20,7 @@ import game.weapon.weapon;
 import game.hud.teaminfo;
 import game.water;
 import game.worm; //for a hack
+import game.gfxset;  //for waterColor
 import gui.global;
 import gui.renderbox;
 import gui.rendertext;
@@ -114,6 +115,7 @@ private class ViewMember : SceneObject {
     InterpolateLinear!(int) moveHealth;
 
     int lastHealthHintTarget = int.max;
+    int lastKnownHealth;  //what we know from the last updateHealth()
 
     this(GameView a_owner, TeamMember m) {
         owner = a_owner;
@@ -122,6 +124,7 @@ private class ViewMember : SceneObject {
         moveHealth.currentTimeDg = &ts.current;
         moveWeaponIcon.currentTimeDg = &ts.current;
         member = m;
+        lastKnownHealth = member.healthTarget(false);
         TeamTheme theme = team.color;
         wormTeam = theme.textCreate();
         wormTeam.setLiteral(team.name());
@@ -152,7 +155,7 @@ private class ViewMember : SceneObject {
             removeThis();
             //show the drown label
             if (sprite.isUnderWater()) {
-                int lost = member.currentHealth - member.health();
+                int lost = lastKnownHealth - member.health();
                 owner.memberDrown(member, lost, toVector2i(sprite.physics.pos));
             }
             return;
@@ -337,11 +340,10 @@ private class ViewMember : SceneObject {
             + cHealthHintWait)
         {
             //probably start a new animation
-            auto target = member.currentHealth();
-            auto diff = member.healthTarget() - target;
+            auto diff = member.healthTarget(false) - lastKnownHealth;
             //compare target and realHealth to see if health is
             //really changing (diff can still be != 0 if not)
-            if (diff < 0 && target != lastHealthHintTarget) {
+            if (diff < 0 && lastKnownHealth != lastHealthHintTarget) {
                 //start (only for damages, not upgrades => "< 0")
                 moveHealth.init(cHealthHintTime, 0,
                     cHealthHintDistance);
@@ -349,7 +351,7 @@ private class ViewMember : SceneObject {
                 //this is to avoid restarting the label animation several times
                 //  when counting down takes longer than to display the full
                 //  health damage hint animation
-                lastHealthHintTarget = target;
+                lastHealthHintTarget = lastKnownHealth;
             }
         }
         if (moveHealth.inProgress()) {
@@ -361,6 +363,9 @@ private class ViewMember : SceneObject {
             addLabel(healthHint);
             canvas.popState();
         }
+        //for damage label (health hint); using member.currentHealth()
+        //  introduces one-frame bugs where hp is "lost"
+        lastKnownHealth = member.healthTarget(false);
     }
 } //ViewMember
 
@@ -377,6 +382,8 @@ class DrownLabel : SceneObject {
         Time mStart;
         float mSpeed; //pixels/second
         Vector2i mFrom, mTo;
+        Color mWaterBlendColor;
+        const cWaterBlendFactor = 0.6;
     }
 
     //member inf drowned at pos (pos is on the ground)
@@ -390,6 +397,10 @@ class DrownLabel : SceneObject {
         mStart = mTS.current;
         mEffect = MoveLabelEffect.bubble;
         mSpeed = cDrownLabelSpeed;
+
+        GfxSet gfx = a_game.engine.singleton!(GfxSet)();
+        mWaterBlendColor = gfx.waterColor * cWaterBlendFactor
+            + Color(1) * (1.0f - cWaterBlendFactor);
     }
 
     override void draw(Canvas c) {
@@ -413,6 +424,8 @@ class DrownLabel : SceneObject {
 
         auto curpos = mFrom + toVector2i(move);
 
+        //tint slightly with water color
+        c.setBlend(mWaterBlendColor);
         mTxt.draw(c, curpos);
     }
 }

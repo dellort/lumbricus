@@ -301,7 +301,8 @@ class PhysicObject : PhysicBase {
                     + mForceAccum + selfForce;
                 //normal force
                 Vector2f fN = fAll.project_vector(-surface_normal);
-                if (mSurfaceCtr < 0) {
+                //mSurfaceCtr == 0 -> just touched down (is set below)
+                if (mSurfaceCtr <= 0) {
                     //start sliding, so stop if not fast enough
                     //xxx kind of a hack to allow worms to jump normally
                     if (len < mPosp.slideAbsorb)
@@ -315,7 +316,7 @@ class PhysicObject : PhysicBase {
         }
 
         if (mOnSurface)
-            mSurfaceCtr = min(mSurfaceCtr+1, 4);
+            mSurfaceCtr = 3;//when touching ground, apply friction over x frames
         else
             mSurfaceCtr = max(mSurfaceCtr-1, 0);
         mOnSurface = false;

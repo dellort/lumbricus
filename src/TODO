@@ -40,6 +40,8 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 - während die feuer-animation abgespielt wird, sollte der wurm keine eingabe akzeptieren (z.b. shotgun => kein waffen-winkel verstellen) (abhängig von der waffe; bei anderen waffen ist es vorgesehen, dass z.b. der waffen-winkel während des feuerns geändert werden kann)
 - wenn datenverzeichnis nicht gefunden wird, bessere fehlermeldung ausgeben
 - mit dem blowtorch nach unten bohren => irgendeine störung in der wurmrichtung
+- Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
+  Schaden reduziert werden die Löcher zu klein)
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)

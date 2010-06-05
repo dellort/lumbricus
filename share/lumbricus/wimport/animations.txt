@@ -230,7 +230,7 @@ mainspr {
 
             //whatever that is (notice that 519 is the same as 520 and 521)
             worm_jump = "f:100; 518"
-            worm_jump_back = "-repeat; 288"
+            worm_jump_back = "-repeat,f:25; 288"
             worm_jump_to_fall = "-repeat; 287" //no idea
             worm_fall = "f:100; 519"
 

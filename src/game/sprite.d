@@ -203,6 +203,7 @@ class Sprite : GameObject {
         graphic.position = physics.pos;
         graphic.velocity = physics.velocity;
         graphic.rotation_angle = physics.lookey_smooth;
+        graphic.lifepower = physics.lifepower;
         if (type.initialHp == float.infinity ||
             physics.lifepower == float.infinity ||
             type.initialHp == 0f)
