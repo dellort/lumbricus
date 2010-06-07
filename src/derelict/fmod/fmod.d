@@ -6,4 +6,5 @@ public {
     import derelict.fmod.fmodcodec;
     import derelict.fmod.fmoddsp;
     import derelict.fmod.fmoderrors;
+    import derelict.fmod.fmodmemory;
 }

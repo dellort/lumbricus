@@ -12,6 +12,7 @@ import utils.configfile;
 import utils.list2;
 import utils.random;
 import utils.randval;
+import utils.strparser;
 
 import math = tango.math.Math;
 import cstdlib = tango.stdc.stdlib;
@@ -22,6 +23,16 @@ debug import utils.perf;
 //use C memory for particles (is lighter on the GC)
 version = CMemory;
 
+//where a particle can exist
+enum ParticleWaterArea {
+    both,
+    over,
+    under,
+}
+
+static this() {
+    enumStrings!(ParticleWaterArea,"both,over,under");
+}
 
 class ParticleType {
     RandomFloat gravity = {0f, 0f};
@@ -36,8 +47,8 @@ class ParticleType {
     //size of bubble arc
     float bubble_x_h = 0f;
 
-    //particle can only exist underwater (e.g. bubbles)
-    bool underwater;
+    //particle can only exist over-/underwater (e.g. bubbles)
+    ParticleWaterArea water_area;
 
     //lifetime from start of particle
     //doesn't override animation lifetime etc.; see Particle.draw.moreWork()
@@ -111,7 +122,8 @@ class ParticleType {
         air_resistance = node.getValue("air_resistance", air_resistance);
         bubble_x = node.getValue("bubble_x", bubble_x);
         bubble_x_h = node.getValue("bubble_x_h", bubble_x_h);
-        underwater = node.getValue("underwater", underwater);
+        water_area = stringToType!(ParticleWaterArea)(
+            node.getStringValue("water_area", "both"));
         color = node.getValue("color", color);
         air_resistance = node.getValue("air_resistance", air_resistance);
         emit_interval = node.getValue("emit_interval", emit_interval);
@@ -256,7 +268,11 @@ struct Particle {
         pos += add;
         //Trace.formatln("{} {} {}", pos, velocity, deltaT);
 
-        if (props.underwater && pos.y < owner.waterLine) {
+        if ((props.water_area == ParticleWaterArea.under
+            && pos.y < owner.waterLine)
+            || (props.water_area == ParticleWaterArea.over
+            && pos.y > owner.waterLine))
+        {
             die();
             return;
         }

@@ -6,6 +6,7 @@ module framework.drivers.sound_fmod;
 //    (like fading)
 
 import derelict.fmod.fmod;
+import derelict.util.exception;
 import framework.framework;
 import framework.sound;
 import framework.drivers.fmodstreamfs;
@@ -18,6 +19,12 @@ import utils.configfile;
 import utils.list2;
 
 private FMODSoundDriver gBase;
+
+private void checkFMODError(FMOD_RESULT errcode) {
+    if (errcode != FMOD_OK) {
+        throw new FrameworkException("FMOD error: "~FMOD_ErrorString(errcode));
+    }
+}
 
 class FMODSound : DriverSound {
     private {
@@ -98,6 +105,9 @@ class FMODChannel : DriverChannel {
 
     void looping(bool loop) {
         mLooping = loop;
+        if (state() != PlaybackState.stopped) {
+            setLooping(loop);
+        }
     }
 
     private void setLooping(bool loop) {
@@ -195,9 +205,6 @@ class FMODChannel : DriverChannel {
         return false;
     }
 
-    void tick() {
-    }
-
     void close() {
         stop(true);
     }
@@ -221,26 +228,35 @@ class FMODSoundDriver : SoundDriver {
 
         mChannels = new typeof(mChannels);
 
-        DerelictFMOD.load();
+        try {
+            DerelictFMOD.load();
+        } catch (DerelictException e) {
+            //wrap it (a failing sound driver does not have to be fatal)
+            throw new FrameworkException(e.msg);
+        }
 
-        FMOD_ErrorCheck(FMOD_System_Create(&mSystem));
+        checkFMODError(FMOD_System_Create(&mSystem));
         scope(failure) FMOD_System_Release(mSystem);
 
         uint fmVersion;
-        FMOD_ErrorCheck(FMOD_System_GetVersion(mSystem, &fmVersion));
+        checkFMODError(FMOD_System_GetVersion(mSystem, &fmVersion));
         if (fmVersion < FMOD_VERSION)
             throw new FrameworkException(myformat(
             "Version of FMOD library is too low. Required is at least {:x8}",
             FMOD_VERSION));
 
-        FMOD_ErrorCheck(FMOD_System_SetOutput(mSystem,
+        checkFMODError(FMOD_System_SetOutput(mSystem,
             FMOD_OUTPUTTYPE_AUTODETECT));
 
-        FMOD_ErrorCheck(FMOD_System_Init(mSystem, cVirtualChannelCount,
+        checkFMODError(FMOD_System_Init(mSystem, cVirtualChannelCount,
             FMOD_INIT_NORMAL, null));
         scope(failure) FMOD_System_Close(mSystem);
 
-        FMODSetStreamFs(mSystem,true);
+        try {
+            FMODSetStreamFs(mSystem,true);
+        } catch (FMODException e) {
+            throw new FrameworkException("FMOD error: " ~ e.msg);
+        }
     }
 
     DriverChannel getChannel(Object reserve_for) {
@@ -264,9 +280,6 @@ class FMODSoundDriver : SoundDriver {
 
     void tick() {
         FMOD_System_Update(mSystem);
-        foreach (c; mChannels) {
-            c.tick();
-        }
     }
 
     DriverSound loadSound(DriverSoundData data) {

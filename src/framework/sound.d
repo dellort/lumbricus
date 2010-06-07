@@ -68,6 +68,8 @@ abstract class DriverChannel {
     //set absolute volume of this channel
     abstract void setVolume(float value);
     //true to loop the played sound (does not have to be supported)
+    //implementing note: can be called either before or after play(); both
+    //  should work
     abstract void looping(bool loop);
 
     //play() and stop() must only be called if you're still the owner by

@@ -13,6 +13,7 @@ private {
     import derelict.fmod.fmodtypes;
     import derelict.fmod.fmodcodec;
     import derelict.fmod.fmoddsp;
+    import derelict.fmod.fmodmemory;
 
     import derelict.util.loader;
 }
@@ -24,7 +25,7 @@ extern(System):
 */
 
 FMOD_RESULT function(void *poolmem, int poollen, FMOD_MEMORY_ALLOCCALLBACK useralloc, FMOD_MEMORY_REALLOCCALLBACK userrealloc, FMOD_MEMORY_FREECALLBACK userfree, FMOD_MEMORY_TYPE memtypeflags) FMOD_Memory_Initialize;
-FMOD_RESULT function(int *currentalloced, int *maxalloced) FMOD_Memory_GetStats;
+FMOD_RESULT function(int *currentalloced, int *maxalloced, FMOD_BOOL blocking) FMOD_Memory_GetStats;
 FMOD_RESULT function(FMOD_DEBUGLEVEL level) FMOD_Debug_SetLevel;
 FMOD_RESULT function(FMOD_DEBUGLEVEL *level) FMOD_Debug_GetLevel;
 FMOD_RESULT function(int busy) FMOD_File_SetDiskBusy;
@@ -50,6 +51,7 @@ FMOD_RESULT function(FMOD_SYSTEM *system, FMOD_OUTPUTTYPE output) FMOD_System_Se
 FMOD_RESULT function(FMOD_SYSTEM *system, FMOD_OUTPUTTYPE *output) FMOD_System_GetOutput;
 FMOD_RESULT function(FMOD_SYSTEM *system, int *numdrivers) FMOD_System_GetNumDrivers;
 FMOD_RESULT function(FMOD_SYSTEM *system, int id, char *name, int namelen, FMOD_GUID *guid) FMOD_System_GetDriverInfo;
+FMOD_RESULT function(FMOD_SYSTEM *system, int id, short *name, int namelen, FMOD_GUID *guid) FMOD_System_GetDriverInfoW;
 FMOD_RESULT function(FMOD_SYSTEM *system, int id, FMOD_CAPS *caps, int *minfrequency, int *maxfrequency, FMOD_SPEAKERMODE *controlpanelspeakermode) FMOD_System_GetDriverCaps;
 FMOD_RESULT function(FMOD_SYSTEM *system, int driver) FMOD_System_SetDriver;
 FMOD_RESULT function(FMOD_SYSTEM *system, int *driver) FMOD_System_GetDriver;
@@ -117,7 +119,7 @@ FMOD_RESULT function(FMOD_SYSTEM *system, uint *_version) FMOD_System_GetVersion
 FMOD_RESULT function(FMOD_SYSTEM *system, void **handle) FMOD_System_GetOutputHandle;
 FMOD_RESULT function(FMOD_SYSTEM *system, int *channels) FMOD_System_GetChannelsPlaying;
 FMOD_RESULT function(FMOD_SYSTEM *system, int *num2d, int *num3d, int *total) FMOD_System_GetHardwareChannels;
-FMOD_RESULT function(FMOD_SYSTEM *system, float *dsp, float *stream, float *update, float *total) FMOD_System_GetCPUUsage;
+FMOD_RESULT function(FMOD_SYSTEM *system, float *dsp, float *stream, float *geometry, float *update, float *total) FMOD_System_GetCPUUsage;
 FMOD_RESULT function(FMOD_SYSTEM *system, int *currentalloced, int *maxalloced, int *total) FMOD_System_GetSoundRAM;
 FMOD_RESULT function(FMOD_SYSTEM *system, int *numdrives) FMOD_System_GetNumCDROMDrives;
 FMOD_RESULT function(FMOD_SYSTEM *system, int drive, char *drivename, int drivenamelen, char *scsiname, int scsinamelen, char *devicename, int devicenamelen) FMOD_System_GetCDROMDriveName;
@@ -167,6 +169,7 @@ FMOD_RESULT function(FMOD_SYSTEM *system, uint *hi, uint *lo) FMOD_System_GetDSP
 
 FMOD_RESULT function(FMOD_SYSTEM *system, int *numdrivers) FMOD_System_GetRecordNumDrivers;
 FMOD_RESULT function(FMOD_SYSTEM *system, int id, char *name, int namelen, FMOD_GUID *guid) FMOD_System_GetRecordDriverInfo;
+FMOD_RESULT function(FMOD_SYSTEM *system, int id, short *name, int namelen, FMOD_GUID *guid) FMOD_System_GetRecordDriverInfoW;
 FMOD_RESULT function(FMOD_SYSTEM *system, int id, FMOD_CAPS *caps, int *minfrequency, int *maxfrequency) FMOD_System_GetRecordDriverCaps;
 FMOD_RESULT function(FMOD_SYSTEM *system, int id, uint *position) FMOD_System_GetRecordPosition;
 
@@ -200,7 +203,7 @@ FMOD_RESULT function(FMOD_SYSTEM *system, int *timeout) FMOD_System_GetNetworkTi
 FMOD_RESULT function(FMOD_SYSTEM *system, void *userdata) FMOD_System_SetUserData;
 FMOD_RESULT function(FMOD_SYSTEM *system, void **userdata) FMOD_System_GetUserData;
 
-FMOD_RESULT function(FMOD_SYSTEM *system, uint memorybits, uint event_memorybits, uint *memoryused, uint *memoryused_array) FMOD_System_GetMemoryInfo;
+FMOD_RESULT function(FMOD_SYSTEM *system, uint memorybits, uint event_memorybits, uint *memoryused, FMOD_MEMORY_USAGE_DETAILS *memoryused_details) FMOD_System_GetMemoryInfo;
 
 /*
     'Sound' API
@@ -277,7 +280,7 @@ FMOD_RESULT function(FMOD_SOUND *sound, int channel, float *volume) FMOD_Sound_G
 FMOD_RESULT function(FMOD_SOUND *sound, void *userdata) FMOD_Sound_SetUserData;
 FMOD_RESULT function(FMOD_SOUND *sound, void **userdata) FMOD_Sound_GetUserData;
 
-FMOD_RESULT function(FMOD_SOUND *sound, uint memorybits, uint event_memorybits, uint *memoryused, uint *memoryused_array) FMOD_Sound_GetMemoryInfo;
+FMOD_RESULT function(FMOD_SOUND *sound, uint memorybits, uint event_memorybits, uint *memoryused, FMOD_MEMORY_USAGE_DETAILS *memoryused_details) FMOD_Sound_GetMemoryInfo;
 
 /*
     'Channel' API
@@ -377,7 +380,7 @@ FMOD_RESULT function(FMOD_CHANNEL *channel, uint *loopstart, FMOD_TIMEUNIT loops
 FMOD_RESULT function(FMOD_CHANNEL *channel, void *userdata) FMOD_Channel_SetUserData;
 FMOD_RESULT function(FMOD_CHANNEL *channel, void **userdata) FMOD_Channel_GetUserData;
 
-FMOD_RESULT function(FMOD_CHANNEL *channel, uint memorybits, uint event_memorybits, uint *memoryused, uint *memoryused_array) FMOD_Channel_GetMemoryInfo;
+FMOD_RESULT function(FMOD_CHANNEL *channel, uint memorybits, uint event_memorybits, uint *memoryused, FMOD_MEMORY_USAGE_DETAILS *memoryused_details) FMOD_Channel_GetMemoryInfo;
 
 /*
     'ChannelGroup' API
@@ -446,7 +449,7 @@ FMOD_RESULT function(FMOD_CHANNELGROUP *channelgroup, float *wavearray, int numv
 FMOD_RESULT function(FMOD_CHANNELGROUP *channelgroup, void *userdata) FMOD_ChannelGroup_SetUserData;
 FMOD_RESULT function(FMOD_CHANNELGROUP *channelgroup, void **userdata) FMOD_ChannelGroup_GetUserData;
 
-FMOD_RESULT function(FMOD_CHANNELGROUP *channelgroup, uint memorybits, uint event_memorybits, uint *memoryused, uint *memoryused_array) FMOD_ChannelGroup_GetMemoryInfo;
+FMOD_RESULT function(FMOD_CHANNELGROUP *channelgroup, uint memorybits, uint event_memorybits, uint *memoryused, FMOD_MEMORY_USAGE_DETAILS *memoryused_details) FMOD_ChannelGroup_GetMemoryInfo;
 
 /*
     'SoundGroup' API
@@ -485,7 +488,7 @@ FMOD_RESULT function(FMOD_SOUNDGROUP *soundgroup, int *numplaying) FMOD_SoundGro
 FMOD_RESULT function(FMOD_SOUNDGROUP *soundgroup, void *userdata) FMOD_SoundGroup_SetUserData;
 FMOD_RESULT function(FMOD_SOUNDGROUP *soundgroup, void **userdata) FMOD_SoundGroup_GetUserData;
 
-FMOD_RESULT function(FMOD_SOUNDGROUP *soundgroup, uint memorybits, uint event_memorybits, uint *memoryused, uint *memoryused_array) FMOD_SoundGroup_GetMemoryInfo;
+FMOD_RESULT function(FMOD_SOUNDGROUP *soundgroup, uint memorybits, uint event_memorybits, uint *memoryused, FMOD_MEMORY_USAGE_DETAILS *memoryused_details) FMOD_SoundGroup_GetMemoryInfo;
 
 /*
     'DSP' API
@@ -545,7 +548,7 @@ FMOD_RESULT function(FMOD_DSP *dsp, float *frequency, float *volume, float *pan,
 FMOD_RESULT function(FMOD_DSP *dsp, void *userdata) FMOD_DSP_SetUserData;
 FMOD_RESULT function(FMOD_DSP *dsp, void **userdata) FMOD_DSP_GetUserData;
 
-FMOD_RESULT function(FMOD_DSP *dsp, uint memorybits, uint event_memorybits, uint *memoryused, uint *memoryused_array) FMOD_DSP_GetMemoryInfo;
+FMOD_RESULT function(FMOD_DSP *dsp, uint memorybits, uint event_memorybits, uint *memoryused, FMOD_MEMORY_USAGE_DETAILS *memoryused_details) FMOD_DSP_GetMemoryInfo;
 
 /*
     'DSPConnection' API
@@ -565,7 +568,7 @@ FMOD_RESULT function(FMOD_DSPCONNECTION *dspconnection, FMOD_SPEAKER speaker, fl
 FMOD_RESULT function(FMOD_DSPCONNECTION *dspconnection, void *userdata) FMOD_DSPConnection_SetUserData;
 FMOD_RESULT function(FMOD_DSPCONNECTION *dspconnection, void **userdata) FMOD_DSPConnection_GetUserData;
 
-FMOD_RESULT function(FMOD_DSPCONNECTION *dspconnection, uint memorybits, uint event_memorybits, uint *memoryused, uint *memoryused_array) FMOD_DSPConnection_GetMemoryInfo;
+FMOD_RESULT function(FMOD_DSPCONNECTION *dspconnection, uint memorybits, uint event_memorybits, uint *memoryused, FMOD_MEMORY_USAGE_DETAILS *memoryused_details) FMOD_DSPConnection_GetMemoryInfo;
 
 /*
     'Geometry' API
@@ -607,7 +610,7 @@ FMOD_RESULT function(FMOD_GEOMETRY *geometry, void *data, int *datasize) FMOD_Ge
 FMOD_RESULT function(FMOD_GEOMETRY *geometry, void *userdata) FMOD_Geometry_SetUserData;
 FMOD_RESULT function(FMOD_GEOMETRY *geometry, void **userdata) FMOD_Geometry_GetUserData;
 
-FMOD_RESULT function(FMOD_GEOMETRY *geometry, uint memorybits, uint event_memorybits, uint *memoryused, uint *memoryused_array) FMOD_Geometry_GetMemoryInfo;
+FMOD_RESULT function(FMOD_GEOMETRY *geometry, uint memorybits, uint event_memorybits, uint *memoryused, FMOD_MEMORY_USAGE_DETAILS *memoryused_details) FMOD_Geometry_GetMemoryInfo;
 
 /*
     'Reverb' API
@@ -633,7 +636,7 @@ FMOD_RESULT function(FMOD_REVERB *reverb, FMOD_BOOL *active) FMOD_Reverb_GetActi
 FMOD_RESULT function(FMOD_REVERB *reverb, void *userdata) FMOD_Reverb_SetUserData;
 FMOD_RESULT function(FMOD_REVERB *reverb, void **userdata) FMOD_Reverb_GetUserData;
 
-FMOD_RESULT function(FMOD_REVERB *reverb, uint memorybits, uint event_memorybits, uint *memoryused, uint *memoryused_array) FMOD_Reverb_GetMemoryInfo;
+FMOD_RESULT function(FMOD_REVERB *reverb, uint memorybits, uint event_memorybits, uint *memoryused, FMOD_MEMORY_USAGE_DETAILS *memoryused_details) FMOD_Reverb_GetMemoryInfo;
 
 
 extern(D):
@@ -670,6 +673,7 @@ private void load(SharedLib lib) {
     *cast(void**)&FMOD_System_GetOutput = Derelict_GetProc(lib, "FMOD_System_GetOutput");
     *cast(void**)&FMOD_System_GetNumDrivers = Derelict_GetProc(lib, "FMOD_System_GetNumDrivers");
     *cast(void**)&FMOD_System_GetDriverInfo = Derelict_GetProc(lib, "FMOD_System_GetDriverInfo");
+    *cast(void**)&FMOD_System_GetDriverInfoW = Derelict_GetProc(lib, "FMOD_System_GetDriverInfoW");
     *cast(void**)&FMOD_System_GetDriverCaps = Derelict_GetProc(lib, "FMOD_System_GetDriverCaps");
     *cast(void**)&FMOD_System_SetDriver = Derelict_GetProc(lib, "FMOD_System_SetDriver");
     *cast(void**)&FMOD_System_GetDriver = Derelict_GetProc(lib, "FMOD_System_GetDriver");
@@ -787,6 +791,7 @@ private void load(SharedLib lib) {
 
     *cast(void**)&FMOD_System_GetRecordNumDrivers = Derelict_GetProc(lib, "FMOD_System_GetRecordNumDrivers");
     *cast(void**)&FMOD_System_GetRecordDriverInfo = Derelict_GetProc(lib, "FMOD_System_GetRecordDriverInfo");
+    *cast(void**)&FMOD_System_GetRecordDriverInfoW = Derelict_GetProc(lib, "FMOD_System_GetRecordDriverInfoW");
     *cast(void**)&FMOD_System_GetRecordDriverCaps = Derelict_GetProc(lib, "FMOD_System_GetRecordDriverCaps");
     *cast(void**)&FMOD_System_GetRecordPosition = Derelict_GetProc(lib, "FMOD_System_GetRecordPosition");
 

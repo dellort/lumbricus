@@ -95,6 +95,7 @@
 		<Unit filename="..\src\derelict\fmod\fmoddsp.d" />
 		<Unit filename="..\src\derelict\fmod\fmoderrors.d" />
 		<Unit filename="..\src\derelict\fmod\fmodfuncs.d" />
+		<Unit filename="..\src\derelict\fmod\fmodmemory.d" />
 		<Unit filename="..\src\derelict\fmod\fmodtypes.d" />
 		<Unit filename="..\src\derelict\lua\lauxlib.d" />
 		<Unit filename="..\src\derelict\lua\lua.d" />

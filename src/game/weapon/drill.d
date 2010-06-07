@@ -98,7 +98,7 @@ class Drill : Shooter {
         //xxx: stuff should be tuneable? (all constants != 0)
         Vector2f advVec = Vector2f(0, 7.0f);
         if (myclass.blowtorch) {
-            advVec = mWorm.weaponDir*8.0f
+            advVec = mWorm.weaponDir*10.0f
                 + Vector2f(0, mWorm.physics.posp.radius - myclass.tunnelRadius);
         }
         auto at = mWorm.physics.pos + advVec;

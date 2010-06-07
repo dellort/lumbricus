@@ -43,9 +43,19 @@ $ axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchro
 - während die feuer-animation abgespielt wird, sollte der wurm keine eingabe akzeptieren (z.b. shotgun => kein waffen-winkel verstellen) (abhängig von der waffe; bei anderen waffen ist es vorgesehen, dass z.b. der waffen-winkel während des feuerns geändert werden kann)
   ebenso wenn die "prepare"-animation abgespielt wird
 - wenn datenverzeichnis nicht gefunden wird, bessere fehlermeldung ausgeben
-- mit dem blowtorch nach unten bohren => irgendeine störung in der wurmrichtung
+$ mit dem blowtorch nach unten bohren => irgendeine störung in der wurmrichtung
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
   Schaden reduziert werden die Löcher zu klein)
+  Genauso: Minigun macht zuviel Schaden (bis 350 für die volle Ladung)
+- Waffenbugs von r1164 (grmbl):
+  - Wurm-Waffenanimation + Fadenkreuz kann nicht nach unten zielen (Feuerwinkel ist aber korrekt)
+  - Bazooka etc. am Zugende (Zeit 0) wird zwar aufgezogen aber nicht abgefeuert
+  - Beamen am Zugende wird abgebrochen
+  - J zum Jetpack aktivieren muss zweimal gedrückt werden, wenn man vorher eine andere Waffe auswählt
+  - Seltsame Verzögerung (2 frames oder so) vom Leertaste drücken bis zum Abfeuern
+  - Ziemlich lange Verzögerung + komische "bisschen-nach-unten-ziel"-animation beim Langbogen-feuern
+  - Laser auswählen und auf Leertaste rumhämmern -> Assertion failed worm.d 918  
+  - Einige Waffen werden unnötigerweise nach dem Feuern sofort weggesteckt (z.B. Bogen, Seil)
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
