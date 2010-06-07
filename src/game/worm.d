@@ -685,8 +685,7 @@ class WormSprite : Sprite {
             if (mShooterMain.weapon.allowSecondary && !selectedOnly)
                 return true;
             if (!keyUp) {
-                //return initiateFire(0, true);
-                return refireWeapon(mShooterMain);
+                return initiateFire(0, true);
             }
             return false;
         }
@@ -754,8 +753,10 @@ class WormSprite : Sprite {
     //  prepare animation [e.g. shotgun reload] has been played)
     private void fireStart() {
         //sanity tests
-        if (currentState !is wsc.st_weapon)
-            return;
+        if (!mIsRefire) {
+            if (currentState !is wsc.st_weapon)
+                return;
+        }
         if (mCachedFireStrength != mCachedFireStrength)
             return;
         //actually fire
