@@ -241,12 +241,12 @@ mainspr {
             worm_bump_into_ground = "-repeat; 301"
             worm_parachute_enter = "-repeat; 296"
             worm_parachute_fly = "+append_backwards_a; 297"
-            worm_drill_get = "-repeat,+keeplast,f:25; 368" //wtf, 369/370 are longer???
+            worm_drill_get = "-repeat,f:25; 368" //wtf, 369/370 are longer???
             worm_usedrill = "f:15,+append_backwards_a; 371"
 
             //vertical/horizontal jetpack exhaust flames
             {
-                _flags = "-repeat,+keeplast"
+                _flags = "-repeat"
                 worm_jet_ex_h = "offset_x:+16,offset_y:+3; 180"
                 worm_jet_ex_v = "offset_x:+8,offset_y:+16; 181"
             }
@@ -287,7 +287,7 @@ mainspr {
                 //   fire: played after or while firing (sometimes repeated)
                 //   release: played after firing when weapon is put away (most
                 //            weapons will play "get" backwards)
-                _flags = "+keeplast,f:25"
+                _flags = "f:25"
 
                 worm_no_weapon_get = "338"
                 worm_atomtest_get = "320"
@@ -311,18 +311,18 @@ mainspr {
             {
                 //special: limited angle range
                 _params = "p2/rot90,p1/step3"
-                _flags = "+keeplast"
+                _flags = ""
                 worm_bow_hold = "526"
             }
             {
                 _params = "p2/rot60,p1/step3"
-                _flags = "+keeplast"
+                _flags = ""
                 worm_blowtorch_hold = "discard:4; 152"
             }
             {
                 _params = "p2/rot90,p1/step3,time"
                 worm_bow_prepare = "f:400; 562"
-                worm_bow_fire = "f:250; 565"
+                worm_bow_fire = "f:150; 565"
             }
             {
                 worm_beaming = "f:25; 434"
@@ -415,7 +415,7 @@ mainspr {
                 worm_shotgun_fire = "f:200; 559 | 553"
                 //throw animation for grenades etc.
                 worm_throw = "f:250; 601"
-                worm_baseball_fire = "f:250; 532"
+                worm_baseball_fire = "f:500; 532"
             }
         }
         //that silly hat, specialized with worm color

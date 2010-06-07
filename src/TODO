@@ -15,6 +15,7 @@ $ sollte behoben sein / works for me (muss getestet werden)
     - the in-game lua one can't do anything when the game is paused
 
 == bekannte, lösbare Bugs ==
+- am seil hängen, mit landschaft kolidieren => seil wird kürzer (commit 1163 ???)
 $ wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
   ^ manchmal wird immernoch eine chaotische "schneller fall" animation angezeigt, 
 - Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
@@ -24,20 +25,23 @@ $ wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall
 [- Bohrer/Lötlampe stoßen Würmer nicht weg]
     notdürftig implementiert, muss verbessert werden (mehr impuls, weniger schaden?)
 $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
-- wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt (lösung: z.B. könnte die spiellogik pollen, wann Sequence.weapon_fire_oneshot zurückgesetzt wird)
+- wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt
+  und: feuer animation kann verfrüht durch selektion anderer waffe abgebrochen werden (z.B. axt)
   Beispiel: Baseballschläger
-- feuer animation kann verfrüht durch selektion anderer waffe abgebrochen werden (z.B. axt)
-- axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchron
-- superrope-feueranimation: seil fängt in er mitte des wurmes an => passt nicht zur wurm-graphik;
-  außerdem falsche waffenanimation (haken ist noch in der waffe beim feuern)
-- Konsolen-Katastrophe entfernen (es gibt jetzt 3 Konsolen die alle was anderes machen)
+    ^ nur, wenn die eig. waffe direkt nach dem feuern inaktiv wird... dann kann die feuer-animation später einfach abgebrochen werden
+    ^ auch während der "prepare" animation
+  Ursache: der code in worm.d erzwingt die animation nur, wenn der shooter aktiv ist; beim baseballschläger ist der shooter aber nur einen kurzen bruchteil aktiv, der rest ist nur "graphik" und ist unbeständig
+  ist nur noch ein schuss übrig, wird die waffe nach beendung des shooters abselektiert, und dadurch die verbleibenden animationen abgebrochen
+$ axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchron
+- Konsolen-Katastrophe entfernen (es gibt jetzt 3.. nein 2 Konsolen die alle was anderes machen)
 - log nachrichten sollten durch ein globales widget angezeigt werden; z.zt. werden extra umstände gemacht, damit sie in GameFrame/mChatbox angezeigt werden
 - manche Animationen sind falsch:
-    * shotgun: prepare animation ungenutzt, kein blitz bei 2. schuss
+    $ shotgun: prepare animation ungenutzt, kein blitz bei 2. schuss
     * baseball: für den letzten schlag wird keine fire animation angezeigt
-    * bow: release & prepare animationen ungenutzt
+    $ bow: release & prepare animationen ungenutzt
     * ...
 - während die feuer-animation abgespielt wird, sollte der wurm keine eingabe akzeptieren (z.b. shotgun => kein waffen-winkel verstellen) (abhängig von der waffe; bei anderen waffen ist es vorgesehen, dass z.b. der waffen-winkel während des feuerns geändert werden kann)
+  ebenso wenn die "prepare"-animation abgespielt wird
 - wenn datenverzeichnis nicht gefunden wird, bessere fehlermeldung ausgeben
 - mit dem blowtorch nach unten bohren => irgendeine störung in der wurmrichtung
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
@@ -101,7 +105,7 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 + Partikel, die auf Sprite-Ereignisse reagieren (Kollision, Rutschen, Kontakt mit Wasser etc.)
 - mehrere partikel-emitter an verschiedenen stellen erlauben (am besten in Sequence einbauen), statt ein emitter, der in der mitte des objekts emitiert
 + Partikel-Modifikations-Effekte (Explosion, Schwarzes Loch) in Spiel-Engine integrieren
-+ Feuer-, Nachlade-, Wegsteckanimationen (kann evtl. in worm.d gehackt werden, statt sequence)
+$ Feuer-, Nachlade-, Wegsteckanimationen (kann evtl. in worm.d gehackt werden, statt sequence)
 + Mehr "stub" gpl daten (Fragezeichen ersetzen, z.B. Dummy-Projektile die von der Engine gedreht werden)
 *** gpl daten (vollständig)
 [+ Kamera:
@@ -124,7 +128,6 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 - Napalm verbessern (Ruckeln verhindern, Würmer mehr wegstoßen, vll. etwas "klebriger" machen)
 - Molotov-Cocktail brennt über mehrere Züge
 - Minenverzögerung sollte zufällig sein
-$ Anzahl Projektile über Tasten 1-5 einstellen (Rindviecher)
 
 ! Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)
     - statt versuchen, wcontrol.d von worm.d unabhängig zu machen, lieber den rest des spiels von wcontrol.d unabhängig machen

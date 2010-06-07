@@ -430,7 +430,6 @@ private void loadWormWeaponAnimation(ConfigNode basenode) {
         hold.params[] = [Param.P2, Param.P1, Param.Null];
         hold.param_conv = ["step3", "rot180"];
         hold.appendMirrorY_B();
-        hold.flags = FileAnimationFlags.KeepLastFrame;
     }
 }
 
@@ -572,9 +571,6 @@ private void loadGeneralW(ConfigNode node) {
 
         if (boolFlag("repeat"))
             ani.flags |= FileAnimationFlags.Repeat;
-
-        if (boolFlag("keeplast"))
-            ani.flags |= FileAnimationFlags.KeepLastFrame;
 
         if (boolFlag("backwards_a") | bnk_backwards)
             ani.reverseA();

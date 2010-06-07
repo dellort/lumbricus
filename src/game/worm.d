@@ -93,6 +93,8 @@ class WormSprite : Sprite {
         //"code" for selected weapon, null for weapons which don't support it
         WeaponSelector mWeaponSelector;
         //active weapons
+        //  main: immediately active weapon (includes rope, jetpack)
+        //  sec: secondary; like throwing bombs while hanging on a rope/jetpack
         Shooter mShooterMain, mShooterSec;
 
         Time mStandTime;
@@ -113,6 +115,10 @@ class WormSprite : Sprite {
         //that thing when you e.g. shoot a bazooka to set the fire strength
         bool mCharging;
         Time mChargingStarted;
+
+        float mCachedFireStrength;
+        bool mHadOneShot;
+        bool mIsRefire;
 
         int mWeaponParam;
 
@@ -362,7 +368,7 @@ class WormSprite : Sprite {
 
     override protected void waterStateChange() {
         super.waterStateChange();
-        //do something that involves an object and a lot of water
+        //do something that involves a worm and a lot of water
         if (isUnderWater && !currentState.isUnderWater
             && currentState !is wsc.st_dead)
         {
@@ -373,29 +379,43 @@ class WormSprite : Sprite {
 
     WeaponClass displayedWeapon() {
         WeaponClass curW = actualWeapon();
-        if (currentState is wsc.st_weapon || allowFireSecondary() && curW) {
+        if (currentState is wsc.st_weapon || allowFireSecondary()) {
             return curW;
         }
         return null;
     }
 
+    //return if the animation displays the selected weapon
+    //if no weapon selected, return true
+    bool weaponOK() {
+        if (!displayedWeapon())
+            return true;
+        if (auto wani = weaponAniState()) {
+            return wani.ok();
+        } else {
+            return false;
+        }
+    }
+
     protected override void fillAnimUpdate() {
         super.fillAnimUpdate();
-        graphic.weapon_angle = weaponAngle;
+
         //for jetpack
         graphic.selfForce = physics.selfForce;
 
-        if (auto wp = displayedWeapon()) {
-            char[] w = wp.animation;
-            //right now, an empty string means "no weapon", but we mean
-            //  "unknown weapon" (so a default animation is selected, not none)
-            if (w == "") {
-                w = "-";
+        if (auto wani = weaponAniState()) {
+            if (auto wp = displayedWeapon()) {
+                char[] w = wp.animation;
+                //right now, an empty string means "no weapon", but we mean
+                //  "unknown weapon" (so a default animation is selected, not none)
+                if (w == "") {
+                    w = "-";
+                }
+                wani.weapon = w;
+            } else {
+                wani.weapon = "";
             }
-            graphic.weapon = w;
-            graphic.weapon_firing = firing();
-        } else {
-            graphic.weapon = "";
+            wani.angle = weaponAngle();
         }
 
         //xxx there's probably a better place for this
@@ -522,9 +542,19 @@ class WormSprite : Sprite {
     }
 
     //if worm is firing
+    //doesn't include in-between states of charging and weapon prepare animation
     final bool firing() {
         //xxx: I'm not sure about the secondary shooter
         return !!mShooterMain && !allowAlternate();
+    }
+
+    //get weapon specific interface to animation code - may return null
+    //xxx this is a hack insofar, that it is WWP specific and doesn't use a
+    //  "generic" way of communicating with the animation code; but we need some
+    //  way to reach the functions specialized for weapon display (see rant in
+    //  sequence.d)
+    WwpWeaponDisplay weaponAniState() {
+        return cast(WwpWeaponDisplay)graphic.stateDisplay();
     }
 
     //"careful" common code for unselecting a weapon
@@ -555,6 +585,9 @@ class WormSprite : Sprite {
 
         if (w is oldweapon)
             return;
+
+        //if (firing()) --does nothing???
+          //  return;
 
         weapon_unselect();
 
@@ -595,6 +628,7 @@ class WormSprite : Sprite {
     }
 
     //returns the weapon that would activate/refire when pressing space
+    //xxx wtf, shouldn't this be unified with fire()
     WeaponClass wouldFire(bool refire = false) {
         if (mShooterSec && mShooterSec.activity && refire)
             return mShooterSec.weapon;
@@ -651,7 +685,7 @@ class WormSprite : Sprite {
             if (mShooterMain.weapon.allowSecondary && !selectedOnly)
                 return true;
             if (!keyUp) {
-                return refireWeapon(mShooterMain);
+                return initiateFire(0, true);
             }
             return false;
         }
@@ -665,6 +699,8 @@ class WormSprite : Sprite {
         if (currentState is wsc.st_stand)
             //draw weapon
             setState(wsc.st_weapon);
+        //this would confuse the animation code
+        assert(currentState is wsc.st_weapon);
 
         if (!keyUp) {
             //start firing
@@ -676,8 +712,7 @@ class WormSprite : Sprite {
                 return true;
             } else {
                 //fire instantly with default strength
-                return fireWeapon(mShooterMain,
-                    wp.fireMode.throwStrengthFrom);
+                return initiateFire(wp.fireMode.throwStrengthFrom);
             }
         } else {
             //fire key released, really fire variable-strength weapon
@@ -686,11 +721,78 @@ class WormSprite : Sprite {
             auto strength = currentFireStrength();
             mCharging = false;
             auto fm = wp.fireMode;
-            return fireWeapon(mShooterMain, fm.throwStrengthFrom + strength
+            return initiateFire(fm.throwStrengthFrom + strength
                 * (fm.throwStrengthTo-fm.throwStrengthFrom));
         }
 
         assert(false, "never reached");
+    }
+
+    //prepare firing (for weapon animation)
+    //this will cause the animation code (lolwtf) to eventually call fireStart()
+    private bool initiateFire(float strength, bool is_refire = false) {
+        mCachedFireStrength = strength;
+        mIsRefire = is_refire;
+        auto ani = weaponAniState();
+        if (ani) {
+            //normal case
+            ani.fire(&fireStart, &firedFirstRound);
+        } else {
+            //normally shouldn't happen, except if animation is wrong
+            fireStart();
+        }
+        //xxx assume always success (it's simply impossible to get the return
+        //  value of fireWeapon here; it's defered to fireStart())
+        return true;
+    }
+
+    //called by the animation code when actual firing should be started (after
+    //  prepare animation [e.g. shotgun reload] has been played)
+    private void fireStart() {
+        //sanity tests
+        if (currentState !is wsc.st_weapon)
+            return;
+        if (mCachedFireStrength != mCachedFireStrength)
+            return;
+        //actually fire
+        mHadOneShot = false;
+        bool res;
+        if (!mIsRefire) {
+            res = fireWeapon(mShooterMain, mCachedFireStrength);
+        } else {
+            res = refireWeapon(mShooterMain);
+        }
+        mCachedFireStrength = float.nan;
+        mIsRefire = false;
+        //when does this happen at all?
+        if (!res)
+            log.warn("Couldn't fire weapon!");
+    }
+
+    //called by animation code after at least one loop of fire ani was played
+    //fire animations are often repeated and last as long as the weapon is
+    //  active; but for weapons that go inactive immediately, you want to play
+    //  the fire animation at least once, and that's what this code is for
+    private void firedFirstRound() {
+        if (auto wani = weaponAniState()) {
+            if (mShooterMain) {
+                mHadOneShot = true;
+            } else {
+                wani.stopFire(&fireDone);
+            }
+        }
+    }
+
+    //called by the animation code if all firing animations have finished
+    //(should be back in normal state)
+    private void fireDone() {
+        if (auto wani = weaponAniState()) {
+            //the animation dictates whether the weapon is deselcted after
+            //  firing - this is because the graphics were hardcoded in this way
+            if (!wani.weaponSelected()) {
+                weapon = null;
+            }
+        }
     }
 
     //alternate fire refires the active main weapon if it can't be refired
@@ -804,14 +906,6 @@ class WormSprite : Sprite {
         if (wcontrol)
             wcontrol.firedWeapon(shTmp, false);
 
-        //update animation, so that fire animation is displayed
-        //should only be done if this is the mShooterMain (this is a guess)
-        //xxx: this check is a bit dirty, but...
-        if (&sh is &mShooterMain && graphic) {
-            //even if the weapon isn't "one shot", this should be fine
-            graphic.weapon_fire_oneshot = true;
-        }
-
         return true;
     }
 
@@ -861,6 +955,12 @@ class WormSprite : Sprite {
         //shooter is done, so check if we need to switch animation
         //---setCurrentAnimation();
         //---updateCrosshair();
+
+        //see firedFirstRound()
+        if (auto wani = weaponAniState()) {
+            if (mHadOneShot)
+                wani.stopFire(&fireDone);
+        }
 
         update_actual_weapon(oldweapon);
     }
@@ -1428,12 +1528,15 @@ class RenderCrosshair : SceneObject {
         }
         +/
 
+        //for weapon angle
+        auto wani = cast(WwpWeaponDisplay)mAttach.stateDisplay();
+
         Sequence infos = mAttach;
         //xxx make this restriction go away?
         assert(!!infos,"Can only attach a target cross to worm sprites");
         auto pos = mAttach.interpolated_position; //toVector2i(infos.position);
         auto angle = fullAngleFromSideAngle(infos.rotation_angle,
-            infos.weapon_angle);
+            wani ? wani.angle : PI/2);
         //normalized weapon direction
         auto dir = Vector2f.fromPolar(1.0f, angle);
 

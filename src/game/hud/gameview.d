@@ -244,8 +244,11 @@ private class ViewMember : SceneObject {
         //  damn clusterfuck, and I use this hack to make it look right
         auto worm = cast(WormSprite)sprite;
         WeaponClass wicon;
-        if (worm)
+        bool weaponOK;
+        if (worm) {
             wicon = worm.displayedWeapon();
+            weaponOK = worm.weaponOK();
+        }
 
 /+
         //show a weapon icon when the worm graphic wants to show a weapon,
@@ -257,7 +260,7 @@ private class ViewMember : SceneObject {
             && graphic.weapon.length && !graphic.weapon_ok
             && member.control.currentWeapon;
 +/
-        bool weapon_icon_visible = wicon && !graphic.weapon_ok;
+        bool weapon_icon_visible = wicon && !weaponOK;
 
         if (weapon_icon_visible) {
             //NOTE: wwp animates the appearance/disappearance of

@@ -63,8 +63,8 @@ class LuaShooter : Shooter {
         return myclass.onRefire(this);
     }
 
-    override void readjust(Vector2f dir) {
-        super.readjust(dir);
+    override void doReadjust(Vector2f dir) {
+        super.doReadjust(dir);
         if (myclass.onReadjust) {
             myclass.onReadjust(this, dir);
         }

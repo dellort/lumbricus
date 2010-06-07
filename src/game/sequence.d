@@ -211,24 +211,6 @@ final class Sequence : SceneObject {
     //just used to display jetpack exhaust flames
     Vector2f selfForce;
 
-    //xxx: move the following stuff into extra objects
-    //  e.g. the user should be able to add a weapon to a Sequence by adding a
-    //  WeaponPart. this WeaponPart would contain variables and methods specific
-    //  to weapons. Same for text; a TextPart would add text to a Sequence.
-
-    char[] weapon;
-    float weapon_angle; //always 0 .. PI
-    bool weapon_firing;
-    //many weapons don't have a time duration while they're "firing"
-    //this variable is reset to false by the Sequence animation code
-    //to wait until animation end, worm.d could wait until this is false
-    bool weapon_fire_oneshot;
-
-    //feedback from weapon display to game logic, if weapon can be properly
-    //  displayed (if not, the HUD renders a weapon icon near the worm)
-    bool weapon_ok;
-
-
     //and this is a hack... but I guess it's good enough for now
     FormattedText attachText;
 
@@ -345,6 +327,10 @@ final class Sequence : SceneObject {
         mQueuedState = null;
         mCurrentState = state;
         updateDisplay();
+    }
+
+    StateDisplay stateDisplay() {
+        return mDisplay;
     }
 
     //set mDisplay to an object that can show newstate, and .init() it
@@ -816,66 +802,184 @@ class EnterLeaveState : SequenceState {
     }
 }
 
-/+
-//this is attached to a sequence and means, the sequence should render a weapon
-class WeaponPart {
-    private {
-        float mWeaponAngle;
-        //graphics independent weapon ID used to select the animation
-        //it the same as WeaponClass.animation
-        char[] mWeaponID;
-        //angle value, that's animated to change to mWeaponAngle
-        float mAnimatedAngle;
-    }
 
-    //reset to start position, start playing get-weapon animation
-    void init() {
-    }
+//xxx uninteresting rant follows
+    //somehow, worm.d needs to set weapon parameters, query the weapon animation
+    //  state, etc....
+    //here are ways how you could implement this
+    //- put them directly into Sequence
+    //- some sort of WeaponPart object, that gets added to Sequence, and that
+    //  carries the parameters
+    //- add it directly into the AniStateDisplay descendant (WwpWeaponDisplay)
+    //- like above, but use an interface instead of the direct class
+    //- like above, but use an abstract class derived from AniStateDisplay that
+    //  defines the API, and derive WwpWeaponDisplay from it (best if you want
+    //  to implement a new type of weapon animations)
+    //- actually implement everything as a Sequence subclass, instead of using
+    //  AniStateDisplay indirection (no clue why I didn't do this in the first
+    //  place, maybe because of state transitions or something)
+    //- some better idea you have and which you should add here
+    //I picked the simplest one that doesn't clutter up Sequence and keeps out
+    //  the special cases
+    //generally, the Sequence design doesn't make much sense, but I blame WWP's
+    //  way of putting worm and weapon animation into the same image
+    //obvious design errors:
+    //- every weapon could need different animation code, but that isn't
+    //  possible with Sequence; we don't need this right now, because the WWP
+    //  are uniform, and don't allow the addition of new weapons (you'd need
+    //  their source graphics)
+    //- too specific to worms weapons and Sprite is forced to use Sequence
+    //- just a single state string, instead of multiple properties that somehow
+    //  define behaviour in a declarativ way (including transition animations);
+    //  obviously you have to implement much by yourself in D code, like in
+    //  WwpWeaponDisplay
+    //- animation code should be composeable: e.g. if you have code for idle-
+    //  animations, it should be useable by any "state"; actually any animation
+    //  should be customizable to have additional functionality such as idle
+    //  animations, without having to write additional code for it
+    //- animation -> game logic (Sequence -> WormSprite) feedback is extremely
+    //  awkward, you get the feeling putting it all into WormSprite would be
+    //  much simpler
+    //- ...
+//rant end (writing comments is simpler than fixing stuff)
 
-    void setWeapon(char[] id) {
-        mWeaponID = id;
-    }
-
-    void setAngle(float angle) {
-        mWeaponAngle = angle;
-        mAnimatedAngle = angle;
-    }
-
-    //can/could be used by weapon code to get the actual angle
-    //xxx: should return point and direction where projectile gets fired
-    float getAnimatedAngle() {
-        return mAnimatedAngle;
-    }
-}
-+/
-
-//compilation fix for LDC - move back into WwpWeaponState as soon as it's fixed
-struct WwpWeaponState_Weapon {
-    //only "fire" and "hold" can be null
-    Animation get, hold, fire, unget;
-}
 
 //this handles the normal "stand" state as well as armed worms (stand+weaoon)
 //xxx the idle animation code is duplicated in EnterLeaveState/Display; I found
 //  the code too messy to factor them out; if you ever rewrite the weapon
 //  animation code, think of it
 class WwpWeaponDisplay : AniStateDisplay {
-    WwpWeaponState myclass;
-    char[] mCurrentW;
-    WwpWeaponState_Weapon mCurrentAni;
-    Time mNextIdle; //just an offset
-    int mWeaponDir; //1: get, 0: nothing, -1: unget
+    //Phase.Normal has two animations, one normal and one for sick worms
+    //Phase.FireEnd has two possible transitions; which is chosen depends
+    //  whether the Sequence config provides a "release" or "fire_end"
+    //  animation; if "release" is provided (auto-release weapon such as
+    //  baseball bat), it uses the FireEndRot one
+    private enum Phase {
+        Normal,     //no weapon held
+        Idle,       //no weapon held, but idle animation displayed
+        Get,        //transition None->Hold
+        GetRot,     //rotate weapon angle from resting angle -> actual angle
+        Hold,       //weapon ready
+        UngetRot,   //same as GetRot, but reversed direction
+        Unget,      //transition Hold->None
+        Prepare,    //transition Hold->Fire (prepare for firing)
+        Fire,       //during firing
+        FireEndRot, //transition Fire->FireEnd (similar to UngetRot)
+        FireEnd,    //transition Fire->Hold or FireEndRot->None
+    }
+
+    alias void delegate() DG;
+
+    private {
+        WwpWeaponState myclass;
+        //invariant: mCurrent is null/non-null synchronous to mPhase
+        //  it is null for Phase.Normal, Phase.Idle
+        WwpWeaponState.Weapon mCurrent;
+        Time mNextIdle; //just an offset
+        float mAngle = 0.0f; //always 0 .. PI
+        Phase mPhase = Phase.Normal;
+        Time mRotStart;
+        //temporary, from game logic
+        DG mOnFireReady, mOnFireFirstRoundDone, mOnFireAllDone;
+    }
 
     const cLowHpTreshold = 30f;   //different (ill-looking) animation below
 
     this (Sequence a_owner) { super(a_owner); }
 
+    //-------- public API
+
+    //always 0 .. PI
+    void angle(float a) {
+        mAngle = clampRangeC!(typeof(a))(a, 0, math.PI);
+    }
+    float angle() {
+        return mAngle;
+    }
+
+    private WwpWeaponState.Weapon findWeapon(char[] name) {
+        if (name.length == 0)
+            return null;
+        if (auto p = name in myclass.weapons)
+            return *p;
+        return myclass.weapon_unknown;
+    }
+
+    //empty string means no weapon selected
+    void weapon(char[] weapon) {
+        auto w = findWeapon(weapon);
+        if (mCurrent is w) {
+            //reset the weapon state if needed (at the very least stop
+            //  "ungetting" animations that will clear the weapon)
+            if (w && ungetting()) {
+                //not perfect, just resets
+                mPhase = Phase.Hold;
+                setAnimation(mCurrent.hold);
+            }
+            return;
+        }
+
+        if (!w) {
+            //unarm (start rotate-back)
+            unget();
+        } else {
+            //get armed
+            mCurrent = w;
+            mPhase = Phase.Get;
+            setAnimation(mCurrent.get);
+        }
+    }
+
+    //if a weapon is displayed as selected (used for auto-release animations)
+    bool weaponSelected() {
+        return !!mCurrent;
+    }
+
+    //weapon animation can be displayed as requested
+    bool ok() {
+        return mCurrent !is myclass.weapon_unknown;
+    }
+
+    //start firing animation (starting with prepare, then go to firing)
+    //onFireReady = called as soon as the prepare animation is done
+    //onFireFirstRoundDone = fire animation played at least once
+    void fire(DG onFireReady, DG onFireFirstRoundDone) {
+        if (!mCurrent)
+            return;
+        mOnFireReady = onFireReady;
+        mOnFireFirstRoundDone = onFireFirstRoundDone;
+        mPhase = Phase.Prepare;
+        setAnimation(mCurrent.prepare);
+    }
+
+    //if fire animation is running, stop it and play the cleanup animations
+    //onFireAllDone = called after fire_end has been played
+    void stopFire(DG onFireAllDone) {
+        if (!mCurrent)
+            return;
+        if (mPhase != Phase.Fire)
+            return;
+        mOnFireAllDone = onFireAllDone;
+        if (!mCurrent.fire_end_releases) {
+            mPhase = Phase.FireEnd;
+            setAnimation(mCurrent.fire_end);
+        } else {
+            //special case for auto-release weapons
+            //they have this as in-between state, and it is assumed that the
+            //  fire animation doesn't repeat (so it doesn't look stupid when
+            //  the animation is unrotated)
+            mPhase = Phase.FireEndRot;
+            mRotStart = now();
+        }
+    }
+
+    //-------- end public API
+
     override void init(SequenceState state) {
         myclass = castStrict!(WwpWeaponState)(state);
-        mCurrentW = "";
-        mCurrentAni = mCurrentAni.init;
+        mPhase = Phase.Normal;
+        mCurrent = null;
         mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
-        mWeaponDir = 0;
         super.init(state);
         setNormalAnim();
     }
@@ -885,88 +989,93 @@ class WwpWeaponDisplay : AniStateDisplay {
     }
 
     private void setNormalAnim() {
-        setAnimation(hasLowHp ? myclass.lowhp : myclass.normal);
+        mPhase = Phase.Normal;
+        mCurrent = null;
+        auto ani = hasLowHp ? myclass.lowhp : myclass.normal;
+        //don't reset the ani if it's already set
+        if (ani !is animation)
+            setAnimation(ani);
     }
+
+    //deselect weapon (only does something if weapon is selected in any way)
+    private void unget() {
+        //rotate weapon back, then unget
+        if (mCurrent && !ungetting()) {
+            mPhase = Phase.UngetRot;
+            mRotStart = now();
+        }
+    }
+
+    private bool ungetting() {
+        return mPhase == Phase.Unget || mPhase == Phase.UngetRot;
+    }
+
 
     override void simulate() {
         assert(!!myclass);
 
-        if (!mCurrentW.length) {
-            //xxx: always ack the one shot thing because buggy game logic
-            owner.weapon_fire_oneshot = false;
-        }
-
-        //change weapon
-        if (mCurrentW != owner.weapon) {
-            if (!owner.weapon.length) {
-                //unarm (start rotate-back)
-                if (mWeaponDir != -1) {
-                    mWeaponDir = -1;
-                    //animation_start is abused as start time; need correct time
-                    setAnimation(animation);
-                }
-            } else {
-                //get armed
-                mCurrentW = owner.weapon;
-                auto w = mCurrentW in myclass.weapons;
-                owner.weapon_ok = !!w;
-                mCurrentAni = w ? *w : myclass.weapon_unknown;
-                setAnimation(mCurrentAni.get);
-                mWeaponDir = 0;
-                owner.weapon_fire_oneshot = false;
-            }
-        }
-
         if (hasFinished()) {
-            if (animation is mCurrentAni.get) {
-                if (mCurrentAni.hold) {
-                    setAnimation(mCurrentAni.hold);
-                    mWeaponDir = 1;
-                }
-            }
-            if (animation is mCurrentAni.fire && !owner.weapon_firing) {
-                //stop firing after one-shot animation
-                owner.weapon_fire_oneshot = false;
-                setAnimation(mCurrentAni.hold);
-            }
-            //require "normal" animation and correct one not already set
-            if ((!(hasLowHp && animation is myclass.lowhp)
-                || (!hasLowHp && animation is myclass.normal))
-                && !mCurrentW.length) {
-                //end of idle animation or weapon-unget => set to normal again
+            if (mPhase == Phase.Get) {
+                mPhase = Phase.GetRot;
+                setAnimation(mCurrent.hold);
+                mRotStart = now();
+            } else if (mPhase == Phase.Unget) {
                 setNormalAnim();
+            } else if (mPhase == Phase.Idle) {
+                setNormalAnim();
+            } else if (mPhase == Phase.Prepare) {
+                mPhase = Phase.Fire;
+                setAnimation(mCurrent.fire);
+                auto tmp = mOnFireReady;
+                if (tmp) {
+                    mOnFireReady = null;
+                    tmp();
+                }
+            } else if (mPhase == Phase.Fire) {
+                //notify for one-shot weapons (weapon has virtually no execution
+                //  time => game logic uses animation to introduce delays)
+                auto tmp = mOnFireFirstRoundDone;
+                if (tmp) {
+                    mOnFireFirstRoundDone = null;
+                    tmp();
+                }
+            } else if (mPhase == Phase.FireEnd) {
+                if (mCurrent.fire_end_releases) {
+                    //that's right, the fire_end animation has to include the
+                    //  unget animation
+                    setNormalAnim();
+                } else {
+                    mPhase = Phase.Hold;
+                    setAnimation(mCurrent.hold);
+                }
+                if (auto tmp = mOnFireAllDone) {
+                    mOnFireAllDone = null;
+                    tmp();
+                }
             }
         }
 
         //set idle animations
-        if (animation is myclass.normal && myclass.idle_animations.length) {
+        if (mPhase == Phase.Normal && myclass.idle_animations.length) {
             if (animation_start + mNextIdle <= now()) {
                 mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
                 Animation[] arr = myclass.idle_animations;
                 setAnimation(arr[owner.engine.rnd.next(arr.length)]);
+                mPhase = Phase.Idle;
             }
         }
 
-        //set firing animation
-        if (mCurrentAni.fire) {
-            bool dofire = owner.weapon_firing | owner.weapon_fire_oneshot;
-            if (dofire && animation is mCurrentAni.hold) {
-                setAnimation(mCurrentAni.fire);
-            } else if (!dofire && animation is mCurrentAni.fire) {
-                //for immediate animation stop (don't wait for animation end)
-                setAnimation(mCurrentAni.hold);
-            }
-        }
+        float wangle = mAngle;
 
-        float wangle = owner.weapon_angle;
+        bool rot_get = mPhase == Phase.GetRot;
+        bool rot_unget = mPhase == Phase.UngetRot;
+        bool rot_fireunget = mPhase == Phase.FireEndRot;
 
-        bool before_unget = mWeaponDir < 0;
-
-        if (mWeaponDir) {
-            //animate weapon angle after get animation or before unget
-            auto timediff = now() - animation_start;
+        //animate weapon angle after get animation or before unget
+        if (mCurrent && (rot_get || rot_unget || rot_fireunget)) {
+            auto timediff = now() - mRotStart;
             float a1 = 0, a2 = wangle;
-            if (mWeaponDir < 0)
+            if (!rot_get)
                 swap(a1, a2);
             auto anglediff = angleDistance(a1, a2);
             float dist;
@@ -982,7 +1091,17 @@ class WwpWeaponDisplay : AniStateDisplay {
             if (dist >= anglediff) {
                 wangle = a2;
                 //finished
-                mWeaponDir = 0;
+                if (rot_get) {
+                    mPhase = Phase.Hold;
+                } else if (rot_unget) {
+                    mPhase = Phase.Unget;
+                    setAnimation(mCurrent.unget);
+                } else if (rot_fireunget) {
+                    mPhase = Phase.FireEnd;
+                    setAnimation(mCurrent.fire_end);
+                } else {
+                    assert(false);
+                }
             } else {
                 //xxx a2-a1 is wrong for angles, because angles are modulo 2*PI
                 // for the current use (worm-weapon), this works by luck
@@ -990,48 +1109,42 @@ class WwpWeaponDisplay : AniStateDisplay {
             }
         }
 
-        if (before_unget && !mWeaponDir) {
-            //rotate-back has ended, start unget + reset
-            setAnimation(mCurrentAni.unget);
-            mCurrentAni = mCurrentAni.init;
-            mCurrentW = "";
-            //hm...?
-            owner.weapon_ok = false;
-        }
-
         std_anim_params();
         ani_params.p2 = cast(int)(wangle/math.PI*180);
     }
 
     override void leave() {
-        //xxx: think about weapons that auto-unarm after firing
-        //rotate weapon back, then unget
-        if (mCurrentW.length && !!mWeaponDir) {
-            if (animation !is mCurrentAni.unget)
-                mWeaponDir = -1;
-        }
+        unget();
     }
 
     override bool isDone() {
-        return super.isDone() && !mWeaponDir;
+        return super.isDone() && !ungetting();
     }
 
     override void cleanup() {
         super.cleanup();
-        owner.weapon_ok = false;
-        //is this ok?
-        owner.weapon_fire_oneshot = false;
+        mPhase = Phase.Normal;
+        mCurrent = null;
     }
 }
 
 class WwpWeaponState : SequenceState {
     Animation normal, lowhp; //stand state, normal and "not feeling well"
     //indexed by the name, which is referred to by WeaponClass.animation
-    WwpWeaponState_Weapon[char[]] weapons;
-    WwpWeaponState_Weapon weapon_unknown;
+    Weapon[char[]] weapons;
+    Weapon weapon_unknown;
     //idle animations (xxx: maybe should moved into a more generic class?)
     RandomValue!(Time) idle_wait;
     Animation[] idle_animations;
+
+    class Weapon {
+        char[] name;    //of the weapon
+        //all of these are never null (may be 1-frame dummy animations, though)
+        Animation get, hold, unget, prepare, fire, fire_end;
+        //fire_end leads to weapon release, and the deselection animation is
+        //  included in fire_end (e.g. baseball)
+        bool fire_end_releases;
+    }
 
     this(SequenceType a_owner, ConfigNode node) {
         super(a_owner, node);
@@ -1044,16 +1157,27 @@ class WwpWeaponState : SequenceState {
             if (!str.endsWith(value, "+"))
                 loadcheck(false, "weapon entry doesn't end with '+': {}",value);
             value = value[0..$-1];
-            WwpWeaponState_Weapon w;
+            auto w = new Weapon();
+            w.name = key;
+            //xxx: this could be optional, there's code to handle that
+            //  I guess I just wanted to require at least one valid animation?
             w.get = loadanim(value ~ "get");
-            w.unget = w.get.reversed;
-            //optional
+            //optional, will create derived replacement animations
             w.hold = loadanim(value ~ "hold", true);
+            w.unget = loadanim(value ~ "unget", true);
             w.fire = loadanim(value ~ "fire", true);
-            auto unget = loadanim(value ~ "unget", true);
-            if (unget)
-                w.unget = unget;
-            //w.fire_end = loadanim(node, value ~ "fire_end", true);
+            //really optional
+            w.prepare = loadanim(value ~ "prepare", true);
+            auto fire_end = loadanim(value ~ "fire_end", true);
+            auto release = loadanim(value ~ "release", true);
+            loadcheck(!(fire_end && release), "can have only either fire_end or"
+                " release animation for weapon entry: {}", value);
+            if (release) {
+                w.fire_end = release;
+                w.fire_end_releases = true;
+            } else {
+                w.fire_end = fire_end;
+            }
             weapons[key] = w;
         }
 
@@ -1062,17 +1186,34 @@ class WwpWeaponState : SequenceState {
         loadcheck(!!(cUnknown in weapons), "no "~cUnknown~" field.");
         weapon_unknown = weapons[cUnknown];
 
+        //NOTE: using these animations may lead to 1-frame delays, which usually
+        //  shouldn't matter because they're invisible; and they simplify the
+        //  animation state machine code a lot
+        //such a 1-frame animation has a length of 0 seconds, but typically, the
+        //  animation code will check hasFinished() only in the following frame
+        //often, multiple 1-frame delays are introduced (but still small
+        //  enough), and hold -> fire_end can be up to 4 chained 1-frame anis
+        Animation lastframe(Animation a) {
+            //gross hack? I call it elegant!
+            return new SubAnimation(a, a.frameCount() - 1);
+        }
+
         loadcheck(!!weapon_unknown.get, "need get animation for {}", cUnknown);
         //fix up other weapons that don't have some animations
         foreach (ref w; weapons) {
             if (!w.get)
                 w.get = weapon_unknown.get;
             //no hold animation -> show last frame of get animation
-            //and to get such an animation, I'm doing some gross hack
-            if (!w.hold) {
-                auto fc = w.get.frameCount();
-                w.hold = new SubAnimation(w.get, fc-1, fc);
-            }
+            if (!w.hold)
+                w.hold = lastframe(w.get);
+            if (!w.unget)
+                w.unget = w.get.reversed;
+            if (!w.prepare)
+                w.prepare = lastframe(w.hold);
+            if (!w.fire)
+                w.fire = lastframe(w.prepare);
+            if (!w.fire_end)
+                w.fire_end = lastframe(w.fire);
         }
 
         idle_wait = node.getValue!(typeof(idle_wait))("idle_wait");

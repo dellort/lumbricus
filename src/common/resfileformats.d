@@ -69,7 +69,6 @@ const char[][] cFileAnimationParamTypeStr = [
 enum FileAnimationFlags {
     //see common.animation.AnimationData
     Repeat = 1,
-    KeepLastFrame = 2,
 }
 
 struct FileAnimation {

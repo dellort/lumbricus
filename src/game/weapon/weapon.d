@@ -5,11 +5,10 @@ import game.events;
 import game.core;
 import game.sprite;
 import game.weapon.types;
+import utils.log;
 import utils.misc;
-import utils.vector2;
 import utils.time;
-
-alias void delegate(Shooter sh) ShooterCallback;
+import utils.vector2;
 
 //a crate is being blown up, and the crate contains this weapon
 //  Sprite = the sprite for the crate
@@ -77,7 +76,8 @@ abstract class WeaponClass : EventTarget {
 
 //some weapons need to do stuff while they're selected (girder construction)
 //this really should be in Shooter, but Shooter is only created right before
-//  the weapon is fired, and much code relies on this; too messy to change
+//  the weapon is fired, and much code relies on this; too messy to change (most
+//  of the mess is in worm.d/wcontrol.d)
 //note that this is not created by a "double factory"; you can use the passed
 //  WeaponClass to store data
 //as far as I see, a worm never can select two weapons at the same time
@@ -126,7 +126,7 @@ abstract class WeaponSelector {
 
 //for Shooter.fire(FireInfo)
 struct FireInfo {
-    Vector2f dir = Vector2f.nan; //normalized throw direction
+    Vector2f dir = Vector2f(-1, 0); //normalized throw direction -- was nan
     Vector2f surfNormal = Vector2f(-1, 0);   //impact surface normal
     float strength = 1.0f; //as allowed in the weapon config
     int param;     //selected param, in the range dictated by the weapon
@@ -172,6 +172,8 @@ Shooter gameObjectFindShooter(GameObject o) {
 //practically a factory for projectiles *g* (mostly, but not necessarily)
 //projectiles can work completely independend from this class
 abstract class Shooter : GameObject {
+    private LogStruct!("shooter") log;
+
     protected WeaponClass mClass;
     Sprite owner;
     private bool mWorking;   //only for finishCb event
@@ -180,8 +182,8 @@ abstract class Shooter : GameObject {
     //valid at first doFire call, updated on readjust
     FireInfo fireinfo;
 
+    void delegate(Shooter sh) finishCb;
     //shooters should call this to reduce owner's ammo by 1
-    ShooterCallback finishCb;
     bool delegate(Shooter sh) ammoCb;
     //if non-null, what was created by WeaponClass.createSelector()
     //this is set right after the constructor has been run
@@ -205,6 +207,7 @@ abstract class Shooter : GameObject {
     final void finished() {
         if (!mWorking)
             return;
+        log.trace("finished");
         mWorking = false;
         internal_active = false;
         if (finishCb)
@@ -227,6 +230,7 @@ abstract class Shooter : GameObject {
             if (!selector.canFire(info))
                 return false;
         }
+        log.trace("fire");
         mWorking = true;
         doFire(info);
         return true;
@@ -243,6 +247,7 @@ abstract class Shooter : GameObject {
     abstract protected void doFire(FireInfo info);
 
     protected bool doRefire() {
+        log.trace("default refire");
         return false;
     }
 
@@ -253,8 +258,15 @@ abstract class Shooter : GameObject {
     }
 
     //often the worm can change shooting direction while the weapon still fires
-    void readjust(Vector2f dir) {
+    final void readjust(Vector2f dir) {
+        if (dir != fireinfo.dir) {
+            doReadjust(dir);
+        }
+    }
+
+    protected void doReadjust(Vector2f dir) {
         fireinfo.dir = dir;
+        log.trace("readjust {}", dir);
     }
 
     //if this returns false, the direction cannot be changed
@@ -276,6 +288,11 @@ abstract class Shooter : GameObject {
     bool isFiring() {
         //default implementation: link with activity
         return activity;
+    }
+
+    override void updateInternalActive() {
+        super.updateInternalActive();
+        log.trace("internal_active={}", internal_active);
     }
 
     override char[] toString() {

@@ -203,20 +203,28 @@ class Rope : Shooter {
         mAnchorAngle = toAnchor.toAngle();
     }
 
+    Vector2f ropeOrigin(Vector2f wormPos) {
+        //xxx: the correct way is to make Sequence provide weapon "joint" points
+        //  (they could be even animation specific; actually we could use that
+        //  in this specific case)
+        return wormPos + mShootDir * mWorm.physics.posp.radius;
+    }
+
     override void simulate() {
         super.simulate();
+        Vector2f pstart = ropeOrigin(mWorm.physics.pos);
         if (mShooting) {
             float t = (engine.gameTime.current - mShootStart).secsf;
-            auto p2 = mWorm.physics.pos + mShootDir*myclass.shootSpeed*t;
+            auto p2 = pstart + mShootDir*myclass.shootSpeed*t;
             updateAnchorAnim(p2, mShootDir);
-            float len = (mWorm.physics.pos-p2).length;
+            float len = (pstart-p2).length;
             if (len > myclass.maxLength) {
                 interruptFiring();
                 return;
             }
 
             Vector2f hit1, hit2;
-            if (engine.physicWorld.thickRay(mWorm.physics.pos, p2,
+            if (engine.physicWorld.thickRay(pstart, p2,
                 cSegmentRadius, hit1, hit2))
             {
                 abortShoot();
@@ -226,7 +234,7 @@ class Rope : Shooter {
                         reduceAmmo();
                     ropeSegments.length = 1;
                     ropeSegments[0].start = hit1;
-                    ropeSegments[0].end = mWorm.physics.pos;
+                    ropeSegments[0].end = pstart;
                     //not using len here because the rope might have overshot
                     auto ropeLen = (ropeSegments[0].end
                         - ropeSegments[0].start).length;
@@ -252,9 +260,7 @@ class Rope : Shooter {
             return;
         }
 
-        Vector2f wormPos = mWorm.physics.pos;
-
-        ropeSegments[$-1].end = wormPos;
+        ropeSegments[$-1].end = pstart;
 
         //check movement of the attached object
         //for now checks all the time (not only when moved)
@@ -265,13 +271,13 @@ class Rope : Shooter {
             //   the rope moves away from the connection point
             if (ropeSegments.length >= 2) {
                 auto old = ropeSegments[$-2];
-                if (old.canRemove(wormPos)) {
+                if (old.canRemove(pstart)) {
                     log("remove segment");
                     //remove it
                     //segmentDead(ropeSegments[$-1]);
                     ropeSegments.length = ropeSegments.length - 1;
-                    ropeSegments[$-1].end = wormPos;
-                    mRope.length = (wormPos - old.start).length;
+                    ropeSegments[$-1].end = pstart;
+                    mRope.length = (pstart - old.start).length;
                     //NOTE: .hit is invalid for the last segment
                     //try more
                     continue outer_loop;
@@ -283,22 +289,22 @@ class Rope : Shooter {
             //I think to make it 100% correct you had to pick the best match
             //of all of the possible collisions, but it isn't worth it
             Vector2f hit1, hit2;
-            if (engine.physicWorld.thickRay(ropeSegments[$-1].start, wormPos,
-                cSegmentRadius, hit1, hit2) && (wormPos-hit1).quad_length > 150)
+            if (engine.physicWorld.thickRay(ropeSegments[$-1].start, pstart,
+                cSegmentRadius, hit1, hit2) && (pstart-hit1).quad_length > 150)
             {
                 if (hit1 != hit2)
-                    log("seg: h1 {}, h2 {}, worm {}", hit1, hit2, wormPos);
+                    log("seg: h1 {}, h2 {}, worm {}", hit1, hit2, pstart);
                 else
-                    log("seg: h1 {}, worm {}",hit1, wormPos);
+                    log("seg: h1 {}, worm {}",hit1, pstart);
                 //collided => new segment to attach the rope to the
                 //  connection point
                 //xxx: small hack to make it more robust
                 if (ropeSegments.length > 500)
                     break;
                 auto st = ropeSegments[$-1].start;
-                //no odd angles (lastHit - hit - wormPos should be close
+                //no odd angles (lastHit - hit - pstart should be close
                 //  to a straight line)
-                float a = (st-hit1)*(wormPos-hit1);
+                float a = (st-hit1)*(pstart-hit1);
                 if (a > -0.8)
                     break;
                 if (ropeSegments.length < 2 ||
@@ -308,11 +314,11 @@ class Rope : Shooter {
                     //segmentInit(ropeSegments[$-1]);
                 }
                 ropeSegments[$-2].hit =
-                    !!signbit((st-hit1)*(hit1-wormPos).orthogonal);
+                    !!signbit((st-hit1)*(hit1-pstart).orthogonal);
                 ropeSegments[$-2].end = hit1;
                 ropeSegments[$-1].start = hit1;
-                ropeSegments[$-1].end = wormPos;
-                auto len = (wormPos - hit1).length;
+                ropeSegments[$-1].end = pstart;
+                auto len = (pstart - hit1).length;
                 mRope.length = len;
                 //.hit is invalid
                 //try for more collisions or whatever
@@ -325,7 +331,7 @@ class Rope : Shooter {
 
         mRope.anchor = ropeSegments[$-1].start;
 
-        auto swingdir = -(mRope.anchor - mWorm.physics.pos).normal.orthogonal;
+        auto swingdir = -(mRope.anchor - pstart).normal.orthogonal;
         //worm swinging (left/right keys)
         if ((ropeSegments[$-1].end - ropeSegments[$-1].start).y < 0)
             mWorm.physics.selfForce = mMoveVec.X*myclass.swingForceUp;
@@ -365,7 +371,8 @@ class Rope : Shooter {
     }
 
     private void draw(Canvas c) {
-        Vector2f wormPos = toVector2f(mWorm.graphic.interpolated_position);
+        Vector2f wormPos = ropeOrigin(
+            toVector2f(mWorm.graphic.interpolated_position));
         Vector2f anchorPos = mAnchorPosition;
         if (mShooting) {
             //interpolate anchor

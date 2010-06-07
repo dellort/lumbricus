@@ -41,7 +41,6 @@ abstract class Animation {
     }
 
     //read-only lol
-    bool keepLastFrame;//when animation over, the last frame is displayed
     bool repeat = true;//animation is repeated (starting again after last frame)
 
     abstract void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
@@ -72,7 +71,6 @@ abstract class Animation {
     //copy all animation attributes (except frame count) from other
     protected void copyAttributes(Animation other) {
         repeat = other.repeat;
-        keepLastFrame = other.keepLastFrame;
         mBounds = other.mBounds;
         mFrameTimeMS = other.mFrameTimeMS;
         postInit();
@@ -132,11 +130,6 @@ abstract class Animation {
         assert(ft <= mLengthMS);
         if (ft == mLengthMS) {
             assert(!repeat);
-            /+if (keepLastFrame) {
-                return mFrameCount - 1;
-            } else {
-                return -1;
-            }+/
             //always show last frame - gets rid of animation transition "gaps"
             //if you really want the animation to disappear after done, add an
             //  empty frame to the animation (using animconv), or just stop
@@ -153,7 +146,6 @@ abstract class Animation {
     }
 
     bool finished(Time t) {
-        //if (repeat || keepLastFrame)
         //if (repeat)
         //    return false;
         return t.msecs >= mLengthMS;
@@ -178,8 +170,6 @@ class ReversedAnimation : Animation {
         mBase = base;
         copyAttributes(mBase);
         doInit(mBase.frameCount, mBase.bounds, mBase.frameTimeMS());
-        //keepLastFrame makes no sense here (last frame becomes the first)
-        keepLastFrame = false;
     }
 
     void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p, Time t) {
@@ -199,14 +189,27 @@ class SubAnimation : Animation {
         Time mFrameStart;
     }
 
+    //subrange (frame_end is exclusive)
     this(Animation base, int frame_start, int frame_end) {
         mBase = base;
-        assert(frame_start >= 0);
-        assert(frame_end <= mBase.frameCount);
-        assert(frame_start < frame_end); //also must be at least 1 frame
+        argcheck(frame_start >= 0);
+        argcheck(frame_end <= mBase.frameCount);
+        argcheck(frame_start < frame_end); //also must be at least 1 frame
         copyAttributes(mBase);
         doInit(frame_end - frame_start, mBase.bounds, mBase.frameTimeMS());
         mFrameStart = frame_start * frameTime();
+    }
+
+    //fixed display of one frame of the base animation
+    //the difference to this(base, frame, frame+1) is, that the framerate is 0
+    //the animation literally will be finished before it has started
+    this(Animation base, int frame) {
+        mBase = base;
+        argcheck(frame >= 0);
+        argcheck(frame < mBase.frameCount);
+        copyAttributes(mBase);
+        doInit(1, mBase.bounds, 0);
+        mFrameStart = frame * mBase.frameTime();
     }
 
     override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
@@ -237,7 +240,6 @@ abstract class AnimationSimple : Animation {
         //mFrames and mCenterOffset are loaded by subclasses
         //load generic parameters here (not related to the frame storage method)
         repeat = node.getBoolValue("repeat", repeat);
-        keepLastFrame = node.getBoolValue("keep_last_frame", keepLastFrame);
         mFrameTimeMS = node.getIntValue("frametime", 0);
         mRotateHack = node.getValue!(bool)("rotate_hack", false);
         mRotateHack2 = node.getValue!(bool)("rotate_hack2", false);
@@ -413,7 +415,6 @@ class ComplicatedAnimation : Animation {
         doInit(framelen, bb, frameTimeMS);
 
         repeat = !!(mFrames.flags & FileAnimationFlags.Repeat);
-        keepLastFrame = !!(mFrames.flags & FileAnimationFlags.KeepLastFrame);
     }
 
     override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,

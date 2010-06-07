@@ -401,7 +401,6 @@ class AnimationHandler : ResViewHandler!(Animation) {
 
         auto infos = new Label();
         infos.text = "Flags: "
-            ~ (resource.keepLastFrame ? "keepLastFrame, " : "")
             ~ (resource.repeat ? "repeat, " : " ")
             ~ myformat("frametime: {} ", resource.frameTime)
             ~ myformat("duration: {}", resource.duration);
