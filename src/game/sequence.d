@@ -943,22 +943,25 @@ class WwpWeaponDisplay : AniStateDisplay {
     //start firing animation (starting with prepare, then go to firing)
     //onFireReady = called as soon as the prepare animation is done
     //onFireFirstRoundDone = fire animation played at least once
-    void fire(DG onFireReady, DG onFireFirstRoundDone) {
+    //returns success
+    bool fire(DG onFireReady, DG onFireFirstRoundDone) {
         if (!mCurrent)
-            return;
+            return false;
         mOnFireReady = onFireReady;
         mOnFireFirstRoundDone = onFireFirstRoundDone;
         mPhase = Phase.Prepare;
         setAnimation(mCurrent.prepare);
+        return true;
     }
 
     //if fire animation is running, stop it and play the cleanup animations
     //onFireAllDone = called after fire_end has been played
-    void stopFire(DG onFireAllDone) {
+    //returns success
+    bool stopFire(DG onFireAllDone) {
         if (!mCurrent)
-            return;
+            return false;
         if (mPhase != Phase.Fire)
-            return;
+            return false;
         mOnFireAllDone = onFireAllDone;
         if (!mCurrent.fire_end_releases) {
             mPhase = Phase.FireEnd;
@@ -971,6 +974,7 @@ class WwpWeaponDisplay : AniStateDisplay {
             mPhase = Phase.FireEndRot;
             mRotStart = now();
         }
+        return true;
     }
 
     //-------- end public API

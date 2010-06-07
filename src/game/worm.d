@@ -685,7 +685,8 @@ class WormSprite : Sprite {
             if (mShooterMain.weapon.allowSecondary && !selectedOnly)
                 return true;
             if (!keyUp) {
-                return initiateFire(0, true);
+                //return initiateFire(0, true);
+                return refireWeapon(mShooterMain);
             }
             return false;
         }
@@ -734,11 +735,14 @@ class WormSprite : Sprite {
         mCachedFireStrength = strength;
         mIsRefire = is_refire;
         auto ani = weaponAniState();
+        bool ok = false;
         if (ani) {
             //normal case
-            ani.fire(&fireStart, &firedFirstRound);
-        } else {
+            ok = ani.fire(&fireStart, &firedFirstRound);
+        }
+        if (!ok) {
             //normally shouldn't happen, except if animation is wrong
+            //also happens if the worm is in rope/jetpack state, and refires
             fireStart();
         }
         //xxx assume always success (it's simply impossible to get the return
