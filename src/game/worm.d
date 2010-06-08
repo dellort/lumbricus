@@ -159,7 +159,7 @@ class WormSprite : Sprite {
     }
 
     override bool activity() {
-        return super.activity() || mCharging
+        return super.activity() || mCharging || isPreparingFire()
             || currentState == wsc.st_jump_start
             || currentState == wsc.st_beaming
             || currentState == wsc.st_reverse_beaming
@@ -554,6 +554,8 @@ class WormSprite : Sprite {
     //  way to reach the functions specialized for weapon display (see rant in
     //  sequence.d)
     WwpWeaponDisplay weaponAniState() {
+        if (!graphic)
+            return null;
         return cast(WwpWeaponDisplay)graphic.stateDisplay();
     }
 
@@ -765,11 +767,14 @@ class WormSprite : Sprite {
         if (!mIsRefire) {
             res = fireWeapon(mShooterMain, mCachedFireStrength);
         } else {
+            if (!mShooterMain)
+                return;
             res = refireWeapon(mShooterMain);
         }
         mCachedFireStrength = float.nan;
         mIsRefire = false;
         //when does this happen at all?
+        //this should never happen; instead it should be prevented by fire()
         if (!res)
             log.warn("Couldn't fire weapon!");
     }
@@ -798,6 +803,15 @@ class WormSprite : Sprite {
                 weapon = null;
             }
         }
+    }
+
+    //preparing animation is running
+    //doesn't include mCharging
+    bool isPreparingFire() {
+        if (auto wani = weaponAniState()) {
+            return wani.preparingFire();
+        }
+        return false;
     }
 
     //alternate fire refires the active main weapon if it can't be refired
@@ -988,7 +1002,7 @@ class WormSprite : Sprite {
                 mCrosshair.removeThis();
                 mCrosshair = null;
             } else {
-                mCrosshair = new RenderCrosshair(engine, graphic);
+                mCrosshair = new RenderCrosshair(engine, graphic, &weaponAngle);
                 engine.scene.add(mCrosshair);
             }
         }
@@ -1468,6 +1482,7 @@ class RenderCrosshair : SceneObject {
         InterpolateState mIP;
         ParticleType mSfx;
         ParticleEmitter mEmit;
+        float delegate() mWeaponAngle;
 
         struct InterpolateState {
             bool did_init;
@@ -1475,10 +1490,11 @@ class RenderCrosshair : SceneObject {
         }
     }
 
-    this(GameCore a_engine, Sequence a_attach) {
+    this(GameCore a_engine, Sequence a_attach, float delegate() weaponAngle) {
         mEngine = a_engine;
         mGfx = mEngine.singleton!(GfxSet)();
         mAttach = a_attach;
+        mWeaponAngle = weaponAngle;
         mSfx = mEngine.resources.get!(ParticleType)("p_rocketcharge");
         zorder = GameZOrder.Crosshair;
         init_ip();
@@ -1533,15 +1549,12 @@ class RenderCrosshair : SceneObject {
         }
         +/
 
-        //for weapon angle
-        auto wani = cast(WwpWeaponDisplay)mAttach.stateDisplay();
-
         Sequence infos = mAttach;
         //xxx make this restriction go away?
         assert(!!infos,"Can only attach a target cross to worm sprites");
         auto pos = mAttach.interpolated_position; //toVector2i(infos.position);
         auto angle = fullAngleFromSideAngle(infos.rotation_angle,
-            wani ? wani.angle : PI/2);
+            mWeaponAngle ? mWeaponAngle() : PI/2);
         //normalized weapon direction
         auto dir = Vector2f.fromPolar(1.0f, angle);
 

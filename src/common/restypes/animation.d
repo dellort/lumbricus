@@ -47,8 +47,6 @@ abstract class Animation {
         Time t);
 
     private void postInit() {
-        if (mFrameTimeMS == 0)
-            mFrameTimeMS = cDefFrameTimeMS;
         mLengthMS = mFrameTimeMS * mFrameCount;
     }
 
@@ -57,6 +55,9 @@ abstract class Animation {
         int aframeTimeMS = cDefFrameTimeMS)
     {
         assert(!mDidInit);
+
+        //0 as frame time is indeed valid (makes only sense with framecount=1)
+        argcheck(aframeTimeMS >= 0);
 
         mFrameCount = aframeCount;
         mBounds = abounds;
@@ -240,7 +241,7 @@ abstract class AnimationSimple : Animation {
         //mFrames and mCenterOffset are loaded by subclasses
         //load generic parameters here (not related to the frame storage method)
         repeat = node.getBoolValue("repeat", repeat);
-        mFrameTimeMS = node.getIntValue("frametime", 0);
+        mFrameTimeMS = node.getIntValue("frametime", cDefFrameTimeMS);
         mRotateHack = node.getValue!(bool)("rotate_hack", false);
         mRotateHack2 = node.getValue!(bool)("rotate_hack2", false);
         mMirrorYHack = node.getValue!(bool)("mirror_y_hack", false);
@@ -386,7 +387,7 @@ class ComplicatedAnimation : Animation {
 
     this(ConfigNode node, AniFrames frames) {
         int index = node.getIntValue("index", -1);
-        int frameTimeMS = node.getIntValue("frametime", 0);
+        int frameTimeMS = node.getIntValue("frametime", cDefFrameTimeMS);
         mFrames = frames.frames(index);
         Rect2i bb = mFrames.box; // = mFrames.boundingBox();
 

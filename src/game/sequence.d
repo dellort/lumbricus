@@ -889,9 +889,9 @@ class WwpWeaponDisplay : AniStateDisplay {
 
     //-------- public API
 
-    //always 0 .. PI
+    //always -PI/2 .. PI/2
     void angle(float a) {
-        mAngle = clampRangeC!(typeof(a))(a, 0, math.PI);
+        mAngle = clampRangeC!(typeof(a))(a, -math.PI/2, math.PI/2);
     }
     float angle() {
         return mAngle;
@@ -940,6 +940,12 @@ class WwpWeaponDisplay : AniStateDisplay {
         return mCurrent !is myclass.weapon_unknown;
     }
 
+    //if fire() was called, and the passed dgs yet have to be called
+    //worm.d uses this to poll stuff
+    bool preparingFire() {
+        return mPhase == Phase.Prepare;
+    }
+
     //start firing animation (starting with prepare, then go to firing)
     //onFireReady = called as soon as the prepare animation is done
     //onFireFirstRoundDone = fire animation played at least once
@@ -951,6 +957,7 @@ class WwpWeaponDisplay : AniStateDisplay {
         mOnFireFirstRoundDone = onFireFirstRoundDone;
         mPhase = Phase.Prepare;
         setAnimation(mCurrent.prepare);
+        advance();
         return true;
     }
 
@@ -974,6 +981,7 @@ class WwpWeaponDisplay : AniStateDisplay {
             mPhase = Phase.FireEndRot;
             mRotStart = now();
         }
+        advance();
         return true;
     }
 
@@ -1015,59 +1023,76 @@ class WwpWeaponDisplay : AniStateDisplay {
     }
 
 
-    override void simulate() {
+    private void advance() {
         assert(!!myclass);
-
-        if (hasFinished()) {
-            if (mPhase == Phase.Get) {
-                mPhase = Phase.GetRot;
-                setAnimation(mCurrent.hold);
-                mRotStart = now();
-            } else if (mPhase == Phase.Unget) {
-                setNormalAnim();
-            } else if (mPhase == Phase.Idle) {
-                setNormalAnim();
-            } else if (mPhase == Phase.Prepare) {
-                mPhase = Phase.Fire;
-                setAnimation(mCurrent.fire);
-                auto tmp = mOnFireReady;
-                if (tmp) {
-                    mOnFireReady = null;
-                    tmp();
-                }
-            } else if (mPhase == Phase.Fire) {
-                //notify for one-shot weapons (weapon has virtually no execution
-                //  time => game logic uses animation to introduce delays)
-                auto tmp = mOnFireFirstRoundDone;
-                if (tmp) {
-                    mOnFireFirstRoundDone = null;
-                    tmp();
-                }
-            } else if (mPhase == Phase.FireEnd) {
-                if (mCurrent.fire_end_releases) {
-                    //that's right, the fire_end animation has to include the
-                    //  unget animation
-                    setNormalAnim();
-                } else {
-                    mPhase = Phase.Hold;
-                    setAnimation(mCurrent.hold);
-                }
-                if (auto tmp = mOnFireAllDone) {
-                    mOnFireAllDone = null;
-                    tmp();
-                }
-            }
+        //execute doFrame() until there are (probably) no more state changes
+        //this is to avoid 1-frame delays, mostly caused by animation with no
+        //  length (time duration = 0ms)
+        for (;;) {
+            Animation ani = animation;
+            Phase ph = mPhase;
+            doFrame();
+            if (ani is animation && ph is mPhase)
+                break;
         }
+    }
 
-        //set idle animations
-        if (mPhase == Phase.Normal && myclass.idle_animations.length) {
-            if (animation_start + mNextIdle <= now()) {
+    private void doFrame() {
+        if (!hasFinished())
+            return;
+
+        if (mPhase == Phase.Get) {
+            mPhase = Phase.GetRot;
+            setAnimation(mCurrent.hold);
+            mRotStart = now();
+        } else if (mPhase == Phase.Unget) {
+            setNormalAnim();
+        } else if (mPhase == Phase.Idle) {
+            setNormalAnim();
+        } else if (mPhase == Phase.Prepare) {
+            mPhase = Phase.Fire;
+            setAnimation(mCurrent.fire);
+            auto tmp = mOnFireReady;
+            if (tmp) {
+                mOnFireReady = null;
+                tmp();
+            }
+        } else if (mPhase == Phase.Fire) {
+            //notify for one-shot weapons (weapon has virtually no execution
+            //  time => game logic uses animation to introduce delays)
+            auto tmp = mOnFireFirstRoundDone;
+            if (tmp) {
+                mOnFireFirstRoundDone = null;
+                tmp();
+            }
+        } else if (mPhase == Phase.FireEnd) {
+            if (mCurrent.fire_end_releases) {
+                //that's right, the fire_end animation has to include the
+                //  unget animation
+                setNormalAnim();
+            } else {
+                mPhase = Phase.Hold;
+                setAnimation(mCurrent.hold);
+            }
+            if (auto tmp = mOnFireAllDone) {
+                mOnFireAllDone = null;
+                tmp();
+            }
+        } else if (mPhase == Phase.Normal) {
+            //set idle animations
+            if (myclass.idle_animations.length
+                && animation_start + mNextIdle <= now())
+            {
                 mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
                 Animation[] arr = myclass.idle_animations;
                 setAnimation(arr[owner.engine.rnd.next(arr.length)]);
                 mPhase = Phase.Idle;
             }
         }
+    }
+
+    override void simulate() {
+        advance();
 
         float wangle = mAngle;
 

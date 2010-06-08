@@ -321,7 +321,8 @@ mainspr {
             }
             {
                 _params = "p2/rot90,p1/step3,time"
-                worm_bow_prepare = "f:400; 562"
+                //this looks strange (bow angle changes), unused
+                //worm_bow_prepare = "f:200; 562"
                 worm_bow_fire = "f:150; 565"
             }
             {
@@ -395,7 +396,7 @@ mainspr {
                 worm_relieved = "+repeat; 197"
                 worm_sad = "+repeat; 188"
 
-                worm_airstrike_fire = "425"
+                worm_airstrike_prepare = "425"
                 worm_usebeamer = "431"
             }
             {
@@ -544,6 +545,7 @@ water_anims {
 }
 //for layer.spr
 water_waves {
+    frametime_def = "50"
     general {
         _flags = "+use_bnk_flags,+repeat"
         water_waves = "0"
