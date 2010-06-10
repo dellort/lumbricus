@@ -343,7 +343,7 @@ private class HandlerTar : HandlerInstance {
 
     this(char[] archivePath) {
         auto archFile = new ConduitStream(castStrict!(Conduit)(
-            new File(archivePath, File.ReadExisting)));
+            new File(archivePath, File.ReadShared)));
         mTarFile = new TarArchive(archFile, true);
     }
 
@@ -787,7 +787,7 @@ class FileSystem {
     ///  relFilename = path to the file, relative to VFS root
     ///  mode = how the file should be opened
     //need to make caller parameter public
-    public Stream open(VFSPath filename, File.Style mode = File.ReadExisting,
+    public Stream open(VFSPath filename, File.Style mode = File.ReadShared,
         HandlerInstance caller = null)
     {
         log("Trying to open '{}'",filename);
@@ -810,7 +810,7 @@ class FileSystem {
         throw new FilesystemException("File not found: " ~ filename.toString);
     }
 
-    public Stream open(char[] filename, File.Style mode = File.ReadExisting)
+    public Stream open(char[] filename, File.Style mode = File.ReadShared)
     {
         return open(VFSPath(filename), mode, null);
     }

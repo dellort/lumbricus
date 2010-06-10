@@ -296,7 +296,7 @@ abstract class Stream {
 
     //meh
     static ConduitStream OpenFile(char[] path,
-        File.Style mode = File.ReadExisting)
+        File.Style mode = File.ReadShared)
     {
         return new ConduitStream(castStrict!(Conduit)(new File(path, mode)));
     }

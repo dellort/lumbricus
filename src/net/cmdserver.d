@@ -82,7 +82,7 @@ class CmdNetServer {
             cFrameLength);
 
         //create and open server
-        log("Server listening on port {}", mPort);
+        log.notice("Server listening on port {}", mPort);
         mBase = new NetBase();
         mHost = mBase.createServer(mPort, mMaxPlayers+1);
         mHost.onConnect = &onConnect;
@@ -152,6 +152,7 @@ class CmdNetServer {
 
     //disconnect, free memory
     void shutdown() {
+        log.notice("Server shutting down");
         foreach (cl; mClients) {
             cl.close("server shutdown", DiscReason.serverShutdown);
         }
@@ -875,18 +876,56 @@ class CmdNetClientConnection {
 version (CmdServerMain):
 
 import xout = tango.io.Stdout;
+import tango.core.Thread;
 
 import common.init;
 import framework.filesystem;
 
+//when this gets true, server will shutdown
+bool gTerminate = false;
+
+version(Windows) {
+    import tango.sys.win32.UserGdi : SetConsoleTitleA, SetConsoleCtrlHandler;
+    import tango.stdc.stringz : toStringz;
+
+    extern(Windows) int CtrlHandler(uint dwCtrlType) {
+        gTerminate = true;
+        //make Windows not kill us immediately
+        return 1;
+    }
+
+    void setupConsole(char[] title) {
+        //looks nicer
+        SetConsoleTitleA(toStringz(title));
+        //handle Ctrl-C for graceful termination
+        SetConsoleCtrlHandler(&CtrlHandler, 1);
+    }
+} else {
+    import tango.stdc.signal;
+
+    extern(C) void sighandler(int sig) {
+        gTerminate = true;
+    }
+
+    void setupConsole(char[] title) {
+        //xxx not sure if this works, I'm too lazy to boot into linux now
+        xout.Stdout.formatln("\033]0;{}\007", title);
+        signal(SIGABRT, &sighandler);
+        signal(SIGINT, &sighandler);
+        signal(SIGTERM, &sighandler);
+    }
+}
+
 void main(char[][] args) {
     try {
+        setupConsole("Lumbricus Server");
         init(args[1..$]);
         auto server = new CmdNetServer(loadConfigDef("server"));
-        while (true) {
+        scope(exit) server.shutdown();
+        while (!gTerminate) {
             server.frame();
+            Thread.yield();
         }
-        server.shutdown();
     } catch (ExitApp e) {
     }
     xout.Stdout.formatln("bye.");

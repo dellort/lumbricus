@@ -47,16 +47,13 @@ $ axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchro
   Schaden reduziert werden die Löcher zu klein)
   Genauso: Minigun macht zuviel Schaden (bis 350 für die volle Ladung)
 - Waffenbugs von r1164 (grmbl):
-  $ Wurm-Waffenanimation + Fadenkreuz kann nicht nach unten zielen (Feuerwinkel ist aber korrekt)
   $ Bazooka etc. am Zugende (Zeit 0) wird zwar aufgezogen aber nicht abgefeuert
     ^ nur gepatcht, hätte die bazooka eine "prepare" animation, würde es immernoch nicht funktionieren
   - Beamen am Zugende wird abgebrochen
   - J zum Jetpack aktivieren muss zweimal gedrückt werden, wenn man vorher eine andere Waffe auswählt
-  $ Seltsame Verzögerung (2 frames oder so) vom Leertaste drücken bis zum Abfeuern
-  $ Ziemlich lange Verzögerung + komische "bisschen-nach-unten-ziel"-animation beim Langbogen-feuern
-  $ Laser auswählen und auf Leertaste rumhämmern -> Assertion failed worm.d 918
   - Einige Waffen werden unnötigerweise nach dem Feuern sofort weggesteckt (z.B. Bogen, Seil)
     ^ ich dachte, das ist so per design; wie soll es sonst funktionieren?
+    ^ bei wwp wird erst die wegsteckanimation und dann wieder die ziehanimation gespielt (waffe bleibt ausgewählt), z.B. Bogen
   $ blowtorch: falsches zielkreuz während des bohrens
 
 == bekannte, unlösbare Bugs ==
@@ -76,8 +73,6 @@ $ axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchro
   (bin mit meinen amateurhaften versuchen soweit gescheitert)
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
-- netzwerk server braucht 100% CPU => nicht nett auf moderner hardware
-  (aber dann wieder ist der netzwerk-modus müll)
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)
 - in broadcast.d: SocketSet allokiert speicher, der der GC überlassen wird (entweder bug report für Tango um eine free() methode hinzuzufügen, oder: blockierender thread?)
 

@@ -133,20 +133,25 @@ void init(char[][] args) {
         gLogInit.minor("opening logfile: {}", logpath);
         const File.Style WriteCreateShared =
             {File.Access.Write, File.Open.Create, File.Share.Read};
-        auto logf = gFS.open(logpath, WriteCreateShared);
-        //Closure just for converting write(ubyte[]) to sink(char[])...
-        struct Closure {
-            stream.PipeOut writer;
-            void sink(char[] s) {
-                writer.write(cast(ubyte[])s);
+        try {
+            auto logf = gFS.open(logpath, WriteCreateShared);
+            //Closure just for converting write(ubyte[]) to sink(char[])...
+            struct Closure {
+                stream.PipeOut writer;
+                void sink(char[] s) {
+                    writer.write(cast(ubyte[])s);
+                }
             }
+            auto c = new Closure;
+            c.writer = (new ThreadedWriter(logf)).pipeOut();
+            //write buffered log
+            c.sink(gLogFileTmp);
+            gLogFileSink = &c.sink;
+        } catch (IOException e) {
+            gLogInit.error("Failed to open logfile: {}", e.msg);
+            gLogFileSink = null;
         }
-        auto c = new Closure;
-        c.writer = (new ThreadedWriter(logf)).pipeOut();
-        //write buffered log
-        c.sink(gLogFileTmp);
         gLogFileTmp = null;
-        gLogFileSink = &c.sink;
     } else {
         gLogFileSink = null;
         gLogFileTmp = null;

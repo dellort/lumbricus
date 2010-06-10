@@ -103,7 +103,7 @@ class CmdNetServerTask {
                     mServer.announceInternet = mInternet;
                 }
                 mServer.frame();
-                mServerThread.yield();
+                Thread.yield();
             }
             mServer.shutdown();
             mServer = null;
