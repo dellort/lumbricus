@@ -24,7 +24,7 @@ class SampleResource : ResourceItem {
                 //music is streamed
                 type = SoundType.music;
             }
-            sample = gSoundManager.createSample(path, SoundType.sfx);
+            sample = gSoundManager.createSample(path, type);
         } catch (CustomException e) {
             loadError(e);
             //try to load some default
