@@ -3,8 +3,9 @@ module common.restypes.sound;
 import common.resources;
 import framework.framework;
 import framework.sound;
-import utils.stream;
 import utils.configfile;
+import utils.misc;
+import utils.stream;
 
 class SampleResource : ResourceItem {
     this(ResourceFile context, char[] id, ConfigNode item) {
@@ -13,15 +14,25 @@ class SampleResource : ResourceItem {
 
     protected void load() {
         char[] path = mContext.fixPath(mConfig.value);
-        //xxx lol etc.
-        if (mConfig.parent.name == "samples") {
-            auto sample = gSoundManager.createSample(path, SoundType.sfx);
-            sample.preload();
-            mContents = sample;
-        } else {
-            //music is streamed
-            mContents = gSoundManager.createSample(path, SoundType.music, true);
+        Sample sample;
+        try {
+            //xxx lol etc.
+            SoundType type;
+            if (mConfig.parent.name == "samples") {
+                type = SoundType.sfx;
+            } else {
+                //music is streamed
+                type = SoundType.music;
+            }
+            sample = gSoundManager.createSample(path, SoundType.sfx);
+        } catch (CustomException e) {
+            loadError(e);
+            //try to load some default
+            sample = gSoundManager.createSample("empty.wav", SoundType.sfx);
         }
+        assert(!!sample);
+        sample.preload();
+        mContents = sample;
     }
 
     static this() {

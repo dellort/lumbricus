@@ -22,7 +22,6 @@ import utils.misc;
 import tango.io.Stdout;
 
 version = Game;
-version = LogExceptions;  //set to write exceptions into logfile, too
 
 //drivers etc.
 import framework.stuff;
@@ -47,9 +46,6 @@ import game.bomberworm; //?
 import common.resview; //debugging
 import common.localeswitch;
 
-
-//Also see parseCmdLine() for how parsing works.
-
 void lmain(char[][] args) {
     init(args[1..$]);
 
@@ -65,35 +61,8 @@ void lmain(char[][] args) {
 
     toplevel.gTopLevel.deinitialize();
     fw.deinitialize();
-
-    Stdout.formatln("Bye!");
 }
 
 int main(char[][] args) {
-    version(LogExceptions) {
-        //catch all exceptions, write them to logfile and console and exit
-        try {
-            lmain(args);
-        } catch (ExitApp e) {
-        } catch (Exception e) {
-            if (gLogFileSink) {
-                //logfile output
-                e.writeOut((char[] s) {
-                    gLogFileSink(s);
-                });
-            }
-            //console output
-            e.writeOut((char[] s) {
-                Trace.format("{}", s);
-            });
-            return 1;
-        }
-    } else {
-        //using default exception handler (outputs to console)
-        try {
-            lmain(args);
-        } catch (ExitApp e) {
-        }
-    }
-    return 0;
+    return wrapMain(args, &lmain);
 }

@@ -1,5 +1,7 @@
 module common.init;
 
+version = LogExceptions;  //set to write exceptions into logfile, too
+
 import framework.config;
 import framework.filesystem;
 import framework.globalsettings;
@@ -27,7 +29,7 @@ const char[] APP_ID = "lumbricus";
 private LogStruct!("init") gLogInit;
 
 //catched in main function
-class ExitApp : Exception {
+private class ExitApp : Exception {
     this() { super(""); }
 }
 
@@ -36,6 +38,36 @@ class ExitApp : Exception {
 //think about nasty stuff like flushing files
 void exit() {
     throw new ExitApp();
+}
+
+//handle exception logging (windows users haet stdout/stderr) and ExitApp
+//use it like:  int main(char[][] args) { return wrapMain(args, &realmain); }
+int wrapMain(char[][] args, void function(char[][]) realmain) {
+    try {
+        realmain(args);
+    } catch (ExitApp e) {
+    } catch (Exception e) {
+        version(LogExceptions) {
+            //catch all exceptions, write them to logfile/console and exit
+            if (gLogFileSink) {
+                //logfile output
+                e.writeOut((char[] s) {
+                    gLogFileSink(s);
+                });
+            }
+            //console output
+            e.writeOut((char[] s) {
+                Trace.format("{}", s);
+            });
+            return 1;
+        } else {
+            //leave it to the D runtime
+            throw e;
+        }
+    }
+    //"proof" that application exited gracefully
+    debug Stdout.formatln("Bye!");
+    return 0;
 }
 
 private void readLogConf() {
@@ -99,7 +131,8 @@ private void logToConsoleAndFile(LogEntry e) {
 
 ///args = arguments to main(), minus the first argument
 ///this does GUI unrelated initializations, and the caller (lumbricus.d) does
-/// GUI initialization after this (reasons for this separation are unknown)
+///GUI initialization after this, because you don't want to pull in all of the
+/// GUI for server.d
 void init(char[][] args) {
     gLogFileSink = toDelegate(&logToFileTmp); //buffer log until file is opened
     gLogBackendFile.sink = toDelegate(&logToConsoleAndFile);

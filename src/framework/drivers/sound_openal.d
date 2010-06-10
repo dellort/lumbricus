@@ -55,7 +55,8 @@ class ALChannel : DriverChannel {
 
         mSound.initPlay(source, startAt);
         alSourcePlay(source);
-        assert (oalState() == AL_PLAYING);
+        //this fails if sample has length 0
+        //--assert (oalState() == AL_PLAYING);
     }
 
     void stop(bool unreserve) {
@@ -179,7 +180,6 @@ class ALSound : DriverSound {
 
     this(ALSoundDriver drv, DriverSoundData data) {
         mDriver = drv;
-        mDriver.mSounds ~= this;
 
         //open the stream and create a sample
         mStream = gFS.open(data.filename);
@@ -234,6 +234,9 @@ class ALSound : DriverSound {
             ms_len += (bufSize % bps) * 1000 / bps;
             mLength = timeMsecs(ms_len);
         }
+
+        //only do this when initialization was successful
+        mDriver.mSounds ~= this;
     }
 
     private ALenum convertSDLFormat(ubyte channels, ushort format) {
@@ -416,6 +419,8 @@ class ALSoundDriver : SoundDriver {
         assert(!gBase);
         gBase = this;
 
+        gLog.minor("loading OpenAL");
+
         DerelictAL.load();
 
         //xxx could use some better error handling
@@ -478,7 +483,7 @@ class ALSoundDriver : SoundDriver {
     }
 
     void destroy() {
-        gLog("unloading OpenAL");
+        gLog.minor("unloading OpenAL");
         //caller must make sure all stuff has been unloaded
         assert(mSounds.length == 0);
         foreach (c; mChannels) {
@@ -494,7 +499,7 @@ class ALSoundDriver : SoundDriver {
         alcCloseDevice(mALDevice);
 
         DerelictAL.unload();
-        gLog("unloaded OpenAL");
+        gLog.minor("unloaded OpenAL");
     }
 
     static this() {

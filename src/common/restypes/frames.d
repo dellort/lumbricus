@@ -14,6 +14,20 @@ import utils.vector2;
 
 import utils.stream;
 
+//overview over the indirection crap:
+//- a ComplicatedAnimation uses one item of AniFramesAtlas
+//- an AniFramesAtlas is a list of Frames (each describes an animation), and
+//  references an Atlas (list of bitmaps)
+//- each Frames describes how an animation and its parameters map to the Atlas
+//- the reason is that we thought putting all animations into a single Atlas
+//  would be more efficient, because space is better used and you can batch-
+//  load the animation graphics at once (each Atlas page is big => less
+//  overhead due to loading small files)
+//- also, OpenGL is more efficient if you use large texture pages
+//- at least that was the theory
+//- actually, if you'd care about efficiency, you'd have to pack atlas/texture
+//  pages according to use (it's most important to minimize GL texture changes)
+
 ///one animation, contained in an AniFrames instance
 //xxx better name?
 abstract class Frames {
@@ -50,18 +64,17 @@ abstract class Frames {
 
 ///just a container for a bunch of animations
 abstract class AniFrames {
-    protected {
-        Frames[] mAnimations;
-    }
+    ///get the frames of an animation (return null on out-of-bounds)
+    abstract Frames frames(int anim_index);
+    abstract int count();
+}
 
-    ///get the frames of an animation
-    final Frames frames(int anim_index) {
-        return mAnimations[anim_index];
+class ErrorAniFrames : AniFrames {
+    Frames frames(int anim_index) {
+        return null;
     }
-
-    ///the number of animations contained
-    final int count() {
-        return mAnimations.length;
+    override int count() {
+        return 0;
     }
 }
 
@@ -71,6 +84,8 @@ abstract class AniFrames {
 //one instance of this class per binary files, supporting multiple animations
 class AniFramesAtlas : AniFrames {
     private {
+        Frames[] mAnimations;
+
         class AtlasFrames : Frames {
             //rectangular array, with the dimensions as in params[].count
             FileAnimationFrame[] frames;
@@ -79,6 +94,10 @@ class AniFramesAtlas : AniFrames {
                 int idx = getFrameIdx(p1, p2, p3);
                 FileAnimationFrame* frame = &frames[idx];
                 auto image = mImages.texture(frame.bitmapIndex);
+
+                //error
+                if (!image)
+                    return;
 
                 BitmapEffect eff;
                 eff.mirrorY = !!(frame.drawEffects & FileDrawEffects.MirrorY);
@@ -92,9 +111,11 @@ class AniFramesAtlas : AniFrames {
                 Rect2i bnds = Rect2i.Abnormal();
                 foreach (inout frame; frames) {
                     auto image = mImages.texture(frame.bitmapIndex);
-                    auto origin = Vector2i(frame.centerX, frame.centerY);
-                    bnds.extend(origin);
-                    bnds.extend(origin + image.size);
+                    if (image) {
+                        auto origin = Vector2i(frame.centerX, frame.centerY);
+                        bnds.extend(origin);
+                        bnds.extend(origin + image.size);
+                    }
                 }
                 return bnds;
             }
@@ -106,8 +127,6 @@ class AniFramesAtlas : AniFrames {
     //the AniFramesAtlasResource references an atlas and a binary data file
     //the data file contains indices which must directly match the atlas data
     this(Atlas images, Stream data) {
-        debug gResources.ls_start("aniframes: parse");
-        debug scope(exit) debug gResources.ls_stop("aniframes: parse");
         mImages = images;
         //xxx: I know I shouldn't use the structs directly from the stream,
         //  because the endianess etc. might be different on various platforms
@@ -137,6 +156,17 @@ class AniFramesAtlas : AniFrames {
             mAnimations ~= anim;
         }
     }
+
+    override Frames frames(int anim_index) {
+        if (indexValid(mAnimations, anim_index))
+            return mAnimations[anim_index];
+        else
+            return null;
+    }
+
+    override int count() {
+        return mAnimations.length;
+    }
 }
 
 class AniFramesAtlasResource : ResourceItem {
@@ -145,13 +175,16 @@ class AniFramesAtlasResource : ResourceItem {
     }
 
     protected void load() {
-        auto node = mConfig;
-        auto atlas = castStrict!(Atlas)(mContext.find(node["atlas"]).get());
-        debug gResources.ls_start("aniframes: open");
-        auto file = gFS.open(mContext.fixPath(node["datafile"]));
-        scope(exit) file.close();
-        debug gResources.ls_stop("aniframes: open");
-        mContents = new AniFramesAtlas(atlas, file);
+        try {
+            auto node = mConfig;
+            auto atlas = castStrict!(Atlas)(mContext.find(node["atlas"]).get());
+            auto file = gFS.open(mContext.fixPath(node["datafile"]));
+            scope(exit) file.close();
+            mContents = new AniFramesAtlas(atlas, file);
+        } catch (CustomException e) {
+            loadError(e);
+            mContents = new ErrorAniFrames();
+        }
     }
 
     static this() {

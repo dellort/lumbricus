@@ -1,7 +1,15 @@
 module framework.sound;
 
-import framework.framework, framework.globalsettings, utils.factory, utils.time,
-    utils.vector2, utils.weaklist, utils.stream, utils.misc, utils.list2;
+import framework.framework;
+import framework.globalsettings;
+import utils.factory;
+import utils.list2;;
+import utils.log;
+import utils.stream;
+import utils.misc;
+import utils.time;
+import utils.vector2;
+
 
 //sound type is only used for mixing (e.g. sfx may be louder than music)
 //  (esp. this should not influence streaming behaviour)
@@ -206,9 +214,18 @@ class Sample : FrameworkResourceT!(DriverSound) {
 
     ///type: only for setting type-specific volume; you can use any value
     this(char[] filename, SoundType type, bool streamed = false) {
+        //note that the file is only actually loaded by the driver, and may fail
+        //  there; Source.play() will catch the CustomException thrown by load
+        //  failure in this case, and display the user an error message
+        gFS.mustExist(filename);
+
         mSource.filename = filename;
         mSource.streamed = streamed;
         mType = type;
+    }
+
+    char[] name() {
+        return mSource.filename;
     }
 
     override DriverSound createDriverResource() {
@@ -337,7 +354,7 @@ class Source {
     ///plays from position start, fading in over fadeinTime
     ///possibly cancels currently playing Sample
     void play(Time start = Time.Null, Time fadeinTime = Time.Null) {
-        assert(!!mSample);
+        argcheck(mSample);
         auto dc = createDC(false);
         //first try to resume playback if Source was paused
         if (dc && dc.state == PlaybackState.paused) {
@@ -361,8 +378,15 @@ class Source {
             }
             dc.looping = mLooping;
 
-            dc.play(mSample.get(), start);
-            mState = PlaybackState.playing;
+            try {
+                dc.play(mSample.get(), start);
+                mState = PlaybackState.playing;
+            //may get FilesystemException or FrameworkException if the file was
+            //  not found/couldn't be opened
+            } catch (CustomException e) {
+                gLog.error("couldn't play sound {}", mSample.name);
+                mState = PlaybackState.stopped;
+            }
         }
     }
 
@@ -510,13 +534,6 @@ class NullSound : SoundDriver {
         return null;
     }
 
-    class NullSoundSound : DriverSound {
-        Time length() {
-            return Time.Null;
-        }
-        override void destroy() {}
-    }
-
     DriverSound loadSound(DriverSoundData data) {
         return new NullSoundSound();
     }
@@ -527,4 +544,11 @@ class NullSound : SoundDriver {
     static this() {
         registerFrameworkDriver!(typeof(this))("sound_none");
     }
+}
+
+class NullSoundSound : DriverSound {
+    Time length() {
+        return Time.Null;
+    }
+    override void destroy() {}
 }

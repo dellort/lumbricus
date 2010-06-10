@@ -90,6 +90,9 @@ class WormSprite : Sprite {
         //selected weapon; not necessarily the displayed one
         WeaponClass mRequestedWeapon;
 
+        //gets selected if no weapon is selected
+        WeaponClass mNextWeapon;
+
         //"code" for selected weapon, null for weapons which don't support it
         WeaponSelector mWeaponSelector;
         //active weapons
@@ -416,6 +419,12 @@ class WormSprite : Sprite {
                 wani.weapon = "";
             }
             wani.angle = weaponAngle();
+
+            //auto-reselect for baseball etc.
+            if (!wani.weaponSelected() && mNextWeapon) {
+                weapon = mNextWeapon;
+                mNextWeapon = null;
+            }
         }
 
         //xxx there's probably a better place for this
@@ -577,6 +586,7 @@ class WormSprite : Sprite {
             return;
         auto oldweapon = actualWeapon();
         mRequestedWeapon = w;
+        mNextWeapon = null;
         update_actual_weapon(oldweapon);
     }
 
@@ -797,10 +807,13 @@ class WormSprite : Sprite {
     //(should be back in normal state)
     private void fireDone() {
         if (auto wani = weaponAniState()) {
-            //the animation dictates whether the weapon is deselcted after
+            //the animation dictates whether the weapon is deselected after
             //  firing - this is because the graphics were hardcoded in this way
             if (!wani.weaponSelected()) {
+                //make it reselect the weapon (first unget, then get again)
+                auto oldweapon = mRequestedWeapon;
                 weapon = null;
+                mNextWeapon = oldweapon;
             }
         }
     }

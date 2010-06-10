@@ -3,6 +3,7 @@ module common.restypes.bitmap;
 import framework.framework;
 import common.resources;
 import utils.configfile;
+import utils.misc;
 
 ///Resource class for bitmaps
 protected class BitmapResource : ResourceItem {
@@ -11,7 +12,13 @@ protected class BitmapResource : ResourceItem {
     }
 
     protected void load() {
-        auto bmp = gFramework.loadImage(mContext.fixPath(mConfig.value));
+        Surface bmp;
+        try {
+            bmp = gFramework.loadImage(mContext.fixPath(mConfig.value));
+        } catch (CustomException e) {
+            loadError(e);
+            bmp = gFramework.loadImage("error.png");
+        }
         bmp.preload();
         mContents = bmp;
     }

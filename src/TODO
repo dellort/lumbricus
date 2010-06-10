@@ -32,14 +32,8 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
     ^ auch während der "prepare" animation
   Ursache: der code in worm.d erzwingt die animation nur, wenn der shooter aktiv ist; beim baseballschläger ist der shooter aber nur einen kurzen bruchteil aktiv, der rest ist nur "graphik" und ist unbeständig
   ist nur noch ein schuss übrig, wird die waffe nach beendung des shooters abselektiert, und dadurch die verbleibenden animationen abgebrochen
-$ axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchron
 - Konsolen-Katastrophe entfernen (es gibt jetzt 3.. nein 2 Konsolen die alle was anderes machen)
 - log nachrichten sollten durch ein globales widget angezeigt werden; z.zt. werden extra umstände gemacht, damit sie in GameFrame/mChatbox angezeigt werden
-- manche Animationen sind falsch:
-    $ shotgun: prepare animation ungenutzt, kein blitz bei 2. schuss
-    * baseball: für den letzten schlag wird keine fire animation angezeigt
-    $ bow: release & prepare animationen ungenutzt
-    * ...
 - während die feuer-animation abgespielt wird, sollte der wurm keine eingabe akzeptieren (z.b. shotgun => kein waffen-winkel verstellen) (abhängig von der waffe; bei anderen waffen ist es vorgesehen, dass z.b. der waffen-winkel während des feuerns geändert werden kann)
   ebenso wenn die "prepare"-animation abgespielt wird
 - wenn datenverzeichnis nicht gefunden wird, bessere fehlermeldung ausgeben
@@ -51,7 +45,7 @@ $ axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchro
     ^ nur gepatcht, hätte die bazooka eine "prepare" animation, würde es immernoch nicht funktionieren
   - Beamen am Zugende wird abgebrochen
   - J zum Jetpack aktivieren muss zweimal gedrückt werden, wenn man vorher eine andere Waffe auswählt
-  - Einige Waffen werden unnötigerweise nach dem Feuern sofort weggesteckt (z.B. Bogen, Seil)
+  $ Einige Waffen werden unnötigerweise nach dem Feuern sofort weggesteckt (z.B. Bogen, Seil)
     ^ ich dachte, das ist so per design; wie soll es sonst funktionieren?
     ^ bei wwp wird erst die wegsteckanimation und dann wieder die ziehanimation gespielt (waffe bleibt ausgewählt), z.B. Bogen
   $ blowtorch: falsches zielkreuz während des bohrens
@@ -112,7 +106,6 @@ $ axt: der schaden am anderem wurm kommt zu früh/ist nicht mit animation synchro
 + Partikel, die auf Sprite-Ereignisse reagieren (Kollision, Rutschen, Kontakt mit Wasser etc.)
 - mehrere partikel-emitter an verschiedenen stellen erlauben (am besten in Sequence einbauen), statt ein emitter, der in der mitte des objekts emitiert
 + Partikel-Modifikations-Effekte (Explosion, Schwarzes Loch) in Spiel-Engine integrieren
-$ Feuer-, Nachlade-, Wegsteckanimationen (kann evtl. in worm.d gehackt werden, statt sequence)
 + Mehr "stub" gpl daten (Fragezeichen ersetzen, z.B. Dummy-Projektile die von der Engine gedreht werden)
 *** gpl daten (vollständig)
 [+ Kamera:

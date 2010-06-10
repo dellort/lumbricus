@@ -4,6 +4,7 @@ import common.resfileformats;
 import common.resources;
 import framework.framework;
 import utils.configfile;
+import utils.misc;
 import utils.vector2;
 
 class Atlas {
@@ -26,7 +27,10 @@ class Atlas {
     }
 
     final SubSurface texture(int index) {
-        return mTextureRefs[index];
+        if (indexValid(mTextureRefs, index))
+            return mTextureRefs[index];
+        else
+            return null;
     }
 
     int count() {
@@ -40,39 +44,40 @@ class AtlasResource : ResourceItem {
     }
 
     protected void load() {
+        try {
+            doLoad();
+        } catch (CustomException e) {
+            loadError(e);
+            mContents = new Atlas(); //dummy
+        }
+    }
+
+    private void doLoad() {
         auto node = mConfig;
         auto atlas = new Atlas();
 
-        debug gResources.ls_start("AtlasResource:load pages");
         foreach (char[] key, char[] value; node.getSubNode("pages")) {
             auto img = gFramework.loadImage(mContext.fixPath(value));
             img.preload();
             atlas.mPages ~= img;
         }
-        debug gResources.ls_stop("AtlasResource:load pages");
 
         FileAtlasTexture[] textures;
         auto meta = node.getSubNode("meta");
         if (meta.hasSubNodes()) {
-            debug gResources.ls_start("AtlasResource:parse metadata");
             //meta node contains a list of strings with texture information
             foreach (char[] dummy, char[] metav; meta) {
                 textures ~= FileAtlasTexture.parseString(metav);
             }
-            debug gResources.ls_stop("AtlasResource:parse metadata");
         } else {
-            debug gResources.ls_start("AtlasResource:open meta file");
             //meta data is read from a binary file
             scope f = gFS.open(mContext.fixPath(meta.value));
-            debug gResources.ls_stop("AtlasResource:open meta file");
             scope(exit) f.close();
-            debug gResources.ls_start("AtlasResource:read meta file");
             //xxx I shouldn't load stuff directly (endian issues), but who cares?
             FileAtlas header;
             f.readExact(cast(ubyte[])(&header)[0..1]);
             textures.length = header.textureCount;
             f.readExact(cast(ubyte[])textures);
-            debug gResources.ls_stop("AtlasResource:read meta file");
         }
         atlas.mTextures = textures;
 

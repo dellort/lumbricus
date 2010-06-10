@@ -319,7 +319,6 @@ class GameTask {
         if (!preload.done) {
             return false;
         } else {
-            debug gResources.showStats();
             mLoadScreen.secondaryActive = false;
             return true;
         }

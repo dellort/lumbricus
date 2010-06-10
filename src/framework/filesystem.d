@@ -882,6 +882,14 @@ class FileSystem {
         return false;
     }
 
+    //throw exception if file is not existent and not readable
+    //(doesn't check if it's readable yet)
+    void mustExist(char[] filename) {
+        auto fn = VFSPath(filename);
+        if (!exists(fn))
+            throw new FilesystemException("File not found: " ~ fn.toString);
+    }
+
 
     ///Check if a directory exists in the VFS
     public bool pathExists(VFSPath relPath) {

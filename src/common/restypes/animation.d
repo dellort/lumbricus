@@ -58,6 +58,7 @@ abstract class Animation {
 
         //0 as frame time is indeed valid (makes only sense with framecount=1)
         argcheck(aframeTimeMS >= 0);
+        argcheck(aframeCount > 0);
 
         mFrameCount = aframeCount;
         mBounds = abounds;
@@ -66,7 +67,6 @@ abstract class Animation {
         postInit();
 
         mDidInit = true;
-        assert(mFrameCount > 0);
     }
 
     //copy all animation attributes (except frame count) from other
@@ -229,6 +229,21 @@ class SubAnimation : Animation {
 
 //--- simple old animations
 
+//placeholder animation when loading failed; just displays error.png
+class ErrorAnimation : Animation {
+    private SubSurface mError;
+    this() {
+        mError = gFramework.loadImage("error.png").fullSubSurface();
+        doInit(1, mError.rect, 0);
+    }
+
+    override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
+        Time t)
+    {
+        c.drawSprite(mError, pos, null);
+    }
+}
+
 abstract class AnimationSimple : Animation {
     private {
         SubSurface[] mFrames;
@@ -389,6 +404,8 @@ class ComplicatedAnimation : Animation {
         int index = node.getIntValue("index", -1);
         int frameTimeMS = node.getIntValue("frametime", cDefFrameTimeMS);
         mFrames = frames.frames(index);
+        if (!mFrames)
+            throwError("frame index invalid: {}", index);
         Rect2i bb = mFrames.box; // = mFrames.boundingBox();
 
         void loadParamStuff(int index, char[] name) {
@@ -471,28 +488,33 @@ class AnimationResource : ResourceItem {
     protected void load() {
         ConfigNode node = mConfig;
         assert(node !is null);
-        char[] type = node.getStringValue("type", "");
-        switch (type) {
-            case "strip": {
-                char[] fn = mContext.fixPath(node["file"]);
-                mContents = new AnimationStrip(node, fn);
-                break;
+        try {
+            char[] type = node.getStringValue("type", "");
+            switch (type) {
+                case "strip": {
+                    char[] fn = mContext.fixPath(node["file"]);
+                    mContents = new AnimationStrip(node, fn);
+                    break;
+                }
+                //single image files, one per frame - born out of necessity
+                //(to avoid dumb conversion steps like packing)
+                case "list": {
+                    //pat is like a filename, but with a wildcard ('*') in it
+                    char[] pat = mContext.fixPath(node["pattern"]);
+                    mContents = new AnimationList(node, pat);
+                    break;
+                }
+                case "complicated":
+                    auto frames = castStrict!(AniFrames)(
+                        mContext.find(node["aniframes"]).get());
+                    mContents = new ComplicatedAnimation(node, frames);
+                    break;
+                default:
+                    throw new CustomException("invalid AnimationResource type");
             }
-            //single image files, one per frame - born out of necessity
-            //(to avoid dumb conversion steps like packing)
-            case "list": {
-                //pat is like a filename, but with a wildcard ('*') in it
-                char[] pat = mContext.fixPath(node["pattern"]);
-                mContents = new AnimationList(node, pat);
-                break;
-            }
-            case "complicated":
-                auto frames = castStrict!(AniFrames)(
-                    mContext.find(node["aniframes"]).get());
-                mContents = new ComplicatedAnimation(node, frames);
-                break;
-            default:
-                throw new CustomException("invalid AnimationResource type");
+        } catch (CustomException e) {
+            loadError(e);
+            mContents = new ErrorAnimation();
         }
     }
 

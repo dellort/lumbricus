@@ -423,6 +423,11 @@ class CustomException : Exception {
     }
 }
 
+//I got tired of retyping throw new CustomException...
+void throwError(char[] fmt, ...) {
+    throw new CustomException(myformat_fx(fmt, _arguments, _argptr));
+}
+
 //for parameter checks in "public" api (instead of Assertion)
 //special class because it is fatal for D code, but non-fatal for scripts
 class ParameterException : Exception {

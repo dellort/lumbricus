@@ -25,10 +25,15 @@ class ResourceItem : ResourceObject {
     ///unique id of resource
     char[] id;
 
-    protected Object mContents;
-    private bool mValid = false;
-    protected ResourceFile mContext;
-    protected ConfigNode mConfig;
+    private {
+        bool mValid = false;
+    }
+
+    protected {
+        Object mContents;
+        ResourceFile mContext;
+        ConfigNode mConfig;
+    }
 
     final bool isLoaded() {
         return mValid;
@@ -56,22 +61,19 @@ class ResourceItem : ResourceObject {
 
     //preloads the resource from disk
     package void preload() {
-        //commented out the try-catch, because it catches even assert()s and
-        //  stuff, which is annoying at best
-        //try {
+        try {
             Resources.log("Loading resource "~id);
-            debug gResources.ls_start(this);
             load();
-            debug gResources.ls_stop(this);
             assert(!!mContents, "was not loaded?");
             mValid = true;
-        /+} catch (Exception e) {
+        } catch (CustomException e) {
             char[] errMsg = "Resource " ~ id ~ " (" ~ toString()
                 ~ ") failed to load: "~e.toString~"  - location: "
                 ~ mConfig.locationString();
             Resources.log(errMsg);
+            //xxx destroys backtrace, should use Exception.next member
             throw new ResourceException(id, errMsg);
-        }+/
+        }
     }
 
     ///destroy contents and make resource reload on next use
@@ -91,6 +93,17 @@ class ResourceItem : ResourceObject {
 
     char[] fullname() {
         return mContext.resource_id ~ "::" ~ id;
+    }
+
+    //display non-fatal load error (non-fatal as in, we can continue with a
+    //  dummy replacement, such as an error graphic for bitmaps)
+    void loadError(char[] fmt, ...) {
+        Resources.log.error("Loading resource '{}' specified in {} failed: {}",
+            id, mConfig.locationString(),
+            myformat_fx(fmt, _arguments, _argptr));
+    }
+    void loadError(CustomException e) {
+        loadError("{}", e);
     }
 }
 
@@ -206,52 +219,6 @@ public class Resources {
 
     this() {
         log = registerLog("resources");
-    }
-
-    debug {
-        struct LoadStat {
-            int count;
-            Time time;
-            bool timing;
-            Time last_time;
-        }
-        LoadStat[char[]] mLoadingStats;
-
-        LoadStat* ls_get(T)(T x) {
-            char[] k = myformat("{}", x);
-            if (auto p = k in mLoadingStats)
-                return p;
-            mLoadingStats[k] = LoadStat.init;
-            return k in mLoadingStats;
-        }
-        void ls_start(T)(T x, bool inc = true) {
-            auto ls = ls_get(x);
-            assert(!ls.timing);
-            ls.timing = true;
-            ls.last_time = timeCurrentTime();
-            if (inc)
-                ls_inc(x);
-        }
-        void ls_stop(T)(T x) {
-            auto ls = ls_get(x);
-            assert(ls.timing);
-            ls.timing = false;
-            ls.time += timeCurrentTime() - ls.last_time;
-        }
-        void ls_inc(T)(T x) {
-            auto ls = ls_get(x);
-            ls.count++;
-        }
-        void showStats() {
-            auto outp = log;
-            outp("Loading stats:");
-            foreach (char[] k, ref LoadStat s; mLoadingStats) {
-                assert(!s.timing);
-                outp("  {}: x{} sum={}", k, s.count, s.time);
-            }
-            outp("done.");
-            mLoadingStats = null;
-        }
     }
 
     ///register a class derived from Resource for the internal factory under
