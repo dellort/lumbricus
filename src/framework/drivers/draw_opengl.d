@@ -256,7 +256,8 @@ final class GLSurface : DriverSurface {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mTexSize.x, mTexSize.y, 0,
             GL_RGBA, GL_UNSIGNED_BYTE, null);
 
-        clearTexBorders(mTexSize, mData.size);
+        if (wantInit)
+            clearTexBorders(mTexSize, mData.size);
 
         //check for errors (textures larger than maximum size
         //supported by GL/hardware will fail to load)
