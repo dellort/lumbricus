@@ -8,7 +8,9 @@ module net.cmdprotocol;
 
 import utils.time;
 
-import game.gameshell : EngineHash; //sorry
+//xxx never implemented; should you ever do so, please move EngineHash somewhere
+//    else and remove this horrible import (~ +4mb server debug executable)
+//import game.gameshell : EngineHash; //sorry
 
 //anytime you change some detail about the protocol, increment this
 //  (including encoding/marshalling changes)

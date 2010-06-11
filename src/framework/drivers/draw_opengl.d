@@ -186,11 +186,15 @@ final class GLSurface : DriverSurface {
     bool mIsDirty;
     Rect2i mDirtyRect;
 
+    const cMaxTextureSize = Vector2i(2048, 2048);
+
     //create from Framework's data
     this(GLDrawDriver draw_driver, SurfaceData data) {
         mDrawDriver = draw_driver;
         mData = data;
         assert(data.data !is null);
+        assert(data.size.x <= cMaxTextureSize.x
+            && data.size.y <= cMaxTextureSize.y, "Texture too big");
         reinit();
     }
 
@@ -227,6 +231,8 @@ final class GLSurface : DriverSurface {
             mTexSize = mData.size;
         }
 
+        ubyte* initData = null;
+        const ubyte[cMaxTextureSize.x*cMaxTextureSize.y] cZero;
         if (mTexSize == mData.size) {
             //image width and height are already a power of two
             mTexMax.x = 1.0f;
@@ -235,6 +241,9 @@ final class GLSurface : DriverSurface {
             //image is smaller, parts of the texture will be unused
             mTexMax.x = cast(float)mData.size.x / mTexSize.x;
             mTexMax.y = cast(float)mData.size.y / mTexSize.y;
+            //initialize with 0 (sucks, but otherwise there will be visible
+            //  borders of random pixels when scaling/rotating)
+            initData = cZero.ptr;
         }
 
         //generate texture and set parameters
@@ -251,7 +260,7 @@ final class GLSurface : DriverSurface {
         //since GL 1.1, pixels pointer can be null, which will just
         //reserve uninitialized memory
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mTexSize.x, mTexSize.y, 0,
-            GL_RGBA, GL_UNSIGNED_BYTE, null);
+            GL_RGBA, GL_UNSIGNED_BYTE, initData);
 
         //check for errors (textures larger than maximum size
         //supported by GL/hardware will fail to load)

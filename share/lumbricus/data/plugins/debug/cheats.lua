@@ -105,10 +105,16 @@ function E.crateSpy()
 end
 
 -- the caller wins
-function E.allYourBaseAreBelongToUs()
-    for k,t in ipairs(Control_teams()) do
+function E.allYourBaseAreBelongToUs(slow)
+    for k, t in ipairs(Control_teams()) do
         if (t ~= ownedTeam()) then
-            Team_surrenderTeam(t)
+            if slow then
+                for k2, m in ipairs(Team_members(t)) do
+                    Member_addHealth(m, -9999)
+                end
+            else
+                Team_surrenderTeam(t)
+            end
         end
     end
 end

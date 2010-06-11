@@ -557,7 +557,8 @@ class GameEngine : GameCore {
         }
 
         void emit(ParticleType t) {
-            particleWorld.emitParticle(at, Vector2f(0), t);
+            if (t)
+                particleWorld.emitParticle(at, Vector2f(0), t);
         }
 
         if (s >= 0) {

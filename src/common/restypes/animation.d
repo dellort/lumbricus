@@ -12,6 +12,8 @@ import utils.misc;
 import utils.rect2;
 import utils.time;
 import utils.vector2;
+import utils.factory;
+import utils.strparser;
 
 import str = utils.string;
 import math = tango.math.Math;
@@ -244,12 +246,44 @@ class ErrorAnimation : Animation {
     }
 }
 
+//"Effects" manipulate drawing of simple animations (so you can do e.g. rotation
+//  using OpenGL instead of hand-drawn frames)
+alias StaticFactory!("AnimEffects", AnimEffect, Animation, ConfigNode)
+    AnimEffectFactory;
+
+//for parsing
+enum AnimEffectParam {
+    time,
+    p1,
+    p2,
+    p3,
+}
+static this() {
+    enumStrings!(AnimEffectParam, "time,p1,p2,p3");
+}
+
+//effect implementations derive from this class
+//there's a lot of xxx here concerning parameter handling
+abstract class AnimEffect {
+    protected Animation mAnim;
+
+    this(Animation parent) {
+        mAnim = parent;
+    }
+
+    protected float relTime(Time t) {
+        return 1.0f * Animation.relFrameTimeMs(t, mAnim.lengthMS, true)
+            / mAnim.lengthMS;
+    }
+
+    abstract void effect(ref Vector2i pos, ref AnimationParams p, Time t,
+        ref BitmapEffect eff);
+}
+
 abstract class AnimationSimple : Animation {
     private {
         SubSurface[] mFrames;
-        //about those hacks: should introduce some parameter mapping (similar to
-        //  what ComplicatedAnimation and extractdata do)
-        bool mRotateHack, mRotateHack2, mMirrorYHack;
+        AnimEffect[] mEffects;  //list of drawing effects
     }
 
     this(ConfigNode node) {
@@ -257,9 +291,12 @@ abstract class AnimationSimple : Animation {
         //load generic parameters here (not related to the frame storage method)
         repeat = node.getBoolValue("repeat", repeat);
         mFrameTimeMS = node.getIntValue("frametime", cDefFrameTimeMS);
-        mRotateHack = node.getValue!(bool)("rotate_hack", false);
-        mRotateHack2 = node.getValue!(bool)("rotate_hack2", false);
-        mMirrorYHack = node.getValue!(bool)("mirror_y_hack", false);
+        foreach (ConfigNode sub; node) {
+            if (sub.name == "effect") {
+                mEffects ~= AnimEffectFactory.instantiate(sub.value, this,
+                    sub);
+            }
+        }
     }
 
     //must call this in your ctor
@@ -286,15 +323,8 @@ abstract class AnimationSimple : Animation {
         SubSurface frame = mFrames[frameIdx];
         BitmapEffect eff;
         eff.center = frame.size / 2;
-        if (mRotateHack) {
-            float f = 1.0f * relFrameTimeMs(t, lengthMS, true) / lengthMS;
-            eff.rotate = f * math.PI * 2;
-        }
-        if (mRotateHack2) {
-            eff.rotate = p.p1 / 180.0f * math.PI;
-        }
-        if (mMirrorYHack) {
-            eff.mirrorY = mymath.angleLeftRight(p.p1/180.0f*math.PI, false, true);
+        foreach (animEff; mEffects) {
+            animEff.effect(pos, p, t, eff);
         }
         c.drawSprite(frame, pos, &eff);
     }

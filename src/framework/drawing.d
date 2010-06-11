@@ -37,7 +37,7 @@ enum ImageDrawStyle {
 struct BitmapEffect {
     bool mirrorY = false;
     float rotate = 0.0f;    //in radians
-    float scale = 1.0f;     //scale factor
+    Vector2f scale = Vector2f(1.0f);   //scale factor
     //should this be a property of the SubSurface?
     Vector2i center;        //(relative, positive) center of the bitmap/rotation
     Color color = Color(1.0f);
@@ -47,7 +47,7 @@ struct BitmapEffect {
     Transform2f getTransform(Vector2i sourceSize, Vector2i destPos) {
         Transform2f tr = void;
 
-        if (rotate != 0f || scale != 1.0f) {
+        if (rotate != 0f || scale != Vector2f(1.0f)) {
             tr = Transform2f.RotateScale(rotate, scale);
         } else {
             tr = Transform2f.init;
@@ -137,8 +137,9 @@ public class Canvas {
             //m = conservative estimate of max. distance of a pixel of the
             //    sprite to the dest pos
             const cSqrt_2 = 1.42; //rounded up
-            float m = max(s.size.x - eff.center.x, s.size.y - eff.center.y,
-                eff.center.x, eff.center.y) * eff.scale * cSqrt_2;
+            float m = max(max(s.size.x - eff.center.x, eff.center.x)
+                * eff.scale.x, max(s.size.y - eff.center.y, eff.center.y)
+                * eff.scale.y) * cSqrt_2;
             return (dest.x + m >= mVisibleArea.p1.x)
                 && (dest.x - m <= mVisibleArea.p2.x)
                 && (dest.y + m >= mVisibleArea.p1.y)

@@ -15,13 +15,17 @@ struct Transform2f {
     Vector2f t;
 
     //2D rotation+scale matrix
-    static Transform2f RotateScale(float rotate, float scale) {
+    static Transform2f RotateScale(float rotate, Vector2f scale) {
         Transform2f ret;
         //from utils.vector2.Vector2.rotated()
-        ret.a11 = math.cos(rotate) * scale;
-        ret.a21 = math.sin(rotate) * scale;
+        ret.a11 = math.cos(rotate);
+        ret.a21 = math.sin(rotate);
         ret.a12 = -ret.a21;
         ret.a22 = ret.a11;
+        ret.a11 *= scale.x;
+        ret.a21 *= scale.y;
+        ret.a12 *= scale.x;
+        ret.a22 *= scale.y;
         return ret;
     }
 

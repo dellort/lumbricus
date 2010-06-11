@@ -1005,12 +1005,12 @@ class CanvasTest {
         override void onDraw(Canvas c) {
             eff.mirrorY = mMirrY.checked();
             eff.rotate = mRot.curValue/180.0*3.14159;
-            eff.scale = mZoom.curValue*1.0/cZoomScale;
+            eff.scale = Vector2f(mZoom.curValue*1.0/cZoomScale);
             eff.center = mCenter;
             c.drawSprite(mImgSub, at, &eff);
             c.drawFilledCircle(at, 10, Color(0));
             auto x = toVector2i(
-                toVector2f(mCenter).rotated(eff.rotate)*eff.scale);
+                toVector2f(mCenter).rotated(eff.rotate) ^ eff.scale);
             c.drawFilledCircle(at-x, 3, Color(1,0,0));
         }
 

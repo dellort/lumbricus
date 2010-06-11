@@ -53,6 +53,9 @@ T stringToType(T)(char[] s) {
     }
     return res.unbox!(T)();
 }
+void stringToType(T)(ref T dest, char[] s) {
+    dest = stringToType!(T)(s);
+}
 char[] typeToString(T)(T x) {
     return boxToString(MyBox.Box!(T)(x));
 }

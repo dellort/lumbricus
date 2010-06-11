@@ -446,10 +446,11 @@ final class SDLSurface : DriverSurface {
         int k_rotate = realmod(cast(int)(
             effect.rotate/(math.PI*2.0)*cRotUnits + 0.5), cRotUnits);
         //zoom=1.0f must map to k_zoom=0 (else you have a useless cache entry)
-        int k_zoom = cast(int)((clampRangeC(effect.scale, 0.0f, cZoomMax)-1.0f)
+        float ef_sc = effect.scale.length;  //xxx
+        int k_zoom = cast(int)((clampRangeC(ef_sc, 0.0f, cZoomMax)-1.0f)
             /cZoomMax*cZoomUnitsHalf+0.5);
 
-        if (effect.scale == 1.0f)
+        if (ef_sc == 1.0f)
             assert(k_zoom == 0);
 
         foreach (ref e; cache.entries) {

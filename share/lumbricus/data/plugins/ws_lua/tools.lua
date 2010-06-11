@@ -170,24 +170,6 @@ createWeapon {
     end, "p_scales"),
 }
 
-createWeapon {
-    name = "w_hat",
-    value = 0,
-    category = "misc4",
-    icon = "icon_unknown",
-    animation = "weapon_hat",
-    onFire = teamActionOnFire(function(team, member)
-        -- "whatever"
-        for k, t in ipairs(Control_teams()) do
-            if t ~= team then
-                for k2, m in ipairs(Team_getMembers(t)) do
-                    Member_addHealth(m, -9999)
-                end
-            end
-        end
-    end),
-}
-
 
 createWeapon {
     name ="w_parachute",
