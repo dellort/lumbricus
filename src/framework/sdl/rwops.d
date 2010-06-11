@@ -43,6 +43,7 @@ extern (C) {
 }
 
 SDL_RWops* rwopsFromStream(Stream s) {
+  assert(!!s);
   SDL_RWops* rw;
   rw = SDL_AllocRW();
   rw.seek=&rw_seek;
