@@ -265,6 +265,7 @@ mainspr {
             mole_walk = "175"
             skunk_inactive = "+append_backwards_a; 182"
             skunk_active = "+append_backwards_a; 183"
+            dragonball_fly = "f:25; 92"
         }
         //worm, where the worm can look into 6 directions
         //there's an animation for each of the first 3 directions
@@ -373,7 +374,7 @@ mainspr {
 
                 worm_frozen_enter = "f:25; 482"
                 worm_dragonball_prepare = "388"
-                worm_dragonball_release = "391"
+                worm_dragonball_fire = "391"
                 worm_bow_get = "f:25; 504"
                 worm_blowtorch_get = "f:25; 314"
                 worm_bow_release = "f:25; 507"

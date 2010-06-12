@@ -20,6 +20,7 @@ Name: "de"; MessagesFile: "compiler:Languages\German.isl"
 Source: "..\bin\*.dll"; DestDir: "{app}\bin"
 Source: "..\bin\lumbricus.exe"; DestDir: "{app}\bin"
 Source: "..\bin\extractdata.exe"; DestDir: "{app}\bin"
+Source: "..\bin\server.exe"; DestDir: "{app}\bin"
 Source: "..\share\lumbricus\*"; Excludes: "data2,.svn,Thumbs.db"; DestDir: "{app}\share\lumbricus"; Flags: ignoreversion recursesubdirs sortfilesbyextension
 Source: "..\src\README"; DestDir: "{app}"; DestName: "ReadMe.txt"
 

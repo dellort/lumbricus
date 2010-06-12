@@ -68,7 +68,6 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)
-- in broadcast.d: SocketSet allokiert speicher, der der GC überlassen wird (entweder bug report für Tango um eine free() methode hinzuzufügen, oder: blockierender thread?)
 
 == GUI (allgemeine Features) ==
 + key bindings editor
@@ -119,11 +118,10 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
     ...]
 
 == Waffen ==
-+ Superwaffen (Briefbomben)
 + Tierwaffen (Maulwurf, Maulwurfsangriff, Stinktier mit vergifteten Würmern)
 + Lokale-Suche-Waffen (Taube, Zauberkugel)
 + Bungee
-+ Nahkampfwaffen (Drachenball, Firepunch, Kamikaze, Kamikaze-Bomber)
++ Nahkampfwaffen (Firepunch, Kamikaze, Kamikaze-Bomber)
 
 - Napalm verbessern (Ruckeln verhindern, Würmer mehr wegstoßen, vll. etwas "klebriger" machen)
 - Molotov-Cocktail brennt über mehrere Züge

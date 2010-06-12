@@ -421,6 +421,7 @@ abstract class StateDisplay {
 class AniStateDisplay : StateDisplay {
     private {
         Time mStart; //engine time when animation was started
+        float mSpeed = 1.0f;  //animation speed modifier
         Animation mAnimation;
     }
 
@@ -455,7 +456,7 @@ class AniStateDisplay : StateDisplay {
         auto ipos = owner.interpolated_position();
         auto itime = owner.interpolated_time();
 
-        mAnimation.draw(c, ipos, ani_params, itime - mStart);
+        mAnimation.draw(c, ipos, ani_params, (itime - mStart) * mSpeed);
 
         Animation arrow = owner.team ? owner.team.cursor : null;
         if (arrow) {
@@ -493,10 +494,16 @@ class AniStateDisplay : StateDisplay {
         mStart = now() + startAt;
     }
 
+    //like above, but startAt will be a random position if random == true
+    final void setAnimationRnd(Animation a_animation, bool random = true) {
+        setAnimation(a_animation, random ? timeMsecs(owner.engine.rnd.nextRange(
+            0, cast(int)(a_animation.duration.msecs))) : Time.Null);
+    }
+
     final bool hasFinished() {
         if (!mAnimation)
             return true;
-        return mAnimation.finished(now() - mStart);
+        return mAnimation.finished((now() - mStart) * mSpeed);
     }
 
     override bool isDone() {
@@ -513,6 +520,15 @@ class AniStateDisplay : StateDisplay {
     final Time animation_start() {
         return mStart;
     }
+
+    //set animation speed
+    //use with care: mAnimation.lengthMs will be unaffected
+    final float speed() {
+        return mSpeed;
+    }
+    final void speed(float sp) {
+        mSpeed = sp;
+    }
 }
 
 class SimpleAnimationDisplay : AniStateDisplay {
@@ -523,7 +539,11 @@ class SimpleAnimationDisplay : AniStateDisplay {
     override void init(SequenceState state) {
         myclass = castStrict!(SimpleAnimationState)(state);
         super.init(state);
-        setAnimation(myclass.animation);
+        setAnimationRnd(myclass.animation, myclass.random_start);
+        if (myclass.random_speed != 0) {
+            speed = owner.engine.rnd.nextRange(1.0f - myclass.random_speed,
+                1.0f + myclass.random_speed);
+        }
     }
 
     override void simulate() {
@@ -538,6 +558,9 @@ class SimpleAnimationDisplay : AniStateDisplay {
 class SimpleAnimationState : SequenceState {
     Animation animation;
     bool wire_p2_to_damage;
+    bool random_start;
+    //StateDisplay.speed will be in [1.0f - random_speed, 1.0f + random_speed]
+    float random_speed = 0;
 
     this(SequenceType a_owner, ConfigNode node) {
         super(a_owner, node);
@@ -547,6 +570,8 @@ class SimpleAnimationState : SequenceState {
         } else {
             ani = node["animation"];
             wire_p2_to_damage = node.getValue!(bool)("wire_p2_to_damage");
+            random_start = node.getValue!(bool)("random_start");
+            random_speed = node.getValue("random_speed", random_speed);
         }
         animation = engine.resources.get!(Animation)(ani);
     }
@@ -589,9 +614,7 @@ class WwpNapalmDisplay : AniStateDisplay {
                 * (speed-cTresholdVelocity) / cVelDelta);
         }
         if (animation() !is new_animation) {
-            setAnimation(new_animation,
-                timeMsecs(owner.engine.rnd.nextRange(0,
-                    cast(int)(new_animation.duration.msecs))));
+            setAnimationRnd(new_animation);
         }
     }
 }

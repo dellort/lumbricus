@@ -20,6 +20,7 @@ class NetBroadcast {
         ushort mPort;
         bool mServer;
         Socket mSocket;
+        SocketSet mSSRead;
         IPv4Address[] mAddresses;
     }
 
@@ -45,18 +46,18 @@ class NetBroadcast {
             mSocket.native.setOption(SocketOptionLevel.SOCKET,
                 SocketOption.BROADCAST, i);
         //}
+        //moved here to avoid constant memory allocation
+        mSSRead = new SocketSet();
     }
 
     void service() {
         if (!mSocket)
             return;
-        //xxx: SocketSet allocates some memory, but it's left to the GC...
-        //     this causes about 10 GC cycles per second when broadcasting
-        scope ssread = new SocketSet();
-        ssread.add(mSocket.native);
+        mSSRead.reset();
+        mSSRead.add(mSocket.native);
         //no blocking
-        int sl = SocketSet.select(ssread, null, null, 0);
-        if (sl > 0 && ssread.isSet(mSocket.native)) {
+        int sl = SocketSet.select(mSSRead, null, null, 0);
+        if (sl > 0 && mSSRead.isSet(mSocket.native)) {
             serviceOne();
         }
     }

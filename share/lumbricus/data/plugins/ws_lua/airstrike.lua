@@ -177,3 +177,37 @@ do
     enableSpriteCrateBlowup(w, sprite_class, 3)
 end
 
+do
+    local name = "letterstrike"
+    local sprite_class = createSpriteClass {
+        name = "x_" .. name,
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 3,
+            radius = 5,
+            explosionInfluence = 0.5,
+            -- xxx maybe randomize a little to make it look more dynamic
+            airResistance = 0.2,
+        },
+        -- xxx same random selection as mingshard (not really worth it)
+        sequenceType = "s_letterbomb2",
+    }
+    enableExplosionOnImpact(sprite_class, 35)
+
+    local w = createWeapon {
+        name = "w_" .. name,
+        onFire = getAirstrikeOnFire(sprite_class),
+        onCreateSelector = AirstrikeControl_ctor,
+        value = 10000,
+        category = "air",
+        isAirstrike = true,
+        icon = "icon_letterbomb",
+        animation = "weapon_airstrike",
+        fireMode = {
+            point = "instant",
+            throwStrengthFrom = 300,
+            throwStrengthTo = 300,
+        }
+    }
+    enableSpriteCrateBlowup(w, sprite_class, 4)
+end

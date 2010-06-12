@@ -285,6 +285,18 @@ final class GLSurface : DriverSurface {
     //actually, only the borders need to be initialized
     //assumes GL_RGBA/GL_UNSIGNED_BYTE texture format
     private void clearTexBorders(Vector2i tex, Vector2i bmp) {
+        //xxx my solution (you were faster, damn)
+        /+uint[] zero = new uint[max(bmp.x + 1, bmp.y + 1)];
+        //bottom border
+        if (bmp.y < tex.y)
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, bmp.y, min(bmp.x + 1, tex.x),
+                1, GL_RGBA, GL_UNSIGNED_BYTE, zero.ptr);
+        //right border
+        if (bmp.x < tex.x)
+            glTexSubImage2D(GL_TEXTURE_2D, 0, bmp.x, 0, 1,
+                min(bmp.y + 1, tex.y), GL_RGBA, GL_UNSIGNED_BYTE, zero.ptr);
+        delete zero;+/
+
         const cSizePx = 4;
         const Vector2i cSize = Vector2i(cSizePx);
         const uint[cSizePx*cSizePx] zero;
@@ -305,12 +317,12 @@ final class GLSurface : DriverSurface {
 
         //bottom border from left to right
         for (int x = 0; x < bmp.x + cSizePx; x += cSizePx) {
-            clearat(Vector2i(x, bmp.y-1));
+            clearat(Vector2i(x, bmp.y));
         }
 
         //right border from top to bottom
         for (int y = 0; y < bmp.y + cSizePx; y += cSizePx) {
-            clearat(Vector2i(bmp.x-1, y));
+            clearat(Vector2i(bmp.x, y));
         }
     }
 

@@ -50,3 +50,41 @@ createWeapon {
     }
 }
 
+-- not really a melee weapon as it fires a projectile; but in wwp it's in this category
+do
+    local name = "dragonball"
+    local sprite_class = createSpriteClass {
+        name = "x_" .. name,
+        initPhysic = relay {
+            collisionID = "projectile",
+            mass = 10,
+            radius = 4,
+            explosionInfluence = 0,
+            windInfluence = 0,
+            zeroGrav = true,
+        },
+        sequenceType = "s_dragonball",
+    }
+    enableExplosionOnImpact(sprite_class, 30)
+    -- remove after some time
+    enableSpriteTimer(sprite_class, {
+        defTimer = time(0.8),
+        callback = function(sender)
+            Sprite_kill(sender)
+        end
+    })
+
+    createWeapon {
+        name = "w_" .. name,
+        onFire = getStandardOnFire(sprite_class),
+        category = "punch",
+        value = 12,
+        animation = "weapon_dragonball",
+        icon = "icon_dragonball",
+        fireMode = {
+            direction = "fixed",
+            throwStrengthFrom = 300,
+            throwStrengthTo = 300,
+        }
+    }
+end
