@@ -15,27 +15,27 @@
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<MakeCommands>
-					<Build command="dsss build server.d --debug" />
+					<Build command="dsss build lumbricus_server.d --debug" />
 					<CompileFile command="" />
 					<Clean command="dsss distclean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
-					<SilentBuild command="dsss build server.d --debug" />
+					<SilentBuild command="dsss build lumbricus_server.d --debug" />
 				</MakeCommands>
 			</Target>
 			<Target title="Release">
-				<Option output="..\bin\server" prefix_auto="1" extension_auto="1" />
+				<Option output="..\bin\lumbricus_server" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="..\bin" />
 				<Option object_output="obj\" />
 				<Option type="1" />
 				<Option compiler="dmd" />
 				<MakeCommands>
-					<Build command="dsss build server.d" />
+					<Build command="dsss build lumbricus_server.d" />
 					<CompileFile command="" />
 					<Clean command="dsss distclean" />
 					<DistClean command="" />
 					<AskRebuildNeeded command="" />
-					<SilentBuild command="dsss build server.d" />
+					<SilentBuild command="dsss build lumbricus_server.d" />
 				</MakeCommands>
 			</Target>
 		</Build>
@@ -63,7 +63,7 @@
 		<Unit filename="..\src\net\iflist.d" />
 		<Unit filename="..\src\net\marshal.d" />
 		<Unit filename="..\src\net\netlayer.d" />
-		<Unit filename="..\src\server.d" />
+		<Unit filename="..\src\lumbricus_server.d" />
 		<Unit filename="..\src\utils\archive.d" />
 		<Unit filename="..\src\utils\array.d" />
 		<Unit filename="..\src\utils\color.d" />

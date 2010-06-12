@@ -37,6 +37,7 @@ version (Game) {
     import game.gui.teamedit;
     import game.gui.setup_local;
     import game.gui.levelpaint;
+    import net.cmdserver;
     import net.cmdserver_gui;
     import net.lobby;
 }
@@ -47,7 +48,17 @@ import common.resview; //debugging
 import common.localeswitch;
 
 void lmain(char[][] args) {
-    init(args[1..$]);
+    args = args[1..$];
+    bool is_server = getarg(args, "server");
+
+    init(args);
+
+    version (Game) {
+        if (is_server) {
+            runCmdServer();
+            return;
+        }
+    }
 
     auto fw = new Framework();
     fw.setCaption("Lumbricus");

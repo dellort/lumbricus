@@ -17,7 +17,9 @@ import utils.log;
 import utils.misc;
 debug import utils.random;
 
+import tango.core.Thread; //for yield()
 import tango.util.Convert;
+import xout = tango.io.Stdout;
 
 //version = LagDebug;
 
@@ -871,3 +873,53 @@ class CmdNetClientConnection {
         state(ClientConState.closed);
     }
 }
+
+
+//code for standalone server (called from lumbricus.d and lumbricus_server.d)
+
+//when this gets true, server will shutdown
+bool gTerminate = false;
+
+void runCmdServer() {
+    setupConsole("Lumbricus Server");
+    auto server = new CmdNetServer(loadConfigDef("server"));
+    scope(exit) server.shutdown();
+    while (!gTerminate) {
+        server.frame();
+        Thread.yield();
+    }
+}
+
+version(Windows) {
+    import tango.sys.win32.UserGdi : SetConsoleTitleA, SetConsoleCtrlHandler;
+    import tango.stdc.stringz : toStringz;
+
+    extern(Windows) int CtrlHandler(uint dwCtrlType) {
+        gTerminate = true;
+        //make Windows not kill us immediately
+        return 1;
+    }
+
+    void setupConsole(char[] title) {
+        //looks nicer
+        SetConsoleTitleA(toStringz(title));
+        //handle Ctrl-C for graceful termination
+        SetConsoleCtrlHandler(&CtrlHandler, 1);
+    }
+} else version (linux) {
+    import tango.stdc.signal;
+
+    extern(C) void sighandler(int sig) {
+        gTerminate = true;
+    }
+
+    void setupConsole(char[] title) {
+        xout.Stdout.formatln("\033]0;{}\007", title);
+        signal(SIGINT, &sighandler);
+        signal(SIGTERM, &sighandler);
+    }
+} else {
+    void setupConsole(char[] title) {
+    }
+}
+

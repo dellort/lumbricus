@@ -280,7 +280,7 @@ abstract class ResourceManagerT(DriverT, ResourceT) : ResourceManager {
 abstract class FrameworkResourceT(DriverResourceT) {
     static assert(is(DriverResourceT : DriverResource));
     private {
-        static WeakList!(ResWrapper) gFinalizers;
+        static WeakList!(ResWrapper, typeof(this)) gFinalizers;
         //need this idiotic indirection just because WeakList can't list the
         //  tracked references (race conditions prevent safe implementation)
         //this must not contain any GC references to the enclosing class
@@ -288,7 +288,6 @@ abstract class FrameworkResourceT(DriverResourceT) {
             DriverResourceT res;
         }
         ResWrapper mRes;
-        FinalizeBlock mFinalize;
     }
 
     //static bool delegate(DriverResourceT) NeedResource;
@@ -310,7 +309,7 @@ abstract class FrameworkResourceT(DriverResourceT) {
         if (!mRes.res) {
             mRes.res = createDriverResource();
             assert(!!mRes.res);
-            gFinalizers.add(&mFinalize, mRes);
+            gFinalizers.add(this, mRes);
         }
         return mRes.res;
     }
@@ -321,7 +320,7 @@ abstract class FrameworkResourceT(DriverResourceT) {
         if (mRes.res) {
             mRes.res.destroy();
             mRes.res = null;
-            gFinalizers.remove(&mFinalize, false);
+            gFinalizers.remove(this);
             return true;
         }
         return false;
@@ -330,13 +329,13 @@ abstract class FrameworkResourceT(DriverResourceT) {
     //called on every frame; will free GC'ed driver objects
     static int deferredFree() {
         int freed;
-        foreach (ResWrapper w; gFinalizers.popFinalizers()) {
+        gFinalizers.cleanup((ResWrapper w) {
             if (w.res) {
                 w.res.destroy();
                 w.res = null;
                 freed++;
             }
-        }
+        });
         return freed;
     }
 
@@ -344,9 +343,9 @@ abstract class FrameworkResourceT(DriverResourceT) {
     //  (when a sound is playing, the user shouldn't hear it)
     static int releaseAll(bool force) {
         //xxx if force=false, use NeedResource to decide if to free an object
-        gFinalizers.removeAll(true);
+        gFinalizers.finalizeAll();
         auto res = deferredFree();
-        assert(gFinalizers.list.length == 0);
+        assert(gFinalizers.countRefs() == 0);
         return res;
     }
 
@@ -592,7 +591,7 @@ bool pixelIsTransparent(Color.RGBA32* p) {
 
 Framework gFramework;
 
-private WeakList!(SurfaceData) gSurfaces;
+private WeakList!(SurfaceData, Surface) gSurfaces;
 
 static this() {
     gSurfaces = new typeof(gSurfaces);
@@ -620,7 +619,6 @@ final class Surface {
     private {
         SurfaceData mData;
         SubSurface mFullSubSurface;
-        FinalizeBlock mFinalize;
     }
 
     ///"best" size for a large texture
@@ -653,7 +651,7 @@ final class Surface {
     final void passivate() {
         if (mData.driver_surface) {
             mData.kill_driver_surface();
-            gSurfaces.remove(&mFinalize, false);
+            gSurfaces.remove(this);
         }
     }
 
@@ -662,7 +660,7 @@ final class Surface {
         assert(!!mData, "this surface was free'd");
         if (!mData.driver_surface && create) {
             mData.create_driver_surface();
-            gSurfaces.add(&mFinalize, mData);
+            gSurfaces.add(this, mData);
         }
         return mData.driver_surface;
     }
@@ -709,7 +707,7 @@ final class Surface {
     final void free() {
         if (mData) {
             mData.do_free();
-            gSurfaces.remove(&mFinalize, false);
+            gSurfaces.remove(this);
         }
         mData = null;
     }
@@ -1526,7 +1524,7 @@ class Framework {
         count += mDriver.releaseCaches();
         count += mDrawDriver.releaseCaches();
         count += gSurfaces.countRefs();
-        gSurfaces.removeAll(true);
+        gSurfaces.finalizeAll();
         deferred_free(); //actually free surfaces
         return count;
     }
@@ -1611,7 +1609,8 @@ class Framework {
     }
 
     int weakObjectsCount() {
-        return WeakListGeneric.globalWeakObjectsCount();
+        //return WeakListGeneric.globalWeakObjectsCount();
+        return 0;
     }
 
     //--- events

@@ -61,7 +61,7 @@ char[] getExePath() {
 //  /proc/self/exe symlink, which contains an absolute path to the binary
 import tango.stdc.posix.unistd;
 char[] getExePath() {
-    char[] buffer = new char[4];
+    char[] buffer = new char[80];
     for (;;) {
         ssize_t res = readlink("/proc/self/exe".ptr, buffer.ptr, buffer.length);
         if (res < 0)

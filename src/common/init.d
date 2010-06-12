@@ -164,6 +164,8 @@ void init(char[][] args) {
         //    _there_; rather they'd expect it in the working dir or so?
         char[] logpath = "/logall.txt";
         gLogInit.minor("opening logfile: {}", logpath);
+        //NOTE: on Linux, will just overwrite a logfile (even if it's open by
+        //  another process)
         const File.Style WriteCreateShared =
             {File.Access.Write, File.Open.Create, File.Share.Read};
         try {
@@ -209,14 +211,22 @@ void init(char[][] args) {
 //make sure everything in args has been used
 //use exit() on errors or help requests
 void cmdlineLoadSettings(ref char[][] args) {
+    char[] sname;
+    if (getarg(args, "setting-help", sname)) {
+        Setting s = findSetting(sname);
+        if (!s) {
+            Stdout.formatln("Setting '{}' not found.", sname);
+        } else {
+            relistAllSettings(); //load/scan files to init all s.choices
+            Stdout.formatln("{}", settingValueHelp(s.name));
+        }
+
+        exit();
+    }
+
     foreach (s; gSettings) {
         char[] value;
         if (getarg(args, s.name, value)) {
-            if (value == "help") {
-                relistAllSettings(); //load/scan files to init all s.choices
-                Stdout.formatln("{}", settingValueHelp(s.name));
-                exit();
-            }
             s.set!(char[])(value);
         }
     }
@@ -230,12 +240,16 @@ void cmdlineCheckHelp(ref char[][] args) {
     void line(char[] s) { Stdout(s).newline; }
 
     line("Commandline options:");
-    line("  --help");
+    line("  --help                  Show this.");
+    line("  --server                Start as CLI network game server.");
+    line("  --setting-help=NAME     List possible values for setting NAME.");
+    line("");
+    line("Settings:");
     foreach (s; gSettings) {
         line("  --" ~ s.name~ "=VALUE");
     }
-    line("Some options can list possible choices by passing help as value.");
-    line("Most settings passed to the command line will be saved "
+    line("");
+    line("Most settings changed via the command line will be saved "
         "permanently in the");
     line("settings file.");
 
@@ -273,7 +287,7 @@ private ExeAttachment* readFatExe() {
     exe.readExact(cast(ubyte[])((&header)[0..1]));
     if (header.magic != "LUMB")
         return null;
-    //point to the byte after the last attachment byte (which is '>')
+    //point to the byte after the last attachment byte
     ulong end_offset = s - Header.sizeof;
     ulong sz = header.size;
     //sanity check: attachment can't be bigger than the whole file, minus header

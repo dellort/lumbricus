@@ -52,11 +52,12 @@ Required libraries:
   - SDL_image
   - Freetype
   - Zlib
+  - OpenGL
   - Lua 5.1
-
-  - ENet (enet.bespin.org) (optional)
-  - FMod (optional)
-  - OpenAL (optional)
+  Optional:
+  - ENet (enet.bespin.org)
+  - FMod
+  - OpenAL + SDL_sound (icculus.org/SDL_sound)
   For Win32, all required .dll files can be found in <svn_root>/downloads/win32_dlls
 - Static linked D libraries:
   - Derelict for the 2 SDL libraries
