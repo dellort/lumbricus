@@ -37,6 +37,7 @@ do
         }
     }
     enableSpriteCrateBlowup(w, sprite_class)
+    dynamite_class = sprite_class
 end
 
 do

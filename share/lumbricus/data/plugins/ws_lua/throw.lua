@@ -212,6 +212,7 @@ do
         }
     }
     enableSpriteCrateBlowup(w, sprite_class)
+    grenade_class = sprite_class
 end
 
 do
@@ -263,6 +264,7 @@ do
         }
     }
     enableSpriteCrateBlowup(w, shard, 5)
+    clusterbomb_class = main
 end
 
 do
@@ -302,5 +304,6 @@ do
         }
     }
     enableSpriteCrateBlowup(w, sprite_class)
+    holygrenade_class = sprite_class
 end
 

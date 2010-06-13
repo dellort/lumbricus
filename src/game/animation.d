@@ -20,6 +20,7 @@ static this() {
     gAnimationParamConverters["twosided"] = &paramConvertTwosided;
     gAnimationParamConverters["twosided_inv"] = &paramConvertTwosidedInv;
     gAnimationParamConverters["rot360"] = &paramConvertFreeRot;
+    gAnimationParamConverters["rot360_2"] = &paramConvertFreeRot_2;
     gAnimationParamConverters["rot360inv"] = &paramConvertFreeRotInv;
     gAnimationParamConverters["rot360_90"] = &paramConvertFreeRotPlus90;
     gAnimationParamConverters["rot180"] = &paramConvertFreeRot180;
@@ -86,6 +87,11 @@ private int paramConvertTwosidedInv(int angle, int count) {
 //360 degrees freedom
 private int paramConvertFreeRot(int angle, int count) {
     return map(-angle+270, 360.0f, count);
+}
+//360 degrees, different angle alignment in animation
+//(mostly for animations with discrete angles)
+private int paramConvertFreeRot_2(int angle, int count) {
+    return cast(int)(realmod(-angle + 270.0f, 360.0f)/360.0f * count);
 }
 //360 degrees freedom, inverted spinning direction
 private int paramConvertFreeRotInv(int angle, int count) {

@@ -32,6 +32,7 @@ do
         }
     }
     enableSpriteCrateBlowup(w, sprite_class)
+    bazooka_class = sprite_class
 end
 
 do
@@ -273,7 +274,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = getStandardOnFire(sc),
-        category = "punch",
+        category = "fly",
         value = 10,
         animation = "weapon_bow",
         icon = "icon_bow",

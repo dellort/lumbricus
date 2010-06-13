@@ -268,7 +268,7 @@ class Sprite : GameObject {
             //xxx: added with sequence-messup
             graphic.simulate();
 
-            if (graphic.readyflag && notifyAnimationEnd) {
+            if (graphic && graphic.readyflag && notifyAnimationEnd) {
                 notifyAnimationEnd = false;
                 OnSpriteAnimationEnd.raise(this);
             }

@@ -193,6 +193,7 @@ do
         }
     }
     enableSpriteCrateBlowup(w, sprite_class)
+    esel_class = sprite_class
 end
 
 do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in old set

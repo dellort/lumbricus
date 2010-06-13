@@ -235,7 +235,11 @@ mainspr {
             worm_fall = "f:100; 519"
 
             worm_roll = "f:13; 157"
-            worm_firepunch = "522"
+            worm_firepunch_up = "522"
+            worm_firepunch_down = "-repeat,f:25; 292"
+            
+            //could be appended to fire animation, but has different parameter mapping
+            worm_kamikaze_ready = "-repeat,f:25; 384"
 
             worm_jet = "176"
             worm_bump_into_ground = "-repeat; 301"
@@ -378,6 +382,12 @@ mainspr {
                 worm_bow_get = "f:25; 504"
                 worm_blowtorch_get = "f:25; 314"
                 worm_bow_release = "f:25; 507"
+                
+                worm_firepunch_prepare = "f:25; 289"
+                worm_firepunch_sitdown = "f:25; 293"
+                worm_kamikaze_prepare = "f:25; 381"
+                //bugged: all 3 animations have horizontal sit angle
+                worm_kamikazebomber_prepare = "385"
             }
             {
                 _flags = "+append_backwards_a"
@@ -439,6 +449,11 @@ mainspr {
             _params = "p2/rot180,p1/step3"
             _flags = "x:3,+mirror_y_b"
             worm_rope_fire = "550"
+        }
+        {
+            _params = "time,p1/rot360_2"
+            _flags = "x:5,f:25,+repeat,+append_mirror_y_backwards_b,+append_backwards_a"
+            worm_kamikaze_fly = "230"
         }
     }
     //special code for worm weapons; each entry generates two animations

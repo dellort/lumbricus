@@ -88,3 +88,40 @@ do
         }
     }
 end
+
+createWeapon {
+    name = "w_kamikazebomber",
+    onFire = function(shooter, info)
+        Shooter_reduceAmmo(shooter)
+        Shooter_finished(shooter)
+        
+        local worm = Shooter_owner(shooter)
+        -- spawn 1 class with 50% probability (or always count, if specified)
+        local function spawn(class, count)
+            count = count or Random_rangei(0, 1)
+            spawnCluster(class, worm, count, 250, 450, 60)
+        end
+        
+        -- kill
+        spriteExplode(worm, 50)
+
+        -- random fun (when you think of it: what could possibly be inside a worm? hehe)
+        spawn(bananashard_class)
+        spawn(grenade_class)
+        spawn(clusterbomb_class)
+        spawn(holygrenade_class)
+        spawn(bazooka_class)
+        spawn(cratesheep_class)
+        spawn(dynamite_class)
+        spawn(mine_class)
+        -- I couldn't stop myself xD
+        spawn(esel_class, math.floor(Random_rangei(0, 9)/9))
+    end,
+    category = "punch",
+    value = 12,
+    animation = "weapon_kamikazebomber",
+    icon = "icon_kamikazebomber",
+    fireMode = {
+        direction = "fixed",
+    }
+}
