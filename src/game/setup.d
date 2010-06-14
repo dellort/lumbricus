@@ -5,6 +5,7 @@ module game.setup;
 
 import common.common;
 import framework.framework;
+import framework.imgread;
 import game.levelgen.level;
 import game.levelgen.generator;
 import utils.configfile;
@@ -93,7 +94,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
         case "loadbmp":
             auto gen = new GenerateFromBitmap(x);
             auto fn = mConfig["level_load_bitmap"];
-            gen.bitmap(gFramework.loadImage(fn), fn);
+            gen.bitmap(loadImage(fn), fn);
             gen.selectTheme(x.themes.findRandom(mConfig["level_gfx"]));
             cfg.level = gen.render(renderBitmaps);
             break;

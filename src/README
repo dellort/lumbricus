@@ -14,6 +14,9 @@ Status:
     - and free sounds
     - nicer and more complete user interface
     - network mode that actually works (or just forget about it)
+      (the current one relies on FP determinism, which is not always given; also
+       it may have too large lag when playing over internet. and in general, the
+       determinism requirement makes it fragile as hell.)
     - simple way to compile/install
 
     The code is written in the D Programming Language version 1.x, see:

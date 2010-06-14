@@ -3,6 +3,7 @@ module common.toplevel;
 
 import framework.font;
 import framework.globalsettings;
+import framework.imgwrite;
 import framework.keysyms;
 import framework.framework;
 import framework.sound;
@@ -289,9 +290,6 @@ private:
         globals.cmdLine.registerCommand("release_caches", &cmdReleaseCaches,
             "", ["bool?=true"]);
 
-        globals.cmdLine.registerCommand("fw_info", &cmdInfoString,
-            "", ["text?"], [&complete_fw_info]);
-
         globals.cmdLine.registerCommand("fw_settings", &cmdFwSettings,
             "", null);
 
@@ -308,35 +306,6 @@ private:
         //more like a test
         globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "");
         globals.cmdLine.registerCommand("echo", &cmdEcho, "", ["text..."]);
-    }
-
-    private void cmdInfoString(MyBox[] args, Output write) {
-        auto names = gFramework.getInfoStringNames();
-        if (args[0].empty) {
-            write.writefln("Strings:");
-            foreach (char[] name, InfoString id; names) {
-                write.writefln("  - {}", name);
-            }
-            return;
-        }
-
-        void show(InfoString s) {
-            write.writef(gFramework.getInfoString(s));
-        }
-
-        char[] s = args[0].unbox!(char[]);
-        if (s == "all") {
-            foreach (char[] name, InfoString id; names) {
-                write.writefln("{}:", name);
-                show(id);
-            }
-        } else {
-            if (s in names) {
-                show(names[s]);
-            } else {
-                write.writefln("string '{}' not found", s);
-            }
-        }
     }
 
     private void cmdFwSettings(MyBox[] args, Output write) {
@@ -363,10 +332,6 @@ private:
     private void cmdSetCycle(MyBox[] args, Output write) {
         char[] name = args[0].unbox!(char[]);
         settingCycle(name, +1);
-    }
-
-    private char[][] complete_fw_info() {
-        return gFramework.getInfoStringNames().keys;
     }
 
     private void cmdWidgetTree(MyBox[] args, Output write) {
@@ -438,7 +403,7 @@ private:
             fs = args[3].unbox!(bool);
         try {
             gFramework.setVideoMode(Vector2i(a, b), c, fs);
-        } catch (FrameworkException e) {
+        } catch (CustomException e) {
             //failed to set video mode, try again in windowed mode
             gFramework.setVideoMode(Vector2i(a, b), c, false);
         }
@@ -454,7 +419,7 @@ private:
                 //toggle fullscreen
                 globals.setVideoFromConf(true);
             }
-        } catch (FrameworkException e) {
+        } catch (CustomException e) {
             //fullscreen switch failed
             write.writefln("error: {}", e);
         }
@@ -505,9 +470,9 @@ private:
             //copy out area of active window
             Rect2i r = topWnd.containedBounds;
             scope subsurf = surf.subrect(r);
-            subsurf.saveImage(ssFile, "png");
+            saveImage(subsurf, ssFile, "png");
         } else
-            surf.saveImage(ssFile, "png");
+            saveImage(surf, ssFile, "png");
     }
 
     //bind [name action [keys]]

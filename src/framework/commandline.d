@@ -1,11 +1,11 @@
 module framework.commandline;
 
-import framework.framework;
 import framework.event;
 import framework.i18n;
 
 import str = utils.string;
 
+import utils.color;
 import utils.misc;
 import utils.mybox;
 import utils.array;

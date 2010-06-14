@@ -301,19 +301,24 @@ final class BigArray(T) {
         T[] mData;
     }
 
-    this(size_t initial_length) {
+    this(size_t initial_length = 0) {
         length = initial_length;
     }
 
     //keep in mind that this invalidates all slices (and pointers) to the array
+    //setting length to 0 is guaranteed to free everything
     void length(size_t newlen) {
+        if (newlen == mData.length)
+            return;
         //xxx: overflow check for newlen*T.sizeof would be nice
         size_t sz = newlen*T.sizeof;
+        assert(!(sz == 0 && mData.ptr is null)); //weird realloc special case
         void* res = cstdlib.realloc(mData.ptr, sz);
         if (!res && newlen != 0) {
             //reallocation failed; realloc() leaves memory untouched
-            //xxx: throw out of memroy exception instead?
-            assert(false, "out of memory");
+            //xxx: throw out OutOfMemoryException instead?
+            throw new Exception(myformat("Out of memory when allocating {} "
+                "bytes.", sz));
         }
         auto oldlen = mData.length;
         mData = (cast(T*)res)[0..newlen];

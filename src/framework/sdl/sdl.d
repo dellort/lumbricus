@@ -1,11 +1,12 @@
 module framework.sdl.sdl;
 
 import derelict.sdl.sdl;
-import tango.stdc.stringz;
+import framework.surface;
 import utils.misc;
-import framework.framework;
 import utils.vector2;
 import utils.color;
+
+import tango.stdc.stringz;
 
 //this is not really needed; it's just here to make framework.sdl.framework
 //more independent from soundmixer.d, so sdl_mixer can be kept out more easily
@@ -26,8 +27,7 @@ void sdlInit() {
 
         //probably really needed, don't know
         if (SDL_Init(0) < 0) {
-            throw new FrameworkException(myformat("Could not init SDL: {}",
-                fromStringz(SDL_GetError())));
+            throwError("Could not init SDL: {}", fromStringz(SDL_GetError()));
         }
     }
 }
@@ -117,7 +117,7 @@ Surface convertFromSDLSurface(SDL_Surface* surf, Transparency transparency,
             surf.w, surf.h, rgba32.BitsPerPixel, pitch*Color.RGBA32.sizeof,
             rgba32.Rmask, rgba32.Gmask, rgba32.Bmask, rgba32.Amask);
         if (!ns)
-            throw new FrameworkException("out of memory?");
+            throw new Exception("out of memory?");
         SDL_SetAlpha(surf, 0, 0);  //lol SDL, disable all transparencies
         //not sure about this, but commenting this seems to work better with
         //paletted+transparent png files (but only in OpenGL mode lol)

@@ -4,6 +4,7 @@ module game.wtris;
 
 import framework.framework;
 import framework.event;
+import framework.imgread;
 import utils.timesource;
 import common.common;
 import common.task;
@@ -519,7 +520,7 @@ public class WTris {
         thetime = new TimeSource("wtris");
 
         //sry for not using "resources"!
-        boxes = gFramework.loadImage("wtrisboxes.png");
+        boxes = loadImage("wtrisboxes.png");
         PIECE_DRAW_W = boxes.size.x / BOX_TYPE_COUNT;
         PIECE_DRAW_H = boxes.size.y;
 

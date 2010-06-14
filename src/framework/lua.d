@@ -1575,7 +1575,7 @@ class LuaState {
     //  has to do: it would never work correctly
     void periodicCleanup() {
         //this watermark stuff is just an attempt to reduce unnecessary work
-        if (mRefList.count < mRefListWatermark)
+        if (mRefList.count <= mRefListWatermark)
             return;
         foreach (RealLuaRef r; mRefList) {
             //r might remove itself from mRefList

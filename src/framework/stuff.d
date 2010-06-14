@@ -6,7 +6,6 @@ module framework.stuff;
 import framework.drivers.base_sdl;
 import framework.drivers.sound_openal;
 import framework.drivers.font_freetype;
-import framework.imgwrite;
 import framework.drivers.draw_opengl;
 import framework.drivers.draw_sdl;
 version(Windows) {

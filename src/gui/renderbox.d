@@ -182,18 +182,11 @@ struct BoxTex {
 
 BoxTex[BoxProperties] boxes;
 
-//xxx: maybe introduce a global on-framework-creation callback registry for
-//     these cases? currently init() is simply called in getBox().
-bool didInit;
-
-void init() {
-    if (didInit)
-        return;
-    didInit = true;
-    gFramework.registerCacheReleaser(toDelegate(&releaseBoxCache));
+static this() {
+    gCacheReleasers ~= toDelegate(&releaseBoxCache);
 }
 
-int releaseBoxCache() {
+int releaseBoxCache(CacheRelease pri) {
     int rel;
 
     void killtex(Texture t) {
@@ -217,8 +210,6 @@ int releaseBoxCache() {
 }
 
 BoxTex getBox(BoxProperties props) {
-    init();
-
     auto t = props in boxes;
     if (t)
         return *t;

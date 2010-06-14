@@ -6,6 +6,7 @@ import common.resset;
 import common.restypes.frames;
 import framework.drawing;
 import framework.framework;
+import framework.imgread;
 import utils.configfile;
 import utils.log;
 import utils.misc;
@@ -235,7 +236,7 @@ class SubAnimation : Animation {
 class ErrorAnimation : Animation {
     private SubSurface mError;
     this() {
-        mError = gFramework.loadImage("error.png").fullSubSurface();
+        mError = loadImage("error.png").fullSubSurface();
         doInit(1, mError.rect, 0);
     }
 
@@ -343,7 +344,7 @@ class AnimationStrip : AnimationSimple {
 
         int frameWidth = config.getIntValue("frame_width", -1);
         int frameHeight = config.getIntValue("frame_height", -1);
-        auto surface = gFramework.loadImage(filename);
+        auto surface = loadImage(filename);
         if (frameWidth < 0 && frameHeight < 0) {
             //square frames
             frameWidth = frameHeight = min(surface.size.x, surface.size.y);
@@ -404,7 +405,7 @@ class AnimationList : AnimationSimple {
 
         SubSurface[] frames;
         foreach (f; flist) {
-            Surface s = gFramework.loadImage(f);
+            Surface s = loadImage(f);
             SubSurface sub = s.fullSubSurface();
             frames ~= sub;
         }

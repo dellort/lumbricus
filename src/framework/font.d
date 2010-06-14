@@ -1,13 +1,16 @@
 module framework.font;
-import framework.framework;
-import utils.configfile;
-import utils.log;
-import utils.factory;
+import framework.filesystem;
+import framework.drawing;
+import framework.driver_base;
+import framework.surface;
 import utils.color;
-import utils.vector2;
-import utils.weaklist;
-
+import utils.configfile;
+import utils.factory;
+import utils.log;
+import utils.misc;
 import utils.stream;
+import utils.vector2;
+
 import str = utils.string;
 
 //read-only for outside
@@ -49,6 +52,10 @@ struct FontProperties {
     }
 }
 
+//xxx it would really be much better to provide methods like
+//  FontDriver.draw(FontProperties style, Vector2i pos, char[] text);
+//this would keep the number of objects lower and would be simpler
+//for now, keeping this, because all the code is already written
 abstract class DriverFont : DriverResource {
     //w == int.max for unlimited text
     //fore, back, border_color: Color.Invalid to use predefined color
@@ -56,11 +63,11 @@ abstract class DriverFont : DriverResource {
     abstract Vector2i textSize(char[] text, bool forceHeight);
 }
 
-abstract class FontDriver : Driver {
-    abstract DriverFont createFont(FontProperties props);
+//creates DriverFont from Font
+abstract class FontDriver : ResDriver {
 }
 
-final class Font : FrameworkResourceT!(DriverFont) {
+final class Font : ResourceT!(DriverFont) {
     private {
         FontProperties mProps;
     }
@@ -69,14 +76,18 @@ final class Font : FrameworkResourceT!(DriverFont) {
         mProps = props;
     }
 
-    override DriverFont createDriverResource() {
-        return gFontManager.driver.createFont(mProps);
+    private DriverFont get() {
+        auto drv = gFontManager.driver;
+        assert(!!drv);
+        auto df = castStrict!(DriverFont)(drv.requireDriverResource(this));
+        assert(!!df);
+        return df;
     }
 
     /// draw UTF8 encoded text
     /// returns position beyond last drawn glyph
     Vector2i drawText(Canvas canvas, Vector2i pos, char[] text) {
-        return get().draw(canvas, pos, text);
+        return get.draw(canvas, pos, text);
     }
 
     /// return pixel width/height of the text
@@ -156,7 +167,7 @@ final class Font : FrameworkResourceT!(DriverFont) {
 
 /// Manages fonts (surprise!)
 /// get with gFontManager
-class FontManager : ResourceManagerT!(FontDriver, Font) {
+class FontManager : ResourceManagerT!(FontDriver) {
     private {
         struct FaceStyles {
             //xxx: it'd be better to just keep a file handle to the font file,
@@ -223,7 +234,7 @@ class FontManager : ResourceManagerT!(FontDriver, Font) {
         auto f = create(p);
         if (!f) {
             if (tryHard)
-                throw new FrameworkException("font >" ~ id ~ "< not found (1)");
+                throwError("font >{}< not found (1)", id);
             return null;
         }
 
@@ -240,7 +251,7 @@ class FontManager : ResourceManagerT!(FontDriver, Font) {
         ConfigNode font = mNodes.findNode(id);
         if (!font) {
             if (fail_exception)
-                throw new FrameworkException("font >" ~ id ~ "< not found (2)");
+                throwError("font >{}< not found (2)", id);
             //Trace.formatln("not found: >{}<", id);
             font = mNodes.getSubNode("normal");
         }

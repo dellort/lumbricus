@@ -6,7 +6,6 @@ import framework.globalsettings;
 import utils.configfile;
 import utils.log;
 import utils.misc;
-//import utils.weaklist;
 import str = utils.string;
 import tango.util.Convert;
 

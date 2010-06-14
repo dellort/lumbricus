@@ -3,6 +3,7 @@ module common.restypes.atlas;
 import common.resfileformats;
 import common.resources;
 import framework.framework;
+import framework.imgread;
 import utils.configfile;
 import utils.misc;
 import utils.vector2;
@@ -57,8 +58,8 @@ class AtlasResource : ResourceItem {
         auto atlas = new Atlas();
 
         foreach (char[] key, char[] value; node.getSubNode("pages")) {
-            auto img = gFramework.loadImage(mContext.fixPath(value));
-            img.preload();
+            auto img = loadImage(mContext.fixPath(value));
+            gFramework.preloadResource(img);
             atlas.mPages ~= img;
         }
 

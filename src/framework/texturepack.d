@@ -1,8 +1,9 @@
 module framework.texturepack;
 
-import framework.framework;
+import framework.surface;
 import utils.array;
 import utils.boxpacker;
+import utils.color;
 import utils.rect2;
 import utils.vector2;
 

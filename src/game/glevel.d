@@ -292,6 +292,7 @@ class GameLandscape : GameObject {
 /+
 
 import common.task;
+import framework.imgread;
 import gui.widget;
 import gui.window;
 
@@ -303,7 +304,7 @@ class LevelColTest : Widget {
     float fscale = 10;
 
     this() {
-        ls = new LandscapeBitmap(gFramework.loadImage("ltest.png"));
+        ls = new LandscapeBitmap(loadImage("ltest.png"));
         geo = new LandscapeGeometry(Vector2f(0), ls);
         Surface colorpix(Color col) {
             auto s = new Surface(Vector2i(1), Transparency.None);

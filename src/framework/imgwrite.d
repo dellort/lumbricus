@@ -1,20 +1,25 @@
 module framework.imgwrite;
 
-import framework.framework;
-import utils.misc;
+import framework.surface;
+import utils.color;
 import utils.gzip : GZWriter, ZLibCrc32;
+import utils.misc;
+import utils.rect2;
+import utils.stream;
 import net.marshal : Marshaller;
 
 //import tango.io.digest.Crc32 : Crc32;
 
-import utils.stream;
-
-//COLLECTION OF HACKS LOL
-static this() {
-    gImageFormats["png"] = toDelegate(&writePNG);
-    //sucked, left in r814
-    //gImageFormats["tga"] = toDelegate(&writeTGA);
-    //gImageFormats["raw"] = toDelegate(&writeRAW);
+//fmt is one of the formats registered in gImageFormats
+//NOTE: stream must be seekable (used to back-patch the length), but the
+//      functions still start writing at the preset seek position, and end
+//      writing at the end of the written image
+void saveImage(Surface img, Stream stream, char[] fmt = "png") {
+    if (fmt == "png") {
+        writePNG(img, stream);
+    } else {
+        throwError("Writing image format not supported: {}", fmt);
+    }
 }
 
 //libpng sucks, all is done manually
@@ -89,7 +94,7 @@ private void writePNG(Surface img, Stream stream) {
             write_alpha = true;
             break;
         default:
-            throw new FrameworkException("writing png: unknown transparency type");
+            throwError("writing png: unknown transparency type");
     }
 
     Marshaller(&marshw).write(ihdr);
@@ -142,8 +147,8 @@ private void writePNG(Surface img, Stream stream) {
                 if (conv_cc) {
                     //replace transparent by colorkey
                     data2 = cckey.ptr;
-                    SurfaceData.do_raw_copy_cc(img.colorkey.toRGBA32, sx,
-                        data, data2);
+                    blitWithColorkey(img.colorkey.toRGBA32,
+                        data[0..sx], data2[0..sx]);
                 }
                 ubyte* pconv = converted.ptr;
                 for (uint x = 0; x < sx; x++) {

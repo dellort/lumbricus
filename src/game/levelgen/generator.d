@@ -8,6 +8,7 @@ import game.levelgen.genrandom;
 import game.levelgen.placeobjects;
 import framework.framework;
 import framework.filesystem;
+import framework.imgread;
 import common.resources;
 import common.resset;
 import utils.configfile;
@@ -626,7 +627,7 @@ class GenerateFromBitmap : LevelGenerator {
 
         mTheme = mShared.themes.find(theme);
 
-        mBitmap = gFramework.loadImage(mFilename);
+        mBitmap = loadImage(mFilename);
     }
 
     override LevelProperties properties() {

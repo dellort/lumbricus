@@ -1,5 +1,6 @@
 module gui.test;
 
+import framework.imgread;
 import gui.container;
 import gui.console;
 import gui.global;
@@ -625,10 +626,8 @@ class TestTask3 {
         if (fn != "") {
             Surface img;
             try {
-                img = gFramework.loadImage(fn);
-            } catch (FilesystemException e) {
-                mValues.text = "couldn't open file, " ~ e.toString;
-            } catch (FrameworkException e) {
+                img = loadImage(fn);
+            } catch (CustomException e) {
                 mValues.text = "couldn't load, " ~ e.toString;
             }
             mView.setSource(img);
@@ -1047,7 +1046,7 @@ class CanvasTest {
         Draw d = new Draw();
         box.add(d);
 
-        mImg = gFramework.loadImage("level/gpl/objects/keller.png");
+        mImg = loadImage("level/gpl/objects/keller.png");
         mImgSub = mImg.createSubSurface(mImg.rect);
 
         gWindowFrame.createWindow(box, "drawtest", Vector2i(500, 500));

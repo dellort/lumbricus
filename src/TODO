@@ -160,4 +160,4 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 - GameConfig code säubern (absurde ansammlung von ConfigNodes)
 - userverzeichnis im VFS unter /user statt / mounten => shadowing von beliebigen dateien im datenverzeichnis verhindern (obwohl das mal als feature gedacht war)
 + datenverzeichnis per kommandozeile setzbar machen
-+ server ohne GUI per kommandozeile startbar machen
++ framework: resourcen sollten nach einer weile freigegeben werden; z.b. wenn eine OpenGL textur eine weile nicht benutzt wurde, diese einfach deallokieren

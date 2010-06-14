@@ -4,7 +4,8 @@ import derelict.openal.al;
 import derelict.sdl.sdl;
 import derelict.sdl.sound;
 import derelict.util.exception;
-import framework.framework;
+import framework.driver_base;
+import framework.filesystem;
 import framework.sound;
 import framework.sdl.sdl;
 import framework.sdl.rwops;
@@ -20,7 +21,7 @@ import utils.log;
 private void checkALError(char[] msg) {
     int code = alGetError();
     if (code != AL_NO_ERROR) {
-        throw new FrameworkException("call of "~msg~" failed: "~fromStringz(
+        throw new Exception("call of "~msg~" failed: "~fromStringz(
             alGetString(code)));
     }
 }
@@ -178,7 +179,8 @@ class ALSound : DriverSound {
         const cStreamBuffer = 4096*8;
     }
 
-    this(ALSoundDriver drv, DriverSoundData data) {
+    this(ALSoundDriver drv, Sample sample) {
+        DriverSoundData data = sample.data;
         mDriver = drv;
 
         //open the stream and create a sample
@@ -190,8 +192,7 @@ class ALSound : DriverSound {
         mSample = Sound_NewSample(ops,
             toStringz(VFSPath(data.filename).extNoDot()), null, bufs);
         if (!mSample) {
-            throw new FrameworkException("SDL_sound failed to load '"
-                ~ data.filename ~ "'");
+            throwError("SDL_sound failed to load '{}'", data.filename);
         }
 
         //recent versions of SDL_sound support fast duration calculation
@@ -236,6 +237,7 @@ class ALSound : DriverSound {
         }
 
         //only do this when initialization was successful
+        ctor(drv, sample);
         mDriver.mSounds ~= this;
     }
 
@@ -277,7 +279,7 @@ class ALSound : DriverSound {
             mStreamedBytes = cast(uint)(startAt.secsf * formatBps(mSample));
             //streamed, queue first 2 buffers
             if (!stream(mALBuffer[0]) || !stream(mALBuffer[1]))
-                throw new FrameworkException("ALSound streaming failed");
+                throw new Exception("ALSound streaming failed");
             alSourceQueueBuffers(source, 2, mALBuffer.ptr);
             checkALError("alSourceQueueBuffers");
             mCurrentSource = source;
@@ -401,6 +403,7 @@ class ALSound : DriverSound {
     }
 
     override void destroy() {
+        super.destroy();
         gBase.closeSound(this);
     }
 }
@@ -428,10 +431,10 @@ class ALSoundDriver : SoundDriver {
         //how it is done in freealut-1.1.0
         mALDevice = alcOpenDevice(null);
         if (!mALDevice)
-            throw new FrameworkException("could not open OpenAL device");
+            throwError("could not open OpenAL device");
         mALContext = alcCreateContext(mALDevice, null);
         if (!mALContext)
-            throw new FrameworkException("could not create OpenAL context");
+            throwError("could not create OpenAL context");
         alcMakeContextCurrent(mALContext);
 
         sdlInit();
@@ -467,8 +470,8 @@ class ALSoundDriver : SoundDriver {
         }
     }
 
-    DriverSound loadSound(DriverSoundData data) {
-        return new ALSound(this, data);
+    override DriverResource createDriverResource(Resource res) {
+        return new ALSound(this, castStrict!(Sample)(res));
     }
 
     void closeSound(DriverSound s) {
@@ -482,7 +485,8 @@ class ALSoundDriver : SoundDriver {
         as.free();
     }
 
-    void destroy() {
+    override void destroy() {
+        super.destroy();
         gLog.minor("unloading OpenAL");
         //caller must make sure all stuff has been unloaded
         assert(mSounds.length == 0);

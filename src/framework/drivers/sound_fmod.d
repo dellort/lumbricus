@@ -7,7 +7,8 @@ module framework.drivers.sound_fmod;
 
 import derelict.fmod.fmod;
 import derelict.util.exception;
-import framework.framework;
+import framework.driver_base;
+import framework.filesystem;
 import framework.sound;
 import framework.drivers.fmodstreamfs;
 import utils.stream;
@@ -22,7 +23,7 @@ private FMODSoundDriver gBase;
 
 private void checkFMODError(FMOD_RESULT errcode) {
     if (errcode != FMOD_OK) {
-        throw new FrameworkException("FMOD error: "~FMOD_ErrorString(errcode));
+        throwError("FMOD error: {}", FMOD_ErrorString(errcode));
     }
 }
 
@@ -33,7 +34,8 @@ class FMODSound : DriverSound {
         Time mLength;
     }
 
-    this(DriverSoundData data) {
+    this(Sample sample) {
+        DriverSoundData data = sample.data;
         mSourceSt = gFS.open(data.filename);
 
         FMOD_MODE m = FMOD_2D;
@@ -59,6 +61,8 @@ class FMODSound : DriverSound {
         uint len;
         FMOD_ErrorCheck(FMOD_Sound_GetLength(mSound, &len, FMOD_TIMEUNIT_MS));
         mLength = timeMsecs(cast(int)len);
+
+        ctor(gBase, sample);
     }
 
     Time length() {
@@ -66,6 +70,7 @@ class FMODSound : DriverSound {
     }
 
     override void destroy() {
+        super.destroy();
         FMOD_Sound_Release(mSound);
         mSound = null;
         if (mSourceSt) {
@@ -232,7 +237,7 @@ class FMODSoundDriver : SoundDriver {
             DerelictFMOD.load();
         } catch (DerelictException e) {
             //wrap it (a failing sound driver does not have to be fatal)
-            throw new FrameworkException(e.msg);
+            throwError("{}", e.msg);
         }
 
         checkFMODError(FMOD_System_Create(&mSystem));
@@ -241,9 +246,8 @@ class FMODSoundDriver : SoundDriver {
         uint fmVersion;
         checkFMODError(FMOD_System_GetVersion(mSystem, &fmVersion));
         if (fmVersion < FMOD_VERSION)
-            throw new FrameworkException(myformat(
-            "Version of FMOD library is too low. Required is at least {:x8}",
-            FMOD_VERSION));
+            throwError("Version of FMOD library is too low. Required is at "
+                "least {:x8}", FMOD_VERSION);
 
         checkFMODError(FMOD_System_SetOutput(mSystem,
             FMOD_OUTPUTTYPE_AUTODETECT));
@@ -255,7 +259,7 @@ class FMODSoundDriver : SoundDriver {
         try {
             FMODSetStreamFs(mSystem,true);
         } catch (FMODException e) {
-            throw new FrameworkException("FMOD error: " ~ e.msg);
+            throwError("FMOD error: {}", e.msg);
         }
     }
 
@@ -282,11 +286,12 @@ class FMODSoundDriver : SoundDriver {
         FMOD_System_Update(mSystem);
     }
 
-    DriverSound loadSound(DriverSoundData data) {
-        return new FMODSound(data);
+    override DriverResource createDriverResource(Resource res) {
+        return new FMODSound(castStrict!(Sample)(res));
     }
 
-    void destroy() {
+    override void destroy() {
+        super.destroy();
         foreach (c; mChannels) {
             c.close();
             mChannels.remove(c);

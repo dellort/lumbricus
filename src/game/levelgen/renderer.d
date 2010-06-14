@@ -339,7 +339,7 @@ class LandscapeBitmap {
             auto iter = pixels.get_iter(y, 0, mSize.x);
             Lexel* meta = &mLevelData[y*mSize.x];
             while (iter.x < iter.x2) {
-                *meta = Surface.isTransparent(iter.px) ? Lexel.Null
+                *meta = pixelIsTransparent(iter.px) ? Lexel.Null
                     : Lexel.SolidSoft;
                 meta++;
                 iter.next_x();
@@ -409,7 +409,7 @@ class LandscapeBitmap {
     //before calling draw() the first time (completely optional)
     void prepareForRendering() {
         foreach (ref Tile t; mTiles) {
-            t.surface.preload();
+            gFramework.preloadResource(t.surface);
         }
     }
 
@@ -864,7 +864,7 @@ class LandscapeBitmap {
                         Color.RGBA32* texel = texptr + iter.x % tex_w;
                         uint texy = (tex_h-pline)%tex_h;
                         texel = texel + texy*tex_pitch;
-                        if (!texture.isTransparent(texel))
+                        if (!pixelIsTransparent(texel))
                             *iter.px = *texel;
                         else {
                             //XXX assumption: parts of the texture that should
@@ -1180,7 +1180,7 @@ class LandscapeBitmap {
             Lexel* dst_meta = &mLevelData[mSize.x*y+cx1];
             auto iter = pixels.get_iter(y, cx1, cx2);
             while (iter.x < iter.x2) {
-                if (!source.isTransparent(src)
+                if (!pixelIsTransparent(src)
                     && ((*dst_meta & meta_mask) == meta_cmp))
                 {
                     *dst_meta = after;

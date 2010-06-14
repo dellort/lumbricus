@@ -4,9 +4,10 @@ module framework.drivers.draw_opengl;
 import derelict.opengl.gl;
 import derelict.opengl.glu;
 import derelict.opengl.extension.arb.texture_non_power_of_two;
-import framework.framework;
 import framework.globalsettings;
 import framework.drawing;
+import framework.driver_base;
+import framework.surface;
 import tango.math.Math;
 import tango.stdc.stringz;
 import utils.configfile;
@@ -34,7 +35,6 @@ private struct Options {
     //use fastest OpenGL options, avoid alpha blending; will look fugly
     //(NOTE: it uses alpha test, which may be slower on modern GPUs)
     bool low_quality = false;
-    bool batch_sub_tex = false;
     bool batch_draw_calls = true;
     //some cards can't deal with NPOT textures (even if they "support" it)
     bool non_power_of_two = false;
@@ -63,8 +63,7 @@ private bool checkGLError(lazy char[] operation, bool crash = false) {
     char[] msg = operation;
     debug mLog.warn("GL error at '{}': {}", msg, errors);
     if (crash)
-        throw new FrameworkException(myformat("OpenGL error: '{}': {}", msg,
-            errors));
+        throw new Exception(myformat("OpenGL error: '{}': {}", msg, errors));
     return true;
 }
 
@@ -84,8 +83,8 @@ class GLDrawDriver : DrawDriver {
         mCanvas = new GLCanvas(this);
     }
 
-    override DriverSurface createSurface(SurfaceData data) {
-        return new GLSurface(this, data);
+    override DriverSurface createDriverResource(Resource surface) {
+        return new GLSurface(this, castStrict!(Surface)(surface));
     }
 
     override Canvas startScreenRendering() {
@@ -140,10 +139,10 @@ class GLDrawDriver : DrawDriver {
         assert(pitch == res.size.x);
         glReadPixels(0, 0, mScreenSize.x, mScreenSize.y, GL_RGBA,
             GL_UNSIGNED_BYTE, ptr);
-        //checkGLError("glReadPixels");
-        //mirror image on x axis
-        res.getData().doMirrorX();
+        checkGLError("glReadPixels");
         res.unlockPixels(res.rect());
+        //mirror image on x axis
+        res.mirror(true, false);
         return res;
     }
 
@@ -152,6 +151,7 @@ class GLDrawDriver : DrawDriver {
     }
 
     override void destroy() {
+        super.destroy();
         DerelictGLU.unload();
         DerelictGL.unload();
     }
@@ -175,45 +175,23 @@ struct MyVertex {
 
 final class GLSurface : DriverSurface {
     GLDrawDriver mDrawDriver;
-    SurfaceData mData;
+    Vector2i mSize;
+    bool mNoCache;
+
+    bool mLocked; //just a loose flag
 
     GLuint mTexId = GLID_INVALID;
     Vector2f mTexMax;
     Vector2i mTexSize;
     bool mError;
 
-    //for batch_sub_tex; region that needs to be updated
-    bool mIsDirty;
-    Rect2i mDirtyRect;
-
     //create from Framework's data
-    this(GLDrawDriver draw_driver, SurfaceData data) {
+    this(GLDrawDriver draw_driver, Surface surface) {
+        assert(!!surface);
         mDrawDriver = draw_driver;
-        mData = data;
-        assert(data.data !is null);
-        reinit();
-    }
+        mSize = surface.size;
+        mNoCache = !surface.enableCaching;
 
-    void releaseSurface() {
-        if (mTexId != GLID_INVALID) {
-            getPixelData(); //possibly read back memory
-            glDeleteTextures(1, &mTexId);
-            mTexId = GLID_INVALID;
-            mDrawDriver.mCanvas.rawBindTex(GLID_INVALID);
-        }
-        mError = false;
-        if (mData) {
-            assert(mData.data !is null);
-        }
-    }
-
-    override void destroy() {
-        releaseSurface();
-        mData = null;
-    }
-
-    void reinit() {
-        //releaseSurface();
         assert(mTexId == GLID_INVALID);
 
         //OpenGL textures need width and height to be a power of two
@@ -221,22 +199,22 @@ final class GLSurface : DriverSurface {
         if (!ARBTextureNonPowerOfTwo.isEnabled
             || !mDrawDriver.opts.non_power_of_two)
         {
-            mTexSize = Vector2i(powerOfTwoRoundUp(mData.size.x),
-                powerOfTwoRoundUp(mData.size.y));
+            mTexSize = Vector2i(powerOfTwoRoundUp(mSize.x),
+                powerOfTwoRoundUp(mSize.y));
         } else {
-            mTexSize = mData.size;
+            mTexSize = mSize;
         }
 
         bool wantInit;
 
-        if (mTexSize == mData.size) {
+        if (mTexSize == mSize) {
             //image width and height are already a power of two
             mTexMax.x = 1.0f;
             mTexMax.y = 1.0f;
         } else {
             //image is smaller, parts of the texture will be unused
-            mTexMax.x = cast(float)mData.size.x / mTexSize.x;
-            mTexMax.y = cast(float)mData.size.y / mTexSize.y;
+            mTexMax.x = cast(float)mSize.x / mTexSize.x;
+            mTexMax.y = cast(float)mSize.y / mTexSize.y;
             wantInit = true;
         }
 
@@ -257,27 +235,40 @@ final class GLSurface : DriverSurface {
             GL_RGBA, GL_UNSIGNED_BYTE, null);
 
         if (wantInit)
-            clearTexBorders(mTexSize, mData.size);
+            clearTexBorders(mTexSize, mSize);
 
         //check for errors (textures larger than maximum size
         //supported by GL/hardware will fail to load)
         if (checkGLError("loading texture")) {
             //set error flag to prevent changing the texture data
             mError = true;
-            mLog.warn("Failed to create texture of size {}.", mTexSize);
-            //throw new FrameworkException(
-            //    "glTexImage2D failed, probably texture was too big. "
-            //    ~ "Requested size: "~mTexSize.toString);
 
             //create a red replacement texture so the error is well-visible
             uint red = 0xff0000ff; //wee, endian doesn't matter here
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0,
                 GL_RGBA, GL_UNSIGNED_BYTE, &red);
-        } else {
-            do_update(Rect2i(mData.size));
         }
 
+        ctor(draw_driver, surface);
+
+        do_update(surface.rect);
+
         steal();
+
+        if (mError)
+            mLog.warn("Failed to create texture of size {}.", mTexSize);
+    }
+
+    override void destroy() {
+        if (mTexId != GLID_INVALID) {
+            lockData(); //possibly read back memory
+            mLocked = false;
+            glDeleteTextures(1, &mTexId);
+            mTexId = GLID_INVALID;
+            mDrawDriver.mCanvas.rawBindTex(GLID_INVALID);
+        }
+        mError = false;
+        super.destroy();
     }
 
     //initialize borders with 0 (sucks, but otherwise there will be visible
@@ -328,9 +319,7 @@ final class GLSurface : DriverSurface {
 
     private void do_update(Rect2i rc) {
         //clip rc to the texture area
-        rc.fitInsideB(Rect2i(mData.size));
-
-        mIsDirty = false;
+        rc.fitInsideB(Rect2i(mSize));
 
         if (rc.size.x <= 0 || rc.size.y <= 0)
             return;
@@ -338,14 +327,17 @@ final class GLSurface : DriverSurface {
         if (mError)
             return;  //texture failed to load and contains only 1 pixel
 
+        Surface surface = getSurface();
+        assert(!!surface); //was deallocated?
+
         assert(mTexId != GLID_INVALID);
         mDrawDriver.mCanvas.rawBindTex(mTexId);
 
-        Color.RGBA32* texData = mData.data.ptr;
-        assert(!!texData);
+        Color.RGBA32* texData = surface._rawPixels.ptr;
+        assert(!!texData); //was "stolen"? (then update shouldn't be called)
 
         //make GL read the right data from the full-image array
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, mData.size.x); //pitch
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, mSize.x); //pitch
         glPixelStorei(GL_UNPACK_SKIP_ROWS, rc.p1.y);
         glPixelStorei(GL_UNPACK_SKIP_PIXELS, rc.p1.x);
 
@@ -360,31 +352,16 @@ final class GLSurface : DriverSurface {
         checkGLError("update texture", true);
     }
 
-    void updatePixels(in Rect2i rc) {
-        if (rc.size.x <= 0 || rc.size.y <= 0)
+    //ensure all updatePixels() updates are applied and the texture can be used
+    package void undirty() {
+        //nop
+    }
+
+    private void steal() {
+        if (mError)
             return;
 
-        if (mDrawDriver.opts.batch_sub_tex) {
-            //defer update to later when it's needed (on drawing)
-            if (!mIsDirty) {
-                mIsDirty = true;
-                mDirtyRect = rc;
-            }
-            mDirtyRect.extend(rc);
-        } else {
-            do_update(rc);
-        }
-    }
-
-    //ensure all updatePixels() updates are applied
-    package void undirty() {
-        if (mIsDirty) {
-            do_update(mDirtyRect);
-        }
-    }
-
-    void steal() {
-        if (mError)
+        if (mLocked || mNoCache)
             return;
 
         assert(mTexId != GLID_INVALID);
@@ -392,33 +369,40 @@ final class GLSurface : DriverSurface {
         if (!mDrawDriver.opts.steal_data)
             return;
 
-        if (mData.data !is null && mData.canSteal()) {
-            assert(!mData.data_locked);
+        if (auto s = getSurface()) {
             //there's no glGetTexSubImage, only glGetTexImage
             // => only works for textures with exact size
-            if (mTexSize == mData.size) {
-                mData.pixels_free(true);
+            if (mTexSize == mSize) {
+                s._pixelsFree();
             }
         }
     }
 
-    void getPixelData() {
+    override void lockData() {
+        mLocked = true;
+
         if (mError)
+            return;
+
+        if (mNoCache)
             return;
 
         assert(mTexId != GLID_INVALID);
 
-        if (mData.data is null) {
+        Surface surface = getSurface();
+
+        if (surface && surface._rawPixels().ptr is null) {
             //can only happen in this mode
             assert(mDrawDriver.opts.steal_data);
-            assert(mTexSize == mData.size);
+            assert(mTexSize == mSize);
 
-            //copy pixels OpenGL surface => mData.data
-            mData.pixels_alloc();
+            //copy pixels OpenGL surface => Surface pixel array
 
             mDrawDriver.mCanvas.rawBindTex(mTexId);
 
-            auto d = mData.data;
+            surface._pixelsAlloc();
+            Color.RGBA32[] d = surface._rawPixels;
+            assert(!!d);
 
             debug {
                 GLint w, h;
@@ -433,18 +417,11 @@ final class GLSurface : DriverSurface {
             glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, d.ptr);
             checkGLError("glGetTexImage", true);
         }
-
-        assert(mData.data !is null);
     }
 
-    void getInfos(out char[] desc, out uint extra_data) {
-        desc = myformat("GLSurface, texid={}", mTexId);
-    }
-
-    char[] toString() {
-        return myformat("GLSurface, {}, id={}, data={}",
-            mData ? mData.size : Vector2i(-1), mTexId,
-            mData ? mData.data.length : -1);
+    override void unlockData(in Rect2i rc) {
+        mLocked = false;
+        do_update(rc);
     }
 }
 
@@ -548,7 +525,8 @@ class GLCanvas : Canvas3DHelper {
 
         //assumes surface is the same value as passed to begin_verts()
         GLSurface surface = state_texture
-            ? cast(GLSurface)state_texture.getDriverSurface() : null;
+            ? cast(GLSurface)mDrawDriver.requireDriverResource(state_texture)
+            : null;
 
         if (surface) {
             float ts_x = 1.0f / surface.mTexSize.x;

@@ -2,6 +2,8 @@
 module wwptools.image;
 
 import framework.framework;
+import framework.imgread;
+import framework.imgwrite;
 import framework.stuff; //register stuff
 import tango.stdc.stringz : toStringz, fromStringz;
 import utils.configfile;
@@ -11,15 +13,6 @@ import utils.stream;
 
 alias Color.RGBA32 RGBAColor;
 const RGBAColor cTransparent = {0, 0, 0, 0};
-
-private void doinit() {
-    if (gFramework)
-        return;
-    //need to init a framework driver to be able to load images
-    //which is stupid, but extractdata needs to load at least an icon mask
-    new Framework();
-    assert(!!gFramework);
-}
 
 class Image {
     private Surface mImg;
@@ -116,18 +109,16 @@ class Image {
     }
 
     void saveTo(Stream s) {
-        mImg.saveImage(s);
+        saveImage(mImg, s);
     }
 
     this(char[] file) {
-        doinit();
         Stream f = Stream.OpenFile(file);
         scope(exit) f.close();
-        mImg = gFramework.loadImage(f);
+        mImg = loadImage(f);
     }
 
     this(int aw, int ah, bool colorkey = true) {
-        doinit();
         //create with colorkey because it makes converted WWP files smaller
         //actually, it didn't get smaller
         mImg = new Surface(Vector2i(aw, ah),

@@ -1,6 +1,7 @@
 module framework.drawing;
 
-import framework.framework;
+import framework.driver_base;
+import framework.surface;
 
 import tango.math.Math : floor, ceil;
 public import utils.color;
@@ -67,6 +68,27 @@ struct BitmapEffect {
 
         return tr;
     }
+}
+
+enum DriverFeatures {
+    canvasScaling = 1,
+    //basically, if a 3D engine is available
+    transformedQuads = 2,
+    //if the OpenGL API is used / OpenGL calls can be done by the user
+    usingOpenGL = 4,
+}
+
+//this may not really belong here
+//resource type is DriverSurface/Surface
+abstract class DrawDriver : ResDriver {
+    abstract Canvas startScreenRendering();
+    abstract void stopScreenRendering();
+
+    abstract void initVideoMode(Vector2i screen_size);
+
+    abstract Surface screenshot();
+
+    abstract int getFeatures();
 }
 
 /// For drawing; the driver inherits his own class from this and overrides the
@@ -159,7 +181,6 @@ public class Canvas {
     /// if effect is null, draw normally
     abstract void drawSprite(SubSurface source, Vector2i destPos,
         BitmapEffect* effect = null);
-
 
     //same as drawSprite, but without the pointer
     //can't disable effects (you still can pass BitmapEffect.init, though)

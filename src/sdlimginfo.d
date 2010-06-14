@@ -9,9 +9,9 @@ import tango.stdc.stringz : toStringz;
 //take a filename as argument, load it with sdl_image, output pixelformat
 //useful for debugging
 void main(char[][] args) {
-    DerelictSDL.load();
+    //DerelictSDL.load();
     DerelictSDLImage.load();
-    SDL_Init(SDL_INIT_VIDEO);
+    //SDL_Init(SDL_INIT_VIDEO);
     SDL_Surface* s = IMG_Load(toStringz(args[1]));
     Stdout.formatln("size: {}x{}", s.w, s.h);
     SDL_PixelFormat* f = s.format;

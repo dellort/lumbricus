@@ -1,10 +1,12 @@
 module framework.drivers.base_sdl;
 
 import derelict.sdl.sdl;
-import derelict.sdl.image;
-import framework.framework;
+import framework.drawing;
+import framework.driver_base;
 import framework.globalsettings;
 import framework.event;
+import framework.main;
+import framework.surface;
 import framework.sdl.rwops;
 import framework.sdl.sdl;
 import framework.sdl.keys;
@@ -104,11 +106,9 @@ class SDLDriver : FrameworkDriver {
 
         sdlInit();
 
-        DerelictSDLImage.load();
-
         if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
-            throw new FrameworkException(myformat(
-                "Could not init SDL video: {}", fromStringz(SDL_GetError())));
+            throwError("Could not init SDL video: {}",
+                fromStringz(SDL_GetError()));
         }
 
         SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, opts.gl_vsync);
@@ -127,7 +127,7 @@ class SDLDriver : FrameworkDriver {
         ubyte[(32*32)/8] cursor; //init with 0, which means all-transparent
         mCursorNull = SDL_CreateCursor(cursor.ptr, cursor.ptr, 32, 32, 0, 0);
         if (!mCursorNull) {
-            throw new FrameworkException("couldn't create SDL cursor");
+            throwError("couldn't create SDL cursor");
         }
 
         SDL_EnableUNICODE(1);
@@ -149,7 +149,6 @@ class SDLDriver : FrameworkDriver {
         if (gOnSDLVideoInit)
             gOnSDLVideoInit(false);
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
-        DerelictSDLImage.unload();
         sdlQuit();
     }
 
@@ -442,80 +441,6 @@ class SDLDriver : FrameworkDriver {
 
     void sleepTime(Time t) {
         SDL_Delay(t.msecs);
-    }
-
-    int releaseCaches() {
-        return 0;
-    }
-
-    //this is the SDL_image dependency
-    Surface loadImage(Stream source, Transparency transparency) {
-        SDL_RWops* ops = rwopsFromStream(source);
-        SDL_Surface* surf = IMG_Load_RW(ops, 0);
-        if (!surf) {
-            auto err = fromStringz(IMG_GetError());
-            throw new FrameworkException("image couldn't be loaded: " ~ err);
-        }
-
-        return convertFromSDLSurface(surf, transparency, true);
-    }
-
-    char[] getDriverInfo() {
-        char[] desc;
-
-        char[] version_to_a(SDL_version v) {
-            return myformat("{}.{}.{}", v.major, v.minor, v.patch);
-        }
-
-        SDL_version compiled, linked;
-        SDL_VERSION(&compiled);
-        linked = *SDL_Linked_Version();
-        desc ~= myformat("SDLDriver, SDL compiled={} linked={}\n",
-            version_to_a(compiled), version_to_a(linked));
-
-        char[20] buf;
-        char* res = SDL_VideoDriverName(buf.ptr, buf.length);
-        desc ~= myformat("Driver: {}\n", res ? fromStringz(res)
-            : "<unintialized>");
-
-        SDL_VideoInfo info = *SDL_GetVideoInfo();
-
-        //in C, info.flags doesn't exist, but instead there's a bitfield
-        //here are the names of the bitfield entries (in order)
-        char[][] flag_names = ["hw_available", "wm_available",
-            "blit_hw", "blit_hw_CC", "blit_hw_A", "blit_sw",
-            "blit_sw_CC", "blit_sw_A", "blit_fill"];
-
-        char[] flags;
-        foreach (int index, name; flag_names) {
-            bool set = !!(info.flags & (1<<index));
-            flags ~= myformat("  {}: {}\n", name, (set ? "1" : "0"));
-        }
-        desc ~= "Flags:\n" ~ flags;
-
-        desc ~= "Screen:\n";
-        desc ~= myformat("   size = {}x{}\n", info.current_w, info.current_h);
-        desc ~= myformat("   video memory = {}\n",
-            str.sizeToHuman(info.video_mem));
-        SDL_PixelFormat* fmt = info.vfmt;
-        desc ~= myformat("   pixel format = {}\n", pixelFormatToString(fmt));
-
-        /+
-        desc ~= myformat("Uses OpenGL: {}\n", mOpenGL);
-        if (mOpenGL) {
-            void dumpglstr(GLenum t, char[] name) {
-                desc ~= myformat("  {} = {}\n", name,
-                    fromStringz(glGetString(t)));
-            }
-            dumpglstr(GL_VENDOR, "GL_VENDOR");
-            dumpglstr(GL_RENDERER, "GL_RENDERER");
-            dumpglstr(GL_VERSION, "GL_VERSION");
-        }
-
-        desc ~= myformat("{} driver surfaces\n", mDriverSurfaceCount);
-        +/
-
-        return desc;
     }
 
     static this() {

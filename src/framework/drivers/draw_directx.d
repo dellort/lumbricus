@@ -2,9 +2,10 @@ module framework.drivers.draw_directx;
 
 import derelict.directx.d3d9;
 import derelict.directx.d3dx9;
-import framework.framework;
 import framework.globalsettings;
 import framework.drawing;
+import framework.driver_base;
+import framework.surface;
 import tango.sys.win32.Macros;
 import tango.sys.win32.Types;
 import utils.misc;
@@ -38,7 +39,7 @@ D3DCOLOR D3DCOLOR_FLOAT(Color c) {
 
 void checkDX(HRESULT res, char[] msg) {
     if (FAILED(res)) {
-        throw new FrameworkException("D3D: "~msg~" failed.");
+        throwError("D3D: {} failed.", msg);
     }
 }
 
@@ -70,8 +71,8 @@ class DXDrawDriver : DrawDriver {
             throw new FrameworkException("Could not create Direct3D Object");
     }
 
-    override DriverSurface createSurface(SurfaceData data) {
-        return new DXSurface(this, data);
+    override DriverSurface createDriverResource(Resource surface) {
+        return new DXSurface(this, castStrict!(Surface)(surface));
     }
 
     override Canvas startScreenRendering() {
@@ -159,6 +160,7 @@ class DXDrawDriver : DrawDriver {
     }
 
     override void destroy() {
+        super.destroy();
         if (d3dDevice) {
             d3dDevice.Release();
             d3dDevice = null;
@@ -177,27 +179,27 @@ class DXDrawDriver : DrawDriver {
 
 class DXSurface : DriverSurface {
     DXDrawDriver mDrawDriver;
-    SurfaceData mData;
+    Vector2i mSize;
+    //other than in the other drivers, but should be ok
+    Color.RGBA32[] mData;
     IDirect3DTexture9 mTex;
 
-    this(DXDrawDriver draw_driver, SurfaceData data) {
+    this(DXDrawDriver draw_driver, Surface surface) {
         mDrawDriver = draw_driver;
-        mData = data;
-        assert(data.data !is null);
+        mSize = surface.size;
         //reinit();
-        if (data.size.quad_length == 0)
+        if (mSize.quad_length == 0)
             return;
-        mDrawDriver.d3dDevice.CreateTexture(mData.size.x, mData.size.y, 1,
+        mDrawDriver.d3dDevice.CreateTexture(mSize.x, mSize.y, 1,
             D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &mTex, null);
         assert(!!mTex);
-        updatePixels(Rect2i(mData.size));
+        mData = surface._rawPixels();
+        assert(!!mData.ptr);
+        unlockData(surface.rect);
     }
 
-    override void getPixelData() {
-    }
-
-    override void updatePixels(in Rect2i rc) {
-        rc.fitInsideB(Rect2i(mData.size));
+    override void unlockData(in Rect2i rc) {
+        rc.fitInsideB(Rect2i(mSize));
         if (rc.size.x < 0 || rc.size.y < 0)
             return;
         RECT rc2;
@@ -208,7 +210,7 @@ class DXSurface : DriverSurface {
         D3DLOCKED_RECT lrc;
         checkDX(mTex.LockRect(0, &lrc, &rc2, 0), "texture.LockRect");
         for (int y = 0; y < rc.p2.y - rc.p1.y; y++) {
-            Color.RGBA32* psrc = &mData.data[(y+rc.p1.y)*mData.pitch + rc.p1.x];
+            Color.RGBA32* psrc = &mData[(y+rc.p1.y)*mSize.x + rc.p1.x];
             Color.RGBA32* pdest = cast(Color.RGBA32*)(lrc.pBits + lrc.Pitch * y);
             size_t s = rc.size.x;
             for (int i = 0; i < s; i++) {
@@ -229,9 +231,7 @@ class DXSurface : DriverSurface {
         if (mTex)
             mTex.Release();
         mTex = null;
-    }
-
-    override void getInfos(out char[] desc, out uint extra_data) {
+        super.destroy();
     }
 }
 
@@ -348,16 +348,16 @@ class DXCanvas : Canvas3DHelper {
     private void doDraw(Surface source, Vector2i destPos, Vector2i sourcePos,
         Vector2i sourceSize, Transform2f* tr = null, Color col = Color(1.0f))
     {
-        auto tex = cast(DXSurface)source.getDriverSurface();
+        auto tex = cast(DXSurface)mDrawDriver.requireDriverResource(source);
         Vector2i p1 = destPos;
         Vector2i p2 = destPos + sourceSize;
         Vector2f t1, t2;
 
         //select the right part of the texture (in 0.0-1.0 coordinates)
-        t1.x = cast(float)sourcePos.x / tex.mData.size.x;
-        t1.y = cast(float)sourcePos.y / tex.mData.size.y;
-        t2.x = cast(float)(sourcePos.x+sourceSize.x) / tex.mData.size.x;
-        t2.y = cast(float)(sourcePos.y+sourceSize.y) / tex.mData.size.y;
+        t1.x = cast(float)sourcePos.x / tex.mSize.x;
+        t1.y = cast(float)sourcePos.y / tex.mSize.y;
+        t2.x = cast(float)(sourcePos.x+sourceSize.x) / tex.mSize.x;
+        t2.y = cast(float)(sourcePos.y+sourceSize.y) / tex.mSize.y;
 
         //TLVERTEX* buf;
         //mDXVertexBuffer.Lock(0, 0, cast(void**)&buf, D3DLOCK_DISCARD);
@@ -402,10 +402,11 @@ class DXCanvas : Canvas3DHelper {
     {
         assert(verts.length <= cMaxVertices);
 
-        DXSurface dxsurf = tex ? cast(DXSurface)tex.getDriverSurface() : null;
+        DXSurface dxsurf = tex
+            ? cast(DXSurface)mDrawDriver.requireDriverResource(tex) : null;
         Vector2f ts;
         if (dxsurf) {
-            ts = Vector2f(1.0f/dxsurf.mData.size.x, 1.0f/dxsurf.mData.size.y);
+            ts = Vector2f(1.0f/dxsurf.mSize.x, 1.0f/dxsurf.mSize.y);
             d3dDevice.SetTexture(0, dxsurf.mTex);
         } else {
             ts = Vector2f(1.0f);

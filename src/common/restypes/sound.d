@@ -31,7 +31,7 @@ class SampleResource : ResourceItem {
             sample = gSoundManager.createSample("empty.wav", SoundType.sfx);
         }
         assert(!!sample);
-        sample.preload();
+        gFramework.preloadResource(sample);
         mContents = sample;
     }
 

@@ -1,6 +1,7 @@
 module framework.sound;
 
-import framework.framework;
+import framework.driver_base;
+import framework.filesystem;
 import framework.globalsettings;
 import utils.factory;
 import utils.list2;;
@@ -63,6 +64,18 @@ struct DriverSoundData {
 //(unifying smaples and music simplifies memory managment)
 abstract class DriverSound : DriverResource {
     abstract Time length();
+
+    //don't interrupt music when doing a "soft" cache release
+    override bool isInUse() {
+        //xxx: seeking when the sample/music is restarted would be nicer,
+        //  because then music would be continuous even if driver is changed
+        Sample sample = castStrict!(Sample)(getResource());
+        foreach (Source s; gSoundManager.mSources) {
+            if (s.sample() is sample && s.state != PlaybackState.stopped)
+                return true;
+        }
+        return false;
+    }
 }
 
 ///a channel is used to play sound effects (but not music, strange, hurrr)
@@ -94,18 +107,17 @@ abstract class DriverChannel {
     abstract Time position();
 }
 
-abstract class SoundDriver : Driver {
+//also create DriverSound resources
+abstract class SoundDriver : ResDriver {
     //create/get a free channel to play stuff
     //returns null if none available
     //reserve_for: DriverChannel.reserved_for is set to it
     abstract DriverChannel getChannel(Object reserve_for);
-    //load/destroy a sound file
-    abstract DriverSound loadSound(DriverSoundData data);
 }
 
 ///main sound class, loads samples and music and sets volume
 //NOTE: not overloaded by sound driver anymore
-class SoundManager : ResourceManagerT!(SoundDriver, Sample) {
+class SoundManager : ResourceManagerT!(SoundDriver) {
     private {
         //Music mCurrentMusic;
         //all loaded sound files (music & samples)
@@ -132,6 +144,12 @@ class SoundManager : ResourceManagerT!(SoundDriver, Sample) {
         foreach (int idx, ref tv; mTypeVolume) {
             tv = addsndval(myformat("volume{}", idx));
         }
+    }
+
+    DriverSound getDriverSound(Sample s) {
+        if (!driver)
+            return null;
+        return castStrict!(DriverSound)(driver.requireDriverResource(s));
     }
 
     private void change_volume(Setting v) {
@@ -206,7 +224,7 @@ class SoundManager : ResourceManagerT!(SoundDriver, Sample) {
 ///common class for all sounds
 ///sounds can still be streamed if set in the constructor (a streamed sound may
 ///  only be playing once at a time)
-class Sample : FrameworkResourceT!(DriverSound) {
+class Sample : ResourceT!(DriverSound) {
     protected {
         DriverSoundData mSource;
         SoundType mType;
@@ -228,23 +246,9 @@ class Sample : FrameworkResourceT!(DriverSound) {
         return mSource.filename;
     }
 
-    override DriverSound createDriverResource() {
-        return gSoundManager.driver.loadSound(mSource);
+    DriverSoundData data() {
+        return mSource;
     }
-
-    /+ xxx the place where this should be used: FrameworkResource.releaseAll()
-    static bool needResource(DriverSound obj) {
-        //if sample is used, don't free it
-        //this is optional; without this code, the sample is just restarted
-        //xxx: seeking when the sample/music is restarted would be nicer,
-        //  because then music would be continuous even if driver is changed
-        foreach (Source s; gSoundManager.mSources) {
-            if (s.sample() is obj && s.state != PlaybackState.stopped)
-                return true;
-        }
-        return false;
-    }
-    +/
 
     ///close the sample/music (and stop if active)
     void dclose() {
@@ -253,7 +257,8 @@ class Sample : FrameworkResourceT!(DriverSound) {
 
     ///get length of this sample/music stream
     Time length() {
-        return get().length();
+        DriverSound ds = gSoundManager.getDriverSound(this);
+        return ds ? ds.length() : Time.Null;
     }
 
     ///type for specific volume level
@@ -379,7 +384,7 @@ class Source {
             dc.looping = mLooping;
 
             try {
-                dc.play(mSample.get(), start);
+                dc.play(gSoundManager.getDriverSound(mSample), start);
                 mState = PlaybackState.playing;
             //may get FilesystemException or FrameworkException if the file was
             //  not found/couldn't be opened
@@ -530,25 +535,15 @@ class NullSound : SoundDriver {
     this() {
     }
 
-    DriverChannel getChannel(Object reserve_for) {
+    override DriverResource createDriverResource(Resource res) {
         return null;
     }
 
-    DriverSound loadSound(DriverSoundData data) {
-        return new NullSoundSound();
-    }
-
-    void destroy() {
+    DriverChannel getChannel(Object reserve_for) {
+        return null;
     }
 
     static this() {
         registerFrameworkDriver!(typeof(this))("sound_none");
     }
-}
-
-class NullSoundSound : DriverSound {
-    Time length() {
-        return Time.Null;
-    }
-    override void destroy() {}
 }

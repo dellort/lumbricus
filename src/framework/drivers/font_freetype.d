@@ -1,13 +1,14 @@
 //libfreetype font driver
 module framework.drivers.font_freetype;
 
-import derelict.opengl.gl;
 import derelict.freetype.ft;
 import derelict.util.exception;
 
-import framework.framework;
-import framework.globalsettings;
 import framework.font;
+import framework.drawing;
+import framework.driver_base;
+import framework.globalsettings;
+import framework.surface;
 import framework.texturepack;
 
 import utils.array;
@@ -47,7 +48,6 @@ class FTGlyphCache {
         int mBaseline;
         int mLineSkip;
         int mUnderlineOffset, mUnderlineHeight;
-        FontProperties props;
         FT_Face mFace;
         //referenced across shared font instances
         ubyte[] mFontStream;
@@ -55,7 +55,10 @@ class FTGlyphCache {
         FTFontDriver mDriver;
     }
 
-    package int refcount = 1;
+    //read-only
+    FontProperties props;
+
+    int refcount = 1;
 
     this(FTFontDriver driver, FontProperties props) {
         mDriver = driver;
@@ -67,21 +70,20 @@ class FTGlyphCache {
         //will fall back to default style if specified was not found
         mFontStream = gFontManager.findFace(props.face, props.getFaceStyle);
         if (!mFontStream.length) {
-            throw new FrameworkException("Failed to load font '" ~ props.face
-                ~ "': Face file not found.");
+            throwError("Failed to load font '{}': Face file not found.",
+                props.face);
         }
         this.props = props;
         //NOTE: FT wants that you don't deallocate the passed font file data
         if (FT_New_Memory_Face(driver.library, mFontStream.ptr,
             mFontStream.length, 0, &mFace))
         {
-            throw new FrameworkException("Freetype failed to load font '"
-                ~ props.face ~ "'.");
+            throwError("Freetype failed to load font '{}'.", props.face);
         }
 
         //only supports scalable fonts
         if (!FT_IS_SCALABLE(mFace))
-            throw new FrameworkException("Invalid font: Not scalable.");
+            throwError("Invalid font: Not scalable.");
         //using props.size as pointsize with default dpi (72)
         FT_Set_Char_Size(mFace, 0, props.size * 64, 0, 0);
         //calculate font metrics
@@ -156,10 +158,12 @@ class FTGlyphCache {
         int ftres;
 
         //xxx: error handling doesn't free stuff allocated from FT
+        //xxx 2: should probably be more forgiving about errors (e.g. display
+        //  nothing or an error texture instead of crashing)
         //(also, I check allocating functions only)
         void ftcheck(char[] name) {
             if (ftres)
-                throw new FrameworkException(
+                throw new Exception(
                     myformat("fontft.d failed: err={} in {}", ftres, name));
         }
 
@@ -311,24 +315,37 @@ class FTGlyphCache {
 
 class FTFont : DriverFont {
     private {
+        FTFontDriver mDriver;
         FTGlyphCache mCache;     //"main" cache, for font in mProps
         FontProperties mProps;
     }
 
-    package int refcount = 1;
+    this(FTFontDriver driver, Font font) {
+        mDriver = driver;
+        mProps = font.properties;
+        mCache = mDriver.getCache(mProps);
+        ctor(driver, font);
+    }
 
-    this(FTGlyphCache glyphs, FontProperties props) {
-        mCache = glyphs;
-        mProps = props;
+    override void destroy() {
+        super.destroy();
+        mDriver.unrefCache(mCache);
+    }
+
+    private FontProperties props() {
+        //ok, the reason for not using the cache's props is because the cache
+        //  resets FontProperties member that don't change the generated glyphs
+        //return mCache.props;
+        return mProps;
     }
 
     private void drawGlyph(Canvas c, GlyphData* glyph, Vector2i pos) {
-        if (mProps.back_color.a > 0)
-            c.drawFilledRect(Rect2i.Span(pos, glyph.size), mProps.back_color);
+        if (props.back_color.a > 0)
+            c.drawFilledRect(Rect2i.Span(pos, glyph.size), props.back_color);
 
         if (glyph.shadow) {
             c.drawSprite(glyph.shadow, pos + glyph.border_offset
-                + Vector2i(mProps.shadow_offset));
+                + Vector2i(props.shadow_offset));
         }
 
         if (glyph.border) {
@@ -348,19 +365,19 @@ class FTFont : DriverFont {
         }
 
         //it seems we really must draw this ourselves
-        if (mProps.underline) {
+        if (props.underline) {
             int lh = mCache.mUnderlineHeight;
             int u_y = pos.y + mCache.mBaseline - mCache.mUnderlineOffset;
             //border for underline
             //xxx: not correctly composited with foreground line (but who cares)
-            int b = mProps.border_width;
+            int b = props.border_width;
             if (b > 0) {
                 canvas.drawLine(Vector2i(orgx - b/2, u_y),
-                    Vector2i(pos.x + b/2, u_y), mProps.border_color, lh + b);
+                    Vector2i(pos.x + b/2, u_y), props.border_color, lh + b);
             }
             //normal underline
             canvas.drawLine(Vector2i(orgx, u_y), Vector2i(pos.x, u_y),
-                mProps.fore_color, lh);
+                props.fore_color, lh);
         }
 
         return pos;
@@ -376,21 +393,11 @@ class FTFont : DriverFont {
             res.y = mCache.height;
         return res;
     }
-
-    char[] getInfos() {
-        return myformat("glyphs={}, pages={}", mCache.cachedGlyphs,
-            mCache.mPacker ? mCache.mPacker.pages : -1);
-    }
-
-    override void destroy() {
-        mCache.mDriver.destroyFont(this);
-    }
 }
 
 class FTFontDriver : FontDriver {
     private {
         FT_Library library;
-        FTFont[FontProperties] mFonts;
         FTGlyphCache[FontProperties] mGlyphCaches;
         TexturePack mPacker;
     }
@@ -402,42 +409,22 @@ class FTFontDriver : FontDriver {
         DerelictFT.load();
         Derelict_SetMissingProcCallback(null);
         if (FT_Init_FreeType(&library))
-            throw new FrameworkException("FT_Init_FreeType failed");
+            throwError("FT_Init_FreeType failed");
     }
 
-    void destroy() {
-        assert(mFonts.length == 0); //Framework's error
+    override void destroy() {
+        super.destroy();
         assert(mGlyphCaches.length == 0); //our error
         FT_Done_FreeType(library);
         DerelictFT.unload();
     }
 
-    DriverFont createFont(FontProperties props) {
-        FTFont* ph = props in mFonts;
-        if (ph) {
-            FTFont r = *ph;
-            r.refcount++;
-            return r;
-        }
-
-        auto gc = getCache(props);
-        auto f = new FTFont(gc, props);
-        mFonts[props] = f;
-
-        return f;
+    override DriverResource createDriverResource(Resource res) {
+        return createFont(castStrict!(Font)(res));
     }
 
-    package void destroyFont(DriverFont a_handle) {
-        auto handle = cast(FTFont)a_handle;
-        assert(!!handle);
-        auto p = handle.mProps;
-        assert(handle is mFonts[p]);
-        handle.refcount--;
-        if (handle.refcount < 1) {
-            assert(handle.refcount == 0);
-            mFonts.remove(p);
-            derefCache(handle.mCache);
-        }
+    DriverFont createFont(Font props) {
+        return new FTFont(this, props);
     }
 
     private FTGlyphCache getCache(FontProperties props) {
@@ -457,7 +444,7 @@ class FTFontDriver : FontDriver {
         return gc;
     }
 
-    private void derefCache(FTGlyphCache cache) {
+    private void unrefCache(FTGlyphCache cache) {
         assert(cache.refcount > 0);
         cache.refcount--;
         if (cache.refcount < 1) {
@@ -467,10 +454,10 @@ class FTFontDriver : FontDriver {
         }
     }
 
-    override int releaseCaches() {
+    override int releaseCaches(CacheRelease r) {
         int count;
-        foreach (FTFont fh; mFonts) {
-            count += fh.mCache.releaseCache();
+        foreach (FTGlyphCache gc; mGlyphCaches) {
+            count += gc.releaseCache();
             count++;
         }
         if (mPacker)
