@@ -21,6 +21,8 @@ import tango.io.device.File;
 import tango.io.stream.TextFile;
 import tango.io.stream.Format;
 import tango.io.FilePath;
+import tango.io.FileScan;
+import tango.io.Path : patternMatch;
 
 //xxx can it really take 2 seconds to parse that Regex??? program start is slow
 Regex gReDepLine;
@@ -111,15 +113,17 @@ void processVisuald(char[] input, FormatOutput!(char) output, Module[] modules) 
             }
         }
 
-        void write(char[] indent, FormatOutput!(char) output) {
-            output.formatln("{}<Folder name=\"{}\">", indent, name);
+        void write(char[] indent, FormatOutput!(char) output, bool frame = true) {
+            if (frame)
+                output.formatln("{}<Folder name=\"{}\">", indent, name);
             foreach (ref fld; sub) {
                 fld.write(indent ~ ' ', output);
             }
             foreach (fn; files) {
                 output.formatln("{} <File path=\"{}\" />", indent, fn);
             }
-            output.formatln("{}</Folder>", indent);
+            if (frame)
+                output.formatln("{}</Folder>", indent);
         }
     }
     Folder root;
@@ -132,14 +136,14 @@ void processVisuald(char[] input, FormatOutput!(char) output, Module[] modules) 
     foreach (line; lines(input)) {
         if (line.length == 0)
             continue;
-        if (line == "</DProject>") {
+        if (line == " </Folder>") {
             skip = false;
         }
         if (!skip)
             output(line).newline;
-        if (line == " </Config>") {
+        if (line.length > 17 && line[0..15] == " <Folder name=\"") {
             skip = true;
-            root.write(" ", output);
+            root.write(" ", output, false);
         }
     }
 }
@@ -157,6 +161,12 @@ int main(char[][] args)
         return 1;
     }
     char[] projFile = args[1];
+    FilePath[] incFiles;
+    foreach (a; args[2..$]) {
+        if (a.length > 2 && a[0..2] == "-I") {
+            incFiles ~= FilePath(a[2..$]);
+        }
+    }
     ProjType projType;
 
     if (FilePath(projFile).ext() == "cbp")
@@ -164,7 +174,7 @@ int main(char[][] args)
     else if (FilePath(projFile).ext() == "visualdproj")
         projType = ProjType.visuald;
     else {
-        Stdout("Unknown project file type.");
+        Stdout("Unknown project file type.").newline;
         return 1;
     }
     //Cache project file (will be overwritten)
@@ -180,7 +190,7 @@ int main(char[][] args)
         deps ~= dep;
     }
     if (deps.length == 0) {
-        Stdout("Invalid depfile.");
+        Stdout("Invalid depfile.").newline;
         return 1;
     }
 
@@ -191,6 +201,19 @@ int main(char[][] args)
             modules ~= Module(dep.modulename, dep.filename);
         if (!FilePath(dep.impFilename).isAbsolute())
             modules ~= Module(dep.impModule, dep.impFilename);
+    }
+    //scan for additional files
+    auto scan = new FileScan();
+    foreach (ref fp; incFiles) {
+        scan.sweep(fp.path(), fp.file());
+        scan.sweep(fp.path(), (FilePath curFile, bool isDir) {
+            return isDir || patternMatch(curFile.file(), fp.file());
+        });
+        foreach (f; scan.files()) {
+            f.native();
+            //xxx generate id (not needed for CB projects)
+            modules ~= Module("", f.toString());
+        }
     }
     //Sort by filename and eliminate duplicates
     modules.sort();

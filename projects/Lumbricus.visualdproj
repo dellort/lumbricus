@@ -126,6 +126,7 @@
     <File path="..\src\derelict\fmod\fmoddsp.d" />
     <File path="..\src\derelict\fmod\fmoderrors.d" />
     <File path="..\src\derelict\fmod\fmodfuncs.d" />
+    <File path="..\src\derelict\fmod\fmodmemory.d" />
     <File path="..\src\derelict\fmod\fmodtypes.d" />
    </Folder>
    <Folder name="lua">
@@ -162,19 +163,23 @@
    <File path="..\src\framework\commandline.d" />
    <File path="..\src\framework\config.d" />
    <File path="..\src\framework\drawing.d" />
+   <File path="..\src\framework\driver_base.d" />
    <File path="..\src\framework\event.d" />
    <File path="..\src\framework\filesystem.d" />
    <File path="..\src\framework\font.d" />
    <File path="..\src\framework\framework.d" />
    <File path="..\src\framework\globalsettings.d" />
    <File path="..\src\framework\i18n.d" />
+   <File path="..\src\framework\imgread.d" />
    <File path="..\src\framework\imgwrite.d" />
    <File path="..\src\framework\keybindings.d" />
    <File path="..\src\framework\keysyms.d" />
    <File path="..\src\framework\lua.d" />
+   <File path="..\src\framework\main.d" />
    <File path="..\src\framework\rotozoom.d" />
    <File path="..\src\framework\sound.d" />
    <File path="..\src\framework\stuff.d" />
+   <File path="..\src\framework\surface.d" />
    <File path="..\src\framework\texturepack.d" />
   </Folder>
   <Folder name="game">
@@ -365,7 +370,6 @@
    <File path="..\src\utils\timesource.d" />
    <File path="..\src\utils\transform.d" />
    <File path="..\src\utils\vector2.d" />
-   <File path="..\src\utils\weaklist.d" />
   </Folder>
   <File path="..\src\lumbricus.d" />
  </Folder>

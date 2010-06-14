@@ -45,15 +45,12 @@
 		<Unit filename="..\src\derelict\enet\enettypes.d" />
 		<Unit filename="..\src\framework\commandline.d" />
 		<Unit filename="..\src\framework\config.d" />
-		<Unit filename="..\src\framework\drawing.d" />
 		<Unit filename="..\src\framework\event.d" />
 		<Unit filename="..\src\framework\filesystem.d" />
-		<Unit filename="..\src\framework\framework.d" />
 		<Unit filename="..\src\framework\globalsettings.d" />
 		<Unit filename="..\src\framework\i18n.d" />
-		<Unit filename="..\src\framework\keybindings.d" />
 		<Unit filename="..\src\framework\keysyms.d" />
-		<Unit filename="..\src\framework\rotozoom.d" />
+		<Unit filename="..\src\lumbricus_server.d" />
 		<Unit filename="..\src\net\announce.d" />
 		<Unit filename="..\src\net\announce_lan.d" />
 		<Unit filename="..\src\net\announce_php.d" />
@@ -63,7 +60,6 @@
 		<Unit filename="..\src\net\iflist.d" />
 		<Unit filename="..\src\net\marshal.d" />
 		<Unit filename="..\src\net\netlayer.d" />
-		<Unit filename="..\src\lumbricus_server.d" />
 		<Unit filename="..\src\utils\archive.d" />
 		<Unit filename="..\src\utils\array.d" />
 		<Unit filename="..\src\utils\color.d" />
@@ -76,18 +72,14 @@
 		<Unit filename="..\src\utils\mybox.d" />
 		<Unit filename="..\src\utils\output.d" />
 		<Unit filename="..\src\utils\path.d" />
-		<Unit filename="..\src\utils\perf.d" />
 		<Unit filename="..\src\utils\random.d" />
-		<Unit filename="..\src\utils\rect2.d" />
 		<Unit filename="..\src\utils\rndkiss.d" />
 		<Unit filename="..\src\utils\stream.d" />
 		<Unit filename="..\src\utils\string.d" />
 		<Unit filename="..\src\utils\strparser.d" />
 		<Unit filename="..\src\utils\time.d" />
 		<Unit filename="..\src\utils\timesource.d" />
-		<Unit filename="..\src\utils\transform.d" />
 		<Unit filename="..\src\utils\vector2.d" />
-		<Unit filename="..\src\utils\weaklist.d" />
 		<Extensions>
 			<code_completion />
 			<envvars />

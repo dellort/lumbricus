@@ -86,7 +86,7 @@ function Timer:setDuration(duration, periodic)
     if self:isStarted() then
         local p = self:paused()
         self:start(duration, periodic)
-        self:setPauses(p)
+        self:setPaused(p)
     else
         self._last_duration = duration
         self._periodic = ifnil(periodic, self._periodic)

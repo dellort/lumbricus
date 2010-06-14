@@ -148,9 +148,9 @@ do
     local flash_graphic = SequenceType_findState(seq, "flashing")
     local flash_particle = lookupResource("p_mine_flash")
     -- timer for initial delay
-    -- xxx causes 3 second wait for inactivity on game start
     enableSpriteTimer(mine_class, {
         defTimer = timeSecs(3),
+        timerId = 1337,
         callback = function(sender)
             -- mine becomes active
             addCircleTrigger(sender, 45, "wormsensor", function(trig, obj)
@@ -170,6 +170,15 @@ do
             Sprite_set_noActivityWhenGlued(sender, true)
         end
     })
+    -- hack: if the mine has no owner member (i.e. it was placed on game start),
+    -- reduce initial delay to 0.5s (prevent game start delay)
+    addSpriteClassEvent(mine_class, "sprite_activate", function(sender)
+        local member = Control_memberFromGameObject(sender)
+        if not member then
+            local ctx = get_context(sender)
+            ctx[1337]:setDuration(timeSecs(0.5))
+        end
+    end)
 
     local w = createWeapon {
         name = "w_" .. name,

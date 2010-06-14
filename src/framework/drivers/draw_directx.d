@@ -6,6 +6,7 @@ import framework.globalsettings;
 import framework.drawing;
 import framework.driver_base;
 import framework.surface;
+import framework.main;
 import tango.sys.win32.Macros;
 import tango.sys.win32.Types;
 import utils.misc;
@@ -39,7 +40,7 @@ D3DCOLOR D3DCOLOR_FLOAT(Color c) {
 
 void checkDX(HRESULT res, char[] msg) {
     if (FAILED(res)) {
-        throwError("D3D: {} failed.", msg);
+        throwError("D3D: {} failed (hr = {:x8#}).", msg, res);
     }
 }
 
@@ -68,7 +69,7 @@ class DXDrawDriver : DrawDriver {
 
         d3dObj = Direct3DCreate9(D3D_SDK_VERSION);
         if (d3dObj is null)
-            throw new FrameworkException("Could not create Direct3D Object");
+            throwError("Could not create Direct3D Object");
     }
 
     override DriverSurface createDriverResource(Resource surface) {
@@ -105,7 +106,7 @@ class DXDrawDriver : DrawDriver {
            vstate.window_handle, D3DCREATE_SOFTWARE_VERTEXPROCESSING
            | D3DCREATE_FPU_PRESERVE, &mPresentParams, &d3dDevice)))
         {
-            throw new FrameworkException("Could not create Direct3D Device");
+            throwError("Could not create Direct3D Device");
         }
 
         mCanvas = new DXCanvas(this);
@@ -196,11 +197,13 @@ class DXSurface : DriverSurface {
         mData = surface._rawPixels();
         assert(!!mData.ptr);
         unlockData(surface.rect);
+
+        ctor(draw_driver, surface);
     }
 
     override void unlockData(in Rect2i rc) {
         rc.fitInsideB(Rect2i(mSize));
-        if (rc.size.x < 0 || rc.size.y < 0)
+        if (rc.size.x <= 0 || rc.size.y <= 0)
             return;
         RECT rc2;
         rc2.left = rc.p1.x;

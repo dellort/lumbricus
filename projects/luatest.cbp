@@ -41,16 +41,35 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="..\src\common\init.d" />
 		<Unit filename="..\src\derelict\lua\lauxlib.d" />
 		<Unit filename="..\src\derelict\lua\lua.d" />
 		<Unit filename="..\src\derelict\lua\luaconf.d" />
+		<Unit filename="..\src\derelict\lua\luafuncs.d" />
 		<Unit filename="..\src\derelict\lua\lualib.d" />
-		<Unit filename="..\src\derelict\lua\pluto.d" />
+		<Unit filename="..\src\derelict\lua\luatypes.d" />
+		<Unit filename="..\src\framework\config.d" />
+		<Unit filename="..\src\framework\filesystem.d" />
+		<Unit filename="..\src\framework\globalsettings.d" />
+		<Unit filename="..\src\framework\i18n.d" />
 		<Unit filename="..\src\framework\lua.d" />
 		<Unit filename="..\src\luatest.d" />
+		<Unit filename="..\src\utils\archive.d" />
+		<Unit filename="..\src\utils\array.d" />
+		<Unit filename="..\src\utils\color.d" />
+		<Unit filename="..\src\utils\configfile.d" />
+		<Unit filename="..\src\utils\gzip.d" />
+		<Unit filename="..\src\utils\list2.d" />
+		<Unit filename="..\src\utils\log.d" />
 		<Unit filename="..\src\utils\misc.d" />
+		<Unit filename="..\src\utils\mybox.d" />
+		<Unit filename="..\src\utils\path.d" />
+		<Unit filename="..\src\utils\random.d" />
+		<Unit filename="..\src\utils\rect2.d" />
+		<Unit filename="..\src\utils\rndkiss.d" />
 		<Unit filename="..\src\utils\stream.d" />
 		<Unit filename="..\src\utils\string.d" />
+		<Unit filename="..\src\utils\strparser.d" />
 		<Unit filename="..\src\utils\time.d" />
 		<Unit filename="..\src\utils\vector2.d" />
 		<Extensions>
