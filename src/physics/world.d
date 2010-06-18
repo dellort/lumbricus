@@ -366,19 +366,26 @@ class PhysicWorld {
     }
 
     ///Move the passed point out of any geometry it hits inside the radius r
+    ///may be slightly more expensive than direct collision testing
     //xxx what about objects? should be handled too
     bool freePoint(ref Vector2f p, float r) {
         Contact contact;
-        //r+4 chosen by experiment
-        if (collideGeometry(p, r+4, contact)) {
-            if (contact.depth == float.infinity)
-                return false;
-            p = p + contact.normal*contact.depth;
+        //r*2 chosen randomly (relatively high, hoping to get a good normal)
+        if (!collideGeometry(p, r*2, contact))
+            return true;
+        if (contact.depth == float.infinity)
+            return false; //no normal, no chance
+        //try to move it outside the landscape along the normal
+        //randomly chosen increment
+        for (float d = 0; d < r*4; d += r/4) {
+            auto p2 = p + contact.normal * d;
+            Contact c2;
+            if (!collideGeometry(p2, r, c2)) {
+                p = p2;
+                return true;
+            }
         }
-        if (collideGeometry(p, r, contact))
-            //still inside? maybe it was a tiny cave oslt
-            return false;
-        return true;
+        return false;
     }
 
     void objectsAt(Vector2f pos, float r,

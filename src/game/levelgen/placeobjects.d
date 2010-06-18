@@ -263,12 +263,12 @@ public class PlaceObjects {
         bool outside_collides = true)
     {
         Vector2i sp = at;
+        Lexel[] d = mLevel.peekLexels();
         for (int y = sp.y; y < sp.y+size.y; y++) {
             for (int x = sp.x; x < sp.x+size.x; x++) {
                 bool col = outside_collides;
                 if (x >= 0 && x < mLevel.size.x && y >= 0 && y < mLevel.size.y) {
-                    col = (mLevel.levelData[y*mLevel.size.x+x]
-                        != Lexel.Null) ^ anti;
+                    col = (d[y*mLevel.size.x+x] != Lexel.Null) ^ anti;
                 }
                 if (col) {
                     return false;

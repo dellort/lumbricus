@@ -81,30 +81,13 @@ abstract class Animation {
     }
 
     //deliver the bounds, centered around the center
-    final Rect2i bounds() {
-        return mBounds;
-    }
-
+    final Rect2i bounds() { return mBounds; }
     //time to play it (ignores repeat)
-    Time duration() {
-        return timeMsecs(mLengthMS);
-    }
-
-    int lengthMS() {
-        return mLengthMS;
-    }
-
-    int frameCount() {
-        return mFrameCount;
-    }
-
-    int frameTimeMS() {
-        return mFrameTimeMS;
-    }
-
-    Time frameTime() {
-        return timeMsecs(mFrameTimeMS);
-    }
+    final Time duration() { return timeMsecs(mLengthMS); }
+    final int lengthMS() { return mLengthMS; }
+    final int frameCount() { return mFrameCount; }
+    final int frameTimeMS() { return mFrameTimeMS; }
+    final Time frameTime() { return timeMsecs(mFrameTimeMS); }
 
     static int relFrameTimeMs(Time t, int length_ms, bool repeat) {
         assert(length_ms != 0);
@@ -150,8 +133,6 @@ abstract class Animation {
     }
 
     bool finished(Time t) {
-        //if (repeat)
-        //    return false;
         return t.msecs >= mLengthMS;
     }
 
@@ -186,7 +167,6 @@ class ReversedAnimation : Animation {
     }
 }
 
-//this is silly, but I just needed that hack, feel free to replace+improve
 class SubAnimation : Animation {
     private {
         Animation mBase;
@@ -205,7 +185,7 @@ class SubAnimation : Animation {
     }
 
     //fixed display of one frame of the base animation
-    //the difference to this(base, frame, frame+1) is, that the framerate is 0
+    //the difference to this(base, frame, frame+1) is, that the duration is 0s
     //the animation literally will be finished before it has started
     this(Animation base, int frame) {
         mBase = base;
@@ -223,13 +203,6 @@ class SubAnimation : Animation {
     }
 }
 
-//displaying an animation is about mapping animation parameters (time, rotation,
-//  and other stuff in AnimationParams) to drawing parameters (frame number,
-//  rotation, mirroring)
-//
-//class Animation2 : Animation {
-//}
-
 //--- simple old animations
 
 //placeholder animation when loading failed; just displays error.png
@@ -237,7 +210,7 @@ class ErrorAnimation : Animation {
     private SubSurface mError;
     this() {
         mError = loadImage("error.png").fullSubSurface();
-        doInit(1, mError.rect, 0);
+        doInit(1, mError.rect.centeredAt(Vector2i(0)), 0);
     }
 
     override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
@@ -422,7 +395,8 @@ alias int function(int p, int count) AnimationParamConvertDelegate;
 AnimationParamConvertDelegate[char[]] gAnimationParamConverters;
 
 //complicated version which supports parameters and loading from atlas/animation
-//files (i.e. the frames are stored in a binary stream)
+//  files (e.g. the frames are stored in a binary stream) - mostly used for
+//  auto-converted wwp data files
 class ComplicatedAnimation : Animation {
     private {
         //animation data
@@ -442,7 +416,7 @@ class ComplicatedAnimation : Animation {
         void loadParamStuff(int index, char[] name) {
             auto val = node.getStringValue(name, "none");
             if (!(val in gAnimationParamConverters)) {
-                assert(false, "not found; add error handling: '"~val~"'");
+                throwError("unknown param converter for {}", name);
             }
             mParamConvert[index] = gAnimationParamConverters[val];
         }

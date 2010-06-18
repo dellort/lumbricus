@@ -1,5 +1,6 @@
 module wwptools.atlaspacker;
 
+import framework.surface;
 import wwptools.image;
 import utils.stream;
 import wwpdata.common;
@@ -27,9 +28,9 @@ class AtlasPacker {
     }
 
     //fnBase = the name of the atlas resource
-    this(char[] fnBase, Vector2i pageSize = Vector2i(512,512)) {
+    this(char[] fnBase, Vector2i ps = Vector2i(0)) {
         mPacker = new BoxPacker;
-        mPacker.pageSize = pageSize;
+        mPacker.pageSize = ps.quad_length == 0 ? Surface.cStdSize : ps;
         mName = fnBase;
     }
 
@@ -76,7 +77,7 @@ class AtlasPacker {
 
     //save all generated block images to disk
     //also creates a corresponding resource .conf
-    void write(char[] outPath, bool textualMeta = false) {
+    void write(char[] outPath) {
         char[] fnBase = mName;
 
         foreach (int i, img; mPageImages) {
@@ -103,23 +104,16 @@ class AtlasPacker {
             pageNode.add("", myformat("{}/page_{}.png", fnBase, i));
         }
 
-        if (textualMeta) {
-            auto metaNode = resNode.getSubNode("meta");
-            foreach (ref FileAtlasTexture t; mBlocks) {
-                metaNode.add("", t.toString());
-            }
-        } else {
-            auto metaname = fnBase ~ ".meta";
-            resNode.setStringValue("meta", metaname);
+        auto metaname = fnBase ~ ".meta";
+        resNode.setStringValue("meta", metaname);
 
-            scope metaf = Stream.OpenFile(outPath ~ metaname, File.WriteCreate);
-            scope(exit)metaf.close();
-            //xxx: endian-safety, no one cares, etc...
-            FileAtlas header;
-            header.textureCount = mBlocks.length;
-            metaf.writeExact(cast(ubyte[])(&header)[0..1]);
-            metaf.writeExact(cast(ubyte[])mBlocks);
-        }
+        scope metaf = Stream.OpenFile(outPath ~ metaname, File.WriteCreate);
+        scope(exit)metaf.close();
+        //xxx: endian-safety, no one cares, etc...
+        FileAtlas header;
+        header.textureCount = mBlocks.length;
+        metaf.writeExact(cast(ubyte[])(&header)[0..1]);
+        metaf.writeExact(cast(ubyte[])mBlocks);
 
         scope confst = Stream.OpenFile(outPath ~ fnBase ~ ".conf",
             File.WriteCreate);

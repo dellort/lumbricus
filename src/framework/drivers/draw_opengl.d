@@ -434,7 +434,7 @@ class GLCanvas : Canvas3DHelper {
         GLuint state_bindtexid;
         Vector2f mScale; //switched with transform matrix
 
-        Vector2f mTranslate;
+        //Vector2f mTranslate;
         Color mBlendColor;
 
         //lazy drawing; assuming reducing the number of glDrawArrays calls
@@ -464,7 +464,7 @@ class GLCanvas : Canvas3DHelper {
         state_bindtexid = GLID_INVALID;
 
         mScale = Vector2f(1.0);
-        mTranslate = Vector2f(0.0);
+        //mTranslate = Vector2f(0.0);
 
         //flush() and glDrawArrays use this implicitly
         set_vertex_array(mVertices.ptr);
@@ -714,6 +714,7 @@ class GLCanvas : Canvas3DHelper {
     }
 
     override void updateTransform(Vector2i trans, Vector2f scale) {
+        //using mTranslate is commented because no measureable speed advantage
         //if (mScale != scale) {
             flush();
 
@@ -725,7 +726,7 @@ class GLCanvas : Canvas3DHelper {
             checkGLError("update transform", true);
         //}
 
-        mTranslate = toVector2f(trans);
+        //mTranslate = toVector2f(trans);
         mBlendColor = currentBlend();
     }
 

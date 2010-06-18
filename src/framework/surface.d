@@ -104,7 +104,7 @@ final class Surface : ResourceT!(DriverSurface) {
     //actually, it doesn't make sense at all
     const cStdSize = Vector2i(512, 512);
 
-    this(Vector2i size, Transparency transparency,
+    this(Vector2i size, Transparency transparency = Transparency.Alpha,
         Color colorkey = Color(1,0,1,0))
     {
         argcheck(size.x >= 0 && size.y >= 0);
@@ -184,7 +184,7 @@ final class Surface : ResourceT!(DriverSurface) {
     //according to D's rules, you must not access other GC references here!
     //this includes mAllocator, driverSurface(), mSubsurfaces...
     ~this() {
-        assert(!mLocked, "finalizer called locked surface!");
+        assert(!mLocked, "finalizer called for locked surface!");
     }
 
     //return null if no DriverSurface is allocated

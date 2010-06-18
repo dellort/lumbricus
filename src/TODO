@@ -13,6 +13,7 @@ $ sollte behoben sein / works for me (muss getestet werden)
 - lua console:
     $ the Lua console stuff was never meant to be deterministic, and commands like "pickMakeActive()" use the GUI anyway
     - the in-game lua one can't do anything when the game is paused
+- parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
 
 == bekannte, lösbare Bugs ==
 - am seil hängen, mit landschaft kolidieren => seil wird kürzer (commit 1163 ???)
@@ -161,3 +162,4 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 - userverzeichnis im VFS unter /user statt / mounten => shadowing von beliebigen dateien im datenverzeichnis verhindern (obwohl das mal als feature gedacht war)
 + datenverzeichnis per kommandozeile setzbar machen
 + framework: resourcen sollten nach einer weile freigegeben werden; z.b. wenn eine OpenGL textur eine weile nicht benutzt wurde, diese einfach deallokieren
++ irgendetwas "einfacheres" zum definieren von waffen, spiellogik, etc., das auf dem Lua-zeugs aufbaut

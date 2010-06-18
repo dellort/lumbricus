@@ -71,6 +71,7 @@ class GameSky {
         bool mEnableClouds = true;
         bool mEnableDebris = true;
         bool mCloudsVisible;
+        bool mInit = true; //hack to force initialization
 
         Animation[] mStarAnims;
 
@@ -185,6 +186,12 @@ class GameSky {
 
         //xxx make sure mEngine.waterOffset is valid for this call
         initialize();
+
+        //force initialization
+        enableClouds = enableClouds;
+        enableDebris = enableDebris;
+
+        mInit = false;
     }
 
     private TimeSourcePublic ts() {
@@ -224,17 +231,11 @@ class GameSky {
     }
 
     public void enableClouds(bool enable) {
-        if (mEnableClouds == enable)
+        if (mEnableClouds == enable && !mInit)
             return;
         mEnableClouds = enable;
-        if (mCloudsVisible && enable) {
-            foreach (inout ci; mCloudAnimators) {
-                ci.anim.active = true;
-            }
-        } else {
-            foreach (inout ci; mCloudAnimators) {
-                ci.anim.active = false;
-            }
+        foreach (ref ci; mCloudAnimators) {
+            ci.anim.active = mCloudsVisible && enable;
         }
     }
     public bool enableClouds() {
@@ -242,18 +243,12 @@ class GameSky {
     }
 
     public void enableDebris(bool enable) {
-        if (mEnableDebris == enable)
+        if (mEnableDebris == enable && !mInit)
             return;
         mEnableDebris = enable;
         if (mDebrisAnim) {
-            if (enable) {
-                foreach (inout di; mDebrisAnimators) {
-                    di.anim.active = true;
-                }
-            } else {
-                foreach (inout di; mDebrisAnimators) {
-                    di.anim.active = false;
-                }
+            foreach (ref di; mDebrisAnimators) {
+                di.anim.active = enable;
             }
         }
     }

@@ -65,21 +65,14 @@ class AtlasResource : ResourceItem {
 
         FileAtlasTexture[] textures;
         auto meta = node.getSubNode("meta");
-        if (meta.hasSubNodes()) {
-            //meta node contains a list of strings with texture information
-            foreach (char[] dummy, char[] metav; meta) {
-                textures ~= FileAtlasTexture.parseString(metav);
-            }
-        } else {
-            //meta data is read from a binary file
-            scope f = gFS.open(mContext.fixPath(meta.value));
-            scope(exit) f.close();
-            //xxx I shouldn't load stuff directly (endian issues), but who cares?
-            FileAtlas header;
-            f.readExact(cast(ubyte[])(&header)[0..1]);
-            textures.length = header.textureCount;
-            f.readExact(cast(ubyte[])textures);
-        }
+        //meta data is read from a binary file
+        scope f = gFS.open(mContext.fixPath(meta.value));
+        scope(exit) f.close();
+        //xxx I shouldn't load stuff directly (endian issues), but who cares?
+        FileAtlas header;
+        f.readExact(cast(ubyte[])(&header)[0..1]);
+        textures.length = header.textureCount;
+        f.readExact(cast(ubyte[])textures);
         atlas.mTextures = textures;
 
         atlas.load();

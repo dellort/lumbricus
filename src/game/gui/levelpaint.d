@@ -303,8 +303,8 @@ class PainterWidget : Widget {
         return mLevel.size;
     }
 
-    Lexel[] levelData() {
-        return mLevel.levelData;
+    Lexel[] copyLexels() {
+        return mLevel.copyLexels;
     }
 
     //load a level of passed size

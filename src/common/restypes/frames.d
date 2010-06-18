@@ -15,7 +15,7 @@ import utils.vector2;
 import utils.stream;
 
 //overview over the indirection crap:
-//- a ComplicatedAnimation uses one item of AniFramesAtlas
+//- a ComplicatedAnimation uses one item of AniFramesAtlas (a Frames instance)
 //- an AniFramesAtlas is a list of Frames (each describes an animation), and
 //  references an Atlas (list of bitmaps)
 //- each Frames describes how an animation and its parameters map to the Atlas

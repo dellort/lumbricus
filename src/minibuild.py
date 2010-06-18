@@ -21,7 +21,6 @@ RELEASE = False
 
 # -lrt is just for utils/perf.d version UseFishyStuff (can be disabled)
 LIBS = ["z", "dl", "rt"]
-STD_ARGS = ["-L-l" + x for x in LIBS]
 
 COMPILER = "dmd_patched"
 
@@ -31,18 +30,20 @@ COMPILERS = {
     "dmd": {
         "exe": "dmd",
         "oq": False,
-        "std_args": STD_ARGS,
+        "std_args": [],
         "def": "-version=",
         "debug_args": ["-gc", "-unittest", "-debug"],
         "release_args": ["-inline", "-release", "-O"],
+        "lib": "-L-l",
     },
     "ldc": {
         "exe": "ldc",
         "oq": True,
-        "std_args": STD_ARGS + ["-singleobj"],
+        "std_args": ["-singleobj"],
         "def": "-d-version",
         "debug_args": ["-gc", "-unittest", "-d-debug"],
         "release_args": ["-enable-inlining", "-release", "-O5"],
+        "lib": "-L-l",
     }
 }
 
@@ -80,9 +81,15 @@ parser.add_option("-r",
 parser.add_option("-I",
     action="append", dest="include", default=[],
     help="additional include paths")
+parser.add_option("-l",
+    action="append", dest="lib", default=[],
+    help="link to library")
 parser.add_option("-D",
     action="append", dest="version", default=[],
     help="compile in version code identified by this string")
+parser.add_option("-X",
+    action="append", dest="carg", default=[],
+    help="directly pass argument to compiler")
 
 (options, args) = parser.parse_args()
 
@@ -145,6 +152,10 @@ def calldmd(what, pargs, **more):
         nargs.extend(compiler["debug_args"])
     for ver in options.version:
         nargs.append(compiler["def"] + ver)
+    for arg in options.carg:
+        nargs.append(arg)
+    for lib in LIBS + options.lib:
+        nargs.append(compiler["lib"] + lib)
     nargs.extend(pargs)
     for inc in options.include:
         nargs.append("-I" + inc)

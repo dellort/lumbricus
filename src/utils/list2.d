@@ -19,11 +19,13 @@ struct ObjListNode(T) {
     private Object owner;
 }
 
-//create with item type, and name of the ObjListNode member
+//create with item type T, which has a member ObjListNode named "member"
+//type T must be a class, or a pointer to a struct
+//e.g. class X { ObjListNode!(typeof(this)) m; }
+//     alias ObjectList!(X, "m") ListOfX;
 //Note: the member name is checked at compile-time
-//xxx T : Object doesn't work (does not match template declaration etc.)
 final class ObjectList(T, char[] member) {
-    //static assert(is(T == class));
+    static assert(is(T == class) || is(typeof(*T) == struct));
 
     alias ObjListNode!(T) Node;
 
@@ -67,7 +69,7 @@ final class ObjectList(T, char[] member) {
     //O(n)
     void clear() {
         while (!empty()) {
-            remove(head()); //(how cruel)
+            removeHead();
         }
     }
 
@@ -180,6 +182,15 @@ final class ObjectList(T, char[] member) {
         n.next = n.prev = null;
         n.owner = null;
         mCount--;
+    }
+
+    //remove the head and return it (how cruel)
+    //on empty list, return null
+    T removeHead() {
+        T h = head();
+        if (h)
+            remove(h);
+        return h;
     }
 
     //O(n)

@@ -164,14 +164,12 @@ final class SDLSurface : DriverSurface {
         mColorkey = surface.colorkey;
         mEnableCache = surface.enableCaching;
 
-        bool cc = mTransparency == Transparency.Colorkey;
-
         //NOTE: SDL_CreateRGBSurfaceFrom doesn't copy the data... so, be sure
         //      to keep the pointer, so D won't GC it
         auto rgba32 = sdlpfRGBA32();
         Color.RGBA32* pixels = surface._rawPixels.ptr;
         assert(!!pixels);
-        if (!cc) {
+        if (mTransparency != Transparency.Colorkey) {
             mSurfaceRGBA32 = SDL_CreateRGBSurfaceFrom(pixels,
                 mSize.x, mSize.y, 32, mSize.x*4,
                 rgba32.Rmask, rgba32.Gmask, rgba32.Bmask, rgba32.Amask);
@@ -218,7 +216,7 @@ final class SDLSurface : DriverSurface {
     }
 
     private void killcache(bool for_free) {
-        foreach (c; mCache) {
+        foreach (ref c; mCache) {
             foreach (s; c.entries) {
                 SDL_FreeSurface(s.surface);
             }
@@ -451,10 +449,8 @@ final class SDLSurface : DriverSurface {
         }
 +/
         //sigh... the full-subsurface-thing wrecks up a lot
-        BitmapEffect s_eff;
-        if (!effect) {
-            effect = &s_eff;
-        }
+        if (!effect)
+            effect = &BitmapEffect.init;
 
         //number of rotation subdivisions for quantization
         //should be divisible by 8 (to have good 45° steps)
@@ -468,7 +464,7 @@ final class SDLSurface : DriverSurface {
 
         //search the cache
         //make sure the values are quantized (=> don't spam the cache)
-        int k_mirror = effect.mirrorY ? 1 : 0;
+        int k_mirror = (effect.mirrorX ? 1 : 0) | (effect.mirrorY ? 2 : 0);
         int k_rotate = realmod(cast(int)(
             effect.rotate/(math.PI*2.0)*cRotUnits + 0.5), cRotUnits);
         //zoom=1.0f must map to k_zoom=0 (else you have a useless cache entry)
@@ -497,16 +493,20 @@ final class SDLSurface : DriverSurface {
         SDL_Surface* surf = create_subsurface(sub.rect);
         assert(!!surf);
 
-        if (k_mirror == 1) {
+        if (k_mirror) {
             //copy
             auto nsurf = copy_surface(surf);
             assert(!!nsurf, "out of memory?");
             SDL_FreeSurface(surf);
             surf = nsurf;
-            //mirror along Y axis
+            //mirror along X and/or Y axis
             assert(surf.pitch % 4 == 0);
-            pixelsMirrorY(cast(Color.RGBA32*)surf.pixels, surf.pitch/4,
-                Vector2i(surf.w, surf.h));
+            if (k_mirror & 1)
+                pixelsMirrorX(cast(Color.RGBA32*)surf.pixels, surf.pitch/4,
+                    Vector2i(surf.w, surf.h));
+            if (k_mirror & 2)
+                pixelsMirrorY(cast(Color.RGBA32*)surf.pixels, surf.pitch/4,
+                    Vector2i(surf.w, surf.h));
         }
 
         if (k_rotate || k_zoom) {

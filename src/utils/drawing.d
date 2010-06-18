@@ -1,7 +1,11 @@
 module utils.drawing;
 
+import utils.array;
+import utils.misc;
 import utils.rect2;
 import utils.vector2;
+
+import math = tango.math.Math;
 
 //from http://en.wikipedia.org/wiki/Midpoint_circle_algorithm
 //(modified for filling)
@@ -33,6 +37,75 @@ void circle(int x, int y, int r,
     }
     cb(x-cy,x+cy,y+cx);
     cb(x-cy,x+cy,y-cx);
+}
+
+void line(Vector2i p1, Vector2i p2, void delegate(Vector2i pt) cb) {
+    //my computer science prof said bresenham isn't it worth these days
+    //that's a good excuse for this crap, isn't it
+    //copied from draw_sdl.d (unifying isn't worth it)
+    Vector2f d = toVector2f(p2-p1);
+    Vector2f old = toVector2f(p1);
+    int n = cast(int)(max(math.abs(d.x), math.abs(d.y)));
+    d = d / cast(float)n;
+    for (int i = 0; i < n; i++) {
+        int px = cast(int)(old.x+0.5f);
+        int py = cast(int)(old.y+0.5f);
+        cb(Vector2i(px, py));
+        old = old + d;
+    }
+}
+
+//naive corner cutting to make polygons smoother
+//(I'm too dumb and lazy to do anything more sophisticated such as bezier)
+//nosubdiv = indices of vertices that should not take part in subdivision
+//  e.g. nosubdiv=[2] => line between vertices[2] and vertices[3] is untouched
+//steps = number of subdivisions
+//start = start of the subdivision (0.0-1.0, 0.0 means no subdivision)
+//always returns a newly allocated array
+Vector2f[] cornercut(Vector2f[] vertices, uint[] nosubdiv, int steps = 5,
+    float start = 0.25f)
+{
+    if (vertices.length < 3 || steps < 1)
+        return vertices.dup;
+
+    struct Vertex {
+        Vector2f pt;
+        bool no_subdivide = false;
+    }
+
+    Appender!(Vertex, true) verts, nverts;
+
+    foreach (size_t curindex, ref v; vertices) {
+        Vertex nv = Vertex(v, false);
+        //obviously, nosubdiv should be small
+        foreach(uint val; nosubdiv) {
+            if (val == curindex)
+                nv.no_subdivide = true;
+        }
+        verts ~= nv;
+    }
+
+    for (int i = 0; i < steps; i++) {
+        nverts.length = 0;
+        for (size_t n = 0; n < verts.length; n++) {
+            auto cur = verts[n];
+            auto next = verts[(n+1) % verts.length];
+            auto overnext = verts[(n+2) % verts.length];
+            if (!cur.no_subdivide && !next.no_subdivide) {
+                auto p1 = cur.pt, p2 = next.pt, p3 = overnext.pt;
+                nverts ~= Vertex(p2 + (p1-p2)*start);
+                nverts ~= Vertex(p3 + (p2-p3)*(1.0f - start));
+            } else {
+                nverts ~= next;
+            }
+        }
+        //prepare for next iteration - take over contents
+        swap(nverts, verts);
+    }
+
+    scope(exit) { verts.free(); nverts.free(); }
+    auto res = arrayMap(verts[], (Vertex v) { return v.pt; });
+    return res;
 }
 
 

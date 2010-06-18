@@ -320,6 +320,61 @@ function E.springTest(count)
     end
 end
 
+local function initWormHoleClass()
+    wormhole_class = createSpriteClass {
+        name = "x_wormhole",
+        initPhysic = relay {
+            collisionID = "wormhole_enter",
+            radius = 15,
+            mass = 1/0, --inf
+        },
+        sequenceType = "s_blackhole_active",
+    }
+    wormhole_exit_class = createSpriteClass {
+        name = "x_wormhole_exit",
+        initPhysic = relay {
+            collisionID = "wormhole_exit",
+            radius = 15,
+            mass = 1/0, --inf
+        },
+        sequenceType = "s_antimatter_nuke",
+    }
+
+    addSpriteClassEvent(wormhole_class, "sprite_activate", function(sender)
+        addCircleTrigger(sender, 90, "wormhole_enter", function(trig, obj)
+            local companion = get_context_var(sender, "companion")
+            if not companion then
+                return -- incorrectly initialized?
+            end
+            obj = Phys_backlink(obj)
+            assert(obj)
+            -- maybe add a timer and some sort of blending effect?
+            Sprite_setPos(obj, Phys_pos(Sprite_physics(companion)))
+        end)
+    end)
+end
+
+-- src and dst are Vector2 instances for entry and exit center points
+function E.wormHole(src, dst)
+    if not wormhole_class then
+        initWormHoleClass()
+    end
+
+    local entry = SpriteClass_createSprite(wormhole_class)
+    local exit = SpriteClass_createSprite(wormhole_exit_class)
+
+    set_context_var(entry, "companion", exit)
+    set_context_var(exit, "companion", entry)
+
+    Sprite_activate(entry, src)
+    Sprite_activate(exit, dst)
+end
+
+-- like wormHole(), but use the GUI to receive two mouse clicks (src and dst)
+function E.placeWormHole()
+    pickTwoPos(wormHole)
+end
+
 -- output contents of any object to console
 -- useful for showing D objects
 function E.dumpObject(obj, outf)
@@ -463,7 +518,7 @@ function E.pickObjectIntoVar(var)
     end)
 end
 
-function E.freePoint(dowhat)
+function E.freePoint(dowhat, r)
     dowhat = dowhat or dumpObject
     local w = Gui_ctor()
     local pos
@@ -478,7 +533,7 @@ function E.freePoint(dowhat)
         end,
         OnDraw = function(canvas)
             if pos then
-                local r = 10
+                local r = r or 10
                 p = World_freePoint(pos, r)
                 if p then
                     Canvas_drawCircle(canvas, p, r, Color(1,0,0))

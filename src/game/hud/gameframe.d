@@ -106,6 +106,8 @@ class GameFrame : SimpleContainer {
         Widget mModalDialog;
 
         Source mMusic;
+
+        bool mCameraPauseHack;
     }
 
     private void updateWeapons(WeaponSet bla) {
@@ -230,9 +232,22 @@ class GameFrame : SimpleContainer {
         game.shell.pauseBlock(!gFramework.appFocused, gFramework);
         +/
 
-        mPauseLabel.visible = game.shell.paused;
+        bool paused = game.shell.paused;
+
+        mPauseLabel.visible = paused;
         if (mMusic)
-            mMusic.paused = game.shell.paused;
+            mMusic.paused = paused;
+
+        if (paused) {
+            if (!mCameraPauseHack && gameView.enableCamera) {
+                gameView.enableCamera = false;
+                mCameraPauseHack = true;
+            }
+        } else {
+            if (mCameraPauseHack)
+                gameView.enableCamera = true;
+            mCameraPauseHack = false;
+        }
     }
 
     void fadeoutMusic(Time t) {

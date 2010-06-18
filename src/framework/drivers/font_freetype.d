@@ -43,7 +43,6 @@ private int FT_Ceil(FT_Long x) {
 class FTGlyphCache {
     private {
         GlyphData mFrags[dchar];
-        TexturePack mPacker; //if null => one surface per glyph
         int mHeight;
         int mBaseline;
         int mLineSkip;
@@ -96,11 +95,11 @@ class FTGlyphCache {
         mUnderlineHeight = FT_Floor(FT_MulFix(mFace.underline_thickness,scale));
         if (mUnderlineHeight < 1)
             mUnderlineHeight = 1;
+    }
 
-        if (mDriver.useFontPacker) {
-            //all fonts into one packer, saves texture memory
-            mPacker = driver.getPacker();
-        }
+    //if null => one surface per glyph
+    TexturePack packer() {
+        return mDriver.getPacker();
     }
 
     void free() {
@@ -115,7 +114,7 @@ class FTGlyphCache {
 
     int releaseCache() {
         int rel;
-        if (!mPacker) {
+        if (!packer()) {
             foreach (GlyphData g; mFrags) {
                 g.tex.surface.free();
                 rel++;
@@ -303,8 +302,8 @@ class FTGlyphCache {
         tmp.unlockPixels(tmp.rect);
 
         SubSurface ret;
-        if (mPacker) {
-            ret = mPacker.add(tmp);
+        if (auto pk = packer()) {
+            ret = pk.add(tmp);
             tmp.free();
         } else {
             ret = tmp.createSubSurface(Rect2i(tmp.size));
@@ -460,12 +459,13 @@ class FTFontDriver : FontDriver {
             count += gc.releaseCache();
             count++;
         }
-        if (mPacker)
-            mPacker.free();
+        delete mPacker;
         return count;
     }
 
-    private TexturePack getPacker() {
+    package TexturePack getPacker() {
+        if (!useFontPacker)
+            return null;
         if (!mPacker)
             mPacker = new TexturePack();
         return mPacker;

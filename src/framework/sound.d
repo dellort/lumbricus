@@ -187,10 +187,9 @@ class SoundManager : ResourceManagerT!(SoundDriver) {
     ///yes, it is silly, and I don't even know when st will definitely be closed
     ///xxx: ok, changed to a filename; class FileSystem is used to open it
     /// this shouldn't have any disadvantages
-    public Sample createSample(char[] filename, SoundType type = SoundType.init,
-        bool streamed = false)
+    public Sample createSample(char[] filename, SoundType type = SoundType.init)
     {
-        return new Sample(filename, type, streamed);
+        return new Sample(filename, type);
     }
 
     ///set global volume (also see setTypeVolume)
@@ -231,14 +230,14 @@ class Sample : ResourceT!(DriverSound) {
     }
 
     ///type: only for setting type-specific volume; you can use any value
-    this(char[] filename, SoundType type, bool streamed = false) {
+    this(char[] filename, SoundType type) {
         //note that the file is only actually loaded by the driver, and may fail
         //  there; Source.play() will catch the CustomException thrown by load
         //  failure in this case, and display the user an error message
         gFS.mustExist(filename);
 
         mSource.filename = filename;
-        mSource.streamed = streamed;
+        mSource.streamed = type == SoundType.music;
         mType = type;
     }
 

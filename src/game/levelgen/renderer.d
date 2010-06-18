@@ -12,15 +12,11 @@ import utils.time;
 import utils.list2;
 import utils.log;
 import utils.misc;
-import utils.array : BigArray;
+import utils.array : BigArray, arrayMap;
 import drawing = utils.drawing;
 import math = tango.math.Math;
 import digest = tango.util.digest.Digest;
 import md5 = tango.util.digest.Md5;
-
-debug import utils.perf;
-
-public alias Vector2f Point;
 
 //don't know where to put this, moved it out of blastHole() because this thing
 //affects the bitmap modification bounding box
@@ -34,7 +30,11 @@ class LandscapeBitmap {
         Vector2i mSize;
         bool mDataOnly;
         //indexed mLevelData[y*mSize.x + x]
+        //warning: points to C allocated data (via mLDStorage)
         Lexel[] mLevelData;
+        //this keeps the reference to BigArray, so that mLevelData won'r be
+        //  free'd (prevent BigArray's finalizer from being run)
+        BigArray!(Lexel) mLDStorage;
         static LogStruct!("levelrenderer") mLog;
 
         static assert(Lexel.sizeof == 1);
@@ -74,15 +74,6 @@ class LandscapeBitmap {
         Color.RGBA32* _pixels;
         uint _pitch;
     }
-
-    //because I'm stupid, I'll store all points into a linked lists to be able
-    //to do naive corner cutting by subdividing the curve recursively
-    private struct Vertex {
-        ObjListNode!(Vertex*) listnode;
-        Point pt;
-        bool no_subdivide = false;
-    }
-    private alias ObjectList!(Vertex*, "listnode") VertexList;
 
     private struct TexData {
         //also not good and nice
@@ -288,12 +279,13 @@ class LandscapeBitmap {
     this(Vector2i a_size, bool dataOnly = false, Lexel[] data = null) {
         argcheck(a_size.x >= 0 && a_size.y >= 0);
         mSize = a_size;
+        mLDStorage = new BigArray!(Lexel)(mSize.x * mSize.y);
+        mLevelData = mLDStorage[];
         mDataOnly = dataOnly;
-        if (data.length > 0)
-            mLevelData = data;
-        else
-            mLevelData.length = mSize.x*mSize.y;
-        argcheck(mLevelData.length == mSize.x*mSize.y);
+        if (data.length > 0) {
+            argcheck(data.length == mSize.x*mSize.y);
+            mLevelData[] = data;
+        }
 
         if (mDataOnly)
             return;
@@ -309,7 +301,7 @@ class LandscapeBitmap {
                 t.pos = Vector2i(tx, ty) * cTileSize;
                 t.size = Vector2i(cTileSize).min(mSize - t.pos);
                 t.surface = new Surface(t.size, Transparency.Colorkey);
-                t.surface.enableCaching(false);
+                t.surface.enableCaching = false;
                 t.surface.fill(Rect2i(mSize), Color.Transparent);
             }
         }
@@ -319,7 +311,7 @@ class LandscapeBitmap {
     //bmp = the landscape-bitmap, must not be null
     //import_bmp = create the metadata from the image's transparency information
     //      if false, initialize metadata with Lexel.init
-    //memory managment: you shall not touch the Surface instance in bmp anymore
+    //memory managment: bmp is just copied
     this(Surface bmp, bool import_bmp = true) {
         this(bmp.size);
 
@@ -358,7 +350,8 @@ class LandscapeBitmap {
             t.surface.free();
         }
         mTiles = null;
-        delete mLevelData;
+        mLevelData = null;
+        delete mLDStorage;
         previewDestroy();
     }
 
@@ -376,7 +369,8 @@ class LandscapeBitmap {
     LandscapeBitmap copy(bool dataOnly = false) {
         auto ret = new LandscapeBitmap();
         ret.mSize = mSize;
-        ret.mLevelData = mLevelData.dup;
+        ret.mLDStorage = mLDStorage.copy();
+        ret.mLevelData = ret.mLDStorage[];
         if (dataOnly) {
             ret.mDataOnly = true;
         } else {
@@ -386,6 +380,7 @@ class LandscapeBitmap {
             ret.mTiles = mTiles.dup;
             foreach (ref Tile t; ret.mTiles) {
                 t.surface = t.surface.clone;
+                t.surface.enableCaching = false;
             }
         }
         //don't copy preview stuff
@@ -396,7 +391,17 @@ class LandscapeBitmap {
         return mSize;
     }
 
-    public Lexel[] levelData() {
+    //return a copy of the lexel array
+    //you can/should free the result with delete when you're done
+    Lexel[] copyLexels() {
+        return mLevelData.dup; //will allocate normal D memory
+    }
+
+    //get a reference to the lexel array
+    //this is slightly dangerous, because the array is allocated in C memory
+    //as long as you have a reference to this LandscapeBitmap and don't call
+    //  LandscapeBitmap.free(), you'll be fine
+    Lexel[] peekLexels() {
         return mLevelData;
     }
 
@@ -514,7 +519,8 @@ class LandscapeBitmap {
         void delegate(int x1, int x2, int y) scanline;
     }
 
-    //you can call c.scanline() to rasterize a span
+    //this function will setup a RasterCtx and then call dg() with it
+    //you can call RasterCtx.scanline() to rasterize a span
     //dorasterize() will use l/s for rendering it, and will clip, draw,
     //  automatically update the dirty rect, and so on
     //s can be null (intended for data-only renderers)
@@ -582,31 +588,13 @@ class LandscapeBitmap {
         });
     }
 
-    //steps = number of subdivisions
-    //start = start of the subdivision
-    private static void cornercut(VertexList verts, float start) {
-        for (int i = 0; i < 5; i++) {
-            if (!verts.hasAtLeast(3))
-                return;
-            Vertex* cur = verts.head;
-            Point pt = cur.pt;
-            do {
-                Vertex* next = verts.ring_next(cur);
-                Vertex* overnext = verts.ring_next(next);
-                if (!cur.no_subdivide && !next.no_subdivide) {
-                    Vertex* newv = new Vertex();
-                    verts.insert_after(newv, cur);
-                    Point p2 = next.pt, p3 = overnext.pt;
-                    newv.pt = pt + (p2-pt)*(1.0f - start);
-                    pt = p2;
-                    p2 = p2 + (p3-p2)*start;
-                    next.pt = p2;
-                } else {
-                    pt = next.pt;
-                }
-                cur = next;
-            } while (cur !is verts.head);
-        }
+    //originally implemented for debugging
+    void drawLine(Surface s, Lexel l, Vector2i p1, Vector2i p2) {
+        rasterize(s, l, (ref RasterCtx c) {
+            drawing.line(p1, p2, (Vector2i p) {
+                c.scanline(p.x, p.x + 1, p.y);
+            });
+        });
     }
 
     //draw a polygon; it's closed by the line points[$-1] - points[0]
@@ -620,65 +608,34 @@ class LandscapeBitmap {
     //  covered by the polygon transparent
     //historical note: points was changed from Vector2f
     void addPolygon(Vector2i[] points, Vector2i texture_offset, Surface texture,
-        Lexel marker, bool subdiv = false, uint[] nosubdiv = null,
-        float subdivStart = 0.25f)
+        Lexel marker, bool subdiv = false, uint[] nosubdiv = null)
     {
-        VertexList vertices = new VertexList();
-
-        uint curindex = 0;
-        foreach(Vector2i p; points) {
-            Vertex* v = new Vertex();
-            v.pt = toVector2f(p);
-            //obviously, nosubdiv should be small
-            foreach(uint index; nosubdiv) {
-                if (index == curindex)
-                    v.no_subdivide = true;
-            }
-            vertices.insert_tail(v);
-            curindex++;
-        }
+        //meh
+        auto pt = arrayMap(points, (Vector2i p) { return toVector2f(p); });
 
         if (subdiv) {
-            debug {
-                auto counter = new PerfTimer(true);
-                counter.start();
-            }
-
-            cornercut(vertices, subdivStart);
-
-            debug {
-                counter.stop();
-                mLog("render.d: cornercut in {}", counter.time);
-            }
-        }
-
-        Point[] urgs;
-        urgs.length = vertices.count;
-        int n;
-        foreach(Vertex* v; vertices) {
-            urgs[n++] = v.pt;
-        }
-
-        debug {
-            auto counter = new PerfTimer(true);
-            counter.start();
+            auto pt2 = drawing.cornercut(pt, nosubdiv);
+            delete pt;
+            pt = pt2;
         }
 
         rasterize(texture, marker, (ref RasterCtx ctx) {
             ctx.texoffs = texture_offset;
-            drawing.rasterizePolygon(Rect2i(mSize), urgs, ctx.scanline);
+            drawing.rasterizePolygon(Rect2i(mSize), pt, ctx.scanline);
         });
 
-        debug {
-            counter.stop();
-            mLog("render.d: polygon rendered in {}", counter.time);
+        /+ forgotten debugging code
+        auto s = new Surface(Vector2i(1));
+        s.fill(s.rect, Color(1,0,0));
+        for (size_t x = 0; x < pt.length + 1; x++) {
+            Vector2f p1 = pt[x % $];
+            Vector2f p2 = pt[(x+1) % $];
+            drawLine(s, Lexel.SolidSoft, toVector2i(p1), toVector2i(p2));
+            drawCircle(s, Lexel.SolidSoft, toVector2i(p1), 3);
         }
+        +/
 
-        delete urgs;
-        foreach (Vertex* v; vertices) {
-            vertices.remove(v);
-            delete v;
-        }
+        delete pt;
     }
 
     //thick line with rounded caps
@@ -805,11 +762,9 @@ class LandscapeBitmap {
     //  tex_up !is null:   draw bottom border with texture "tex_up"
     //  tex_down !is null: draw top border with texture "tex_down"
     void drawBorder(Lexel a, Lexel b, Surface tex_up, Surface tex_down) {
-        assert(!mDataOnly, "No border drawing for data-only renderer");
+        argcheck(!mDataOnly, "No border drawing for data-only renderer");
+
         ubyte[] apline;
-
-        argcheck(!mDataOnly);
-
         scope pixels = new PixelAccess();
 
         //it always scans in the given direction; to draw both borders where "a"
@@ -889,11 +844,6 @@ class LandscapeBitmap {
             texture.unlockPixels(Rect2i.init);
         }
 
-        debug {
-            auto counter = new PerfTimer(true);
-            counter.start();
-        }
-
         //stores temporary data between up and down pass
         scope tmp_array = new BigArray!(ubyte)(mSize.x*mSize.y);
         ubyte[] tmp = tmp_array[];
@@ -907,11 +857,6 @@ class LandscapeBitmap {
             drawBorderInt(a, b, true, tex_up, tmp);
 
         pixels.done(Rect2i(mSize));
-
-        debug {
-            counter.stop();
-            mLog("render.d: border drawn in {}", counter.time());
-        }
     }
 
     //render a circle on the surface
@@ -1055,7 +1000,7 @@ class LandscapeBitmap {
     public void checkAt(Vector2i pos, int radius, bool circle,
         out Vector2i out_dir, out int out_count, out uint out_bits)
     {
-        assert(radius >= 0);
+        argcheck(radius >= 0);
         //xxx: I "optimized" this, the old version is still in r451
         //     further "optimized" (== obfuscated for no gain) after r635
         //     made it completely incomprehensible after r940
@@ -1131,41 +1076,23 @@ class LandscapeBitmap {
         return stuff;
     }
 
-/+
-    //collide an arbitrary polygon with the landscape
-    //just returns if a collision happened
-    bool collidePolygon(Vector2f[] points) {
-        bool result = false;
-        drawing.rasterizePolygon(mWidth, mHeight, points, false,
-            (int x1, int x2, int y) {
-                if (result)
-                    return;
-                int ly = y*mWidth;
-                foreach (Lexel l; mLevelData[ly+x1..ly+x2]) {
-                    if (l != 0) {
-                        result = true;
-                        return;
-                    }
-                }
-            }
-        );
-        return result;
-    }
-+/
-
-    //oh yeah, manual bitmap drawing code!
-    private void doDrawBmp(int px, int py, Surface source, int w, int h,
+    //draw a bitmap, but also modify the level pixels
+    //where (metadata & meta_mask) == meta_cmp, copy a pixel and set
+    //  pixel-metadata to "after"
+    void drawBitmap(Vector2i p, Surface source, Vector2i size,
         ubyte meta_mask, ubyte meta_cmp, Lexel after)
     {
+        argcheck(!mDataOnly, "Not for data-only renderer");
+
         //clip
-        w = min(w, source.size.x);
-        h = min(h, source.size.y);
-        int cx1 = max(px, 0);
-        int cy1 = max(py, 0);
-        int cx2 = min(mSize.x, px+w);  //exclusive
-        int cy2 = min(mSize.y, py+h);
-        assert(cx2-cx1 <= w);
-        assert(cy2-cy1 <= h);
+        size.x = min(size.x, source.size.x);
+        size.y = min(size.y, source.size.y);
+        int cx1 = max(p.x, 0);
+        int cy1 = max(p.y, 0);
+        int cx2 = min(mSize.x, p.x+size.x);  //exclusive
+        int cy2 = min(mSize.y, p.y+size.y);
+        assert(cx2-cx1 <= size.x);
+        assert(cy2-cy1 <= size.y);
         if (cx1 >= cx2 || cy1 >= cy2)
             return;
 
@@ -1176,7 +1103,7 @@ class LandscapeBitmap {
 
         for (int y = cy1; y < cy2; y++) {
             //offset to relevant start of source scanline
-            Color.RGBA32* src = data + pitch*(y-py) + (cx1-px);
+            Color.RGBA32* src = data + pitch*(y-p.y) + (cx1-p.x);
             Lexel* dst_meta = &mLevelData[mSize.x*y+cx1];
             auto iter = pixels.get_iter(y, cx1, cx2);
             while (iter.x < iter.x2) {
@@ -1197,17 +1124,6 @@ class LandscapeBitmap {
         source.unlockPixels(Rect2i.init);
 
         previewUpdate(change);
-    }
-
-    //draw a bitmap, but also modify the level pixels
-    //where (metadata & meta_mask) == meta_cmp, copy a pixel and set
-    //pixel-metadata to "after"
-    public void drawBitmap(Vector2i p, Surface source, Vector2i size,
-        ubyte meta_mask, ubyte meta_cmp, Lexel after)
-    {
-        argcheck(!mDataOnly, "Not for data-only renderer");
-        //ewww what has this become
-        doDrawBmp(p.x, p.y, source, size.x, size.y, meta_mask, meta_cmp, after);
     }
 
     //the checksum includes only the data

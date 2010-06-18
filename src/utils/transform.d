@@ -39,6 +39,11 @@ struct Transform2f {
         t.y += a21 * tr_x;// + a22 * 0;
     }
 
+    void translateY(float tr_y) {
+        t.x += /+ a11 * 0 + +/ a12 * tr_y;
+        t.y += /+ a21 * 0 + +/ a22 * tr_y;
+    }
+
     void mirror(bool x, bool y) {
         if (x) {
             a11 = -a11;

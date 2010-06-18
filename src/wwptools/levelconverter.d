@@ -95,7 +95,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     auto debrisAni = new AniEntry(debrisAnif, "debris");
     debrisAni.addFrames(debrisAl.animations);
     debrisAni.flags = FileAnimationFlags.Repeat;
-    debrisPacker.write(destPath, true);
+    debrisPacker.write(destPath);
     debrisAnif.write(destPath, false);
 
     //bridges

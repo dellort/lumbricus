@@ -204,10 +204,13 @@ unittest {
 }
 
 
-//for array appending - because using builtin functionality is slow
-//(at least so they say)
+//for array appending - because using builtin functionality is slow (the main
+//  reason being that you have to lock the global GC mutex and look up the GC
+//  memory block on _every_ single append operation)
+//FreeOnRealloc: if true, delete the previous array if it got reallocated (all
+//  former slices are going to point to free'd memory)
 //NOTE: instead of Appender!(int) arr; foreach(x;arr) do foreach(x;arr[])
-struct Appender(T) {
+struct Appender(T, bool FreeOnRealloc = false) {
     private {
         T[] mArray;
         size_t mLength;
@@ -252,9 +255,7 @@ struct Appender(T) {
         return opSlice().dup;
     }
 
-    size_t length() {
-        return mLength;
-    }
+    //setting length to 0 may not free anything at all
     void length(size_t nlen) {
         if (nlen <= mLength) {
             mLength = nlen;
@@ -267,22 +268,39 @@ struct Appender(T) {
             mArray[oldlen .. oldcap] = T.init;
         }
     }
+    size_t length() {
+        return mLength;
+    }
 
     //so that mLength <= capacity; don't initialize new items
     private void do_grow() {
         if (mLength <= mArray.length)
             return;
-        //make larger exponantially
+        //make larger exponentially
         auto capacity = max(16, mArray.length);
         while (capacity < mLength)
             capacity *= 2;
-        //xxx: maybe free previous array if the runtime reallocated it?
-        mArray.length = capacity;
+        static if (!FreeOnRealloc) {
+            mArray.length = capacity;
+        } else {
+            //maybe free previous array if the runtime reallocated it
+            T[] old = mArray;
+            mArray.length = capacity;
+            if (old.ptr !is mArray.ptr)
+                delete old;
+        }
+    }
+
+    //like delete array (probably can't override delete on language level)
+    //like a slice, the Appender can still be used after this
+    void free() {
+        mLength = 0;
+        delete mArray;
     }
 }
 
 unittest {
-    Appender!(int) arr;
+    Appender!(int, true) arr;
     arr ~= 1;
     arr ~= 2;
     assert(arr[] == [1,2]);
@@ -290,12 +308,25 @@ unittest {
     assert(arr[] == [1]);
     arr.length = 3;
     assert(arr[] == [1,0,0]);
+    Appender!(int) arr2; //instantiates?
 }
 
 //arrays allocated with C's malloc/free
-//because the D GC really really sucks with big arrays
-//Warning: pointers/slices to the actual array are not GC tracked
-//         plus slices/pointers into the array get invalid when length changes
+//because the D GC really really sucks with big arrays:
+//- the GC is really really REALLY bad with large memory allocations... it has
+//  to do linear algorithms all the time, even during the mark phase of a GC run
+//- the GC scans for inner pointers (pointer into the middle of the array),
+//  which dramatically increases the number of false pointers which could keep
+//  the array alive; the BigArray instance itself is quite small (16/32 bytes),
+//  and false pointers are less likely
+//- you can't tell D not to initialize newly allocated array memory, which may
+//  be a problem when allocating megabyte sized arrays (you could use
+//  GC.malloc, PS: they horribly fucked up GC.malloc in D2)
+//Warning:
+//- pointers/slices to the actual array are not GC tracked
+//- memory is automatically free'd when BigArray is GC'ed, even if your code
+//  still has references to the array data itself (so, keep the BigArray around)
+//- slices/pointers into the array become invalid when length changes
 final class BigArray(T) {
     private {
         T[] mData;
@@ -305,9 +336,8 @@ final class BigArray(T) {
         length = initial_length;
     }
 
-    //keep in mind that this invalidates all slices (and pointers) to the array
-    //setting length to 0 is guaranteed to free everything
-    void length(size_t newlen) {
+    //like setting .length, but don't initialize newly allocated memory
+    void setLengthNoInit(size_t newlen) {
         if (newlen == mData.length)
             return;
         //xxx: overflow check for newlen*T.sizeof would be nice
@@ -320,8 +350,14 @@ final class BigArray(T) {
             throw new Exception(myformat("Out of memory when allocating {} "
                 "bytes.", sz));
         }
-        auto oldlen = mData.length;
         mData = (cast(T*)res)[0..newlen];
+    }
+
+    //keep in mind that this invalidates all slices (and pointers) to the array
+    //setting length to 0 is guaranteed to free everything
+    void length(size_t newlen) {
+        auto oldlen = mData.length;
+        setLengthNoInit(newlen);
         //init memory like native D arrays are initialized
         if (newlen > oldlen) {
             T[] ndata = mData[oldlen..newlen];
@@ -330,6 +366,16 @@ final class BigArray(T) {
     }
     size_t length() {
         return mData.length;
+    }
+
+    //create a new BigArray instance and copy the array contents to it
+    //(intentionally not named .dup, if you want a copy in D memory, just .dup
+    // the slice: some_big_array[].dup)
+    BigArray copy() {
+        auto narr = new BigArray;
+        narr.setLengthNoInit(length);
+        narr[][] = this[]; //copy (strange syntax due to opSlice())
+        return narr;
     }
 
     void free() {

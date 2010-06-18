@@ -36,7 +36,7 @@ enum ImageDrawStyle {
 
 //default values are set such that no effect is applied
 struct BitmapEffect {
-    bool mirrorY = false;
+    bool mirrorX, mirrorY;
     float rotate = 0.0f;    //in radians
     Vector2f scale = Vector2f(1.0f);   //scale factor
     //should this be a property of the SubSurface?
@@ -59,6 +59,10 @@ struct BitmapEffect {
         //substract transformed vector to center
         tr.translate(-center);
 
+        if (mirrorX) {
+            tr.translateY(sourceSize.y);
+            tr.mirror(false, true);
+        }
         if (mirrorY) {
             //move bitmap by width into x direction
             tr.translateX(sourceSize.x);

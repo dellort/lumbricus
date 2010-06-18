@@ -1133,7 +1133,7 @@ LandscapeBitmap landscapeRenderPregenerated(LandscapeLexels lexelData,
     LandscapeGenTheme gfx)
 {
     auto renderer = new LandscapeBitmap(lexelData.size, false,
-        lexelData.levelData.dup);
+        lexelData.levelData);
     assert(renderer && lexelData && gfx);
 
     //geometry is already done, so just apply textures
@@ -1159,7 +1159,7 @@ Surface landscapeRenderPreview(LandscapeGeometry land, Vector2i size,
 {
     Surface createPixelSurface(Color c) {
         auto s = new Surface(Vector2i(1), Transparency.Alpha);
-        s.fill(Rect2i(0,0,1,1), c);
+        s.fill(s.rect, c);
         return s;
     }
 
@@ -1240,7 +1240,7 @@ LandscapeLexels landscapeRenderData(LandscapeGeometry geo, Vector2i size) {
         }
     }
 
-    ret.levelData = renderer.levelData();
+    ret.levelData = renderer.copyLexels();
     ret.size = size;
     return ret;
 }

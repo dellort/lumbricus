@@ -63,7 +63,7 @@ struct LogEntry {
         //trying to keep heap activity down with that buffer thing
         char[80] buffer = void;
         myformat_cb(sink, "[{}] [{}] [{}] {}\n", time.toString_s(buffer),
-            source.category, typeToString(pri), txt);
+            typeToString(pri), source.category, txt);
     }
 }
 

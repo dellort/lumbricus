@@ -166,10 +166,12 @@ abstract class DriverResource {
 
     //possibly free the resource
     bool pollRelease() {
-        if (mRef.get() || !mValid)
+        if (mRef.get())
             return false;
-        //never called; something is wrong; maybe nothing here makes sense
-        //Trace.formatln("free due to poll release!");
+        //barely works... maybe too many false references, too much crap
+        //essentially useless during the game, some success when using the game
+        //  setup gui
+        //debug Trace.formatln("free due to poll release! {}", cast(void*)this);
         destroy();
         return true;
     }
@@ -232,6 +234,7 @@ abstract class ResDriver : Driver {
             r.destroy();
             n++;
         }
+        mRefListWatermark = mRefList.count;
         return n;
     }
 

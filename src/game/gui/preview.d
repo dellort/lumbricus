@@ -248,7 +248,7 @@ class LevelSelector : SimpleContainer {
         LevelGenerator lvl = mLastLevel;
         if (!lvl) {
             LandscapeLexels lex = new LandscapeLexels();
-            lex.levelData = mPainter.levelData;
+            lex.levelData = mPainter.copyLexels;
             lex.size = mPainter.levelSize;
             bool[4] walls;
             for (int i = 0; i < 4; i++) {
