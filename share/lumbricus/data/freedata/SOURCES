@@ -1,11 +1,14 @@
 Wikipedia (Gnu FDL):
-- missing_*_icon 
+- missing_*_icon
+- banana
 
 Hedgewars (GPLv2):
 - barrel
 - crate, crate_med, crate_tool
-- bazooka, grenade, dynamite
-- molotov, mine_icon
+- bazooka, grenade, dynamite, clusterbomb, clustershard
+- molotov, mine_icon, grenade_icon, cluster_icon
 
+C.B. Leslie (worked for Lumbricus for a brief time, thx!):
+- robot_stand, robot_die
 
 Everything else: Own work

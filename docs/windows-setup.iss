@@ -2,6 +2,7 @@
 AppName=Lumbricus Terrestris
 ;xxx agree about version naming; could also insert SVN revision via a build script
 AppVerName=Lumbricus Terrestris SVN Build
+VersionInfoVersion=0.0.1.1182
 OutputDir=.
 OutputBaseFilename=LumbricusSetup
 DefaultDirName={pf}\Lumbricus
@@ -11,10 +12,32 @@ Uninstallable=yes
 SolidCompression=yes
 PrivilegesRequired=none
 
-;xxx localize custom messages in this setup
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"
+
+[CustomMessages]
+en.ViewReadme=View the README file
+en.LaunchGame=Play Lumbricus now!
+en.ConvertPageTitle=Convert WWP graphics for Lumbricus
+en.ConvertPageSubtitle=Select your Worms World Party™ folder
+en.ConvertInfoText=Lumbricus can use graphics from the original Worms World Party™, provided you own the game, using an included converter.%n%nIf you want to use this feature, browse for your WWP folder (i.e. where wwp.exe is located), and click "Start conversion".
+en.ConvertInvalidDir=Worms World Party™ has not been found in the selected directory. Please select the correct directory.
+en.ConvertSkipWarning=Really continue without graphics conversion? Keep in mind that the included (GPLed) graphics are very ugly...
+en.ConvertStart=Start conversion
+en.ConvertWorking=Working...
+en.ConvertDone=Conversion done
+
+de.ViewReadme=LIESMICH-Datei anzeigen
+de.LaunchGame=Lumbricus jetzt spielen!
+de.ConvertPageTitle=WWP-Grafiken in Lumbricus importieren
+de.ConvertPageSubtitle=Wählen Sie Ihr Worms World Party™-Verzeichnis aus
+de.ConvertInfoText=Besitzen Sie eine Kopie von Worms World Party™, kann Lumbricus die Grafiken des Originalspiels mit einem enthaltenen Konverter importieren.%n%nFalls Sie dieses Feature verwenden möchten, wählen Sie unten ihr WWP-Verzeichnis aus und klicken "Import starten".
+de.ConvertInvalidDir=Worms World Party™ wurde im gewählten Verzeichnis nicht gefunden. Bitte wählen Sie das korrekte Verzeichnis aus.
+de.ConvertSkipWarning=Wirklich ohne Grafik-Import fortfahren? Die enthaltenen (GPL-)Grafiken sind ziemlich häßlich...
+de.ConvertStart=Import starten
+de.ConvertWorking=Arbeite...
+de.ConvertDone=Import fertig
 
 [Files]
 Source: "..\bin\*.dll"; DestDir: "{app}\bin"
@@ -25,8 +48,8 @@ Source: "..\share\lumbricus\*"; Excludes: "data2,.svn,Thumbs.db"; DestDir: "{app
 Source: "..\src\README"; DestDir: "{app}"; DestName: "ReadMe.txt"
 
 [Run]
-Filename: "{app}\ReadMe.txt"; Description: "View the README file"; Flags: postinstall shellexec skipifsilent unchecked
-Filename: "{app}\bin\lumbricus.exe"; Description: "Start Lumbricus now!"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\ReadMe.txt"; Description: "{cm:ViewReadme}"; Flags: postinstall shellexec skipifsilent unchecked
+Filename: "{app}\bin\lumbricus.exe"; Description: "{cm:LaunchGame}"; Flags: postinstall nowait skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\share\lumbricus\data2"
@@ -47,14 +70,15 @@ procedure ConvertBtnClick(Sender: TObject);
 var
   res: Integer;
 begin
-  if not FileExists(WwpDirTree.Directory + '\wwp.exe') then begin
-    MsgBox('Worms World Party™ has not been found in the selected directory. Please select the correct directory.', mbError, MB_OK);
+  //Check directory
+  if not FileExists(WwpDirTree.Directory + '\wwp.exe') or not FileExists(WwpDirTree.Directory + '\data\Gfx\Gfx.dir') then begin
+    MsgBox(CustomMessage('ConvertInvalidDir'), mbError, MB_OK);
     Exit;
   end;
   ConvertBtn.Enabled := False;
-  ConvertBtn.Caption := 'Working...';
+  ConvertBtn.Caption := CustomMessage('ConvertWorking');
   Exec(ExpandConstant('{app}\bin\extractdata.exe'), '"' + WwpDirTree.Directory + '"', ExpandConstant('{app}\bin'), SW_SHOW, ewWaitUntilTerminated, res);
-  ConvertBtn.Caption := 'Conversion done';
+  ConvertBtn.Caption := CustomMessage('ConvertDone');
   ConvertDone := True;
 end;
 
@@ -63,14 +87,14 @@ var InfoLbl: TLabel;
 begin
   // Create WWP dir page
   WwpPage := CreateCustomPage(wpInstalling,
-    'Convert WWP graphics for Lumbricus', 'Select your Worms World Party™ folder');
+    CustomMessage('ConvertPageTitle'), CustomMessage('ConvertPageSubtitle'));
 
   ConvertBtn := TButton.Create(WwpPage);
   ConvertBtn.Width := ScaleX(100);
   ConvertBtn.Height := ScaleY(23);
   ConvertBtn.Left := WwpPage.SurfaceWidth / 2 - ConvertBtn.Width / 2;
   ConvertBtn.Top := WwpPage.SurfaceHeight - ConvertBtn.Height;
-  ConvertBtn.Caption := 'Start conversion';
+  ConvertBtn.Caption := CustomMessage('ConvertStart')
   ConvertBtn.OnClick := @ConvertBtnClick;
   ConvertBtn.Parent := WwpPage.Surface;
 
@@ -81,8 +105,7 @@ begin
   //InfoLbl.Align := alTop;
   InfoLbl.AutoSize := False;
   InfoLbl.WordWrap := True;
-  InfoLbl.Caption := 'Lumbricus can use graphics from the original Worms World Party™, provided you own the game, using an included converter.'#13#10#13#10 +
-    'If you want to use this feature, browse for your WWP folder (i.e. where wwp.exe is located), and click "Start conversion".';
+  InfoLbl.Caption := CustomMessage('ConvertInfoText');
   InfoLbl.Parent := WwpPage.Surface;
 
   WwpDirTree := TFolderTreeView.Create(WwpPage);
@@ -99,7 +122,7 @@ begin
   Result := True;
   //Show a warning if the user tries to skip the WWP conversion
   if (CurPageID = WwpPage.ID) and not ConvertDone then begin
-    if MsgBox('Really continue without graphics conversion? Keep in mind that the included (GPLed) graphics are very ugly...',
+    if MsgBox(CustomMessage('ConvertSkipWarning'),
       mbConfirmation, MB_YESNO) = IDNO then Result := False
   end;
 end;
