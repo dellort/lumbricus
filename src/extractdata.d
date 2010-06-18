@@ -143,7 +143,8 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
             scope colourtxt = new TextInput(
                 new File(wpath~"/colour.txt", File.ReadExisting));
             char[] colLine;
-            assert(colourtxt.readln(colLine));
+            bool fileEof = colourtxt.readln(colLine);
+            assert(!fileEof);
             ubyte[] colRGB = to!(ubyte[])(str.split(colLine));
             assert(colRGB.length == 3);
             auto col = Color.fromBytes(colRGB[0], colRGB[1], colRGB[2]);

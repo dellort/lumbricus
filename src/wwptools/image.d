@@ -1,15 +1,16 @@
 //left-overs of scr/devil/image.d
 module wwptools.image;
 
-import framework.framework;
+import framework.surface;
 import framework.imgread;
 import framework.imgwrite;
-import framework.stuff; //register stuff
 import tango.stdc.stringz : toStringz, fromStringz;
 import utils.configfile;
 import utils.misc;
 import utils.color;
 import utils.stream;
+import utils.vector2;
+import utils.rect2;
 
 alias Color.RGBA32 RGBAColor;
 const RGBAColor cTransparent = {0, 0, 0, 0};
@@ -54,7 +55,7 @@ class Image {
         Color.RGBA32* pixels;
         uint pitch;
         assert(mImg.rect.isInside(Vector2i(x, y)));
-        //lockPixelsRGBA32 should 
+        //lockPixelsRGBA32 should
         mImg.lockPixelsRGBA32(pixels, pitch);
         pixels += y*pitch + x;
         ret = *pixels;

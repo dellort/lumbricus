@@ -138,10 +138,12 @@ private int paramConvertLinear100(int value, int count) {
 //rotate around center, time or p1
 class AnimEffectRotate : AnimEffect {
     AnimEffectParam param;
+    float multiplier = 1.0f;
 
     this(Animation parent, ConfigNode config) {
         super(parent);
         stringToType(param, config.getStringValue("p", "time"));
+        multiplier = config.getValue("m", multiplier);
     }
 
     override void effect(ref Vector2i pos, ref AnimationParams p, Time t,
@@ -155,7 +157,7 @@ class AnimEffectRotate : AnimEffect {
             default:
                 f = relTime(t);
         }
-        eff.rotate = f * math.PI * 2;
+        eff.rotate = f * math.PI * 2 * multiplier;
     }
 
     static this() {
@@ -235,11 +237,13 @@ class AnimEffectStretch : AnimEffect {
 //fade to color over time or 0-100 p2
 class AnimEffectFade : AnimEffect {
     Color dest = Color(1,1,1,0);  //transparent
+    bool inverse;
     AnimEffectParam param;
 
     this(Animation parent, ConfigNode config) {
         super(parent);
         dest = config.getValue("dest", dest);
+        inverse = config.getValue("inv", inverse);
         stringToType(param, config.getStringValue("p", "time"));
     }
 
@@ -254,10 +258,36 @@ class AnimEffectFade : AnimEffect {
             default:
                 f = relTime(t);
         }
+        if (inverse)
+            f = 1.0f - f;
         eff.color = Color(1f) * (1f - f) + dest * f;
     }
 
     static this() {
         AnimEffectFactory.register!(typeof(this))("fade");
+    }
+}
+
+//shrink from scale = 1.0 to scale = 0.0 (invisible)
+class AnimEffectShrink : AnimEffect {
+    bool inverse;
+
+    this(Animation parent, ConfigNode config) {
+        super(parent);
+        inverse = config.getValue("inv", inverse);
+    }
+
+    override void effect(ref Vector2i pos, ref AnimationParams p, Time t,
+        ref BitmapEffect eff)
+    {
+        //time only
+        float f = relTime(t);
+        if (!inverse)
+            f = 1.0f - f;
+        eff.scale.x = eff.scale.y = f;
+    }
+
+    static this() {
+        AnimEffectFactory.register!(typeof(this))("shrink");
     }
 }
