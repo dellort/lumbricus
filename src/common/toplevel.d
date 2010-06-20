@@ -263,14 +263,9 @@ private:
         globals.cmdLine.registerCommand("gc", &testGC, "", ["bool?=true"]);
         globals.cmdLine.registerCommand("gcmin", &cmdGCmin, "");
         globals.cmdLine.registerCommand("gcstats", &testGCstats, "");
-        globals.cmdLine.registerCommand("show_stuff", &cmdShowStuff, "");
 
         globals.cmdLine.registerCommand("quit", &killShortcut, "");
         globals.cmdLine.registerCommand("toggle", &showConsole, "");
-        //globals.cmdLine.registerCommand("log", &cmdShowLog,
-          //  "List and modify log-targets");
-        globals.cmdLine.registerCommand("bind", &cmdBind,
-            "", ["text?", "text?", "text..."]);
         globals.cmdLine.registerCommand("nameit", &cmdNameit, "");
         globals.cmdLine.registerCommand("video", &cmdVideo, "",
             ["int", "int", "int?=0", "bool?"]);
@@ -302,10 +297,6 @@ private:
         //used for key shortcuts
         globals.cmdLine.registerCommand("settings_cycle", &cmdSetCycle, "",
             ["text"]);
-
-        //more like a test
-        globals.cmdLine.registerCommand("widget_tree", &cmdWidgetTree, "");
-        globals.cmdLine.registerCommand("echo", &cmdEcho, "", ["text..."]);
     }
 
     private void cmdFwSettings(MyBox[] args, Output write) {
@@ -332,25 +323,6 @@ private:
     private void cmdSetCycle(MyBox[] args, Output write) {
         char[] name = args[0].unbox!(char[]);
         settingCycle(name, +1);
-    }
-
-    private void cmdWidgetTree(MyBox[] args, Output write) {
-        int maxdepth;
-        int count;
-
-        void showWidget(Widget w, int depth) {
-            maxdepth = depth > maxdepth ? depth : maxdepth;
-            count++;
-            char[] pad; pad.length = depth*2; pad[] = ' ';
-            write.writefln("{}{}", pad, w);
-            w.enumChildren((Widget child) {
-                showWidget(child, depth + 1);
-            });
-        }
-
-        write.writefln("Widget tree:");
-        showWidget(mGui.mainFrame, 0);
-        write.writefln("maxdepth = {}, count = {}", maxdepth, count);
     }
 
     private void cmdReleaseCaches(MyBox[] args, Output write) {
@@ -475,41 +447,8 @@ private:
             saveImage(surf, ssFile, "png");
     }
 
-    //bind [name action [keys]]
-    private void cmdBind(MyBox[] args, Output write) {
-        if (!args[0].empty()) {
-            switch (args[0].unbox!(char[])()) {
-                case "add":
-                    if (!args[1].empty() && !args[1].empty()) {
-                        keybindings.addBinding(args[1].unbox!(char[])(),
-                            args[2].unbox!(char[])());
-                        return;
-                    }
-                case "kill":
-                    if (!args[1].empty()) {
-                        keybindings.removeBinding(args[1].unbox!(char[])());
-                        return;
-                    }
-                default:
-            }
-        }
-        //else, list all bindings
-        write.writefln("Bindings:");
-        keybindings.enumBindings(
-            (char[] bind, BindKey key) {
-                write.writefln("    {}='{}' ('{}')", bind,
-                    key.unparse(), globals.translateKeyshortcut(key));
-            }
-        );
-    }
-
     private void cmdNameit(MyBox[] args, Output write) {
         mKeyNameIt = true;
-    }
-
-    private void cmdEcho(MyBox[] args, Output write) {
-        char[] msg = args[0].unbox!(char[]);
-        write.writefln("{}", msg);
     }
 
     private void showConsole(MyBox[], Output) {
@@ -556,9 +495,6 @@ private:
     }
     private void cmdGCmin(MyBox[] args, Output write) {
         memory.GC.minimize();
-    }
-    private void cmdShowStuff(MyBox[] args, Output write) {
-        show_stuff();
     }
 
     private void onUpdate() {

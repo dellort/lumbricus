@@ -88,7 +88,7 @@ class LoadGui {
     void readWidgetProperties(Widget w, ConfigNode node) {
         doTemplates(node);
 
-        auto name = node.findValue("name");
+        auto name = node.findNode("name");
         if (name) {
             addNamedWidget(w, name.value);
         }

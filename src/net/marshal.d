@@ -241,7 +241,7 @@ class UnmarshalException : CustomException {
 /// in the destructor)
 class MarshalBuffer {
     private {
-        marray.Appender!(ubyte) mBuffer;
+        marray.Appender!(ubyte, true) mBuffer;
     }
 
     this() {

@@ -273,21 +273,9 @@ public class ConfigNode {
         return sub;
     }
 
-    alias findNode findValue;
-
     //difference to findNode: different default value for 2nd parameter :-)
     public ConfigNode getSubNode(char[] name, bool createIfNotExist = true) {
         return findNode(name, createIfNotExist);
-    }
-
-    /// find and return a ConfigNode with that name
-    /// if it doesn't exist, do one of those things:
-    ///   a) add and return a new ConfigNode with that name (like getSubNode())
-    ///      and issue a warning to the user (in whatever way)
-    ///   b) throw an exception
-    /// it's also an error if the node is not unique (by name)
-    ConfigNode requireNode(char[] name) {
-        return getSubNode(name); //xD
     }
 
     //number of nodes and values
@@ -304,7 +292,7 @@ public class ConfigNode {
 
     /// Access a value by name, return 'default' if it doesn't exist.
     public char[] getStringValue(char[] name, char[] def = "") {
-        auto value = findValue(name);
+        auto value = findNode(name);
         if (value is null) {
             return def;
         } else {
@@ -314,7 +302,7 @@ public class ConfigNode {
 
     /// Create/overwrite a string value ('name = "value"')
     public void setStringValue(char[] name, char[] value) {
-        auto val = findValue(name, true);
+        auto val = findNode(name, true);
         val.value = value;
     }
 
@@ -622,7 +610,7 @@ public class ConfigNode {
     ///Read the value of a named subnode of the current node
     ///return def if the value was not found; throw ConfigError on parse error
     public T getValue(T)(char[] name, T def = T.init) {
-        auto v = findValue(name);
+        auto v = findNode(name);
         if (!v)
             return def;
         return v.getCurValue!(T)();
@@ -631,7 +619,7 @@ public class ConfigNode {
     ///Set the value of a named subnode of the current node to value
     ///see also setCurValue
     public void setValue(T)(char[] name, T value) {
-        auto val = findValue(name, true);
+        auto val = findNode(name, true);
         val.setCurValue!(T)(value);
     }
 
@@ -776,7 +764,7 @@ public class ConfigNode {
     }
 
     public char[] writeAsString() {
-        marray.Appender!(char) outs;
+        marray.Appender!(char, true) outs;
         //is this kosher? anyway, I don't care
         write(&outs.opCatAssign);
         return outs[];

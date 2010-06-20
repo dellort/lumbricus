@@ -3,31 +3,19 @@ module lumbricus;
 //enable tango backtracing (on exceptions)
 debug import tango.core.tools.TraceExceptions;
 
-//version = Emerald;
-version(Emerald) {
-    import utils.emerald;
-} else {
-    extern(C) void show_stuff() {
-    }
-}
-
-import framework.framework;
-import framework.config;
+import framework.main;
 import common.init;
 import common.common : globals;
-//import common.settings;
 import toplevel = common.toplevel;
-import utils.configfile;
 import utils.misc;
-import tango.io.Stdout;
 
 version = Game;
 
-//drivers etc.
-import framework.stuff;
-
 //these imports register classes in a factory on module initialization
 //so be carefull not to remove them accidentally
+
+//drivers etc.
+import framework.stuff;
 
 import gui.test; //GUI test code
 

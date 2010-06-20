@@ -53,7 +53,6 @@ class WindowWidget : Widget {
         SimpleContainer mWindowDecoration;
 
         BoxContainer mTitleContainer; //titlebar + the buttons
-        TitlePart[] mTitleParts; //kept sorted by .sort
 
         //for the "tooltip" bottom label
         //might need refinement, maybe use a second TitlePart as a way to allow
@@ -79,20 +78,6 @@ class WindowWidget : Widget {
 
         bool mCanResize = true;
         bool mCanMove = true;
-
-        struct TitlePart {
-            char[] name;
-            int priority;
-            Widget widget;
-
-            //for sorting
-            int opCmp(TitlePart* other) {
-                int diff = priority - other.priority;
-                if (diff == 0)
-                    diff = str.cmp(name, other.name);
-                return diff;
-            }
-        }
 
         //thingies on the border to resize this window
         class Sizer : Widget {
@@ -389,52 +374,6 @@ class WindowWidget : Widget {
         zorder = props.zorder;
     }
 
-    /// add a button or anything to the titlebar
-    /// name = unique name; if a part with that name already exists, return
-    /// false and do nothing
-    /// priority = sorted from left to right by priority
-    /// w = the widget; must be non-null, the window code can add/remove this
-    /// widget anytime (i.e. switching fullscreen mode), also, its .layout will
-    /// be used (best choice is WidgetLayout.Noexpand())
-    bool addTitlePart(char[] name, int priority, Widget w) {
-        assert(w !is null);
-
-        if (findTitlePart(name) >= 0)
-            return false;
-
-        mTitleParts ~= TitlePart(name, priority, w);
-        recreateTitle();
-
-        return true;
-    }
-
-    bool removeTitlePart(char[] name) {
-        int index = findTitlePart(name);
-        if (index < 0)
-            return false;
-
-        mTitleParts = mTitleParts[0..index] ~ mTitleParts[index+1..$];
-        recreateTitle();
-
-        return true;
-    }
-
-    private int findTitlePart(char[] name) {
-        foreach (int index, b; mTitleParts) {
-            if (b.name == name)
-                return index;
-        }
-        return -1;
-    }
-
-    private void recreateTitle() {
-        mTitleContainer.clear();
-        mTitleParts.sort;
-        foreach (p; mTitleParts) {
-            mTitleContainer.add(p.widget);
-        }
-    }
-
     ///the titlebar... do with it what you want, the WindowWidget only uses this
     ///for the .text property
     Label titleBar() {
@@ -628,60 +567,8 @@ class WindowFrame : Container {
         ConfigNode mConfig;
         KeyBindings mKeysWindow, mKeysWM;
 
-        //factories for parts; indexed by their names (but why?)
-        DefPart[char[]] mPartFactory;
-
-        class DefPart {
-            char[] name;
-            bool by_default;
-            int priority;
-
-            //fabricate whatever and add it to the window
-            abstract void addTo(WindowWidget w);
-
-            this(char[] name, ConfigNode node) {
-                this.name = name;
-                by_default = node.getBoolValue("create_by_default", false);
-                priority = node.getIntValue("priority");
-            }
-        }
-
-        class TitlePart : DefPart {
-            this(char[] name, ConfigNode node) { super(name, node); }
-            void addTo(WindowWidget w) {
-                //isn't it funney?
-                w.addTitlePart(name, priority, w.titleBar);
-            }
-        }
-
-        class ButtonPart : DefPart {
-            char[] markup;
-            char[] action;
-            this(char[] name, ConfigNode node) {
-                super(name, node);
-                markup = node["markup"];
-                action = node.getStringValue("action");
-            }
-
-            class Holder {
-                WindowWidget w;
-                void onButton(Button sender) {
-                    w.doAction(action);
-                }
-            }
-
-            void addTo(WindowWidget w) {
-                auto b = new Button();
-                b.allowFocus = false;
-                b.textMarkup = markup;
-                b.styles.addClass("window-button");
-                b.setLayout(WidgetLayout.Noexpand());
-                auto h = new Holder; //could use std.bind too, I guess
-                h.w = w;
-                b.onClick = &h.onButton;
-                w.addTitlePart(name, priority, b);
-            }
-        }
+        //previous window switcher dialog, or null
+        WindowWidget mSwitchWindow;
     }
 
     this() {
@@ -697,40 +584,45 @@ class WindowFrame : Container {
         mKeysWindow.loadFrom(mConfig.getSubNode("window_bindings"));
         mKeysWM = new KeyBindings();
         mKeysWM.loadFrom(mConfig.getSubNode("wm_bindings"));
-
-        foreach (ConfigNode node; mConfig.getSubNode("titleparts")) {
-            auto name = node.name;
-            auto type = node.getStringValue("type");
-            //oh noes, double-factory pattern again... but a switch is fine too
-            DefPart part;
-            switch (type) {
-                case "caption":
-                    part = new TitlePart(name, node);
-                    break;
-                case "img_button":
-                    part = new ButtonPart(name, node);
-                    break;
-                default:
-                    //???
-                    assert(false, "add error handling");
-            }
-            mPartFactory[name] = part;
-        }
     }
 
     override bool doesDelegateFocusToChildren() {
         return true;
     }
 
-    void addDefaultDecorations(WindowWidget wnd) {
-        foreach (DefPart p; mPartFactory) {
-            if (p.by_default)
-                p.addTo(wnd);
+    private static class ButtonAction {
+        WindowWidget mWindow;
+        char[] mAction;
+        static void Set(Button button, WindowWidget a_window, char[] a_action) {
+            auto a = new ButtonAction;
+            a.mWindow = a_window;
+            a.mAction = a_action;
+            button.onClick = &a.onButton;
+        }
+        private void onButton(Button sender) {
+            mWindow.doAction(mAction);
         }
     }
 
-    void addDecoration(WindowWidget wnd, char[] name) {
-        mPartFactory[name].addTo(wnd);
+    private void addDefaultDecorations(WindowWidget wnd) {
+        void adddec(Widget w) {
+            wnd.mTitleContainer.add(w);
+        }
+        void button(char[] action, char[] markup) {
+            auto b = new Button;
+            b.textMarkup = markup;
+            b.styles.addClass("window-button");
+            b.setLayout(WidgetLayout.Expand(false));
+            b.allowFocus = false;
+            ButtonAction.Set(b, wnd, action);
+            adddec(b);
+        }
+
+        adddec(wnd.mTitleBar);
+
+        button("toggle_ontop", r"\imgres(scroll_up)");
+        button("toggle_fs", r"\imgres(window_maximize)");
+        button("close", r"\imgres(window_close)");
     }
 
     void addWindow(WindowWidget wnd) {
@@ -819,19 +711,25 @@ class WindowFrame : Container {
     }
 
     private void onSelectWindow() {
+        if (mSwitchWindow) {
+            mSwitchWindow.remove();
+            mSwitchWindow = null;
+        }
         auto owner = new WindowWidget();
         auto b = new VBoxContainer();
         struct Closure {
+            WindowFrame this_;
             WindowWidget owner;
             WindowWidget w;
             void onClick() {
+                this_.mSwitchWindow = null;
                 owner.remove();
                 w.activate();
             }
         }
         foreach (WindowWidget w; mWindows) {
             auto cl = new Closure;
-            *cl = Closure(owner, w);
+            *cl = Closure(this, owner, w);
             auto btn = new Button();
             btn.textMarkup = w.properties.windowTitle;
             btn.onClick2 = &cl.onClick;
@@ -842,6 +740,7 @@ class WindowFrame : Container {
         owner.properties = props;
         owner.client = b;
         addWindowCentered(owner);
+        mSwitchWindow = owner;
     }
 
     //emulate what was in wm.d

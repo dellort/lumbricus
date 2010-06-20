@@ -201,6 +201,110 @@ function E.snowflake(depth, interpolate)
     LandscapeBitmap_drawBorder(ls, Lexel_soft, Lexel_free, border, border)
 end
 
+function E.maze()
+    local gls = Game_gameLandscapes()[1]
+    local ls = GameLandscape_landscape(gls)
+    local s = LandscapeBitmap_size(ls)
+    local CH = 50 -- w/h of a cell
+    local WH = 30 -- w/h of a wall
+    local H = CH + WH
+
+    -- geneerate maze
+    -- see http://en.wikipedia.org/wiki/Maze_generation#Recursive_backtracker
+    local cx = math.floor((s.x - CH) / H + 1)
+    local cy = math.floor((s.y - CH) / H + 1)
+    local cells = {}
+    for y = 1, cy do
+        cells[y] = {}
+        for x = 1, cx do
+            local p = Vector2(x - 1, y - 1) * H + Vector2(WH)
+            local c = {
+                x = x, y = y,
+                p1 = p,
+                p2 = p + Vector2(CH),
+                visited = false,
+                -- will contain connected cells (no walls)
+                ways = {},
+            }
+            cells[y][x] = c
+        end
+    end
+    -- return list of unvisited adjacent cells
+    local function getunvisited(cell)
+        local adj = {}
+        local function add(c)
+            if not c.visited then
+                adj[#adj+1] = c
+            end
+        end
+        local x = cell.x
+        local y = cell.y
+        if x > 1 then add(cells[y][x-1]) end
+        if x < cx then add(cells[y][x+1]) end
+        if y > 1 then add(cells[y-1][x]) end
+        if y < cy then add(cells[y+1][x]) end
+        return adj
+    end
+    local function visit(cell)
+        if cell.visited then
+            return
+        end
+        cell.visited = true
+        while true do
+            local u = getunvisited(cell)
+            if #u < 1 then
+                return
+            end
+            local n = utils.range_sample_i(1, #u)
+            local nextcell = u[n]
+            array.remove(u, n)
+            cell.ways[#cell.ways + 1] = nextcell
+            visit(nextcell)
+        end
+    end
+    visit(cells[1][1])
+
+    -- draw maze
+    local fill = lookupResource("border_segment")
+    local border = lookupResource("rope_segment")
+
+    LandscapeBitmap_addPolygon(ls,
+        {Vector2(0,0), Vector2(s.x,0), s, Vector2(0,s.y)}, Vector2(0,0),
+        fill, Lexel_soft)
+
+    for y = 1, cy do
+        for x = 1, cx do
+            local cell = cells[y][x]
+            -- all cells are clear
+            LandscapeBitmap_drawRect(ls, nil, Lexel_free, {cell.p1, cell.p2})
+            -- clear the walls
+            for i, other in ipairs(cell.ways) do
+                -- rect that covers the wall = rect between the cells
+                local x1, y1, x2, y2
+                if cell.x == other.x then
+                    x1, x2 = cell.p1.x, cell.p2.x
+                    if cell.y > other.y then
+                        y1, y2 = other.p2.y, cell.p1.y
+                    else
+                        y1, y2 = cell.p2.y, other.p1.y
+                    end
+                else
+                    y1, y2 = cell.p1.y, cell.p2.y
+                    if cell.x > other.x then
+                        x1, x2 = other.p2.x, cell.p1.x
+                    else
+                        x1, x2 = cell.p2.x, other.p1.x
+                    end
+                end
+                LandscapeBitmap_drawRect(ls, nil, Lexel_free,
+                    {{x1, y1}, {x2, y2}})
+            end
+        end
+    end
+
+    LandscapeBitmap_drawBorder(ls, Lexel_soft, Lexel_free, border, border)
+end
+
 function E.horror(gridToggle)
     if not bouncy_class then
         bouncy_class = createSpriteClass {

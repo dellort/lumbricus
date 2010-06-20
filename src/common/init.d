@@ -11,8 +11,6 @@ import utils.color;
 import utils.configfile;
 import utils.log;
 import utils.misc;
-import utils.random;
-import utils.time;
 
 import utils.stream : File, ThreadedWriter; //???
 import marray = utils.array;
@@ -182,7 +180,7 @@ void init(char[][] args) {
             //write buffered log
             c.sink(gLogFileTmp);
             gLogFileSink = &c.sink;
-        } catch (IOException e) {
+        } catch (stream.IOException e) {
             gLogInit.error("Failed to open logfile: {}", e.msg);
             gLogFileSink = null;
         }

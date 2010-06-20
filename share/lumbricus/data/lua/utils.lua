@@ -227,6 +227,7 @@ assert(utils.is_range(utils.range(5)))
 --  range_sample(some_range_table)
 --  range_sample(a)     -- return a
 --  range_sample(a, b)  -- behaves like range_sample(range(a, b))
+-- returns a value x: a <= x <= b
 -- to see which version is applied, utils.is_range() is used
 -- further, since Lua doesn't distinguish ints and floats, there are different
 --  versions for each of them
@@ -241,7 +242,6 @@ function utils.range_sample_f(...)
 end
 
 -- any type that supports __add, __sub and __mul
--- e.g. works for Time
 -- separate to not allocate a closure on each call
 local function _range_any_random(a, b)
     return a + (b-a)*Random_rangef(0, 1)
@@ -634,24 +634,6 @@ end
 function string.endswith(s, suffix)
     return string.sub(s, #suffix) == suffix
 end
-
---[[
-
--- getCallerFunction() - very specialized function, duh
--- xxx if it shows that you
-if not debug then
-    -- maybe you need to implement it in D, or unload the debug table later
-    assert(false, "getCallerFunction() needs debug, lol.")
-end
--- allow unloading debug table to a later point in time
--- the function won't get lost if stored in a local variable
-local getinfo = debug.getinfo
-function getCallerFunction()
-    local t = getinfo(1, "f")
-    return assert(f.func)
-end
-
-]]
 
 -- the following functions apparently partially rely on the D wrapper
 -- actually, those should be moved into a plugins.lua

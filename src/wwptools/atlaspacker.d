@@ -7,7 +7,6 @@ import wwpdata.common;
 import common.resfileformats : FileAtlas, FileAtlasTexture;
 import utils.boxpacker;
 import utils.configfile;
-import utils.output;
 import utils.vector2;
 import utils.filetools;
 import utils.misc;
