@@ -506,6 +506,12 @@ class AniStateDisplay : StateDisplay {
         return mAnimation.finished((now() - mStart) * mSpeed);
     }
 
+    final bool isRepeating() {
+        if (!mAnimation)
+            return false;
+        return mAnimation.repeat;
+    }
+
     override bool isDone() {
         if (!mAnimation)
             return true;
@@ -897,13 +903,15 @@ class WwpWeaponDisplay : AniStateDisplay {
         WwpWeaponState myclass;
         //invariant: mCurrent is null/non-null synchronous to mPhase
         //  it is null for Phase.Normal, Phase.Idle
-        WwpWeaponState.Weapon mCurrent;
+        WwpWeaponState.Weapon mCurrent, mRequested;
         Time mNextIdle; //just an offset
         float mAngle = 0.0f; //always 0 .. PI
         Phase mPhase = Phase.Normal;
         Time mRotStart;
         //temporary, from game logic
-        DG mOnFireReady, mOnFireFirstRoundDone, mOnFireAllDone;
+        DG mOnFireReady;
+        //stop fire animation when next possible
+        bool mRequestStopFire;
     }
 
     const cLowHpTreshold = 30f;   //different (ill-looking) animation below
@@ -944,12 +952,16 @@ class WwpWeaponDisplay : AniStateDisplay {
 
         if (!w) {
             //unarm (start rotate-back)
+            mRequested = null;
             unget();
         } else {
             //get armed
-            mCurrent = w;
-            mPhase = Phase.Get;
-            setAnimation(mCurrent.get);
+            mRequested = w;
+            //if idle, set it immediately
+            if (!busy())
+            {
+                setNormalAnim();
+            }
         }
     }
 
@@ -971,13 +983,21 @@ class WwpWeaponDisplay : AniStateDisplay {
 
     //start firing animation (starting with prepare, then go to firing)
     //onFireReady = called as soon as the prepare animation is done
-    //onFireFirstRoundDone = fire animation played at least once
     //returns success
-    bool fire(DG onFireReady, DG onFireFirstRoundDone) {
+    bool fire(DG onFireReady) {
         if (!mCurrent)
             return false;
+        //xxx Proposal: return false if the current Phase does not agree
+        //    with starting firing (like when there is still an unget playing)
+        //    But this would mean noticable delays when pressing space
+        //    Decision: Delays for user vs. visible animation jumps
+        /+if (mPhase != Phase.Get && mPhase != Phase.GetRot
+            && mPhase != Phase.Hold)
+        {
+            return false;
+        }+/
         mOnFireReady = onFireReady;
-        mOnFireFirstRoundDone = onFireFirstRoundDone;
+        mRequestStopFire = false;
         mPhase = Phase.Prepare;
         setAnimation(mCurrent.prepare);
         advance();
@@ -987,24 +1007,12 @@ class WwpWeaponDisplay : AniStateDisplay {
     //if fire animation is running, stop it and play the cleanup animations
     //onFireAllDone = called after fire_end has been played
     //returns success
-    bool stopFire(DG onFireAllDone) {
+    bool stopFire() {
         if (!mCurrent)
             return false;
         if (mPhase != Phase.Fire)
             return false;
-        mOnFireAllDone = onFireAllDone;
-        if (!mCurrent.fire_end_releases) {
-            mPhase = Phase.FireEnd;
-            setAnimation(mCurrent.fire_end);
-        } else {
-            //special case for auto-release weapons
-            //they have this as in-between state, and it is assumed that the
-            //  fire animation doesn't repeat (so it doesn't look stupid when
-            //  the animation is unrotated)
-            mPhase = Phase.FireEndRot;
-            mRotStart = now();
-        }
-        advance();
+        mRequestStopFire = true;
         return true;
     }
 
@@ -1014,6 +1022,7 @@ class WwpWeaponDisplay : AniStateDisplay {
         myclass = castStrict!(WwpWeaponState)(state);
         mPhase = Phase.Normal;
         mCurrent = null;
+        mRequested = null;
         mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
         super.init(state);
         setNormalAnim();
@@ -1025,8 +1034,13 @@ class WwpWeaponDisplay : AniStateDisplay {
 
     private void setNormalAnim() {
         mPhase = Phase.Normal;
-        mCurrent = null;
+        mCurrent = mRequested;
         auto ani = hasLowHp ? myclass.lowhp : myclass.normal;
+        //a weapon is selected, display it
+        if (mCurrent) {
+            mPhase = Phase.Get;
+            ani = mCurrent.get;
+        }
         //don't reset the ani if it's already set
         if (ani !is animation)
             setAnimation(ani);
@@ -1045,6 +1059,14 @@ class WwpWeaponDisplay : AniStateDisplay {
         return mPhase == Phase.Unget || mPhase == Phase.UngetRot;
     }
 
+    //are we playing something that should not be aborted
+    //note: those states all should somehow lead to a setNormalAnim() call,
+    //  or weapon changing won't work
+    private bool busy() {
+        return mPhase == Phase.UngetRot || mPhase == Phase.Unget
+            || mPhase == Phase.Prepare || mPhase == Phase.Fire
+            || mPhase == Phase.FireEndRot || mPhase == Phase.FireEnd;
+    }
 
     private void advance() {
         assert(!!myclass);
@@ -1081,12 +1103,20 @@ class WwpWeaponDisplay : AniStateDisplay {
                 tmp();
             }
         } else if (mPhase == Phase.Fire) {
-            //notify for one-shot weapons (weapon has virtually no execution
-            //  time => game logic uses animation to introduce delays)
-            auto tmp = mOnFireFirstRoundDone;
-            if (tmp) {
-                mOnFireFirstRoundDone = null;
-                tmp();
+            //1. non-repeated animation -> sequence can handle display timing
+            //2. the logic has notified us that the Shooter is done
+            if (!isRepeating() || mRequestStopFire) {
+                if (!mCurrent.fire_end_releases) {
+                    mPhase = Phase.FireEnd;
+                    setAnimation(mCurrent.fire_end);
+                } else {
+                    //special case for auto-release weapons
+                    //they have this as in-between state, and it is assumed that the
+                    //  fire animation doesn't repeat (so it doesn't look stupid when
+                    //  the animation is unrotated)
+                    mPhase = Phase.FireEndRot;
+                    mRotStart = now();
+                }
             }
         } else if (mPhase == Phase.FireEnd) {
             if (mCurrent.fire_end_releases) {
@@ -1096,10 +1126,6 @@ class WwpWeaponDisplay : AniStateDisplay {
             } else {
                 mPhase = Phase.Hold;
                 setAnimation(mCurrent.hold);
-            }
-            if (auto tmp = mOnFireAllDone) {
-                mOnFireAllDone = null;
-                tmp();
             }
         } else if (mPhase == Phase.Normal) {
             //set idle animations
@@ -1177,6 +1203,7 @@ class WwpWeaponDisplay : AniStateDisplay {
         super.cleanup();
         mPhase = Phase.Normal;
         mCurrent = null;
+        mRequested = null;
     }
 }
 

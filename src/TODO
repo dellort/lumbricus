@@ -35,9 +35,11 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
   ist nur noch ein schuss übrig, wird die waffe nach beendung des shooters abselektiert, und dadurch die verbleibenden animationen abgebrochen
 - Konsolen-Katastrophe entfernen (es gibt jetzt 3.. nein 2 Konsolen die alle was anderes machen)
 - log nachrichten sollten durch ein globales widget angezeigt werden; z.zt. werden extra umstände gemacht, damit sie in GameFrame/mChatbox angezeigt werden
-- während die feuer-animation abgespielt wird, sollte der wurm keine eingabe akzeptieren (z.b. shotgun => kein waffen-winkel verstellen) (abhängig von der waffe; bei anderen waffen ist es vorgesehen, dass z.b. der waffen-winkel während des feuerns geändert werden kann)
+$ während die feuer-animation abgespielt wird, sollte der wurm keine eingabe akzeptieren (z.b. shotgun => kein waffen-winkel verstellen) (abhängig von der waffe; bei anderen waffen ist es vorgesehen, dass z.b. der waffen-winkel während des feuerns geändert werden kann)
   ebenso wenn die "prepare"-animation abgespielt wird
-- flammenwerfer: wenn sich der wurm selbst verletzt, macht der flammenwerfer einfach weiter (mit falscher wurm animation etc.)
+  ^ Bei der Shotgun ist es erwünscht, dass zwischen den Schüssen der Winkel verstellt werden kann
+$ flammenwerfer: wenn sich der wurm selbst verletzt, macht der flammenwerfer einfach weiter (mit falscher wurm animation etc.)
+  ^ nur wenn kein spielmodus aktiv ist der bei schaden die kontrolle nimmt; ich hab mal einen fix dagegen in worm.d gehackt
 - wenn datenverzeichnis nicht gefunden wird, bessere fehlermeldung ausgeben
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
   Schaden reduziert werden die Löcher zu klein)
@@ -45,12 +47,9 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 - Waffenbugs von r1164 (grmbl):
   $ Bazooka etc. am Zugende (Zeit 0) wird zwar aufgezogen aber nicht abgefeuert
     ^ nur gepatcht, hätte die bazooka eine "prepare" animation, würde es immernoch nicht funktionieren
-  - Beamen am Zugende wird abgebrochen
+    ^ ich hab noch einen hack für prepare-animationen dazugemacht; sollte jetzt passen
+  $ Beamen am Zugende wird abgebrochen
   - J zum Jetpack aktivieren muss zweimal gedrückt werden, wenn man vorher eine andere Waffe auswählt
-  $ Einige Waffen werden unnötigerweise nach dem Feuern sofort weggesteckt (z.B. Bogen, Seil)
-    ^ ich dachte, das ist so per design; wie soll es sonst funktionieren?
-    ^ bei wwp wird erst die wegsteckanimation und dann wieder die ziehanimation gespielt (waffe bleibt ausgewählt), z.B. Bogen
-  $ blowtorch: falsches zielkreuz während des bohrens
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
@@ -84,6 +83,8 @@ $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
 
 
 == Spiellogik/Gameengine ==
+- physik: der wurm-blickwinkel ist etwas zu persistent; fliegt ein wurm nach links
+  schaut er nach dem aufstehen trotzdem wieder nach rechts
 - timing des lebenspunktcountdowns und der teamanzeige abstimmen:
     - temporäres "einfrieren" des spiels durch spielmodus, wenn etwas "passiert" ist (timer wird gestoppt, derzeitiger spieler muss warten bis der spielmodus die kontrolle wieder freigibt)
     - countdown der lebenspunkte

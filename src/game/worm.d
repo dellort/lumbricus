@@ -90,9 +90,6 @@ class WormSprite : Sprite {
         //selected weapon; not necessarily the displayed one
         WeaponClass mRequestedWeapon;
 
-        //gets selected if no weapon is selected
-        WeaponClass mNextWeapon;
-
         //"code" for selected weapon, null for weapons which don't support it
         WeaponSelector mWeaponSelector;
         //active weapons
@@ -419,12 +416,6 @@ class WormSprite : Sprite {
                 wani.weapon = "";
             }
             wani.angle = weaponAngle();
-
-            //auto-reselect for baseball etc.
-            if (!wani.weaponSelected() && mNextWeapon) {
-                weapon = mNextWeapon;
-                mNextWeapon = null;
-            }
         }
 
         //xxx there's probably a better place for this
@@ -487,7 +478,7 @@ class WormSprite : Sprite {
 
         float weaponMove;
         //check if the worm is really allowed to move
-        if (currentState.canAim) {
+        if (currentState.canAim && !isPreparingFire()) {
             //invert y to go from screen coords to math coords
             weaponMove = -mMoveVector.y;
         }
@@ -545,7 +536,7 @@ class WormSprite : Sprite {
     }
 
     private bool wormCanWalkJump() {
-        return currentState.canWalk && !mCharging
+        return currentState.canWalk && !mCharging && !isPreparingFire()
             //no walk while shooting (or charging)
             && (!mShooterMain || !mShooterMain.isFixed);
     }
@@ -586,7 +577,6 @@ class WormSprite : Sprite {
             return;
         auto oldweapon = actualWeapon();
         mRequestedWeapon = w;
-        mNextWeapon = null;
         update_actual_weapon(oldweapon);
     }
 
@@ -600,6 +590,11 @@ class WormSprite : Sprite {
 
         //if (firing()) --does nothing???
           //  return;
+        //weapon is active
+        //xxx maybe the Shooter should handle prepare animations; that would
+        //    eliminate some hacks in this file
+        if (isPreparingFire())
+            return;
 
         weapon_unselect();
 
@@ -749,7 +744,7 @@ class WormSprite : Sprite {
         bool ok = false;
         if (ani) {
             //normal case
-            ok = ani.fire(&fireStart, &firedFirstRound);
+            ok = ani.fire(&fireStart);
         }
         if (!ok) {
             //normally shouldn't happen, except if animation is wrong
@@ -787,35 +782,6 @@ class WormSprite : Sprite {
         //this should never happen; instead it should be prevented by fire()
         if (!res)
             log.warn("Couldn't fire weapon!");
-    }
-
-    //called by animation code after at least one loop of fire ani was played
-    //fire animations are often repeated and last as long as the weapon is
-    //  active; but for weapons that go inactive immediately, you want to play
-    //  the fire animation at least once, and that's what this code is for
-    private void firedFirstRound() {
-        if (auto wani = weaponAniState()) {
-            if (mShooterMain) {
-                mHadOneShot = true;
-            } else {
-                wani.stopFire(&fireDone);
-            }
-        }
-    }
-
-    //called by the animation code if all firing animations have finished
-    //(should be back in normal state)
-    private void fireDone() {
-        if (auto wani = weaponAniState()) {
-            //the animation dictates whether the weapon is deselected after
-            //  firing - this is because the graphics were hardcoded in this way
-            if (!wani.weaponSelected()) {
-                //make it reselect the weapon (first unget, then get again)
-                auto oldweapon = mRequestedWeapon;
-                weapon = null;
-                mNextWeapon = oldweapon;
-            }
-        }
     }
 
     //preparing animation is running
@@ -990,8 +956,7 @@ class WormSprite : Sprite {
 
         //see firedFirstRound()
         if (auto wani = weaponAniState()) {
-            if (mHadOneShot)
-                wani.stopFire(&fireDone);
+            wani.stopFire();
         }
 
         update_actual_weapon(oldweapon);
@@ -1022,7 +987,11 @@ class WormSprite : Sprite {
     }
 
     bool delayedAction() {
-        bool ac = mCharging;
+        //isPreparingFire: spacebar has been pressed, weapon is already active
+        //  (but we don't have a shooter yet... weird, isn't it?)
+        //isBeaming: hack to prevent aborting beam on turn-end
+        //  (those wormstate-changing weapons are all a big hack anyway)
+        bool ac = mCharging | isPreparingFire() | isBeaming();
         if (mShooterMain)
             ac |= mShooterMain.delayedAction;
         if (mShooterSec)
@@ -1030,13 +999,14 @@ class WormSprite : Sprite {
         return ac;
     }
 
-    void forceAbort() {
+    void forceAbort(bool forceUnselect = false) {
         if (mShooterSec && mShooterSec.activity)
             mShooterSec.interruptFiring();
         if (mShooterMain && mShooterMain.activity)
             mShooterMain.interruptFiring();
         abortBeaming();
-        weapon_unselect();
+        if (forceUnselect)
+            weapon_unselect();
     }
 
     protected void stateTransition(WormStateInfo from,
@@ -1291,6 +1261,7 @@ class WormSprite : Sprite {
         } else {
             //hit by explosion, abort everything (code below will immediately
             //  correct the state)
+            forceAbort(false);  //false: do not unselect weapon
             setState(wsc.st_stand);
             //xxx how to remove rope constraint here?
         }
