@@ -89,6 +89,8 @@ class WormSprite : Sprite {
 
         //selected weapon; not necessarily the displayed one
         WeaponClass mRequestedWeapon;
+        //set when pressing spacebar; valid while the prepare animation plays
+        WeaponClass mInitiatedWeapon;  //<-- hack
 
         //"code" for selected weapon, null for weapons which don't support it
         WeaponSelector mWeaponSelector;
@@ -741,6 +743,8 @@ class WormSprite : Sprite {
         mCachedFireStrength = strength;
         mIsRefire = is_refire;
         auto ani = weaponAniState();
+        //mRequestedWeapon could change while prepare animation plays
+        mInitiatedWeapon = mRequestedWeapon;
         bool ok = false;
         if (ani) {
             //normal case
@@ -764,6 +768,7 @@ class WormSprite : Sprite {
             if (currentState !is wsc.st_weapon)
                 return;
         }
+        scope(exit) mInitiatedWeapon = null;
         if (mCachedFireStrength != mCachedFireStrength)
             return;
         //actually fire
@@ -855,17 +860,20 @@ class WormSprite : Sprite {
     private bool fireWeapon(ref Shooter sh, float strength,
         bool fixedDir = false)
     {
-        if (!mRequestedWeapon)
+        //lol (the whole weapon code cries "rewrite me!")
+        if (!mInitiatedWeapon)
+            mInitiatedWeapon = mRequestedWeapon;
+        if (!mInitiatedWeapon)
             return false;
         //xxx shooter is removed when the weapon is inactive?
-        if (!sh || sh.weapon != mRequestedWeapon) {
+        if (!sh || sh.weapon != mInitiatedWeapon) {
             auto oldweapon = actualWeapon();
-            sh = mRequestedWeapon.createShooter(this);
+            sh = mInitiatedWeapon.createShooter(this);
             sh.selector = mWeaponSelector;
             update_actual_weapon(oldweapon);
         }
 
-        log.trace("fire: {}", mRequestedWeapon.name);
+        log.trace("fire: {}", mInitiatedWeapon.name);
 
         FireInfo info;
         if (fixedDir)

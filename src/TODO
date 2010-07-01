@@ -50,6 +50,8 @@ $ flammenwerfer: wenn sich der wurm selbst verletzt, macht der flammenwerfer ein
     ^ ich hab noch einen hack für prepare-animationen dazugemacht; sollte jetzt passen
   $ Beamen am Zugende wird abgebrochen
   - J zum Jetpack aktivieren muss zweimal gedrückt werden, wenn man vorher eine andere Waffe auswählt
+- Falsches Zielkreuz wenn man eine andere Waffe auswählt während noch Animationen laufen
+  z.B. Axt feuern und sofort Bazooka wählen
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
