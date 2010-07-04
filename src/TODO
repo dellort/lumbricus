@@ -16,7 +16,7 @@ $ sollte behoben sein / works for me (muss getestet werden)
 - parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
 
 == bekannte, lösbare Bugs ==
-- am seil hängen, mit landschaft kolidieren => seil wird kürzer (commit 1163 ???)
+$ am seil hängen, mit landschaft kolidieren => seil wird kürzer (commit 1163 ???)
 $ wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
   ^ manchmal wird immernoch eine chaotische "schneller fall" animation angezeigt, 
 - Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
@@ -26,14 +26,13 @@ $ wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall
 [- Bohrer/Lötlampe stoßen Würmer nicht weg]
     notdürftig implementiert, muss verbessert werden (mehr impuls, weniger schaden?)
 $ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
-- wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt
+$ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt
   und: feuer animation kann verfrüht durch selektion anderer waffe abgebrochen werden (z.B. axt)
   Beispiel: Baseballschläger
     ^ nur, wenn die eig. waffe direkt nach dem feuern inaktiv wird... dann kann die feuer-animation später einfach abgebrochen werden
     ^ auch während der "prepare" animation
   Ursache: der code in worm.d erzwingt die animation nur, wenn der shooter aktiv ist; beim baseballschläger ist der shooter aber nur einen kurzen bruchteil aktiv, der rest ist nur "graphik" und ist unbeständig
   ist nur noch ein schuss übrig, wird die waffe nach beendung des shooters abselektiert, und dadurch die verbleibenden animationen abgebrochen
-- Konsolen-Katastrophe entfernen (es gibt jetzt 3.. nein 2 Konsolen die alle was anderes machen)
 - log nachrichten sollten durch ein globales widget angezeigt werden; z.zt. werden extra umstände gemacht, damit sie in GameFrame/mChatbox angezeigt werden
 $ während die feuer-animation abgespielt wird, sollte der wurm keine eingabe akzeptieren (z.b. shotgun => kein waffen-winkel verstellen) (abhängig von der waffe; bei anderen waffen ist es vorgesehen, dass z.b. der waffen-winkel während des feuerns geändert werden kann)
   ebenso wenn die "prepare"-animation abgespielt wird
@@ -49,7 +48,8 @@ $ flammenwerfer: wenn sich der wurm selbst verletzt, macht der flammenwerfer ein
     ^ nur gepatcht, hätte die bazooka eine "prepare" animation, würde es immernoch nicht funktionieren
     ^ ich hab noch einen hack für prepare-animationen dazugemacht; sollte jetzt passen
   $ Beamen am Zugende wird abgebrochen
-  - J zum Jetpack aktivieren muss zweimal gedrückt werden, wenn man vorher eine andere Waffe auswählt
+  $ J zum Jetpack aktivieren muss zweimal gedrückt werden, wenn man vorher eine andere Waffe auswählt
+    ^ Bug ist von selbst verschwunden??
 - Falsches Zielkreuz wenn man eine andere Waffe auswählt während noch Animationen laufen
   z.B. Axt feuern und sofort Bazooka wählen
 
@@ -65,6 +65,8 @@ $ flammenwerfer: wenn sich der wurm selbst verletzt, macht der flammenwerfer ein
   - geschwindigkeitsänderung ist alles, was auf die geschwindigkeit addiert wird (gravitation, kräfte, impulse durch constraints und kollisionen)
   - kollisionen mit dem boden lösen impulse aus, die die gravitation aufheben (in der theorie), eventuell muss man mit speziellem code nachhelfen um die gegenkraft permanent aufrechtzuerhalten, oder z.b. leichtes eindringen der objekte in den boden erlauben
   (bin mit meinen amateurhaften versuchen soweit gescheitert)
+- Zuständigkeit von globaler und Chatbox-Konsole überarbeiten (i.V. mit dem mysteriösen "server"-Befehl)
+  (evtl. einfach den "server"-Befehl entfernen und die Chatbox-Konsole nur "server"-Kommandos ausführen lassen; könnte andererseits auch gewaltige Engine-Änderungen benötigen)
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)
@@ -127,7 +129,6 @@ $ flammenwerfer: wenn sich der wurm selbst verletzt, macht der flammenwerfer ein
 
 - Napalm verbessern (Ruckeln verhindern, Würmer mehr wegstoßen, vll. etwas "klebriger" machen)
 - Molotov-Cocktail brennt über mehrere Züge
-- Minenverzögerung sollte zufällig sein
 
 ! Steuerung entrümpeln, unabhängig von Würmern machen (worm.d)
     - statt versuchen, wcontrol.d von worm.d unabhängig zu machen, lieber den rest des spiels von wcontrol.d unabhängig machen

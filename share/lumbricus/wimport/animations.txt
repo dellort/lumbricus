@@ -448,7 +448,7 @@ mainspr {
         {
             _params = "p2/rot180,p1/step3"
             _flags = "x:3,+mirror_y_b"
-            worm_rope_fire = "550"
+            worm_rope_fire = "+repeat; 550"
         }
         {
             _params = "time,p1/rot360_2"

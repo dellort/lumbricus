@@ -125,6 +125,7 @@ end
 
 do
     local name = "mine"
+    local cNeutralDelay = utils.range(ConfigNode_get(config, "neutral_mine_delay", "1"))
     -- no "local", this is used in other weapons
     mine_class = createSpriteClass {
         -- newgame.conf/levelobjects references this name!
@@ -154,13 +155,20 @@ do
         callback = function(sender)
             -- mine becomes active
             addCircleTrigger(sender, 45, "wormsensor", function(trig, obj)
+                -- always 2 seconds for player-placed mines
+                local delay = time(2)
+                local member = Control_memberFromGameObject(sender)
+                if not member then
+                    -- configured delay for neutral (placed at start) mines
+                    delay = utils.range_sample_i(cNeutralDelay)
+                end
                 Sprite_setParticle(sender, flash_particle)
                 -- worm stepped on
                 Sequence_setState(Sprite_graphic(sender), flash_graphic)
                 -- flashing mine has activity
                 Sprite_set_noActivityWhenGlued(sender, false)
                 -- blow up after 1s
-                addSpriteTimer(sender, "explodeT", time(1), false,
+                addSpriteTimer(sender, "explodeT", delay, false,
                     function(sender)
                         spriteExplode(sender, 50)
                     end)
@@ -171,7 +179,8 @@ do
         end
     })
     -- hack: if the mine has no owner member (i.e. it was placed on game start),
-    -- reduce initial delay to 0.5s (prevent game start delay)
+    --   reduce initial delay to 0.5s (prevent game start delay)
+    -- also handles crate-spawned mines, I think this is ok
     addSpriteClassEvent(mine_class, "sprite_activate", function(sender)
         local member = Control_memberFromGameObject(sender)
         if not member then

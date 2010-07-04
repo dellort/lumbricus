@@ -33,6 +33,12 @@ function utils.isInteger(i)
     return type(i) == "number" and math.floor(i) == i and i-1 ~= i
 end
 
+-- parse str as boolean
+function utils.toBool(str)
+    return type(str) == "string" and (string.lower(str) == "true" 
+        or string.lower(str) == "yes" or str == "1")
+end
+
 -- format anything (for convenience)
 -- unlike string.format(), you can format anything, including table
 -- it also uses Tango/C# style {} instead of %s
@@ -207,6 +213,24 @@ end
 --  max is optional and will be set to min if nil
 function utils.range(min, max)
     -- whatever you do here, cross-check with utils.range_sample for consistency
+    if type(min) == "string" then
+        -- parse range from a string
+        local strval = min
+        -- try string with single number
+        min = tonumber(strval)
+        -- failed? so try 2 numbers
+        if not min then
+            -- try n1:n2
+            min, max = string.match(strval, "(%-?%d+):(%-?%d+)")
+            -- fail? try n1-n2 (no negative second number)
+            if not min then
+                min, max = string.match(strval, "(%-?%d+)%-(%d+)")
+            end
+            min = tonumber(min)
+            max = tonumber(max)
+            assert(min and max)
+        end
+    end
     max = max or min
     return setmetatable({ min = min, max = max }, utils.Range)
 end

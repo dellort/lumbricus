@@ -207,7 +207,18 @@ class Rope : Shooter {
         //xxx: the correct way is to make Sequence provide weapon "joint" points
         //  (they could be even animation specific; actually we could use that
         //  in this specific case)
-        return wormPos + mShootDir * mWorm.physics.posp.radius;
+        if (mShooting) {
+            //mShootDir is only valid while shooting, not while swinging
+            return wormPos + mShootDir * mWorm.physics.posp.radius;
+        } else {
+            //for the "swinging worm" animation, the joint is exactly at the
+            //  animation center
+            //xxx this is highly wwp specific; animation code should handle it
+            //xxx2 there seem to be other bugs in this file which cause the rope
+            //     to shorten on new/deleted segments if the joint is not
+            //     centered; but this fixed it, so why bother
+            return wormPos;
+        }
     }
 
     override void simulate() {

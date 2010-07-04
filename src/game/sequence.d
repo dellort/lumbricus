@@ -953,7 +953,10 @@ class WwpWeaponDisplay : AniStateDisplay {
         if (!w) {
             //unarm (start rotate-back)
             mRequested = null;
-            unget();
+            if (!busy())
+            {
+                unget();
+            }
         } else {
             //get armed
             mRequested = w;
