@@ -109,6 +109,8 @@ final class POSP {
     //maximum absolute value, velocity is cut if over this
     Vector2f velocityConstraint = {float.infinity, float.infinity};
     float speedLimit = float.infinity;
+    //let the object only move in that direction (i.e. vector +- 90°)
+    Vector2f directionConstraint = {float.nan, float.nan};
 
     CollisionType collisionID;
 

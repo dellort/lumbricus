@@ -987,7 +987,7 @@ class WwpWeaponDisplay : AniStateDisplay {
     //start firing animation (starting with prepare, then go to firing)
     //onFireReady = called as soon as the prepare animation is done
     //returns success
-    bool fire(DG onFireReady) {
+    bool fire(DG onFireReady, bool isRefire) {
         if (!mCurrent)
             return false;
         //xxx Proposal: return false if the current Phase does not agree
@@ -1001,9 +1001,14 @@ class WwpWeaponDisplay : AniStateDisplay {
         }+/
         mOnFireReady = onFireReady;
         mRequestStopFire = false;
-        mPhase = Phase.Prepare;
-        setAnimation(mCurrent.prepare);
-        advance();
+        if (isRefire && !mCurrent.animate_refire) {
+            //instant fire without animation (e.g. super banana)
+            doFireReady();
+        } else {
+            mPhase = Phase.Prepare;
+            setAnimation(mCurrent.prepare);
+            advance();
+        }
         return true;
     }
 
@@ -1071,6 +1076,14 @@ class WwpWeaponDisplay : AniStateDisplay {
             || mPhase == Phase.FireEndRot || mPhase == Phase.FireEnd;
     }
 
+    private void doFireReady() {
+        auto tmp = mOnFireReady;
+        if (tmp) {
+            mOnFireReady = null;
+            tmp();
+        }
+    }
+
     private void advance() {
         assert(!!myclass);
         //execute doFrame() until there are (probably) no more state changes
@@ -1100,11 +1113,7 @@ class WwpWeaponDisplay : AniStateDisplay {
         } else if (mPhase == Phase.Prepare) {
             mPhase = Phase.Fire;
             setAnimation(mCurrent.fire);
-            auto tmp = mOnFireReady;
-            if (tmp) {
-                mOnFireReady = null;
-                tmp();
-            }
+            doFireReady();
         } else if (mPhase == Phase.Fire) {
             //1. non-repeated animation -> sequence can handle display timing
             //2. the logic has notified us that the Shooter is done
@@ -1114,9 +1123,9 @@ class WwpWeaponDisplay : AniStateDisplay {
                     setAnimation(mCurrent.fire_end);
                 } else {
                     //special case for auto-release weapons
-                    //they have this as in-between state, and it is assumed that the
-                    //  fire animation doesn't repeat (so it doesn't look stupid when
-                    //  the animation is unrotated)
+                    //they have this as in-between state, and it is assumed that
+                    //  the fire animation doesn't repeat (so it doesn't look
+                    //  stupid when the animation is unrotated)
                     mPhase = Phase.FireEndRot;
                     mRotStart = now();
                 }
@@ -1226,6 +1235,10 @@ class WwpWeaponState : SequenceState {
         //fire_end leads to weapon release, and the deselection animation is
         //  included in fire_end (e.g. baseball)
         bool fire_end_releases;
+        //if true, refire will play the prepare->fire->fire_end animations again
+        //  the problem here is that some weapons (shotgun) require an animation
+        //  when refiring, and some others (super banana) don't
+        bool animate_refire;
     }
 
     this(SequenceType a_owner, ConfigNode node) {
@@ -1241,6 +1254,9 @@ class WwpWeaponState : SequenceState {
             value = value[0..$-1];
             auto w = new Weapon();
             w.name = key;
+            if (str.eatStart(value, "refire;")) {
+                w.animate_refire = true;
+            }
             //xxx: this could be optional, there's code to handle that
             //  I guess I just wanted to require at least one valid animation?
             w.get = loadanim(value ~ "get");

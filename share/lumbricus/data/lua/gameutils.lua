@@ -107,7 +107,7 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
             -- this may call onInterrupt if the last piece of ammo is fired
             Shooter_reduceAmmo(shooter)
         end
-        LuaShooter_set_isFixed(shooter, true)
+        LuaShooter_setFixed(shooter, true)
         local remains = nsprites
         if remains == -1 then
             remains = fireinfo.param
@@ -199,6 +199,7 @@ function getDrownFunc(sprite_class, drown_phys)
         drown_phys = POSP_copy(SpriteClass_initPhysic(sprite_class))
         POSP_set_radius(drown_phys, 1)
         POSP_set_collisionID(drown_phys, CollisionMap_find("waterobj"))
+        POSP_set_directionConstraint(drown_phys, Vector2(0, 1))
     end
     return function(sender)
         if not (Sprite_isUnderWater(sender) and Sprite_visible(sender)) then

@@ -748,7 +748,7 @@ class WormSprite : Sprite {
         bool ok = false;
         if (ani) {
             //normal case
-            ok = ani.fire(&fireStart);
+            ok = ani.fire(&fireStart, is_refire);
         }
         if (!ok) {
             //normally shouldn't happen, except if animation is wrong
@@ -1007,7 +1007,7 @@ class WormSprite : Sprite {
         return ac;
     }
 
-    void forceAbort(bool forceUnselect = false) {
+    void forceAbort(bool forceUnselect = true) {
         if (mShooterSec && mShooterSec.activity)
             mShooterSec.interruptFiring();
         if (mShooterMain && mShooterMain.activity)

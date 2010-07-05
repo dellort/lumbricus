@@ -339,6 +339,12 @@ class PhysicObject : PhysicBase {
         } else if (speed > cMaxSpeed) {
             velocity_int.length = cMaxSpeed;
         }
+        if (!mPosp.directionConstraint.isNaN()) {
+            //if moving in the wrong direction, remove wrong component
+            if (velocity_int * mPosp.directionConstraint < 0)
+                velocity_int = velocity_int.project_vector(
+                    mPosp.directionConstraint.orthogonal());
+        }
 
         //Update position
         move(velocity * deltaT);

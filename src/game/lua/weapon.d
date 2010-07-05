@@ -79,5 +79,5 @@ static this() {
     gScripting.properties!(LuaWeaponClass, "onFire",
         "onCreateSelector", "onInterrupt", "onRefire", "canRefire",
         "onReadjust");
-    gScripting.properties!(LuaShooter, "isFixed");
+    gScripting.methods!(LuaShooter, "setFixed");
 }

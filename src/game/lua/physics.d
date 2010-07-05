@@ -61,7 +61,7 @@ static this() {
         "rotation", "gluedForceLook", "damageable", "damageThreshold",
         "sustainableImpulse", "fallDamageFactor", "fallDamageIgnoreX",
         "mediumViscosity", "stokesModifier", "airResistance", "friction",
-        "bounceAbsorb", "slideAbsorb", "zeroGrav",
+        "bounceAbsorb", "slideAbsorb", "zeroGrav", "directionConstraint",
         "velocityConstraint", "speedLimit", "collisionID");
     gScripting.properties_ro!(POSP, "inverseMass");
     gScripting.methods!(POSP, "copy");

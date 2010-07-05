@@ -110,6 +110,7 @@ local physics = {
         damageable = 0.0,
         explosionInfluence = 0.0,
         glueForce = 0,
+        directionConstraint = Vector2(0, 1),
     },
     win = {
         damageable = 0.0,

@@ -87,7 +87,7 @@ do
     local w = createWeapon {
         name = name,
         onFire = function(shooter, fireinfo)
-            LuaShooter_set_isFixed(shooter, true)
+            LuaShooter_setFixed(shooter, true, false)
             Shooter_reduceAmmo(shooter)
             set_context_var(shooter, "shots", 2)
             doshot(shooter)

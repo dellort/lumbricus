@@ -35,7 +35,7 @@ class LuaWeaponClass : WeaponClass {
 class LuaShooter : Shooter {
     private {
         LuaWeaponClass myclass;
-        bool mIsFixed;
+        bool mIsFixed, mIsDelayed;
     }
 
     this(LuaWeaponClass base, Sprite a_owner, GameCore engine) {
@@ -73,6 +73,8 @@ class LuaShooter : Shooter {
     override void interruptFiring() {
         if (myclass.onInterrupt) {
             myclass.onInterrupt(this);
+        } else {
+            finished();
         }
         //No! will be handled by finished()
         //  super.interruptFiring(outOfAmmo);
@@ -81,12 +83,13 @@ class LuaShooter : Shooter {
     override bool isFixed() {
         return activity && mIsFixed;
     }
-    void isFixed(bool fix) {
+    void setFixed(bool fix, bool delayed = true) {
         mIsFixed = fix;
+        mIsDelayed = delayed;
     }
 
     //xxx I don't know if it's always correct to link this to isFixed
     override bool delayedAction() {
-        return activity && mIsFixed;
+        return activity && mIsDelayed;
     }
 }
