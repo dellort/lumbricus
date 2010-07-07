@@ -114,30 +114,28 @@ int arraySearch(T)(T[] arr, T value, int def = -1) {
 
 //remove first occurence of value from arr; the order is not changed
 //(thus not O(1), but stuff is simply copied)
-void arrayRemove(T)(inout T[] arr, T value) {
-    for (int n = 0; n < arr.length; n++) {
-        if (arr[n] is value) {
-            //array slice assigment disallows overlapping copy, so don't use it
-            for (int i = n; i < arr.length-1; i++) {
-                arr[i] = arr[i+1];
-            }
-            arr = arr[0..$-1];
-            return;
-        }
+void arrayRemove(T)(inout T[] arr, T value, bool allowFail = false) {
+    auto index = arraySearch(arr, value);
+    if (index < 0) {
+        if (!allowFail)
+            throwError("arrayRemove: element not in array");
+        return;
     }
-    assert(false, "element not in array!");
+    arrayRemoveN(arr, index);
 }
 
 //like arrayRemove(), but order of array elements isn't kept -> faster
 void arrayRemoveUnordered(T)(inout T[] arr, T value, bool allowFail = false) {
     auto index = arraySearch(arr, value);
     if (index < 0) {
-        if (allowFail) return;
-        throw new CustomException("arrayRemoveUnordered: element not in array");
+        if (!allowFail)
+            throwError("arrayRemoveUnordered: element not in array");
+        return;
     }
     if (arr.length >= 1) {
         arr[index] = arr[$-1];
     }
+    arr[$-1] = T.init;
     arr = arr[0..$-1];
 }
 
@@ -169,6 +167,12 @@ void arrayRemoveN(T)(inout T[] arr, uint index, uint count = 1) {
     assert(index + count <= arr.length);
     for (uint n = index; n < arr.length - count; n++) {
         arr[n] = arr[n+count];
+    }
+    //clear garbage in case T has pointers - basically the GC doesn't respect
+    //  array slice boundaries when scanning for pointers; so, as an optional
+    //  "optimization", clear the inactive items
+    foreach (ref x; arr[$ - count .. $]) {
+        x = T.init;
     }
     arr.length = arr.length - count;
 }
@@ -311,6 +315,10 @@ unittest {
     Appender!(int) arr2; //instantiates?
 }
 
+debug {
+    size_t gBigArrayMemory;
+}
+
 //arrays allocated with C's malloc/free
 //because the D GC really really sucks with big arrays:
 //- the GC is really really REALLY bad with large memory allocations... it has
@@ -350,6 +358,14 @@ final class BigArray(T) {
             throw new Exception(myformat("Out of memory when allocating {} "
                 "bytes.", sz));
         }
+        debug {
+            //xxx: this is not multi-threading safe, actually it's not even
+            //  single-threaded safe; but a mutex wouldn't work here for various
+            //  reasons; correct way to handle this are atomic ops, but this is
+            //  just some crappy debug code -> who cares
+            gBigArrayMemory -= mData.length;
+            gBigArrayMemory += newlen;
+        }
         mData = (cast(T*)res)[0..newlen];
     }
 
@@ -378,12 +394,14 @@ final class BigArray(T) {
         return narr;
     }
 
-    void free() {
+    override void dispose() {
         length = 0;
     }
 
+    alias dispose free;
+
     ~this() {
-        free();
+        dispose(); //safe in this specific case
         assert(mData is null);
     }
 
@@ -407,6 +425,8 @@ final class BigArray(T) {
         return mData.ptr;
     }
 }
+
+alias mergeSort stableSort;
 
 //source: http://people.cs.ubc.ca/~harrison/Java/MergeSortAlgorithm.java.html
 //modified to make it a stable sorting algorithm

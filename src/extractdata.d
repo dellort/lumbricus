@@ -5,13 +5,20 @@ import tango.io.model.IFile : FileConst;
 import tango.util.Convert;
 import tango.io.Stdout;
 import tango.io.vfs.ZipFolder : ZipFolder;
-import tango.io.compress.Zip : ZipBlockWriter, ZipEntryInfo, createArchive, Method;
 import tango.io.vfs.FileFolder;
 import tango.io.stream.Text;
 debug import tango.core.tools.TraceExceptions;
 import stream = utils.stream;
 import utils.stream;
 import str = utils.string;
+
+//hack for tango 0.99.9 <-> svn trunk change
+import tango.core.Version;
+static if (Tango.Major == 0 && Tango.Minor == 999) {
+    import tango.io.compress.Zip;
+} else {
+    import tango.util.compress.Zip;
+}
 
 debug version (linux) {
     import tango.stdc.stdlib;
@@ -143,8 +150,8 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
             scope colourtxt = new TextInput(
                 new File(wpath~"/colour.txt", File.ReadExisting));
             char[] colLine;
-            bool fileEof = colourtxt.readln(colLine);
-            assert(!fileEof);
+            bool ok = colourtxt.readln(colLine);
+            assert(ok);
             ubyte[] colRGB = to!(ubyte[])(str.split(colLine));
             assert(colRGB.length == 3);
             auto col = Color.fromBytes(colRGB[0], colRGB[1], colRGB[2]);

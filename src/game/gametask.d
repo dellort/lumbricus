@@ -208,7 +208,7 @@ class GameTask {
         mCmds.helpTranslator = localeRoot.bindNamespace(
             "console_commands.gametask");
         registerCommands();
-        mCmds.bind(globals.cmdLine);
+        globals.cmdLine.addSub(mCmds);
     }
 
     private void netGameStart(SimpleNetConnection sender, ClientControl control)

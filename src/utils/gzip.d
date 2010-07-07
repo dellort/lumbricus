@@ -2,7 +2,13 @@ module utils.gzip;
 
 import utils.stream;
 
-import czlib = tango.io.compress.c.zlib;
+//hack for tango 0.99.9 <-> svn trunk change
+import tango.core.Version;
+static if (Tango.Major == 0 && Tango.Minor == 999) {
+    import czlib = tango.io.compress.c.zlib;
+} else {
+    import czlib = tango.util.compress.c.zlib;
+}
 
 enum {
     MAX_WBITS = 15,  //from zconf.h

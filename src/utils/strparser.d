@@ -101,6 +101,14 @@ bool tryFromStr(T)(char[] s, ref T destVal) {
     }
 }
 
+T tryFromStrDef(T)(char[] s, T def = T.init) {
+    try {
+        return fromStr!(T)(s);
+    } catch (ConversionException e) {
+        return def;
+    }
+}
+
 //reverse of above
 //structs require a fromStringRev() (sry for this name) member
 char[] toStr(T)(T value) {

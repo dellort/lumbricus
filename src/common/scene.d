@@ -130,65 +130,6 @@ class Scene : SceneObjectCentered {
     }
 }
 
-///you can add multiple sub-scenes, and the zorder of all objects in those sub-
-///scenes will be as if they were added into a single scene
-///NOTE: within the same zorder, the objects of the first scene still have a
-///      lower zorder than objects from the last added scene
-//xxx: the subscenes don't have this object as parent (but null or arbitrary)
-//     also, uses a different interface than Scene (but that's naturally)
-//     still better than the hack before
-//also NOTE: special considerations for serialization: SceneZMix is used to
-//  merge graphics that must be serialized and that can't be serialized; so you
-//  should be sure that the serialized sub scenes don't contain references to
-//  the not serialized ones (like in SceneObject.node)
-//  (yes that's my dumb idea; try to sue me)
-class SceneZMix {
-    private {
-        Scene[] mSubScenes;
-    }
-
-    Vector2i pos;
-
-    this() {
-    }
-
-    void add(Scene obj) {
-        mSubScenes ~= obj;
-    }
-
-    void remove(Scene obj) {
-        //(remove doesn't actually remove anything, it does something... else)
-        auto nlen = arr.remove(mSubScenes, obj);
-        mSubScenes = mSubScenes[0..nlen];
-    }
-
-    void clear() {
-        while (mSubScenes.length > 1) {
-            remove(mSubScenes[$-1]);
-        }
-    }
-
-    void draw(Canvas canvas) {
-        canvas.pushState();
-        canvas.translate(pos);
-
-        int zmin = int.max;
-        int zmax = int.min;
-
-        foreach (s; mSubScenes) {
-            zmin = min(zmin, s.zmin);
-            zmax = max(zmax, s.zmax);
-        }
-
-        for (int z = zmin; z <= zmax; z++) {
-            foreach (s; mSubScenes)
-                s.draw_z(canvas, z);
-        }
-
-        canvas.popState();
-    }
-}
-
 class SceneObject {
     public SList.Node node;
     private Scene mParent;

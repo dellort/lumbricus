@@ -7,6 +7,7 @@ module game.wcontrol;
 import common.animation;
 import framework.framework;
 import game.core;
+import game.input;
 import game.sprite;
 import game.teamtheme;
 import game.weapon.types;
@@ -75,6 +76,7 @@ class WormControl : WormController {
         WeaponSet mWeaponSet;
         bool mAlternateControl;
         bool mOnHold;
+        InputGroup mInput;
 
         //if you can click anything, if true, also show that animation
         PointMode mPointMode;
@@ -95,11 +97,100 @@ class WormControl : WormController {
         //set feedback interface to this class
         mWorm.wcontrol = this;
         OnSpriteDie.handler(mWorm.instanceLocalEvents, &onSpriteDie);
+        //init keyboard input
+        mInput = new InputGroup();
+        auto i = mInput;
+        i.addT("jump", &inpJump);
+        i.addT("move", &inpMove);
+        i.addT("weapon", &inpWeapon);
+        i.addT("set_param", &inpSetParam);
+        i.addT("set_target", &inpSetTarget);
+        i.addT("select_fire_refire", &inpSelRefire);
+        i.addT("selectandfire", &inpSelFire);
+        i.addT("weapon_fire", &inpFire);
     }
 
     final GameCore engine() {
         return mEngine;
     }
+
+    //-- input
+
+    final InputGroup input() { return mInput; }
+
+    //activate or deactivate keyboard input for this worm
+    private void inputEnabled(bool en) {
+        engine.input.setEnableGroup(input, en);
+    }
+
+    //return null on failure
+    private WeaponClass findWeapon(char[] name) {
+        return engine.resources.get!(WeaponClass)(name, true);
+    }
+
+    private bool inpJump(bool alt) {
+        jump(alt ? JumpMode.straightUp : JumpMode.normal);
+        return true;
+    }
+
+    private bool inpMove(int x, int y) {
+        move(Vector2f(clampRangeC(x, -1, +1), clampRangeC(y, -1, +1)));
+        return true;
+    }
+
+    private bool inpWeapon(char[] weapon) {
+        Trace.formatln("sel: {}", weapon);
+        WeaponClass wc;
+        if (weapon != "-")
+            wc = findWeapon(weapon);
+        selectWeapon(wc);
+        return true;
+    }
+
+    private bool inpSetParam(int p) {
+        if (!isControllable || mLimitedMode)
+            return false;
+
+        mWorm.setWeaponParam(p);
+        return true;
+    }
+
+    private bool inpSetTarget(int x, int y) {
+        doSetPoint(Vector2f(x, y));
+        return true;
+    }
+
+    private bool inpSelRefire(char[] m, bool down) {
+        WeaponClass wc = findWeapon(m);
+        selectFireRefire(wc, down);
+        return true;
+    }
+
+    private bool inpSelFire(char[] m, bool down) {
+        if (down) {
+            WeaponClass wc;
+            if (m != "-")
+                wc = findWeapon(m);
+            selectWeapon(wc);
+            //doFireDown will save the keypress and wait if not ready
+            doFireDown(true);
+        } else {
+            //key was released (like fire behavior)
+            doFireUp();
+        }
+        return true;
+    }
+
+    private bool inpFire(bool is_down) {
+        if (is_down) {
+            doFireDown();
+        } else {
+            doFireUp();
+        }
+        return true;
+    }
+
+    //-- input end
 
     private void onSpriteDie(Sprite sender) {
         if (sender is mWorm)
@@ -196,8 +287,10 @@ class WormControl : WormController {
             //if (!mCurrentWeapon)
             //    mCurrentWeapon = mTeam.defaultWeapon;
             selectWeapon(mCurrentWeapon);
+            inputEnabled = true;
         } else {
             //being deactivated
+            inputEnabled = false;
             mEngaged = false;
             controllableMove(Vector2f(0));
             mControlStack = null;
@@ -291,13 +384,6 @@ class WormControl : WormController {
             selected = null;
 
         mWorm.weapon = selected;
-    }
-
-    void doSetParam(int p) {
-        if (!isControllable || mLimitedMode)
-            return;
-
-        mWorm.setWeaponParam(p);
     }
 
     private bool controllableFire(bool keyDown) {
@@ -485,13 +571,6 @@ class WormControl : WormController {
         mMoveVector = vec;
         if (!controllableMove(vec))
             mWorm.move(vec);
-    }
-
-    void doMove(Vector2i vec) {
-        //xxx: restrict movement vector, but is this correct?
-        vec.x = clampRangeC(vec.x, -1, +1);
-        vec.y = clampRangeC(vec.y, -1, +1);
-        move(toVector2f(vec));
     }
 
     bool isIdle() {

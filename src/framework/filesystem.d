@@ -190,7 +190,15 @@ private class HandlerDirectory : HandlerInstance {
 //  Side-note: 5 Tango tickets were created while writing this code
 
 import tango.io.vfs.ZipFolder : ZipFolder;
-import tango.io.compress.ZlibStream : ZlibInput;
+
+//hack for tango 0.99.9 <-> svn trunk change
+import tango.core.Version;
+static if (Tango.Major == 0 && Tango.Minor == 999) {
+    import tango.io.compress.ZlibStream : ZlibInput;
+} else {
+    import tango.io.stream.Zlib : ZlibInput;
+}
+
 import tango.io.vfs.model.Vfs : VfsFolder;
 import ic = tango.io.model.IConduit;
 

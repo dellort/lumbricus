@@ -11,13 +11,11 @@ import utils.log;
 import utils.misc;
 
 //only for byte[]
-import tango.io.device.Array;
-import tango.io.compress.ZlibStream;
+import utils.gzip;
 
 import utils.strparser : stringToBox, hasBoxParser, fromStr, toStr,
                          fromStrSupports, toStrSupports;
 import utils.mybox : MyBox;
-import tango.core.Tuple : Tuple;
 import tango.core.Traits : isIntegerType, isRealType, isAssocArrayType;
 import tango.text.Util : delimiters;
 
@@ -570,7 +568,7 @@ public class ConfigNode {
             this.value = value;
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
             clear();
-            this.value = encodeByteArray(cast(ubyte[])value, true);
+            this.value = encodeByteArray(cast(ubyte[])value);
         } else static if (is(T T2 : T2[])) {
             //saving of array types
             this.value = "";
@@ -653,24 +651,14 @@ public class ConfigNode {
         setValue(name, value);
     }
 
-    static char[] encodeByteArray(ubyte[] data, bool compress) {
-        //
+    static char[] encodeByteArray(ubyte[] data) {
         if (!data.length)
             return "[]";
 
-        void[] garbage1;
-        if (compress) {
-            scope buffer = new Array(2048, 2048);
-            scope z = new ZlibOutput(buffer, ZlibOutput.Level.Best);
-            z.write(data);
-            z.close();
-            garbage1 = buffer.slice();
-            data = cast(ubyte[])garbage1;
-        }
+        data = gzipData(data);
 
-        char[] res = base64.encode(data);
-        delete garbage1;
-        return res;
+        scope(exit) delete data;
+        return base64.encode(data);
     }
 
     static ubyte[] decodeByteArray(char[] input) {
@@ -681,9 +669,9 @@ public class ConfigNode {
         buf = base64.decode(input);
 
         try {
-            scope buffer = new Array(buf);
-            scope z = new ZlibInput(buffer);
-            return cast(ubyte[])z.load();
+            auto res = gunzipData(buf);
+            delete buf;
+            return res;
         } catch (ZlibException e) {
             //decompression failed, so assume the data wasn't compressed
             //xxx maybe write a header to catch this case

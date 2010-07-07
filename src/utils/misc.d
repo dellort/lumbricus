@@ -5,7 +5,6 @@ import intr = tango.core.BitManip;
 import runtime = tango.core.Runtime;
 
 public import tango.stdc.stdarg : va_list;
-public import tango.core.Tuple : Tuple;
 //import tango.core.Traits : ParameterTupleOf;
 
 //Tango team = stupid (defining your own min/max functions will conflict)
@@ -238,12 +237,26 @@ template RetType(T) {
     }
 }
 
+//as defined in D2 std.typetuple
+//Tango has the same thing a type Tuple in tango.core.Tuple
+template TypeTuple(TList...) {
+    alias TList TypeTuple;
+}
+
 template Repeat(int count) { //thx h3
     static if (!count) {
-        alias Tuple!() Repeat;
+        alias TypeTuple!() Repeat;
     } else {
-        alias Tuple!(count-1, Repeat!(count-1)) Repeat;
+        alias TypeTuple!(count-1, Repeat!(count-1)) Repeat;
     }
+}
+
+//D is crap, thus D can't return real tuples from functions
+//have to use a wrapper struct to do this
+struct Tuple(T...) {
+    T fields;
+    //use this if you rely on tuple expansion
+    alias fields expand;
 }
 
 /+
@@ -447,4 +460,48 @@ void argcheck(bool condition, char[] msg = "") {
 //value must not be null
 void argcheck(Object value) {
     argcheck(!!value, "object expected, got null");
+}
+
+//retarded version of std.bind
+//it takes a context value and a function with a context param as first
+//  parameter
+//it returns a delegate, which will call the function with that context value
+//  (i.e. the delegate won't have the context value)
+//basically, you can write:
+//  static int foo(Object x, int a, int b) { ... }
+//  int delegate(int a, int b) foo = bindfn(x, &foo);
+//you can use this to work around D1's missing real closures (D2 has them) -
+//  making the fn parameter a function (instead of a delegate) is intended to
+//  ensure you're not accidentally using any stack parameters
+//NOTE: it's forced to one bindable parameter, because that's simpler; surely
+//  you could use tuples to extend it further
+//toDelegate() would be a version of this function with no bound parameters
+template bindfn(Tret, BoundParam1, ParamRest...) {
+    Tret delegate(ParamRest)
+        bindfn(BoundParam1 p1, Tret function(BoundParam1, ParamRest) fn)
+    {
+        struct Closure {
+            BoundParam1 m_p1;
+            typeof(fn) m_fn;
+            Tret call(ParamRest p) {
+                return m_fn(m_p1, p);
+            }
+        }
+        Closure* c = new Closure;
+        c.m_p1 = p1;
+        c.m_fn = fn;
+        return &c.call;
+    }
+}
+
+unittest {
+    void delegate() d1 = bindfn(123, function void(int x) {
+        assert(x == 123);
+    });
+    d1(); d1();
+    int delegate(int) d2 = bindfn(123, function int(int x, int y) {
+        assert(x == 123);
+        return x + y;
+    });
+    assert(d2(333) == 456);
 }

@@ -47,15 +47,12 @@ int wrapMain(char[][] args, void function(char[][]) realmain) {
     } catch (Exception e) {
         version(LogExceptions) {
             //catch all exceptions, write them to logfile/console and exit
-            if (gLogFileSink) {
-                //logfile output
-                e.writeOut((char[] s) {
-                    gLogFileSink(s);
-                });
-            }
-            //console output
             e.writeOut((char[] s) {
-                Trace.format("{}", s);
+                //logfile output
+                if (gLogFileSink)
+                    gLogFileSink(s);
+                //console output
+                Trace.write(s);
             });
             return 1;
         } else {
@@ -63,8 +60,6 @@ int wrapMain(char[][] args, void function(char[][]) realmain) {
             throw e;
         }
     }
-    //"proof" that application exited gracefully
-    debug Stdout.formatln("Bye!");
     return 0;
 }
 

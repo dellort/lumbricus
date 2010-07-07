@@ -97,6 +97,8 @@ private SettingVar!(int) gFrameRate;
 
 static this() {
     gFrameRate = gFrameRate.Add("fps.max", 0);
+
+    new Framework();
 }
 
 class Framework {
@@ -131,14 +133,17 @@ class Framework {
         bool mAppVisible, mAppFocused;
     }
 
-    this() {
+    private this() {
         mLog = registerLog("fw");
 
         assert(!gFramework, "Framework is a singleton");
         gFramework = this;
 
         mKeyStateMap.length = Keycode.max - Keycode.min + 1;
+    }
 
+    //call this if you actually want to create a window and so on
+    void initialize() {
         replaceDriver();
     }
 
@@ -586,7 +591,7 @@ class Framework {
     void driver_doVideoInit() {
         mDrawDriver.initVideoMode(mDriver.getVideoWindowState().actualSize());
         if (onVideoInit) {
-            onVideoInit(false); //xxx: argument
+            onVideoInit();
         }
     }
 
@@ -633,7 +638,7 @@ class Framework {
     public void delegate(InputEvent input) onInput;
     /// Event raised on initialization (before first onFrame) and when the
     /// screen size or format changes.
-    public void delegate(bool depth_only) onVideoInit;
+    public void delegate() onVideoInit;
 
     /// Called after all work for a frame is done
     public void delegate() onFrameEnd;

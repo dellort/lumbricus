@@ -470,7 +470,7 @@ class GameFrame : SimpleContainer {
         mConsoleBox = new Chatbox();
         mScriptInterpreter = new GameLuaInterpreter(
             &mConsoleBox.output.writeString, g);
-        mConsoleBox.cmdline.commands.addSub(globals.cmdLine.commands);
+        mConsoleBox.cmdline.commands.addSub(globals.cmdLine);
         mConsoleBox.cmdline.commands.registerCommand("input", &cmdExecConsole,
             "text goes here", ["text..."]);
         mConsoleBox.cmdline.setPrefix("/", "input");

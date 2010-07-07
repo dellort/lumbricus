@@ -9,6 +9,7 @@ import game.core;
 import game.events;
 import game.game;
 import game.gfxset;
+import game.input;
 import game.worm;
 import game.crate;
 import game.sprite;
@@ -77,6 +78,8 @@ class Team : GameObject2 {
         TeamMember mLastActive;  //worm that played last (to choose next)
         bool mActive;         //is this team playing?
 
+        InputGroup mInput;
+
         bool mAlternateControl;
         bool mAllowSelect;   //can next worm be selected by user (tab)
         char[] mTeamId, mTeamNetId;
@@ -111,10 +114,16 @@ class Team : GameObject2 {
         mAlternateControl = node.getStringValue("control") != "worms";
         mTeamId = node["id"];
         mTeamNetId = node["net_id"];
+
+        //per-team commands
+        mInput = new InputGroup();
+        mInput.onCheckAccess = &checkAccess;
+        mInput.add("next_member", &inpChooseWorm);
+        mInput.add("remove_control", &inpRemoveControl);
+        engine.input.enableGroup(mInput);
+
         internal_active = true;
     }
-
-    // --- start Team
 
     char[] name() {
         return mName;
@@ -340,12 +349,13 @@ class Team : GameObject2 {
     }
 
     ///choose next in reaction to user keypress
-    void doChooseWorm() {
+    private bool inpChooseWorm() {
         if (!allowSelect())
-            return;
+            return false;
         //activates next, and deactivates current
         //special case: only one left -> current() will do nothing
         activateNextInRow();
+        return true;
     }
 
     char[] toString() {
@@ -466,6 +476,28 @@ class Team : GameObject2 {
         foreach (m; mMembers) {
             m.updateHacks();
         }
+    }
+
+    //there's remove_control somewhere in cmdclient.d, and apparently this is
+    //  called when a client disconnects; the teams owned by that client
+    //  surrender
+    private bool inpRemoveControl() {
+        surrenderTeam();
+        return true;
+    }
+
+    //verify input according to access map; this is done here because this stuff
+    //  is Team specific
+    bool checkAccess(char[] client_id) {
+        //single player, no network
+        if (client_id == "local")
+            return true;
+        //multi player, networked
+        foreach (x; engine.input.accessMap) {
+            if (x[0] == client_id && x[1] == id)
+                return true;
+        }
+        return false;
     }
 }
 
@@ -601,6 +633,7 @@ class TeamMember : Actor {
         mWormControl = new WormControl(worm);
         mWormControl.setWeaponSet(mTeam.weapons);
         mWormControl.setAlternateControl(mTeam.alternateControl);
+        mWormControl.input.onCheckAccess = &mTeam.checkAccess;
         //take control over dying, so we can let them die on end of turn
         mWormControl.setDelayedDeath();
         mLastKnownLifepower = health;
@@ -691,6 +724,8 @@ class GameController : GameObject2 {
     private {
         Team[] mTeams;
 
+        InputGroup mInput;
+
         //xxx for loading only
         ConfigNode[char[]] mWeaponSets;
         WeaponSet mCrateSet;
@@ -740,11 +775,36 @@ class GameController : GameObject2 {
         OnCollectTool.handler(engine.events, &doCollectTool);
         OnCrateCollect.handler(engine.events, &collectCrate);
 
+        mInput = new InputGroup();
+        mInput.add("crate_test", &inpDropCrate);
+        mInput.add("exec", &inpExec);
+        mInput.add("weapon_fire", &inpInstantDropCrate);
+        mInput.priority = -1; //important for weapon_fire to work as expected
+        engine.input.enableGroup(mInput);
+
         internal_active = true;
     }
 
     private Log log() {
         return engine.log;
+    }
+
+    private bool inpDropCrate() {
+        dropCrate(true);
+        return true;
+    }
+
+    private bool inpInstantDropCrate() {
+        instantDropCrate();
+        return true;
+    }
+
+    private bool inpExec(char[] cmd) {
+        //security? security is for idiots!
+        //(all scripts are already supposed to be sandboxed; still this enables
+        //  anyone who is connected to do anything to the game)
+        engine.scripting.scriptExec("ConsoleUtils.exec(...)", cmd);
+        return true;
     }
 
     private void onOffworld(Sprite x) {
@@ -755,14 +815,10 @@ class GameController : GameObject2 {
             member.active(false);
     }
 
-    //--- start GameLogicPublic
-
     ///True if game has ended
     bool gameEnded() {
         return mGameEnded;
     }
-
-    //--- end GameLogicPublic
 
     void addCrateTool(char[] id) {
         assert(arraySearch(mActiveCrateTools, id) < 0);
@@ -1079,6 +1135,7 @@ class GameController : GameObject2 {
     }
 
     void instantDropCrate() {
+        log.trace("instant drop crate");
         OnGameCrateSkip.raise(engine.events);
     }
 

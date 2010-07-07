@@ -470,3 +470,14 @@ bool isIdentifier(char[] name) {
     }
     return true;
 }
+
+//works like replace(), except:
+//the expression passed as replace_with is only evaluated if there's actually
+//  anything to replace
+char[] replace_lazy(char[] s, char[] search, lazy char[] replace_with) {
+    if (find(s, search) >= 0) {
+        return replace(s, search, replace_with);
+    } else {
+        return s;
+    }
+}

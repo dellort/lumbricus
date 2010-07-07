@@ -246,6 +246,10 @@ class GameLoader {
             mShell.mGameTime, mShell.mInterpolateTime);
         auto engine = mShell.mEngine;
 
+        //load access map
+        engine.input.loadAccessMap(engine.gameConfig.management
+            .getSubNode("access_map"));
+
         mGfx = new GfxSet(engine, mGameConfig);
 
         auto plugins = new PluginBase(engine, mGameConfig);
@@ -273,8 +277,6 @@ class GameLoader {
         rengine.initGame();
 
         new GameController(mShell.mEngine);
-
-        new InputHandler(mShell.mEngine);
 
         if (mDemoInput) {
             //changed because replays were ditched (and it looks nicer)
@@ -440,8 +442,8 @@ class GameShell {
         }
 
         if (!for_hash) {
-            auto input = mEngine.singleton!(InputHandler);
-            input.executeCommand(e.access_tag, e.cmd);
+            if (!mEngine.input.execCommand(e.access_tag, e.cmd))
+                log.minor("ignore net input: '{}':'{}'", e.access_tag, e.cmd);
         }
     }
 
@@ -819,7 +821,11 @@ class ClientControl {
     //NOTE: CmdNetControl overrides this method and redirects it so, that cmd
     //  gets sent over network, instead of being interpreted here
     void executeCommand(char[] cmd) {
-        mShell.addLoggedInput(mAccessTag, cmd);
+        if (mShell.serverEngine.input.checkCommand(mAccessTag, cmd)) {
+            mShell.addLoggedInput(mAccessTag, cmd);
+        } else {
+            log.minor("input denied, don't send: '{}':'{}'", mAccessTag, cmd);
+        }
     }
 
     ///TeamMember that would receive keypresses
@@ -843,10 +849,9 @@ class ClientControl {
         //  must be invalidated
         if (!mCachedOwnedTeams.length) {
             GameCore engine = mShell.serverEngine;
-            auto input = engine.singleton!(InputHandler)();
             auto controller = engine.singleton!(GameController)();
             foreach (Team t; controller.teams()) {
-                if (input.checkTeamAccess(mAccessTag, t))
+                if (t.checkAccess(mAccessTag))
                     mCachedOwnedTeams ~= t;
             }
         }

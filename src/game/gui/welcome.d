@@ -22,7 +22,7 @@ class CommandButton : Button {
     override protected void doClick() {
         super.doClick();
         if (mCommand)
-            globals.cmdLine.execute(mCommand);
+            globals.real_cmdLine.execute(mCommand);
     }
 
     override void loadFrom(GuiLoader loader) {
@@ -51,30 +51,13 @@ class WelcomeTask {
         loader.load();
 
         mWelcome = loader.lookup("welcome_root");
-        auto foo = new Foo();
-        foo.add(mWelcome);
-        mWindow = gWindowFrame.createWindow(foo, r"\t(welcomescreen.caption)");
-        foo.claimFocus();
+        mWindow = gWindowFrame.createWindow(mWelcome,
+            r"\t(welcomescreen.caption)");
+        mWelcome.claimFocus();
 
         //this property is false by default
         //I just didn't want to add a tooltip label to _all_ windows yet...
         mWindow.showTooltipLabel = true;
-    }
-
-    void executeDefault() {
-        globals.cmdLine.execute(mDefaultCommand);
-    }
-
-    class Foo : SimpleContainer {
-        //xxx this hack steals all enter key presses from all children
-        override bool handleChildInput(InputEvent event) {
-            if (event.isKeyEvent && event.keyEvent.code == Keycode.RETURN) {
-                if (event.keyEvent.isDown)
-                    executeDefault();
-                return true;
-            }
-            return super.handleChildInput(event);
-        }
     }
 
     static this() {

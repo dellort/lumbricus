@@ -720,7 +720,7 @@ class GameView : Widget {
     //  teamlabels ("delete") would be globally catched, and you couldn't use
     //  them e.g. in a text edit field
     private void cmdCmd(MyBox[] args, Output write) {
-        globals.cmdLine.execute(args[0].unbox!(char[])());
+        globals.real_cmdLine.execute(args[0].unbox!(char[])());
     }
 
     private void cmdCategory(MyBox[] args, Output write) {
@@ -877,9 +877,9 @@ class GameView : Widget {
         //no up/down parameter, and key was released -> no event
         if (str.find(bind, "%d") < 0 && isUp)
             return null;
-        bind = str.replace(bind, "%d", myformat("{}", !isUp));
-        bind = str.replace(bind, "%mx", myformat("{}", mousePos.x));
-        bind = str.replace(bind, "%my", myformat("{}", mousePos.y));
+        bind = str.replace_lazy(bind, "%d", myformat("{}", !isUp));
+        bind = str.replace_lazy(bind, "%mx", myformat("{}", mousePos.x));
+        bind = str.replace_lazy(bind, "%my", myformat("{}", mousePos.y));
         return bind;
     }
     override bool onKeyDown(KeyInfo ki) {

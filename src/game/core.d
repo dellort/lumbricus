@@ -9,6 +9,7 @@ import framework.framework;
 import framework.lua;
 import game.effects;
 import game.events;
+import game.input;
 import game.particles;
 import game.setup; //: GameConfig
 import game.teamtheme;
@@ -173,6 +174,7 @@ abstract class GameCore {
         Scene mScene;
         Random mRnd;
         Events mEvents;
+        InputHandler mInput;
         ScriptingState mScripting;
         GameConfig mGameConfig; //not so good dependency
         PhysicWorld mPhysicWorld;
@@ -221,6 +223,8 @@ abstract class GameCore {
         mKillList = new typeof(mKillList)();
         mActiveObjects = new typeof(mActiveObjects)();
 
+        mInput = new InputHandler();
+
         //random seed will be fixed later during intialization
         mRnd = new Random();
         mRnd.seed(1);
@@ -262,6 +266,7 @@ abstract class GameCore {
     final Scene scene() { return mScene; }
     final Random rnd() { return mRnd; }
     final Events events() { return mEvents; }
+    final InputHandler input() { return mInput; }
     final ScriptingState scripting() { return mScripting; }
     ///level being played, must not modify returned object
     final Level level() { return mGameConfig.level; }

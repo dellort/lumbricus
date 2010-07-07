@@ -35,10 +35,12 @@ static this() {
 class Common {
     LogStruct!("common") log;
     Output defaultOut; //set by toplevel to main console
-    CommandLine cmdLine;
+    CommandBucket cmdLine;
+    //hack for now; needed by gameview.d and welcome.d; they invoke execute()
+    CommandLine real_cmdLine;
 
     //high resolution timers which are updated each frame, or so
-    //toplevel.d will reset them all!
+    //debugstuff.d will reset them all!
     PerfTimer[char[]] timers;
     long[char[]] counters;
     size_t[char[]] size_stats;
@@ -48,6 +50,7 @@ class Common {
     Translator localizedKeynames;
 
     private this() {
+        cmdLine = new CommandBucket();
         localizedKeynames = localeRoot.bindNamespace("keynames");
     }
 
@@ -60,12 +63,9 @@ class Common {
             throw new CustomException("can't continue");
         }
 
-        //woo woo load this stuff here, because framework blows up if
-        //- you preload images
-        //- but video mode is not set yet (or so)
-        //- OpenGL (at least nvidia under linux/sdl) refuses to work
-        //- but loading images as resources preloads them by default
-        //in pure SDL mode, there's a similar error (SDL_DisplayFormat() fails)
+        //xxx there was some reason why this was here (after video init), but
+        //  this reason disappeared; now where should this be moved to?
+        //- maybe create a global "filesystem available" event?
 
         //GUI resources, this is a bit off here
         gGuiResources = gResources.loadResSet("guires.conf");

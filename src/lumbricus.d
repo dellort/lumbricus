@@ -48,18 +48,17 @@ void lmain(char[][] args) {
         }
     }
 
-    auto fw = new Framework();
-    fw.setCaption("Lumbricus");
+    gFramework.initialize();
+    gFramework.setCaption("Lumbricus");
 
     globals.initGUIStuff();
 
     //installs callbacks to framework, which get called in the mainloop
     new toplevel.TopLevel();
 
-    fw.run();
+    gFramework.run();
 
-    toplevel.gTopLevel.deinitialize();
-    fw.deinitialize();
+    gFramework.deinitialize();
 }
 
 int main(char[][] args) {

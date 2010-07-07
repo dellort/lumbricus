@@ -380,9 +380,9 @@ class CommandBucket {
     }
 
     public void registerCommand(char[] name, CommandHandler handler,
-        char[] helpText, char[][] args = null)
+        char[] helpText, char[][] args = null, CompletionHandler[] compl = null)
     {
-        register(Command(name, handler, helpText, args));
+        register(Command(name, handler, helpText, args, compl));
     }
 
     /// Merge the commands from sub with this
