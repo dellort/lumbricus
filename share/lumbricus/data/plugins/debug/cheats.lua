@@ -44,9 +44,10 @@ function E.takeControl()
     end
 end
 
+-- this thing requires us to do extra crap in controller.d (look for inpExec)
+-- it's only available while stuff is executed via the exec server command
 function ownedTeam()
-    assert(getCurrentInputTeam)
-    return getCurrentInputTeam()
+    return assert(_G._currentInputTeam)
 end
 
 function E.giveWeapon(name, amount)

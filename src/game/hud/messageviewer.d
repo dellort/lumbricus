@@ -5,8 +5,8 @@ import framework.font;
 import framework.i18n;
 import common.scene;
 import game.core;
+import game.teamtheme;
 import game.hud.teaminfo;
-import game.controller_events;
 import gui.widget;
 import gui.label;
 import utils.misc;
@@ -30,7 +30,7 @@ class MessageViewer : Label {
     private {
         struct QueuedMessage {
             char[] text;
-            Team teamForColor;
+            TeamTheme color;
         }
 
         GameInfo mGame;
@@ -58,7 +58,7 @@ class MessageViewer : Label {
         OnGameMessage.handler(mGame.engine.events, &showMessage);
     }
 
-    void addMessage(char[] msg, Team t = null) {
+    void addMessage(char[] msg, TeamTheme t = null) {
         mMessages.push(QueuedMessage(msg, t));
     }
 
@@ -77,11 +77,14 @@ class MessageViewer : Label {
     }
 
     private void showMessage(GameMessage msg) {
-        if (msg.is_private) {
+        if (msg.is_private && msg.color) {
             //if the message is only for one team, check if it is ours
+            //xxx: not quite kosher... e.g. if two teams are cooperating, they
+            //  may still have different colors, but you'd want them to be able
+            //  to see the private parts of each other; but for now nobody cares
             bool show = false;
             foreach (Team t; mGame.control.getOwnedTeams()) {
-                if (t is msg.actor) {
+                if (t.theme is msg.color) {
                     show = true;
                     break;
                 }
@@ -90,7 +93,7 @@ class MessageViewer : Label {
                 return;
         }
         //translate and queue
-        addMessage(mLocaleMsg.translateLocalizedMessage(msg.lm), msg.actor);
+        addMessage(mLocaleMsg.translateLocalizedMessage(msg.lm), msg.color);
     }
 
     override void simulate() {
@@ -98,10 +101,10 @@ class MessageViewer : Label {
             //put new message
             auto curMsg = mMessages.pop();
             text = curMsg.text;
-            auto team = curMsg.teamForColor;
+            auto theme = curMsg.color;
             auto p = mStdFont;
-            if (team) {
-                p.fore_color = team.color.color;
+            if (theme) {
+                p.fore_color = theme.color;
             }
             setFont(p);
             mInterp.init(timeSecs(1.5f),

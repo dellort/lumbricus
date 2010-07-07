@@ -6,6 +6,7 @@ import common.lua;
 import common.resset;
 import common.scene;
 import framework.framework;
+import framework.i18n; //for LocalizedMessage
 import framework.lua;
 import game.effects;
 import game.events;
@@ -42,6 +43,24 @@ alias DeclareGlobalEvent!("game_hud_add", char[], Object) OnHudAdd;
 //called when the game is loaded from savegame
 //xxx this event is intederministic and must not have influence on game state
 alias DeclareGlobalEvent!("game_reload") OnGameReload;
+
+///let the client display a message (like it's done on round's end etc.)
+///this is a bit complicated because message shall be translated on the
+///client (i.e. one client might prefer Klingon, while the other is used
+///to Latin); so msgid and args are passed to the translation functions
+///this returns a value, that is incremented everytime a new message is
+///available
+///a random int is passed along, so all clients with the same locale
+///will select the same message
+struct GameMessage {
+    LocalizedMessage lm;
+    //Actor actor;    //who did the action (normally a TeamMember), may be null
+    TeamTheme color;//for message color, null for neutral
+    bool is_private;//who should see it (only players with same color see it),
+                    //  false for all
+}
+
+alias DeclareGlobalEvent!("game_message", GameMessage) OnGameMessage;
 
 //fixed framerate for the game logic (all of GameEngine)
 //also check physic frame length cPhysTimeStepMs in world.d

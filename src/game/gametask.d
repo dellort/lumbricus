@@ -255,7 +255,6 @@ class GameTask {
             mServerEngine = null;
         }+/
         if (mGameShell) {
-            mCmds.removeSub(mGameShell.commands());
             mGameShell.terminate();
             Object e = mGameShell.serverEngine;
             //mGameShell.getSerializeContext().death_stomp(e);
@@ -287,7 +286,6 @@ class GameTask {
         //log("initGameEngine");
         if (!mGameShell) {
             mGameShell = mGameLoader.finish();
-            mCmds.addSub(mGameShell.commands());
             mGame = mGameShell.serverEngine;
         }
         if (mConnection) {
@@ -420,6 +418,7 @@ class GameTask {
         if (!mConnection) {
             mCmds.register(Command("slow", &cmdSlow, "", ["float"]));
             mCmds.register(Command("demo_stop", &cmdDemoStop, ""));
+            mCmds.register(Command("single_step", &cmdStep, "", ["int?=1"]));
         }
         mCmds.register(Command("show_collide", &cmdShowCollide, ""));
         mCmds.register(Command("server", &cmdExecServer, "", ["text..."]));
@@ -501,6 +500,12 @@ class GameTask {
         float val = args[0].unbox!(float);
         write.writefln("set slow_down={}", val);
         mControl.executeCommand(myformat("slow_down {}", val));
+    }
+
+    private void cmdStep(MyBox[] args, Output write) {
+        auto val = args[0].unbox!(int);
+        write.writefln("single_step {}", val);
+        mControl.executeCommand(myformat("single_step {}", val));
     }
 
     private void cmdDemoStop(MyBox[], Output) {

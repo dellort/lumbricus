@@ -253,10 +253,21 @@ template Repeat(int count) { //thx h3
 
 //D is crap, thus D can't return real tuples from functions
 //have to use a wrapper struct to do this
+//this is similar to the definition in D2 (minus bloated clusterfuck)
 struct Tuple(T...) {
     T fields;
     //use this if you rely on tuple expansion
     alias fields expand;
+}
+
+//construct a Tuple (D2 also has this function)
+Tuple!(T) tuple(T...)(T args) {
+    return Tuple!(T)(args);
+}
+
+unittest {
+    auto x = tuple(1, 2.3);
+    assert(x.fields[0] == 1 && x.fields[1] == 2.3);
 }
 
 /+

@@ -17,7 +17,7 @@ class InputGroup {
             //identifies this entry in the key bindings map
             //it is assumed it contains no spaces (see execCommand())
             char[] name;
-            bool delegate(char[] params) callback;
+            bool delegate(char[] client_id, char[] params) callback;
         }
     }
 
@@ -30,7 +30,9 @@ class InputGroup {
     //if null, it's as if it was set to a function that always returns true
     bool delegate(char[] client_id) onCheckAccess;
 
-    void add(char[] name, bool delegate(char[]) cb) {
+    //cb: takes client_id and the command's parameters
+    //(as frontend function the least common case; only needed for cheats, urgh)
+    void add(char[] name, bool delegate(char[], char[]) cb) {
         argcheck(name.length > 0);
         argcheck(!!cb);
         if (findCommand(name))
@@ -38,10 +40,27 @@ class InputGroup {
         mCommands ~= Command(name, cb);
     }
 
+    //add an input command - cb will be called if the input is executed
+    //"name" is a symbolic identifier defined in the keybindings (such as
+    //  wormbinds.conf)
+    //cb: takes the command's parameters, and returns whether the command has
+    //  been accepted (if not, other InputGroups that may contain the same
+    //  command will be tried)
+    void add(char[] name, bool delegate(char[]) cb) {
+        struct Closure {
+            bool delegate(char[]) cb;
+            bool call(char[] client_id, char[] params) { return cb(params); }
+        }
+        auto c = new Closure;
+        c.cb = cb;
+        add(name, &c.call);
+    }
+
+    //like other add()s, but with no parameters for cb
     void add(char[] name, bool delegate() cb) {
         struct Closure {
             bool delegate() cb;
-            bool call(char[] params) { return cb(); }
+            bool call(char[] client_id, char[] params) { return cb(); }
         }
         auto c = new Closure;
         c.cb = cb;
@@ -53,7 +72,7 @@ class InputGroup {
     void addT(T...)(char[] name, bool delegate(T) cb) {
         struct Closure {
             bool delegate(T) cb;
-            bool call(char[] params) {
+            bool call(char[] client_id, char[] params) {
                 return cb(parseParams!(T)(params).expand);
             }
         }
@@ -98,7 +117,7 @@ class InputGroup {
             return false;
 
         auto params = str.split2_b(cmd, ' ')[1];
-        return pcmd.callback(params);
+        return pcmd.callback(client_id, params);
     }
 }
 
@@ -184,33 +203,38 @@ class InputHandler {
 }
 
 //convenience function for parameter parsing
-//may throw ConversionException
-Tuple!(T) parseParamsChecked(T...)(char[] s) {
-    Tuple!(T) ret;
-    foreach (uint idx, x; ret.fields) {
-        static if (is(typeof(x) == char[])) {
-            if (idx + 1 == T.length) {
-                //last type is a string => include everything, including whitespace
-                ret.fields[idx] = s;
-                s = "";
-                break;
+//returns true on success or false on failure
+//doesn't change "result" if it fails
+bool parseParamsMaybe(T...)(char[] s, ref Tuple!(T) result) {
+    try {
+        Tuple!(T) ret;
+        foreach (uint idx, x; ret.fields) {
+            static if (is(typeof(x) == char[])) {
+                if (idx + 1 == T.length) {
+                    //last type is a string => include everything, including
+                    //  whitespace
+                    ret.fields[idx] = s;
+                    s = "";
+                    break;
+                }
             }
+            auto n = str.split2_b(s, ' ');
+            s = n[1];
+            ret.fields[idx] = fromStr!(typeof(x))(n[0]);
         }
-        auto n = str.split2_b(s, ' ');
-        s = n[1];
-        ret.fields[idx] = fromStr!(typeof(x))(n[0]);
+        if (s.length > 0)
+            throw new ConversionException("unparseable stuff at end of string");
+        result = ret;
+        return true;
+    } catch (ConversionException e) {
+        return false;
     }
-    if (s.length > 0)
-        throw new ConversionException("unparseable stuff at end of string");
-    return ret;
 }
 
 //don't-care-if-error version of parseParams()
 Tuple!(T) parseParams(T...)(char[] s) {
-    try {
-        return parseParamsChecked!(T)(s);
-    } catch (ConversionException e) {
-        return (Tuple!(T)).init;
-    }
+    Tuple!(T) res;
+    parseParamsMaybe!(T)(s, res);
+    return res;
 }
 

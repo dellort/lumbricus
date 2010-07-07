@@ -586,8 +586,7 @@ class CmdNetControl : ClientControl {
         mConnection = con;
     }
 
-    override void executeCommand(char[] cmd) {
+    override void sendCommand(char[] cmd) {
         mConnection.sendCommand(cmd);
     }
-
 }

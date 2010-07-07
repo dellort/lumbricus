@@ -799,11 +799,24 @@ class GameController : GameObject2 {
         return true;
     }
 
-    private bool inpExec(char[] cmd) {
+    private bool inpExec(char[] client_id, char[] cmd) {
         //security? security is for idiots!
         //(all scripts are already supposed to be sandboxed; still this enables
         //  anyone who is connected to do anything to the game)
-        engine.scripting.scriptExec("ConsoleUtils.exec(...)", cmd);
+        //find input team, needed by cheats.lua
+        Team client_team;
+        foreach (t; teams) {
+            if (t.checkAccess(client_id)) {
+                client_team = t;
+                break;
+            }
+        }
+        engine.scripting.scriptExec(`
+            local client_team, cmd = ...
+            _G._currentInputTeam = client_team
+            ConsoleUtils.exec(cmd)
+            _G._currentInputTeam = nil
+        `, client_team, cmd);
         return true;
     }
 

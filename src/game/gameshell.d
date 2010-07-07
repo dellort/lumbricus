@@ -4,12 +4,10 @@ import common.common;
 import common.resources;
 import common.resset;
 import common.scene;
-import framework.framework;
-import framework.commandline;
+import framework.filesystem;
 import framework.i18n;
 
 import game.controller;
-import game.controller_events;
 import game.core;
 import game.events;
 import game.game;
@@ -31,7 +29,7 @@ import utils.misc;
 import utils.mybox;
 import utils.perf;
 import utils.random;
-import utils.strparser : boxToString;
+import utils.strparser;
 import utils.time;
 import utils.vector2;
 import utils.timesource;
@@ -250,6 +248,10 @@ class GameLoader {
         engine.input.loadAccessMap(engine.gameConfig.management
             .getSubNode("access_map"));
 
+        //input for this never takes the "normal" path, but it's needed for
+        //  input validation
+        engine.input.enableGroup(mShell.mInput);
+
         mGfx = new GfxSet(engine, mGameConfig);
 
         auto plugins = new PluginBase(engine, mGameConfig);
@@ -339,8 +341,8 @@ class GameShell {
         //abuse AA as set
         bool[Object] mPauseBlockers;
 
-        CommandBucket mCmds;
-        CommandLine mCmd;
+        //for undeterministic input controls
+        InputGroup mInput;
 
         //time used for interpolated drawing
         TimeSourceSimple mInterpolateTime;
@@ -383,16 +385,32 @@ class GameShell {
 
     //use GameLoader.Create*() instead
     private this() {
-        mCmd = new CommandLine(globals.defaultOut);
-        mCmds = new CommandBucket();
-        mCmds.helpTranslator = localeRoot.bindNamespace(
-            "console_commands.gameshell");
+        mInput = new InputGroup();
+        mInput.add("pause", &inpSetPaused);
+        mInput.add("slow_down", &inpSetSlowdown);
+        mInput.add("single_step", &inpSinglestep);
+    }
 
-        mCmds.register(Command("pause", &cmdSetPaused, "", ["bool?"]));
-        mCmds.register(Command("slow_down", &cmdSetSlowdown, "", ["float"]));
-        mCmds.register(Command("single_step", &cmdSinglestep, "", ["int?=1"]));
-
-        mCmds.bind(mCmd);
+    //xxx: not networking save, I guess
+    private bool inpSetPaused(char[] s) {
+        bool nstate = !mGameTime.paused;
+        tryFromStr(s, nstate);
+        log.minor("pause: {}", nstate);
+        pauseBlock(nstate, this);
+        return true;
+    }
+    private bool inpSetSlowdown(char[] s) {
+        float state = tryFromStrDef(s, 1.0f);
+        if (state != state)
+            return false;
+        log.minor("slowdown: {}", state);
+        mGameTime.slowDown = state;
+        return true;
+    }
+    private bool inpSinglestep(char[] s) {
+        int step = tryFromStrDef(s, 1);
+        mSingleStep += max(step, 0);
+        return true;
     }
 
     private void execEntry(LogEntry e) {
@@ -457,8 +475,9 @@ class GameShell {
             return;
         }
 
-        //and this may be a bad idea too
-        if (cmd.length && mCmd.execute(cmd, true))
+        //and this may be a bad idea too - execute non-timestamped commands
+        //may or may not cause desynchronization in network mode (not sure)
+        if (mInput.execCommand(access_tag, cmd))
             return;
 
 
@@ -487,11 +506,6 @@ class GameShell {
     //public access
     void executeCommand(char[] access_tag, char[] cmd) {
         addLoggedInput(access_tag, cmd);
-    }
-
-    //GameShell specific commands (but without "server" commands, lol.)
-    CommandBucket commands() {
-        return mCmds;
     }
 
     //for now this does:
@@ -775,27 +789,6 @@ class GameShell {
     void terminate() {
         stopDemoRecorder();
     }
-
-    //xxx: not networking save, I guess
-    private void cmdSetPaused(MyBox[] params, Output o) {
-        bool nstate;
-        if (params[0].empty()) {
-            nstate = !mGameTime.paused;
-        } else {
-            nstate = params[0].unbox!(bool)();
-        }
-        log.minor("pause: {}", nstate);
-        pauseBlock(nstate, this);
-    }
-    private void cmdSetSlowdown(MyBox[] params, Output o) {
-        float state = params[0].unbox!(float)();
-        log.minor("slowdown: {}", state);
-        mGameTime.slowDown = state;
-    }
-    private void cmdSinglestep(MyBox[] params, Output o) {
-        int step = params[0].unbox!(int)();
-        mSingleStep += max(step, 0);
-    }
 }
 
 //one endpoint (e.g. network peer, or whatever), that can send input.
@@ -820,9 +813,13 @@ class ClientControl {
 
     //NOTE: CmdNetControl overrides this method and redirects it so, that cmd
     //  gets sent over network, instead of being interpreted here
-    void executeCommand(char[] cmd) {
+    protected void sendCommand(char[] cmd) {
+        mShell.addLoggedInput(mAccessTag, cmd);
+    }
+
+    final void executeCommand(char[] cmd) {
         if (mShell.serverEngine.input.checkCommand(mAccessTag, cmd)) {
-            mShell.addLoggedInput(mAccessTag, cmd);
+            sendCommand(cmd);
         } else {
             log.minor("input denied, don't send: '{}':'{}'", mAccessTag, cmd);
         }

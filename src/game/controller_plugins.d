@@ -1,7 +1,6 @@
 module game.controller_plugins;
 
 import framework.i18n;
-import game.controller_events;
 import game.controller;
 import game.core;
 import game.game;
@@ -19,9 +18,6 @@ import utils.misc;
 import utils.time;
 
 import tango.util.Convert : to;
-
-static this() {
-}
 
 
 //base class for custom plugins
@@ -184,7 +180,7 @@ class ControllerMsgs : GamePlugin {
         gameMsg.lm.id = msg;
         gameMsg.lm.args = args;
         gameMsg.lm.rnd = engine.rnd.next;
-        gameMsg.actor = actor;
+        gameMsg.color = actor ? actor.theme : null;
         gameMsg.is_private = is_private;
         OnGameMessage.raise(engine.events, gameMsg);
     }
