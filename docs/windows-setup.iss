@@ -1,10 +1,26 @@
+; Requires Inno Preprocessor (part of Inno QuickStart Pack)
+; If "Full" is defined (iscc /dFull), all the WWP files are included
+;   (which would be illegal, don't publish the result)
+
+; Read SVN revision from entries file (line 4)
+#define i
+#define hFile = FileOpen(SourcePath + "\.svn\entries")
+#if !hFile
+  #error SVN entries file not found. Not run from SVN working copy?
+#endif
+#for {i = 0; i < 3; i++} \
+  FileRead(hFile)
+#define SVNRevision FileRead(hFile)
+#expr FileClose(hFile)
+#pragma message "Working copy revision is " + SVNRevision
+
 [Setup]
 AppName=Lumbricus Terrestris
-;xxx agree about version naming; could also insert SVN revision via a build script
-AppVerName=Lumbricus Terrestris SVN Build
-VersionInfoVersion=0.0.1.1182
+;xxx agree about version naming/numbering (for now, SVN revision)
+AppVerName=Lumbricus Terrestris SVN {#SVNRevision} {#Defined(Full)?"Full":""}
+VersionInfoVersion=0.1.0.{#SVNRevision}
 OutputDir=.
-OutputBaseFilename=LumbricusSetup
+OutputBaseFilename=LumbricusSetup_r{#SVNRevision}{#Defined(Full)?"_full":""}
 DefaultDirName={pf}\Lumbricus
 DefaultGroupName=Lumbricus
 AppendDefaultDirName=no
@@ -46,6 +62,9 @@ Source: "..\bin\extractdata.exe"; DestDir: "{app}\bin"
 Source: "..\bin\lumbricus_server.exe"; DestDir: "{app}\bin"
 Source: "..\share\lumbricus\*"; Excludes: "data2,.svn,Thumbs.db"; DestDir: "{app}\share\lumbricus"; Flags: ignoreversion recursesubdirs sortfilesbyextension
 Source: "..\src\README"; DestDir: "{app}"; DestName: "ReadMe.txt"
+#ifdef Full
+Source: "..\share\lumbricus\data2\*"; Excludes: ".svn,Thumbs.db"; DestDir: "{app}\share\lumbricus\data2"; Flags: ignoreversion recursesubdirs sortfilesbyextension
+#endif
 
 [Run]
 Filename: "{app}\ReadMe.txt"; Description: "{cm:ViewReadme}"; Flags: postinstall shellexec skipifsilent unchecked
@@ -59,6 +78,8 @@ Name: "{group}\Lumbricus"; Filename: "{app}\bin\lumbricus.exe"; WorkingDir: "{ap
 Name: "{group}\{cm:UninstallProgram,Lumbricus}"; Filename: "{uninstallexe}"
 
 [Code]
+// Code to run extractdata, not needed for full setup
+#ifndef Full
 var
   WwpPage: TWizardPage;
   ConvertBtn: TButton;
@@ -126,6 +147,7 @@ begin
       mbConfirmation, MB_YESNO) = IDNO then Result := False
   end;
 end;
+#endif  ; ifndef full
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
