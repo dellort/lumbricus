@@ -4,6 +4,7 @@ import game.lua.base;
 import game.controller;
 import game.core;
 import game.crate;
+import game.input;
 import game.weapon.weapon;
 import game.worm;
 import game.wcontrol;
@@ -59,12 +60,14 @@ static this() {
     gScripting.ctor!(PrepareStatus)();
     gScripting.properties!(PrepareStatus, "visible", "prepareRemaining");
 
-    //the class has no new members, but Lua gamemmode needs to identify it
-    //the wrapper requires at least one method registered for awkward reasons
-    gScripting.ctor!(CollectableToolDoubleTime)();
-    gScripting.ctor!(CollectableToolCrateSpy)();
-    gScripting.ctor!(CollectableToolDoubleDamage)();
+    gScripting.ctor!(CollectableTool, char[])();
     gScripting.ctor!(CollectableWeapon, WeaponClass, int)();
     gScripting.ctor!(CollectableBomb)();
     gScripting.ctor!(CollectableMedkit)();
+
+    gScripting.ctor!(InputScript)();
+    gScripting.properties!(InputScript, "onCheckCommand", "onExecCommand",
+        "accessList");
+    gScripting.methods!(InputHandler, "enableGroup", "disableGroup",
+        "setEnableGroup");
 }

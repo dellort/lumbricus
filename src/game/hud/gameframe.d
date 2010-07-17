@@ -68,7 +68,7 @@ class GameLuaInterpreter : LuaInterpreter {
     override void runLuaCode(char[] code) {
         //sending the command directly to the Lua state would bypass
         //  networking/replay logging
-        mGame.control.executeCommand("exec " ~ code);
+        mGame.control.execCommand("exec " ~ code);
     }
 }
 
@@ -130,7 +130,7 @@ class GameFrame : SimpleContainer {
         //    better: callback onWeaponSelect
         //when a point weapon is selected, hide the weapon window
         mWeaponInterp.setParams(0, 1.0f);
-        game.control.executeCommand("weapon "~c.name);
+        game.control.execCommand("weapon "~c.name);
     }
 
     private void selectCategory(char[] category) {
@@ -451,8 +451,6 @@ class GameFrame : SimpleContainer {
     this(GameInfo g) {
         game = g;
 
-        //yyy gDefaultLog("initializeGameGui");
-
         doClipping = true;
 
         mGui = new SimpleContainer();
@@ -540,13 +538,10 @@ class GameFrame : SimpleContainer {
         LuaRegistry reg = new LuaRegistry();
         reg.method!(GameFrame, "scriptAddHudWidget")("addHudWidget");
         reg.method!(GameFrame, "scriptRemoveHudWidget")("removeHudWidget");
-        reg.methods!(GameFrame, "addKeybinds", "removeKeybinds",
-            "levelPaintHack");
+        reg.methods!(GameFrame, "levelPaintHack");
         state.register(reg);
         state.addSingleton!(GameFrame)(this);
 
         initSound();
-
-        OnGameReload.raise(game.engine.events);
     }
 }

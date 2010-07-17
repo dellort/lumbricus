@@ -21,7 +21,6 @@ import game.sequence;
 import game.setup;
 import game.wcontrol;
 import physics.all;
-import utils.factory;
 import utils.vector2;
 import utils.configfile;
 import utils.log;
@@ -1101,8 +1100,7 @@ class GameController : GameObject2 {
             ret ~= new CollectableMedkit(50);
         } else if (r < cCrateProbs[1]) {
             //tool
-            ret ~= CrateToolFactory.instantiate(
-                mActiveCrateTools[engine.rnd.next($)]);
+            ret ~= new CollectableTool(mActiveCrateTools[engine.rnd.next($)]);
         } else {
             //weapon
             auto content = mCrateSet.chooseRandomForCrate();
@@ -1154,10 +1152,11 @@ class GameController : GameObject2 {
 
     //xxx wouldn't need this anymore, but doubletime still makes it a bit messy
     private void doCollectTool(TeamMember collector, CollectableTool tool) {
-        if (auto t = cast(CollectableToolCrateSpy)tool) {
+        char[] id = tool.toolID();
+        if (id == "cratespy") {
             collector.team.addCrateSpy();
         }
-        if (auto t = cast(CollectableToolDoubleDamage)tool) {
+        if (id == "doubledamage") {
             collector.team.addDoubleDamage();
         }
     }
@@ -1250,12 +1249,25 @@ class CollectableMedkit : TeamCollectable {
     }
 }
 
-abstract class CollectableTool : TeamCollectable {
-    this() {
+class CollectableTool : TeamCollectable {
+    private {
+        char[] mToolID;
     }
 
-    CrateType type() {
+    this(char[] tool_id) {
+        mToolID = tool_id;
+    }
+
+    override CrateType type() {
         return CrateType.tool;
+    }
+
+    override char[] id() {
+        return "game_msg.crate." ~ mToolID;
+    }
+
+    char[] toolID() {
+        return mToolID;
     }
 
     void teamcollect(CrateSprite parent, TeamMember member) {
@@ -1263,48 +1275,3 @@ abstract class CollectableTool : TeamCollectable {
         OnCollectTool.raise(member, this);
     }
 }
-
-StaticFactory!("CrateTools", CollectableTool) CrateToolFactory;
-
-//xxx reduce bloat by making the type (e.g. "cratespy") just a member variable?
-
-class CollectableToolCrateSpy : CollectableTool {
-    this() {
-    }
-
-    char[] id() {
-        return "game_msg.crate.cratespy";
-    }
-
-    static this() {
-        CrateToolFactory.register!(typeof(this))("cratespy");
-    }
-}
-
-//for now only for turnbased gamemode, but maybe others will follow
-class CollectableToolDoubleTime : CollectableTool {
-    this() {
-    }
-
-    char[] id() {
-        return "game_msg.crate.doubletime";
-    }
-
-    static this() {
-        CrateToolFactory.register!(typeof(this))("doubletime");
-    }
-}
-
-class CollectableToolDoubleDamage : CollectableTool {
-    this() {
-    }
-
-    char[] id() {
-        return "game_msg.crate.doubledamage";
-    }
-
-    static this() {
-        CrateToolFactory.register!(typeof(this))("doubledamage");
-    }
-}
-

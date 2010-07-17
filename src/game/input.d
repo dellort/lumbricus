@@ -7,8 +7,22 @@ import utils.strparser;
 
 import str = utils.string;
 
+class Input {
+    //in case multiple Input items accept the same key; higher priority means
+    //  it's tested before other Input items
+    //xxx doesn't get updated while added to InputHandlers
+    int priority = 0;
+
+    //a client with client_id checks if the keybinding in cmd could be executed
+    //  if it were sent to execCommand()
+    abstract bool checkCommand(char[] client_id, char[] cmd);
+    //execute a command; if the command has parameters, the parameters are
+    //  considered to start after the first space character
+    abstract bool execCommand(char[] client_id, char[] cmd);
+}
+
 //a list of input commands for a specific component
-class InputGroup {
+class InputGroup : Input {
     private {
         //list of commands and their actions
         Command[] mCommands;
@@ -20,11 +34,6 @@ class InputGroup {
             bool delegate(char[] client_id, char[] params) callback;
         }
     }
-
-    //in case multiple InputGroup accept the same key, higher priority means
-    //  it's tested before other InputGroups
-    //xxx doesn't get updated while added to InputHandlers
-    int priority = 0;
 
     //if set, it checks if a client is allowed
     //if null, it's as if it was set to a function that always returns true
@@ -121,10 +130,34 @@ class InputGroup {
     }
 }
 
+//exclusively for use with scripting
+class InputScript : Input {
+    bool delegate(char[], char[]) onCheckCommand;
+    bool delegate(char[], char[]) onExecCommand;
+    char[][] accessList;
+
+    bool checkCommand(char[] client_id, char[] cmd) {
+        if (onCheckCommand) {
+            return onCheckCommand(client_id, cmd);
+        } else {
+            foreach (s; accessList) {
+                if (s == cmd)
+                    return true;
+            }
+            return false;
+        }
+    }
+    bool execCommand(char[] client_id, char[] cmd) {
+        if (!onExecCommand)
+            return false;
+        return onExecCommand(client_id, cmd);
+    }
+}
+
 //singleton that dispatches user input
-class InputHandler {
+class InputHandler : Input {
     private {
-        InputGroup[] mGroups;
+        Input[] mGroups;
     }
 
     //determines which network clients are allowed to control which teams
@@ -152,11 +185,11 @@ class InputHandler {
 
     //add if not already added
     //being added means whether that group can receive input from here or not
-    void enableGroup(InputGroup g) {
+    void enableGroup(Input g) {
         if (arraySearch(mGroups, g) < 0) {
             mGroups ~= g;
             stableSort(mGroups,
-                (InputGroup g1, InputGroup g2) {
+                (Input g1, Input g2) {
                     return g1.priority > g2.priority;
                 }
             );
@@ -164,11 +197,11 @@ class InputHandler {
     }
 
     //remove if it's added
-    void disableGroup(InputGroup g) {
+    void disableGroup(Input g) {
         arrayRemove(mGroups, g, true);
     }
 
-    void setEnableGroup(InputGroup g, bool enable) {
+    void setEnableGroup(Input g, bool enable) {
         if (enable) {
             enableGroup(g);
         } else {
@@ -176,8 +209,6 @@ class InputHandler {
         }
     }
 
-    //a client with client_id checks if the keybinding in cmd could be executed
-    //  if it were sent to execCommand()
     bool checkCommand(char[] client_id, char[] cmd) {
         foreach (g; mGroups) {
             if (g.checkCommand(client_id, cmd))
@@ -186,8 +217,6 @@ class InputHandler {
         return false;
     }
 
-    //include a command; if the command has parameters, the parameters are
-    //  considered to start after the first space character
     bool execCommand(char[] client_id, char[] cmd) {
         foreach (g; mGroups) {
             if (g.execCommand(client_id, cmd))
@@ -236,5 +265,51 @@ Tuple!(T) parseParams(T...)(char[] s) {
     Tuple!(T) res;
     parseParamsMaybe!(T)(s, res);
     return res;
+}
+
+
+//convenience code for handling dir keys (key state for LEFT/RIGHT and UP/DOWN)
+//doesn't really belong in this module
+//xxx: maybe come up with an idea so that the caller doesn't need to handle
+//  this; maybe directly in processBindings()
+
+import utils.vector2;
+
+struct MoveStateXY {
+    Vector2i keyState_lu;  //left/up
+    Vector2i keyState_rd;  //right/down
+
+    Vector2i direction() {
+        return keyState_rd - keyState_lu;
+    }
+
+    bool handleKeys(char[] key, bool down) {
+        int v = down ? 1 : 0;
+        switch (key) {
+            case "left":
+                keyState_lu.x = v;
+                break;
+            case "right":
+                keyState_rd.x = v;
+                break;
+            case "up":
+                keyState_lu.y = v;
+                break;
+            case "down":
+                keyState_rd.y = v;
+                break;
+            default:
+                //--xxx reset on invalid key; is this kosher?
+                //--keyState_rd = Vector2i(0);
+                //--keyState_lu = Vector2i(0);
+                return false;
+        }
+        return true;
+    }
+
+    bool handleCommand(char[] args) {
+        auto p = parseParams!(char[], bool)(args);
+        return handleKeys(p.expand);
+    }
 }
 

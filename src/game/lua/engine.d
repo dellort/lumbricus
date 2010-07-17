@@ -24,7 +24,7 @@ static this() {
         "checkForActivity", "gameObjectFirst", "gameObjectNext",
         "benchStart");
     gScripting.properties_ro!(GameEngine, "events",
-        "benchActive", "scene", "resources");
+        "benchActive", "scene", "resources", "input");
     gScripting.properties!(GameEngine, "persistentState", "gameLandscapes",
         "enableDebugDraw");
 

@@ -34,3 +34,45 @@ class NukeSplatEffect : SceneObject {
             Color(1.0f, 1.0f, 1.0f, mInterp.value()));
     }
 }
+
+
+//draw the red zones on the left and right edges of the level
+class LevelEndDrawer : SceneObject {
+    Vertex2f[4] mQuad;
+    const cIn = Color.Transparent;
+    const cOut = Color(1.0, 0, 0, 0.5);
+    bool mLeft, mRight;
+
+    this(bool left, bool right) {
+        mLeft = left;
+        mRight = right;
+        //horizontal gradient
+        mQuad[0].c = cOut;
+        mQuad[1].c = cIn;
+        mQuad[2].c = cIn;
+        mQuad[3].c = cOut;
+    }
+    override void draw(Canvas canvas) {
+        //relies that level area is set as client area
+        //fails if level is smaller than screen
+        if (canvas.features & DriverFeatures.transformedQuads) {
+            if (mLeft) {
+                //left side
+                mQuad[0].p = Vector2f(0);
+                mQuad[1].p = Vector2f(30, 0);
+                mQuad[2].p = Vector2f(30, canvas.clientSize.y);
+                mQuad[3].p = Vector2f(0, canvas.clientSize.y);
+                canvas.drawQuad(null, mQuad);
+            }
+            if (mRight) {
+                //right side
+                mQuad[0].p = Vector2f(canvas.clientSize.x, 0);
+                mQuad[1].p = Vector2f(canvas.clientSize.x - 30, 0);
+                mQuad[2].p = Vector2f(canvas.clientSize.x - 30,
+                    canvas.clientSize.y);
+                mQuad[3].p = Vector2f(canvas.clientSize.x, canvas.clientSize.y);
+                canvas.drawQuad(null, mQuad);
+            }
+        }
+    }
+}

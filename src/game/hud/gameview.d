@@ -10,6 +10,7 @@ import utils.timesource;
 import common.animation;
 import common.scene;
 import game.game;
+import game.input;
 import game.sequence;
 import game.sky;
 import game.teamtheme;
@@ -32,6 +33,7 @@ import gui.tablecontainer;
 import physics.all;
 import utils.configfile;
 import utils.rect2;
+import utils.strparser;
 import utils.time;
 import utils.timesource;
 import utils.math;
@@ -475,15 +477,6 @@ class GameView : Widget {
 
         float mZoomChange = 1.0f, mCurZoom = 1.0f;
 
-        //key state for LEFT/RIGHT and UP/DOWN
-        struct MoveStateXY {
-            Vector2i keyState_lu;  //left/up
-            Vector2i keyState_rd;  //right/down
-            Vector2i direction() {
-                return keyState_rd - keyState_lu;
-            }
-        }
-        MoveStateXY mWormMovement;
         MoveStateXY mCameraMovement;
 
         //key binding identifier to game engine command (wormbinds map_commands)
@@ -500,8 +493,7 @@ class GameView : Widget {
         GUITeamMemberSettings mTeamGUISettings;
         int mCycleLabels = 2;
 
-        CommandLine mCmd;
-        CommandBucket mCmds;
+        InputGroup mInput;
 
         ViewMember activeWorm;
         ViewMember lastActiveWorm;
@@ -617,29 +609,29 @@ class GameView : Widget {
             }
         }
 
-        //xxx currently, there's no way to run these commands from the console
-        mCmd = new CommandLine(globals.defaultOut);
-        mCmds = new CommandBucket();
-        mCmds.register(Command("category", &cmdCategory, "-",
-            ["text:catname"]));
-        mCmds.register(Command("zoom", &cmdZoom, "-", ["bool:is_down"]));
-        mCmds.register(Command("cameradisable", &cmdCameraDisable,
-            "disable game camera", ["bool?:disable"]));
-        mCmds.register(Command("move", &cmdMove, "-", ["text:key",
-            "bool:down"]));
-        mCmds.register(Command("move_camera", &cmdMoveCamera, "-", ["text:key",
-            "bool:down"]));
-        //xxx these should be in gameframe.d
-        mCmds.register(Command("keybindings_help", &cmdShowKeybinds, "-", []));
-        mCmds.register(Command("toggle_weaponwindow", &cmdToggleWeaponWnd, "-",
-            []));
-        mCmds.register(Command("toggle_scroll", &cmdToggleScroll, "-", []));
-        mCmds.register(Command("toggle_chat", &cmdToggleChat, "-", []));
-        mCmds.register(Command("toggle_script", &cmdToggleScript, "-", []));
-        mCmds.register(Command("cmd", &cmdCmd, "-", ["text..."]));
-        mCmds.bind(mCmd);
-
-        //hacks
+        //local input (not handled in the "server" game engine)
+        //NOTE: some parts of the program uses the commandline stuff for
+        //  keybinds (like gametask.d or toplevel.d), and this stuff here uses
+        //  InputGroup. the separation doesn't really make sense; reasons why
+        //  they are different are some "subtleties", random decisions, and
+        //  legacy crap:
+        //  - global key shortcuts vs. those which should only react to input
+        //    directly going to GameView
+        //  - InputGroup acting as simpler replacement for the commandline stuff
+        //  - too lazy to rewrite it in a way that makes sense
+        //  - durr hurr
+        //also, some stuff should be in gameframe.d (or elsewhere)
+        mInput = new InputGroup();
+        mInput.add("category", &inpCategory);
+        mInput.add("zoom", &inpZoom);
+        mInput.add("cameradisable", &inpCameraDisable);
+        mInput.add("move_camera", &inpMoveCamera);
+        mInput.add("keybindings_help", &inpShowKeybinds);
+        mInput.add("toggle_weaponwindow", &inpToggleWeaponWnd);
+        mInput.add("toggle_scroll", &inpToggleScroll);
+        mInput.add("toggle_chat", &inpToggleChat);
+        mInput.add("toggle_script", &inpToggleScript);
+        mInput.add("cmd", &inpCmd);
 
         //newTimer resets time every second to calculate average times
         //mGameDrawTime = globals.newTimer("game_draw_time");
@@ -655,60 +647,8 @@ class GameView : Widget {
         return mGameDrawTime.time();
     }
 
-    private class LevelEndDrawer : SceneObject {
-        Vertex2f[4] mQuad;
-        const cIn = Color.Transparent;
-        const cOut = Color(1.0, 0, 0, 0.5);
-        bool mLeft, mRight;
-
-        this(bool left, bool right) {
-            mLeft = left;
-            mRight = right;
-            //horizontal gradient
-            mQuad[0].c = cOut;
-            mQuad[1].c = cIn;
-            mQuad[2].c = cIn;
-            mQuad[3].c = cOut;
-        }
-        override void draw(Canvas canvas) {
-            if (canvas.features & DriverFeatures.transformedQuads) {
-                if (mLeft) {
-                    //left side
-                    mQuad[0].p = Vector2f(0);
-                    mQuad[1].p = Vector2f(30, 0);
-                    mQuad[2].p = Vector2f(30, canvas.clientSize.y);
-                    mQuad[3].p = Vector2f(0, canvas.clientSize.y);
-                    canvas.drawQuad(null, mQuad);
-                }
-                if (mRight) {
-                    //right side
-                    mQuad[0].p = Vector2f(canvas.clientSize.x, 0);
-                    mQuad[1].p = Vector2f(canvas.clientSize.x - 30, 0);
-                    mQuad[2].p = Vector2f(canvas.clientSize.x - 30,
-                        canvas.clientSize.y);
-                    mQuad[3].p = Vector2f(canvas.clientSize.x, canvas.clientSize.y);
-                    canvas.drawQuad(null, mQuad);
-                }
-            }
-        }
-    }
-
     private void add_graphics() {
         mGame.engine.scene.add(mLabels);
-
-        //xxx what a dirty hack...
-        //check for a geometry collision outside the world area on the left
-        //  and right. if it collides, there is a PlaneGeometry blocking access
-        //  (and the level end warning is not drawn on that side)
-        Contact tmp;
-        Vector2i worldSize = mGame.engine.level.worldSize;
-        bool left = !mGame.engine.physicWorld.collideGeometry(
-            Vector2f(-100, worldSize.y/2), 1, tmp);
-        bool right = !mGame.engine.physicWorld.collideGeometry(
-            Vector2f(worldSize.x + 100, worldSize.y/2), 1, tmp);
-        SceneObject levelend = new LevelEndDrawer(left, right);
-        levelend.zorder = GameZOrder.RangeArrow;
-        mGame.engine.scene.add(levelend);
 
         //xxx
         mGameWater = new GameWater(mGame.engine);
@@ -719,50 +659,58 @@ class GameView : Widget {
     //  shortcut input went to the game; otherwise the key shortcuts for
     //  teamlabels ("delete") would be globally catched, and you couldn't use
     //  them e.g. in a text edit field
-    private void cmdCmd(MyBox[] args, Output write) {
-        globals.real_cmdLine.execute(args[0].unbox!(char[])());
+    private bool inpCmd(char[] cmd) {
+        globals.real_cmdLine.execute(cmd);
+        return true;
     }
 
-    private void cmdCategory(MyBox[] args, Output write) {
-        char[] catname = args[0].unbox!(char[]);
+    private bool inpCategory(char[] catname) {
         if (onSelectCategory)
             onSelectCategory(catname);
+        return true;
     }
 
-    private void cmdZoom(MyBox[] args, Output write) {
-        bool isDown = args[0].unbox!(bool);
+    private bool inpZoom(char[] cmd) {
+        bool isDown = tryFromStrDef(cmd, false);
         mZoomChange = isDown?-1:1;
+        return true;
     }
 
-    private void cmdCameraDisable(MyBox[] args, Output write) {
-        enableCamera = !args[0].unboxMaybe!(bool)(enableCamera);
-        write.writefln("set camera enable: {}", enableCamera);
+    private bool inpCameraDisable(char[] cmd) {
+        enableCamera = !tryFromStrDef(cmd, enableCamera);
+        //gLog.warn("set camera enable: {}", enableCamera);
+        return true;
     }
 
-    private void cmdShowKeybinds(MyBox[] args, Output write) {
+    private bool inpShowKeybinds() {
         if (onKeyHelp)
             onKeyHelp();
+        return true;
     }
 
-    private void cmdToggleWeaponWnd(MyBox[] args, Output write) {
+    private bool inpToggleWeaponWnd() {
         if (onToggleWeaponWindow)
             onToggleWeaponWindow();
+        return true;
     }
 
     //xxx for debugging, so you can force to show the cursor
-    private void cmdToggleScroll(MyBox[] args, Output write) {
+    private bool inpToggleScroll() {
         if (onToggleScroll)
             onToggleScroll();
+        return true;
     }
-    private void cmdToggleChat(MyBox[] args, Output write) {
+    private bool inpToggleChat() {
         //xxx this is stupid, rethink handling of ingame commands
         if (onToggleChat)
             onToggleChat();
+        return true;
     }
-    private void cmdToggleScript(MyBox[] args, Output write) {
+    private bool inpToggleScript() {
         //xxx this is stupid, rethink handling of ingame commands
         if (onToggleScript)
             onToggleScript();
+        return true;
     }
 
     //should be moved elsewhere etc.
@@ -774,6 +722,8 @@ class GameView : Widget {
         table.styles.addClass("keybind_help_table");
         //category...
         foreach (ConfigNode cat; mCommandMap) {
+            if (cat.name == "invisible")
+                continue;
             auto head = new Label();
             head.text = tr_cat(cat.name);
             head.styles.addClass("keybind_help_header");
@@ -796,47 +746,10 @@ class GameView : Widget {
         return table;
     }
 
-    private Vector2i handleDirKey(ref MoveStateXY mv, char[] key, bool down) {
-        int v = down ? 1 : 0;
-        switch (key) {
-            case "left":
-                mv.keyState_lu.x = v;
-                break;
-            case "right":
-                mv.keyState_rd.x = v;
-                break;
-            case "up":
-                mv.keyState_lu.y = v;
-                break;
-            case "down":
-                mv.keyState_rd.y = v;
-                break;
-            default:
-                //xxx reset on invalid key; is this kosher?
-                mv.keyState_rd = Vector2i(0);
-                mv.keyState_lu = Vector2i(0);
-        }
-
-        return mv.direction();
-    }
-
-    private void cmdMove(MyBox[] args, Output write) {
-        char[] key = args[0].unbox!(char[]);
-        bool isDown = args[1].unbox!(bool);
-        //translate the keyboard-based command into a state-based movement
-        //command, needed because the commands are directly generated by the
-        //binding stuff and are incompatible
-        //can't do this in GameControl, because handling the dirKeyState in
-        //presence of snapshotting etc. would be nasty
-        auto movement = handleDirKey(mWormMovement, key, isDown);
-        executeServerCommand(myformat("move {} {}", movement.x, movement.y));
-    }
-
-    private void cmdMoveCamera(MyBox[] args, Output write) {
-        char[] key = args[0].unbox!(char[]);
-        bool isDown = args[1].unbox!(bool);
-        auto movement = handleDirKey(mCameraMovement, key, isDown);
-        mCamera.setAutoScroll(movement);
+    private bool inpMoveCamera(char[] cmd) {
+        mCameraMovement.handleCommand(cmd);
+        mCamera.setAutoScroll(mCameraMovement.direction);
+        return true;
     }
 
     Camera camera() {
@@ -869,70 +782,74 @@ class GameView : Widget {
         mExtKeybinds.remove(binds);
     }
 
-    //takes a binding string from KeyBindings and replaces params
-    //  %d -> true if key was pressed, false if released
-    //  %mx, %my -> mouse position
-    //also, will not trigger an up event for commands without %d param
-    private char[] processBinding(char[] bind, bool isUp) {
-        //no up/down parameter, and key was released -> no event
-        if (str.find(bind, "%d") < 0 && isUp)
-            return null;
-        bind = str.replace_lazy(bind, "%d", myformat("{}", !isUp));
-        bind = str.replace_lazy(bind, "%mx", myformat("{}", mousePos.x));
-        bind = str.replace_lazy(bind, "%my", myformat("{}", mousePos.y));
-        return bind;
-    }
     override bool onKeyDown(KeyInfo ki) {
         return doKeyEvent(ki);
     }
     override void onKeyUp(KeyInfo ki) {
         doKeyEvent(ki);
     }
+
     private bool doKeyEvent(KeyInfo ki) {
-        KeyBindings local = bindings;
-        BindKey key = BindKey.FromKeyInfo(ki);
-        KeyBindings winner;
-        char[] bind;
-        bool check(KeyBindings k) {
-            bind = k.findBinding(key);
-            if (!bind.length)
-                return false;
-            winner = k;
-            return true;
-        }
-        if (!check(local)) {
-            foreach (KeyBindings k, v; mExtKeybinds) {
-                if (check(k))
-                    break;
-            }
-        }
-        if (!winner)
-            return false;
         //if repeated, consider as handled, but throw away anyway
         if (ki.isRepeated)
             return true;
-        if (winner is local) {
-            if (auto pcmd = bind in mKeybindToCommand) {
-                bind = processBinding(*pcmd, ki.isUp);
-            }
-            //if not processed locally, send
-            if (!mCmd.execute(bind, true))
-                executeServerCommand(bind);
-        } else {
-            //the keybinding was one of mExtKeybinds; call its handler
-            if (!ki.isUp)
-                mExtKeybinds[winner](bind);
-        }
-        return true;
-    }
-    /*protected void onMouseMove(MouseInfo mouse) {
-        auto bind = processBinding("set_target %mx %my", false);
-        if (gFramework.getKeyState(Keycode.MOUSE_LEFT))
-            mGame.control.executeCommand(bind);
-    }*/
 
-    private void executeServerCommand(char[] cmd) {
-        mGame.control.executeCommand(cmd);
+        BindKey key = BindKey.FromKeyInfo(ki);
+        char[] bind = bindings.findBinding(key);
+
+        //xxx is there a reason not to use the command directly?
+        if (auto pcmd = bind in mKeybindToCommand) {
+            bind = processBinding(*pcmd, ki);
+        }
+
+        return doInput(bind);
+    }
+
+    override void onMouseMove(MouseInfo mouse) {
+        //if in use, this causes excessive traffic in network mode
+        //but code that uses this is debug code anyway, and it doesn't matter
+        KeyInfo ki;
+        ki.isDown = true;
+        ki.mods = gFramework.getModifierSet();
+        char[40] buffer = void;
+        doInput(processBinding("mouse_move %mx %my", ki, buffer));
+    }
+
+    //takes a binding string from KeyBindings and replaces params
+    //  %d -> true if key was pressed, false if released
+    //  %mx, %my -> mouse position
+    //also, will not trigger an up event for commands without %d param
+    //buffer can be memory of any size that will be used to reduce heap allocs
+    private char[] processBinding(char[] bind, KeyInfo ki, char[] buffer = null)
+    {
+        bool isUp = !ki.isDown;
+        //no up/down parameter, and key was released -> no event
+        if (str.find(bind, "%d") < 0 && isUp)
+            return null;
+        auto txt = StrBuffer(buffer);
+        txt.sink(bind);
+        str.buffer_replace_fmt(txt, "%d", "{}", !isUp);
+        str.buffer_replace_fmt(txt, "%mx", "{}", mousePos.x);
+        str.buffer_replace_fmt(txt, "%my", "{}", mousePos.y);
+        return txt.get;
+    }
+
+    private bool doInput(char[] s) {
+        if (!s.length)
+            return false;
+
+        bool handled = false;
+
+        //prefer local input handler
+        if (!handled && mInput.checkCommand("", s))
+            handled = mInput.execCommand("", s);
+
+        if (!handled && mGame.control.checkCommand(s)) {
+            mGame.control.execCommand(s);
+            handled = true;
+        }
+
+        return handled;
     }
 
     override bool onTestMouse(Vector2i pos) {

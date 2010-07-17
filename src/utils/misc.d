@@ -184,15 +184,22 @@ char[] myformat(char[] fmt, ...) {
     return myformat_fx(fmt, _arguments, _argptr);
 }
 
-//if the buffer is too small, allocate a new one
-char[] myformat_s_fx(char[] buffer, char[] fmt, TypeInfo[] arguments,
-    va_list argptr)
-{
-    //NOTE: there's Layout.vprint(), but it simply cuts the output if the buffer
-    //      is too small (and you don't know if this happened)
-    char[] output = buffer;
-    size_t outpos = 0;
-    uint sink(char[] append) {
+//make it simpler to append to a string without memory allocation
+//StrBuffer.sink() will append a string using the provided memory buffer
+//if the memory buffer is too short, it falls back to heap allocation
+struct StrBuffer {
+    char[] buffer;  //static buffer passed by user
+    char[] output;  //append buffer (may be larger than actual string)
+    size_t outpos;  //output[0..outpos] is actual (valid) string
+
+    static StrBuffer opCall(char[] buffer) {
+        StrBuffer s;
+        s.buffer = buffer;
+        s.output = s.buffer;
+        return s;
+    }
+
+    void sink(char[] append) {
         auto end = outpos + append.length;
         if (end > buffer.length) {
             //(force reallocation, never resize buffer's memory block)
@@ -204,10 +211,35 @@ char[] myformat_s_fx(char[] buffer, char[] fmt, TypeInfo[] arguments,
             output[outpos..end] = append;
         }
         outpos = end;
-        return append.length; //whatever... what the fuck is this for?
     }
-    layout.Layout!(char).instance().convert(&sink, arguments, argptr, fmt);
-    return output[0..outpos];
+
+    //like sink, but compatible with Tango
+    uint tsink(char[] s) {
+        sink(s);
+        return s.length; //????
+    }
+
+    //retrieve actual string
+    char[] get() {
+        return output[0..outpos];
+    }
+
+    //reuse the buffer by setting outpos to 0
+    //the previous result of get() will get invalid
+    void reset() {
+        outpos = 0;
+    }
+}
+
+//if the buffer is too small, allocate a new one
+char[] myformat_s_fx(char[] buffer, char[] fmt, TypeInfo[] arguments,
+    va_list argptr)
+{
+    //NOTE: there's Layout.vprint(), but it simply cuts the output if the buffer
+    //      is too small (and you don't know if this happened)
+    auto buf = StrBuffer(buffer);
+    layout.Layout!(char).instance().convert(&buf.tsink, arguments, argptr, fmt);
+    return buf.get;
 }
 
 //like myformat(), but use the buffer

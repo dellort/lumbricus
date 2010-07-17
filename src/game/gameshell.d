@@ -817,12 +817,18 @@ class ClientControl {
         mShell.addLoggedInput(mAccessTag, cmd);
     }
 
-    final void executeCommand(char[] cmd) {
-        if (mShell.serverEngine.input.checkCommand(mAccessTag, cmd)) {
+    final void execCommand(char[] cmd) {
+        if (checkCommand(cmd)) {
             sendCommand(cmd);
         } else {
             log.minor("input denied, don't send: '{}':'{}'", mAccessTag, cmd);
         }
+    }
+
+    //whether the game code would likely accept the input
+    //(too high network lag may introduce random false results)
+    final bool checkCommand(char[] cmd) {
+        return mShell.serverEngine.input.checkCommand(mAccessTag, cmd);
     }
 
     ///TeamMember that would receive keypresses

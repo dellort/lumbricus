@@ -499,13 +499,13 @@ class GameTask {
     private void cmdSlow(MyBox[] args, Output write) {
         float val = args[0].unbox!(float);
         write.writefln("set slow_down={}", val);
-        mControl.executeCommand(myformat("slow_down {}", val));
+        mControl.execCommand(myformat("slow_down {}", val));
     }
 
     private void cmdStep(MyBox[] args, Output write) {
         auto val = args[0].unbox!(int);
         write.writefln("single_step {}", val);
-        mControl.executeCommand(myformat("single_step {}", val));
+        mControl.execCommand(myformat("single_step {}", val));
     }
 
     private void cmdDemoStop(MyBox[], Output) {
@@ -516,7 +516,7 @@ class GameTask {
     private void cmdExecServer(MyBox[] args, Output write) {
         //send command to the server
         char[] srvCmd = args[0].unbox!(char[]);
-        mControl.executeCommand(srvCmd);
+        mControl.execCommand(srvCmd);
     }
 
     ConfigNode gamePersist() {

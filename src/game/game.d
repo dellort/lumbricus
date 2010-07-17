@@ -228,8 +228,29 @@ class GameEngine : GameCore {
         mWaterChanger.changePerSec = cWaterRaisingSpeed;
         physicWorld.add(mWaterChanger);
 
+        initScenery();
+
         //initialize loaded plugins
         OnGameInit.raise(events);
+    }
+
+    private void initScenery() {
+        //xxx what a dirty hack...
+        //check for a geometry collision outside the world area on the left
+        //  and right. if it collides, there is a PlaneGeometry blocking access
+        //  (and the level end warning is not drawn on that side)
+        Contact tmp;
+        Vector2i worldSize = level.worldSize;
+        bool left = !physicWorld.collideGeometry(
+            Vector2f(-100, worldSize.y/2), 1, tmp);
+        bool right = !physicWorld.collideGeometry(
+            Vector2f(worldSize.x + 100, worldSize.y/2), 1, tmp);
+        SceneObject levelend = new LevelEndDrawer(left, right);
+        levelend.zorder = GameZOrder.RangeArrow;
+        scene.add(levelend);
+
+        //NOTE: GameSky/GameWater could also be added here (dependencies don't
+        //  make that possible yet)
     }
 
     ///return y coordinate of waterline

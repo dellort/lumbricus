@@ -471,13 +471,32 @@ bool isIdentifier(char[] name) {
     return true;
 }
 
-//works like replace(), except:
-//the expression passed as replace_with is only evaluated if there's actually
-//  anything to replace
-char[] replace_lazy(char[] s, char[] search, lazy char[] replace_with) {
-    if (find(s, search) >= 0) {
-        return replace(s, search, replace_with);
-    } else {
-        return s;
-    }
+//Tango has tango.text.Text, but didn't immediately provide what I wanted
+//(it heap-allocates when replacing)
+
+//these functions assume short strings, and they don't do any heap allocation,
+//  if the (implied) free buffer space in buf is large enough
+
+//replace "search" string in buf by myformat(fmt, ...)
+void buffer_replace_fmt(ref StrBuffer buf, char[] search, char[] fmt, ...) {
+    if (find(buf.get, search) < 0)
+        return;
+    char[40] buffer2 = void;
+    char[] repl = myformat_s_fx(buffer2, fmt, _arguments, _argptr);
+    buffer_replace(buf, search, repl);
+}
+
+import tsearch = tango.text.Search;
+
+//replace "search" by "replace" in buf
+void buffer_replace(ref StrBuffer buf, char[] search, char[] replace) {
+    if (find(buf.get, search) < 0)
+        return;
+    char[40] buffer2 = void;
+    auto buf2 = StrBuffer(buffer2);
+    auto match = tsearch.find(search);
+    foreach (token; match.tokens(buf.get, replace))
+        buf2.sink(token);
+    buf.reset();
+    buf.sink(buf2.get);
 }

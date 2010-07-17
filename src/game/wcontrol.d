@@ -77,6 +77,7 @@ class WormControl : WormController {
         bool mAlternateControl;
         bool mOnHold;
         InputGroup mInput;
+        MoveStateXY mInputMoveState;
 
         //if you can click anything, if true, also show that animation
         PointMode mPointMode;
@@ -101,7 +102,7 @@ class WormControl : WormController {
         mInput = new InputGroup();
         auto i = mInput;
         i.addT("jump", &inpJump);
-        i.addT("move", &inpMove);
+        i.add("move", &inpMove);
         i.addT("weapon", &inpWeapon);
         i.addT("set_param", &inpSetParam);
         i.addT("set_target", &inpSetTarget);
@@ -133,8 +134,9 @@ class WormControl : WormController {
         return true;
     }
 
-    private bool inpMove(int x, int y) {
-        move(Vector2f(clampRangeC(x, -1, +1), clampRangeC(y, -1, +1)));
+    private bool inpMove(char[] cmd) {
+        mInputMoveState.handleCommand(cmd);
+        move(toVector2f(mInputMoveState.direction));
         return true;
     }
 

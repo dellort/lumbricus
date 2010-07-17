@@ -398,7 +398,7 @@ class ModeTurnbased : Gamemode {
     }
 
     private void doCollectTool(TeamMember member, CollectableTool tool) {
-        if (auto t = cast(CollectableToolDoubleTime)tool) {
+        if (tool.toolID == "doubletime") {
             waitAddTimeLocal(1, mTimeSt.turnRemaining);
         }
     }
