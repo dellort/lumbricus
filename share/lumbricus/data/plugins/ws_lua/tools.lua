@@ -118,7 +118,14 @@ createWeapon {
     dontEndRound = true,
     deselectAfterFire = true,
     onFire = teamActionOnFire(function(team, member)
-        WormSelectHelper_ctor(Game, member)
+        --xxx: we just need the 1-frame delay for this because onFire is
+        --     called from doFire, which will set mMember.mWormAction = true
+        --     afterwards and would make the resetActivity() call void
+        addOnNextFrame(function()
+            Team_set_allowSelect(team, true)
+            -- allowSelect is removed on activity
+            WormControl_resetActivity(Member_control(member))
+        end)
     end),
 }
 

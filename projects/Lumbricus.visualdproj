@@ -249,7 +249,6 @@
    <File path="..\src\game\animation.d" />
    <File path="..\src\game\bomberworm.d" />
    <File path="..\src\game\controller.d" />
-   <File path="..\src\game\controller_events.d" />
    <File path="..\src\game\controller_plugins.d" />
    <File path="..\src\game\core.d" />
    <File path="..\src\game\crate.d" />

@@ -73,9 +73,13 @@ Filename: "{app}\bin\lumbricus.exe"; Description: "{cm:LaunchGame}"; Flags: post
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\share\lumbricus\data2"
 
+[Tasks]
+Name: desktopicon; Description: "{cm:CreateDesktopIcon}"
+
 [Icons]
 Name: "{group}\Lumbricus"; Filename: "{app}\bin\lumbricus.exe"; WorkingDir: "{app}\bin"
 Name: "{group}\{cm:UninstallProgram,Lumbricus}"; Filename: "{uninstallexe}"
+Name: "{commondesktop}\Lumbricus"; Filename: "{app}\bin\lumbricus.exe"; WorkingDir: "{app}\bin"; Tasks: desktopicon
 
 [Code]
 // Code to run extractdata, not needed for full setup

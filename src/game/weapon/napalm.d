@@ -5,7 +5,6 @@ import game.core;
 import game.particles;
 import game.sprite;
 import game.sequence;
-import game.weapon.weapon;
 import physics.all;
 import tango.math.Math;
 import utils.misc;

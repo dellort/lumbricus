@@ -96,7 +96,7 @@ const cDrvDraw = "draw";
 private SettingVar!(int) gFrameRate;
 
 static this() {
-    gFrameRate = gFrameRate.Add("fps.max", 0);
+    gFrameRate = gFrameRate.Add("fps.max", 100);
 
     new Framework();
 }

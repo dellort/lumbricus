@@ -87,7 +87,7 @@ class CrateSprite : Sprite {
         super(spriteclass);
         myclass = spriteclass;
 
-        crateZone = new PhysicZoneCircle(Vector2f(), myclass.collectRadius);
+        crateZone = new PhysicZoneCircle(physics, myclass.collectRadius);
         collectTrigger = new ZoneTrigger(crateZone);
         collectTrigger.collision
             = engine.physicWorld.collide.findCollisionID("crate_collect");
@@ -174,14 +174,6 @@ class CrateSprite : Sprite {
     //only valid after crate has been filled and activated
     CrateType crateType() {
         return mCrateType;
-    }
-
-    override void simulate() {
-        //this also makes it near impossible to implement it in Lua
-        //should connect them using constraints (or so)
-        crateZone.pos = physics.pos;
-
-        super.simulate();
     }
 
     private bool spyVisible(Sequence s) {

@@ -57,8 +57,6 @@ static this() {
     gScripting.properties!(RopeClass, "shootSpeed", "maxLength", "moveSpeed",
         "swingForce", "swingForceUp", "ropeColor", "ropeSegment", "anchorAnim");
 
-    gScripting.ctor!(WormSelectHelper, GameCore, TeamMember);
-
     gScripting.ctor!(NapalmSpriteClass, GameCore, char[]);
     gScripting.properties!(NapalmSpriteClass, "damage", "initialDelay",
         "repeatDelay", "decayTime", "physMedium", "physSmall",

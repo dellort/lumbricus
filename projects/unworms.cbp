@@ -63,7 +63,6 @@
 		<Unit filename="..\src\utils\log.d" />
 		<Unit filename="..\src\utils\misc.d" />
 		<Unit filename="..\src\utils\mybox.d" />
-		<Unit filename="..\src\utils\output.d" />
 		<Unit filename="..\src\utils\path.d" />
 		<Unit filename="..\src\utils\rect2.d" />
 		<Unit filename="..\src\utils\stream.d" />

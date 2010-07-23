@@ -195,34 +195,6 @@ class ControlRotate : SpriteHandler, Controllable {
     //-- end Controllable
 }
 
-//now used by Lua weapon; no point in changing this
-class WormSelectHelper : GameObject {
-    private {
-        TeamMember mMember;
-    }
-
-    this(GameCore eng, TeamMember member) {
-        super(eng, "wormselecthelper");
-        internal_active = true;
-        mMember = member;
-        assert(!!mMember);
-    }
-
-    bool activity() {
-        return internal_active;
-    }
-
-    override void simulate() {
-        super.simulate();
-        //xxx: we just need the 1-frame delay for this because initialStep() is
-        //     called from doFire, which will set mMember.mWormAction = true
-        //     afterwards and would conflict with the code below
-        mMember.team.allowSelect = true;
-        mMember.control.resetActivity();
-        kill();
-    }
-}
-
 //non-deterministic, transient, self-removing shoot effect
 //xxx: this used to be derived from GameObject
 //     now this functionality got lost: bool activity() { return active; }

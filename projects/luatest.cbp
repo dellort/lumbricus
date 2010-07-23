@@ -64,9 +64,7 @@
 		<Unit filename="..\src\utils\misc.d" />
 		<Unit filename="..\src\utils\mybox.d" />
 		<Unit filename="..\src\utils\path.d" />
-		<Unit filename="..\src\utils\random.d" />
 		<Unit filename="..\src\utils\rect2.d" />
-		<Unit filename="..\src\utils\rndkiss.d" />
 		<Unit filename="..\src\utils\stream.d" />
 		<Unit filename="..\src\utils\string.d" />
 		<Unit filename="..\src\utils\strparser.d" />

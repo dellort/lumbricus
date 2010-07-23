@@ -145,7 +145,6 @@
 		<Unit filename="..\src\game\animation.d" />
 		<Unit filename="..\src\game\bomberworm.d" />
 		<Unit filename="..\src\game\controller.d" />
-		<Unit filename="..\src\game\controller_events.d" />
 		<Unit filename="..\src\game\controller_plugins.d" />
 		<Unit filename="..\src\game\core.d" />
 		<Unit filename="..\src\game\crate.d" />
