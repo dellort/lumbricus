@@ -65,9 +65,11 @@ static this() {
     gScripting.ctor!(CollectableBomb)();
     gScripting.ctor!(CollectableMedkit)();
 
+    /+
     gScripting.ctor!(InputScript)();
     gScripting.properties!(InputScript, "onCheckCommand", "onExecCommand",
         "accessList");
     gScripting.methods!(InputHandler, "enableGroup", "disableGroup",
         "setEnableGroup");
+    +/
 }

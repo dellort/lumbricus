@@ -12,6 +12,7 @@ import gui.progress;
 import gui.rendertext;
 import gui.tablecontainer;
 import gui.widget;
+import game.controller;
 import game.teamtheme;
 import game.hud.teaminfo;
 import utils.array;

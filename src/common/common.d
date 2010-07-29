@@ -34,7 +34,6 @@ static this() {
 //also contains some important initialization code
 class Common {
     LogStruct!("common") log;
-    Output defaultOut; //set by toplevel to main console
     CommandBucket cmdLine;
     //hack for now; needed by gameview.d and welcome.d; they invoke execute()
     CommandLine real_cmdLine;

@@ -483,9 +483,11 @@ class GameView : Widget {
         char[][char[]] mKeybindToCommand;
         //wormbinds.conf/map_commands
         ConfigNode mCommandMap;
-        //and this is something completely different
-        //additional keybindings for plugins
-        void delegate(char[])[KeyBindings] mExtKeybinds;
+
+        //key currently held down (used for proper key-up notification)
+        BindKey[] mKeyDown;
+        //additional buffer for mKeyDown to simplify code
+        BindKey[] mKeyDownBuffer;
 
         //for worm-name drawing
         ViewMember[TeamMember] mEngineMemberToOurs;
@@ -587,7 +589,7 @@ class GameView : Widget {
 
         //load the teams and also the members
         foreach (Team t; game.controller.teams) {
-            foreach (TeamMember m; t.getMembers) {
+            foreach (TeamMember m; t.members) {
                 ViewMember vt = new ViewMember(this, m);
                 mEngineMemberToOurs[m] = vt;
             }
@@ -775,25 +777,52 @@ class GameView : Widget {
         return mGame.engine.resources.get!(WeaponClass)(name, true);
     }
 
-    void addExternalKeybinds(KeyBindings binds, void delegate(char[]) handler) {
-        mExtKeybinds[binds] = handler;
-    }
-    void removeExternalKeybinds(KeyBindings binds) {
-        mExtKeybinds.remove(binds);
-    }
-
     override bool onKeyDown(KeyInfo ki) {
-        return doKeyEvent(ki);
-    }
-    override void onKeyUp(KeyInfo ki) {
-        doKeyEvent(ki);
-    }
-
-    private bool doKeyEvent(KeyInfo ki) {
         //if repeated, consider as handled, but throw away anyway
         if (ki.isRepeated)
             return true;
 
+        bool handled = doKeyEvent(ki);
+
+        if (handled) {
+            //xxx only some key bindings (as handled in doKeyEvent) actually
+            //  want a key-up event; in this case one wouldn't need this
+            BindKey key = BindKey.FromKeyInfo(ki);
+            mKeyDown ~= key;
+        }
+
+        return handled;
+    }
+    override void onKeyUp(KeyInfo ki) {
+        //doKeyEvent(ki);
+        //explicitly check key state in case - this is needed because the key-up
+        //  events can be inconsistent to the key bindings (e.g. consider the
+        //  sequence left-down, ctrl-down, left-up, ctrl-up: we receive left-up
+        //  with the ctrl modifier set, which doesn't match the normal left-key
+        //  binding => code for left-up is never executed)
+        //xxx maybe move this into simulate() (polling) and simplify the GUI
+        //  code (possibly move all this into widget.d?)
+        mKeyDownBuffer.length = 0;
+        foreach (BindKey k; mKeyDown) {
+            //still pressed?
+            if (gFramework.getKeyState(k.code)
+                && gFramework.getModifierSetState(k.mods))
+            {
+                //entry survives
+                mKeyDownBuffer ~= k;
+            } else {
+                //synthesize key-up event
+                KeyInfo nki;
+                nki.code = k.code;
+                nki.mods = k.mods;
+                nki.isDown = false;
+                doKeyEvent(nki);
+            }
+        }
+        swap(mKeyDown, mKeyDownBuffer);
+    }
+
+    private bool doKeyEvent(KeyInfo ki) {
         BindKey key = BindKey.FromKeyInfo(ki);
         char[] bind = bindings.findBinding(key);
 

@@ -4,6 +4,7 @@ import framework.framework;
 import framework.font;
 import framework.i18n;
 import common.scene;
+import game.controller;
 import game.core;
 import game.teamtheme;
 import game.hud.teaminfo;

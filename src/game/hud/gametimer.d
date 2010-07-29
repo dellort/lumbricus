@@ -3,6 +3,7 @@ module game.hud.gametimer;
 import framework.framework;
 import framework.font;
 import common.scene;
+import game.controller;
 import game.hud.register;
 import game.hud.teaminfo;
 import game.gamemodes.shared;
@@ -116,7 +117,7 @@ class GameTimer : BoxContainer {
         bool active = mStatus.showGameTime || mStatus.showTurnTime;
 
         auto m = mGame.control.getControlledMember;
-        foreach (t; mGame.logic.teams) {
+        foreach (t; mGame.controller.teams) {
             if (m)
                 break;
             m = t.current;

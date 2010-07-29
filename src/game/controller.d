@@ -60,7 +60,6 @@ alias DeclareEvent!("collect_tool", TeamMember, CollectableTool) OnCollectTool;
 alias DeclareGlobalEvent!("game_crate_skip") OnGameCrateSkip;
 
 
-//class Team : TeamRef {
 class Team : GameObject2 {
     char[] mName = "unnamed team";
     TeamTheme teamColor;
@@ -115,19 +114,20 @@ class Team : GameObject2 {
         mTeamNetId = node["net_id"];
 
         //per-team commands
+        //(NOTE: each team member adds its input to mInput later, see place())
         mInput = new InputGroup();
-        mInput.onCheckAccess = &checkAccess;
         mInput.add("next_member", &inpChooseWorm);
         mInput.add("remove_control", &inpRemoveControl);
-        engine.input.enableGroup(mInput);
 
         internal_active = true;
     }
 
+    //human readable team name (specified by user)
     char[] name() {
         return mName;
     }
 
+    //unique ID; this also may correspond to the client_id in network mode
     char[] id() {
         return mTeamId;
     }
@@ -176,7 +176,6 @@ class Team : GameObject2 {
     TeamMember[] members() {
         return mMembers;
     }
-    alias members getMembers; //legacy
 
     bool allowSelect() {
         if (!mActive || !mCurrent)
@@ -200,8 +199,7 @@ class Team : GameObject2 {
         return mActive && (mDoubleDmg > 0);
     }
 
-    // --- end Team
-
+    //not sure what this is; probably for the net GUI
     char[] netId() {
         return mTeamNetId;
     }
@@ -484,20 +482,6 @@ class Team : GameObject2 {
         surrenderTeam();
         return true;
     }
-
-    //verify input according to access map; this is done here because this stuff
-    //  is Team specific
-    bool checkAccess(char[] client_id) {
-        //single player, no network
-        if (client_id == "local")
-            return true;
-        //multi player, networked
-        foreach (x; engine.input.accessMap) {
-            if (x[0] == client_id && x[1] == id)
-                return true;
-        }
-        return false;
-    }
 }
 
 //member of a team, currently (and maybe always) capsulates a WormSprite object
@@ -632,13 +616,15 @@ class TeamMember : Actor {
         mWormControl = new WormControl(worm);
         mWormControl.setWeaponSet(mTeam.weapons);
         mWormControl.setAlternateControl(mTeam.alternateControl);
-        mWormControl.input.onCheckAccess = &mTeam.checkAccess;
+        //xxx maybe make this a bit better
+        mTeam.mInput.addSub(mWormControl.input);
         //take control over dying, so we can let them die on end of turn
         mWormControl.setDelayedDeath();
         mLastKnownLifepower = health;
         mCurrentHealth = mHealthTarget = health;
         updateHealth();
 
+        //xxx WormSprite dependency should go away
         xworm.gravestone = mTeam.gravestone;
         xworm.teamColor = mTeam.color;
 
@@ -723,8 +709,6 @@ class GameController : GameObject2 {
     private {
         Team[] mTeams;
 
-        InputGroup mInput;
-
         //xxx for loading only
         ConfigNode[char[]] mWeaponSets;
         WeaponSet mCrateSet;
@@ -739,10 +723,20 @@ class GameController : GameObject2 {
         //list of tool crates that can drop
         char[][] mActiveCrateTools;
         int[] mTeamColorCache;
+
+        InputGroup mInput;
+
+        //determines which network clients are allowed to control which teams
+        //each array item is a pair of strings:
+        // [client_id, team_id]
+        //it means that that client is allowed to control that team
+        char[][2][] mAccessMap;
     }
 
     this(GameCore a_engine) {
         super(a_engine, "controller");
+
+        loadAccessMap(engine.gameConfig.management.getSubNode("access_map"));
 
         engine.scripting.addSingleton(this);
         engine.addSingleton(this);
@@ -775,17 +769,70 @@ class GameController : GameObject2 {
         OnCrateCollect.handler(engine.events, &collectCrate);
 
         mInput = new InputGroup();
+        //per-team input
+        mInput.addSub(new InputProxy(&getTeamInput));
+        //global input (always available)
         mInput.add("crate_test", &inpDropCrate);
         mInput.add("exec", &inpExec);
+        //adding this after team input important for weapon_fire to work as
+        //  expected (only execute if no team active)
         mInput.add("weapon_fire", &inpInstantDropCrate);
-        mInput.priority = -1; //important for weapon_fire to work as expected
-        engine.input.enableGroup(mInput);
+        engine.input.addSub(mInput);
 
         internal_active = true;
     }
 
     private Log log() {
         return engine.log;
+    }
+
+    private void loadAccessMap(ConfigNode node) {
+        foreach (ConfigNode sub; node) {
+            //sub is "tag_name { "teamid1" "teamid2" ... }"
+            foreach (char[] key, char[] value; sub) {
+                mAccessMap ~= [sub.name, value];
+            }
+        }
+
+        auto p = &log.trace;
+        p("access map:");
+        foreach (char[][2] a; mAccessMap) {
+            p("  '{}' -> '{}'", a[0], a[1]);
+        }
+        p("access map end.");
+    }
+
+    bool checkAccess(char[] client_id, Team team) {
+        //single player, no network
+        if (client_id == "local")
+            return true;
+        //multi player, networked
+        foreach (a; mAccessMap) {
+            if (a[0] == client_id && a[1] == team.id)
+                return true;
+        }
+        return false;
+    }
+
+    Team getInputTeam(char[] client_id) {
+        foreach (Team t; teams) {
+            if (t.active) {
+                if (checkAccess(client_id, t))
+                    return t;
+            }
+        }
+        return null;
+    }
+
+    //decide to which team input goes
+    //in network & realtime mode, multiple teams can be active, and the
+    //  client_id helps delivering a client's input to the right team
+    //this is also needed for cheat-prevention (client_id is verified)
+    Input getTeamInput(char[] client_id) {
+        //hurrr
+        if (auto team = getInputTeam(client_id))
+            return team.mInput;
+        return null;
     }
 
     private bool inpDropCrate() {
@@ -803,13 +850,7 @@ class GameController : GameObject2 {
         //(all scripts are already supposed to be sandboxed; still this enables
         //  anyone who is connected to do anything to the game)
         //find input team, needed by cheats.lua
-        Team client_team;
-        foreach (t; teams) {
-            if (t.checkAccess(client_id)) {
-                client_team = t;
-                break;
-            }
-        }
+        Team client_team = getInputTeam(client_id);
         engine.scripting.scriptExec(`
             local client_team, cmd = ...
             _G._currentInputTeam = client_team

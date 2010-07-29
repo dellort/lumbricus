@@ -18,6 +18,7 @@ import gui.widget;
 import gui.mousescroller;
 import gui.boxcontainer;
 import gui.window;
+import game.controller;
 import game.core;
 import game.game;
 import game.hud.camera;
@@ -177,7 +178,7 @@ class GameFrame : SimpleContainer {
 
         bool finished = true;
         foreach (Team t; game.controller.teams) {
-            foreach (TeamMember tm; t.getMembers) {
+            foreach (TeamMember tm; t.members) {
                 if (tm.currentHealth != tm.healthTarget())
                     finished = false;
             }
@@ -383,13 +384,6 @@ class GameFrame : SimpleContainer {
     }
     void scriptRemoveHudWidget(LuaGuiAdapter gui) {
         gui.widget.remove();
-    }
-
-    void addKeybinds(KeyBindings binds, void delegate(char[]) handler) {
-        gameView.addExternalKeybinds(binds, handler);
-    }
-    void removeKeybinds(KeyBindings binds) {
-        gameView.removeExternalKeybinds(binds);
     }
 
     private void initSound() {

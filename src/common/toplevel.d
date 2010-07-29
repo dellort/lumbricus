@@ -110,8 +110,6 @@ private:
         globals.cmdLine.helpTranslator = localeRoot.bindNamespace(
             "console_commands.global");
 
-        globals.defaultOut = mGuiConsole.output;
-
         globals.cmdLine.registerCommand("quit", &killShortcut, "");
         globals.cmdLine.registerCommand("toggle", &showConsole, "");
         globals.cmdLine.registerCommand("nameit", &cmdNameit, "");

@@ -244,13 +244,9 @@ class GameLoader {
             mShell.mGameTime, mShell.mInterpolateTime);
         auto engine = mShell.mEngine;
 
-        //load access map
-        engine.input.loadAccessMap(engine.gameConfig.management
-            .getSubNode("access_map"));
-
         //input for this never takes the "normal" path, but it's needed for
         //  input validation
-        engine.input.enableGroup(mShell.mInput);
+        engine.input.addSub(mShell.mInput);
 
         mGfx = new GfxSet(engine, mGameConfig);
 
@@ -854,7 +850,7 @@ class ClientControl {
             GameCore engine = mShell.serverEngine;
             auto controller = engine.singleton!(GameController)();
             foreach (Team t; controller.teams()) {
-                if (t.checkAccess(mAccessTag))
+                if (controller.checkAccess(mAccessTag, t))
                     mCachedOwnedTeams ~= t;
             }
         }

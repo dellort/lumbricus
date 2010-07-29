@@ -3,6 +3,7 @@ module game.hud.preparedisplay;
 import framework.framework;
 import framework.font;
 import framework.i18n;
+import game.controller;
 import game.hud.register;
 import game.hud.teaminfo;
 import game.gamemodes.shared;
@@ -37,7 +38,6 @@ class PrepareDisplay : Label {
     }
 
     override void simulate() {
-        auto logic = mGame.logic;
         auto m = mGame.control.getControlledMember;
         visible = mStatus.visible && m;
         if (visible) {

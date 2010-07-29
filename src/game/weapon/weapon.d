@@ -72,6 +72,10 @@ abstract class WeaponClass : EventTarget {
     bool canUse(GameCore engine) {
         return !isAirstrike || engine.level.airstrikeAllow;
     }
+
+    override char[] toString() {
+        return myformat("[Weapon {}]", name);
+    }
 }
 
 //some weapons need to do stuff while they're selected (girder construction)

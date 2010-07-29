@@ -189,7 +189,7 @@ abstract class GameCore {
         Scene mScene;
         Random mRnd;
         Events mEvents;
-        InputHandler mInput;
+        InputGroup mInput;
         ScriptingState mScripting;
         GameConfig mGameConfig; //not so good dependency
         PhysicWorld mPhysicWorld;
@@ -238,7 +238,7 @@ abstract class GameCore {
         mKillList = new typeof(mKillList)();
         mActiveObjects = new typeof(mActiveObjects)();
 
-        mInput = new InputHandler();
+        mInput = new InputGroup();
 
         //random seed will be fixed later during intialization
         mRnd = new Random();
@@ -281,7 +281,7 @@ abstract class GameCore {
     final Scene scene() { return mScene; }
     final Random rnd() { return mRnd; }
     final Events events() { return mEvents; }
-    final InputHandler input() { return mInput; }
+    final InputGroup input() { return mInput; }
     final ScriptingState scripting() { return mScripting; }
     ///level being played, must not modify returned object
     final Level level() { return mGameConfig.level; }

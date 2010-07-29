@@ -45,7 +45,7 @@ class TestFrame : SimpleContainer {
     private Button[] mButtons;
 
     private void foo(Button sender) {
-        globals.defaultOut.writefln("button: {}", arraySearch(mButtons, sender));
+        gLog.notice("button: {}", arraySearch(mButtons, sender));
     }
 
     this() {

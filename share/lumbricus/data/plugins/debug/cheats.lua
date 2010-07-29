@@ -46,7 +46,7 @@ end
 
 -- this thing requires us to do extra crap in controller.d (look for inpExec)
 -- it's only available while stuff is executed via the exec server command
-function ownedTeam()
+function E.ownedTeam()
     return assert(_G._currentInputTeam)
 end
 
@@ -123,10 +123,11 @@ end
 -- +500 hp for caller, 1 hp for others
 function E.whosYourDaddy()
     for k,t in ipairs(Control_teams()) do
-        for k,m in ipairs(Team_getMembers(t)) do
+        for k,m in ipairs(Team_members(t)) do
             if (t == ownedTeam()) then
                 Member_addHealth(m, 500)
             else
+                -- xxx team labels update only at end of round
                 p = Sprite_physics(Member_sprite(m))
                 Phys_applyDamage(p, Phys_lifepower(p) - 1, 2)
             end

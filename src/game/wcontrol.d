@@ -49,6 +49,69 @@ interface Controllable {
     Sprite getSprite();
 }
 
+/+ list of methods used by controller.d
+interface WormControl {
+    isControllable
+    setOnHold
+    lastActivity
+    actionPerformed
+    isIdle
+    checkDying
+    isAlive
+    sprite
+    setWeaponSet
+    setAlternateControl
+    input
+    setEngaged
+    engaged
+    youWinNow
+    delayedAction
+    forceAbort
+    simulate
+}
++/
+
+/+ WormSprite (not Sprite) methods used here
+interface Worm {
+    wcontrol [set]
+    setWeaponParam
+    delayedDeath
+    activateJetpack         //replace by "Equipment"?
+    isAlive                 //only depends from Sprite stuff
+    forceAbort
+    weapon [set]
+    altWeapon [get]
+    jump                    //replaceable by Input
+    fireAlternate           //Input?
+    wouldFire               //Input?
+    allowAlternate
+    fire
+    allowFireSecondary
+    requestedWeapon [get]
+    move
+    haveAnyControl
+    youWinNow
+    delayedAction
+    isReallyDead
+    isDelayedDying
+    finallyDie
+    teamColor [get]
+}
++/
+
+/+ list of WormControl methods used by weapons
+interface ... {
+    pushControllable
+    popControllable
+    addRenderOnMouse
+    removeRenderOnMouse
+    color [get]
+}
+jetpack.d additionally uses some methods on WormSprite about jetpacks
+drill.d uses WormSprite for torches/drills and weaponDir
+rope.d for ropes, ropeCanFire, and updateAnimation
++/
+
 //every worm, that's controllable by the user (includes all TeamMembers) has
 //  an instance of this class
 //user input is directly (after command parsing) fed to this class
@@ -109,6 +172,7 @@ class WormControl : WormController {
         i.addT("select_fire_refire", &inpSelRefire);
         i.addT("selectandfire", &inpSelFire);
         i.addT("weapon_fire", &inpFire);
+        inputEnabled = false;
     }
 
     final GameCore engine() {
@@ -121,7 +185,7 @@ class WormControl : WormController {
 
     //activate or deactivate keyboard input for this worm
     private void inputEnabled(bool en) {
-        engine.input.setEnableGroup(input, en);
+        input.enabled = en;
     }
 
     //return null on failure
@@ -141,7 +205,6 @@ class WormControl : WormController {
     }
 
     private bool inpWeapon(char[] weapon) {
-        Trace.formatln("sel: {}", weapon);
         WeaponClass wc;
         if (weapon != "-")
             wc = findWeapon(weapon);

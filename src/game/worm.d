@@ -24,22 +24,6 @@ import common.scene;
 import utils.interpolate;
 import utils.timesource;
 
-/**
-  just an idea:
-  thing which can be controlled like a worm
-  game/controller.d would only have a sprite, which could have this interface...
-
-interface IControllable {
-    void move(Vector2f dir);
-    void jump();
-    void activateJetpack(bool activate);
-    void drawWeapon(bool draw);
-    bool weaponDrawn();
-    void shooter(Shooter w);
-    Shooter shooter();
-    xxx not uptodate
-}
-**/
 
 ///which style a worm should jump
 //keep in sync with worm.lua
@@ -625,7 +609,12 @@ class WormSprite : Sprite {
     //  or firing the weapon; also the weapon returned here doesn't have to be
     //  visible; e.g. if the worm is walking around or anything else)
     final WeaponClass actualWeapon() {
-        return firing ? mShooterMain.weapon : mRequestedWeapon;
+        //return firing ? mShooterMain.weapon : mRequestedWeapon;
+        if (mInitiatedWeapon)
+            return mInitiatedWeapon;
+        if (mShooterMain)
+            return mShooterMain.weapon;
+        return mRequestedWeapon;
     }
 
     //weapon requested by the last select weapon command
@@ -974,10 +963,7 @@ class WormSprite : Sprite {
     }
 
     private void updateCrosshair() {
-        //--better don't touch it while firing...
-        //--if (shooting())
-        //--    return;
-        //create/destroy the target cross
+        //create/destroy the crosshair
         bool exists = !!mCrosshair;
         bool shouldexist = false;
         WeaponClass wp = actualWeapon();

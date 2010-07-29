@@ -7,27 +7,72 @@ import utils.strparser;
 
 import str = utils.string;
 
+//return (cmd-name, cmd-args)
+str.Split2Result parseCommand(char[] cmd) {
+    return str.split2_b(cmd, ' ');
+}
+
 class Input {
-    //in case multiple Input items accept the same key; higher priority means
-    //  it's tested before other Input items
-    //xxx doesn't get updated while added to InputHandlers
-    int priority = 0;
+    //client_id: identifier for sender (e.g. in network case)
+    //args: command arguments (without name)
+    alias bool delegate(char[] client_id, char[] args) Endpoint;
+
+    //client_id: see Endpoint
+    //name: command name (without arguments)
+    //xxx: don't know if I'll keep this (it made the code simpler for now)
+    //  another possibility is to kill class Input and replace it by a delegate
+    abstract Endpoint findCommand(char[] client_id, char[] name);
+
+    //-- helpers ("frontend" stuff for the user)
 
     //a client with client_id checks if the keybinding in cmd could be executed
     //  if it were sent to execCommand()
-    abstract bool checkCommand(char[] client_id, char[] cmd);
+    final bool checkCommand(char[] client_id, char[] cmd) {
+        auto pcmd = parseCommand(cmd);
+        return !!findCommand(client_id, pcmd[0]);
+    }
+
     //execute a command; if the command has parameters, the parameters are
     //  considered to start after the first space character
-    abstract bool execCommand(char[] client_id, char[] cmd);
+    final bool execCommand(char[] client_id, char[] cmd) {
+        auto pcmd = parseCommand(cmd);
+        auto endp = findCommand(client_id, pcmd[0]);
+        if (!endp)
+            return false;
+        return endp(client_id, pcmd[1]);
+    }
 }
 
-//a list of input commands for a specific component
+//redirect input to a specific other Input instance based on client_id
+class InputProxy : Input {
+    Input delegate(char[]) onDispatch;
+
+    this(Input delegate(char[]) a_onDispatch) {
+        onDispatch = a_onDispatch;
+    }
+
+    Input getDispatcher(char[] client_id) {
+        return onDispatch ? onDispatch(client_id) : null;
+    }
+
+    override Endpoint findCommand(char[] client_id, char[] name) {
+        if (auto inp = getDispatcher(client_id))
+            return inp.findCommand(client_id, name);
+        return null;
+    }
+}
+
+//a list of input commands or sub-Inputs for a specific component
 class InputGroup : Input {
     private {
         //list of commands and their actions
         Command[] mCommands;
 
+        //each entry is either a command, or a sub-input
         struct Command {
+            //if non-null, this is a sub-input
+            Input sub;
+            //otherwise, a normal command entry
             //identifies this entry in the key bindings map
             //it is assumed it contains no spaces (see execCommand())
             char[] name;
@@ -35,18 +80,20 @@ class InputGroup : Input {
         }
     }
 
-    //if set, it checks if a client is allowed
-    //if null, it's as if it was set to a function that always returns true
-    bool delegate(char[] client_id) onCheckAccess;
+    //this can be freely set by the code which provides the input handler
+    //  callbacks; if false, all input is rejected
+    bool enabled = true;
 
     //cb: takes client_id and the command's parameters
     //(as frontend function the least common case; only needed for cheats, urgh)
     void add(char[] name, bool delegate(char[], char[]) cb) {
         argcheck(name.length > 0);
         argcheck(!!cb);
-        if (findCommand(name))
-            throwError("command already added: '{}'", name);
-        mCommands ~= Command(name, cb);
+        foreach (ref c; mCommands) {
+            if (c.name == name)
+                throwError("command already added: '{}'", name);
+        }
+        mCommands ~= Command(null, name, cb);
     }
 
     //add an input command - cb will be called if the input is executed
@@ -90,144 +137,35 @@ class InputGroup : Input {
         add(name, &c.call);
     }
 
+    void addSub(Input sub) {
+        argcheck(sub);
+        mCommands ~= Command(sub, null, null);
+    }
+
     //void remove(char[] name) {
     //}
+    //void removeSub(Input sub) {
+    //}
 
-    bool checkAccess(char[] client_id) {
-        if (!onCheckAccess)
-            return true;
-        return onCheckAccess(client_id);
+    private bool checkAccess(char[] client_id) {
+        return enabled;
     }
 
-    private Command* findCommand(char[] name) {
-        foreach (ref cmd; mCommands) {
-            if (cmd.name == name)
-                return &cmd;
-        }
-        return null;
-    }
-
-    private Command* do_check_cmd(char[] client_id, char[] cmd) {
+    override Endpoint findCommand(char[] client_id, char[] name) {
         if (!checkAccess(client_id))
             return null;
 
-        auto cmd_name = str.split2(cmd, ' ')[0];
-        return findCommand(cmd_name);
-    }
-
-    bool checkCommand(char[] client_id, char[] cmd) {
-        return !!do_check_cmd(client_id, cmd);
-    }
-
-    bool execCommand(char[] client_id, char[] cmd) {
-        Command* pcmd = do_check_cmd(client_id, cmd);
-
-        if (!pcmd)
-            return false;
-
-        auto params = str.split2_b(cmd, ' ')[1];
-        return pcmd.callback(client_id, params);
-    }
-}
-
-//exclusively for use with scripting
-class InputScript : Input {
-    bool delegate(char[], char[]) onCheckCommand;
-    bool delegate(char[], char[]) onExecCommand;
-    char[][] accessList;
-
-    bool checkCommand(char[] client_id, char[] cmd) {
-        if (onCheckCommand) {
-            return onCheckCommand(client_id, cmd);
-        } else {
-            foreach (s; accessList) {
-                if (s == cmd)
-                    return true;
-            }
-            return false;
-        }
-    }
-    bool execCommand(char[] client_id, char[] cmd) {
-        if (!onExecCommand)
-            return false;
-        return onExecCommand(client_id, cmd);
-    }
-}
-
-//singleton that dispatches user input
-class InputHandler : Input {
-    private {
-        Input[] mGroups;
-    }
-
-    //determines which network clients are allowed to control which teams
-    //each array item is a pair of strings:
-    // [client_id, team_id]
-    //it means that that client is allowed to control that team
-    char[][2][] accessMap;
-
-    void loadAccessMap(ConfigNode node) {
-        foreach (ConfigNode sub; node) {
-            //sub is "tag_name { "teamid1" "teamid2" ... }"
-            foreach (char[] key, char[] value; sub) {
-                accessMap ~= [sub.name, value];
+        foreach (ref cmd; mCommands) {
+            if (cmd.sub) {
+                auto x = cmd.sub.findCommand(client_id, name);
+                if (!!x)
+                    return x;
+            } else if (cmd.name == name) {
+                return cmd.callback;
             }
         }
-    }
 
-    bool checkAccess(char[] client_id, char[] team_id) {
-        foreach (a; accessMap) {
-            if (a[0] == client_id && a[1] == team_id)
-                return true;
-        }
-        return false;
-    }
-
-    //add if not already added
-    //being added means whether that group can receive input from here or not
-    void enableGroup(Input g) {
-        if (arraySearch(mGroups, g) < 0) {
-            mGroups ~= g;
-            stableSort(mGroups,
-                (Input g1, Input g2) {
-                    return g1.priority > g2.priority;
-                }
-            );
-        }
-    }
-
-    //remove if it's added
-    void disableGroup(Input g) {
-        arrayRemove(mGroups, g, true);
-    }
-
-    void setEnableGroup(Input g, bool enable) {
-        if (enable) {
-            enableGroup(g);
-        } else {
-            disableGroup(g);
-        }
-    }
-
-    bool checkCommand(char[] client_id, char[] cmd) {
-        foreach (g; mGroups) {
-            if (g.checkCommand(client_id, cmd))
-                return true;
-        }
-        return false;
-    }
-
-    bool execCommand(char[] client_id, char[] cmd) {
-        foreach (g; mGroups) {
-            if (g.execCommand(client_id, cmd))
-                return true;
-
-            //xxx not sure: if several InputGroups accept the same command,
-            //  prefer the first registration; if it returns false (didn't
-            //  consume the input event), try the next one => continue loop
-        }
-
-        return false;
+        return null;
     }
 }
 

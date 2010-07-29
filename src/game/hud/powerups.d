@@ -2,6 +2,7 @@ module game.hud.powerups;
 
 import framework.framework;
 import framework.font;
+import game.controller;
 import game.hud.teaminfo;
 import gui.boxcontainer;
 import gui.label;
