@@ -46,6 +46,7 @@ void checkDX(HRESULT res, char[] msg) {
 
 private struct Options {
     bool vsync = false;
+    bool triple_buffer = false;
 }
 
 class DXDrawDriver : DrawDriver {
@@ -53,7 +54,6 @@ class DXDrawDriver : DrawDriver {
         Vector2i mScreenSize;
         DXCanvas mCanvas;
         D3DPRESENT_PARAMETERS mPresentParams;
-        bool mVsync;
         Options opts;
     }
 
@@ -62,7 +62,6 @@ class DXDrawDriver : DrawDriver {
 
     this() {
         opts = getSettingsStruct!(Options)(cDrvName);
-        mVsync = opts.vsync;
 
         DerelictD3D9.load();
         DerelictD3DX9.load();
@@ -89,6 +88,11 @@ class DXDrawDriver : DrawDriver {
         assert(screen_size.quad_length > 0);
         mScreenSize = screen_size;
         auto vstate = gFramework.driver.getVideoWindowState();
+        D3DCAPS9 devCaps;
+        checkDX(d3dObj.GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL,
+            &devCaps), "GetDeviceCaps");
+        //Supported from Geforce2+, but better be safe (onboard crap etc.)
+        bool hwTL = (devCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) > 0;
 
         mPresentParams.Windowed = !vstate.fullscreen;
         mPresentParams.SwapEffect = D3DSWAPEFFECT_DISCARD;
@@ -98,13 +102,15 @@ class DXDrawDriver : DrawDriver {
         mPresentParams.BackBufferWidth = mScreenSize.x;
         mPresentParams.BackBufferHeight = mScreenSize.y;
         mPresentParams.BackBufferFormat = D3DFMT_X8R8G8B8;
+        mPresentParams.BackBufferCount = opts.triple_buffer ? 2 : 1;
         mPresentParams.MultiSampleType = D3DMULTISAMPLE_NONE;
-        mPresentParams.PresentationInterval =
-            mVsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
+        mPresentParams.PresentationInterval = opts.vsync ?
+            D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
 
         if (FAILED(d3dObj.CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL,
-           vstate.window_handle, D3DCREATE_SOFTWARE_VERTEXPROCESSING
-           | D3DCREATE_FPU_PRESERVE, &mPresentParams, &d3dDevice)))
+           vstate.window_handle, (hwTL ? D3DCREATE_HARDWARE_VERTEXPROCESSING
+           : D3DCREATE_SOFTWARE_VERTEXPROCESSING ) | D3DCREATE_FPU_PRESERVE,
+           &mPresentParams, &d3dDevice)))
         {
             throwError("Could not create Direct3D Device");
         }

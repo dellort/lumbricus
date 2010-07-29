@@ -4,7 +4,7 @@
 
 @echo off
 
-set DMD=dmd -c -o- -deps=depfile -I..\src ..\src\
+set DMD=dmd -debug -c -o- -deps=depfile -I..\src ..\src\
 
 %DMD%lumbricus.d
 projgen Lumbricus.cbp -I..\share\lumbricus\data\*.lua < depfile

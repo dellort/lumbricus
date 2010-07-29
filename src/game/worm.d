@@ -705,6 +705,9 @@ class WormSprite : Sprite {
         //check if in wrong state, like flying around
         if (!currentState.canFire)
             return false;
+        //busy (there goes another hack xD)
+        if (isPreparingFire())
+            return false;
         if (currentState is wsc.st_stand)
             //draw weapon
             setState(wsc.st_weapon);
@@ -988,7 +991,7 @@ class WormSprite : Sprite {
                 mCrosshair.removeThis();
                 mCrosshair = null;
             } else {
-                mCrosshair = new RenderCrosshair(engine, graphic, &weaponAngle);
+                mCrosshair = new RenderCrosshair(graphic, &weaponAngle);
                 engine.scene.add(mCrosshair);
             }
         }
@@ -1115,6 +1118,8 @@ class WormSprite : Sprite {
 
         //update water state (to catch an underwater state transition)
         waterStateChange();
+
+        updateCrosshair();
     }
 
         //do as less as necessary to force a new state
@@ -1482,8 +1487,9 @@ class RenderCrosshair : SceneObject {
         }
     }
 
-    this(GameCore a_engine, Sequence a_attach, float delegate() weaponAngle) {
-        mEngine = a_engine;
+    this(Sequence a_attach, float delegate() weaponAngle) {
+        assert(!!a_attach);
+        mEngine = a_attach.engine;
         mGfx = mEngine.singleton!(GfxSet)();
         mAttach = a_attach;
         mWeaponAngle = weaponAngle;

@@ -33,6 +33,7 @@
   <release>0</release>
   <preservePaths>0</preservePaths>
   <warnings>0</warnings>
+  <infowarnings>0</infowarnings>
   <pic>0</pic>
   <cov>0</cov>
   <nofloat>0</nofloat>
@@ -53,7 +54,7 @@
   <doHdrGeneration>0</doHdrGeneration>
   <hdrdir />
   <hdrname />
-  <doXGeneration>0</doXGeneration>
+  <doXGeneration>1</doXGeneration>
   <xfilename>$(IntDir)\$(ProjectName).json</xfilename>
   <debuglevel>0</debuglevel>
   <debugids />
@@ -72,6 +73,7 @@
   <objfiles />
   <linkswitches />
   <libfiles>zlib.lib DerelictUtil.lib DerelictAL.lib DerelictFT.lib DerelictGL.lib DerelictGLU.lib DerelictSDL.lib DerelictSDLImage.lib</libfiles>
+  <libpaths />
   <deffile />
   <resfile />
   <exefile>$(OutDir)\$(ProjectName).exe</exefile>
@@ -97,6 +99,7 @@
    <File path="..\src\common\allres.d" />
    <File path="..\src\common\animation.d" />
    <File path="..\src\common\common.d" />
+   <File path="..\src\common\debugstuff.d" />
    <File path="..\src\common\init.d" />
    <File path="..\src\common\localeswitch.d" />
    <File path="..\src\common\lua.d" />

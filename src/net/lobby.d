@@ -4,6 +4,7 @@ import common.common;
 import common.task;
 import framework.commandline;
 import framework.framework;
+import framework.globalsettings;
 import framework.i18n;
 import game.gameshell;
 import game.gametask;
@@ -26,6 +27,7 @@ import gui.container;
 import net.netlayer;
 import net.announce;
 import net.cmdclient;
+import utils.array;
 import utils.configfile;
 import utils.misc;
 import utils.time;
@@ -45,6 +47,7 @@ class CmdNetClientTask {
         Widget mConnectDlg;
         WindowWidget mConnectWnd;
         Widget mDirectMarker;
+        static Setting mNickSetting;
 
         const cRefreshInterval = timeSecs(2);
         int mMode = -1;
@@ -98,6 +101,9 @@ class CmdNetClientTask {
 
         mConnectTo = loader.lookup!(EditLine)("ed_address");
         mNickname = loader.lookup!(EditLine)("ed_nick");
+        mNickname.onChange = &nicknameChange;
+        mNickSetting.onChange ~= &nickSettingChange;
+        mNickname.text = mNickSetting.value;
 
         mTabs = loader.lookup!(Tabs)("tabs");
         mTabs.onActiveChange = &tabActivate;
@@ -172,6 +178,15 @@ class CmdNetClientTask {
         }
     }
 
+    //xxx perhaps implement a generic setting editor control
+    private void nicknameChange(EditLine sender) {
+        mNickSetting.set(sender.text);
+    }
+
+    private void nickSettingChange(Setting sender) {
+        mNickname.text = sender.value;
+    }
+
     private void setMode(int idx) {
         if (mMode >= 0)
             mAnnounce[mMode].announce.active = false;
@@ -190,6 +205,9 @@ class CmdNetClientTask {
         foreach (ref as; mAnnounce) {
             as.announce.close();
         }
+        arrayRemoveUnordered(mNickSetting.onChange, &nickSettingChange, true);
+        //xxx I don't know about that
+        saveSettings();
     }
 
     private bool onFrame() {
@@ -236,6 +254,8 @@ class CmdNetClientTask {
 
     static this() {
         registerTaskClass!(typeof(this))("cmdclient");
+        mNickSetting = addSetting!(char[])("net.nickname", "Player",
+            SettingType.String);
     }
 }
 

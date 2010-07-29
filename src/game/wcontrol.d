@@ -725,6 +725,7 @@ class WormControl : WormController {
         }
 
         mTargetIsSet = true;
+        WeaponTarget lastTarget = mCurrentTarget;
         mCurrentTarget = where;
 
         switch(mPointMode) {
@@ -750,6 +751,11 @@ class WormControl : WormController {
                     //click effect (only if firing succeeded)
                     mEngine.animationEffect(color.click,
                         toVector2i(where), AnimationParams.init);
+                } else {
+                    //don't reset target if firing failed (this is esp.
+                    //  important if firing failed because a prepare animation
+                    //  is playing)
+                    mCurrentTarget = lastTarget;
                 }
                 doFireUp();
                 mTargetIsSet = false;
