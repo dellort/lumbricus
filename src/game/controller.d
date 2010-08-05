@@ -151,7 +151,8 @@ class Team : GameObject2 {
     }
 
     override bool activity() {
-        return active;
+        //xxx see comment for TeamMember.activity()
+        return false;
     }
 
     int totalHealth() {
@@ -537,21 +538,26 @@ class TeamMember : Actor {
     }
 
     override bool activity() {
-        return active;
+        //returning "active" broke in-turn-cleanup for turnbased game mode
+        //on one hand, the "activity" should indicate if any game object is
+        //  doing something (and receiving input from the user and acting
+        //  according to it definitely counts) => debatable
+        //--return active;
+        return false;
     }
 
     bool alive() {
-        //currently by havingwormspriteness... since dead worms haven't
         return control.isAlive();
     }
 
-    //send new health value to client
+    //display new health value on screen (like health labels, team bars)
     void updateHealth() {
         mHealthTarget = health();
     }
 
+    //if updateHealth() would actually trigger anything visible
     bool needUpdateHealth() {
-        return mCurrentHealth != mHealthTarget;
+        return health() != mHealthTarget;
     }
 
     //the displayed health value; this is only updated at special points in the
