@@ -219,6 +219,7 @@ createWeapon {
     moveSpeed = 200,
     swingForce = 3000,
     swingForceUp = 2000,
+    hitImpulse = 700,
     ropeColor = {0.8, 0.8, 0.8},
     ropeSegment = lookupResource("rope_segment"),
 

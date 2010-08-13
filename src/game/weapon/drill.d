@@ -9,6 +9,7 @@ import game.worm;
 import physics.all;
 import utils.time;
 import utils.vector2;
+import utils.math;
 import utils.misc;
 import utils.randval;
 
@@ -41,47 +42,47 @@ class Drill : Shooter {
     }
 
     this(DrillClass base, WormSprite a_owner) {
-        super(base, a_owner, a_owner.engine);
+        super(base, a_owner);
         mWorm = a_owner;
         myclass = base;
     }
 
-    override bool delayedAction() {
-        return internal_active;
-    }
-
-    bool activity() {
-        return internal_active;
-    }
-
-    override protected void updateInternalActive() {
+    override protected void onWeaponActivate(bool active) {
         //xxx simply activate "firing" state for drill weapon (like minigun...)
-        if (myclass.blowtorch)
-            mWorm.activateBlowtorch(internal_active);
-        else
-            mWorm.activateDrill(internal_active);
-        if (internal_active)
+        if (myclass.blowtorch) {
+            mWorm.activateBlowtorch(active);
+            if (active)
+                mWorm.physics.setWalking(
+                    dirFromSideAngle(mWorm.physics.lookey, 0), true);
+            else
+                mWorm.physics.setWalking(Vector2f(0, 0));
+        } else {
+            mWorm.activateDrill(active);
+            mWorm.physics.doUnglue();
+        }
+        if (active)
             makeTunnel();
     }
 
-    override protected void doFire(FireInfo info) {
+    override protected void doFire() {
         reduceAmmo();
-        internal_active = true;
         mStart = mNext = engine.gameTime.current;
     }
 
     override protected bool doRefire() {
-        internal_active = false;
         finished();
         return true;
     }
 
     override void simulate() {
         super.simulate();
+        if (!weaponActive)
+            return;
         if ((!mWorm.drillActivated() && !mWorm.blowtorchActivated())
-            || engine.gameTime.current - mStart > myclass.duration)
+            || engine.gameTime.current - mStart > myclass.duration
+            || (myclass.blowtorch && !mWorm.physics.isWalking()))
         {
-            doRefire();
+            finished();
             return;
         }
         if (engine.gameTime.current > mNext) {
@@ -98,15 +99,15 @@ class Drill : Shooter {
         //xxx: stuff should be tuneable? (all constants != 0)
         Vector2f advVec = Vector2f(0, 7.0f);
         if (myclass.blowtorch) {
-            advVec = mWorm.weaponDir*10.0f
-                + Vector2f(0, mWorm.physics.posp.radius - myclass.tunnelRadius);
+            advVec = weaponDir*10.0f
+                + Vector2f(0, owner.physics.posp.radius - myclass.tunnelRadius);
         }
-        auto at = mWorm.physics.pos + advVec;
+        auto at = owner.physics.pos + advVec;
         GameEngine rengine = GameEngine.fromCore(engine);
-        rengine.damageLandscape(toVector2i(at), myclass.tunnelRadius, mWorm);
+        rengine.damageLandscape(toVector2i(at), myclass.tunnelRadius, owner);
         const cPush = 3.0f; //multiplier so that other worms get pushed away
         rengine.explosionAt(at,
-            myclass.tunnelRadius/GameEngine.cDamageToRadius*cPush, mWorm,
+            myclass.tunnelRadius/GameEngine.cDamageToRadius*cPush, owner,
             false, false, &checkApply);
 
         mNext = engine.gameTime.current + myclass.interval.sample(engine.rnd);

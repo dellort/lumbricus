@@ -244,13 +244,7 @@ private class ViewMember : SceneObject {
         //  different); that can be easily fixed as soon as the weapon control
         //  code in Worm gets merged into WormControl; but for now it's a
         //  damn clusterfuck, and I use this hack to make it look right
-        auto worm = cast(WormSprite)sprite;
-        WeaponClass wicon;
-        bool weaponOK;
-        if (worm) {
-            wicon = worm.displayedWeapon();
-            weaponOK = worm.weaponOK();
-        }
+        WeaponClass wicon = member.control.weaponForIcon();
 
 /+
         //show a weapon icon when the worm graphic wants to show a weapon,
@@ -262,7 +256,7 @@ private class ViewMember : SceneObject {
             && graphic.weapon.length && !graphic.weapon_ok
             && member.control.currentWeapon;
 +/
-        bool weapon_icon_visible = wicon && !weaponOK;
+        bool weapon_icon_visible = !!wicon;
 
         if (weapon_icon_visible) {
             //NOTE: wwp animates the appearance/disappearance of

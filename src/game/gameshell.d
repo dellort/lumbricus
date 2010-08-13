@@ -192,7 +192,12 @@ class GameLoader {
         //save last played level functionality
         //xxx should this really be here
         if (mGameConfig.level.saved) {
-            saveConfig(mGameConfig.level.saved, "lastlevel.conf");
+            try {
+                saveConfig(mGameConfig.level.saved, "lastlevel.conf");
+            } catch (IOException e) {
+                //happens when testing network with 2 clients on 1 machine
+                log.warn("Failed to write lastlevel.conf: {}", e.msg);
+            }
         }
 
         //this doesn't really make sense, but is a helpful hack for now
@@ -216,7 +221,7 @@ class GameLoader {
                 mDemoOutput = threadstr.pipeOut();
                 saveConfig(demoFile, filename ~ "conf");
             } catch (IOException e) {
-                log.warn("Warning: Failed to create demo file ({}). Demo"
+                log.warn("Failed to create demo file ({}). Demo"
                     " writing disabled.", e.msg);
             }
         }
@@ -311,7 +316,6 @@ class GameLoader {
 class GameShell {
     private {
         GameCore mEngine;
-        bool mLoading; //for debugging
         //only used to feed mGameTime and to set offset time when loading
         //savegames
         TimeSource mMasterTime;
@@ -511,8 +515,6 @@ class GameShell {
     //- execute a game frame if necessary (for simulation)
     void frame() {
         auto interpol = mInterpolateTime;
-
-        assert(!mLoading);
 
         void exec_frame(Time overdue) {
             //xxx this was failing in multiplayer because an empty command

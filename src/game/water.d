@@ -112,8 +112,8 @@ class GameWater {
         wd(GameZOrder.FrontWater, new WaterDrawerFront1);
         wd(GameZOrder.LevelWater, new WaterDrawerFront2);
         mWaterDrawerBack = wd(GameZOrder.BackWater, new WaterDrawerBack);
-        //that zorder is over FrontWater and under Splat, so it's ok
-        mWaterDrawerBlendOut = wd(GameZOrder.RangeArrow,
+        //same zorder as foreground waves (cover everything except fs effects)
+        mWaterDrawerBlendOut = wd(GameZOrder.FrontWater,
             new WaterDrawerBlendOut);
 
         mWaveAnim = mEngine.resources.get!(Animation)("water_waves");

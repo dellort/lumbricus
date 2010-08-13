@@ -308,9 +308,8 @@ class ControllerStats : GamePlugin {
         }
     }
 
-    private void onFireWeapon(Shooter sender, bool refire) {
+    private void onFireWeapon(WeaponClass wclass, bool refire) {
         char[] wname = "unknown_weapon";
-        WeaponClass wclass = sender.weapon;
         if (wclass)
             wname = wclass.name;
         log("Fired weapon (refire={}): {}",refire,wname);
@@ -371,6 +370,7 @@ class ControllerPersistence : GamePlugin {
         super(c, o);
         OnGameStart.handler(engine.events, &onGameStart);
         OnGameEnd.handler(engine.events, &onGameEnd);
+        OnVictory.handler(engine.events, &onVictory);
     }
 
     private void onGameStart() {
@@ -389,7 +389,7 @@ class ControllerPersistence : GamePlugin {
             cGiveWeaponsDef);
         engine.persistentState.setValue("give_weapons", curGiveWeapons - 1);
 
-        //check if we have a winner
+        //check if we have a game winner (!= round winner)
         //if the victory condition triggered, the "winner" field will be set,
         //  which can be checked by the GUI
         Team winner;
@@ -398,20 +398,27 @@ class ControllerPersistence : GamePlugin {
         {
             //this was the final round, game is over
             if (winner) {
-                //xxx round_winner used to be in OnVictory, no idea why this was
-                //  duplicated here
-                engine.persistentState.setStringValue("round_winner",
-                    winner.uniqueId);
                 engine.persistentState.setStringValue("winner",
                     winner.uniqueId);
             } else {
                 //no winner (e.g. game lasted a fixed number of rounds)
                 //the game is over anyway, set "winner" field as marker
-                engine.persistentState.setStringValue("round_winner", "");
                 engine.persistentState.setStringValue("winner", "");
             }
         } else {
             engine.persistentState.remove("winner");
+        }
+    }
+
+    //called when a round winner is determined
+    private void onVictory(Team winner) {
+        //store winner of current round
+        if (winner) {
+            engine.persistentState.setStringValue("round_winner",
+                winner.uniqueId);
+        } else {
+            //draw
+            engine.persistentState.setStringValue("round_winner", "");
         }
     }
 

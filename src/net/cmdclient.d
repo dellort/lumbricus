@@ -287,9 +287,9 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     void gameKilled(ConfigNode persistentState) {
-        if (connected && mShell) {
+        mShell = null;
+        if (connected) {
             mPersistentState = persistentState;
-            mShell = null;
             sendEmpty(ClientPacket.gameTerminated);
         }
     }
@@ -442,6 +442,8 @@ class CmdNetClient : SimpleNetConnection {
                 break;
             case ServerPacket.gameStart:
                 //all players finished loading
+                if (!mShell)
+                    break;
                 auto p = unmarshal.read!(SPGameStart)();
                 doGameStart(p);
                 break;

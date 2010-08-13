@@ -1043,7 +1043,7 @@ class WwpWeaponDisplay : AniStateDisplay {
     private void setNormalAnim() {
         mPhase = Phase.Normal;
         mCurrent = mRequested;
-        auto ani = hasLowHp ? myclass.lowhp : myclass.normal;
+        auto ani = (hasLowHp && myclass.lowhp) ? myclass.lowhp : myclass.normal;
         //a weapon is selected, display it
         if (mCurrent) {
             mPhase = Phase.Get;
@@ -1138,6 +1138,10 @@ class WwpWeaponDisplay : AniStateDisplay {
             } else {
                 mPhase = Phase.Hold;
                 setAnimation(mCurrent.hold);
+                //maybe change weapon
+                //xxx visible skip, could also do unget() but takes longer
+                if (mCurrent !is mRequested)
+                    setNormalAnim();
             }
         } else if (mPhase == Phase.Normal) {
             //set idle animations
@@ -1245,7 +1249,8 @@ class WwpWeaponState : SequenceState {
         super(a_owner, node);
 
         normal = loadanim(node, "animation");
-        lowhp = loadanim(node, "lowhp_animation");
+        if (node["lowhp_animation"] != "")
+            lowhp = loadanim(node, "lowhp_animation");
 
         foreach (char[] key, char[] value; node.getSubNode("weapons")) {
             //this '+' thing is just to remind the user that value is a prefix

@@ -28,7 +28,7 @@ class LuaWeaponClass : WeaponClass {
     }
 
     override Shooter createShooter(Sprite go) {
-        return new LuaShooter(this, go, go.engine);
+        return new LuaShooter(this, go);
     }
 }
 
@@ -38,22 +38,16 @@ class LuaShooter : Shooter {
         bool mIsFixed, mIsDelayed;
     }
 
-    this(LuaWeaponClass base, Sprite a_owner, GameCore engine) {
-        super(base, a_owner, engine);
+    this(LuaWeaponClass base, Sprite a_owner) {
+        super(base, a_owner);
         myclass = base;
     }
 
-    override bool activity() {
-        return internal_active;
-    }
-
-    override protected void doFire(FireInfo info) {
-        //xxx although simulate() is unused, we need this for the activity check
-        internal_active = true;
+    override protected void doFire() {
         mIsFixed = false;
-        info.pos = owner.physics.pos;   //?
+        fireinfo.pos = owner.physics.pos;   //?
         if (myclass.onFire) {
-            myclass.onFire(this, info);
+            myclass.onFire(this, fireinfo);
         }
     }
 
@@ -70,14 +64,9 @@ class LuaShooter : Shooter {
         }
     }
 
-    override void interruptFiring() {
-        if (myclass.onInterrupt) {
+    override protected void onInterrupt() {
+        if (myclass.onInterrupt)
             myclass.onInterrupt(this);
-        } else {
-            finished();
-        }
-        //No! will be handled by finished()
-        //  super.interruptFiring(outOfAmmo);
     }
 
     override bool isFixed() {

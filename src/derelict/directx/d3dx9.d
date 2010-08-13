@@ -1289,6 +1289,11 @@ extern(Windows)
                         ) D3DXQuaternionRotationYawPitchRoll;
 
 	UINT function(D3DVERTEXELEMENT9 *pDecl, DWORD Stream ) D3DXGetDeclVertexSize;
+
+    HRESULT function(
+        IDirect3DDevice9   pDevice,
+        ID3DXLine*         ppLine) D3DXCreateLine;
+
 } // extern(Windows)
 
 D3DXMATRIX* D3DXMatrixIdentity( D3DXMATRIX *pOut )
@@ -1988,6 +1993,44 @@ interface ID3DXFileData : IUnknown
     HRESULT GetChild(size_t, ID3DXFileData*);
 }
 
+const GUID IID_ID3DXLine = DEFINE_GUID!(0xd379ba7f, 0x9042, 0x4ac4, 0x9f, 0x5e, 0x58, 0x19, 0x2a, 0x4c, 0x6b, 0xd8);
+
+interface ID3DXLine : IUnknown
+{
+	extern(Windows):
+
+    HRESULT GetDevice(IDirect3DDevice9* ppDevice);
+
+    HRESULT Begin();
+
+    HRESULT Draw(D3DXVECTOR2 *pVertexList,
+        DWORD dwVertexListCount, D3DCOLOR Color);
+
+    HRESULT DrawTransform(D3DXVECTOR3 *pVertexList,
+        DWORD dwVertexListCount, D3DXMATRIX* pTransform,
+        D3DCOLOR Color);
+
+    HRESULT SetPattern(DWORD dwPattern);
+    DWORD GetPattern();
+
+    HRESULT SetPatternScale(FLOAT fPatternScale);
+    FLOAT GetPatternScale();
+
+    HRESULT SetWidth(FLOAT fWidth);
+    FLOAT GetWidth();
+
+    HRESULT SetAntialias(BOOL bAntialias);
+    BOOL GetAntialias();
+
+    HRESULT SetGLLines(BOOL bGLLines);
+    BOOL GetGLLines();
+
+    HRESULT End();
+
+    HRESULT OnLostDevice();
+    HRESULT OnResetDevice();
+}
+
 extern(D):
 
 private void load(SharedLib lib) {
@@ -2049,6 +2092,7 @@ private void load(SharedLib lib) {
     *cast(void**)&D3DXMatrixDecompose = Derelict_GetProc(lib, "D3DXMatrixDecompose");
     *cast(void**)&D3DXQuaternionRotationYawPitchRoll = Derelict_GetProc(lib, "D3DXQuaternionRotationYawPitchRoll");
     *cast(void**)&D3DXGetDeclVertexSize = Derelict_GetProc(lib, "D3DXGetDeclVertexSize");
+    *cast(void**)&D3DXCreateLine = Derelict_GetProc(lib, "D3DXCreateLine");
 }
 
 GenericLoader DerelictD3DX9;

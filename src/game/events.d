@@ -2,6 +2,7 @@
 module game.events;
 
 import framework.lua;
+import utils.array;
 import utils.misc;
 import utils.mybox;
 
@@ -219,6 +220,11 @@ final class Events {
         e.handlers ~= a_handler;
     }
 
+    private void do_unreg_handler(char[] event, EventEntry a_handler) {
+        EventType e = get_event(event);
+        arrayRemove(e.handlers, a_handler, true);
+    }
+
     private static void handler_generic(ref EventEntry from, EventTarget sender,
         EventPtr params)
     {
@@ -347,6 +353,13 @@ class DeclareEvent(char[] name, SenderBase, Args...) {
         e.data.box!(Handler)(a_handler);
         e.handler = &handler_templated;
         base.do_reg_handler(name, typeid(ParamType), e);
+    }
+
+    static void remove_handler(Events base, Handler a_handler) {
+        EventEntry e;
+        e.data.box!(Handler)(a_handler);
+        e.handler = &handler_templated;
+        base.do_unreg_handler(name, e);
     }
 
     static void raise(SenderBase sender, Args args) {

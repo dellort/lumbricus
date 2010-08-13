@@ -106,17 +106,20 @@ class CmdNetServer {
         mState = newState;
         //only announce in lobby
         mAnnounce.active = (mState == CmdServerState.lobby);
-        if (mState == CmdServerState.playing) {
+        if (mState == CmdServerState.loading) {
+            foreach (cl; mClients) {
+                cl.gameTerminated = false;
+            }
+            mRecentDisconnects = null;
+        } else if (mState == CmdServerState.playing) {
             //initialize and start server time
             mGameTime.resetTime();
             mMasterTime.paused = false;
             mMasterTime.initTime();
             mTimeStamp = 0;
             foreach (cl; mClients) {
-                cl.gameTerminated = false;
                 cl.lastAckTS = 0;
             }
-            mRecentDisconnects = null;
         } else {
             mMasterTime.paused = true;
         }
@@ -231,8 +234,11 @@ class CmdNetServer {
         log.minor("Client from {} ({}) disconnected",
             client.address, client.playerName);
         //store id, to notify other players
-        if (mState == CmdServerState.playing && !client.gameTerminated)
+        if ((mState == CmdServerState.playing
+            || mState == CmdServerState.loading) && !client.gameTerminated)
+        {
             mRecentDisconnects ~= client.id;
+        }
         mClients.remove(client);
         mPlayerCount--;
         updateAnnounce();
@@ -369,6 +375,8 @@ class CmdNetServer {
         //when all clients are done, we can continue
         bool allDone = true;
         foreach (cl; mClients) {
+            if (cl.gameTerminated)
+                continue;
             //assemble load status info for update packet
             st.playerIds ~= cl.id;
             st.done ~= cl.loadDone;
@@ -396,8 +404,13 @@ class CmdNetServer {
     }
 
     private void gameTerminated(CmdNetClientConnection client) {
-        if (mState == CmdServerState.playing) {
+        if (mState == CmdServerState.playing
+            || mState == CmdServerState.loading)
+        {
             mRecentDisconnects ~= client.id;
+        }
+        if (mState == CmdServerState.loading) {
+            checkLoading();
         }
     }
 

@@ -26,7 +26,7 @@ static this() {
     gScripting.properties_ro!(WeaponClass, "name");
 
     gScripting.methods!(Shooter, "finished", "reduceAmmo");
-    gScripting.properties!(Shooter, "selector", "owner", "fireinfo");
+    gScripting.properties!(Shooter, "owner", "fireinfo");
     gScripting.func!(gameObjectFindShooter)();
 
     //------- specific weapons implemented in D
@@ -55,7 +55,8 @@ static this() {
 
     gScripting.ctor!(RopeClass, GameCore, char[]);
     gScripting.properties!(RopeClass, "shootSpeed", "maxLength", "moveSpeed",
-        "swingForce", "swingForceUp", "ropeColor", "ropeSegment", "anchorAnim");
+        "swingForce", "swingForceUp", "hitImpulse", "ropeColor", "ropeSegment",
+        "anchorAnim");
 
     gScripting.ctor!(NapalmSpriteClass, GameCore, char[]);
     gScripting.properties!(NapalmSpriteClass, "damage", "initialDelay",

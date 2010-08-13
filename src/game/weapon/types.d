@@ -42,7 +42,6 @@ struct FireMode {
     //  things to spawn (e.g. mad cow)
     int paramFrom; //minimal param chooseable
     int paramTo;   //maximal param
-    Time relaxtime = timeSecs(1);
 
     //return default value for weapon param
     int getParamDefault() {

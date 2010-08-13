@@ -4,6 +4,7 @@ import framework.framework;
 import common.animation;
 import common.resset;
 import common.scene;
+import game.controller;
 import game.core;
 import game.game;
 import game.sprite;
@@ -11,6 +12,7 @@ import game.weapon.weapon;
 import game.worm;
 import game.sequence;
 import game.temp : GameZOrder;
+import game.wcontrol;
 import physics.all;
 import utils.time;
 import utils.vector2;
@@ -23,11 +25,12 @@ import tango.math.IEEE : signbit;
 
 
 class RopeClass : WeaponClass {
-    int shootSpeed = 1000;     //speed when firing
-    int maxLength = 1000;      //max full rope length
-    int moveSpeed = 200;       //up/down speed along rope
-    int swingForce = 3000;     //force applied when rope points down
-    int swingForceUp = 1000;   //force when rope points up
+    float shootSpeed = 1000;     //speed when firing
+    float maxLength = 1000;      //max full rope length
+    float moveSpeed = 200;       //up/down speed along rope
+    float swingForce = 3000;     //force applied when rope points down
+    float swingForceUp = 1000;   //force when rope points up
+    float hitImpulse = 700;      //impulse when pushing away from a wall
     Color ropeColor = Color(1);
     Surface ropeSegment;
 
@@ -47,7 +50,7 @@ class RopeClass : WeaponClass {
     }
 }
 
-class Rope : Shooter {
+class Rope : Shooter, Controllable {
     private {
         static LogStruct!("rope") log;
         bool mUsed;
@@ -57,10 +60,11 @@ class Rope : Shooter {
         Vector2f mShootDir;
         Time mShootStart;
         Vector2f mMoveVec;
+        WormControl mMember;
         Vector2f mAnchorPosition;
         float mAnchorAngle;
         bool mSecondShot = false;
-        const cSecondShotVector = Vector2f(0, -1000);
+        bool mCanRefire;
 
         const cSegmentRadius = 3;
         //segments go from anchor to object
@@ -92,9 +96,11 @@ class Rope : Shooter {
     protected WormSprite mWorm;
 
     this(RopeClass base, WormSprite a_owner) {
-        super(base, a_owner, a_owner.engine);
+        super(base, a_owner);
         myclass = base;
         mWorm = a_owner;
+        auto controller = engine.singleton!(GameController)();
+        mMember = controller.controlFromGameObject(mWorm, false);
     }
 
     //check if rope anchor is still connected / can be connected
@@ -108,17 +114,12 @@ class Rope : Shooter {
         return false;
     }
 
-    bool activity() {
-        return internal_active;
-    }
-
     override bool canReadjust() {
         return false;
     }
 
-    override protected void doFire(FireInfo info) {
-        internal_active = true;
-        mShootDir = info.dir;
+    override protected void doFire() {
+        mShootDir = fireinfo.dir;
         shootRope();
     }
 
@@ -138,10 +139,6 @@ class Rope : Shooter {
             abortShoot();
             abortRope();
         } else if (mSecondShot) {
-            //velocity vector, rotated upwards, for next shot
-            //  (not sure what's better)
-            //Vector2f v = mWorm.physics.velocity;
-            //mShootDir = (v + cSecondShotVector).normal;
             if (mShooting) {
                 abortShoot();
                 abortRope();
@@ -155,9 +152,17 @@ class Rope : Shooter {
         return true;
     }
 
-    override void interruptFiring() {
-        if (internal_active) {
-            internal_active = false;
+    override protected void onWeaponActivate(bool active) {
+        if (active) {
+            OnSpriteImpact.handler(mWorm.instanceLocalEvents,
+                &onSpriteImpact_Worm);
+            OnDamage.handler(mWorm.instanceLocalEvents,
+                &onSpriteDamage_Worm);
+        } else {
+            OnSpriteImpact.remove_handler(mWorm.instanceLocalEvents,
+                &onSpriteImpact_Worm);
+            OnDamage.remove_handler(mWorm.instanceLocalEvents,
+                &onSpriteDamage_Worm);
             abortShoot();
             abortRope();
             mSecondShot = false;
@@ -190,12 +195,19 @@ class Rope : Shooter {
         if (mRender)
             mRender.removeThis();
         ropeSegments = null;
-        if (mWorm)
-            mWorm.activateRope(null);
+        wormRopeActivate(false);
     }
 
-    private void ropeMove(Vector2f mv) {
-        mMoveVec = mv;
+    private void wormRopeActivate(bool activate) {
+        mWorm.activateRope(activate);
+        if (activate) {
+            mMember.pushControllable(this);
+        } else {
+            mMember.releaseControllable(this);
+        }
+        mWorm.physics.doUnglue();
+        mWorm.physics.resetLook();
+        mCanRefire = true;
     }
 
     private void updateAnchorAnim(Vector2f pos, Vector2f toAnchor) {
@@ -223,6 +235,8 @@ class Rope : Shooter {
 
     override void simulate() {
         super.simulate();
+        if (!weaponActive)
+            return;
         Vector2f pstart = ropeOrigin(mWorm.physics.pos);
         if (mShooting) {
             float t = (engine.gameTime.current - mShootStart).secsf;
@@ -253,7 +267,7 @@ class Rope : Shooter {
                     mRope = new PhysicConstraint(mWorm.physics, hit1, ropeLen,
                         0.8, false);
                     engine.physicWorld.add(mRope);
-                    mWorm.activateRope(&ropeMove);
+                    wormRopeActivate(true);
                 } else {
                     interruptFiring();
                 }
@@ -261,7 +275,7 @@ class Rope : Shooter {
         }
 
         if (!mRope) {
-            if (mSecondShot && !mWorm.ropeCanRefire) {
+            if (mSecondShot && !mCanRefire) {
                 interruptFiring();
             }
             return;
@@ -381,6 +395,28 @@ class Rope : Shooter {
             interruptFiring();
     }
 
+    private void onSpriteImpact_Worm(Sprite sender, PhysicObject other,
+        Vector2f normal)
+    {
+        if (sender is mWorm) {
+            //when hitting landscape while arrow key held down, push away
+            if (mRope && other && other.isStatic && mMoveVec.x != 0) {
+                mWorm.physics.addImpulse(normal * myclass.hitImpulse);
+            }
+            //no refire when hit
+            mCanRefire = false;
+        }
+    }
+
+    private void onSpriteDamage_Worm(Sprite sender, GameObject cause,
+        DamageCause dmgType, float damage)
+    {
+        if (sender is mWorm) {
+            //no refire when damaged
+            mCanRefire = false;
+        }
+    }
+
     private void draw(Canvas c) {
         Vector2f wormPos = ropeOrigin(
             toVector2f(mWorm.graphic.interpolated_position));
@@ -417,6 +453,27 @@ class Rope : Shooter {
         myclass.anchorAnim.draw(c, toVector2i(anchorPos), ap,
             mShootStart);
     }
+
+    //Controllable implementation -->
+
+    bool fire(bool keyDown) {
+        return false;
+    }
+
+    bool jump(JumpMode j) {
+        return false;
+    }
+
+    bool move(Vector2f m) {
+        mMoveVec = m;
+        return true;
+    }
+
+    Sprite getSprite() {
+        return mWorm;
+    }
+
+    //<-- Controllable end
 }
 
 class RenderRope : SceneObject {

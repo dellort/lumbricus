@@ -13,7 +13,6 @@ setProperties(sprite_class, {
         Vector2(0, -3000),  -- straightUp
     },
     rollVelocity = 400,
-    ropeImpulse = 700,
     sequenceType = sequence_object,
 })
 

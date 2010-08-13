@@ -50,7 +50,7 @@ class Jetpack : Shooter, Controllable {
     }
 
     this(JetpackClass base, WormSprite a_owner) {
-        super(base, a_owner, a_owner.engine);
+        super(base, a_owner);
         mWorm = a_owner;
         myclass = base;
         auto controller = engine.singleton!(GameController)();
@@ -61,38 +61,31 @@ class Jetpack : Shooter, Controllable {
         return false;
     }
 
-    bool activity() {
-        return internal_active;
-    }
-
-    override protected void doFire(FireInfo info) {
+    override protected void doFire() {
         reduceAmmo();
-        mWorm.activateJetpack(true);
-        internal_active = true;
     }
 
     override protected bool doRefire() {
         //second fire: deactivate jetpack again
-        mWorm.activateJetpack(false);
         if (myclass.stopOnDisable) {
             //stop x movement
             mWorm.physics.addImpulse(-mWorm.physics.velocity.X
                 * mWorm.physics.posp.mass);
         }
-        internal_active = false;
         finished();
         return true;
     }
 
-    override protected void updateInternalActive() {
-        super.updateInternalActive();
-        if (internal_active) {
+    override protected void onWeaponActivate(bool active) {
+        if (active) {
+            mWorm.activateJetpack(true);
             mMember.pushControllable(this);
         } else {
+            mWorm.activateJetpack(false);
             mMember.releaseControllable(this);
             mWorm.physics.selfForce = Vector2f(0);
         }
-        if (internal_active && myclass.maxTime != Time.Never) {
+        if (active && myclass.maxTime != Time.Never) {
             assert(!!mWorm.graphic);
             mTimeLabel = WormLabels.textCreate();
             mWorm.graphic.attachText = mTimeLabel;
@@ -106,13 +99,12 @@ class Jetpack : Shooter, Controllable {
 
     override void simulate() {
         super.simulate();
+        if (!weaponActive)
+            return;
         //if it was used but it's not active anymore => die
         if (!mWorm.jetpackActivated()
             || mJetTimeUsed > myclass.maxTime.secsf)
         {
-            mWorm.activateJetpack(false);
-            mWorm.physics.selfForce = Vector2f(0);
-            internal_active = false;
             finished();
             return;
         }

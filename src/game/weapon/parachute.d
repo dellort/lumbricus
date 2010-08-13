@@ -39,61 +39,78 @@ class Parachute : Shooter, Controllable {
         WormSprite mWorm;
         Vector2f mMoveVector;
         WormControl mMember;
+        float mTriggerVel;
     }
 
     this(ParachuteClass base, WormSprite a_owner) {
-        super(base, a_owner, a_owner.engine);
+        super(base, a_owner);
         mWorm = a_owner;
         myclass = base;
         auto controller = engine.singleton!(GameController)();
         mMember = controller.controlFromGameObject(mWorm, false);
+        auto wsc = castStrict!(WormSpriteClass)(mWorm.type);
+        mTriggerVel = wsc.rollVelocity*0.8f;
     }
 
     override bool delayedAction() {
         return false;
     }
 
-    bool activity() {
-        return internal_active;
-    }
-
-    override protected void doFire(FireInfo info) {
+    override protected void doFire() {
         reduceAmmo();
-        mWorm.activateParachute(true);
-        internal_active = true;
     }
 
     override protected bool doRefire() {
-        mWorm.activateParachute(false);
-        internal_active = false;
         finished();
         return true;
     }
 
-    override protected void updateInternalActive() {
-        super.updateInternalActive();
-        if (internal_active) {
+    override protected void onWeaponActivate(bool active) {
+        mWorm.activateParachute(active);
+        if (active) {
             mMember.pushControllable(this);
+            OnSpriteImpact.handler(mWorm.instanceLocalEvents,
+                &onSpriteImpact_Worm);
         } else {
             mMember.releaseControllable(this);
             mWorm.physics.selfForce = Vector2f(0);
+            OnSpriteImpact.remove_handler(mWorm.instanceLocalEvents,
+                &onSpriteImpact_Worm);
         }
     }
 
     override void simulate() {
         super.simulate();
 
-        if (!mWorm.parachuteActivated()) {
-            internal_active = false;
+        //trigger when the worm is flying fast enough
+        if (currentState == WeaponState.idle && !isSelected
+            && mWorm.currentState.name == "fly"
+            && mWorm.physics.velocity.y >= mTriggerVel)
+        {
+            setState(WeaponState.idle);
+            startFire();
+        }
+
+        if (!weaponActive)
+            return;
+
+        if (!mWorm.parachuteActivated() || mWorm.physics.isGlued) {
             finished();
             return;
         }
 
+        //slight control with arrow keys
         float force = mMoveVector.x * myclass.sideForce;
         mWorm.physics.selfForce = Vector2f(force, 0);
+    }
 
-        if (mWorm.physics.isGlued)
-            internal_active = false;
+    private void onSpriteImpact_Worm(Sprite sender, PhysicObject other,
+        Vector2f normal)
+    {
+        //abort parachute when the worm hit something
+        if (sender is mWorm) {
+            finished();
+        }
     }
 
     //Controllable implementation -->

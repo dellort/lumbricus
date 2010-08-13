@@ -117,7 +117,7 @@ rope.d for ropes, ropeCanFire, and updateAnimation
 //user input is directly (after command parsing) fed to this class
 //NOTE: this should work with other object types too (not only worms), so that
 //      the engine can do more stuff than just... worms
-class WormControl : WormController {
+class WormControl : WeaponController {
     private {
         GameCore mEngine;
         //Sprite mWorm;    //never null
@@ -147,6 +147,8 @@ class WormControl : WormController {
         Animator mCurrentTargetInd;
         WeaponTarget mCurrentTarget;
         bool mTargetIsSet;
+        int mWeaponParam;
+        Shooter[] mWeapons;
 
         bool delegate(Canvas, Vector2i) mMouseRender;
     }
@@ -161,6 +163,7 @@ class WormControl : WormController {
         //set feedback interface to this class
         mWorm.wcontrol = this;
         OnSpriteDie.handler(mWorm.instanceLocalEvents, &onSpriteDie);
+        OnDamage.handler(mWorm.instanceLocalEvents, &onSpriteDamage);
         //init keyboard input
         mInput = new InputGroup();
         auto i = mInput;
@@ -216,7 +219,7 @@ class WormControl : WormController {
         if (!isControllable || mLimitedMode)
             return false;
 
-        mWorm.setWeaponParam(p);
+        mWeaponParam = p;
         return true;
     }
 
@@ -227,22 +230,13 @@ class WormControl : WormController {
 
     private bool inpSelRefire(char[] m, bool down) {
         WeaponClass wc = findWeapon(m);
-        selectFireRefire(wc, down);
+        selectFireRefire(wc, down, false);
         return true;
     }
 
     private bool inpSelFire(char[] m, bool down) {
-        if (down) {
-            WeaponClass wc;
-            if (m != "-")
-                wc = findWeapon(m);
-            selectWeapon(wc);
-            //doFireDown will save the keypress and wait if not ready
-            doFireDown(true);
-        } else {
-            //key was released (like fire behavior)
-            doFireUp();
-        }
+        WeaponClass wc = findWeapon(m);
+        selectFireRefire(wc, down, true);
         return true;
     }
 
@@ -260,6 +254,13 @@ class WormControl : WormController {
     private void onSpriteDie(Sprite sender) {
         if (sender is mWorm)
             mWorm.killVeto(this);
+    }
+
+    private void onSpriteDamage(Sprite sender, GameObject cause,
+        DamageCause dmgType, float damage)
+    {
+        if (sender is mWorm && engaged)
+            forceAbort(false);
     }
 
     //sets list of available weapons (by reference)
@@ -353,6 +354,7 @@ class WormControl : WormController {
             //    mCurrentWeapon = mTeam.defaultWeapon;
             selectWeapon(mCurrentWeapon);
             inputEnabled = true;
+            mWorm.isFixed = false;
         } else {
             //being deactivated
             inputEnabled = false;
@@ -366,8 +368,7 @@ class WormControl : WormController {
 
             //stop all action when turn ends
             setEquipment(null);
-            mWorm.forceAbort();
-            mWorm.weapon = null;
+            forceAbort();
 
             setPointMode(PointMode.none);
             mTargetIsSet = false;
@@ -438,6 +439,26 @@ class WormControl : WormController {
         updateWeapon();
     }
 
+    private bool prepareSelect(WeaponClass weapon) {
+        //set as new main
+        if (mWeapons.length == 0)
+            return true;
+        if (mWeapons[$-1].isIdle && mWeapons[$-1].weapon !is weapon) {
+            if (mWeapons.length == 2 && weapon.allowSecondary)
+                return false;
+            //replace current main / secondary
+            unselectWeapon(mWeapons.length - 1);
+            return true;
+        }
+        if (mWeapons.length == 1 && mWeapons[0].weapon.allowSecondary && weapon
+            && !weapon.allowSecondary)
+        {
+            //add as secondary
+            return true;
+        }
+        return false;
+    }
+
     //update weapon state of current worm (when new weapon selected)
     private void updateWeapon() {
         if (!mEngaged || !isAlive())
@@ -448,7 +469,12 @@ class WormControl : WormController {
         if (!canUseWeapon(mCurrentWeapon) || mLimitedMode)
             selected = null;
 
-        mWorm.weapon = selected;
+        if (prepareSelect(selected) && selected) {
+            auto sh = selected.createShooter(mWorm);
+            sh.setControl(this);
+            sh.isSelected = true;
+            mWeapons ~= sh;
+        }
     }
 
     private bool controllableFire(bool keyDown) {
@@ -471,23 +497,27 @@ class WormControl : WormController {
         return ret;
     }
 
-    void selectFireRefire(WeaponClass wc, bool keyDown) {
+    private void selectFireRefire(WeaponClass wc, bool keyDown,
+        bool instantFire)
+    {
         if (!isControllable)
             return;
 
-        if (mWorm.altWeapon is wc) {
-            if (keyDown) {
-                mWorm.fireAlternate();
+        if (keyDown) {
+            if (allowAlternate && mWeapons[0].weapon is wc) {
+                doAlternateFire();
+            } else {
+                instantFire = instantFire || mCurrentWeapon is wc;
+                selectWeapon(wc);
+                if (instantFire) {
+                    //doFireDown will save the keypress and wait if not ready
+                    doFireDown(true);
+                }
             }
-        } else if (mWorm.wouldFire(false) is wc) {
-            if (keyDown)
-                doFireDown(true);
-            else
-                doFireUp();
         } else {
-            selectWeapon(wc);
+            //key was released (like fire behavior)
+            doFireUp();
         }
-        wormAction();
     }
 
     bool doFireDown(bool forceSelected = false) {
@@ -497,14 +527,8 @@ class WormControl : WormController {
         bool success = true;
         if (!controllableFire(true)) {
             success = false;
-            if (mWorm.allowAlternate && !forceSelected && !mAlternateControl) {
-                //non-alternate (worms-like) control -> spacebar disables
-                //background weapon if possible (like jetpack)
-                success = mWorm.fireAlternate();
-            } else if (checkPointMode()
-                && !mWeaponSet.coolingDown(mWorm.wouldFire))
-            {
-                success = mWorm.fire(false, forceSelected);
+            if (checkPointMode() && mWeapons.length > 0) {
+                success = mWeapons[$-1].startFire();
             }
             //don't forget a keypress that had no effect
             mFireDown = !success;
@@ -519,8 +543,11 @@ class WormControl : WormController {
         if (!isControllable)
             return;
 
-        if (controllableFire(false) || mWorm.fire(true)) {
+        if (controllableFire(false)) {
             wormAction();
+        } else if (mWeapons.length > 0) {
+            if (mWeapons[$-1].startFire(true))
+                wormAction();
         }
     }
 
@@ -531,26 +558,38 @@ class WormControl : WormController {
 
         bool success = false;
 
-        if (mAlternateControl) {
-            //alternate (new-lumbricus) control: alternate-fire button (return)
-            //refires background weapon (like jetpack-deactivation)
-            if (mWorm.allowAlternate())
-            {
-                mWorm.fireAlternate();
-                success = true;
-            }
-        } else {
-            //worms-like: alternate-fire button (return) fires selected
-            //weapon if in secondary mode
-            if (mWorm.allowFireSecondary() && checkPointMode()
-                && !mWeaponSet.coolingDown(mWorm.wouldFire))
-            {
-                success = mWorm.fire();
-            }
+        if (allowAlternate) {
+            mWeapons[0].startFire();
         }
         if (success)
             wormAction();
         return success;
+    }
+
+    private bool allowAlternate() {
+        return mWeapons.length > 0 && !mWeapons[0].isIdle
+            && mWeapons[0].weapon.allowSecondary;
+    }
+
+    private void unselectWeapon(int idx) {
+        if (mWeapons.length > idx) {
+            mWeapons[idx].interruptFiring(true);
+            arrayRemoveN(mWeapons, idx);
+        }
+    }
+
+    private void unselectWeapon(Shooter sh) {
+        if (mWeapons.length > 0) {
+            sh.interruptFiring(true);
+            arrayRemove(mWeapons, sh);
+        }
+    }
+
+    private void checkWeaponStack() {
+        //main finished while secondary present
+        if (mWeapons.length == 2 && mWeapons[0].isIdle()) {
+            unselectWeapon(0);
+        }
     }
 
     // Start WormController implementation (see game.worm) -->
@@ -559,30 +598,51 @@ class WormControl : WormController {
         return mCurrentTarget;
     }
 
-    bool reduceAmmo(Shooter sh) {
-        mWeaponSet.decreaseWeapon(sh.weapon);
+    int getWeaponParam() {
+        return mWeaponParam;
+    }
+
+    bool reduceAmmo(WeaponClass weapon) {
+        mWeaponSet.decreaseWeapon(weapon);
         //mTeam.parent.updateWeaponStats(this);
-        return canUseWeapon(sh.weapon);
+        return canUseWeapon(weapon);
         //xxx select next weapon when current is empty... oh sigh
         //xxx also, select current weapon if we still have one, but weapon is
         //    undrawn! (???)
     }
 
-    void firedWeapon(Shooter sh, bool refire) {
-        assert(!!sh);
+    void firedWeapon(WeaponClass weapon, bool refire) {
+        assert(!!weapon);
         //for cooldown
-        mWeaponSet.firedWeapon(sh.weapon);
-        OnFireWeapon.raise(sh, refire);
+        mWeaponSet.firedWeapon(weapon);
+        OnFireWeapon.raise(weapon, refire);
     }
 
     void doneFiring(Shooter sh) {
         if (!sh.weapon.dontEndRound)
             mWeaponUsed = true;
-        if ((sh.weapon.deselectAfterFire && mWorm.requestedWeapon is sh.weapon)
+        //out of ammo
+        if (!canUseWeapon(sh.weapon)) {
+            unselectWeapon(sh);
+        }
+        checkWeaponStack();
+        if ((sh.weapon.deselectAfterFire && mCurrentWeapon is sh.weapon)
             || !canUseWeapon(sh.weapon))
         {
             selectWeapon(null);
         }
+        updateWeapon();
+    }
+
+    //for the hud
+    WeaponClass weaponForIcon() {
+        //icon if main weapon fails to display, or there is a secondary weapon
+        if (mWeapons.length == 1 && !mWeapons[$-1].animationOK) {
+            return mWeapons[0].weapon;
+        } else if (mWeapons.length == 2) {
+            return mWeapons[1].weapon;
+        }
+        return null;
     }
 
     // <-- End WormController
@@ -634,8 +694,14 @@ class WormControl : WormController {
         wormAction();
 
         mMoveVector = vec;
-        if (!controllableMove(vec))
+        if (!controllableMove(vec)) {
             mWorm.move(vec);
+            if (mWeapons.length > 0) {
+                //screen to math
+                mWeapons[0].move(-mMoveVector.y);
+                mWeapons[0].isSelected = mWorm.currentState.canFire;
+            }
+        }
     }
 
     bool isIdle() {
@@ -660,15 +726,6 @@ class WormControl : WormController {
         if (!mEngaged)
             return;
 
-        if (mWorm.wouldFire !is mWormLastWeapon) {
-            mWormLastWeapon = mWorm.wouldFire;
-            if (mWormLastWeapon) {
-                setPointMode(mWormLastWeapon.fireMode.point);
-            } else {
-                setPointMode(PointMode.none);
-            }
-        }
-
         //check if fire button is being held down, waiting for right state
         if (mFireDown)
             doFireDown();
@@ -684,6 +741,11 @@ class WormControl : WormController {
         if (mMoveVector != Vector2f(0)) {
             wormAction();
         }
+
+        if (mWeapons.length > 0 && mWorm) {
+            mWorm.isFixed = mWeapons[0].isFixed;
+            mWeapons[0].isSelected = mWorm.currentState.canFire;
+        }
     }
 
     void youWinNow() {
@@ -693,11 +755,21 @@ class WormControl : WormController {
     //check for any activity that might justify control beyond end-of-turn
     //e.g. still charging a weapon, still firing a multi-shot weapon
     bool delayedAction() {
-        return mWorm.delayedAction;
+        bool res = mWorm.delayedAction;
+        foreach (ref sh; mWeapons) {
+            res |= sh.delayedAction;
+        }
+        return res;
     }
 
-    void forceAbort() {
+    void forceAbort(bool unselect = true) {
         //forced stop of all action (like when being damaged)
+        foreach (ref sh; mWeapons) {
+            sh.interruptFiring(unselect);
+        }
+        checkWeaponStack();
+        if (unselect)
+            mWeapons = null;
         mWorm.forceAbort();
     }
 
@@ -761,7 +833,7 @@ class WormControl : WormController {
         return mPointMode;
     }
     //note: also clears the target indicator
-    private void setPointMode(PointMode mode) {
+    void setPointMode(PointMode mode) {
         if (mPointMode == mode)
             return;
         mPointMode = mode;

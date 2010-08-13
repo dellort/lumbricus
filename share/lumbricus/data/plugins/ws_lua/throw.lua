@@ -208,7 +208,6 @@ do
             throwStrengthTo = 1200,
             paramFrom = 1,
             paramTo = 5,
-            relaxtime = timeSecs(1),
         }
     }
     enableSpriteCrateBlowup(w, sprite_class)
@@ -300,7 +299,6 @@ do
             variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
-            relaxtime = timeSecs(1)
         }
     }
     enableSpriteCrateBlowup(w, sprite_class)
