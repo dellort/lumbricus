@@ -26,7 +26,7 @@ static this() {
     gScripting.properties_ro!(WeaponClass, "name");
 
     gScripting.methods!(Shooter, "finished", "reduceAmmo");
-    gScripting.properties!(Shooter, "owner", "fireinfo");
+    gScripting.properties!(Shooter, "owner", "fireinfo", "selector");
     gScripting.func!(gameObjectFindShooter)();
 
     //------- specific weapons implemented in D

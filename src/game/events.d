@@ -104,6 +104,7 @@ private class EventType {
     char[] name;
     TypeInfo paramtype;
     EventEntry[] handlers;
+    EventEntry[] unreg_list;
 
     this() {}
 }
@@ -143,6 +144,8 @@ final class Events {
 
         //also a hack, referenced by DeclareGlobalEvent
         EventTarget mGlobalEvents;
+        //another hack
+        bool mLazyRemove;
     }
 
     this(Events parent = null) {
@@ -222,7 +225,12 @@ final class Events {
 
     private void do_unreg_handler(char[] event, EventEntry a_handler) {
         EventType e = get_event(event);
-        arrayRemove(e.handlers, a_handler, true);
+        if (mLazyRemove) {
+            //unreg called from raise(), remove later
+            e.unreg_list ~= a_handler;
+        } else {
+            arrayRemove(e.handlers, a_handler, true);
+        }
     }
 
     private static void handler_generic(ref EventEntry from, EventTarget sender,
@@ -250,9 +258,15 @@ final class Events {
         EventType e = eventID < mEvents.length ? mEvents[eventID] : null;
         //if e doesn't exist, there can't be an event handler anyway
         if (e) {
+            mLazyRemove = true;
             foreach (ref h; e.handlers) {
                 h.handler(h, sender, params);
             }
+            foreach (ref h; e.unreg_list) {
+                arrayRemove(e.handlers, h, true);
+            }
+            e.unreg_list = null;
+            mLazyRemove = false;
         }
     }
 }

@@ -87,8 +87,7 @@ class Parachute : Shooter, Controllable {
             && mWorm.currentState.name == "fly"
             && mWorm.physics.velocity.y >= mTriggerVel)
         {
-            setState(WeaponState.idle);
-            startFire();
+            instantFireInternal();
         }
 
         if (!weaponActive)

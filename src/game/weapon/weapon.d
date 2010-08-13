@@ -225,11 +225,6 @@ abstract class Shooter : GameObject {
         bool mRegularFinish;
         WeaponState mState;
 
-        //if non-null, what was created by WeaponClass.createSelector()
-        //xxx created in the ctor, the difference between shooter and selector
-        //    is now a bit ... fuzzy
-        WeaponSelector mSelector;
-
         const Time cWeaponLoadTime = timeMsecs(1500);
    }
     protected {
@@ -245,6 +240,11 @@ abstract class Shooter : GameObject {
     //valid at first doFire call, updated on readjust
     FireInfo fireinfo;
 
+    //if non-null, what was created by WeaponClass.createSelector()
+    //xxx created in the ctor, the difference between shooter and selector
+    //    is now a bit ... fuzzy
+    WeaponSelector selector;
+
     protected this(WeaponClass base, Sprite a_owner) {
         assert(!!a_owner);
         assert(!!base);
@@ -252,7 +252,7 @@ abstract class Shooter : GameObject {
         mClass = base;
         owner = a_owner;
         createdBy = a_owner;
-        mSelector = weapon.createSelector(owner);
+        selector = weapon.createSelector(owner);
         mLastStateChange = engine.gameTime.current;
         internal_active = true;
     }
@@ -319,6 +319,16 @@ abstract class Shooter : GameObject {
             return initiateFire();
         }
         return false;
+    }
+
+    //hack for parachute, to fire while weapon is not selected
+    //xxx could also add a flag that allows firing in air or something
+    final protected bool instantFireInternal() {
+        if (mState != WeaponState.idle)
+            return false;
+        //fire instantly with default strength
+        fireinfo.strength = weapon.fireMode.throwStrengthFrom;
+        return initiateFire();
     }
 
     //get weapon specific interface to animation code - may return null
@@ -509,8 +519,8 @@ abstract class Shooter : GameObject {
         else
             fireinfo.pointto = owner.physics.pos;
 
-        if (mSelector) {
-            if (!mSelector.canFire(fireinfo))
+        if (selector) {
+            if (!selector.canFire(fireinfo))
                 return false;
         }
 
@@ -585,8 +595,8 @@ abstract class Shooter : GameObject {
     //      mIsSelected) may have changed
     protected void onStateChange(WeaponState oldState) {
         updateCrosshair();
-        if (mSelector) {
-            mSelector.isSelected = (mState == WeaponState.idle && mIsSelected);
+        if (selector) {
+            selector.isSelected = (mState == WeaponState.idle && mIsSelected);
         }
         if (mState != oldState && oldState == WeaponState.fire) {
             if (auto wani = weaponAniState()) {
@@ -615,7 +625,6 @@ abstract class Shooter : GameObject {
 
     private void updateAnimation() {
         if (auto wani = weaponAniState()) {
-            Trace.formatln("updateAnimation({}) ok", weapon.name);
             mQueueAnimUpdate = false;
             if (mIsSelected) {
                 char[] w = weapon.animation;
@@ -629,7 +638,6 @@ abstract class Shooter : GameObject {
                 wani.weapon = "";
             }
         } else {
-            Trace.formatln("updateAnimation({}) queued", weapon.name);
             //update was required, but could not be processed (maybe
             //  wrong worm state) -> queue for later
             mQueueAnimUpdate = true;
