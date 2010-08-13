@@ -79,6 +79,6 @@ class LuaShooter : Shooter {
 
     //xxx I don't know if it's always correct to link this to isFixed
     override bool delayedAction() {
-        return activity && mIsDelayed;
+        return activity && (currentState != WeaponState.fire || mIsDelayed);
     }
 }
