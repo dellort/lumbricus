@@ -555,6 +555,11 @@ abstract class Shooter : GameObject {
         return true;
     }
 
+    override protected void onKill() {
+        super.onKill();
+        interruptFiring(true);
+    }
+
     //called to notify that the weapon should stop all activity (and cannot
     //  be fired again); will not call finished()
     //implementers: override onWeaponActivate instead

@@ -573,14 +573,14 @@ class WormControl : WeaponController {
 
     private void unselectWeapon(int idx) {
         if (mWeapons.length > idx) {
-            mWeapons[idx].interruptFiring(true);
+            mWeapons[idx].kill();
             arrayRemoveN(mWeapons, idx);
         }
     }
 
     private void unselectWeapon(Shooter sh) {
-        if (mWeapons.length > 0) {
-            sh.interruptFiring(true);
+        if (mWeapons.length > 0 && sh) {
+            sh.kill();
             arrayRemove(mWeapons, sh);
         }
     }
@@ -764,12 +764,16 @@ class WormControl : WeaponController {
 
     void forceAbort(bool unselect = true) {
         //forced stop of all action (like when being damaged)
-        foreach (ref sh; mWeapons) {
-            sh.interruptFiring(unselect);
+        if (unselect) {
+            for (int i = 0; i < mWeapons.length; i++) {
+                unselectWeapon(i);
+            }
+        } else {
+            foreach (ref sh; mWeapons) {
+                sh.interruptFiring(false);
+            }
+            checkWeaponStack();
         }
-        checkWeaponStack();
-        if (unselect)
-            mWeapons = null;
         mWorm.forceAbort();
     }
 
