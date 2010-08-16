@@ -147,7 +147,7 @@ class Rope : Shooter, Controllable {
         } else {
             //hit button while rope is still flying
             //xxx maybe not
-            interruptFiring();
+            finished();
         }
         return true;
     }
@@ -202,11 +202,11 @@ class Rope : Shooter, Controllable {
         mWorm.activateRope(activate);
         if (activate) {
             mMember.pushControllable(this);
+            mWorm.physics.doUnglue();
+            mWorm.physics.resetLook();
         } else {
             mMember.releaseControllable(this);
         }
-        mWorm.physics.doUnglue();
-        mWorm.physics.resetLook();
         mCanRefire = true;
     }
 
@@ -244,7 +244,7 @@ class Rope : Shooter, Controllable {
             updateAnchorAnim(p2, mShootDir);
             float len = (pstart-p2).length;
             if (len > myclass.maxLength) {
-                interruptFiring();
+                finished();
                 return;
             }
 
@@ -269,19 +269,19 @@ class Rope : Shooter, Controllable {
                     engine.physicWorld.add(mRope);
                     wormRopeActivate(true);
                 } else {
-                    interruptFiring();
+                    finished();
                 }
             }
         }
 
         if (!mRope) {
             if (mSecondShot && !mCanRefire) {
-                interruptFiring();
+                finished();
             }
             return;
         }
         if (!mWorm.ropeActivated()) {
-            interruptFiring();
+            finished();
             return;
         }
 
@@ -392,7 +392,7 @@ class Rope : Shooter, Controllable {
             - ropeSegments[0].end);
 
         if (!checkRopeAnchor(ropeSegments[0].start))
-            interruptFiring();
+            finished();
     }
 
     private void onSpriteImpact_Worm(Sprite sender, PhysicObject other,

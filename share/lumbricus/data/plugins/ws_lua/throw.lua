@@ -69,26 +69,42 @@ do
     end
     local main = createSprite("main")
     local shard = createSprite("shard")
+    
+    -- explode the main sprite
+    local function blowmain(sender)
+        spriteExplode(sender, 75)
+        spawnCluster(shard, sender, 5, 300, 400, 40)
+    end
+    local function blowshard(sender)
+        spriteExplode(sender, 75)
+    end
+
+    -- some safeguards to keep the game flowing (8s main, 4s shards)
+    enableSpriteTimer(main, {
+        showDisplay = true,
+        useUserTimer = false,
+        defTimer = time(8),
+        callback = blowmain
+    })
+    enableSpriteTimer(shard, {
+        showDisplay = false,
+        useUserTimer = false,
+        defTimer = time(4),
+        callback = blowshard
+    })
 
     local function dorefire(shooter)
         local ctx = get_context(shooter)
         assert(ctx)
-        local timer = ctx.timer
-        timer:cancel()
-        if ctx.phase1 then
-            -- explode the main sprite
-            spriteExplode(ctx.main, 75)
-            spawnCluster(shard, ctx.main, 5, 300, 400, 40)
-            -- after that time, let shards explode in phase 1
-            ctx.timer:start(time(4))
-            ctx.phase1 = false
+        if table_empty(ctx.sprites) then
+            blowmain(ctx.main)
         else
             assert(ctx.sprites)
             for s, _ in pairs(ctx.sprites) do
                 -- spriteExplode will trigger die event, which will remove the
                 --  sprite from the array... that's allowed
                 if not spriteIsGone(s) then
-                    spriteExplode(s, 75)
+                    blowshard(s)
                 end
             end
         end
@@ -99,7 +115,10 @@ do
     addSpriteClassEvent(main, "sprite_waterstate", function(sender)
         if Sprite_isUnderWater(sender) then
             local shooter = gameObjectFindShooter(sender)
-            get_context(shooter).timer:cancel()
+            -- no need for a finished call then
+            if not GameObject_objectAlive(shooter) then
+                return
+            end
             Shooter_finished(shooter)
         end
     end)
@@ -107,6 +126,10 @@ do
     local function subsprite_status(sprite, status)
         local shooter = gameObjectFindShooter(sprite)
         assert(shooter)
+        -- no need for a finished call then
+        if not GameObject_objectAlive(shooter) then
+            return
+        end
         local sprites = get_context(shooter).sprites
         sprites[sprite] = status
         -- reconsider refire status; no sprites left => no refire
@@ -130,7 +153,12 @@ do
         subsprite_status(sender, true)
     end)
     addSpriteClassEvent(shard, "sprite_die", function(sender)
-        subsprite_status(sender, nil)
+        -- if unterwater, event below has been called before; don't call again
+        -- (else there may be weird corner cases where the calls from 2
+        --  subsequent fires overlap and cause mayhem)
+        if not Sprite_isUnderWater(sender) then
+            subsprite_status(sender, nil)
+        end
     end)
     addSpriteClassEvent(shard, "sprite_waterstate", function(sender)
         if Sprite_isUnderWater(sender) then
@@ -145,12 +173,7 @@ do
             --Shooter_finished(shooter)
             local ctx = get_context(shooter)
             ctx.sprites = {}
-            ctx.phase1 = true
-            ctx.timer = addTimer(time(8), function()
-                dorefire(shooter)
-            end)
             ctx.main = spawnFromFireInfo(main, shooter, info)
-            addCountdownDisplay(ctx.main, ctx.timer, 5, 2)
             emitShooterParticle("p_throw_fire", shooter)
         end,
         onRefire = dorefire,

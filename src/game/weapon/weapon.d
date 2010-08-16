@@ -174,8 +174,13 @@ interface WeaponController {
     //returns true if there is more ammo left
     bool reduceAmmo(WeaponClass weapon);
 
+    //called directly after a shot started firing (checks passed)
+    //used for statistics and cooldowns
     void firedWeapon(WeaponClass weapon, bool refire);
 
+    //called some time after startFire() has been called, notifying the weapon
+    //  has stopped all activities
+    //xxx add bool success?
     void doneFiring(Shooter sh);
 
     void setPointMode(PointMode mode);
@@ -271,6 +276,8 @@ abstract class Shooter : GameObject {
     }
 
     //call to report firing ended, to ready the weapon for the next shot
+    //implementations should always call this if they want to stop activity
+    //  (either successful or cancelled)
     final void finished() {
         if (mState != WeaponState.fire)
             return;
@@ -294,17 +301,16 @@ abstract class Shooter : GameObject {
             return initiateFire();
         } else if (mState == WeaponState.idle && mIsSelected && !keyUp) {
             //start firing
-            log.trace("fire fixed strength");
-
-            //start firing
             if (weapon.fireMode.variableThrowStrength) {
                 //charge up fire strength
+                log.trace("start charge");
                 setState(WeaponState.charge);
                 //"true" just means the keypress was taken; we don't know about
                 //  firing success here
                 return true;
             } else {
                 //fire instantly with default strength
+                log.trace("fire fixed strength");
                 fireinfo.strength = weapon.fireMode.throwStrengthFrom;
                 return initiateFire();
             }
@@ -562,8 +568,11 @@ abstract class Shooter : GameObject {
 
     //called to notify that the weapon should stop all activity (and cannot
     //  be fired again); will not call finished()
+    //interface function; should be avoided in weapon implementations because
+    //  it does not notify wcontrol (use finished instead)
     //implementers: override onWeaponActivate instead
     final void interruptFiring(bool unselect = false) {
+        log.trace("interruptFiring");
         isSelected = isSelected && !unselect;
         setState(WeaponState.idle);
     }
