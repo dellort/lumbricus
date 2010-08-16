@@ -22,6 +22,56 @@ local function enableSheepJumping(sprite_class)
     })
 end
 
+-- Enable a basic refire for sprite_class; returns doFire, doRefire
+-- Will blow after failsafeTime or when spacebar is pressed and 
+--   execute blowFunc
+-- Remember to set canRefire = true
+-- xxx is this generic enough to move to gameutils.lua?
+local function enableBasicRefire(sprite_class, failsafeTime, blowFunc)
+    failsafeTime = failsafeTime or time(8)
+    assert(blowFunc)
+
+    -- call Shooter_finished when the main sprite dies (if applicable)
+    local function cleanup(sprite)
+        local shooter = gameObjectFindShooter(sprite)
+        if not GameObject_objectAlive(shooter) then
+            return
+        end
+        Shooter_finished(shooter)
+    end
+
+    -- die after failsafeTime (the games must go on)
+    enableSpriteTimer(sprite_class, {
+        defTimer = failsafeTime,
+        showDisplay = true,
+        callback = blowFunc
+    })
+
+    -- cleanup
+    addSpriteClassEvent(sprite_class, "sprite_die", function(sender)
+        -- don't cleanup twice
+        if not Sprite_isUnderWater(sender) then
+            cleanup(sender)
+        end
+    end)
+    addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
+        cleanup(sender)
+    end)
+
+    local function doFire(shooter, fireinfo)
+        Shooter_reduceAmmo(shooter)
+        local spr = spawnFromFireInfo(sprite_class, shooter, fireinfo)
+        set_context_var(shooter, "sprite", spr)
+    end
+    local function doRefire(shooter)
+        local sprite = get_context_var(shooter, "sprite")
+        blowFunc(sprite)
+        return true
+    end
+    
+    return doFire, doRefire
+end
+
 do
     local name = "sheep"
     local function createSprite(name)
@@ -51,48 +101,16 @@ do
     end)
 
     enableSheepJumping(sprite_class)
-
-    local function dorefire(shooter)
-        Shooter_finished(shooter)
-        local sprite = get_context_var(shooter, "sprite")
-        if not spriteIsGone(sprite) then
-            spriteExplode(sprite, 75)
-        end
-        return true
-    end
-    local function interrupt(shooter)
-        -- don't keep control while sheep is still active, but worm isn't
-        -- (actually, it may be unneeded, but weapon control code keeps showing
-        --  a wrong animation as long as shooter is active *shrug*)
-        Shooter_finished(shooter)
-    end
-    -- don't live longer than 8s
-    enableSpriteTimer(sprite_class, {
-        defTimer = time(8),
-        showDisplay = true,
-        callback = function(sender)
-            dorefire(gameObjectFindShooter(sender))
-        end
-    })
-    -- cleanup
-    addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
-        dorefire(gameObjectFindShooter(sender))
+    
+    local doFire, doRefire = enableBasicRefire(sprite_class, time(8), function(sprite)
+        spriteExplode(sprite, 75)
     end)
-
-    -- used by other weapons (I think)
-    cratesheep_class = createSprite("crate" .. name)
-    enableExplosionOnImpact(cratesheep_class, 75)
 
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = function(shooter, info)
-            Shooter_reduceAmmo(shooter)
-            local s = spawnFromFireInfo(sprite_class, shooter, info)
-            set_context_var(shooter, "sprite", s)
-        end,
-        onRefire = dorefire,
+        onFire = doFire,
+        onRefire = doRefire,
         canRefire = true,
-        onInterrupt = interrupt,
         value = 10,
         category = "moving",
         icon = "icon_sheep",
@@ -103,6 +121,11 @@ do
             throwStrengthTo = 40,
         }
     }
+
+    -- used by other weapons (I think)
+    cratesheep_class = createSprite("crate" .. name)
+    enableExplosionOnImpact(cratesheep_class, 75)
+
     enableSpriteCrateBlowup(w, cratesheep_class)
 
     -- sheeplauncher is almost exactly the same, but the sheep spawns with
@@ -111,15 +134,12 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = function(shooter, info)
-            Shooter_reduceAmmo(shooter)
-            local s = spawnFromFireInfo(sprite_class, shooter, info)
-            Sequence_setState(Sprite_graphic(s), seqHelmet)
-            set_context_var(shooter, "sprite", s)
+            doFire(shooter, info)
+            Sequence_setState(Sprite_graphic(get_context_var(shooter, "sprite")), seqHelmet)
             emitShooterParticle("p_rocket_fire", shooter)
         end,
-        onRefire = dorefire,
+        onRefire = doRefire,
         canRefire = true,
-        onInterrupt = interrupt,
         value = 10,
         category = "fly",
         icon = "icon_sheeplauncher",
@@ -205,42 +225,19 @@ do
         },
         sequenceType = "s_sallyshard",
     }
-
-    local function dorefire(shooter)
-        Shooter_finished(shooter)
-        local sprite = get_context_var(shooter, "sprite")
-        -- not under water
-        if spriteIsGone(sprite) then
-            return
-        end
+    
+    local doFire, doRefire = enableBasicRefire(main, time(8), function(sprite)
         spriteExplode(sprite, 50)
         spawnCluster(shard, sprite, 5, 350, 450, 50)
-        return true
-    end
+    end)
 
     enableExplosionOnImpact(shard, 60)
     enableWalking(main)
-    enableSpriteTimer(main, {
-        defTimer = time(8),
-        showDisplay = true,
-        callback = function(sender)
-            dorefire(gameObjectFindShooter(sender))
-        end
-    })
-
-    -- cleanup
-    addSpriteClassEvent(main, "sprite_waterstate", function(sender)
-        dorefire(gameObjectFindShooter(sender))
-    end)
 
     local w = createWeapon {
         name = "w_" .. name,
-        onFire = function(shooter, info)
-            Shooter_reduceAmmo(shooter)
-            local spr = spawnFromFireInfo(main, shooter, info)
-            set_context_var(shooter, "sprite", spr)
-        end,
-        onRefire = dorefire,
+        onFire = doFire,
+        onRefire = doRefire,
         canRefire = true,
         value = 10,
         category = "moving",
@@ -350,13 +347,22 @@ local function createSuperSheep(name, is_aqua)
     -- explode the jumping or flying sheep
     local function explode(ctx)
         local sprite = ctx.sprite
+        ctx.sprite = nil
         if sprite and not spriteIsGone(sprite) then
             spriteExplode(sprite, explode_power)
         end
-        ctx.sprite = nil
     end
 
-    enableExplosionOnImpact(flying, explode_power)
+    -- not using enableExplosionOnImpact to make sure ctx.sprite is set nil
+    addSpriteClassEvent(flying, "sprite_impact", function(sender)
+        local shooter = gameObjectFindShooter(sender)
+        local ctx = get_context(shooter, true)
+        if ctx then
+            explode(ctx)
+        else
+            spriteExplode(sender, explode_power)
+        end
+    end)
 
     local state_air = createNormalSpriteState(flying)
 
@@ -381,7 +387,11 @@ local function createSuperSheep(name, is_aqua)
     -- sender = shooter or sprite spawned by shooter
     local function cleanup(sender)
         local shooter = gameObjectFindShooter(sender)
-        local ctx = get_context(shooter)
+        local ctx = get_context(shooter, true)
+        if not ctx then
+            -- Shooter is already dead, no cleanup required
+            return
+        end
         -- remove control e.g. when it starts drowning
         if ctx.control then
             ControlRotate_kill(ctx.control)
