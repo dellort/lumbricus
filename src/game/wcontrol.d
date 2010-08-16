@@ -423,7 +423,7 @@ class WormControl : WeaponController {
     }
 
     bool canUseWeapon(WeaponClass c) {
-        return c && mWeaponSet.find(c).quantity > 0 && c.canUse(engine);
+        return mWeaponSet.canUseWeapon(c);
     }
 
     void selectWeapon(WeaponClass weapon) {
@@ -714,10 +714,6 @@ class WormControl : WeaponController {
                 //worm tracking
                 mCurrentTargetInd.pos = toVector2i(mCurrentTarget.currentPos);
             }
-            //unused?
-            //if (mCurrentTargetInd.readyflag()) {
-            //    setIndicator(null);
-            //}
         }
 
         if (mWorm && mWorm.activity())
@@ -865,7 +861,7 @@ class WormControl : WeaponController {
 
         mTargetIsSet = true;
         WeaponTarget lastTarget = mCurrentTarget;
-        mCurrentTarget = where;
+        mCurrentTarget.currentPos = where;
 
         switch(mPointMode) {
             case PointMode.targetTracking:

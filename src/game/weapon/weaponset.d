@@ -174,6 +174,13 @@ class WeaponSet : GameObject {
             && engine.gameTime.current <= e.lastFire + w.cooldown);
     }
 
+    //return whether at least one ammo point of the weapon is available, and if
+    //  the weapon can actually be used in the game
+    //returns false for null
+    bool canUseWeapon(WeaponClass w) {
+        return w && find(w).quantity > 0 && w.canUse(engine);
+    }
+
     //choose a random weapon based on this weapon set
     //returns null if none was found
     //xxx: Implement different drop probabilities (by value/current count)

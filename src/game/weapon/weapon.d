@@ -154,7 +154,8 @@ struct WeaponTarget {
             ? sprite.physics.pos : pos;
     }
 
-    void opAssign(Vector2f p) {
+    //setting this will clear any target tracking
+    void currentPos(Vector2f p) {
         pos = p;
         sprite = null;
     }
@@ -165,7 +166,6 @@ struct WeaponTarget {
 }
 
 //feedback Shooter -> input controller (implemented by WormControl)
-//xxx: there's also WormControl, but I want to remove WeaponController
 interface WeaponController {
     WeaponTarget getTarget();
 
@@ -211,7 +211,7 @@ abstract class Shooter : GameObject {
         charge,        //space held down
         prepare,       //animation playing
         fire,          //creating projectiles etc.
-        release,       //animation playing
+        release,       //animation playing <- xxx unused?
     }
 
     private {
@@ -231,7 +231,7 @@ abstract class Shooter : GameObject {
         WeaponState mState;
 
         const Time cWeaponLoadTime = timeMsecs(1500);
-   }
+    }
     protected {
         WeaponClass mClass;
         Time mLastStateChange;
@@ -523,7 +523,7 @@ abstract class Shooter : GameObject {
         if (wcontrol)
             fireinfo.pointto = wcontrol.getTarget;
         else
-            fireinfo.pointto = owner.physics.pos;
+            fireinfo.pointto.currentPos = owner.physics.pos;
 
         if (selector) {
             if (!selector.canFire(fireinfo))
@@ -619,7 +619,14 @@ abstract class Shooter : GameObject {
         }
         updateAnimation();
         if (wcontrol) {
+            /+
             if (mState == WeaponState.idle && mIsSelected) {
+                wcontrol.setPointMode(weapon.fireMode.point);
+            } else {
+                wcontrol.setPointMode(PointMode.none);
+            }
+            +/
+            if (mIsSelected) {
                 wcontrol.setPointMode(weapon.fireMode.point);
             } else {
                 wcontrol.setPointMode(PointMode.none);
@@ -706,8 +713,9 @@ abstract class Shooter : GameObject {
     }
 
     private bool canAim() {
-        return ((mState == WeaponState.idle || mState == WeaponState.charge)
-            && mIsSelected) || (mState == WeaponState.fire && canReadjust());
+        return (mState == WeaponState.idle || mState == WeaponState.charge
+            || mState == WeaponState.prepare || mState == WeaponState.fire)
+            && mIsSelected;
     }
 
     private void updateCrosshair() {
@@ -723,6 +731,11 @@ abstract class Shooter : GameObject {
                 mCrosshair = new RenderCrosshair(owner.graphic, &weaponAngle);
                 engine.scene.add(mCrosshair);
             }
+        }
+
+        //remove "load" bar after firing
+        if (mCrosshair && mState != WeaponState.charge) {
+            mCrosshair.resetLoad();
         }
     }
 
@@ -808,6 +821,11 @@ class RenderCrosshair : SceneObject {
     void setLoad(float a_load) {
         mLoad = a_load;
         mEmit.current = (mLoad > float.epsilon) ? mSfx : null;
+    }
+
+    //set load indicator back to "resting" state
+    void resetLoad() {
+        setLoad(0.0);
     }
 
     //reset animation, called after this becomes .active again
