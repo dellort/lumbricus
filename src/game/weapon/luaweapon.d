@@ -12,9 +12,7 @@ class LuaWeaponClass : WeaponClass {
     void delegate(Shooter, FireInfo) onFire;
     WeaponSelector delegate(Sprite) onCreateSelector;
     void delegate(Shooter) onInterrupt;
-    //if you set onRefire, don't forget canRefire
     bool delegate(Shooter) onRefire;
-    bool canRefire = false;
     void delegate(Shooter, Vector2f) onReadjust;
 
     this(GameCore a_engine, char[] a_name) {
@@ -52,7 +50,7 @@ class LuaShooter : Shooter {
     }
 
     override bool doRefire() {
-        if (!(myclass.canRefire && myclass.onRefire))
+        if (!myclass.onRefire)
             return false;
         return myclass.onRefire(this);
     }

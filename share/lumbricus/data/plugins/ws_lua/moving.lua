@@ -23,9 +23,8 @@ local function enableSheepJumping(sprite_class)
 end
 
 -- Enable a basic refire for sprite_class; returns doFire, doRefire
--- Will blow after failsafeTime or when spacebar is pressed and 
+-- Will blow after failsafeTime or when spacebar is pressed and
 --   execute blowFunc
--- Remember to set canRefire = true
 -- xxx is this generic enough to move to gameutils.lua?
 local function enableBasicRefire(sprite_class, failsafeTime, blowFunc)
     failsafeTime = failsafeTime or time(8)
@@ -68,7 +67,7 @@ local function enableBasicRefire(sprite_class, failsafeTime, blowFunc)
         blowFunc(sprite)
         return true
     end
-    
+
     return doFire, doRefire
 end
 
@@ -101,7 +100,7 @@ do
     end)
 
     enableSheepJumping(sprite_class)
-    
+
     local doFire, doRefire = enableBasicRefire(sprite_class, time(8), function(sprite)
         spriteExplode(sprite, 75)
     end)
@@ -110,7 +109,6 @@ do
         name = "w_" .. name,
         onFire = doFire,
         onRefire = doRefire,
-        canRefire = true,
         value = 10,
         category = "moving",
         icon = "icon_sheep",
@@ -139,7 +137,6 @@ do
             emitShooterParticle("p_rocket_fire", shooter)
         end,
         onRefire = doRefire,
-        canRefire = true,
         value = 10,
         category = "fly",
         icon = "icon_sheeplauncher",
@@ -225,7 +222,7 @@ do
         },
         sequenceType = "s_sallyshard",
     }
-    
+
     local doFire, doRefire = enableBasicRefire(main, time(8), function(sprite)
         spriteExplode(sprite, 50)
         spawnCluster(shard, sprite, 5, 350, 450, 50)
@@ -238,7 +235,6 @@ do
         name = "w_" .. name,
         onFire = doFire,
         onRefire = doRefire,
-        canRefire = true,
         value = 10,
         category = "moving",
         icon = "icon_salvationarmy",
@@ -478,7 +474,6 @@ local function createSuperSheep(name, is_aqua)
             ctx.sprite = s
         end,
         onRefire = dorefire,
-        canRefire = true,
         -- strange that you need this
         -- e.g. when you hit yourself with your own supersheep
         onInterrupt = cleanup,

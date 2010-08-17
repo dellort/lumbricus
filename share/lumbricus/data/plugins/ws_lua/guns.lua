@@ -96,7 +96,6 @@ do
             doshot(shooter)
             return true -- apparently I needed this
         end,
-        canRefire = true,
         onInterrupt = function(shooter)
             Shooter_finished(shooter)
         end,

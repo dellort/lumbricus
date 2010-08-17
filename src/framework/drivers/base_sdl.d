@@ -23,6 +23,9 @@ import utils.stream;
 import tango.stdc.stringz;
 import tango.sys.Environment;
 import tunicode = tango.text.Unicode;
+version(Windows) {
+    import tango.sys.win32.UserGdi;
+}
 
 import str = utils.string;
 
@@ -221,6 +224,11 @@ class SDLDriver : FrameworkDriver {
                 assert(r == 1);
                 state.window_handle = wminfo.window;
             }
+            //set main window icon to executable icon
+            //sync with name in .rc file
+            auto hicon = LoadIconA(GetModuleHandleA(null), "MAINICON");
+            if (hicon != null)
+                SetClassLongA(state.window_handle, GCL_HICON, cast(LONG)hicon);
         }
         SDL_WM_SetCaption(toStringz(state.window_caption), null);
         mCurVideoState = state;
