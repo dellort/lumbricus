@@ -151,7 +151,7 @@ class Stuff {
         debug {
             int gccount = gGcCounter;
             if (gccount != mPrevGCCount) {
-                gLog.minor("GC run detected");
+                gLog.minor("GC run detected ({} total)", gccount);
                 mPrevGCCount = gccount;
             }
         }

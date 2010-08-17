@@ -3,6 +3,8 @@ module lumbricus;
 //enable tango backtracing (on exceptions)
 debug import tango.core.tools.TraceExceptions;
 
+import framework.filesystem;
+import framework.imgread;
 import framework.main;
 import common.init;
 import common.common : globals;
@@ -50,6 +52,11 @@ void lmain(char[][] args) {
 
     gFramework.initialize();
     gFramework.setCaption("Lumbricus");
+
+    try {
+        gFramework.setIcon(loadImage("lumbricus-icon.png"));
+    } catch (IOException e) {
+    }
 
     globals.initGUIStuff();
 

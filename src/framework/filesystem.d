@@ -3,7 +3,6 @@ module framework.filesystem;
 import str = utils.string;
 import utils.stream;
 import tpath = tango.io.Path;
-import tango.core.Exception : IOException;
 import tango.text.Regex;  //for filename cleanup
 import utils.misc;
 import utils.log;
@@ -17,6 +16,8 @@ version(Windows) {
 }
 
 FileSystem gFS;
+
+public import tango.core.Exception : IOException;
 
 private Log log;
 

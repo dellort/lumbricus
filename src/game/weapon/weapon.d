@@ -619,13 +619,6 @@ abstract class Shooter : GameObject {
         }
         updateAnimation();
         if (wcontrol) {
-            /+
-            if (mState == WeaponState.idle && mIsSelected) {
-                wcontrol.setPointMode(weapon.fireMode.point);
-            } else {
-                wcontrol.setPointMode(PointMode.none);
-            }
-            +/
             if (mIsSelected) {
                 wcontrol.setPointMode(weapon.fireMode.point);
             } else {

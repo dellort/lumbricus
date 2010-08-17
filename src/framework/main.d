@@ -68,6 +68,7 @@ struct VideoWindowState {
     int bitdepth;
     bool fullscreen;
     char[] window_caption;
+    Surface window_icon;
     SysWinHandle window_handle;
 
     Vector2i actualSize() {
@@ -560,6 +561,12 @@ class Framework {
     void setCaption(char[] caption) {
         VideoWindowState state = mDriver.getVideoWindowState();
         state.window_caption = caption;
+        mDriver.setVideoWindowState(state);
+    }
+
+    void setIcon(Surface icon) {
+        VideoWindowState state = mDriver.getVideoWindowState();
+        state.window_icon = icon;
         mDriver.setVideoWindowState(state);
     }
 

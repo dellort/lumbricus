@@ -23,9 +23,6 @@ import utils.stream;
 import tango.stdc.stringz;
 import tango.sys.Environment;
 import tunicode = tango.text.Unicode;
-version(Windows) {
-    import tango.sys.win32.UserGdi;
-}
 
 import str = utils.string;
 
@@ -210,6 +207,7 @@ class SDLDriver : FrameworkDriver {
     bool setVideoWindowState(in VideoWindowState state) {
         auto tmp1 = state, tmp2 = mCurVideoState;
         tmp1.window_caption = tmp2.window_caption = null;
+        tmp1.window_icon = tmp2.window_icon = null;
         bool res = true;
         if (tmp1 != tmp2 && tmp1.video_active) {
             res = switchVideoTo(state);
@@ -226,11 +224,25 @@ class SDLDriver : FrameworkDriver {
             }
             //set main window icon to executable icon
             //sync with name in .rc file
-            auto hicon = LoadIconA(GetModuleHandleA(null), "MAINICON");
-            if (hicon != null)
-                SetClassLongA(state.window_handle, GCL_HICON, cast(LONG)hicon);
         }
         SDL_WM_SetCaption(toStringz(state.window_caption), null);
+        if (auto ico = state.window_icon) {
+            //there are some retarded restrictions about SDL_WM_SetIcon - I
+            //  ignore most of them because conforming would make the API
+            //  useless - but it seems to work anyway (lol SDL)
+            //see http://www.libsdl.org/cgi/docwiki.cgi/SDL_WM_SetIcon
+            Color.RGBA32* pixels;
+            uint pitch;
+            ico.lockPixelsRGBA32(pixels, pitch);
+            scope (exit) ico.unlockPixels(Rect2i.init);
+            SDL_Surface* sicon = SDL_CreateRGBSurfaceFrom(pixels,
+                ico.size.x, ico.size.y, 32, pitch * Color.RGBA32.sizeof,
+                Color.cMaskR, Color.cMaskG, Color.cMaskB, Color.cMaskA);
+            if (sicon) {
+                SDL_WM_SetIcon(sicon, null);
+                SDL_FreeSurface(sicon);
+            }
+        }
         mCurVideoState = state;
         mCurVideoState.video_active = !!mSDLScreen;
         if (mCurVideoState.video_active)
