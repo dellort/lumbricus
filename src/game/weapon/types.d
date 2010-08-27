@@ -24,6 +24,11 @@ enum ThrowDirection {
     limit90,    //90deg freedom only (up/down limited)
 }
 
+enum WeaponMisfireReason {
+    cooldown,
+    targetNotSet,
+}
+
 static this() {
     enumStrings!(PointMode, "none,target,targetTracking,instant,instantFree")();
     enumStrings!(ThrowDirection, "fixed,any,threeway,limit90")();

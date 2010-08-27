@@ -386,7 +386,9 @@ class Rope : Shooter, Controllable {
             mRope.lengthChange = 0;
         }
 
-        mWorm.physics.forceLook(swingdir);
+        //forceLook is animation+aiming, rotationOverride is animation only
+        //mWorm.physics.forceLook(swingdir);
+        mWorm.rotationOverride = swingdir.toAngle;
         mWorm.updateAnimation();
         updateAnchorAnim(ropeSegments[0].start, ropeSegments[0].start
             - ropeSegments[0].end);

@@ -7,6 +7,7 @@ module game.wcontrol;
 import common.animation;
 import framework.framework;
 import game.core;
+import game.events;
 import game.input;
 import game.sprite;
 import game.teamtheme;
@@ -38,6 +39,11 @@ interface SpriteControl {
     bool enableEquipment(WeaponClass type, bool enable);
 }
 +/
+
+//for GUI, to give the user some feedback when the keypress did nothing
+//xxx I would love to use TeamMember as sender, but that would get messy
+alias DeclareEvent!("weapon_misfire", WeaponClass, WormControl,
+    WeaponMisfireReason) OnWeaponMisfire;
 
 //separate control for special weapons like super sheep or rope
 interface Controllable {
@@ -160,8 +166,6 @@ class WormControl : WeaponController {
         mWorm = castStrict!(WormSprite)(worm);
         //mWormControl = cast(SpriteControl)mWorm;
         //assert(!!mWormControl);
-        //set feedback interface to this class
-        mWorm.wcontrol = this;
         OnSpriteDie.handler(mWorm.instanceLocalEvents, &onSpriteDie);
         OnDamage.handler(mWorm.instanceLocalEvents, &onSpriteDamage);
         //init keyboard input
@@ -241,11 +245,7 @@ class WormControl : WeaponController {
     }
 
     private bool inpFire(bool is_down) {
-        if (is_down) {
-            doFireDown();
-        } else {
-            doFireUp();
-        }
+        doFire(is_down);
         return true;
     }
 
@@ -268,6 +268,9 @@ class WormControl : WeaponController {
         mWeaponSet = set;
     }
 
+    //"alternate control" (mAlternateControl = true) is like WWP, where you
+    //  always mix up Space and Return
+    //default (false) is Lumbricus control, where you only need Space
     void setAlternateControl(bool v) {
         mAlternateControl = v;
     }
@@ -412,8 +415,14 @@ class WormControl : WeaponController {
         }
         if (!eaten) {
             //try alternate fire, if not possible jump instead
-            if (!doAlternateFire())
+            if (!doAlternateFire(true))
                 mWorm.jump(j);
+            else
+                //xxx the keyUp is only needed in alternate (worms-like) mode,
+                //    where it will cause firing with minimum strength
+                //    (just like in wwp); but we could also add a bool keyDown
+                //    to jump()
+                doAlternateFire(false);
         }
         wormAction();
     }
@@ -471,6 +480,7 @@ class WormControl : WeaponController {
 
         if (prepareSelect(selected) && selected) {
             auto sh = selected.createShooter(mWorm);
+            //set feedback interface to this class
             sh.setControl(this);
             sh.isSelected = true;
             mWeapons ~= sh;
@@ -505,70 +515,98 @@ class WormControl : WeaponController {
 
         if (keyDown) {
             if (allowAlternate && mWeapons[0].weapon is wc) {
-                doAlternateFire();
+                fireSecondaryWeapon();
             } else {
                 instantFire = instantFire || mCurrentWeapon is wc;
                 selectWeapon(wc);
                 if (instantFire) {
-                    //doFireDown will save the keypress and wait if not ready
-                    doFireDown(true);
+                    //fireMainWeapon will save the keypress and wait if not ready
+                    fireMainWeapon(true);
                 }
             }
         } else {
             //key was released (like fire behavior)
-            doFireUp();
-        }
-    }
-
-    bool doFireDown(bool forceSelected = false) {
-        if (!isControllable)
-            return true;
-
-        bool success = true;
-        if (!controllableFire(true)) {
-            success = false;
-            if (checkPointMode() && mWeapons.length > 0) {
-                success = mWeapons[$-1].startFire();
-            }
-            //don't forget a keypress that had no effect
-            mFireDown = !success;
-        }
-        if (success)
-            wormAction();
-        return success;
-    }
-
-    void doFireUp() {
-        mFireDown = false;
-        if (!isControllable)
-            return;
-
-        if (controllableFire(false)) {
-            wormAction();
-        } else if (mWeapons.length > 0) {
-            if (mWeapons[$-1].startFire(true))
-                wormAction();
+            fireMainWeapon(false);
         }
     }
 
     //returns true if the keypress was taken
-    bool doAlternateFire() {
+    bool doFire(bool keyDown) {
+        if (!isControllable)
+            return true;
+
+        if (controllableFire(keyDown)) {
+            wormAction();
+            return true;
+        }
+
+        //alternate: swapped controls if 2 weapons are active (weird, isn't it?)
+        if (mAlternateControl && allowAlternate && keyDown)
+            return fireSecondaryWeapon();
+
+        return fireMainWeapon(keyDown);
+    }
+
+    //returns true if the keypress was taken
+    bool doAlternateFire(bool keyDown) {
         if (!isControllable)
             return false;
 
-        bool success = false;
+        if (mAlternateControl && allowAlternate)
+            return fireMainWeapon(keyDown);
 
-        if (allowAlternate) {
-            mWeapons[0].startFire();
-        }
-        if (success)
-            wormAction();
-        return success;
+        if (keyDown)
+            return fireSecondaryWeapon();
+        return false;
     }
 
     private bool allowAlternate() {
         return mWeapons.length > 0 && !mWeapons[0].isIdle
             && mWeapons[0].weapon.allowSecondary;
+    }
+
+    //fires main weapon (stack top; 1 or 2 on the stack)
+    private bool fireMainWeapon(bool keyDown = true) {
+        bool success = false;
+
+        if (mWeapons.length > 0) {
+            if (keyDown) {
+                if (checkPointMode()) {
+                    if (!mWeaponSet.coolingDown(mWeapons[$-1].weapon)) {
+                        success = mWeapons[$-1].startFire();
+                    } else {
+                        OnWeaponMisfire.raise(mWeapons[$-1].weapon, this,
+                            WeaponMisfireReason.cooldown);
+                    }
+                } else {
+                    OnWeaponMisfire.raise(mWeapons[$-1].weapon, this,
+                        WeaponMisfireReason.targetNotSet);
+                }
+            } else {
+                mWeapons[$-1].startFire(true);
+                success = true;
+            }
+        }
+
+        //don't forget a key down that had no effect
+        mFireDown = keyDown && !success;
+        if (success)
+            wormAction();
+        return success;
+    }
+
+    //fires secondary weapon (stack bottom, e.g. jetpack)
+    //for user convenience, it will also work if there is only 1 active weapon
+    //  like jetpack/rope on the stack
+    private bool fireSecondaryWeapon() {
+        bool success = false;
+
+        if (allowAlternate) {
+            success = mWeapons[0].startFire();
+        }
+        if (success)
+            wormAction();
+        return success;
     }
 
     private void unselectWeapon(int idx) {
@@ -586,13 +624,18 @@ class WormControl : WeaponController {
     }
 
     private void checkWeaponStack() {
+        assert(mWeapons.length <= 2);
         //main finished while secondary present
         if (mWeapons.length == 2 && mWeapons[0].isIdle()) {
             unselectWeapon(0);
         }
     }
 
-    // Start WormController implementation (see game.worm) -->
+    WeaponClass mainWeapon() {
+        return mWeapons.length ? mWeapons[$-1].weapon : null;
+    }
+
+    // Start WeaponController implementation (see game.weapon.weapon) -->
 
     WeaponTarget getTarget() {
         return mCurrentTarget;
@@ -634,6 +677,8 @@ class WormControl : WeaponController {
         updateWeapon();
     }
 
+    // <-- End WeaponController
+
     //for the hud
     WeaponClass weaponForIcon() {
         //icon if main weapon fails to display, or there is a secondary weapon
@@ -644,8 +689,6 @@ class WormControl : WeaponController {
         }
         return null;
     }
-
-    // <-- End WormController
 
     //has the worm fired something since he became engaged?
     bool weaponUsed() {
@@ -724,7 +767,7 @@ class WormControl : WeaponController {
 
         //check if fire button is being held down, waiting for right state
         if (mFireDown)
-            doFireDown();
+            fireMainWeapon(true);
 
         //if the worm can't be controlled anymore due to circumstances
         //right now: if the worm died or is drowning
@@ -882,7 +925,7 @@ class WormControl : WeaponController {
                 break;
             case PointMode.instant, PointMode.instantFree:
                 //instant mode -> fire and forget
-                if (doFireDown(true)) {
+                if (fireMainWeapon(true)) {
                     //click effect (only if firing succeeded)
                     mEngine.animationEffect(color.click,
                         toVector2i(where), AnimationParams.init);
@@ -892,7 +935,7 @@ class WormControl : WeaponController {
                     //  is playing)
                     mCurrentTarget = lastTarget;
                 }
-                doFireUp();
+                fireMainWeapon(false);
                 mTargetIsSet = false;
                 break;
             default:

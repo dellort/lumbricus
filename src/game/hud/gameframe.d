@@ -35,6 +35,7 @@ import game.hud.replaytimer;
 import game.hud.network;
 import game.hud.register;
 import game.hud.chatbox;
+import game.hud.weapondisplay;
 import game.lua.base;
 import game.weapon.weapon;
 import game.weapon.weaponset;
@@ -81,6 +82,7 @@ class GameFrame : SimpleContainer {
         MouseScroller mScroller;
         SimpleContainer mGui;
 
+        WeaponDisplay mWeaponDisplay;
         WeaponSelWindow mWeaponSel;
         //movement of mWeaponSel for blending in/out
         //InterpolateLinear!(float) mWeaponInterp;
@@ -226,6 +228,11 @@ class GameFrame : SimpleContainer {
         mWeaponSel.setAddToPos(
             Vector2i(cast(int)(mWeaponInterp.value*wsel_edge), 0));
         mWeaponSel.visible = 1.0f-mWeaponInterp.value > float.epsilon;
+
+        //current weapon icon is visible when weapon select window is not
+        int wdis_edge = mWeaponDisplay.findParentBorderDistance(1, 0, false);
+        mWeaponDisplay.setAddToPos(
+            Vector2i(cast(int)((1.0f-mWeaponInterp.value)*wdis_edge), 0));
 
         /+ disabled for now; should work flawlessly
         //unpaused if any child has focus (normally GameView)
@@ -454,6 +461,8 @@ class GameFrame : SimpleContainer {
             WidgetLayout.Aligned(1, 1, Vector2i(5, 5)));
         mGui.add(new PowerupDisplay(game),
             WidgetLayout.Aligned(1, -1, Vector2i(5, 20)));
+        mWeaponDisplay = new WeaponDisplay(game);
+        mGui.add(mWeaponDisplay, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
         auto lay = WidgetLayout.Aligned(0, -1, Vector2i(0, 5));
         lay.border = Vector2i(5, 1);
         mGui.add(new MessageViewer(game), lay);

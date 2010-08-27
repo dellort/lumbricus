@@ -180,6 +180,7 @@
 		<Unit filename="..\src\game\hud\register.d" />
 		<Unit filename="..\src\game\hud\replaytimer.d" />
 		<Unit filename="..\src\game\hud\teaminfo.d" />
+		<Unit filename="..\src\game\hud\weapondisplay.d" />
 		<Unit filename="..\src\game\hud\weaponsel.d" />
 		<Unit filename="..\src\game\hud\windmeter.d" />
 		<Unit filename="..\src\game\input.d" />

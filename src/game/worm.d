@@ -7,8 +7,6 @@ import game.sequence;
 import game.sprite;
 import game.teamtheme;
 import game.temp : GameZOrder;
-import game.weapon.types;
-import game.weapon.weapon;
 import game.particles;
 import physics.all;
 import utils.misc;
@@ -50,6 +48,8 @@ class WormSprite : Sprite {
         Vector2f mBeamDest;
         //cached movement, will be applied in simulate
         Vector2f mMoveVector;
+        //hack for rope (animation only)
+        float mRotationOverride = float.nan;
 
         Time mStandTime;
 
@@ -68,8 +68,6 @@ class WormSprite : Sprite {
     }
 
     TeamTheme teamColor;
-
-    WeaponController wcontrol;
 
     protected this(WormSpriteClass spriteclass) {
         super(spriteclass);
@@ -237,6 +235,12 @@ class WormSprite : Sprite {
 
         //for jetpack
         graphic.selfForce = physics.selfForce;
+        if (mRotationOverride == mRotationOverride)
+            graphic.rotation_angle = mRotationOverride;
+    }
+
+    void rotationOverride(float rot) {
+        mRotationOverride = rot;
     }
 
     //movement for walking/jetpack
@@ -392,6 +396,7 @@ class WormSprite : Sprite {
         if (!currentState.canWalk) {
             physics.setWalking(Vector2f(0));
         }
+        mRotationOverride = float.nan;
     }
 
     void setState(WormStateInfo nstate, bool for_end = false) {

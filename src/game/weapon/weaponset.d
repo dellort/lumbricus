@@ -37,6 +37,17 @@ class WeaponSet : GameObject {
                 return "inf";
             return myformat("{}", quantity);
         }
+
+        //non-deterministic (for GUI)
+        float cooldownRemainPerc(GameCore engine) {
+            float p = 0f;
+            if (weapon.cooldown != Time.Null && lastFire != Time.Null) {
+                Time diff = (lastFire + weapon.cooldown)
+                    - engine.interpolateTime.current;
+                p = diff.secsf / weapon.cooldown.secsf;
+            }
+            return p;
+        }
     }
 
     //config = item from "weapon_sets"

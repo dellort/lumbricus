@@ -28,6 +28,7 @@ static this() {
     styleRegisterColor("window-fullscreen-color");
 
     styleRegisterColor("cooldown-color");
+    styleRegisterColor("misfire-color");
 
     styleRegisterTime("fade-delay");
 }

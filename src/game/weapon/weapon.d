@@ -211,7 +211,8 @@ abstract class Shooter : GameObject {
         charge,        //space held down
         prepare,       //animation playing
         fire,          //creating projectiles etc.
-        release,       //animation playing <- xxx unused?
+        release,       //animation playing <- xxx unused
+                       //                     (planned but not implemented)
     }
 
     private {
@@ -480,12 +481,17 @@ abstract class Shooter : GameObject {
         }
     }
 
+    protected float weaponAngleSide() {
+        return fullAngleFromSideAngle(owner.physics.lookey, weaponAngle);
+    }
+
     //real weapon angle (normalized direction)
     protected Vector2f weaponDir() {
-        return dirFromSideAngle(owner.physics.lookey, weaponAngle );
+        return Vector2f.fromPolar(1.0f, weaponAngleSide);
     }
 
     //weaponDir with horizontal firing angle (only considers lookey)
+    //xxx unused
     protected Vector2f weaponDirHor() {
         return dirFromSideAngle(owner.physics.lookey, 0);
     }
@@ -707,7 +713,8 @@ abstract class Shooter : GameObject {
 
     private bool canAim() {
         return (mState == WeaponState.idle || mState == WeaponState.charge
-            || mState == WeaponState.prepare || mState == WeaponState.fire)
+            || mState == WeaponState.prepare
+            || (mState == WeaponState.fire && canReadjust()))
             && mIsSelected;
     }
 
@@ -721,7 +728,8 @@ abstract class Shooter : GameObject {
                 mCrosshair.removeThis();
                 mCrosshair = null;
             } else {
-                mCrosshair = new RenderCrosshair(owner.graphic, &weaponAngle);
+                mCrosshair = new RenderCrosshair(owner.graphic,
+                    &weaponAngleSide);
                 engine.scene.add(mCrosshair);
             }
         }
@@ -854,8 +862,7 @@ class RenderCrosshair : SceneObject {
         //xxx make this restriction go away?
         assert(!!infos,"Can only attach a target cross to worm sprites");
         auto pos = mAttach.interpolated_position; //toVector2i(infos.position);
-        auto angle = fullAngleFromSideAngle(infos.rotation_angle,
-            mWeaponAngle ? mWeaponAngle() : PI/2);
+        auto angle = mWeaponAngle ? mWeaponAngle() : PI/2;
         //normalized weapon direction
         auto dir = Vector2f.fromPolar(1.0f, angle);
 

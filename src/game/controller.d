@@ -109,7 +109,7 @@ class Team : GameObject2 {
         //what's a default weapon? I don't know, so I can't bring it back
         //defaultWeapon = weapons.byId(node["default_weapon"]);
         gravestone = node.getIntValue("grave", 0);
-        mAlternateControl = node.getStringValue("control") != "worms";
+        mAlternateControl = node.getStringValue("control") != "default";
         mTeamId = node["id"];
         mTeamNetId = node["net_id"];
 

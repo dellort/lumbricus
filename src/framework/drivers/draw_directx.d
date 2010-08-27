@@ -251,6 +251,7 @@ class DXCanvas : Canvas3DHelper {
         IDirect3DVertexBuffer9 mDXVertexBuffer;
         TLVERTEX[cMaxVertices] mVertexBuffer;
         D3DMATRIX mStdTransform;
+        Color mBlendColor;
     }
     IDirect3DDevice9 d3dDevice;
 
@@ -311,6 +312,7 @@ class DXCanvas : Canvas3DHelper {
         D3DXMatrixScaling(&s, scale.x, scale.y, 1.0f);
         D3DXMatrixMultiply(&mStdTransform, &s, &t);
         d3dDevice.SetTransform(D3DTS_WORLD, &mStdTransform);
+        mBlendColor = currentBlend();
     }
 
     override void updateClip(Vector2i p1, Vector2i p2) {
@@ -368,6 +370,9 @@ class DXCanvas : Canvas3DHelper {
         t2.x = cast(float)(sourcePos.x+sourceSize.x) / tex.mSize.x;
         t2.y = cast(float)(sourcePos.y+sourceSize.y) / tex.mSize.y;
 
+        if (mBlendColor.valid) {
+            col *= mBlendColor;
+        }
         //TLVERTEX* buf;
         //mDXVertexBuffer.Lock(0, 0, cast(void**)&buf, D3DLOCK_DISCARD);
         //clockwise rotation, 2nd tri is auto-inverted
@@ -424,6 +429,9 @@ class DXCanvas : Canvas3DHelper {
 
         foreach (int idx, ref cv; verts) {
             mVertexBuffer[idx].p = cv.p;
+            if (mBlendColor.valid) {
+                cv.c *= mBlendColor;
+            }
             mVertexBuffer[idx].color = D3DCOLOR_FLOAT(cv.c);
             mVertexBuffer[idx].t = toVector2f(cv.t) ^ ts;
         }

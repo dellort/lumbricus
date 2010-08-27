@@ -92,13 +92,8 @@ class WeaponSelWindow : Container {
 
             override void onDraw(Canvas canvas) {
                 super.onDraw(canvas);
-                if (enabled && weapon.cooldown != Time.Null) {
-                    float p = 0f;
-                    if (item.lastFire != Time.Null) {
-                        Time diff = (item.lastFire + weapon.cooldown)
-                            - mEngine.interpolateTime.current;
-                        p = diff.secsf / weapon.cooldown.secsf;
-                    }
+                if (enabled) {
+                    float p = item.cooldownRemainPerc(mEngine);
                     if (p > float.epsilon) {
                         Color cdCol = styles.get!(Color)("cooldown-color");
                         canvas.drawPercentRect(Vector2i(0), size, p, cdCol);
