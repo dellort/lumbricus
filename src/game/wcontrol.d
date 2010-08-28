@@ -513,12 +513,19 @@ class WormControl : WeaponController {
         if (!isControllable)
             return;
 
+        if (!wc)
+            return;
+
         if (keyDown) {
             if (allowAlternate && mWeapons[0].weapon is wc) {
                 fireSecondaryWeapon();
             } else {
                 instantFire = instantFire || mCurrentWeapon is wc;
                 selectWeapon(wc);
+                //don't fire the wrong weapon if selection failed
+                //(hang on a rope, bazooka selected, press 'J' => don't fire)
+                if (mainWeapon() !is wc)
+                    return;
                 if (instantFire) {
                     //fireMainWeapon will save the keypress and wait if not ready
                     fireMainWeapon(true);

@@ -230,6 +230,15 @@ abstract class Shooter : GameObject {
         bool mIsSelected;
         bool mRegularFinish;
         WeaponState mState;
+        //used with WwpWeaponDisplay.fire(&fireStart, ...)
+        //if the sequence is interrupted, fireStart will never be called, and
+        //  our code will be stuck forever waiting
+        //polling actually makes it easier to detect this condition (the real
+        //  problem is the stupid Sequence<->weapon code interface, which was
+        //  always a hack)
+        //test: select axe, fire, and walk with the worm while the prepare
+        //  animation is playing -> should be able to fire after that
+        bool mWaitFireStart;
 
         const Time cWeaponLoadTime = timeMsecs(1500);
     }
@@ -374,6 +383,8 @@ abstract class Shooter : GameObject {
             //normal case
             bool refire = (mState == WeaponState.fire);
             ok = ani.fire(&fireStart, refire);
+            if (ok)
+                mWaitFireStart = true;
         }
         if (!ok) {
             //normally shouldn't happen, except if animation is wrong
@@ -388,6 +399,7 @@ abstract class Shooter : GameObject {
     //called by the animation code when actual firing should be started (after
     //  prepare animation [e.g. shotgun reload] has been played)
     private void fireStart() {
+        mWaitFireStart = false;
         //sanity tests
         //fire or refire
         if (mState != WeaponState.prepare && mState != WeaponState.fire)
@@ -693,10 +705,14 @@ abstract class Shooter : GameObject {
             if (strength >= 1.0f)
                 startFire(true);
         }
-        if (mIsSelected) {
-            if (auto wani = weaponAniState()) {
-                wani.angle = weaponAngle();
-            }
+        auto wani = weaponAniState();
+        if (mWaitFireStart && wani && !wani.preparingFire) {
+            log.trace("unstuck prepare animation");
+            mWaitFireStart = false;
+            setState(WeaponState.idle);
+        }
+        if (mIsSelected && wani) {
+            wani.angle = weaponAngle();
         }
         if (canAim()) {
             updateWeaponAngle(mWeaponMove);
@@ -768,7 +784,7 @@ abstract class Shooter : GameObject {
     }
 
     override char[] toString() {
-        return myformat("[Shooter {:x}]", cast(void*)this);
+        return myformat("[Shooter {:x} {}]", toHash, mClass);
     }
 }
 

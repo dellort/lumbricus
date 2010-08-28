@@ -57,9 +57,12 @@ $ Falsches Zielkreuz wenn man eine andere Waffe auswählt während noch Animatione
   ^ nicht gefixt für die axt-release-animation, aber gut genug
 $ wenn man nur noch eine axt hat, axt abfeuern + während des feuerns bazooka auswählen => wurm hat nach axt-release keine waffe ausgewählt (sollte aber bazooka ausgewählt haben)
   ausserdem: seltsames verhalten, wenn man nach auswahl der bazooka feuertaste drückt
-- Zielkreuz und aufziehen am Seil/Jetpack: Bug oder Feature? Ich finds ganz gut
+$ Zielkreuz und aufziehen am Seil/Jetpack: Bug oder Feature? Ich finds ganz gut
     ^ ok... zielkreuz sollte aber trotzdem vielleicht exakt in abschussrichtung zeigen
-- Am Seil zielt man immer nach rechts [oder links, wenn wurm kopfüber ist] (sollte sein: In Bewegungsrichtung)
+$ Am Seil zielt man immer nach rechts [oder links, wenn wurm kopfüber ist] (sollte sein: In Bewegungsrichtung)
+    ^ wurde wohl behoben; geht jetzt in bewegungsrichtung
+$ axt feuern und anfangen zu laufen bevor die axt "eingeschlagen" hat => man kann nicht mehr feuern, eine andere waffe auswählen, oder die runde beenden
+$ am seil hängen, bazooka auswählen, 'J' drücken -> bazooka wird abgefeuert
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
