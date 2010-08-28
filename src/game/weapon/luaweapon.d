@@ -68,7 +68,9 @@ class LuaShooter : Shooter {
     }
 
     override bool isFixed() {
-        return activity && mIsFixed;
+        //lua code (which sets mIsFixed) is only active in WeaponState.fire
+        //  (same for delayedAction)
+        return activity && (currentState != WeaponState.fire || mIsFixed);
     }
     void setFixed(bool fix, bool delayed = true) {
         mIsFixed = fix;

@@ -382,9 +382,9 @@ abstract class Shooter : GameObject {
         if (ani) {
             //normal case
             bool refire = (mState == WeaponState.fire);
+            mWaitFireStart = true;
+            //calls fireStart immediately if there is no prepare animation
             ok = ani.fire(&fireStart, refire);
-            if (ok)
-                mWaitFireStart = true;
         }
         if (!ok) {
             //normally shouldn't happen, except if animation is wrong

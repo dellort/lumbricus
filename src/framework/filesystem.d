@@ -189,7 +189,8 @@ private class HandlerDirectory : HandlerInstance {
 //--------------------------------------------------------------------
 //  Code for ZIP support, using tango Vfs functions, follows
 //  Side-note: 5 Tango tickets were created while writing this code
-
+//xxx as of Tango 0.99.9 ZipFolder is broken, so the code is disabled for now
+/+
 import tango.io.vfs.ZipFolder : ZipFolder;
 
 //hack for tango 0.99.9 <-> svn trunk change
@@ -323,21 +324,40 @@ private class HandlerTangoVfs : HandlerInstance {
         mVfsFolder = null;
     }
 }
-
++/
 //  ZIP support end
 //----------------------------------------------------------------
 
-///Specific MountPointHandler for mounting ZIP archives
-private class MountPointHandlerTar : MountPointHandler {
+///Specific MountPointHandler for mounting TAR/ZIP archives
+private class MountPointHandlerArchive : MountPointHandler {
     bool canHandle(char[] absPath) {
-        //exisiting files, name ending with ".tar"
-        return tpath.exists(absPath) && !tpath.isFolder(absPath)
-            && absPath.length > 4 && str.tolower(absPath[$-4..$]) == ".tar";
+        //exisiting files, name ending with ".tar" or ".zip"
+        if (tpath.exists(absPath) && !tpath.isFolder(absPath)
+            && absPath.length > 4)
+        {
+            char[] ext = str.tolower(absPath[$-4..$]);
+            return ext == ".tar" || ext == ".zip";
+        }
+        return false;
+    }
+
+    static HandlerInstance mountStream(Stream archFile, char[] fmt) {
+        ArchiveReader archive;
+        if (fmt == "tar") {
+            archive = new TarArchive(archFile, true);
+        } else if (fmt == "zip") {
+            archive = new ZipArchiveReader(archFile);
+        } else {
+            throw new FilesystemException(fmt ~ ": unsupported archive format");
+        }
+        return new HandlerArchive(archive);
     }
 
     HandlerInstance mount(char[] absPath) {
         assert(canHandle(absPath));
-        return new HandlerTar(absPath);
+        char[] ext = str.tolower(absPath[$-4..$]);
+        auto archFile = Stream.OpenFile(absPath);
+        return mountStream(archFile, ext[1..$]);
     }
 
     static this() {
@@ -345,19 +365,14 @@ private class MountPointHandlerTar : MountPointHandler {
     }
 }
 
-private class HandlerTar : HandlerInstance {
+private class HandlerArchive : HandlerInstance {
     private {
-        TarArchive mTarFile;
+        ArchiveReader mArchive;
     }
 
-    this(char[] archivePath) {
-        auto archFile = new ConduitStream(castStrict!(Conduit)(
-            new File(archivePath, File.ReadShared)));
-        mTarFile = new TarArchive(archFile, true);
-    }
-
-    this(Stream archiveStream) {
-        mTarFile = new TarArchive(archiveStream, true);
+    this(ArchiveReader archive) {
+        assert(!!archive);
+        mArchive = archive;
     }
 
     bool isWritable() {
@@ -365,23 +380,24 @@ private class HandlerTar : HandlerInstance {
     }
 
     bool exists(VFSPath handlerPath) {
-        return mTarFile.fileExists(handlerPath.get(false));
+        return mArchive.fileExists(handlerPath);
     }
 
     bool pathExists(VFSPath handlerPath) {
-        return mTarFile.pathExists(handlerPath.get(false));
+        return mArchive.pathExists(handlerPath);
     }
 
     Stream open(VFSPath handlerPath, File.Style mode) {
-        return mTarFile.openReadStreamUncompressed(handlerPath.get(false));
+        return mArchive.openReadStream(handlerPath);
     }
 
+    //this is so complicated because ArchiveReader only lists file, while
+    //  we also want to list directories
     bool listdir(VFSPath handlerPath, char[] pattern, bool findDir,
         bool delegate(char[] filename) callback)
     {
         bool[char[]] dirCache;
-        foreach (char[] fn; mTarFile) {
-            auto cur = VFSPath(fn);
+        foreach (VFSPath cur; mArchive) {
             if (handlerPath.isChild(cur)) {
                 auto rel = cur.relativePath(handlerPath);
                 if (rel.parent.isEmpty) {
@@ -410,8 +426,8 @@ private class HandlerTar : HandlerInstance {
     }
 
     void close() {
-        mTarFile.close();
-        mTarFile = null;
+        mArchive.close();
+        mArchive = null;
     }
 }
 
@@ -682,12 +698,7 @@ class FileSystem {
     MountId mountArchive(MountPath mp, Stream archive, char[] fmt,
         VFSPath mountPoint, uint precedence = 0)
     {
-        //hardcoded to tar because it's the only one that works
-        //zip with ZipFolder doesn't because ZipFolder expects a real filesystem
-        //  path for the zip, and apparently can't use a tango stream instead
-        if (fmt != "tar")
-            throw new FilesystemException("unsupported archive format");
-        auto handler = new HandlerTar(archive);
+        auto handler = MountPointHandlerArchive.mountStream(archive, fmt);
         auto mounted = MountedPath(mountPoint, precedence, handler, false);
         addMountedPath(mounted);
         return mounted.mountId;

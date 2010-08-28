@@ -344,6 +344,10 @@ class ConduitStream : Stream {
         return whatever.conduit;
     }
 
+    InputStream input() {
+        return mInput;
+    }
+
     ulong position() {
         return whatever.seek(0, Conduit.Anchor.Current);
     }
@@ -460,6 +464,98 @@ class SliceStream : Stream {
     //return null if closed
     Stream source() {
         return mSource;
+    }
+}
+
+//add seek functionality to a non-seekable stream
+//when seeking outside the buffer area, the stream will be recreated
+//xxx holy stupidity xD
+class SeekFixStream : Stream {
+    private ulong mForcedSize;
+    private ulong mPos;
+    InputStream delegate() mOpenDg;
+    InputStream mInput;
+    //Very often (read: in lumbricus, over 90%), only a small header area is
+    //  read and then the position is reset to 0
+    //In that case, we do not need to recreate the base stream but can use
+    //  the buffered content
+    //The other 10% are long seeks over the whole filesize and not relevant for
+    //  buffering
+    ubyte[256] mBuffer;
+    size_t mBufferSize;
+
+    this(InputStream delegate() open, ulong forcedSize) {
+        mOpenDg = open;
+        mInput = open();
+        mForcedSize = forcedSize;
+    }
+
+    ulong size() {
+        return mForcedSize;
+    }
+
+    ulong position() {
+        return mPos;
+    }
+    void position(ulong pos) {
+        if (mPos != pos) {
+            if (mPos <= mBufferSize && pos < mBufferSize) {
+                //going back inside buffer area
+                mPos = pos;
+            } else {
+                //input is not seekable, so recreate and skip to pos
+                mInput = mOpenDg();
+                mPos = 0;
+                skip(pos);
+            }
+        }
+    }
+
+    //skip over count bytes (because we cannot seek)
+    private void skip(ulong count) {
+        size_t bufs = mInput.conduit.bufferSize;
+        auto buffer = new ubyte[bufs];
+        while (count > bufs) {
+            readPartial(buffer);
+            count -= bufs;
+        }
+        readPartial(buffer[0..count]);
+    }
+
+    protected size_t writePartial(ubyte[] data) {
+        ioerror("read only");
+        return 0;
+    }
+
+    protected size_t readPartial(ubyte[] data) {
+        size_t res;
+        if (mPos < mBufferSize) {
+            //buffered
+            res = min(data.length, mBufferSize - cast(size_t)mPos);
+            data[0..res] = mBuffer[mPos..mPos+res];
+            mPos += res;
+        }
+        if (res < data.length) {
+            //not buffered
+            ubyte[] rdata = data[res..$];
+            size_t readRes = mInput.read(rdata);
+            if (readRes == Conduit.Eof)
+                readRes = 0;
+            if (mBufferSize < mBuffer.length && readRes > 0) {
+                size_t count = min(mBuffer.length - mBufferSize, readRes);
+                mBuffer[mBufferSize..mBufferSize+count] = rdata[0..count];
+                mBufferSize += count;
+            }
+            mPos += readRes;
+            res += readRes;
+        }
+        return res;
+    }
+
+    void close() {
+        mInput.close();
+        mOpenDg = null;
+        mBufferSize = 0;
     }
 }
 

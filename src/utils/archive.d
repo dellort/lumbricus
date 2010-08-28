@@ -8,8 +8,117 @@ import utils.misc;
 import utils.path;
 
 import tango.stdc.stringz;
+//hack for tango 0.99.9 <-> svn trunk change
+import tango.core.Version;
+static if (Tango.Major == 0 && Tango.Minor == 999) {
+    import tango.io.compress.Zip;
+} else {
+    import tango.util.compress.Zip;
+}
+import tango.io.model.IConduit;
 
-class TarArchive {
+//shared interface for archive readers (currently: tar and zip)
+interface ArchiveReader {
+    //does archive contain a file (not directory)
+    bool fileExists(VFSPath name);
+    //does archive contain a directory (may only return full directories)
+    bool pathExists(VFSPath name);
+    //open a file for reading
+    Stream openReadStream(VFSPath name, bool can_fail = false);
+    //iterate over files (not directories)
+    int opApply(int delegate(ref VFSPath file) del);
+    //close archive (you should close open streams first)
+    void close();
+}
+
+//now what is so hard about that, tango guys? (ZipFolder throws AVs at me)
+class ZipArchiveReader : ArchiveReader {
+    private {
+        struct MyZipEntry {
+            ZipEntry entry;
+            VFSPath name;
+        }
+
+        InputStream mFile;
+        ZipReader mReader;
+        MyZipEntry[] mEntries;
+    }
+
+    //xxx why exactly do we have our own stream interface?
+    this(Stream f) {
+        auto cs = castStrict!(ConduitStream)(f);
+        assert(!!cs.input);
+        this(cs.input);
+    }
+
+    this(InputStream input) {
+        mFile = input;
+        mReader = new ZipBlockReader(input);
+        //read directory and cache entries (waste of memory, but
+        //  ZipBlockReader can only iterate once)
+        foreach (entry; mReader) {
+            mEntries ~= MyZipEntry(entry.dup, VFSPath(entry.info.name));
+        }
+    }
+
+    private MyZipEntry* findFile(VFSPath name) {
+        //xxx ZIP files store directories, but tango ZipEntry provides no
+        //    method to check if it represents a directory
+        //    so for now I assume size() == 0 means it is a directory
+        foreach (ref e; mEntries) {
+            if (e.name == name && e.entry.size() > 0) {
+                return &e;
+            }
+        }
+        return null;
+    }
+
+    Stream openReadStream(VFSPath name, bool can_fail = false) {
+        auto e = findFile(name);
+        if (e) {
+            debug e.entry.verify();
+            return new SeekFixStream(&e.entry.open, e.entry.size());
+        }
+        if (can_fail)
+            return null;
+        throw new CustomException("zip entry not found: >"~name.toString~"<");
+    }
+
+    bool fileExists(VFSPath name) {
+        return findFile(name) !is null;
+    }
+
+    bool pathExists(VFSPath name) {
+        //search for a file starting with that directory name
+        foreach (e; mEntries) {
+            if (name.isChild(e.name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    int opApply(int delegate(ref VFSPath file) del) {
+        foreach (e; mEntries) {
+            if (e.entry.size() > 0) {
+                int res = del(e.name);
+                if (res)
+                    return res;
+            }
+        }
+        return 0;
+    }
+
+    void close()  {
+        mReader.close();
+        mReader = null;
+        mFile.close();
+        mFile = null;
+        mEntries = null;
+    }
+}
+
+class TarArchive : ArchiveReader {
     private {
         Stream mFile;
         Entry[] mEntries;
@@ -17,7 +126,7 @@ class TarArchive {
         SliceStream mCurrentWriter;
 
         struct Entry {
-            char[] name;
+            VFSPath name;
             ulong size;
             ulong offset; //the the file header
             bool writing;
@@ -91,7 +200,7 @@ class TarArchive {
                         throw new CustomException("tar error");
                     return fromStringz(&f[0]);
                 }
-                e.name = getField(h.filename).dup;
+                e.name = VFSPath(getField(h.filename).dup);
                 char[] sz = h.filesize[0..11].dup;
                 //parse octal by myself, Phobos is too stupid to do it
                 ulong isz = 0;
@@ -114,7 +223,7 @@ class TarArchive {
         }
     }
 
-    bool fileExists(char[] name) {
+    bool fileExists(VFSPath name) {
         foreach (Entry e; mEntries) {
             if (e.name == name) {
                 return true;
@@ -123,20 +232,19 @@ class TarArchive {
         return false;
     }
 
-    bool pathExists(char[] name) {
+    bool pathExists(VFSPath name) {
         //xxx directories are stored in tar files (h.link == '5'), but I'm too
         //    lazy to change the parsing code above
-        auto vp = VFSPath(name);
         //search for a file starting with that directory name
         foreach (Entry e; mEntries) {
-            if (vp.isChild(VFSPath(e.name))) {
+            if (name.isChild(e.name)) {
                 return true;
             }
         }
         return false;
     }
 
-    int opApply(int delegate(ref char[] filename) del) {
+    int opApply(int delegate(ref VFSPath filename) del) {
         foreach (Entry e; mEntries) {
             int res = del(e.name);
             if (res)
@@ -145,7 +253,7 @@ class TarArchive {
         return 0;
     }
 
-    Stream openReadStreamUncompressed(char[] name, bool can_fail = false) {
+    Stream openReadStream(VFSPath name, bool can_fail = false) {
         foreach (Entry e; mEntries) {
             if (e.name == name) {
                 auto s = new SliceStream(mFile, e.offset + 512,
@@ -155,12 +263,12 @@ class TarArchive {
         }
         if (can_fail)
             return null;
-        throw new CustomException("tar entry not found: >"~name~"<");
+        throw new CustomException("tar entry not found: >"~name.toString~"<");
     }
 
-    PipeIn openReadStream(char[] name, bool can_fail = false) {
+    PipeIn openReadStreamCompressed(char[] name, bool can_fail = false) {
         name = name ~ ".gz";
-        auto s = openReadStreamUncompressed(name, can_fail);
+        auto s = openReadStream(VFSPath(name), can_fail);
         if (!s)
             return PipeIn.Null;
         return gzip.GZReader.Pipe(s.pipeIn(true));
@@ -168,7 +276,7 @@ class TarArchive {
 
     //open a file by openReadStream() and parse as config file
     ConfigNode readConfigStream(char[] name) {
-        auto r = openReadStream(name);
+        auto r = openReadStreamCompressed(name);
         scope(exit) r.close();
         return ConfigFile.Parse(cast(char[])r.readAll(), "?.tar/"~name);
     }
@@ -178,7 +286,7 @@ class TarArchive {
     private void startEntry(char[] name) {
         finishLastFile();
         Entry e;
-        e.name = name;
+        e.name = VFSPath(name);
         e.offset = mFile.position();
         e.writing = true;
         mEntries ~= e;
@@ -209,7 +317,8 @@ class TarArchive {
             return;
         if (mCurrentWriter && mCurrentWriter.source()) {
             //because we can support only one writer at a moment
-            throw new CustomException("previous tar sub-file not closed: "~e.name);
+            throw new CustomException("previous tar sub-file not closed: "
+                ~ e.name.toString);
         }
         e.writing = false;
         mCurrentWriter = null;
@@ -244,7 +353,8 @@ class TarArchive {
             foreach (Entry e;  mEntries) {
                 TarHeader h;
                 (cast(char*)&h)[0..h.sizeof] = '\0';
-                h.filename[0..e.name.length] = e.name;
+                char[] fname = e.name.get(false);
+                h.filename[0..fname.length] = fname;
                 char[] sz = myformat("{:o11}", e.size) ~ '\0';
                 assert (sz.length == 12);
                 h.filesize[] = sz;

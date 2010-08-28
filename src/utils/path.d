@@ -204,6 +204,9 @@ struct VFSPath {
         return isChild(other) || str.cmp(other.mPath, mPath) == 0;
     }
 
+    int opEquals(VFSPath other) {
+        return str.cmp(other.mPath, mPath) == 0;
+    }
 
     VFSPath relativePath(VFSPath parent) {
         if (parent.isChildOrEqual(*this))

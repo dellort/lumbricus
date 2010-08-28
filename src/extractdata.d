@@ -4,7 +4,6 @@ import tango.io.FilePath;
 import tango.io.model.IFile : FileConst;
 import tango.util.Convert;
 import tango.io.Stdout;
-import tango.io.vfs.ZipFolder : ZipFolder;
 import tango.io.vfs.FileFolder;
 import tango.io.stream.Text;
 debug import tango.core.tools.TraceExceptions;
