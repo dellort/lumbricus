@@ -73,7 +73,7 @@ Vector2f[] cornercut(Vector2f[] vertices, uint[] nosubdiv, int steps = 5,
         bool no_subdivide = false;
     }
 
-    Appender!(Vertex, true) verts, nverts;
+    AppenderVolatile!(Vertex) verts, nverts;
 
     foreach (size_t curindex, ref v; vertices) {
         Vertex nv = Vertex(v, false);

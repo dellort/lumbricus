@@ -3,7 +3,6 @@ module framework.filesystem;
 import str = utils.string;
 import utils.stream;
 import tpath = tango.io.Path;
-import tango.text.Regex;  //for filename cleanup
 import utils.misc;
 import utils.log;
 import utils.path;
@@ -540,23 +539,49 @@ class FileSystem {
         static MountId mNextMountId;
 
         static MountPointHandler[] mHandlers;
-        Regex mRegFilename;
     }
 
     this(char[] appId) {
         assert(!gFS, "FileSystem is singleton");
         gFS = this;
         log = registerLog("fs");
-        mRegFilename = new Regex(`[^-+!.,;a-zA-Z0-9()\[\]]`);
         initPaths(appId);
     }
 
     //standalone, non-singleton instance of a FileSystem
     this() {
         log = registerLog("fs2");
-        mRegFilename = new Regex(`[^-+!.,;a-zA-Z0-9()\[\]]`);
         mUserPath = "";
         mDataPath = "";
+    }
+
+    //replace invalid/dangerous characters from the filename fn and replace them
+    //  by "_"; this shouldn't be a path, as '\'/'/' will be replaced too
+    static char[] fixFilename(char[] fn) {
+        //ranges of valid characters (must be ASCII)
+        //orig.: Regex(`[^-+!.,;a-zA-Z0-9()\[\]]`);
+        static const char[][] valid = ["az", "AZ", "09", ".", "_"];
+        char[] res;
+        //this will reduce utf-8 to ASCII (a bit dirty, but effective)
+        foreach (char d; fn) {
+            char nd = '_';
+            foreach (char[] vr; valid) {
+                assert(vr.length <= 2);
+                if ((vr.length == 2 && d >= vr[0] && d <= vr[1])
+                    || (vr.length == 1 && d == vr[0]))
+                {
+                    nd = d;
+                    break;
+                }
+            }
+            //appending by char is inefficient, but this function is rarely used
+            res ~= nd;
+        }
+        return res;
+    }
+
+    unittest {
+        assert(fixFilename("_moäT34$/\\.") == "_mo__T34___.");
     }
 
     ///Returns path to '.<appId>' in user's home directory
@@ -970,7 +995,7 @@ class FileSystem {
             i++;
             fn = myformat(nameTemplate, i);
         } while (exists(ret = path //detect invalid characters in name
-            ~ mRegFilename.replaceAll(fn, "_") ~ ext))
+            ~ fixFilename(fn) ~ ext))
         tries = i-1;
         return ret;
     }

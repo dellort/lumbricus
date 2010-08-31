@@ -63,6 +63,12 @@ $ Am Seil zielt man immer nach rechts [oder links, wenn wurm kopfüber ist] (soll
     ^ wurde wohl behoben; geht jetzt in bewegungsrichtung
 $ axt feuern und anfangen zu laufen bevor die axt "eingeschlagen" hat => man kann nicht mehr feuern, eine andere waffe auswählen, oder die runde beenden
 $ am seil hängen, bazooka auswählen, 'J' drücken -> bazooka wird abgefeuert
+! zur fehlerbehandlung beim spiel-laden werden CustomExceptions abgefangen (sinn: keine runtime exceptions wie assertion failed oder access violations abfangen, da das zu debugging alptraum führen würde)
+  problem: IOExceptions sind keine CustomExceptions => das ganze error-handling funktioniert nicht in diesen fällen (und btw. framework/sdl/rwops.d fängt überhaupt keine exceptions ab => exception handler wird über C stackframes springen, args.)
+  mögliche lösungen:
+    a) zusätzlich zu CustomException immer IOException abfangen (aber: PITA wegen der try-catch syntax)
+    b) alle IOExceptions in utils.stream wrappen und nach CustomException konvertieren (dann hätte utils.stream endlich einen sinn)
+    c) so tun als würde das problem nicht exisistieren (wie oft gibt's schon IOExceptions?)
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)

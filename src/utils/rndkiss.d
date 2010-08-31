@@ -1,8 +1,10 @@
 //Code adapted from tango.math.Random (www.dsource.org/projects/tango, BSD)
-//xxx new code should use tango.math.random.Random (I think)
+//xxx should be changed to use tango.math.random.engines.KISS, which is nice and
+//    small, and unlike tango.math.Random isn't template bloat hell (didn't do
+//    that yet because getting its internal state requires memory allocation)
+//(there's also tango.math.random.Kiss... older, no access to internal state)
 module utils.rndkiss;
 
-import utils.time;
 import utils.misc;
 
 import tango.core.Traits : isIntegerType, isRealType;
@@ -43,22 +45,25 @@ class Random
     private RNGState kissSt;
 
     /**********************************************************************
-        Creates and seeds a new generator with the current time
+        Creates and seeds a new generator
+        use utils.random.generateRandomSeed() if you need a random seed
     **********************************************************************/
-    this ()
+    this (uint a_seed)
     {
-        this.seed;
+        seed(a_seed);
     }
 
     /**********************************************************************
         Seed the generator with current time
     **********************************************************************/
+    /+
     final void seed()
     {
         //xxx: this isn't really going to work, time resolution is too low and
         //     probably starts with 0 at program start?
         seed(cast(uint) timeCurrentTime().musecs);
     }
+    +/
 
     /**********************************************************************
         Seed the generator with a provided value

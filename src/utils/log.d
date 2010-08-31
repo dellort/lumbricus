@@ -9,8 +9,6 @@ import utils.misc;
 import array = utils.array;
 import str = utils.string;
 
-import layout = tango.text.convert.Layout;
-
 /// Access to all Log objects created so far.
 Log[char[]] gAllLogs;
 
@@ -98,6 +96,12 @@ final class LogBackend {
             gLogBackends ~= this;
     }
 
+    //remove from backend list, but don't reset internal state
+    //stupid name for stupid semantics
+    void retire() {
+        array.arrayRemove(gLogBackends, this, true);
+    }
+
     void sink(LogSink a_sink) {
         mSink = a_sink;
         if (a_sink) {
@@ -110,6 +114,13 @@ final class LogBackend {
     }
     LogSink sink() {
         return mSink;
+    }
+
+    //return unwritten log entries and clear them from internal list
+    LogEntry[] flushLogEntries() {
+        auto res = mBuffered;
+        mBuffered = null;
+        return res;
     }
 
     //if enabled=false, log events are never accepted
@@ -293,6 +304,7 @@ struct LogStruct(char[] cId) {
         check();
         return mLog;
     }
+    alias logClass get;
 
     char[] category() {
         return cId;
@@ -330,4 +342,51 @@ struct LogStruct(char[] cId) {
         emitx(pri, fmt, _arguments, _argptr);
     }
     //------
+}
+
+//xxx probably there are better places where to put this code, maybe reconsider
+//  after killing utils.output, but then again it doesn't matter & nobody cares
+//xxx2 this is made for a dark background
+void writeColoredLogEntry(LogEntry e, bool show_source,
+    void delegate(char[] fmt, ...) writefln)
+{
+    const char[][] cColorString = [
+        LogPriority.Trace: "0000ff",
+        LogPriority.Minor: "bbbbbb",
+        LogPriority.Notice: "ffffff",
+        LogPriority.Warn: "ffff00",
+        LogPriority.Error: "ff0000"
+    ];
+    char[] c = "ffffff";
+    if (indexValid(cColorString, e.pri))
+        c = cColorString[e.pri];
+    char[40] buffer;
+    char[] source;
+    if (show_source)
+        source = myformat_s(buffer, "[{}] ", e.source.category);
+    //the \litx prevents tag interpretation in msg
+    char[] msg = e.txt;
+    writefln("\\c({}){}\\litx({},{})", c, source, msg.length, msg);
+}
+
+//Java style!
+//write the backtrace (and possibly any other information we can get) to the
+//  log, using Minor log level
+//the idea is that, when catching an exception, you:
+//  1. log a human readable error message with LogPriority.Error to the screen
+//  2. spam the logfile with the precious backtrace using this function
+void traceException(Log dest, Exception e, char[] what = "") {
+    auto write = &dest.minor;
+    if (e) {
+        char[] buffer;
+        buffer ~= "Exception backtrace";
+        if (what.length)
+            buffer ~= " (" ~ what ~ ")";
+        buffer ~= ":\n";
+        e.writeOut( (char[] txt) { buffer ~= txt; } );
+        buffer ~= "Backtrace end.\n";
+        write("{}", buffer);
+    } else {
+        write("error: no error");
+    }
 }

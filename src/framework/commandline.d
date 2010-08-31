@@ -6,6 +6,7 @@ import framework.i18n;
 import str = utils.string;
 
 import utils.color;
+import utils.log;
 import utils.misc;
 import utils.mybox;
 import utils.array;
@@ -290,7 +291,13 @@ private:
 
         //successfully parsed, so...:
         if (cmdProc) {
-            cmdProc(args, write);
+            try {
+                cmdProc(args, write);
+            } catch (CustomException e) {
+                write.writefln("error when executing command: {}", e);
+                traceException(gLog, e,
+                    myformat("executing '{} {}'", name, cmdline));
+            }
         }
 
         return true;

@@ -29,11 +29,11 @@ import net.announce;
 import net.cmdclient;
 import utils.array;
 import utils.configfile;
-import utils.misc;
-import utils.time;
 import utils.log;
+import utils.misc;
+import utils.random;
+import utils.time;
 
-import tango.math.random.Random : rand;
 import tango.util.Convert : to;
 
 class CmdNetClientTask {
@@ -357,7 +357,7 @@ class CreateNetworkGame : SimpleContainer {
             s.add("", ti.teamConf["id"]);
         }
 
-        conf.randomSeed = to!(char[])(rand.uniform!(uint));
+        conf.randomSeed = to!(char[])(generateRandomSeed());
 
         onStart(conf);
     }

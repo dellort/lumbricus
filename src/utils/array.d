@@ -213,6 +213,7 @@ unittest {
 //  memory block on _every_ single append operation)
 //FreeOnRealloc: if true, delete the previous array if it got reallocated (all
 //  former slices are going to point to free'd memory)
+//use AppenderVolatile!(T) instead of Appender!(T, true)
 //NOTE: instead of Appender!(int) arr; foreach(x;arr) do foreach(x;arr[])
 struct Appender(T, bool FreeOnRealloc = false) {
     private {
@@ -301,6 +302,11 @@ struct Appender(T, bool FreeOnRealloc = false) {
         mLength = 0;
         delete mArray;
     }
+}
+
+//Appender that explicitly frees its array if reallocation becomes necessary
+template AppenderVolatile(T) {
+    alias Appender!(T, true) AppenderVolatile;
 }
 
 unittest {

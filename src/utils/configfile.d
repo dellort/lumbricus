@@ -752,7 +752,7 @@ public class ConfigNode {
     }
 
     public char[] writeAsString() {
-        marray.Appender!(char, true) outs;
+        marray.AppenderVolatile!(char) outs;
         //is this kosher? anyway, I don't care
         write(&outs.opCatAssign);
         return outs[];

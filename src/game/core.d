@@ -241,8 +241,8 @@ abstract class GameCore {
         mInput = new InputGroup();
 
         //random seed will be fixed later during intialization
-        mRnd = new Random();
-        mRnd.seed(1);
+        //(currently in game.d)
+        mRnd = new Random(generateRandomSeed());
 
         mPhysicWorld = new PhysicWorld(rnd);
 

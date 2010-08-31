@@ -32,6 +32,7 @@ import gui.console;
 import gui.container;
 import gui.global;
 import gui.label;
+import gui.logwindow;
 import gui.tablecontainer;
 import gui.widget;
 import gui.window;
@@ -113,6 +114,8 @@ class Fader : Widget {
     }
 }
 
+LogStruct!("game") gGameLog;
+
 class GameTask {
     private {
         GameShell mGameShell;
@@ -129,6 +132,8 @@ class GameTask {
         LoadingScreen mLoadScreen;
         Loader mGUIGameLoader;
         Resources.Preloader mResPreloader;
+        LogBackend mLoadLog;
+        Widget mErrorDialog;
 
         CommandBucket mCmds;
 
@@ -151,8 +156,9 @@ class GameTask {
         createWindow();
 
         if (str.eatStart(args, "demo:")) {
-            mGameLoader = GameLoader.CreateFromDemo(args);
-            doInit();
+            doInit({
+                mGameLoader = GameLoader.CreateFromDemo(args);
+            });
             return;
         }
 
@@ -172,9 +178,13 @@ class GameTask {
         }
 
         if (args == "") {
-            initGame(loadGameConfig(node));
+            doInit({
+                mGameLoader = GameLoader.CreateNewGame(loadGameConfig(node));
+            });
             return;
         }
+
+        kill(); //remove that window
 
         throw new CustomException("unknown commandline params: >"~args~"<");
     }
@@ -182,16 +192,18 @@ class GameTask {
     //start a game
     this(GameConfig cfg) {
         createWindow();
-        initGame(cfg);
+        doInit({
+            mGameLoader = GameLoader.CreateNewGame(cfg);
+        });
     }
 
     this(GameLoader loader, SimpleNetConnection con) {
-        mGameLoader = loader;
-        mConnection = con;
-        mConnection.onGameStart = &netGameStart;
-
         createWindow();
-        doInit();
+        doInit({
+            mGameLoader = loader;
+            mConnection = con;
+            mConnection.onGameStart = &netGameStart;
+        });
     }
 
     private void createWindow() {
@@ -216,14 +228,46 @@ class GameTask {
         mControl = control;
     }
 
-    //start game intialization
-    //it's not clear when initialization is finished (but it shows a loader gui)
-    private void initGame(GameConfig cfg) {
-        mGameLoader = GameLoader.CreateNewGame(cfg);
-        doInit();
+    //silly wrapper to avoid writing tedious try-catch blocks
+    //  phase = what loading phase the code is in
+    //  code = code to be executed; exceptions will be catched and treated as
+    //      load errors
+    //  returns if code was executed successfully
+    private bool tryLoad(char[] phase, void delegate() code) {
+        try {
+            code();
+            return true;
+        } catch (CustomException e) {
+            loadFailed(phase, e);
+            return false;
+        }
     }
 
-    void doInit() {
+    //if tryLoad is far too silly
+    private void loadFailed(char[] phase, Exception e) {
+        gGameLog.error("error when {}: {}", phase, e);
+        traceException(gGameLog.get, e);
+        loadingFailed();
+    }
+
+    //set up the GUI, and call the load phases over the following frames
+    //creator is called first
+    //xxx: I'd like to put "creator" as extra chunk with addChunk, but that
+    //  would require proper closure support; so it's called immediately for now
+    void doInit(void delegate() creator) {
+        //kill remains?
+        killGame();
+
+        //prepare loading - set up logger so we can show that to the user if
+        //  loading fails
+        assert(!mLoadLog);
+        mLoadLog = new LogBackend("game loader", LogPriority.Notice, null);
+
+        //create game (xxx: should be the first chunk added via addChunk)
+        if (!tryLoad("creating game", creator))
+            return;
+
+        assert(!mLoadScreen);
         mLoadScreen = new LoadingScreen();
         mLoadScreen.zorder = 10;
         assert (!!mWindow);
@@ -248,23 +292,33 @@ class GameTask {
         addTask(&onFrame);
     }
 
-    private void unloadGame() {
-        //log("unloadGame");
-        /+if (mServerEngine) {
-            mServerEngine.kill();
-            mServerEngine = null;
-        }+/
+    private void killGame() {
+        //--- loader
+        if (mLoadScreen)
+            mLoadScreen.remove();
+        mLoadScreen = null;
+
+        mGUIGameLoader = null;
+        mGameLoader = null;
+        mResPreloader = null;
+
+        if (mLoadLog)
+            mLoadLog.retire();
+        mLoadLog = null;
+
+        //--- game (remains)
         if (mGameShell) {
             mGameShell.terminate();
-            Object e = mGameShell.serverEngine;
-            //mGameShell.getSerializeContext().death_stomp(e);
         }
         mGameShell = null;
         if (mGameFrame) {
             mGameFrame.kill();
+            mGameFrame.remove();
         }
         mGame = null;
         mControl = null;
+        mConnection = null;
+        mGameInfo = null;
     }
 
     private bool initGameGui() {
@@ -272,12 +326,6 @@ class GameTask {
         mGameInfo.connection = mConnection;
         mGameFrame = new GameFrame(mGameInfo);
         mWindow.add(mGameFrame);
-        /+
-        if (mSavedSetViewPosition) {
-            mSavedSetViewPosition = false;
-            mGameFrame.setPosition(mSavedViewPosition);
-        }
-        +/
 
         return true;
     }
@@ -285,7 +333,12 @@ class GameTask {
     private bool initGameEngine() {
         //log("initGameEngine");
         if (!mGameShell) {
-            mGameShell = mGameLoader.finish();
+            try {
+                mGameShell = mGameLoader.finish();
+            } catch (CustomException e) {
+                loadFailed("creating game engine", e);
+                return true;
+            }
             mGame = mGameShell.serverEngine;
         }
         if (mConnection) {
@@ -324,23 +377,70 @@ class GameTask {
 
     private void gameLoaded(Loader sender) {
         //remove this, so the game becomes visible
-        mLoadScreen.remove();
+        if (mLoadScreen)
+            mLoadScreen.remove();
+        mLoadScreen = null;
 
         mFader = new Fader(cFadeInDuration, true);
         mWindow.add(mFader);
     }
 
+    private void loadingFailed() {
+        gGameLog.error("loading failed.");
+
+        LogEntry[] logentries = mLoadLog.flushLogEntries();
+
+        killGame();
+
+        //show user what went wrong (this is like a user unfriendly fallback;
+        //  for certain types of errors we could/should do a better job?)
+        auto log = new LogWindow();
+        log.formatted = true;
+        foreach (LogEntry e; logentries) {
+            writeColoredLogEntry(e, true, &log.writefln);
+        }
+        //probably add some buttons such as "ok"?
+        auto dialog = new SimpleContainer();
+        //argh this complicated GUI creation is the reason why our dialogs are
+        //  incomplete and crappy
+        WidgetLayout lay;
+        lay.fill[] = [0.7, 0.7]; //not the whole screen
+        dialog.setLayout(lay);
+        dialog.styles.addClass("load-error-dialog");
+        auto grid = new TableContainer(2, 3, Vector2i(5));
+        auto caption = new Label();
+        WidgetLayout lay2 = WidgetLayout.Expand(true);
+        caption.setLayout(lay2);
+        caption.styles.addClass("load-error-caption");
+        caption.textMarkup = "\\t(loading.game.failed)";
+        grid.add(caption, 0, 0, 2, 1);
+        grid.add(log, 0, 1, 2, 1);
+        auto b1 = new Button();
+        b1.onClick = &onCloseButton;
+        b1.textMarkup = "\\t(gui.ok)";
+        b1.setLayout(lay2);
+        grid.add(b1, 0, 2);
+        //button 2 should retroy or something?
+        auto b2 = new Button();
+        b2.onClick = &onCloseButton;
+        b2.textMarkup = "not ok";
+        b2.setLayout(lay2);
+        grid.add(b2, 1, 2);
+        dialog.add(grid);
+        mErrorDialog = dialog;
+        mWindow.add(dialog);
+        assert(dialog.isLinked);
+    }
+
+    private void onCloseButton(Button b) {
+        kill();
+    }
+
     private void unloadAndReset() {
-        unloadGame();
+        killGame();
         if (mWindow) mWindow.remove();
         mWindow = null;
-        if (mLoadScreen) mLoadScreen.remove();
-        mLoadScreen = null;
-        mGUIGameLoader = null;
-        mGameLoader = null;
-        mResPreloader = null;
-        //mSaveGame = null;
-        mControl = null;
+        mErrorDialog = null;
     }
 
     void kill() {
@@ -350,10 +450,6 @@ class GameTask {
         mRealWindow.remove();
         unloadAndReset();
         mCmds.kill();
-        if (mGameFrame)
-            mGameFrame.remove(); //from GUI
-        if (mLoadScreen)
-            mLoadScreen.remove();
     }
 
     void terminateWithFadeOut() {
@@ -384,27 +480,30 @@ class GameTask {
             kill();
         if (mDead)
             return false;
-        if (mGUIGameLoader.fullyLoaded) {
-            if (mGameShell) {
-                mGameShell.frame();
-                mGameInfo.replayRemain = mGameShell.replayRemain;
-                if (mGameShell.terminated)
-                    kill();
-            }
+        if (mGUIGameLoader) {
+            if (mGUIGameLoader.fullyLoaded) {
+                if (mGameShell) {
+                    mGameShell.frame();
+                    mGameInfo.replayRemain = mGameShell.replayRemain;
+                    if (mGameShell.terminated)
+                        kill();
+                }
 
-            //maybe
-            if (gameEnded()) {
-                assert(!!mGameShell && !!mGameShell.serverEngine);
-                mGamePersist = mGameShell.serverEngine.persistentState;
-                terminateWithFadeOut();
+                //maybe
+                if (gameEnded()) {
+                    assert(!!mGameShell && !!mGameShell.serverEngine);
+                    mGamePersist = mGameShell.serverEngine.persistentState;
+                    terminateWithFadeOut();
+                }
+            } else {
+                if (mDelayedFirstFrame) {
+                    mGUIGameLoader.loadStep();
+                }
+                mDelayedFirstFrame = true;
+                //update GUI (Loader/LoadingScreen aren't connected anymore)
+                if (mLoadScreen)
+                    mLoadScreen.primaryPos = mGUIGameLoader.currentChunk;
             }
-        } else {
-            if (mDelayedFirstFrame) {
-                mGUIGameLoader.loadStep();
-            }
-            mDelayedFirstFrame = true;
-            //update GUI (Loader/LoadingScreen aren't connected anymore)
-            mLoadScreen.primaryPos = mGUIGameLoader.currentChunk;
         }
 
         //he-he
@@ -497,12 +596,16 @@ class GameTask {
 
     //slow <time>
     private void cmdSlow(MyBox[] args, Output write) {
+        if (!mControl)
+            return;
         float val = args[0].unbox!(float);
         write.writefln("set slow_down={}", val);
         mControl.execCommand(myformat("slow_down {}", val));
     }
 
     private void cmdStep(MyBox[] args, Output write) {
+        if (!mControl)
+            return;
         auto val = args[0].unbox!(int);
         write.writefln("single_step {}", val);
         mControl.execCommand(myformat("single_step {}", val));
@@ -514,6 +617,8 @@ class GameTask {
     }
 
     private void cmdExecServer(MyBox[] args, Output write) {
+        if (!mControl)
+            return;
         //send command to the server
         char[] srvCmd = args[0].unbox!(char[]);
         mControl.execCommand(srvCmd);

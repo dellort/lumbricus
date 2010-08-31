@@ -4,6 +4,7 @@ import framework.framework;
 import framework.font;
 import gui.widget;
 import gui.rendertext;
+import utils.array : AppenderVolatile;
 import utils.time;
 import utils.output;
 import utils.misc : min, max, va_list, myformat_fx;
@@ -164,7 +165,7 @@ public class LogWindow : Widget, Output {
             writeString("\n");
     }
 
-    private char[] mLineBuffer;
+    private AppenderVolatile!(char) mLineBuffer;
 
     //NOTE: parses '\n's
     //xxx might be inefficient; at least it's correct, unlike the last version
@@ -195,12 +196,13 @@ public class LogWindow : Widget, Output {
                 newEntry.fmtText.setArea(size, -1, -1);
                 newEntry.fmtText.shrink = ShrinkMode.wrap;
             }
-            newEntry.fmtText.setMarkup(mLineBuffer);
+            newEntry.fmtText.setMarkup(mLineBuffer[]);
         } else {
-            newEntry.text = mLineBuffer;
+            delete newEntry.text;
+            newEntry.text = mLineBuffer.dup;
         }
         newEntry.timestamp = timeCurrentTime();
-        mLineBuffer = null;
+        mLineBuffer.length = 0;
     }
 
     ///scroll backlog display back dLines > 0 lines

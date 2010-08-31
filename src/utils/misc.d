@@ -1,6 +1,6 @@
 module utils.misc;
 
-import layout = tango.text.convert.Layout;
+import tango.text.convert.Format;
 import intr = tango.core.BitManip;
 import runtime = tango.core.Runtime;
 
@@ -44,7 +44,7 @@ class Trace {
             write(s);
             return s.length;
         }
-        layout.Layout!(char).instance().convert(&sink, arguments, argptr, fmt);
+        Format.convert(&sink, arguments, argptr, fmt);
     }
 }
 
@@ -169,12 +169,7 @@ R delegate(T) toDelegate(R, T...)(R function(T) fn) {
 }
 
 char[] myformat_fx(char[] a_fmt, TypeInfo[] arguments, va_list argptr) {
-    //(yeah, very funny names, Tango guys!)
-    return layout.Layout!(char).instance().convert(arguments, argptr, a_fmt);
-    //Phobos for now
-    //char[] res;
-    //fmt.doFormat((dchar c) { utf.encode(res, c); }, a_fmt, arguments, argptr);
-    //return res;
+    return Format.convert(arguments, argptr, a_fmt);
 }
 
 //replacement for stdx.string.format()
@@ -238,7 +233,7 @@ char[] myformat_s_fx(char[] buffer, char[] fmt, TypeInfo[] arguments,
     //NOTE: there's Layout.vprint(), but it simply cuts the output if the buffer
     //      is too small (and you don't know if this happened)
     auto buf = StrBuffer(buffer);
-    layout.Layout!(char).instance().convert(&buf.tsink, arguments, argptr, fmt);
+    Format.convert(&buf.tsink, arguments, argptr, fmt);
     return buf.get;
 }
 
@@ -252,8 +247,7 @@ void myformat_cb_fx(void delegate(char[] s) sink, char[] fmt,
     TypeInfo[] arguments, va_list argptr)
 {
     uint xsink(char[] s) { sink(s); return s.length; }
-    return layout.Layout!(char).instance().convert(&xsink, arguments, argptr,
-        fmt);
+    return Format.convert(&xsink, arguments, argptr, fmt);
 }
 void myformat_cb(void delegate(char[] s) sink, char[] fmt, ...) {
     myformat_cb_fx(sink, fmt, _arguments, _argptr);

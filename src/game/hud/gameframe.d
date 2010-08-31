@@ -344,18 +344,7 @@ class GameFrame : SimpleContainer {
     }
 
     private void showLogEntry(LogEntry e) {
-        const char[][] cColorString = [
-            LogPriority.Trace: "0000ff",
-            LogPriority.Minor: "bbbbbb",
-            LogPriority.Notice: "ffffff",
-            LogPriority.Warn: "ffff00",
-            LogPriority.Error: "ff0000"
-        ];
-        char[] c = "ffffff";
-        if (indexValid(cColorString, e.pri))
-            c = cColorString[e.pri];
-        //the \lit prevents tag interpretation between the \0
-        mConsoleBox.output.writefln("\\c({})\\lit\0{}\0", c, e.txt);
+        writeColoredLogEntry(e, false, &mConsoleBox.output.writefln);
     }
 
     private bool mLogAdded;

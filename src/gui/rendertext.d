@@ -92,6 +92,12 @@ struct TextRange {
  +  \lit<char>text<char>
  +    Include the text included between the given char as literal.
  +    e.g. "\lit+I'm \bliteral!+" the \b tag isn't parsed.
+ +  \litx(count,text)
+ +    Include the text as literal like \lit, where the text is exact count bytes
+ +    long. This means text can contain any characters, and thus is safer than
+ +    \lit. The trailing ')' doesn't have any meaning and is just for symmetry
+ +    (the parser still raises an error if it's missing).
+ +    Example: \litx(6,blä\n)) outputs 'blä\n)'. ('ä' is two bytes in utf-8.)
  +  \blink
  +    Annoy the user.
  +  \imgref(index)
@@ -399,6 +405,14 @@ public class FormattedText {
             return str.eatStart(txt, t);
         }
 
+        //like tryeat, but output error if unsuccessful
+        bool eat(char[] t) {
+            bool res = tryeat(t);
+            if (!res)
+                error("'" ~ t ~ "' expected");
+            return res;
+        }
+
         bool readdelim(ref char[] res, char delim) {
             auto stuff = str.split2(txt, delim);
             if (!stuff[1].length) {
@@ -477,6 +491,7 @@ public class FormattedText {
         }
 
         //--- actual parser & "interpreter"
+        //syntax documentation see comment near top of this file
 
         //(be sure to put longer commands before shorter ones if ambiguous,
         // like "back" - "b")
@@ -488,6 +503,19 @@ public class FormattedText {
             parseLiteral("\n", -1);
         } else if (tryeat("tab")) { //\t is already the translate command
             parseLiteral("\t", -1);
+        } else if (tryeat("litx")) {
+            char[] t;
+            uint len;
+            if (eat("(") && readdelim(t, ',') && tryparse(t, len)) {
+                if (len < txt.length) {
+                    char[] lit = txt[0..len];
+                    txt = txt[len..$];
+                    parseLiteral(lit, -1);
+                    eat(")");
+                } else {
+                    error("\\litx length value out of bounds");
+                }
+            }
         } else if (tryeat("lit")) {
             if (!txt.length) {
                 error("\\lit on end of string");
