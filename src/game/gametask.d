@@ -324,7 +324,14 @@ class GameTask {
     private bool initGameGui() {
         mGameInfo = new GameInfo(mGameShell, mControl);
         mGameInfo.connection = mConnection;
-        mGameFrame = new GameFrame(mGameInfo);
+
+        try {
+            mGameFrame = new GameFrame(mGameInfo);
+        } catch (CustomException e) {
+            loadFailed("creating game GUI", e);
+            return true;
+        }
+
         mWindow.add(mGameFrame);
 
         return true;
@@ -375,14 +382,17 @@ class GameTask {
         }
     }
 
+    //NOTE: may be called even after loading failed
     private void gameLoaded(Loader sender) {
         //remove this, so the game becomes visible
         if (mLoadScreen)
             mLoadScreen.remove();
         mLoadScreen = null;
 
-        mFader = new Fader(cFadeInDuration, true);
-        mWindow.add(mFader);
+        if (mGame) {
+            mFader = new Fader(cFadeInDuration, true);
+            mWindow.add(mFader);
+        }
     }
 
     private void loadingFailed() {
@@ -463,6 +473,8 @@ class GameTask {
     }
 
     private bool gameEnded() {
+        if (!mGame)
+            return false;
         return mGame.singleton!(GameController)().gameEnded();
     }
 

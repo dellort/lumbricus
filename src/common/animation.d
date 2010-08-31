@@ -54,12 +54,6 @@ class Animator : SceneObjectCentered {
         if (mStarted > now())
             mStarted = now();
         mData = d;
-        if (mData) {
-            //can't handle these cases
-            assert(mData.frameCount > 0);
-            assert(mData.mLengthMS > 0);
-            assert(mData.mFrameTimeMS > 0);
-        }
     }
 
     bool hasFinished() {

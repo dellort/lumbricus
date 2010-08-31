@@ -5,6 +5,7 @@ import common.resources;
 import framework.framework;
 import framework.imgread;
 import utils.configfile;
+import utils.log;
 import utils.misc;
 import utils.vector2;
 
@@ -13,9 +14,16 @@ class Atlas {
         Surface[] mPages;
         FileAtlasTexture[] mTextures;
         SubSurface[] mTextureRefs;
+        bool mErrorFlag;
+
+        //the image is not game/graphicsset dependent, so this is ok (but ugly)
+        static SubSurface mErrorImage;
     }
 
     private this() {
+        if (!mErrorImage) {
+            mErrorImage = loadImage("error.png").fullSubSurface();
+        }
     }
 
     //create the SubSurfaces corresponding to the atlas parts
@@ -28,10 +36,16 @@ class Atlas {
     }
 
     final SubSurface texture(int index) {
-        if (indexValid(mTextureRefs, index))
+        if (indexValid(mTextureRefs, index)) {
             return mTextureRefs[index];
-        else
-            return null;
+        } else {
+            if (!mErrorFlag) {
+                //have fun tracking down the error cause
+                gLog.error("invalid index in atlas");
+                mErrorFlag = true;
+            }
+            return mErrorImage;
+        }
     }
 
     int count() {
@@ -49,7 +63,9 @@ class AtlasResource : ResourceItem {
             doLoad();
         } catch (CustomException e) {
             loadError(e);
-            mContents = new Atlas(); //dummy
+            auto dummy = new Atlas();
+            dummy.mErrorFlag = true;
+            mContents = dummy;
         }
     }
 

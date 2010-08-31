@@ -459,6 +459,27 @@ public class ConfigNode {
         }
     }
 
+    //for use by getCurValue()
+    //putting them outside of the template reduces the exe size
+    private void invalid(Exception e = null, char[] txt = "") {
+        char[] msg = "error at " ~ locationString();
+        if (txt.length) {
+            msg ~= " " ~ txt;
+        }
+        if (e) {
+            msg ~= ": " ~ e.toString();
+        }
+        throw new CustomException(msg);
+    }
+    private void nosubnodes() {
+        if (mItems.length)
+            invalid(null, "value-only node has sub nodes");
+    }
+    private void novalue() {
+        if (value != "")
+            invalid(null, "non-empty string value for array/etc. node");
+    }
+
     ///Get the value of the current node, parsed as type T
     ///If the value cannot be converted to T (parsing failed), throw ConfigError
     //currently supports:
@@ -470,40 +491,6 @@ public class ConfigNode {
     //  AAs with a basic (-> Tango's to) key type and a supported value type
     //  other structs (as name-value pairs)
     public T getCurValue(T)() {
-        void invalid(Exception e = null, char[] txt = "") {
-            //xxx why hidden inner class? how are users supposed to catch this??
-            //    answer: not at all, I consider this a temporary hack
-            //    a real solution must:
-            //     - catch typos (warn about nodes that aren't read)
-            //       (doesn't work at all with current design)
-            //     - distinguish optional and required values
-            //       (required values raise an error if node doesn't exist)
-            //     - continue reading out the confignode even after an error,
-            //       because reporting all errors is better than exit-on-first
-            //     - avoid function-with-dozens-of-getValue-calls orgies
-            static class ConfigError : CustomException {
-                this(char[] msg) {
-                    super(msg);
-                }
-            }
-            char[] msg = "error at " ~ locationString();
-            if (txt.length) {
-                msg ~= " " ~ txt;
-            }
-            if (e) {
-                msg ~= " original exception: " ~ e.toString();
-            }
-            throw new ConfigError(msg);
-        }
-        void nosubnodes() {
-            if (mItems.length)
-                invalid(null, "value-only node has sub nodes");
-        }
-        void novalue() {
-            if (value != "")
-                invalid(null, "non-empty string value for array/etc. node");
-        }
-
         static if (is(T : char[])) {
             nosubnodes();
             return value;
@@ -776,9 +763,7 @@ public class ConfigFile {
     private Position mNextPos;      //position of following char
     private dchar mCurChar;         //char at mPos
     private ConfigNode mRootnode;
-    private bool[uint] mUTFErrors;
     private uint mErrorCount;
-    private bool mHasEncodingErrors;
 
     public ConfigNode rootnode() {
         return mRootnode;
@@ -815,41 +800,15 @@ public class ConfigFile {
         doParse();
     }
 
-    private struct BOMItem {
-        char[] code; char[] name;
-    }
-    private static const char[] cUtf8Bom = [0xEF, 0xBB, 0xBF];
-    private static const BOMItem[] cBOMs = [
-        {cUtf8Bom, null}, //UTF-8, special handling
-        //needed for sophisticated error handling messages, bloaha
-        {[0xFF, 0xFE, 0x00, 0x00], "UTF-32 little endian"},
-        {[0x00, 0x00, 0xFE, 0xFF], "UTF-32 big endian"},
-        {[0xFF, 0xFE], "UTF-16 little endian"},
-        {[0xFE, 0xFF], "UTF-16 big endian"},
-    ];
-
     private void init_parser() {
         mNextPos = Position.init;
         mErrorCount = 0;
-        mHasEncodingErrors = false;
-        mUTFErrors = mUTFErrors.init;
 
         //if there's one, skip the unicode BOM
-        foreach (BOMItem bom; cBOMs) {
-            if (bom.code.length <= mData.length) {
-                if (mData[0..bom.code.length] == bom.code) {
-                    //if UTF-8, skip BOM and continue
-                    if (bom.name == null) {
-                        mNextPos.bytePos = bom.code.length;
-                        break;
-                    }
-
-                    reportError(true, "file encoding is >{}<, unsupported",
-                        bom.name);
-                    return;
-                }
-            }
-        }
+        //NOTE: tried to use tango.text.convert.UnicodeBom, but that thing sucks
+        //also fuck Microsoft for introducing useless crap
+        const char[] cUtf8Bom = [0xEF, 0xBB, 0xBF];
+        str.eatStart(mData, cUtf8Bom);
 
         //read first char, inits mPos and mCurChar
         next();
@@ -915,39 +874,9 @@ public class ConfigFile {
         dchar result;
 
         try {
-
             result = str.decode(mData, mNextPos.bytePos);
-
         } catch (str.UnicodeException utfe) {
-
-            //use a hashtable to record positions in the file, where encoding-
-            //errors are. this is stupid but simple. next() now can be called
-            //several times at the same positions without producing the same
-            //errors again
-
-            if (!(mNextPos.bytePos in mUTFErrors)) {
-                mUTFErrors[mNextPos.bytePos] = true;
-            }
-
-            //skip until there's a valid UTF sequence again
-
-            dchar offender = mData[mNextPos.bytePos];
-            mNextPos.bytePos++;
-            while (mNextPos.bytePos < mData.length) {
-                uint adv = 0xFF;
-                try {
-                    adv = str.stride(mData, mNextPos.bytePos);
-                } catch (str.UnicodeException utfe) {
-                }
-                if (adv != 0xFF)
-                    break;
-                mNextPos.bytePos++;
-            }
-
-            result = '?';
-            mHasEncodingErrors = true;
-
-            reportError(false, "invalid UTF-8 sequence");
+            reportError(true, "invalid UTF-8 sequence");
         }
 
         //update line/col position according to char type
@@ -975,25 +904,7 @@ public class ConfigFile {
     }
 
     private char[] copyOut(Position p1, Position p2) {
-        char[] slice = mData[p1.bytePos .. p2.bytePos];
-        if (!mHasEncodingErrors) {
-            return slice;
-        } else {
-            //check string and replace characters that produce encoding errors
-            //due to the copying and the exception handling this is S.L.O.W.
-            char[] args = slice.dup;
-            for (size_t i = 0; i < args.length; i++) {
-                try {
-                    //(decode modifies i)
-                    str.decode(args, i);
-                    i--; //set back to first next char
-                } catch (str.UnicodeException e) {
-                    args[i] = '?';
-                }
-            }
-            str.validate(args);
-            return args;
-        }
+        return mData[p1.bytePos .. p2.bytePos];
     }
 
     private enum Token {
@@ -1465,7 +1376,7 @@ public class ConfigFile {
                     "there is still text)");
             }
         } catch (ConfigFatalError e) {
-            //Exception is only used to exit parser function class hierachy
+            //Exception is only used to exit parser function hierachy
         }
     }
 

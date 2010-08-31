@@ -257,9 +257,8 @@ class GameLoader {
 
         auto plugins = new PluginBase(engine, mGameConfig);
 
+        mResPreloader = mGfx.createPreloader();
         mShell.mGfx = mGfx;
-        mResPreloader = gResources.createPreloader(mGfx.load_resources);
-        mGfx.load_resources = null;
 
         //test for time skip on loading
         //gFramework.sleep(timeSecs(2));

@@ -90,7 +90,9 @@ abstract class Animation {
     final Time frameTime() { return timeMsecs(mFrameTimeMS); }
 
     static int relFrameTimeMs(Time t, int length_ms, bool repeat) {
-        assert(length_ms != 0);
+        if (length_ms <= 0)
+            return 0;
+
         int ms = t.msecs;
         if (ms < 0) {
             //negative time needed for reversed animations
@@ -128,9 +130,8 @@ abstract class Animation {
         return frame;
     }
 
-    void draw(Canvas c, Vector2i pos, ref AnimationParams p, Time t) {
-        drawFrame(c, pos, p, t);
-    }
+    //??
+    alias drawFrame draw;
 
     bool finished(Time t) {
         return t.msecs >= mLengthMS;
@@ -246,6 +247,9 @@ abstract class AnimEffect {
     }
 
     protected float relTime(Time t) {
+        if (mAnim.lengthMS <= 0)
+            return 1.0f;
+
         return 1.0f * Animation.relFrameTimeMs(t, mAnim.lengthMS, true)
             / mAnim.lengthMS;
     }
@@ -510,8 +514,8 @@ class AnimationResource : ResourceItem {
                     break;
                 }
                 case "complicated":
-                    auto frames = castStrict!(AniFrames)(
-                        mContext.find(node["aniframes"]).get());
+                    auto frames = mContext.findAndGetT!(AniFrames)(
+                        node["aniframes"]);
                     mContents = new ComplicatedAnimation(node, frames);
                     break;
                 default:

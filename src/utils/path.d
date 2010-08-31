@@ -2,10 +2,10 @@ module utils.path;
 
 import str = utils.string;
 import tango.io.model.IFile : FileConst;
-import path = tango.io.Path;
+import tangopath = tango.io.Path;
 import tfs = tango.io.FileSystem;
 import tango.sys.Environment : Environment;
-import tango.io.Path;
+import tango.io.Path; //eh, tangopath?
 import tango.io.FilePath;
 import utils.misc;
 
@@ -136,9 +136,12 @@ struct VFSPath {
     ///path
     char[] makeAbsolute(char[] absParent) {
         //cut off all trailing separators
-        while (absParent[$-1] == '/' || absParent[$-1] == '\\')
+        while (absParent.length
+            && (absParent[$-1] == '/' || absParent[$-1] == '\\'))
+        {
             absParent = absParent[0..$-1];
-        return path.standard(absParent ~ mPath);
+        }
+        return tangopath.standard(absParent ~ mPath);
     }
 
     ///get the parent directory of the current path
@@ -189,6 +192,22 @@ struct VFSPath {
         if (mNameIdx >= 0)
             return mPath[mNameIdx..ext];
         return "";
+    }
+
+    ///return the path (without filename)
+    ///always includes the leading '/'
+    /// trailingSep = if there's no trailing separator, append it
+    char[] path(bool trailingSep = true) {
+        auto res = mPath[0..mNameIdx];
+        if (trailingSep) {
+            if (res == "") {
+                res = "/";
+            } else if (res[$-1] != '/') {
+                //(don't use res~= as that may stomp over mPath)
+                res = res ~ '/';
+            }
+        }
+        return res;
     }
 
     ///check if other is a real child of this path, i.e. it is in the current

@@ -147,6 +147,7 @@ void init(char[][] args) {
     //  only later that change handlers accessing the FS are installed (such as
     //  locales or GUI themes)
     loadSettings();
+    cmdlineEnableLogs(args);
     cmdlineLoadSettings(args);
 
     cmdlineTerminate(args);
@@ -200,6 +201,14 @@ void init(char[][] args) {
     loadColors(loadConfig("colors"));
 }
 
+void cmdlineEnableLogs(ref char[][] args) {
+    char[] logname;
+    while (getarg(args, "enable-log", logname)) {
+        Log log = registerLog(logname);
+        log.minPriority = LogPriority.Trace;
+    }
+}
+
 //load settings from cmd line
 //make sure everything in args has been used
 //use exit() on errors or help requests
@@ -236,6 +245,7 @@ void cmdlineCheckHelp(ref char[][] args) {
     line("  --help                  Show this.");
     line("  --server                Start as CLI network game server.");
     line("  --setting-help=NAME     List possible values for setting NAME.");
+    line("  --enable-log=NAME       Set log NAME to Trace log priority.");
     line("");
     line("Settings:");
     foreach (s; gSettings) {

@@ -189,6 +189,15 @@ class ResourceFile {
         throw new ResourceException(id, "resource not found");
     }
 
+    //like cast(T)(find(id).get())
+    //throws an exception if the result has the wrong type
+    T findAndGetT(T)(char[] id) {
+        T res = cast(T)(find(id).get());
+        if (!res)
+            throw new ResourceException(id, "resource has wrong type");
+        return res;
+    }
+
     //all resources including ones from transitive dependencies
     ResourceItem[] getAll() {
         ResourceItem[] res;
@@ -254,7 +263,7 @@ public class Resources {
 
     ///load a resource file and add them to dest
     ///config itself or any parent must contain a value named "resource_path"
-    ///(Resources.cResourcePathName) which contains the full path to the
+    ///(Resources.cResourcePathName) which contains the full filename to the
     ///configfile (meh, probably bring back the old hack in configfile.d)
     ///also, the following nodes from config are read:
     ///"resources" nodes contain real resources; if they weren't loaded yet, new
@@ -272,19 +281,20 @@ public class Resources {
             parent = parent.parent();
         }
 
-        if (!parent) {
-            throw new LoadException("?", "not a resource configfile");
-        }
+        if (!parent)
+            throwError("not a resource file: {}", config.locationString());
 
-        char[] filepath = parent[cResourcePathName];
-        //xxx: possibly normalize the filepath here!
-        auto path = getFilePath(filepath);
-        //for root-dir filenames like "bla.conf"
-        if (path == "")
-            path = "/";
+        //using VFSPath will normalize the path too (includes adding a separator
+        //  as first element of the path: "bla.conf" => "/bla.conf")
+        //xxx: VFSPath will throw exceptions in invalid paths; should try to
+        //  put these exceptions "in context" (so that the user know where the
+        //  path came from, e.g. which resource file / config node)
+        auto filepath = VFSPath(parent[cResourcePathName]);
+        auto path = filepath.path();
 
         if (!gFS.pathExists(path)) {
-            throw new LoadException(filepath, "loadResources(): bad parameters");
+            throwError("resource file {} contains invalid path: {}",
+                config.locationString(), path);
         }
 
         //create a ConfigNode path to have a unique ID for this resource section
@@ -298,14 +308,22 @@ public class Resources {
         }
 
         //arbitrary but for this resource file/section unique ID
-        auto id = filepath ~ '#' ~ config_path;
+        auto id = filepath.get() ~ '#' ~ config_path;
 
-        if (id in mLoadedResourceFiles) {
-            auto f = mLoadedResourceFiles[id];
-            if (f.loading) {
-                assert(false, "is dat sum circular dependency?");
+        log.trace("loading resource file '{}'", id);
+
+        if (auto file = id in mLoadedResourceFiles) {
+            if (file.loading) {
+                //don't know which file caused this; still try to be of help
+                char[][] offenders;
+                foreach (char[] o_id, o_file; mLoadedResourceFiles) {
+                    if (o_file.loading && o_id != id)
+                        offenders ~= o_id;
+                }
+                throwError("circular dependency when loading resource file '{}'"
+                    ", possible offenders: {}", id, offenders);
             }
-            return f;
+            return *file;
         }
 
         auto res = new ResourceFile(id, path);
@@ -313,10 +331,14 @@ public class Resources {
 
         try {
 
-            foreach (char[] name, char[] value;
-                config.getSubNode("require_resources"))
-            {
-                res.requires ~= loadResources(res.fixPath(value));
+            foreach (ConfigNode sub; config.getSubNode("require_resources")) {
+                try {
+                    res.requires ~= loadResources(res.fixPath(sub.value));
+                } catch (CustomException e) {
+                    e.msg = myformat("when loading '{}' from '{}': {}",
+                        sub.value, sub.locationString, e.msg);
+                    throw e;
+                }
             }
 
             foreach (ConfigNode r; config.getSubNode("resources")) {
@@ -326,13 +348,16 @@ public class Resources {
                 }
             }
 
-        } catch (LoadException e) {
+        } catch (CustomException e) {
+            log.trace("error loading resource file '{}'", id);
             //roll back; delete the file
             //because there are no circular references, recursively loaded files
             //are either loaded OK, or will be removed recursively
             mLoadedResourceFiles.remove(res.resource_id);
             throw e;
         }
+
+        log.trace("done loading resource file '{}'", id);
 
         res.loading = false;
 
@@ -398,7 +423,6 @@ public class Resources {
         private int mOffset; //already loaded stuff that isn't in mToLoad
         private ResourceItem[] mToLoad;
         private int mCurrent; //next res. to load, index into mToLoad
-        private LoadException mError; //error state
         private PerfTimer mTime;
 
         this(ResourceItem[] list) {
@@ -444,28 +468,18 @@ public class Resources {
 
         ///(not updated once all requested resources were loaded)
         bool done() {
-            return !mError && loadedCount >= totalCount;
+            return loadedCount >= totalCount;
         }
 
-        /+ ///if there was a loader error, throw the catched exception
-        ///(always of type LoadException)
-        void checkError() {
-            if (mError)
-                throw mError;
-        }+/
-
         ///load count-many resources
+        ///error handling: ResourceItem.load should catch exceptions itself,
+        /// and load a dummy object in case of errors
+        ///=> this method shouldn't throw
         void progressSteps(int count) {
-            while (count-- > 0 && !done && !mError) {
-                try {
-                    mTime.start();
-                    scope(exit) mTime.stop();
-                    mToLoad[mCurrent].get();
-                } catch (LoadException e) {
-                    //remember error, throw it anyway
-                    mError = e;
-                    throw e;
-                }
+            while (count-- > 0 && !done) {
+                mTime.start();
+                scope (exit) mTime.stop();
+                mToLoad[mCurrent].get();
                 mCurrent++;
                 if (done) {
                     //still check for maybe newly created resources
@@ -483,8 +497,7 @@ public class Resources {
         ///this is useful to i.e. update the screen while loading
         void progressTimed(Time return_after) {
             Time start = timeCurrentTime;
-            while (!done && timeCurrentTime() - start <= return_after
-                && !mError)
+            while (!done && timeCurrentTime() - start <= return_after)
             {
                 progressSteps(1);
             }
@@ -492,7 +505,7 @@ public class Resources {
 
         ///load everything in one go, no incremental loading (old behaviour)
         void loadAll(ResourceLoadProgress progress = null) {
-            while (!done && !mError) {
+            while (!done) {
                 progressSteps(1);
                 if (progress)
                     progress(loadedCount, totalCount);

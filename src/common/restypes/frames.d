@@ -177,7 +177,7 @@ class AniFramesAtlasResource : ResourceItem {
     protected void load() {
         try {
             auto node = mConfig;
-            auto atlas = castStrict!(Atlas)(mContext.find(node["atlas"]).get());
+            auto atlas = mContext.findAndGetT!(Atlas)(node["atlas"]);
             auto file = gFS.open(mContext.fixPath(node["datafile"]));
             scope(exit) file.close();
             mContents = new AniFramesAtlas(atlas, file);

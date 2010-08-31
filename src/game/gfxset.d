@@ -1,6 +1,7 @@
 module game.gfxset;
 
 import common.animation;
+import common.resources;
 import framework.config;
 import framework.framework;
 import framework.font;
@@ -124,6 +125,12 @@ class GfxSet {
 
         mCollisionMap = core.physicWorld.collide;
         addCollideConf(gameConf.getSubNode("collisions"));
+    }
+
+    Resources.Preloader createPreloader() {
+        ResourceFile[] list = load_resources;
+        load_resources = null;
+        return gResources.createPreloader(list);
     }
 
     ResourceFile addGfxSet(ConfigNode conf) {
