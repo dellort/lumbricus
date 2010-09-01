@@ -122,8 +122,7 @@ class ParticleType {
         air_resistance = node.getValue("air_resistance", air_resistance);
         bubble_x = node.getValue("bubble_x", bubble_x);
         bubble_x_h = node.getValue("bubble_x_h", bubble_x_h);
-        water_area = stringToType!(ParticleWaterArea)(
-            node.getStringValue("water_area", "both"));
+        water_area = node.getValue!(ParticleWaterArea)("water_area");
         color = node.getValue("color", color);
         air_resistance = node.getValue("air_resistance", air_resistance);
         emit_interval = node.getValue("emit_interval", emit_interval);

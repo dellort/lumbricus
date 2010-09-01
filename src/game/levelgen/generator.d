@@ -463,8 +463,8 @@ class GenerateFromTemplate : LevelGenerator {
                     assert(false);
                 }
             } else {
-                throw new CustomException("unknown object type '"~t~"' in level"
-                    " template");
+                throwError("unknown object type '{}' in level template at {}",
+                    t, onode.locationString);
             }
         }
     }
@@ -805,7 +805,7 @@ class LandscapeGenTheme {
 
         //the least important part is the longest
         ConfigNode cborders = node.getSubNode("borders");
-        foreach(char[] name, ConfigNode border; cborders) {
+        foreach(ConfigNode border; cborders) {
             Border b;
             b.markers[0] = parseMarker(border.getStringValue("marker_a"));
             b.markers[1] = parseMarker(border.getStringValue("marker_b"));
@@ -847,7 +847,7 @@ class LandscapeGenTheme {
         bridge[2] = createObject(bridgeNode["right"], false);
 
         ConfigNode objectsNode = node.getSubNode("objects");
-        foreach (char[] id, ConfigNode onode; objectsNode) {
+        foreach (ConfigNode onode; objectsNode) {
             createObject(onode["image"], true);
         }
 

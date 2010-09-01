@@ -155,7 +155,7 @@ class LoadGui {
             mLocale.fullIdOnError = true;
         //no "missing id" if no translation was found, just return string
         mLocale.errorString = false;
-        foreach (char[] name, ConfigNode c; mConfig.getSubNode("elements")) {
+        foreach (ConfigNode c; mConfig.getSubNode("elements")) {
             //hm, I resisted from that, it would be a hack
             //c.setStringValue("name", name);
             loadFrom(c);

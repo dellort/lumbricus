@@ -26,10 +26,11 @@ BoxUnParse[TypeInfo] gBoxUnParsers;
 ///parsetext = the string being parsed (for now, the whole string)
 ///details = optional human readable error description
 ConversionException newConversionException(T)(char[] parsetext,
-    char[] details = "unknown")
+    char[] details = "")
 {
-    return new ConversionException(myformat("Can not parse {}: '{}',"
-        ~ " reason: {}", typeid(T), parsetext, details));
+    return new ConversionException(myformat("Can not parse {}: '{}'"
+        ~ " {}{}", typeid(T), parsetext, details.length ? ", reason: " : "",
+        details));
 }
 
 
@@ -49,7 +50,7 @@ MyBox stringToBox(T)(char[] s) {
 T stringToType(T)(char[] s) {
     MyBox res = stringToBoxTypeID(typeid(T), s);
     if (res.empty()) {
-        newConversionException!(T)(s);
+        throw newConversionException!(T)(s);
     }
     return res.unbox!(T)();
 }

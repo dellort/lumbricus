@@ -2,6 +2,7 @@ module physics.collisionmap;
 
 import utils.array : arrayMap;
 import utils.configfile;
+import utils.log;
 import utils.misc;
 
 import str = utils.string;
@@ -121,7 +122,7 @@ final class CollisionMap {
         if (auto pres = name in mCollisionNames)
             return *pres;
 
-        throw new CustomException("collision ID '"~name~"' not found.");
+        throwError("collision ID '{}' not found.", name);
     }
 
     alias find findCollisionID;
@@ -184,25 +185,37 @@ final class CollisionMap {
 
     //"collisions" node from i.e. worm.conf
     public void loadCollisions(ConfigNode node) {
-        foreach (char[] name, char[] value; node.getSubNode("classes")) {
+        foreach (sub; node.getSubNode("classes")) {
             //each entry is class = superclass
-            auto supercls = findCollisionID(value);
-            newCollisionType(name, supercls);
+            try {
+                auto supercls = findCollisionID(sub.value);
+                newCollisionType(sub.name, supercls);
+            } catch (CustomException e) {
+                e.msg = myformat("When loading collision classes from {}: {}",
+                    sub.locationString, e.msg);
+                throw e;
+            }
         }
 
         for (ContactHandling ch = ContactHandling.normal;
             ch <= ContactHandling.max; ch++)
         {
             char[] nname = cChNames[ch];
-            foreach (char[] name, char[] value; node.getSubNode(nname)) {
+            foreach (sub; node.getSubNode(nname)) {
                 //each value is an array of collision ids which
                 // collide with "name"
-                auto hits = arrayMap(str.split(value), (char[] id) {
-                    return findCollisionID(id);
-                });
-                auto ct = findCollisionID(name);
-                foreach (h; hits) {
-                    enableCollision(ct, h, ch);
+                try {
+                    auto hits = arrayMap(str.split(sub.value), (char[] id) {
+                        return findCollisionID(id);
+                    });
+                    auto ct = findCollisionID(sub.name);
+                    foreach (h; hits) {
+                        enableCollision(ct, h, ch);
+                    }
+                } catch (CustomException e) {
+                    e.msg = myformat("When loading collisions from {}: {}",
+                        sub.locationString, e.msg);
+                    throw e;
                 }
             }
         }

@@ -3,6 +3,7 @@ module framework.keybindings;
 import framework.keysyms;
 import framework.event;
 import config = utils.configfile;
+import utils.log;
 import utils.misc;
 import utils.vector2;
 import str = utils.string;
@@ -145,7 +146,8 @@ public class KeyBindings {
                 key = v.value;
             }
             if (!addBinding(cmd, str.tolower(key))) {
-                debug Trace.formatln("could not bind '{}' '{}'", cmd, key);
+                gLog.error("Could not bind '{}' to '{}' in {}", key, cmd,
+                    node.locationString());
             }
         }
     }

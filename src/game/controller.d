@@ -95,7 +95,7 @@ class Team : GameObject2 {
         this.parent = parent;
         mName = node.name;
         //xxx: error handling (when team-theme not found)
-        char[] colorId = parent.checkTeamColor(node["color"]);
+        char[] colorId = parent.checkTeamColor(node.getSubNode("color"));
         teamColor = engine.singleton!(GfxSet)().teamThemes[colorId];
         initialPoints = node.getIntValue("power", 100);
         //graveStone = node.getIntValue("grave", 0);
@@ -104,10 +104,10 @@ class Team : GameObject2 {
             auto worm = new TeamMember(value, this);
             mMembers ~= worm;
         }
-        //xxx error handling
+        if (mMembers.length == 0) {
+            engine.log.warn("Team '{}' has no members!", name);
+        }
         weapons = parent.initWeaponSet(node["weapon_set"]);
-        //what's a default weapon? I don't know, so I can't bring it back
-        //defaultWeapon = weapons.byId(node["default_weapon"]);
         gravestone = node.getIntValue("grave", 0);
         mAlternateControl = node.getStringValue("control") != "default";
         mTeamId = node["id"];
@@ -990,13 +990,21 @@ class GameController : GameObject2 {
         mTeams ~= team;
     }
 
-    private char[] checkTeamColor(char[] col) {
-        int colId = 0;  //default to first color
+    private char[] checkTeamColor(ConfigNode colvalue) {
+        char[] col = colvalue.value;
+        int colId = -1;
         foreach (int idx, char[] tc; TeamTheme.cTeamColors) {
             if (col == tc) {
                 colId = idx;
                 break;
             }
+        }
+
+        if (colId < 0) {
+            //hm would be nice to print the origin
+            engine.log.error("invalid team color: '{}' in {}", col,
+                colvalue.locationString());
+            colId = 0; //default to first color
         }
 
         //assign the color least used, preferring the one requested
@@ -1054,8 +1062,10 @@ class GameController : GameObject2 {
         }
         //we always need a default set
         assert(!!firstSet);
-        if (!("default" in mWeaponSets))
+        if (!("default" in mWeaponSets)) {
+            log.warn("enforcing default weaponset");
             mWeaponSets["default"] = firstSet;
+        }
         //crate weapon set is named "crate_set" (will fall back to "default")
         mCrateSet = initWeaponSet("crate_set", true, true);
     }
@@ -1076,16 +1086,16 @@ class GameController : GameObject2 {
         foreach (ConfigNode sub; objs) {
             auto mode = sub.getStringValue("mode", "unknown");
             if (mode == "random") {
-                auto cnt = sub.getIntValue("count");
-                log.trace("count {} type {}", cnt, sub["type"]);
                 try {
+                    auto cnt = sub.getIntValue("count");
+                    log.trace("count {} type {}", cnt, sub["type"]);
                     for (int n = 0; n < cnt; n++) {
                         engine.queuePlaceOnLandscape(engine.resources
                             .get!(SpriteClass)(sub["type"]).createSprite());
                     }
-                } catch (ResourceException e) {
-                    log.warn("Warning: Placing {} objects failed",
-                        sub["type"]);
+                } catch (CustomException e) {
+                    log.warn("Warning: Placing {} objects failed: {}",
+                        sub["type"], e);
                     continue;
                 }
             } else {

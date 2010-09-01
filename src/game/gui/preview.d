@@ -19,6 +19,7 @@ import game.levelgen.renderer;
 import game.gui.levelpaint;
 import utils.vector2;
 import utils.rect2;
+import utils.log;
 import utils.misc;
 
 class LevelSelector : SimpleContainer {
@@ -93,7 +94,13 @@ class LevelSelector : SimpleContainer {
             sb.onRightClick = &generate;
             mShowBitmap ~= sb;
             //insert info structure (matched by index)
-            mLevel ~= LevelInfo(new GenerateFromTemplate(mGenerator, t));
+            try {
+                mLevel ~= LevelInfo(new GenerateFromTemplate(mGenerator, t));
+            } catch (CustomException e) {
+                gLog.error("Level generation failed: {}", e);
+                mLevel ~= LevelInfo(null);
+                continue;
+            }
             doGenerate(i);
             //add a description label below
             loader.lookup!(Label)(myformat("label{}", i)).text =
@@ -227,6 +234,8 @@ class LevelSelector : SimpleContainer {
 
     private void doGenerate(int idx) {
         auto gen = mLevel[idx].generator;
+        if (!gen)
+            return;
         gen.generate();
         float as = gen.previewAspect();
         if (as != as)
@@ -236,8 +245,11 @@ class LevelSelector : SimpleContainer {
     }
 
     private void levelClick(Button sender) {
-        int idx = getIdx(sender);
-        loadLevel(mLevel[idx].generator);
+        auto idx = getIdx(sender);
+        auto gen = mLevel[idx].generator;
+        if (!gen)
+            return;
+        loadLevel(gen);
     }
 
     private void cancelClick(Button sender) {

@@ -22,6 +22,7 @@ import gui.boxcontainer;
 import gui.container;
 import gui.global;
 import utils.configfile;
+import utils.log;
 import utils.misc;
 import utils.path;
 import utils.random;
@@ -148,9 +149,15 @@ class LevelWidget : SimpleContainer {
     }
 
     private void levelClick(Button sender) {
-        auto gen = new GenerateFromTemplate(mGenerator,
-            mGenerator.templates.findRandom());
-        gen.generate();
+        GenerateFromTemplate gen;
+        try {
+            gen = new GenerateFromTemplate(mGenerator,
+                mGenerator.templates.findRandom());
+            gen.generate();
+        } catch (CustomException e) {
+            gLog.error("Level generation failed: {}", e);
+            return;
+        }
         setCurrentLevel(gen);
         mSavedLevels.selection = "";
     }

@@ -100,6 +100,8 @@ $ am seil hängen, bazooka auswählen, 'J' drücken -> bazooka wird abgefeuert
     - GUI elemente werden explizit platziert (kein rekursives layout zeug wie BoxContainer etc.) => einfacher
     - inhalte (schriften, bitmaps, ränder) werden ebenfalls skaliert
     - QT4 designer produziert XML => könnte man ausnutzen? (positionieren von elementen etc.; Inkscape/SVG wäre eine weitere möglichkeit)
+vllt: http://tekui.teklib.org/index.html
+        hauptsächlich in Lua implementiert, kleine C-teile, kleines backend interface (läuft z.b. auf framebuffer), sieht potthässlich aus
 
 == GUI spielspezifisch (Dialoge) ==
 * Netzwerk-GUI (Spielerliste, Scores, Chat, Ping/Lag/Warte-auf-Server)

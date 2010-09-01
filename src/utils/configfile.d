@@ -13,9 +13,8 @@ import utils.misc;
 //only for byte[]
 import utils.gzip;
 
-import utils.strparser : stringToBox, hasBoxParser, fromStr, toStr,
+import utils.strparser : stringToType, fromStr, toStr,
                          fromStrSupports, toStrSupports;
-import utils.mybox : MyBox;
 import tango.core.Traits : isIntegerType, isRealType, isAssocArrayType;
 import tango.text.Util : delimiters;
 
@@ -417,33 +416,11 @@ public class ConfigNode {
         return 0;
     }
 
-    //foreach(char[], ConfigNode; ConfigNode) enumerate subnodes with name
-    public int opApply(int delegate(inout char[], inout ConfigNode) del) {
-        foreach (ConfigNode n; mItems) {
-            char[] tmp = n.name;
-            int res = del(tmp, n);
-            if (res)
-                return res;
-        }
-        return 0;
-    }
-
     //foreach(char[], char[]; ConfigNode) enumerate (name, value) pairs
     public int opApply(int delegate(inout char[], inout char[]) del) {
         foreach (ConfigNode v; mItems) {
             char[] tmp = v.name;
             int res = del(tmp, v.value);
-            if (res)
-                return res;
-        }
-        return 0;
-    }
-
-    //foreach(char[]; ConfigNode) enumerate names
-    public int opApply(int delegate(inout char[]) del) {
-        foreach (ConfigNode item; mItems) {
-            char[] tmp = item.name;
-            int res = del(tmp);
             if (res)
                 return res;
         }
@@ -541,7 +518,16 @@ public class ConfigNode {
             }
             return res;
         } else {
-            static assert(false, "Implement me, for: " ~ T.stringof);
+            //static assert(false, "Implement me, for: " ~ T.stringof);
+            //meh, for enums... so then, come here, runtime errors
+            nosubnodes();
+            T res;
+            try {
+                res = stringToType!(T)(value);
+            } catch (ConversionException e) {
+                invalid(e);
+            }
+            return res;
         }
     }
 
@@ -721,7 +707,7 @@ public class ConfigNode {
             }
         }
 
-        foreach (char[] tmp, ConfigNode node; this) {
+        foreach (ConfigNode node; this) {
             resolveTemplate(node);
         }
     }

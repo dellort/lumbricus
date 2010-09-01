@@ -9,6 +9,7 @@ import framework.imgread;
 import game.levelgen.level;
 import game.levelgen.generator;
 import utils.configfile;
+import utils.log;
 import utils.misc;
 
 ///Initial game configuration
@@ -69,7 +70,20 @@ class GameConfig {
 //not to be called by GameTask; instead, anyone who wants to start a game can
 //call this to the params out from a configfile
 //GameTask should not be responsible to choose any game configuration for you
-GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
+GameConfig loadGameConfig(ConfigNode config, Level level = null,
+    bool renderBitmaps = true, ConfigNode persistentState = null)
+{
+    argcheck(config);
+    try {
+        return doLoadGameConfig(config, level, renderBitmaps, persistentState);
+    } catch (CustomException e) {
+        e.msg = myformat("when trying to create new game from {}: {}",
+            config.locationString, e.msg);
+        throw e;
+    }
+}
+
+GameConfig doLoadGameConfig(ConfigNode mConfig, Level level = null,
     bool renderBitmaps = true, ConfigNode persistentState = null)
 {
     //log("loadConfig");
@@ -82,7 +96,8 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
         cfg.level = loadSavedLevel(x, levelnode, renderBitmaps);
     } else {
         auto x = new LevelGeneratorShared();
-        switch (mConfig["level"]) {
+        auto valnode = mConfig.getSubNode("level");
+        switch (valnode.value) {
         case "generate":
             auto gen = new GenerateFromTemplate(x, cast(LevelTemplate)null);
             cfg.level = gen.render(renderBitmaps);
@@ -100,7 +115,7 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
             break;
         default:
             //wrong string in configfile
-            throw new CustomException("noes noes noes!");
+            throwError("invalid value in {}", valnode.locationString());
         }
     }
 
@@ -127,8 +142,14 @@ GameConfig loadGameConfig(ConfigNode mConfig, Level level = null,
             cfg.weapons.add(item.name, wCache[item.value]);
         else {
             //new set has to be included
-            cfg.weapons.addNode(item.name, avWeaponSets.getSubNode(item.value));
-            wCache[item.value] = item.name;
+            auto sub = avWeaponSets.findNode(item.value);
+            if (sub) {
+                cfg.weapons.addNode(item.name, sub);
+                wCache[item.value] = item.name;
+            } else {
+                gLog.error("Weapon set not found: '{}' in {}", item.value,
+                    item.locationString);
+            }
         }
     }
 

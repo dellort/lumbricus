@@ -53,7 +53,7 @@ public class LandscapeGeometry {
 
         ConfigNode polys = node.getSubNode("polygons");
         polygons = null;
-        foreach(char[] name, ConfigNode polygon; polys) {
+        foreach (ConfigNode polygon; polys) {
             LandscapeGeometry.Polygon p;
             p.points = polygon.getValue!(Vector2i[])("points");
 
