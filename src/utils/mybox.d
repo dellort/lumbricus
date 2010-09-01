@@ -2,7 +2,8 @@ module utils.mybox;
 
 import utils.misc;
 
-class MyBoxException : CustomException {
+//failed unboxing is serious business => not a CustomException
+class MyBoxException : Exception {
     this(char[] msg) { super(msg); }
 }
 

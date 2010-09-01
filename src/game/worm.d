@@ -723,8 +723,7 @@ class WormSpriteClass : SpriteClass {
     WormStateInfo findState(char[] name) {
         WormStateInfo* state = name in states;
         if (!state) {
-            //xxx better error handling
-            throw new CustomException("state "~name~" not found");
+            throwError("state {} not found", name);
         }
         return *state;
     }

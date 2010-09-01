@@ -182,10 +182,9 @@ private:
 
     private void cmdResLoad(MyBox[] args, Output write) {
         char[] s = args[0].unbox!(char[])();
-        //xxx: catching any exception can be dangerous
         try {
             gResources.loadResources(s);
-        } catch (Exception e) {
+        } catch (CustomException e) {
             write.writefln("failed: {}", e);
         }
     }

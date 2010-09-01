@@ -256,7 +256,12 @@ public class Resources {
     private ResourceItem createResource(ResourceFile context, char[] type,
         ConfigNode it)
     {
-        return ResFactory.instantiate(type,context,it.name,it);
+        try {
+            return ResFactory.instantiate(type,context,it.name,it);
+        } catch (ClassNotFoundException e) {
+            throwError("when loading resource in '{}': resource type '{}'"
+                " unknown", it.locationString, type);
+        }
     }
 
     const cResourcePathName = "resource_path";

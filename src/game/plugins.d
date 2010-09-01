@@ -15,18 +15,13 @@ import utils.log;
 import utils.path;
 import utils.string : isIdentifier;
 
-///thrown when a plugin fails to load; the game may still work without it
-class PluginException : CustomException {
-    this(char[] msg) {
-        super(msg);
-    }
-}
-
 //and another factory...
 //"internal" plugins register here; these plugins don't have their own plugin
 //  folder and are written in D
 alias StaticFactory!("GamePlugins", GameObject, GameCore, ConfigNode)
     GamePluginFactory;
+
+private static LogStruct!("game.plugins") log;
 
 //another dumb singleton
 class PluginBase {
@@ -34,6 +29,8 @@ class PluginBase {
         GameCore mEngine;
         GfxSet mGfx;
         bool[char[]] mLoadedPlugins;
+        bool[char[]] mErrorPlugins; //like mLoadedPlugins, but error-flagged
+        bool[char[]] mLoading;  //like mLoadedPlugins, but load-in-progress
         //list of active plugins, in load order
         Plugin[] mPlugins;
     }
@@ -47,8 +44,10 @@ class PluginBase {
             char[] pid = sub.value.length ? sub.value : sub.name;
             try {
                 loadPlugin(pid, sub, cfg.plugins);
-            } catch (PluginException e) {
-                mEngine.log.error("Plugin '{}' failed to load: {}", pid, e.msg);
+            } catch (CustomException e) {
+                //xxx is continuing here really such a good idea
+                log.error("Plugin '{}' failed to load: {}", pid, e);
+                traceException(log.get, e);
             }
         }
 
@@ -56,10 +55,45 @@ class PluginBase {
     }
 
     void loadPlugin(char[] pluginId, ConfigNode cfg, ConfigNode allPlugins) {
-        assert(!!allPlugins);
         if (pluginId in mLoadedPlugins) {
             return;
         }
+        if (pluginId in mErrorPlugins) {
+            log.warn("plugin '{}' has been marked as failed, will"
+                " request for loading it ignored.",  pluginId);
+            return;
+        }
+        if (pluginId in mLoading) {
+            //produces a funny error message, but works
+            throwError("circular plugin dependency detected");
+        }
+
+        mLoading[pluginId] = true;
+
+        //oh the joys of exception handling...
+        Plugin plugin;
+        try {
+            scope (exit) mLoading.remove(pluginId);
+            plugin = doLoadPlugin(pluginId, cfg, allPlugins);
+        } catch (CustomException e) {
+            //oh noes! something went wrong!
+            //flag as error, so that future attempts to load the plugin will
+            //  be ignored, instead of retrying it (when several other plugins
+            //  dependon the same failed plugins, several attempts are made)
+            mErrorPlugins[pluginId] = true;
+            e.msg = myformat("when loading plugin '{}': {}", pluginId, e.msg);
+            throw e;
+        }
+        //otherwise, success!
+        assert(!!plugin);
+        mPlugins ~= plugin;
+        mLoadedPlugins[pluginId] = true;
+    }
+
+    private Plugin doLoadPlugin(char[] pluginId, ConfigNode cfg,
+        ConfigNode allPlugins)
+    {
+        assert(!!allPlugins);
 
         ConfigNode conf;
         if (GamePluginFactory.exists(pluginId)) {
@@ -70,12 +104,8 @@ class PluginBase {
             //normal case: plugin with plugin.conf
             char[] confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
             //load plugin.conf as gfx set (resources and sequences)
-            try {
-                conf = gResources.loadConfigForRes(confFile);
-            } catch (CustomException e) {
-                throw new PluginException("Failed to load plugin.conf ("
-                    ~ e.msg ~ ")");
-            }
+            //may fail; but the resuting error msg will be already good enough
+            conf = gResources.loadConfigForRes(confFile);
         }
 
         //mixin dynamic configuration
@@ -90,14 +120,14 @@ class PluginBase {
         foreach (dep; newPlugin.dependencies) {
             try {
                 loadPlugin(dep, allPlugins.findNode(dep), allPlugins);
-            } catch (PluginException e) {
-                throw new PluginException("Dependency '" ~ dep
-                    ~ "' failed to load: " ~ e.msg);
+            } catch (CustomException e) {
+                e.msg = myformat("when loading dependency '{}': {}", dep,
+                    e.msg);
+                throw e;
             }
         }
 
-        mPlugins ~= newPlugin;
-        mLoadedPlugins[pluginId] = true;
+        return newPlugin;
     }
 
     private void initplugins() {
@@ -108,8 +138,8 @@ class PluginBase {
             try {
                 plg.doinit(mEngine);
             } catch (CustomException e) {
-                mEngine.log.error("Plugin '{}' failed to init(): {}", plg.name,
-                    e.msg);
+                log.error("Plugin '{}' failed to init(): {}", plg.name, e);
+                traceException(log.get, e);
             }
         }
     }
@@ -120,8 +150,6 @@ class PluginBase {
 class Plugin {
     char[] name;            //unique plugin id
     char[][] dependencies;  //all plugins in this list will be loaded, too
-
-    static LogStruct!("game.plugins") log;
 
     private {
         ConfigNode mConfig, mCollisions;
@@ -137,7 +165,8 @@ class Plugin {
         name = a_name;
         log.minor("loading '{}'", name);
         if (!isIdentifier(name)) {
-            throw new PluginException("Plugin name is not a valid identifier");
+            throwError("Plugin name '{}' in {} is not a valid identifier.",
+                name, conf.locationString);
         }
         mGfx = gfx;
         mConfig = conf;
@@ -148,9 +177,10 @@ class Plugin {
         if (gResources.isResourceFile(mConfig)) {
             try {
                 mResources = gfx.addGfxSet(mConfig);
-            //this doesn't work because error handling is generally crap
-            } catch (LoadException e) {
-                throw new PluginException("Failed to load resources: " ~ e.msg);
+            } catch (CustomException e) {
+                e.msg = myformat("when loading resources for plugin {}: {}",
+                    name, e.msg);
+                throw e;
             }
             //load collisions
             char[] colFile = mConfig.getStringValue("collisions",
@@ -183,8 +213,9 @@ class Plugin {
             try {
                 eng.physicWorld.collide.loadCollisions(mCollisions);
             } catch (CustomException e) {
-                throw new PluginException("Failed to load collisions: "
-                    ~ e.msg);
+                e.msg = myformat("when loading collisions for plugin {}: {}",
+                    name, e.msg);
+                throw e;
             }
         }
 
@@ -205,6 +236,7 @@ class Plugin {
 
             bool loaded = false;
 
+            //xxx should separate loading from parsing, maybe?
             gFS.listdir(mpath.parent, mpath.filename, false, (char[] relFn) {
                 //why does listdir return relative filenames? I don't know
                 char[] filename = mpath.parent.get(true, true) ~ relFn;
@@ -223,8 +255,11 @@ class Plugin {
                 return true;
             });
 
-            if (!loaded)
-                assert(false, "not loaded: '"~modf~"'");
+            //file not found
+            if (!loaded) {
+                throwError("when loading plugin '{}': {} couldn't be found.",
+                    name, mpath);
+            }
         }
         //no GameObject? hmm
     }

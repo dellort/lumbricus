@@ -269,7 +269,6 @@ class GameLoader {
 
         //just to be sure caller didn't mess up
         mResPreloader.loadAll();
-        assert(mResPreloader.done()); //xxx error handling (failed resources)
         addToResourceSet(mShell.mEngine.resources, mResPreloader.list);
         mResPreloader = null;
 

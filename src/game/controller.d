@@ -94,7 +94,6 @@ class Team : GameObject2 {
         super(parent.engine, "team");
         this.parent = parent;
         mName = node.name;
-        //xxx: error handling (when team-theme not found)
         char[] colorId = parent.checkTeamColor(node.getSubNode("color"));
         teamColor = engine.singleton!(GfxSet)().teamThemes[colorId];
         initialPoints = node.getIntValue("power", 100);

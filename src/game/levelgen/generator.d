@@ -1030,7 +1030,7 @@ class LevelThemes {
                     //seems it wasn't a valid gfx dir, do nothing, config==null
                     //i.e. the data directory contains .svn
                     err = e;
-                } catch (LoadException e) {
+                } catch (CustomException e) {
                     //or some stupid other exception, also do nothing
                     err = e;
                 }
@@ -1061,7 +1061,7 @@ class LevelTemplates {
                     templ = new LevelTemplate(npath, path);
                 } catch (FilesystemException e) {
                     err = e;
-                } catch (LoadException e) {
+                } catch (CustomException e) {
                     err = e;
                 }
                 if (templ) {
