@@ -104,37 +104,6 @@ private extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize,
     }
 }
 
-//read code from char[]
-private struct StringChunk {
-    char[] data;
-}
-private extern(C) char* lua_ReadString(lua_State *L, void *data, size_t *size) {
-    auto sc = cast(StringChunk*)data;
-    *size = sc.data.length;
-    auto code = sc.data;
-    sc.data = null;
-    return code.ptr;
-}
-
-//read code (or anything else) from Stream
-private extern(C) char* lua_ReadStream(lua_State *L, void *data, size_t *size) {
-    const cBufSize = 16*1024;
-    auto buf = new ubyte[cBufSize];
-    auto st = cast(Stream)data;
-    auto res = cast(char[])st.readUntilEof(buf);
-    *size = res.length;
-    return res.ptr;
-}
-
-//write to stream
-private extern(C) int lua_WriteStream(lua_State* L, void* p, size_t sz,
-    void* ud)
-{
-    auto st = cast(Stream)ud;
-    st.writeExact(cast(ubyte[])p[0..sz]);
-    return 0;
-}
-
 //panic function: called on unprotected lua error (message is on the stack)
 private extern(C) int my_lua_panic(lua_State *L) {
     assert(false, "(should be) unused");
@@ -173,6 +142,7 @@ private char[] lua_todstring(lua_State* L, int i) {
 }
 
 //like lua_todstring, but returns error messages in the string (never throws)
+//  ^ almost... never throws, except on out of memory
 private char[] lua_todstring_protected(lua_State* L, int i) {
     try {
         return lua_todstring(L, i);
@@ -364,7 +334,7 @@ private void internalError(lua_State* state, Exception e) {
     //  to catch every single specialized exception type (got fixed in D2)
     Trace.formatln("catching failing irrecoverable error instead of returning"
         " to Lua:");
-    e.writeOut((char[] s) { Trace.format("{}", s); });
+    e.writeOut((char[] s) { Trace.write(s); });
     Trace.formatln("responsible Lua backtrace:");
     Trace.formatln("{}", luaStackTrace(state, 1));
     Trace.formatln("done, will die now.");
@@ -373,41 +343,8 @@ private void internalError(lua_State* state, Exception e) {
     //  to do xpcall(), and Lua programs should in no way be allowed to catch
     //  internal D errors (that would lead to cascading failures, unability to
     //  find the real error cause, etc.)
-    //the best way would probably to use skip the Lua C stack with
-    //  setjmp/longjmp, or unwind it via D exceptions; maybe the Lua state
-    //  would then be inconsistent, but you wouldn't access it anyway
-    //one reason why I don't just re-throw the D exception is because it's too
-    //  easy to accidentally catch it again in user code (like with:
-    //  try{}finally{}, try{}catch(...){}, scope(success) {})
-    //  feel free to call me stupid and change it
-    //another is that D might not be able to unwind the Lua C stack (but I don't
-    //  know; would have to try with Windows, LuaJIT, etc.)
     cstdlib.abort();
 }
-
-bool isLuaRecoverableException(Exception e) {
-    //recoverable exceptions
-    if (cast(CustomException)e
-        || cast(ParameterException)e
-        || cast(LuaError)e)
-        return true;
-    //"internal" runtime exceptions
-    //in D2, these are all derived from the same type, but not in D1
-    //list of types from tango/core/Exception.d
-    //add missing types as needed (e.g. I didn't find AccessViolation)
-    if (cast(OutOfMemoryException)e
-        || cast(SwitchException)e
-        || cast(AssertException)e
-        || cast(ArrayBoundsException)e
-        || cast(FinalizeException)e)
-        return false;
-    //other exceptions
-    //not sure about this *shrug*
-    //apparently, we decided that only CustomExceptions are recoverable, which
-    //  means all other exception types are non-recoverable
-    return false;
-}
-
 
 private char[] className(Object o) {
     if (!o) {
@@ -482,13 +419,16 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
         expected("string");
     } else static if (is(T == LuaReference)) {
         return new LuaReference(state, stackIdx);
-    } else static if (is(T == class) || is(T == interface)) {
+    } else static if (is(T == Object)) {
         //allow userdata and nil, nothing else
         if (!lua_islightuserdata(state, stackIdx) && !lua_isnil(state,stackIdx))
             expected("class reference of type "~T.stringof);
         //by convention, all light userdatas are casted from Object
         //which means we can always type check it
-        Object o = cast(Object)lua_touserdata(state, stackIdx);
+        return cast(Object)lua_touserdata(state, stackIdx);
+    } else static if (is(T == class) || is(T == interface)) {
+        //the indirection over Object saves a few KB code
+        Object o = luaStackValue!(Object)(state, stackIdx);
         T res = cast(T)o;
         if (o && !res) {
             luaExpected(state, T.classinfo.name, o.classinfo.name);
@@ -1018,13 +958,23 @@ private int callFromLua(T)(T del, lua_State* state, int skipCount,
             auto ret = del(p);
             return luaPush(state, ret);
         }
-
-    } catch (Exception e) {
-        if (isLuaRecoverableException(e)) {
-            raiseLuaError(state, e);
-        } else {
-            internalError(state, e);
-        }
+    } catch (CustomException e) {
+        //recoverable exceptions (including LuaError) are wrapped as Lua errors,
+        //  and unwind the stack via a longjmp in lua_error()
+        raiseLuaError(state, e);
+    } catch (Exception e) { //Throwable in D2
+        //on unrecoverable exceptions we make the program crash hard, because it
+        //  would crash anyway (we're not supposed to handle these exceptions).
+        //  it's better to crash early, instead of trying to "properly" unwind
+        //  the stack through the C Lua VM
+        //in D2, you'd want Throwable, not Exception
+        //list of excepotions you NEVER want to resume after they've been
+        //  thrown: OutOfMemoryException, SwitchException, AssertException,
+        //  UnicodeException (probably), ArrayBoundsException,
+        //  FinalizeException, AccessViolation, ...?
+        //NOTE: D2 has Throwable vs. Exception, similar to our separation
+        //  between Exception and CustomException
+        internalError(state, e);
     }
 
     assert(false);
@@ -1791,9 +1741,10 @@ class LuaState {
         }
     }
 
-    private void lua_loadChecked(lua_Reader reader, void *d, char[] chunkname) {
+    private void lua_loadChecked(void[] data, char[] chunkname) {
         //'=' means use the name as-is (else "string " is added)
-        int res = lua_load(mLua, reader, d, czstr.toStringz('='~chunkname));
+        int res = luaL_loadbuffer(mLua, cast(char*)data.ptr, data.length,
+            czstr.toStringz('='~chunkname));
         if (res != 0) {
             scope (exit) lua_pop(mLua, 1);  //remove error message
             //xxx if this fails to get the message (e.g. utf8 error), there
@@ -1803,17 +1754,19 @@ class LuaState {
         }
     }
 
-    //prepended all very-Lua-specific functions with lua
+    //prefixed all very-Lua-specific functions with lua
     //functions starting with lua should be avoided in user code
 
     private void luaLoadAndPush(char[] name, char[] code) {
-        StringChunk sc;
-        sc.data = code;
-        lua_loadChecked(&lua_ReadString, &sc, name);
+        lua_loadChecked(code, name);
     }
 
     private void luaLoadAndPush(char[] name, Stream input) {
-        lua_loadChecked(&lua_ReadStream, cast(void*)input, name);
+        //(earlier revisions used lua_load to read a file chunkwise, but I
+        //  think it doesn't matter much)
+        auto data = input.readAll();
+        scope(exit) delete data;
+        lua_loadChecked(data, name);
     }
 
     //another variation

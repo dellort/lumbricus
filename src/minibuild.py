@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.5
+#!/usr/bin/env python2.6
 
 # this is just a quick&dirty compilation script
 # if you need something more sophisticated, consider xfbuild:

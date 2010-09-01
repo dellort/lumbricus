@@ -15,6 +15,7 @@ import gui.loader;
 import game.levelgen.generator;
 import game.levelgen.level;
 import game.levelgen.landscape;
+import game.levelgen.renderer;
 import game.gui.levelpaint;
 import utils.vector2;
 import utils.rect2;
@@ -130,9 +131,9 @@ class LevelSelector : SimpleContainer {
 
     void loadLevel(LevelGenerator lvl) {
         if (lvl) {
-            LandscapeLexels lex = lvl.renderData();
-            if (lex)
-                mPainter.setData(lex.levelData, lex.size);
+            LandscapeBitmap lex = lvl.renderData();
+            assert(!!lex, "how woudl this be null?");
+            mPainter.setData(lex, true);
             //get parameters from loaded level
             auto props = lvl.properties();
             mIsCave.checked = props.isCave;
@@ -247,14 +248,12 @@ class LevelSelector : SimpleContainer {
     private void okClick(Button sender) {
         LevelGenerator lvl = mLastLevel;
         if (!lvl) {
-            LandscapeLexels lex = new LandscapeLexels();
-            lex.levelData = mPainter.copyLexels;
-            lex.size = mPainter.levelSize;
+            auto lex = mPainter.copyLexels;
             bool[4] walls;
             for (int i = 0; i < 4; i++) {
                 walls[i] = mWalls[i].checked;
             }
-            lvl = lex.generator(mGenerator, mIsCave.checked,
+            lvl = generatorFromLevelLexels(lex, mGenerator, mIsCave.checked,
                 mPlaceObjects.checked, walls);
         }
         auto gen = cast(GenerateFromTemplate)lvl;

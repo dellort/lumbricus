@@ -17,6 +17,7 @@ import gui.list;
 import utils.rect2;
 import utils.vector2;
 import utils.configfile;
+import utils.log;
 import utils.misc;
 import drawing = utils.drawing;
 import rand = utils.random;
@@ -32,6 +33,7 @@ enum DrawMode {
 
 class PainterWidget : Widget {
     private {
+        bool mOwnsLevel;    //true if we can free mLevel, false otherwise
         LandscapeBitmap mLevel;
 
         //can be overridden by config file
@@ -73,15 +75,14 @@ class PainterWidget : Widget {
     this() {
         focusable = true;
         setColors(cDefLexelToColor);
-        setData(null, cLevelSize);
+        setData(new LandscapeBitmap(cLevelSize, true), true);
     }
 
     //take the level by reference
     this(LandscapeBitmap lv) {
         focusable = true;
         setColors(cDefLexelToColor);
-        mLevel = lv;
-        reinit();
+        setData(lv, false);
     }
 
     override bool greedyFocus() {
@@ -303,22 +304,26 @@ class PainterWidget : Widget {
         return mLevel.size;
     }
 
-    Lexel[] copyLexels() {
-        return mLevel.copyLexels;
+    LandscapeBitmap copyLexels() {
+        return mLevel.copy();
     }
 
-    //load a level of passed size
-    //pass data = null to create a new, empty level
-    void setData(Lexel[] data, Vector2i size) {
-        mLevel = new LandscapeBitmap(size, true, data);
-        reinit();
+    LandscapeBitmap peekLexels() {
+        return mLevel;
     }
 
-    void setData(LandscapeBitmap level) {
+    //transfer_ownership = if we can free the level when we're done
+    void setData(LandscapeBitmap level, bool transfer_ownership) {
         argcheck(level);
-        //data-only copy; otherwise, it would try to keep the level bitmap
-        //  updated as draw commands are issued, which is slower
-        mLevel = level.copy(true);
+        if (mOwnsLevel && mLevel) {
+            mLevel.free();
+            mLevel = null;
+            mOwnsLevel = false;
+        }
+        if (level.hasImage())
+            gLog.warn("using levelpaint on a level with image, might be slow");
+        mLevel = level;
+        mOwnsLevel = transfer_ownership;
         reinit();
     }
 

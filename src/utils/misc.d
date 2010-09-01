@@ -478,9 +478,20 @@ void throwError(char[] fmt, ...) {
     throw new CustomException(myformat_fx(fmt, _arguments, _argptr));
 }
 
-//for parameter checks in "public" api (instead of Assertion)
-//special class because it is fatal for D code, but non-fatal for scripts
-class ParameterException : Exception {
+//exception thrown by argcheck
+//
+//this was once derived from Exception, and it said:
+//--for parameter checks in "public" api (instead of Assertion)
+//--special class because it is fatal for D code, but non-fatal for scripts
+//changed that, because if didn't make too much sense: if Lua code calls D code,
+//  and then D code calls some other D code, and this exception is thrown, the
+//  Lua code was blamed, and the exception was non-fatal anyway
+//=> it's better to make this always non-fatal, and just fix the offending D
+//  call
+//if you wanted to do this properly, you had to do it at the marshaller level
+//  (like how it checks that methods can't be called on null references), or
+//  by adding script-only wrapper functions; both are "too hard"
+class ParameterException : CustomException {
     this(char[] msg) {
         super(msg);
     }

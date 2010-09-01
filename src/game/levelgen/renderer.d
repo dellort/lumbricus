@@ -281,30 +281,14 @@ class LandscapeBitmap {
         mSize = a_size;
         mLDStorage = new BigArray!(Lexel)(mSize.x * mSize.y);
         mLevelData = mLDStorage[];
-        mDataOnly = dataOnly;
+        mDataOnly = true;
         if (data.length > 0) {
             argcheck(data.length == mSize.x*mSize.y);
             mLevelData[] = data;
         }
 
-        if (mDataOnly)
-            return;
-
-        mTilesX = (mSize.x + cTileSize - 1) / cTileSize;
-        mTilesY = (mSize.y + cTileSize - 1) / cTileSize;
-        mTiles.length = mTilesX * mTilesY;
-        for (int ty = 0; ty < mTilesY; ty++) {
-            for (int tx = 0; tx < mTilesX; tx++) {
-                Tile* t = &mTiles[ty*mTilesX+tx];
-                t.tx = tx;
-                t.ty = ty;
-                t.pos = Vector2i(tx, ty) * cTileSize;
-                t.size = Vector2i(cTileSize).min(mSize - t.pos);
-                t.surface = new Surface(t.size, Transparency.Colorkey);
-                t.surface.enableCaching = false;
-                t.surface.fill(Rect2i(mSize), Color.Transparent);
-            }
-        }
+        if (!dataOnly)
+            addImage();
     }
 
     //create from a bitmap; also used as common constructor
@@ -355,9 +339,43 @@ class LandscapeBitmap {
         previewDestroy();
     }
 
+    //if the level was created as "data only", add the image part
+    //this means after this call the level is not data only anymore
+    //after this, you may want to call texturizeData() to get something visible
+    void addImage() {
+        //mDataOnly must correspond with the image existing
+        assert((mTiles.length == 0) == mDataOnly);
+
+        if (!mDataOnly)
+            return;
+
+        mTilesX = (mSize.x + cTileSize - 1) / cTileSize;
+        mTilesY = (mSize.y + cTileSize - 1) / cTileSize;
+        mTiles.length = mTilesX * mTilesY;
+        for (int ty = 0; ty < mTilesY; ty++) {
+            for (int tx = 0; tx < mTilesX; tx++) {
+                Tile* t = &mTiles[ty*mTilesX+tx];
+                t.tx = tx;
+                t.ty = ty;
+                t.pos = Vector2i(tx, ty) * cTileSize;
+                t.size = Vector2i(cTileSize).min(mSize - t.pos);
+                t.surface = new Surface(t.size, Transparency.Colorkey);
+                t.surface.enableCaching = false;
+                t.surface.fill(Rect2i(mSize), Color.Transparent);
+            }
+        }
+
+        mDataOnly = false;
+    }
+
+    //return if the level has an image, i.e. is not "data only"
+    bool hasImage() {
+        return !mDataOnly;
+    }
+
     //return a full, untiled surface for the level bitmap
     Surface createImage() {
-        assert(!mDataOnly, "Not for data-only renderer");
+        argcheck(!mDataOnly, "Not for data-only renderer");
         //xxx transparency mode?
         Surface s = new Surface(mSize, Transparency.Alpha);
         foreach (ref t; mTiles) {
@@ -449,14 +467,19 @@ class LandscapeBitmap {
 
     //release the preview image, so subsequent drawing commands won't slow
     //  down everything due to preview image updating
-    //disown: if true, don't free the image; the caller can keep using it
-    //        (use with care)
-    void previewDestroy(bool disown = false) {
+    void previewDestroy() {
         if (!mPreviewImage)
             return;
-        if (!disown)
-            mPreviewImage.free();
+        mPreviewImage.free();
         mPreviewImage = null;
+    }
+
+    //destroy previewing from level and return the preview surface
+    //ownership of the preview surface is transferred to caller
+    Surface previewSteal() {
+        auto res = mPreviewImage;
+        mPreviewImage = null;
+        return res;
     }
 
     //return preview image; ownership still belongs to LandscapeBitmap;
@@ -465,6 +488,16 @@ class LandscapeBitmap {
     //this can be null; call previewInit() to create it
     Surface previewImage() {
         return mPreviewImage;
+    }
+
+    //convenience method to quickly take a preview without permanent effects
+    Surface renderPreview(Vector2i s, Color[Lexel] lexel2color) {
+        //xxx: it really shouldn't have permanent effects, but this
+        //  implementation messes up hard if there's already a preview set - it
+        //  really should do it somehow independently (meh, too lazy to move the
+        //  code around right now)
+        previewInit(s, lexel2color);
+        return previewSteal();
     }
 
     //this should be called as mLevelData is updated
