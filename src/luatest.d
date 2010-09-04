@@ -300,6 +300,62 @@ void main(char[][] args) {
         print("cb test ok")
     `, &(new Closure).test);
 
+    //some nested error case that probably failed before
+    struct Closure2 {
+        void delegate() fail;
+        void test() {
+            try {
+                fail();
+            } catch (LuaException e) {
+                Trace.formatln("nested error ok!: {}", e);
+            }
+        }
+    }
+    auto test2 = new Closure2;
+    test2.fail = s.scriptExecR!(void delegate())(
+        `return function() error("muuuh") end`);
+    s.scriptExec(`
+        faildel = ...
+        faildel()
+    `, &test2.test);
+
+    //provoke sstack overflow, somewhat helps with testing lua_checkstack
+    //run with Lua API check enabled
+    struct Closure3 {
+        LuaState s;
+        alias void delegate(int a1, int a2, int a3, int a4, int a5, int a6,
+            int a7, int a8, int a9, int a10, int a11, int a12, int a13, int a14,
+            int a15, int a16, int a17, int a18, int a19, int a20, int a21) X;
+        void test(X x, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
+            int a8, int a9, int a10, int a11, int a12, int a13, int a14,
+            int a15, int a16, int a17, int a18, int a19)
+        {
+            if (a1 == 1) {
+                x(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,16,17,18,
+                    19, 20, 21);
+            } else {
+                //only function I found that uses some stack unprotected
+                //xxx didn't provoke the bug, but who cares
+                s.reftableSize();
+            }
+        }
+    }
+    auto test3 = new Closure3;
+    test3.s = s;
+    s.scriptExec(`
+        local f = ...
+        f(function(...) print (...) end, 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,
+            18,19)
+        f(function(...) print (...) end, 2,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,
+            18,19)
+    `, &test3.test);
+
+    static if (cLuaFullUD) {
+        //trivial userdata metatable test
+        //Foo is a variable of type Foo because it was added as singleton
+        loadexec(`print(Foo:test2("huhuh"))`);
+    }
+
     //GC test - don't try this without version Lua_In_D_Memory
 
     Trace.formatln("GC test...");

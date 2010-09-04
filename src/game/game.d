@@ -8,6 +8,7 @@ import game.glevel;
 import game.sprite;
 import common.animation;
 import common.common;
+import common.lua; // : loadScript
 import common.scene;
 import game.core;
 import game.lua.base;
@@ -136,7 +137,7 @@ class GameEngine : GameCore {
         scene.add(particles);
 
         foreach (char[] name, char[] value; mGameConf.getSubNode("scripts")) {
-            loadScript(value);
+            loadScript(scripting(), value);
         }
     }
 

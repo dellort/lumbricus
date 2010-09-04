@@ -1,5 +1,6 @@
 module game.plugins;
 
+import common.lua; // : loadScript
 import common.resset;
 import common.resources : gResources, ResourceFile;
 import framework.config;
@@ -245,12 +246,10 @@ class Plugin {
                     return true;
                 }
                 loadedModules[filename] = true;
-                auto st = gFS.open(filename);
-                scope(exit) st.close();
                 //filename = for debug output; name = lua environment
                 //xxx catch lua errors here, so other modules can be loaded?
                 log("load lua script for '{}': {}", name, filename);
-                eng.scripting().loadScript(filename, st, name);
+                loadScript(eng.scripting(), filename, name);
                 loaded = true;
                 return true;
             });

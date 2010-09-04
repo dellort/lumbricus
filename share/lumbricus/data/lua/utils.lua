@@ -120,9 +120,8 @@ function utils._format_value(value, fmt, done)
     local ptype = type(value)
     if ptype == "userdata" then
         -- these functions need to be regged by D code
-        if ObjectToString and d_islightuserdata and d_islightuserdata(value)
-        then
-            return ObjectToString(value)
+        if d_isobject and d_isobject(value) and Object_toString then
+            return Object_toString(value)
         end
     elseif ptype == "table" then
         return utils.table2string(value, done)
@@ -338,10 +337,14 @@ end
 -- to fix Lua, they just have to be global
 
 local function dodir(t, match, level, done)
-    done[t] = true
-    for k, v in pairs(t) do
-        if not match or type(k) ~= "string" or string.match(k, match) then
-            printf("{}{} {}", level, type(v), k)
+    assert(type(t) == "table" or type(t) == "userdata")
+    -- skip for userdata, but recurse into metatable later
+    if type(t) ~= "userdata" then
+        done[t] = true
+        for k, v in pairs(t) do
+            if not match or type(k) ~= "string" or string.match(k, match) then
+                printf("{}{} {}", level, type(v), k)
+            end
         end
     end
     local meta = getmetatable(t)
@@ -371,7 +374,6 @@ function dir(t, x)
         x = "^" .. string.gsub(x, "%*", ".*") .. "$"
     end
     t = t or _G
-    assert(type(t) == "table")
     dodir(t, x, "", {})
 end
 
@@ -768,10 +770,11 @@ end
 -- the line is a string, with c_start and c_end being indices into line
 -- c_start is the current cursor position
 -- c_end, if present, is the end of the selection
+-- indices are 1 based
 -- returns a table that in D is defined as:
 --    struct CompletionResult {
 --        //indices of the prefix into the current command line
---        //e.g. "abc.def<tab>" => match_start, match_end = 4, 7
+--        //e.g. "abc.def<tab>" => match_start, match_end = 5, 8
 --        int match_start, match_end;
 --        //possible matches (only those which match the prefix)
 --        char[][] matches;
@@ -780,13 +783,54 @@ end
 --    }
 function ConsoleUtils.autocomplete(line, c_start, c_end)
     -- right now, the completion is as simple as possible
-    -- c_start and c_end are ignored for now
+    -- c_end is ignored for now
     -- it just looks at the whole string and follows identifiers and . and :
     --  operators
     -- feel free to add more capabilities as needed
     local cur = _G
     local pos = 1
     local last_from, last_to, last_id
+
+    -- complete from cursor, ignore the rest
+    line = line:sub(1, c_start - 1)
+    -- xxx: should strip whitespace from beginning
+
+    -- all the following functions have to follow the "index" metatable event
+    -- (see http://www.lua.org/manual/5.1/manual.html#2.8 "index" event)
+    local function listable(x)
+        return type(x) == "table" or type(x) == "userdata"
+    end
+    local function getiter(x)
+        if type(x) == "table" then
+            return pairs(x)
+        else
+            return pairs({})
+        end
+    end
+    local function nextlist(x)
+        -- xxx not safe against cyclic metatables/metamethods
+        local t = getmetatable(x)
+        if t == nil then
+            return nil
+        end
+        -- userdata has a __metatable member set, that doesn't return the
+        --  metatable, but the __index member of the metatable
+        -- as a hack, so what Lua does properly under the hood
+        -- xxx: maybe make the wrapper set a proper (although relatively)
+        --  useless metatable, and remove this hack?
+        if type(x) ~= "userdata" then
+            t = t.__index
+        end
+        -- could be a function, we can't follow a function
+        if type(t) ~= "table" then
+            return nil
+        else
+            return t
+        end
+    end
+
+    -- local fragments = {}
+
     while true do
         -- get identifier in the beginning
         local from, to, id = line:find("([%w_]+)", pos)
@@ -805,10 +849,11 @@ function ConsoleUtils.autocomplete(line, c_start, c_end)
         else
             break
         end
-        if type(n) ~= "table" then
+        if not listable(n) then
             break
         end
     end
+
     -- end of whatever doesn't fall on end of line => user probably has a '.'
     --  or ':' at the end => skip previous id, start new id as empty string
     if (not last_to) or (last_to ~= #line + 1) then
@@ -816,43 +861,46 @@ function ConsoleUtils.autocomplete(line, c_start, c_end)
         last_from = #line + 1
         last_id = ""
     end
-    -- in the completion case, we will have some table cur, and a last_id which
-    --  is a prefix that should be used for completion
-    -- find all identifiers in that table, and filter what matches to last_id
+
     local matches = {}
     local MAX = 10
     local more = false
-    if type(cur) == "table" then
-        while type(cur) == "table" and last_id do
-            for name, val in pairs(cur) do
+    local function addmatch(s)
+        if #matches > MAX then
+            more = true
+            return false
+        else
+            matches[#matches+1] = s
+            return true
+        end
+    end
+
+    -- in the completion case, we will have some table cur, and a last_id which
+    --  is a prefix that should be used for completion
+    -- find all identifiers in that table, and filter what matches to last_id
+    if listable(cur) then
+        while cur and last_id do
+            for name, val in getiter(cur) do
                 if type(name) == "string" and name:startswith(last_id) then
-                    if #matches >= MAX then
-                        more = true
+                    if not addmatch(name) then
                         break
                     end
-                    matches[#matches+1] = name
                 end
             end
-            -- xxx not safe against cyclic metatables/metamethods
-            -- this has to follow the "index" metatable event (see Lua manual)
-            -- the code doesn't follow it exactly (e.g. no __index functions)
-            cur = getmetatable(cur)
-            if type(cur) ~= "table" then
-                break
-            end
-            cur = rawget(cur, "__index")
+            cur = nextlist(cur)
         end
     elseif type(cur) == "function" then
         -- add '()', which is convenient most time
         last_to = #line + 1
         last_from = #line + 1
         last_id = ""
-        matches[#matches+1] = "()"
+        addmatch("()")
     end
+
     local res = {
         -- also adjust to D slice indices
-        match_start = (last_from and last_from - 1) or 0,
-        match_end = (last_to and last_to - 1) or 0,
+        match_start = (last_from and last_from) or 1,
+        match_end = (last_to and last_to) or 1,
         matches = matches,
         more = more,
     }

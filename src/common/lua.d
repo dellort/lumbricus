@@ -5,11 +5,13 @@ import framework.lua;
 import utils.misc;
 
 //didn't want to put this in framework.lua (too many weird dependencies)
-void loadScript(LuaState state, char[] filename) {
-    filename = "lua/" ~ filename;
+void loadScript(LuaState state, char[] filename, char[] environment = null) {
     auto st = gFS.open(filename);
     scope(exit) st.close();
-    state.loadScript(filename, st);
+    //xxx: IOExceptions and all that?
+    auto data = st.readAll();
+    scope(exit) delete data;
+    state.loadScript(filename, cast(char[])data, environment);
 }
 
 alias LuaInterpreter ScriptInterpreter;
@@ -30,7 +32,7 @@ class LuaInterpreter {
 
         if (!mLua) {
             mLua = new LuaState();
-            loadScript(mLua, "utils.lua");
+            loadScript(mLua, "lua/utils.lua");
         }
 
         //this might be a bit dangerous/unwanted
@@ -46,14 +48,14 @@ class LuaInterpreter {
         //mLua.setPrintOutput(mSink);
 
         if (!suppressVersionMessage) {
-            mSink(myformat("Scripting console using: {}\n",
-                mLua.cLanguageAndVersion));
+            myformat_cb(mSink, "Scripting console using: {}\n",
+                mLua.cLanguageAndVersion);
         }
     }
 
     final void exec(char[] code) {
         //print literal command to console
-        mSink("> " ~ code ~ "\n");
+        myformat_cb(mSink, "> {}\n", code);
         runLuaCode(code);
     }
 
@@ -70,8 +72,13 @@ class LuaInterpreter {
     //cursor1..cursor2: indices into line for cursor position + selection
     //parameters are similar to TabCompletionDelegate in GuiConsole
     CompletionResult autocomplete(char[] line, int cursor1, int cursor2) {
-        return mLua.scriptExecR!(CompletionResult)
-            ("return ConsoleUtils.autocomplete(...)", line, cursor1, cursor2);
+        try {
+            return mLua.scriptExecR!(CompletionResult)
+                ("return ConsoleUtils.autocomplete(...)", line, cursor1, cursor2);
+        } catch (LuaException e) {
+            myformat_cb(mSink, "error in autocompletion code: {}\n", e);
+            return CompletionResult.init;
+        }
     }
 
     private static char[] common_prefix(char[] s1, char[] s2) {
@@ -90,14 +97,19 @@ class LuaInterpreter {
     void tabcomplete(char[] line, int cursor1, int cursor2,
         void delegate(int, int, char[]) edit)
     {
-        auto res = autocomplete(line, cursor1, cursor2);
+        auto res = autocomplete(line, cursor1 + 1, cursor2 + 1);
         if (res.matches.length == 0)
             return;
-        if (!sliceValid(line, res.match_start, res.match_end)) {
+        res.match_start -= 1;
+        res.match_end -= 1;
+        if (!(sliceValid(line, res.match_start, res.match_end)
+            && str.isValid(line[0..res.match_start])
+            && str.isValid(line[0..res.match_end])))
+        {
             //Lua script returned something stupid
             //no need to crash hard
-            mSink(myformat("bogus completion: {} {}\n", res.match_start,
-                res.match_end));
+            myformat_cb(mSink, "bogus completion: {} {}\n", res.match_start,
+                res.match_end);
             return;
         }
         uint len = res.match_end - res.match_start;
@@ -120,11 +132,8 @@ class LuaInterpreter {
         mSink("Completions:\n");
         res.matches.sort;
         foreach (c; res.matches) {
-            mSink("    ");
-            mSink(c[0..prefix.length]);
-            mSink("|");
-            mSink(c[prefix.length..$]);
-            mSink("\n");
+            auto xlen = prefix.length;
+            myformat_cb(mSink, "    {}|{}\n", c[0..xlen], c[xlen..$]);
         }
         if (res.more) {
             mSink("    ...\n");

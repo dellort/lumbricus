@@ -63,21 +63,20 @@ LuaState createScriptingState() {
     //only load base stuff here
     //don't load game specific stuff here
 
-    loadScript(state, "utils.lua");
-    loadScript(state, "wrap.lua");
+    loadScript(state, "lua/utils.lua");
 
-    loadScript(state, "vector2.lua");
+    loadScript(state, "lua/vector2.lua");
     state.addScriptType!(Vector2i)("Vector2");
     state.addScriptType!(Vector2f)("Vector2");
 
-    loadScript(state, "rect2.lua");
+    loadScript(state, "lua/rect2.lua");
     state.addScriptType!(Rect2i)("Rect2");
     state.addScriptType!(Rect2f)("Rect2");
 
-    loadScript(state, "time.lua");
+    loadScript(state, "lua/time.lua");
     state.addScriptType!(Time)("Time");
 
-    loadScript(state, "color.lua");
+    loadScript(state, "lua/color.lua");
     state.addScriptType!(Color)("Color");
 
     //logging - utils.lua will use the d_logoutput functions if available

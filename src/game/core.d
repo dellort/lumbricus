@@ -406,10 +406,6 @@ abstract class GameCore {
         log.error("Scripting error in delegate call: {}", e.msg);
     }
 
-    final void loadScript(char[] filename) {
-        .loadScript(scripting(), filename);
-    }
-
     private void luaPrintSink(char[] msg) {
         if (msg == "\n")
             return;   //hmm
@@ -433,7 +429,7 @@ abstract class GameCore {
         //  this will handle all script timers and per-frame functions
         //null termination for efficient toStringz
         try {
-            scripting().call("game_per_frame\0");
+            scripting().call("game_per_frame");
         } catch (ScriptingException e) {
             log.error("Scripting error: {}", e.msg);
         }
@@ -457,9 +453,12 @@ abstract class GameCore {
             globals.setCounter("active_gameobjects", mActiveObjects.count);
             globals.setCounter("all_gameobjects", mAllObjects.count);
             globals.setByteSizeStat("game_lua_vm", scripting.vmsize());
-            globals.setCounter("lua_to_d_calls", gLuaToDCalls);
-            globals.setCounter("d_to_lua_calls", gDToLuaCalls);
-            globals.setCounter("Lua ref table size", scripting.reftableSize());
+            globals.setCounter("Lua->D calls", gLuaToDCalls);
+            globals.setCounter("D->Lua calls", gDToLuaCalls);
+            globals.setCounter("D->Lua refs", scripting.reftableSize());
+            globals.setCounter("D->Lua refs (total)", gDLuaRefs);
+            globals.setCounter("Lua->D refs", scripting.objtableSize());
+            globals.setCounter("Lua->D refs (total)", gLuaDRefs);
         }
     }
 
@@ -490,7 +489,7 @@ abstract class GameCore {
         foreach (GameObject o; mKillList) {
             log.trace("killed GameObject: {}", o);
             mKillList.remove(o);
-            scripting().call("game_kill_object\0", o);
+            scripting().call("game_kill_object", o);
         }
         mKillList.clear();
     }

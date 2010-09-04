@@ -26,59 +26,135 @@ Error handling notes:
 - normal D exceptions are "tunneled" through the Lua stack by using the D
   exception as userdata Lua error value; they can be catched by Lua scripts
 - unrecoverable D exceptions (assertions, out of memory errors, ...) usually
-  lead to a corrupted program state, and should never be catchable by Lua
-- this isn't strictly done right now; instead, there's a messy mix
-  the problem is that out of memory errors could lead to both Lua errors and D
-  exceptions being raised from the same place (like luaPush())
-to fix this...:
-- almost all Lua API functions should be called inside a lua_cpcall() (that's
-  why there's a luaProtected() function in this module, although it doesn't do
-  the right thing)
-- make our own error raising more consistent, e.g. don't throw recoverable D
-  exceptions inside luaPush() but use lua_error()
-- make sure "unrecoverable" exceptions (like assertions, out of memory) never
-  jump through the Lua C stack (or at least, make sure nobody is going to access
-  the "corrupted" Lua state)
-- doLuaCall() actually should be called inside a lua_cpcall (including argument
-  marshalling/demarshalling), and shouldn't need to call the actual Lua
-  function with a lua_pcall (on the other hand, I don't know how one can set
-  the custom error handler function [for Lua backtraces] without lua_pcall)
-- Lua 5.2 work2 deprecates lua_cpcall WELL, WTF
-all this is not really important, because normal error handling works. the
-problem is just with e.g. out of memory errors, but in this case, everything is
-beyond repair anyway; this is just documenting that the current error handling
-is a bit broken in this aspect and the code doesn't make perfect sense.
+  lead to a corrupted program state, and should never be catchable by Lua and
+  are never catched by D (that is, at least in our code)
+  list of exceptions considered unrecoverable (by us):
+    Exception itself, OutOfMemoryException, SwitchException, AssertException,
+    UnicodeException (probably), ArrayBoundsException, FinalizeException,
+    AccessViolation, ...?
+
+D error handling domain:
+- never raise raw Lua errors
+- may throw Lua errors wrapped inside exceptions (LuaException)
+- can throw CustomExceptions (that includes LuaExceptions)
+- if Lua calls D code which throws a CustomException, the wrapper will wrap that
+  into a LuaException (if it isn't already a LuaException)
+
+Lua error handling domain:
+- won't throw any recoverable D exceptions (CustomException)
+- will raise Lua errors (longjmp)
+- any recoverable exceptions thrown by del are converted into lua errors
+- as a hack, unrecoverable exceptions are "allowed" => you can use things like
+  assert() or D memory allocation
+
+Neutral error handling domain (often used in error handler code itself):
+- won't throw CustomExceptions
+- won't raise Lua errors (not even out-of-memory ones)
+- may throw unrecoverable exceptions
+
+Going from...
+- D -> Lua: use luaProtected()
+- Lua -> D: use a try-catch block and then luaDError(), such as in callFromLua
+
+Most functions starting with lua* are in the Lua error handling domain.
+The user (D code outside of this module) always is in D error handling domain.
+
+XXX: right now, we rely on D being able to unwind the Lua stack in case of
+    unrecoverable exceptions to crash gracefully. it would be fine to crash at
+    any point before this: all what we really want is a nice backtrace, and then
+    fix the code so it never happens again. (the only such exception that may
+    happen even with bugfree code is OutOfMemoryException, but when that happens
+    we're done for anyway and can't really resume.)
+    this could be fixed by wrapping all "bottom most" D code called from Lua
+    (i.e. all functions added via lua_pushcclosure/lua_pushcfunction) into a
+    try-catch, and call abort() in the catch block to terminate the program. we
+    couldn't call lua_error(), because Lua scripts could simply catch the error
+    via pcall().
+
+XXX2: there's still some trouble when Lua scripts raise errors in strange
+    locations. e.g. a script can set a metatable on _G, and raise an error in
+    the "index" method. then D code calling LuaState.getGlobal() will receive
+    a LuaException. maybe we want to take the same approach like with delegates
+    here: if a Lua closure wrapped as D delegate raises an error, the error is
+    handed to LuaState.reportDelegate. the user can set a callback that prints
+    out an error message and then ignores the error (the D delegate will just
+    return).
 +/
 
 //comment this to disable unsafe debug extensions
 //Warning: leaving this enabled has security implications
 debug version = DEBUG_UNSAFE;
 
+//if this is enabled, the Lua wrapper uses the "correct" way to pass D objects
+//  to Lua: for each object reference there's a Lua full userdata as wrapper
+//  (created on demand), and we will have to do several table lookups to pass
+//  a D object reference between Lua and D
+version = USE_FULL_UD;
+
+//sigh, version symbols are module-local or so
+version (USE_FULL_UD) {
+    const bool cLuaFullUD = true;
+} else {
+    const bool cLuaFullUD = false;
+}
+
 //counters incremented on each function call
 //doesn't include Lua builtin/stdlib calls or manually registered calls
 debug int gLuaToDCalls, gDToLuaCalls;
+
+//total number of D->Lua/Lua->D references that have been created
+debug int gDLuaRefs, gLuaDRefs;
 
 //this alias is just so that we can pretend our scripting interface is generic
 alias LuaException ScriptingException;
 alias LuaState ScriptingState;
 
 //--- stuff which might appear as keys in the Lua "Registry"
+/+
+In general:
+- all integer indices are reserved for the luaL_ref mechanism, and Lua 5.2 uses
+  some integer keys for internal stuff (LUA_RIDX_*)
+- luaPush/LuaState.addScriptType map registry[lud]=type_table, where lud is
+  the type's TypeInfo wrapped as light userdata
+- stuff that needs to be fast or is used in critical glue code uses light
+  userdata as keys (although the speed thing could be an illusion)
+- string keys should use "D_" as prefix
++/
 
-//mangle value that's unique for each D type
-//used for metatables for certain D types in Lua
-//must be null-terminated
-//xxx could use a lightuserdata with the type's TypeInfo as value
-//  (the Lua registry can use lightuserdata as keys)
-//  requires more API calls, but possibly faster than hashing the string...
-private template C_Mangle(T) {
-    const C_Mangle = "D_bind_" ~ T.mangleof ~ '\0';
-}
-private char* envMangle(char[] envName) {
-    return czstr.toStringz("chunk_env_" ~ envName);
+//table that maps chunk_name->environment_table
+const char[] cEnvTable = "D_chunk_environment";
+
+//c closure used as __gc metatable function - free's D object wrappers
+const char[] cGCHandler = "D_gc_handler";
+
+//map ClassInfos (wrapped as light userdata) to the userdata metatables
+const char[] cMetatableCache = "D_metatables";
+
+//the _addresses_ of these are wrapped as lightuserdata, and then used as key in
+//  the registry; doing this for speed and safety (no string hashing/allocation)
+private {
+    //reference to LuaState
+    const byte cLuaStateKey;
+    //the table with all cached objects (must be separate because weak values)
+    const byte cRefCacheKey;
+    //"ID" table for userdata wrapping D objects
+    const byte cDObjectUDKey;
+    //the error handler c closures
+    const byte cPInvokeHandlerKey;
+    const byte cErrorHandlerKey;
 }
 
 //--- Lua "Registry" stuff end
 
+
+version (USE_FULL_UD) {
+
+private struct UD_Object {
+    Object o;
+    int pinID; //hack to make pinning code simpler
+}
+
+} else {
 
 private extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize,
     size_t nsize)
@@ -104,24 +180,30 @@ private extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize,
     }
 }
 
+}
+
 //panic function: called on unprotected lua error (message is on the stack)
+//if all code is correct, it will never be called, except on:
+//- out of memory errors in early initialization
+//- failures in error handler
 private extern(C) int my_lua_panic(lua_State *L) {
     assert(false, "(should be) unused");
-/+
-    scope (exit) lua_pop(L, 1);
-    char[] err = lua_todstring(L, -1);
-    throw new LuaException(err);
-+/
 }
 
 //if the string is going to be used after the Lua value is popped from the
 //  stack, you must .dup it (Lua may GC and reuse the string memory)
 //this is an optimization; if unsure, use lua_todstring()
-private char[] lua_todstring_unsafe(lua_State* L, int i) {
+//if geterr is set, assign it the error message, instead of raising an error
+//error handling: Lua domain
+private char[] lua_todstring_unsafe(lua_State* L, int i, char[]* geterr = null)
+{
     size_t len;
     char* s = lua_tolstring(L, i, &len);
-    if (!s)
-        throw new LuaError("non-string type");
+    char[] error;
+    if (!s) {
+        error = "lua_todstring: string expected";
+        goto Lerror;
+    }
     char[] res = s[0..len];
     //as long as the D program is rather fragile about utf-8 errors (anything
     //  parsing utf-8 will throw UnicodeException on invalid utf-8 => basically
@@ -131,9 +213,19 @@ private char[] lua_todstring_unsafe(lua_State* L, int i) {
         str.validate(res);
     } catch (str.UnicodeException s) {
         //not sure if it should be this exception
-        throw new LuaError("invalid utf-8 string");
+        error = "lua_todstring: invalid utf-8 string";
+        goto Lerror;
     }
     return res;
+
+    //blame the Lua API or something for the heretic goto
+Lerror:
+    if (geterr) {
+        *geterr = error;
+    } else {
+        luaErrorf(L, "{}", error);
+    }
+    return "";
 }
 
 //always allocates memory (except if string has len 0)
@@ -141,14 +233,14 @@ private char[] lua_todstring(lua_State* L, int i) {
     return lua_todstring_unsafe(L, i).dup;
 }
 
-//like lua_todstring, but returns error messages in the string (never throws)
-//  ^ almost... never throws, except on out of memory
+//like lua_todstring, but returns error messages in the string
+//xxx: may still lua_error is certain cases, see lua_tolstring
 private char[] lua_todstring_protected(lua_State* L, int i) {
-    try {
-        return lua_todstring(L, i);
-    } catch (LuaError e) {
-        return '<' ~ e.msg ~ '>';
-    }
+    char[] err;
+    auto res = lua_todstring_unsafe(L, i, &err).dup;
+    if (err.length)
+        return "<error: " ~ err ~ ">";
+    return res;
 }
 
 //if index is a relative stack index, convert it to an absolute one
@@ -165,7 +257,7 @@ private int luaRelToAbsIndex(lua_State* state, int index) {
     return index;
 }
 
-//version of luaL_where() that rerturns the result directly (no Lua stack)
+//version of luaL_where() that returns the result directly (no Lua stack)
 //code taken from http://www.lua.org/source/5.1/lauxlib.c.html#luaL_where (MIT)
 private char[] luaWhere(lua_State* L, int level) {
     lua_Debug ar;
@@ -224,26 +316,6 @@ private char[] luaStackTrace(lua_State* state, int level = 1) {
     return ret.length ? ret[0..$-1] : ret;
 }
 
-//call code() in a more or less "protected" environment:
-//- catch Lua errors (lua_error()/error()) properly
-//- if there are stray D exceptions, clean up the Lua stack
-private T luaProtected(T)(lua_State* state, T delegate() code) {
-    //xxx see notes at top of this file
-    //    for now, just verify stack use
-    int stack = lua_gettop(state);
-    scope(success) assert(stack == lua_gettop(state));
-    return code();
-}
-
-//internal exception that gets thrown on errors in the marshalling code
-//lua_pcall's error handler will detect it and wrap it into a LuaException
-//  (for the stack trace)
-private class LuaError : CustomException {
-    this(char[] msg) {
-        super(msg);
-    }
-}
-
 //public exception type ("what the user sees")
 class LuaException : CustomException {
     //NOTE: the member next (from Exception) is used if a D exception caused
@@ -258,15 +330,9 @@ class LuaException : CustomException {
     char[] lua_message;
     char[] lua_traceback;
 
-    //constructor for "api-level" errors where the code path did not go through
-    //the lua stack (that means we can't get file/line or backtrace)
-    this(char[] msg) {
-        super(msg);
-    }
-
     //state, level are passed to stackTrace
     //Important: the ONLY place where this constructor should be used is
-    //  from lua_pcall's error function; the stack trace is generated there
+    //  from lua_pcall's error function; the stack trace is generated here
     //  and nowhere else
     this(lua_State* state, int level, char[] msg, Exception next) {
         auto nmsg = msg;
@@ -276,11 +342,7 @@ class LuaException : CustomException {
             //"level" is the D function that caused the exception,
             //  so the lua pos is at level + 1
             char[] codePos = luaWhere(state, level + 1);
-            if (cast(LuaError)next) {
-                nmsg = codePos ~ next.msg;
-            } else {
-                nmsg = codePos ~ "D " ~ className(next) ~ " [" ~ next.msg ~ "]";
-            }
+            nmsg = codePos ~ "D " ~ className(next) ~ " [" ~ next.msg ~ "]";
         }
         //also append the trace like it used to be
         //but I think this should be changed
@@ -300,50 +362,25 @@ class LuaException : CustomException {
     }
 }
 
-//this can be used in 2 cases:
-//- Lua calls user D code, and the user raised some recoverable exception
-//  => e is that (catched) exception, and it is not a LuaException
-//- Lua calls D code, and the binding code detects a marshalling error
-//  => e is a newly created LuaError, describing the error
-//the result will always be that the exception is passed to the lua_pcall error
-//  handler, where it gets wrapped in a LuaException (which generates a trace)
-//there's a 3rd case, that takes a different code path: if Lua raises an error
-//  via lua_error()/error(), lua_pcall's error handler will catch that and
-//  create a new LuaException accordingly
-private void raiseLuaError(lua_State* state, Exception e) {
+//recoverable exceptions are wrapped as Lua errors,
+//  and unwind the stack via a longjmp in lua_error()
+//the lua_pcall error handler will catch it and wrap it in a LuaException
+//if Lua raises an error via lua_error()/error(), lua_pcall's error handler will
+//  catch that and create a new LuaException accordingly
+private void luaDError(lua_State* state, CustomException e) {
     assert(!!e);
-    lua_pushlightuserdata(state, cast(void*)e);
+    LuaState.luaPushDObject(state, e);
     lua_error(state);
 }
 
-//use this on errors in the wrapper code
-private void raiseLuaError(lua_State* state, char[] msg) {
-    //the exception marks an error in the lua wrapper code (in contrast to
-    //  exceptions in unrelated D code)
-    //xxx: if the backtracer isn't able to get through the Lua VM functions
-    //  in all cases (Windows?), we have to think of something else
-    raiseLuaError(state, new LuaError(msg));
-}
-
-//unrecoverable exception encountered
-//print out trace and die on internal exceptions
-private void internalError(lua_State* state, Exception e) {
-    //go boom immediately to avoid confusion
-    //this should also be done for other "runtime" exceptions, but at least
-    //  in D1, the exception class hierarchy is too retarded and you have
-    //  to catch every single specialized exception type (got fixed in D2)
-    Trace.formatln("catching failing irrecoverable error instead of returning"
-        " to Lua:");
-    e.writeOut((char[] s) { Trace.write(s); });
-    Trace.formatln("responsible Lua backtrace:");
-    Trace.formatln("{}", luaStackTrace(state, 1));
-    Trace.formatln("done, will die now.");
-    //this is really better than trying to continue the program
-    //Warning: if you should change this, be aware that Lua programs are allowed
-    //  to do xpcall(), and Lua programs should in no way be allowed to catch
-    //  internal D errors (that would lead to cascading failures, unability to
-    //  find the real error cause, etc.)
-    cstdlib.abort();
+//similar to luaL_error(), but with Tango formatter instead of C sprintf
+//allocates memory
+//xxx: maybe in the future, we may want to add D backtrace info??
+private void luaErrorf(lua_State* state, char[] fmt, ...) {
+    char[] error = myformat_fx(fmt, _arguments, _argptr);
+    //old implementation: luaDError(state, new LuaError(error));
+    lua_pushlstring(state, error.ptr, error.length);
+    lua_error(state);
 }
 
 private char[] className(Object o) {
@@ -362,15 +399,17 @@ private char[] fullClassName(Object o) {
 }
 
 private void luaExpected(lua_State* state, int stackIdx, char[] expected) {
-    luaExpected(state, expected,
-        czstr.fromStringz(luaL_typename(state, stackIdx)));
+    char* s = luaL_typename(state, stackIdx);
+    luaExpected(state, expected, czstr.fromStringz(s));
 }
 private void luaExpected(lua_State* state, char[] expected, char[] got) {
-    throw new LuaError(myformat("{} expected, got {}", expected, got));
+    luaErrorf(state, "{} expected, got {}", expected, got);
 }
 
-//if this returns a string, you can use it only until you pop the corresponding
-//  Lua value from the stack (because after this, Lua may garbage collect it)
+//if this returns a TempString, you can use it only until you pop the
+//  corresponding Lua value from the stack (because after this, Lua may garbage
+//  collect it); char[] values are .dup'ed on the D heap
+//Lua error domain
 private T luaStackValue(T)(lua_State *state, int stackIdx) {
     void expected(char[] t) { luaExpected(state, stackIdx, t); }
     //xxx no check if stackIdx is valid (is checked in demarshal() anyway)
@@ -386,8 +425,13 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
             auto pconvert = typeid(T) in gBoxParsers;
             if (!pconvert)
                 expected("enum "~T.stringof);
-            return (*pconvert)(lua_todstring_unsafe(state, stackIdx))
-                .unbox!(T)();
+            T res;
+            try {
+                return stringToType!(T)(lua_todstring_unsafe(state, stackIdx));
+            } catch (ConversionException e) {
+                expected("enum "~T.stringof~"( error: " ~ e.msg ~ ")");
+            }
+            assert(false, "unreachable");
         } else {
             //try base type
             return cast(T)luaStackValue!(Base)(state, stackIdx);
@@ -409,26 +453,15 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
         //http://www.lua.org/manual/5.1/manual.html#lua_tolstring
         //NOTE: lua_isstring returns true for numbers (implicitly convertible
         //  to string), but I'd say "fuck implicit conversion to string"
-        try {
-            if (lua_type(state, stackIdx) == LUA_TSTRING)
-                return TempString(lua_todstring_unsafe(state, stackIdx));
-        } catch (LuaError e) {
-            //not too sure about this, but tells the user about utf-8 errors
-            expected(myformat("string ({})", e.msg));
-        }
+        if (lua_type(state, stackIdx) == LUA_TSTRING)
+            return TempString(lua_todstring_unsafe(state, stackIdx));
         expected("string");
     } else static if (is(T == LuaReference)) {
         return new LuaReference(state, stackIdx);
     } else static if (is(T == Object)) {
-        //allow userdata and nil, nothing else
-        if (!lua_islightuserdata(state, stackIdx) && !lua_isnil(state,stackIdx))
-            expected("class reference of type "~T.stringof);
-        //by convention, all light userdatas are casted from Object
-        //which means we can always type check it
-        return cast(Object)lua_touserdata(state, stackIdx);
+        return LuaState.luaToDObject(state, stackIdx);
     } else static if (is(T == class) || is(T == interface)) {
-        //the indirection over Object saves a few KB code
-        Object o = luaStackValue!(Object)(state, stackIdx);
+        Object o = LuaState.luaToDObject(state, stackIdx);
         T res = cast(T)o;
         if (o && !res) {
             luaExpected(state, T.classinfo.name, o.classinfo.name);
@@ -545,7 +578,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
         //  an out of memory Lua error is raised
         //note that in Lua accessing past the end of the stack causes random
         //  memory corruption (except if Lua is compiled with LUA_USE_APICHECK)
-        luaL_checkstack(state, 10, "Lua stack out of memory");
+        luaL_checkstack(state, LUA_MINSTACK/2, "Lua stack out of memory");
         lua_pushnil(state);  //first key
         while (lua_next(state, tablepos) != 0) {
             //lua_next pushes key, then value
@@ -555,8 +588,8 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
             } else {
                 auto index = luaStackValue!(int)(state, -2);
                 if (index < 1 || index > ret.length)
-                    throw new LuaError(myformat("invalid index in lua array"
-                        " table: got {} in range 1-{}", index, ret.length+1));
+                    luaErrorf(state, "invalid index in lua array"
+                        " table: got {} in range 1-{}", index, ret.length+1);
                 index -= 1; //1-based arrays
                 ret[index] = luaStackValue!(ElementTypeOfArray!(T))(state, -1);
             }
@@ -572,6 +605,8 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
 
 //returns the number of values pushed (for Vectors maybe, I don't know)
 //xxx: that would be a problem, see luaCall()
+//XXX: ok that tuple return is really weird... should be killed off IMHO
+//Lua error domain
 private int luaPush(T)(lua_State *state, T value) {
     static if (isFloatingPointType!(T) || isIntegerType!(T) ||
         (is(T Base == enum) && isIntegerType!(Base)))
@@ -593,11 +628,7 @@ private int luaPush(T)(lua_State *state, T value) {
             lua_pushnil(state);
         }
     } else static if (is(T == class) || is(T == interface)) {
-        if (value is null) {
-            lua_pushnil(state);
-        } else {
-            lua_pushlightuserdata(state, cast(void*)value);
-        }
+        LuaState.luaPushDObject(state, value);
     } else static if (is(T == Time)) {
         lua_pushnumber(state, value.secsd());
     } else static if (is(T == struct)) {
@@ -633,7 +664,8 @@ private int luaPush(T)(lua_State *state, T value) {
             lua_rawset(state, -3);
         }
         //set the metatable for the type, if it was set by addScriptType()
-        lua_getfield(state, LUA_REGISTRYINDEX, C_Mangle!(T).ptr);
+        lua_pushlightuserdata(state, cast(void*)typeid(T));
+        lua_rawget(state, LUA_REGISTRYINDEX);
         lua_setmetatable(state, -2);
     } else static if (isArrayType!(T)) {
         lua_createtable(state, value.length, 0);
@@ -685,13 +717,16 @@ private void luaPushDelegate(T)(lua_State* state, T del) {
 
     extern(C) static int demarshal(lua_State* state) {
         T del;
-        del.ptr = lua_touserdata(state, lua_upvalueindex(1));
+        del.ptr = LuaState.luaToDPtr(state, lua_upvalueindex(1));
         del.funcptr = cast(typeof(del.funcptr))
             lua_touserdata(state, lua_upvalueindex(2));
         return callFromLua(del, state, 0, "some D delegate");
     }
 
-    lua_pushlightuserdata(state, del.ptr);
+    //del.ptr may reference a GC'ed D object (actually assert_gcptr forces this
+    //  right now), thus we must make sure it's pinned until Lua is done with it
+    //del.funcptr just points to static code and doesn't need special treatment
+    LuaState.luaPushDPtr(state, del.ptr);
     lua_pushlightuserdata(state, del.funcptr);
     lua_pushcclosure(state, &demarshal, 2);
 }
@@ -719,12 +754,13 @@ private final class RealLuaRef : WeakRef {
 private:
     lua_State* mState;
     int mLuaRef;
-    LuaState mDState;
+    LuaState mDState; //required to keep mState alive
     public ObjListNode!(typeof(this)) mNode;
 
     //add the value from the stack at stackIdx to the Lua ref table
     //the stack itself isn't changed
     //the Lua ref table entry will be removed as soon as referrer gets free'd
+    //Lua error handling domain
     this(lua_State* state, int stackIdx, Object referrer) {
         assert(!!referrer);
         super(referrer);
@@ -739,8 +775,11 @@ private:
 
         //add to poll list for deferred freeing
         mDState.mRefList.add(this);
+
+        gDLuaRefs++;
     }
 
+    //neutral error handling domain
     void push(lua_State* state) {
         assert(mState is state); //thinking of coroutines
         assert(mLuaRef != LUA_NOREF, "call .push() after .release()");
@@ -749,18 +788,22 @@ private:
     }
 
     //return the Lua value as D value
-    //get() is already taken by class WeakRef
+    //get() is already taken by class WeakRef (and is completely different, arg)
+    //D error domain
     T getT(T)() {
         if (!valid())
             throw new CustomException("invalid Lua reference");
-        return luaProtected!(T)(mState, {
+        T res;
+        luaProtected(mState, {
             push(mState);
-            T res = luaStackValue!(T)(mState, -1);
+            res = luaStackValue!(T)(mState, -1);
             lua_pop(mState, 1);
-            return res;
         });
+        return res;
     }
 
+    //clear the reference
+    //neutral error domain
     void release() {
         if (!valid())
             return;
@@ -771,6 +814,7 @@ private:
 
     //returns true if the reference hasn't been released yet
     //(it doesn't matter if the reference is a nil value; it behaves the same)
+    //neutral error domain
     bool valid() {
         return mLuaRef != LUA_NOREF;
     }
@@ -787,6 +831,8 @@ private:
 }
 
 //holds a persistent reference to an arbitrary Lua value
+//this is mainly used for the user API: you can bind a function with parameter
+//  types of LuaReference to accept and return any Lua value
 final class LuaReference {
     private {
         RealLuaRef mRef;
@@ -821,11 +867,7 @@ final class LuaReference {
     }
 }
 
-//same as "Wrapper" and same idea from before
-//garbage collection: maybe put all wrapper objects into a weaklist, and do
-//  regular cleanups (e.g. each game frame); the weaklist would return the set
-//  of dead objects free'd since the last query, and the Lua delegate table
-//  entry could be removed without synchronization problems
+//wrapper for D->Lua delegates (implemented in Lua, called by D)
 private class LuaDelegateWrapper(T) {
     private lua_State* mState;
     private RealLuaRef mRef;
@@ -839,23 +881,30 @@ private class LuaDelegateWrapper(T) {
     }
 
     //delegate to this is returned by luaStackDelegate/luaStackValue!(T)
+    //of course in the D error domain
     RetType cbfunc(Params args) {
-        mRef.push(mState);
-        assert(lua_isfunction(mState, -1));
+        const bool novoid = !is(RetType == void);
+        static if (novoid)
+            RetType res;
         try {
-            //will pop function from the stack
-            return doLuaCall!(RetType, Params)(mState, args);
+            luaProtected(mState, {
+                mRef.push(mState);
+                assert(lua_isfunction(mState, -1));
+                static if (novoid)
+                    res = luaCall!(RetType, Params)(mState, args);
+                else
+                    luaCall!(void, Params)(mState, args);
+            });
         } catch (LuaException e) {
             //we could be anywhere in the code, and letting the LuaException
             //  through would most certainly cause a crash. So it is passed
             //  to the parent LuaState, which can report it back
             auto lsInst = LuaState.getInstance(mState);
-            assert(!!lsInst);
             lsInst.reportDelegateError(e);
-            //return default
-            static if (!is(RetType == void))
-                return RetType.init;
+            //if reportDelegate doesn't re-throw, return default
         }
+        static if (novoid)
+            return res;
     }
 }
 
@@ -875,35 +924,102 @@ private T luaStackDelegate(T)(lua_State* state, int stackIdx) {
     return &pwrap.cbfunc;
 }
 
+//error handler:
+//1. protect D code from Lua longjmp error handler
+//2. make it possible to retrieve a Lua stack trace to the offending Lua code
+extern (C) private int pcall_err_handler(lua_State* state) {
+    //two cases for the error message value:
+    //1. Lua code raised this error and may have passed any value
+    //2. any Exception was passed through by other error handling code
+    Exception stackEx = null;
+    char[] msg;
+    if (LuaState.luaIsDObject(state, 1)) {
+        //note that a Lua script could have used a random D object
+        //in that case stackEx would remain null
+        Object o = LuaState.luaToDObject(state, 1);
+        stackEx = cast(Exception)o;
+    } else {
+        //xxx I think this could trigger arbitrary script execution;
+        //  what happens if the script raises an error?
+        msg = lua_todstring_protected(state, 1);
+    }
+    //this also gets the Lua and D backtraces
+    auto e = new LuaException(state, 1, msg, stackEx);
+    //return e
+    lua_pop(state, 1);
+    LuaState.luaPushDObject(state, e);
+    return 1;
+}
+
+//for luaProtected: simply calls the D delegate on the stack
+extern (C) private int pcall_invoke_handler(lua_State* state) {
+    void delegate() code;
+    code.ptr = lua_touserdata(state, 1);
+    code.funcptr = cast(void function())lua_touserdata(state, 2);
+    //executed in Lua error domain
+    code();
+    return 0;
+}
+
+//this is in D error domain and calls code in Lua error domain (exactly once)
+//basically similar to lua_cpcall, but for D (and doesn't alloc on Lua heap)
+//it converts Lua errors raised in code to D exceptions thrown by this function
+//the reverse, D error domain nested in Lua error domain, can be done by simply
+//  wrapping the D domain code into a try-catch block:
+//      try { ...code... } catch (CustomException e) { luaDError(state, e); }
+//  (converts the D exception into a lua_error)
+//it is guaranteed that the only thrown recoverable exception is LuaException
+private void luaProtected(lua_State* state, void delegate() code) {
+    //NOTE: heavily relies on the fact that all these functions don't raise any
+    //  Lua errors (check the manual for the API); neutral error domain
+    //get the cached C closure for the pcall_err_handler function
+    lua_pushlightuserdata(state, &cErrorHandlerKey);
+    lua_rawget(state, LUA_REGISTRYINDEX);
+    //get the cached C closure for the pcall_invoke_handler function
+    lua_pushlightuserdata(state, &cPInvokeHandlerKey);
+    lua_rawget(state, LUA_REGISTRYINDEX);
+    //push the parts of the delegate, these are the function arguments
+    lua_pushlightuserdata(state, code.ptr);
+    lua_pushlightuserdata(state, code.funcptr);
+    //stack: -4:errorfn -3:callfunction -2:arg1 -1:arg2
+    int res = lua_pcall(state, 2, 0, -4);
+    if (res != 0) {
+        if (res != LUA_ERRRUN) {
+            //something REALLY bad happened *shrug*
+            //  LUA_ERRMEM: out of memory... nothing will work anymore, go die
+            //  LUA_ERRERR: even worse, everything is cursed
+            throw new Exception(myformat("lua_pcall returned {}", res));
+        }
+        //the error handler (pcall_err_handler) always returns a LuaException
+        assert(LuaState.luaIsDObject(state, -1));
+        Object o_e = LuaState.luaUncheckedToDObject(state, -1);
+        lua_pop(state, 2); //stack must be left clean
+        LuaException e = cast(LuaException)o_e;
+        assert(!!e);
+        throw e;
+    }
+    //remove the error handler
+    lua_remove(state, -1);
+}
+
 //call D -> Lua
 //call the function on top of the stack
-//xxx see error handling notes at beginning of the file how this should be done
-private RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
+//Lua error handling domain
+private RetType luaCall(RetType, T...)(lua_State* state, T args) {
     debug gDToLuaCalls++;
 
-    lua_pushboolean(state, true); //xxx: error function key
-    lua_rawget(state, LUA_REGISTRYINDEX);
-    lua_insert(state, -2);
+    //if lots of arguments, make sure to grow the stack
+    //assumes luaPush returns 1 for each argument
+    static if (T.length > LUA_MINSTACK/3)
+        lua_checkstack(state, T.length);
+
     int argc;
     foreach (int idx, x; args) {
         argc += luaPush(state, args[idx]);
     }
     const bool ret_void = is(RetType == void);
     const int retc = ret_void ? 0 : 1;
-    if (lua_pcall(state, argc, retc, -argc - 2) != 0) {
-        //error case
-        //xxx what if lua_pcall doesn't return LUA_ERRRUN, will there also be
-        //  some error message value on the stack?
-        //our error handler function always returns a LuaException
-        if (lua_type(state, -1) != LUA_TLIGHTUSERDATA)
-            assert(false);
-        Object o_e = cast(Object)(lua_touserdata(state, -1));
-        LuaException e = cast(LuaException)o_e;
-        assert(!!e);
-        lua_pop(state, 2);
-        throw e;
-    }
-    lua_remove(state, -retc - 1);
+    lua_call(state, argc, retc);
     static if (!ret_void) {
         RetType res = luaStackValue!(RetType)(state, -1);
         lua_pop(state, 1);
@@ -916,68 +1032,70 @@ private RetType doLuaCall(RetType, T...)(lua_State* state, T args) {
 //  skipCount: skip this many parameters from beginning
 //  funcName:  used in error messages
 //stack size must match the requirements of del
+//T must be something callable (delegate or function ptr)
+//error handling: Lua domain
 private int callFromLua(T)(T del, lua_State* state, int skipCount,
     char[] funcName)
 {
-    //eh static assert(is(T == delegate) || is(T == function));
-
     debug gLuaToDCalls++;
 
-    void error(char[] msg) {
-        throw new LuaError(msg);
+    int numArgs = lua_gettop(state);
+    //number of arguments going to the D call
+    int numRealArgs = numArgs - skipCount;
+
+    //just to be safe: make sure there's a "reasonable" amount of stack
+    if (numArgs > LUA_MINSTACK/3)
+        lua_checkstack(state, LUA_MINSTACK/3);
+
+    alias ParameterTupleOf!(typeof(del)) Params;
+
+    if (numRealArgs != Params.length) {
+        luaErrorf(state, "'{}' requires {} arguments, got {}, skip={}",
+            funcName, Params.length+skipCount, numArgs, skipCount);
     }
 
-    try {
-        int numArgs = lua_gettop(state);
-        //number of arguments going to the D call
-        int numRealArgs = numArgs - skipCount;
+    Params p;
 
-        alias ParameterTupleOf!(typeof(del)) Params;
+    foreach (int idx, x; p) {
+        alias typeof(x) PT;
+        //xxx: so, how to generate good error messages?
+        //try {
+            p[idx] = luaStackValue!(PT)(state, skipCount + idx + 1);
+        //} catch (LuaError e) {
+        //    luaErrorf(state, "bad argument #{} to '{}' ({})", idx + 1,
+        //        funcName, e.msg);
+        //}
+    }
 
-        if (numRealArgs != Params.length) {
-            error(myformat("'{}' requires {} arguments, got {}, skip={}",
-                funcName, Params.length+skipCount, numArgs, skipCount));
-        }
-
-        Params p;
-
-        foreach (int idx, x; p) {
-            alias typeof(x) T;
-            try {
-                p[idx] = luaStackValue!(T)(state, skipCount + idx + 1);
-            } catch (LuaError e) {
-                error(myformat("bad argument #{} to '{}' ({})", idx + 1,
-                    funcName, e.msg));
-            }
-        }
-
-        static if (is(ReturnTypeOf!(del) == void)) {
+    //the del is executed in D error handling domain
+    static if (is(ReturnTypeOf!(del) == void)) {
+        try {
             del(p);
             return 0;
-        } else {
-            auto ret = del(p);
-            return luaPush(state, ret);
+        } catch (CustomException e) {
+            luaDError(state, e);
         }
-    } catch (CustomException e) {
-        //recoverable exceptions (including LuaError) are wrapped as Lua errors,
-        //  and unwind the stack via a longjmp in lua_error()
-        raiseLuaError(state, e);
-    } catch (Exception e) { //Throwable in D2
-        //on unrecoverable exceptions we make the program crash hard, because it
-        //  would crash anyway (we're not supposed to handle these exceptions).
-        //  it's better to crash early, instead of trying to "properly" unwind
-        //  the stack through the C Lua VM
-        //in D2, you'd want Throwable, not Exception
-        //list of excepotions you NEVER want to resume after they've been
-        //  thrown: OutOfMemoryException, SwitchException, AssertException,
-        //  UnicodeException (probably), ArrayBoundsException,
-        //  FinalizeException, AccessViolation, ...?
-        //NOTE: D2 has Throwable vs. Exception, similar to our separation
-        //  between Exception and CustomException
-        internalError(state, e);
+    } else {
+        ReturnTypeOf!(del) ret = void;
+        try {
+            ret = del(p);
+        } catch (CustomException e) {
+            luaDError(state, e);
+        }
+        //marshal return value in Lua error domain
+        return luaPush(state, ret);
     }
 
-    assert(false);
+    assert(false, "unreachable");
+}
+
+version (USE_FULL_UD) {
+
+extern (C) private int ud_gc_handler(lua_State* state) {
+    LuaState.luaDestroyDObject(state, 1);
+    return 0;
+}
+
 }
 
 class LuaRegistry {
@@ -998,9 +1116,10 @@ class LuaRegistry {
 
     struct Method {
         ClassInfo classinfo;
-        char[] name;
-        char[] prefix;
-        char[] fname;
+        char[] name;    //raw (actual) name
+        char[] xname;   //not so raw (property writes are prefixed with set_)
+        char[] prefix;  //basically the class name or ""
+        char[] fname;   //= prefix ~ '_' ~ xname (if there's a prefix)
         lua_CFunction demarshal;
         MethodType type;
         bool inherited;
@@ -1022,8 +1141,9 @@ class LuaRegistry {
         Method m;
         m.name = method;
         m.fname = method;
+        m.xname = method;
         if (type == MethodType.Property_W) {
-            m.fname = "set_" ~ m.fname;
+            m.xname = "set_" ~ m.fname;
         }
         if (ci) {
             //BlaClass.somemethod becomes BlaClass_somemethod in Lua
@@ -1041,7 +1161,7 @@ class LuaRegistry {
             }
             m.classinfo = ci;
             m.prefix = clsname;
-            m.fname = clsname ~ "_" ~ m.fname;
+            m.fname = clsname ~ "_" ~ m.xname;
         } else {
             assert(type == MethodType.FreeFunction);
         }
@@ -1051,12 +1171,13 @@ class LuaRegistry {
         mMethods ~= m;
     }
 
+    //Lua error domain
     private static void methodThisError(lua_State* state, char[] name,
         ClassInfo expected, Object got)
     {
-        raiseLuaError(state, myformat("method call to '{}' requires non-null "
+        luaErrorf(state, "method call to '{}' requires non-null "
             "this pointer of type {} as first argument, but got: {}", name,
-            expected.name, got ? got.classinfo.name : "*null"));
+            expected.name, got ? got.classinfo.name : "*null");
     }
 
     //Register a class method
@@ -1064,7 +1185,7 @@ class LuaRegistry {
         extern(C) static int demarshal(lua_State* state) {
             const methodName = Class.stringof ~ '.' ~ name;
 
-            Object o = cast(Object)lua_touserdata(state, 1);
+            Object o = LuaState.luaToDObject(state, 1);
             Class c = cast(Class)(o);
 
             if (!c) {
@@ -1390,10 +1511,13 @@ class LuaState {
         LuaRegistry.Method[] mMethods;
         char[][ClassInfo] mClassNames;
         Object[ClassInfo] mSingletons;
+        bool[ClassInfo] mClassUpdate;
         ObjectList!(RealLuaRef, "mNode") mRefList; //D->Lua references
         int mRefListWatermark; //pseudo-GC
-
-        const cLuaStateRegId = "D_LuaState_instance";
+        version (USE_FULL_UD) {
+            //Lua->D references
+            PointerPinTable mPtrList;
+        }
     }
 
     //called when an error outside the "normal call path" occurs
@@ -1420,8 +1544,66 @@ class LuaState {
             gLibLuaLoaded = true;
         }
 
-        mLua = lua_newstate(&my_lua_alloc, null);
+        version (USE_FULL_UD) {
+            mLua = luaL_newstate();
+            mPtrList = new PointerPinTable();
+        } else {
+            mLua = lua_newstate(&my_lua_alloc, null);
+        }
         lua_atpanic(mLua, &my_lua_panic);
+
+        //set "this" reference
+        lua_pushlightuserdata(mLua, &cLuaStateKey);
+        lua_pushlightuserdata(mLua, cast(void*)this);
+        lua_rawset(mLua, LUA_REGISTRYINDEX);
+
+        //c-closures for pcall error handler stuff
+        lua_pushlightuserdata(mLua, &cPInvokeHandlerKey);
+        lua_pushcfunction(mLua, &pcall_invoke_handler);
+        lua_rawset(mLua, LUA_REGISTRYINDEX);
+        lua_pushlightuserdata(mLua, &cErrorHandlerKey);
+        lua_pushcfunction(mLua, &pcall_err_handler);
+        lua_rawset(mLua, LUA_REGISTRYINDEX);
+
+        version (USE_FULL_UD) {
+            //object reference table; map D references to userdata
+            //the userdata is used to know the lifetime of references, so we
+            //  need to make the table weak
+            lua_newtable(mLua);
+            //metatable to make values weak
+            lua_newtable(mLua);
+            lua_pushliteral(mLua, "v"); //weak values
+            lua_setfield(mLua, -2, "__mode");
+            lua_setmetatable(mLua, -2);
+            //store the table in its place
+            lua_pushlightuserdata(mLua, &cRefCacheKey);
+            lua_insert(mLua, -2); //swap
+            lua_rawset(mLua, LUA_REGISTRYINDEX);
+
+            //the __gc method used in D wrapper metatables
+            lua_pushliteral(mLua, cGCHandler);
+            lua_pushcfunction(mLua, &ud_gc_handler);
+            lua_rawset(mLua, LUA_REGISTRYINDEX);
+
+            //the only purpose of this table is to enable fast identification of
+            //  userdata that wraps objects (for marshaller type safety)
+            lua_pushlightuserdata(mLua, &cDObjectUDKey);
+            lua_newtable(mLua);
+            lua_rawset(mLua, LUA_REGISTRYINDEX);
+        }
+
+        //table for environments
+        lua_newtable(mLua);
+        lua_setfield(mLua, LUA_REGISTRYINDEX, cEnvTable.ptr);
+
+        //metatables
+        lua_newtable(mLua);
+        lua_setfield(mLua, LUA_REGISTRYINDEX, cMetatableCache.ptr);
+
+        assert(lua_gettop(mLua) == 0);
+
+        //rest is stdlib kind of stuff
+
         loadStdLibs(stdlibFlags);
 
         //this is security relevant; allow only in debug code
@@ -1430,29 +1612,19 @@ class LuaState {
             loadStdLibs(LuaLib.packagelib);
         }
 
-        //set "this" reference
-        luaPush(mLua, this);
-        lua_setfield(mLua, LUA_REGISTRYINDEX, cLuaStateRegId.ptr);
-
         //own std stuff
         auto reg = new LuaRegistry();
-        reg.func!(ObjectToString)();
+        reg.method!(Object, "toString")();
         reg.func!(className);
         reg.func!(fullClassName);
         register(reg);
 
-        //passing a userdata as light userdata causes a demarshal error
-        //which means utils.formatln() could cause an error by passing userdata
-        //  to ObjectToString(); but there doesn't seem to be a way for Lua
-        //  code to distinguish between userdata and light userdata
-        extern (C) static int d_islightuserdata(lua_State* state) {
-            int light = lua_islightuserdata(state, 1);
-            lua_pop(state, 1);
-            lua_pushboolean(state, light);
+        extern (C) static int d_isobject(lua_State* state) {
+            lua_pushboolean(state, luaIsDObject(state, 1));
             return 1;
         }
-        lua_pushcfunction(mLua, &d_islightuserdata);
-        lua_setglobal(mLua, "d_islightuserdata".ptr);
+        lua_pushcfunction(mLua, &d_isobject);
+        lua_setglobal(mLua, "d_isobject".ptr);
 
         void kill(char[] global) {
             lua_pushnil(mLua);
@@ -1464,47 +1636,11 @@ class LuaState {
         kill("dofile");
         kill("loadfile");
 
-        stack0();
-
         setGlobal("d_get_obj_metadata", &script_get_obj_metadata);
         setGlobal("d_get_class_metadata", &script_get_class_metadata);
         setGlobal("d_get_class", &script_get_class);
         setGlobal("d_find_class", &script_find_class);
         setGlobal("d_is_class", &script_is_class);
-
-        //install the pcall error handler
-        //I'm using plain Lua API calls to avoid bad interactions with the
-        //  marshaller code and all that
-        extern (C) static int pcall_err_handler(lua_State* state) {
-            //two cases for the error message value:
-            //1. Lua code raised this error and may have passed any value
-            //2. any Exception was passed through by other error handling code
-            Exception stackEx = null;
-            char[] msg;
-            if (lua_islightuserdata(state, 1)) {
-                //note that a Lua script could have used a random D object
-                //in that case stackEx would remain null
-                Object o = cast(Object)lua_touserdata(state, 1);
-                stackEx = cast(Exception)o;
-            } else {
-                msg = lua_todstring_protected(state, 1);
-            }
-            //this also gets the Lua and D backtraces
-            auto e = new LuaException(state, 1, msg, stackEx);
-            //return e
-            lua_pop(state, 1);
-            lua_pushlightuserdata(state, cast(void*)e);
-            return 1;
-        }
-        //xxx: error function key
-        //  use just "true" as key, because: integers are not really allowed in
-        //  the lua registry, strings would require rehashing, and booleans are
-        //  the only "simple" type left
-        lua_pushboolean(state, true);
-        lua_pushcfunction(mLua, &pcall_err_handler);
-        lua_rawset(mLua, LUA_REGISTRYINDEX);
-
-        stack0();
     }
 
     void destroy() {
@@ -1513,10 +1649,273 @@ class LuaState {
     }
 
     //return instance of LuaState from the registry
+    //never returns null
+    //neutral error domain
     private static LuaState getInstance(lua_State* state) {
-        lua_getfield(state, LUA_REGISTRYINDEX, cLuaStateRegId.ptr);
-        scope(success) lua_pop(state, 1);
-        return luaStackValue!(LuaState)(state, -1);
+        lua_pushlightuserdata(state, &cLuaStateKey);
+        lua_rawget(state, LUA_REGISTRYINDEX);
+        auto res = cast(LuaState)lua_touserdata(state, -1);
+        assert(!!res);
+        assert(res.classinfo is LuaState.classinfo);
+        lua_pop(state, 1);
+        return res;
+    }
+
+    //lua error domain
+    private static Object luaToDObject(lua_State* state, int stackIdx) {
+        if (!luaIsDObject(state, stackIdx))
+            luaExpected(state, stackIdx, "object reference");
+        return luaUncheckedToDObject(state, stackIdx);
+    }
+
+version (USE_FULL_UD) {
+
+    //note: this goes horribly wrong for non-object userdata (it's unchecked)
+    private static Object luaUncheckedToDObject(lua_State* state, int stackIdx)
+    {
+        assert(luaIsDObject(state, stackIdx));
+        auto ud = cast(UD_Object*)lua_touserdata(state, stackIdx);
+        if (ud) {
+            assert(!!ud.o);
+            return ud.o;
+        } else {
+            return null;
+        }
+    }
+
+    //neutral error domain
+    private static bool luaIsDObject(lua_State* state, int stackIdx) {
+        //allow full userdata and nil, nothing else
+        auto t = lua_type(state, stackIdx);
+        //null refs are always marshalled as nil
+        if (t == LUA_TNIL)
+            return true;
+        if (t != LUA_TUSERDATA)
+            return false;
+        //need to verify that the userdata was generated by this wrapper
+        //the idea is that we don't conflict with userdata from C libraries (if
+        //  we ever need this... otherwise, we could omit this check)
+        lua_getfenv(state, stackIdx); //udenv
+        lua_pushlightuserdata(state, &cDObjectUDKey); //udenv udkey
+        lua_rawget(state, LUA_REGISTRYINDEX); //udenv udidtable
+        int res = lua_rawequal(state, -2, -1); //udenv udidtable
+        lua_pop(state, 2);
+        return !!res;
+    }
+
+    private static void luaPushDObject(lua_State* state, Object value) {
+        if (luaPushCachedDObject(state, cast(void*)value))
+            return;
+
+        //userdata not in cache; need to create it
+        luaCreateDObject(state, value);
+    }
+
+    //fast path of luaPushDObject, returns success (if a wrapper is in cache)
+    //on success, push a value on the stack; otherwise leave stack as is
+    //value is void* instead of Object for stupid reasons, see luaToDPtr()
+    private static bool luaPushCachedDObject(lua_State* state, void* value) {
+        if (!value) {
+            lua_pushnil(state);
+            return true;
+        }
+
+        //retrieve the (hopefully) cached userdata from the registry
+        //get ref cache table
+        lua_pushlightuserdata(state, &cRefCacheKey); //refkey
+        lua_rawget(state, LUA_REGISTRYINDEX); //reftable
+        //the reference itself is used as index (awkward, but works)
+        lua_pushlightuserdata(state, value); //reftable value
+        lua_rawget(state, -2); //reftable ud
+        auto type = lua_type(state, -1);
+        if (type == LUA_TUSERDATA) {
+            lua_replace(state, -2); //ud
+            return true;
+        } else {
+            lua_pop(state, 2);
+            return false;
+        }
+    }
+
+    //create and push a userdata for value on the Lua stack
+    private static void luaCreateDObject(lua_State* state, Object value) {
+        debug int top = lua_gettop(state);
+
+        LuaState lstate = getInstance(state);
+
+        int pinID = lstate.mPtrList.pinPointer(cast(void*)value);
+        auto ud = cast(UD_Object*)lua_newuserdata(state, UD_Object.sizeof); //ud
+        ud.o = value;
+        ud.pinID = pinID;
+
+        //set metatable (list of methods for the D object and __gc)
+        lstate.luaPushMetatable(value.classinfo); //ud metatable
+        lua_setmetatable(state, -2); //ud
+
+        //set the ID table as userdata environment table - need this to quickly
+        //  distinguish userdata for D wrapper objects and "other" userdata
+        //  (e.g. userdata by arbitrary Lua/C libraries)
+        //normally, the userdata's metatable is used for this purpose, but due
+        //  to the object oriented D API, there are multiple metatables
+        //according to the Lua manual, userdata environment tables don't mean
+        //  anything and are free for use by C
+        lua_pushlightuserdata(state, &cDObjectUDKey); //ud udkey
+        lua_rawget(state, LUA_REGISTRYINDEX); //ud udidtable
+        lua_setfenv(state, -2); //ud
+
+        //put it into the cache table
+        lua_pushlightuserdata(state, &cRefCacheKey); //ud refkey
+        lua_rawget(state, LUA_REGISTRYINDEX); //ud reftable
+        lua_pushlightuserdata(state, cast(void*)value); //ud reftable value
+        lua_pushvalue(state, -3); //ud reftable value ud
+        lua_rawset(state, -3); //ud reftable
+        lua_pop(state, 1); //ud
+
+        //the userdata on the stack is returned
+        assert(lua_type(state, -1) == LUA_TUSERDATA);
+        assert(lua_gettop(state) == top + 1);
+
+        gLuaDRefs++;
+    }
+
+    //called from the __gc method; the userdata is at stackIdx
+    private static void luaDestroyDObject(lua_State* state, int stackIdx) {
+        LuaState lstate = LuaState.getInstance(state);
+
+        assert(luaIsDObject(state, 1));
+
+        auto ud = cast(UD_Object*)lua_touserdata(state, stackIdx);
+        assert(!!ud);
+        lstate.mPtrList.unpinPointer(ud.pinID, cast(void*)ud.o);
+    }
+
+    //must not be used anywhere but here
+    private static final class PtrWrapper {
+        void* ptr; //will take care that ptr is not garbage collected
+    }
+
+    //mainly used for D delegates wrapped as Lua values, although it could
+    //  potentially be used to "tunnel" any D pointer through Lua
+    private static void* luaToDPtr(lua_State* state, int stackIdx) {
+        Object o = luaToDObject(state, stackIdx);
+        //isn't it BEAUTIFUL (yeah, kill me now)
+        if (auto wrapper = cast(PtrWrapper)o) {
+            return wrapper.ptr;
+        } else {
+            return cast(void*)o; //reason see luaPushDPtr
+        }
+    }
+
+    //xxx: luaPushPtr calls with the same ptr value may create multiple wrappers
+    private static void luaPushDPtr(lua_State* state, void* ptr) {
+        //check if ptr is an object; in this case we just use the object's Lua
+        //  reference wrapper - this is some sort of bonus to spare wrapper
+        //  generation if ptr is both an object and was already wrapped
+        if (luaPushCachedDObject(state, ptr))
+            return;
+
+        //no wrapper object existed; create one
+        //for "simplicity" (uh oh) we create a D wrapper object; note that a
+        //  future call to luaPushDPtr with the same arguments will just create
+        //  a new wrapper, instead of using an existing one
+        auto wrapper = new PtrWrapper;
+        wrapper.ptr = ptr;
+        luaCreateDObject(state, wrapper);
+    }
+
+} else { //USE_FULL_UD
+
+    //like luaToDObject, but omit some checks (use only if you are sure that
+    //  the stack value is guaranteed to be a D object)
+    //neutral error domain
+    private static Object luaUncheckedToDObject(lua_State* state, int stackIdx)
+    {
+        assert(luaIsDObject(state, stackIdx));
+        return cast(Object)lua_touserdata(state, stackIdx);
+    }
+
+    //neutral error domain
+    private static bool luaIsDObject(lua_State* state, int stackIdx) {
+        //allow light userdata and nil, nothing else
+        auto t = lua_type(state, stackIdx);
+        return t == LUA_TLIGHTUSERDATA || t == LUA_TNIL;
+    }
+
+    private static void luaPushDObject(lua_State* state, Object value) {
+        if (value is null) {
+            lua_pushnil(state);
+        } else {
+            lua_pushlightuserdata(state, cast(void*)value);
+        }
+    }
+
+    private static void* luaToDPtr(lua_State* state, int stackIdx) {
+        return lua_touserdata(state, stackIdx);
+    }
+
+    private static void luaPushDPtr(lua_State* state, void* ptr) {
+        lua_pushlightuserdata(state, ptr);
+    }
+
+} //!USE_FULL_UD
+
+    //like luaPushMetatable, but don't create MT if it doesn't exist
+    //returns true: metatable has been pushed on Lua stack
+    //returns false: no metatable returned, Lua stack is untouched
+    private bool luaPushCachedMetatable(ClassInfo cls) {
+        lua_getfield(state, LUA_REGISTRYINDEX, cMetatableCache.ptr); //mc
+        //the ClassInfo is used as key; assumes all ClassInfos are static data
+        lua_pushlightuserdata(mLua, cast(void*)cls); //mc cls
+        lua_rawget(mLua, -2); //mc mt
+        lua_replace(mLua, -2); //mt
+        if (lua_isnil(mLua, -1)) {
+            lua_pop(mLua, 1);
+            return false;
+        }
+        return true; //return mt
+    }
+
+    //the metatable is generated by the wrapper and contains the method entries;
+    //  it also contains the __gc method, which is needed for garbage collecting
+    //  the wrapper and the D object
+    //because of the __gc method, it must only be used on userdata wrapping D
+    //  objects, see luaCreateDObject()
+    //returns metatable for cls on Lua stack
+    private void luaPushMetatable(ClassInfo cls) {
+        if (luaPushCachedMetatable(cls))
+            return;
+
+        //create a new metatable, it didn't exist yet
+        lua_newtable(mLua); //mt
+        //__gc method only for full userdata
+        version (USE_FULL_UD) {
+            lua_pushliteral(mLua, "__gc"); //mt "__gc"
+            lua_pushliteral(mLua, cGCHandler); //mt "__gc" handlerkey
+            lua_rawget(mLua, LUA_REGISTRYINDEX); //mt "__gc" gchandler
+            lua_rawset(mLua, -3); //mt
+        }
+        //method-table, that contains a list of all methods
+        lua_newtable(mLua); //mt mth
+        //set mt.__index to method-table
+        lua_pushliteral(mLua, "__index"); //mt mth __index
+        lua_pushvalue(mLua, -2); //mt mth __index mth
+        lua_rawset(mLua, -4); //mt mth
+        //hide metatable from script with the special __metatable field
+        //this is critical for memory safety
+        //if a script does getmetatable(userdata), return the method-table
+        lua_pushliteral(mLua, "__metatable"); //mt mth __metatable
+        lua_pushvalue(mLua, -2); //mt mth __metatable mth
+        lua_rawset(mLua, -4); //mt mth
+        lua_pop(mLua, 1); //mt
+        //store in global cache table
+        lua_getfield(mLua, LUA_REGISTRYINDEX, cMetatableCache.ptr); //mt mc
+        lua_pushlightuserdata(mLua, cast(void*)cls); //mt mc cls
+        lua_pushvalue(mLua, -3); //mt mc cls mt
+        lua_rawset(mLua, -3); //mt mc
+        lua_pop(mLua, 1); //mt
+        //fill the metatable with methods
+        luaUpdateMetatable(cls);
+        //return mt
     }
 
     //this is needed to free D->Lua references
@@ -1535,6 +1934,7 @@ class LuaState {
     }
 
     //hack for better error handling: delegate wrappers call this on errors
+    //in D error domain
     void reportDelegateError(LuaException e) {
         if (onError) {
             onError(e);
@@ -1550,18 +1950,18 @@ class LuaState {
 
     //return memory used by Lua in bytes
     final size_t vmsize() {
+        //xxx: marked with 'e' in the manual, but how would it raise errors?
         return lua_gc(mLua, LUA_GCCOUNT, 0)*1024
             + lua_gc(mLua, LUA_GCCOUNTB, 0);
     }
 
     //return the size of the reference table (may give hints about unfree'd
     //  D delegates referencing Lua functions, and stuff)
-    //return value will be some values too high, because it actually returns
-    //  the size of the registry
+    //return value is not exact (lazy sweeping and the way luaL_unref works)
     final int reftableSize() {
         //so yeah, need to walk the whole table
+        //all calls should be in neutral error domain (lua_next not strictly)
         int count = 0;
-        stack0();
         lua_pushvalue(mLua, LUA_REGISTRYINDEX);
         lua_pushnil(mLua);
         while (lua_next(mLua, -2) != 0) {
@@ -1570,56 +1970,164 @@ class LuaState {
             lua_pop(mLua, 1);
         }
         lua_pop(mLua, 1);
-        stack0();
         return count;
     }
 
-    //needed by utils.lua to format userdata
-    private static char[] ObjectToString(Object o) {
-        return o ? o.toString() : "null";
+version (USE_FULL_UD) {
+    //number of unique D references in the Lua heap
+    final int objtableSize() {
+        int count = 0;
+        //get reftable
+        lua_pushlightuserdata(state, &cRefCacheKey);
+        lua_rawget(state, LUA_REGISTRYINDEX);
+        //and iterate it
+        lua_pushnil(mLua);
+        while (lua_next(mLua, -2) != 0) {
+            count++;
+            lua_pop(mLua, 1);
+        }
+        lua_pop(mLua, 1);
+        return count;
     }
+} else {
+    final int objtableSize() {
+        //unknown unless you implement your own garbage collector
+        return 0;
+    }
+}
 
     void loadStdLibs(int stdlibFlags) {
         foreach (lib; luaLibs) {
             if (stdlibFlags & lib.flag) {
-                stack0();
-                lua_pushcfunction(mLua, *lib.func);
-                luaCall!(void, char[])(lib.name);
-                stack0();
+                luaProtected(mLua, {
+                    lua_pushcfunction(mLua, *lib.func);
+                    luaCall!(void, char[])(mLua, lib.name);
+                });
             }
         }
     }
 
     void register(LuaRegistry stuff) {
         stuff.seal();
-        foreach (m; stuff.mMethods) {
-            auto name = czstr.toStringz(m.fname);
 
-            lua_getglobal(mLua, name);
-            bool nil = lua_isnil(mLua, -1);
-            lua_pop(mLua, 1);
+        CustomException error;
 
-            if (!nil) {
-                //this caused some error which took me 30 minutes of debugging
-                //most likely multiple bind calls for a method
-                throw new CustomException("attempting to overwrite existing name "
-                    "in _G when adding D method: "~m.fname);
-            }
-
-            lua_pushcclosure(mLua, m.demarshal, 0);
-            lua_setglobal(mLua, name);
-
-            mMethods ~= m;
-        }
         foreach (ClassInfo key, char[] value; stuff.mPrefixes) {
             mClassNames[key] = value;
         }
+
+        luaProtected(mLua, {
+            foreach (m; stuff.mMethods) {
+
+                lua_pushliteral(mLua, m.fname);
+                lua_gettable(mLua, LUA_GLOBALSINDEX);
+                bool nil = lua_isnil(mLua, -1);
+                lua_pop(mLua, 1);
+
+                if (nil) {
+                    lua_pushliteral(mLua, m.fname);
+                    lua_pushcclosure(mLua, m.demarshal, 0);
+                    lua_settable(mLua, LUA_GLOBALSINDEX);
+                } else {
+                    //this caused some error which took me 30 minutes of
+                    //  debugging; most likely multiple bind calls for a method
+                    error = new CustomException("attempting to overwrite "
+                        "existing name in _G when adding D method: "~m.fname);
+                    break;
+                }
+
+                if (m.classinfo) {
+                    mClassUpdate[m.classinfo] = true;
+                }
+
+                mMethods ~= m;
+            }
+
+            //mark all classes derived from updated classes as updated
+            bool change = true;
+            while (change) {
+                change = false;
+                outer: foreach (ClassInfo cls, ref bool update; mClassUpdate) {
+                    if (update)
+                        continue;
+                    auto cur = cls;
+                    while (cur) {
+                        if (auto pcls = cur in mClassUpdate) {
+                            if ((*pcls) && rtraits.isDerived(cls, cur)) {
+                                update = true;
+                                change = true;
+                                continue outer;
+                            }
+                        }
+                        cur = cur.base;
+                    }
+                }
+            }
+
+            //go over all classes and update the metatables related to them
+            foreach (ClassInfo cls, ref bool update; mClassUpdate) {
+                if (!update)
+                    continue;
+                update = false;
+                luaUpdateMetatable(cls);
+            }
+        });
+
+        //must not throw it in Lua error domain code, so do it here
+        if (error)
+            throw error;
+    }
+
+    //update the Lua metatable for cls with new methods from cls and bases
+    //methods that already exist (by name) are left untouched
+    //(lua stack empty)
+    private void luaUpdateMetatable(ClassInfo cls) {
+        assert(!!cls);
+
+        //pushes metatable on stack (only on success)
+        //if the metatable doesn't exist, nothing has to be done
+        if (!luaPushCachedMetatable(cls))
+            return;
+
+        //get to method-table
+        lua_pushliteral(mLua, "__index"); //mt __index
+        lua_rawget(mLua, -2); //mt mth
+        lua_replace(mLua, -2); //mth
+
+        //xxx sorting the methods by class might be advantageous
+        foreach (LuaRegistry.Method m; mMethods) {
+            //redundant entry
+            if (m.inherited)
+                continue;
+            if (!m.classinfo)
+                continue;
+            //only if cls is derived from m.classinfo
+            if (!rtraits.isDerived(cls, m.classinfo))
+                continue;
+            //don't want the ctors for super classes in a class' metatable
+            if (m.type == LuaRegistry.MethodType.Ctor && cls !is m.classinfo)
+                continue;
+
+            lua_pushliteral(mLua, m.xname); //mth name
+            lua_pushvalue(mLua, -1); //mth name name
+            lua_rawget(mLua, -3); //mth name value
+            if (lua_isnil(mLua, -1)) {
+                //nothing set yet
+                lua_pop(mLua, 1); //mth name
+                lua_pushcclosure(mLua, m.demarshal, 0); //mth name func
+                lua_rawset(mLua, -3); //mth
+            } else {
+                lua_pop(mLua, 2); //mth
+            }
+        }
+
+        lua_pop(mLua, 1); //the method-table
     }
 
     struct MetaData {
         char[] type;        //stringified LuaRegistry.MethodType
         char[] dclass;      //name/prefix of the D class for the method
-        char[] name;        //name of the mthod
+        char[] name;        //name of the method
         char[] lua_g_name;  //name of the Lua bind function in _G
         bool inherited;     //automatically added inherited method
     }
@@ -1741,60 +2249,55 @@ class LuaState {
         }
     }
 
-    private void lua_loadChecked(void[] data, char[] chunkname) {
+    //prefixed all very-Lua-specific functions with lua
+    //all of them are in the lua error domain (= shoot yourself into the foot)
+
+    //lua error domain
+    private void luaLoadChecked(char[] chunkname, char[] data) {
         //'=' means use the name as-is (else "string " is added)
-        int res = luaL_loadbuffer(mLua, cast(char*)data.ptr, data.length,
+        int res = luaL_loadbuffer(mLua, data.ptr, data.length,
             czstr.toStringz('='~chunkname));
         if (res != 0) {
             scope (exit) lua_pop(mLua, 1);  //remove error message
             //xxx if this fails to get the message (e.g. utf8 error), there
             //    will be no line number
             char[] err = lua_todstring_protected(mLua, -1);
-            throw new LuaException("Parse error: " ~ err);
+            luaErrorf(mLua, "Parse error: {}", err);
         }
-    }
-
-    //prefixed all very-Lua-specific functions with lua
-    //functions starting with lua should be avoided in user code
-
-    private void luaLoadAndPush(char[] name, char[] code) {
-        lua_loadChecked(code, name);
-    }
-
-    private void luaLoadAndPush(char[] name, Stream input) {
-        //(earlier revisions used lua_load to read a file chunkwise, but I
-        //  think it doesn't matter much)
-        auto data = input.readAll();
-        scope(exit) delete data;
-        lua_loadChecked(data, name);
     }
 
     //another variation
     //load script in "code", using "name" for error messages
     //there's also scriptExec() if you need to pass parameters
     //environmentId = set to create/reuse a named execution environment
-    //T = apparently either char[] or Stream for the actual source code
-    void loadScript(T)(char[] name, T code, char[] environmentId = null) {
-        stack0();
-        luaLoadAndPush(name, code);
-        if (environmentId.length) {
-            luaGetEnvironment(environmentId);
-            lua_setfenv(mLua, -2);
-        }
-        luaCall!(void)();
-        stack0();
+    void loadScript(char[] name, char[] code, char[] environmentId = null) {
+        luaProtected(mLua, {
+            luaLoadChecked(name, code);
+            if (environmentId.length) {
+                luaGetEnvironment(environmentId);
+                lua_setfenv(mLua, -2);
+            }
+            luaCall!(void)(mLua);
+        });
     }
 
     //get an execution environment from the registry and push it to the stack
     //the environment is created if it doesn't exist
     //a metatable is set to forward lookups to the globals table
     //(see http://lua-users.org/lists/lua-l/2006-05/msg00121.html )
+    //lua error domain
     private void luaGetEnvironment(char[] environmentId) {
         assert(environmentId.length);
+        //table that maps all environments by names to table values
+        lua_getfield(mLua, LUA_REGISTRYINDEX, cEnvTable.ptr);
+        int envpos = lua_gettop(mLua);
         //check if the environment was defined before
-        lua_getfield(mLua, LUA_REGISTRYINDEX, envMangle(environmentId));
+        luaPush(mLua, environmentId);
+        lua_rawget(mLua, -2);
+        //if it was, return it on the stack; if it wasn't, create it
         if (!lua_istable(mLua, -1)) {
             lua_pop(mLua, 1);
+
             //new environment
             lua_newtable(mLua);
 
@@ -1813,98 +2316,90 @@ class LuaState {
             lua_pushvalue(mLua, -1);
             lua_setfield(mLua, -2, "_ENV");
 
-            //store for later use
-            lua_pushvalue(mLua, -1);
-            lua_setfield(mLua, LUA_REGISTRYINDEX, envMangle(environmentId));
+            //store for later use (Registry[cEnvTable][envId]=table)
+            luaPush(mLua, environmentId);
+            lua_pushvalue(mLua, -2);
+            lua_settable(mLua, envpos);
         }
+        lua_remove(mLua, envpos);
     }
 
     //Call a function defined in lua
     void call(T...)(char[] funcName, T args) {
-        return callR!(void)(funcName, args);
+        luaProtected(mLua, {
+            luaPush(mLua, funcName);
+            lua_gettable(mLua, LUA_GLOBALSINDEX);
+            luaCall!(void, T)(mLua, args);
+        });
     }
 
     //like call(), but with return value
-    //better name?
+    //(code duplicated because the static if orgy for RetType==void was fugly)
     //this tripple nesting (thx to h3) allows us to use type inference:
     //  state.callR!(int)("func", 123, "abc", 5.4);
     template callR(RetType) {
         RetType callR(T...)(char[] funcName, T args) {
-            //xxx should avoid memory allocation (czstr.toStringz)
-            stack0();
-            lua_getglobal(mLua, czstr.toStringz(funcName));
-            scope(success)
-                stack0();
-            return doLuaCall!(RetType, T)(mLua, args);
-        }
-    }
-
-    //execute the global scope
-    private RetType luaCall(RetType, Args...)(Args args) {
-        return doLuaCall!(RetType, Args)(mLua, args);
-    }
-
-    template scriptExecR(RetType) {
-        RetType scriptExecR(Args...)(char[] code, Args a) {
-            luaLoadAndPush("scriptExec", code);
-            return luaCall!(RetType, Args)(a);
+            RetType res;
+            luaProtected(mLua, {
+                luaPush(mLua, funcName);
+                lua_gettable(mLua, LUA_GLOBALSINDEX);
+                res = luaCall!(RetType, T)(mLua, args);
+            });
+            return res;
         }
     }
 
     //execute a script snippet (should only be used for slow stuff like command
     //  line interpreters, or initialization code)
     void scriptExec(Args...)(char[] code, Args a) {
-        scriptExecR!(void)(code, a);
+        luaProtected(mLua, {
+            luaLoadChecked("scriptExec", code);
+            luaCall!(void, Args)(mLua, a);
+        });
+    }
+
+    template scriptExecR(RetType) {
+        RetType scriptExecR(Args...)(char[] code, Args a) {
+            RetType res;
+            luaProtected(mLua, {
+                luaLoadChecked("scriptExec", code);
+                res = luaCall!(RetType, Args)(mLua, a);
+            });
+            return res;
+        }
     }
 
     //store a value as global Lua variable
-    //slightly inefficient (because of toStringz heap activity)
     void setGlobal(T)(char[] name, T value, char[] environmentId = null) {
-        luaProtected!(void)(mLua, {
+        luaProtected(mLua, {
             int stackIdx = LUA_GLOBALSINDEX;
             if (environmentId.length) {
                 luaGetEnvironment(environmentId);
-                stackIdx = -2;
+                stackIdx = -3;
             }
+            luaPush(mLua, name);
             luaPush(mLua, value);
-            lua_setfield(mLua, stackIdx, czstr.toStringz(name));
+            lua_settable(mLua, stackIdx);
             if (environmentId.length) {
                 lua_pop(mLua, 1);
             }
         });
     }
     T getGlobal(T)(char[] name, char[] environmentId = null) {
-        return luaProtected!(T)(mLua, {
+        T res;
+        luaProtected(mLua, {
             int stackIdx = LUA_GLOBALSINDEX;
             if (environmentId.length) {
                 luaGetEnvironment(environmentId);
-                stackIdx = -1;
-            }
-            lua_getfield(mLua, stackIdx, czstr.toStringz(name));
-            T res = luaStackValue!(T)(mLua, -1);
-            lua_pop(mLua, environmentId.length ? 2 : 1);
-            return res;
-        });
-    }
-
-/+ unneeded?
-    //copy symbol name1 from env1 to the global name2 in env2
-    //if env2 is null, the symbol is copied to the global environment
-    void copyEnvSymbol(char[] env1, char[] name1, char[] env2, char[] name2) {
-        assert(env1.length && name1.length && name2.length);
-        luaProtected!(void)(mLua, {
-            luaGetEnvironment(env1);
-            int stackIdx = LUA_GLOBALSINDEX;
-            if (env2.length) {
-                luaGetEnvironment(env2);
                 stackIdx = -2;
             }
-            lua_getfield(mLua, -2, czstr.toStringz(name1));
-            lua_setfield(mLua, stackIdx, czstr.toStringz(name2));
-            lua_pop(mLua, env2.length ? 2 : 1);
+            luaPush(mLua, name);
+            lua_gettable(mLua, stackIdx);
+            res = luaStackValue!(T)(mLua, -1);
+            lua_pop(mLua, environmentId.length ? 2 : 1);
         });
+        return res;
     }
-+/
 
     //this redirects the print() function from stdio to cb(); the string passed
     //  to cb() should be output literally (the string will contain newlines)
@@ -1927,19 +2422,77 @@ class LuaState {
         `, cb);
     }
 
-    void stack0() {
-        int stackSize = lua_gettop(mLua);
-        assert(stackSize == 0, myformat("Stack size: 0 expected, not {}",
-            stackSize));
-    }
-
     //assign a lua-defined metatable tableName to a D struct type
     void addScriptType(T)(char[] tableName) {
-        luaProtected!(void)(mLua, {
+        luaProtected(mLua, {
             //get the metatable from the global scope and write it into the
-            //  registry
+            //  registry; see luaPush()
+            lua_pushlightuserdata(mLua, cast(void*)typeid(T));
             lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(tableName));
-            lua_setfield(mLua, LUA_REGISTRYINDEX, C_Mangle!(T).ptr);
+            lua_rawset(mLua, LUA_REGISTRYINDEX);
         });
     }
 }
+
+version (USE_FULL_UD) {
+
+//this class is used to pin an arbitrary number of D pointers
+//pinning means two things:
+//- don't collect the object (if the only ptrs are on the Lua/C heap)
+//- don't move it around (right now the D GC actually never does that)
+private class PointerPinTable {
+    //amgibuous pointer; don't know if it's a ptr or not
+    //only needed in theory (no D implementation requires it)
+    union AmbPtr {
+        void* ptr;
+        size_t _int; //will mark ptr as ambiguous (also, used for freelist)
+    }
+    AmbPtr[] mPinList;
+    int mFreeList = -1; //point to next free entry
+
+    //makes sure the pointer won't be free'd or relocated by the GC
+    //it doesn't protect the pointer against manual free'ing
+    //non-GC pointers work too
+    //returns a pinID, which is used with unpinPointer (the proper way to do
+    //  this is to create a hashtable, and use ptr as the key for unpinPointer,
+    //  but me is too lazy and the pinID thing simply makes it easier)
+    //must not pin the same pointer twice (unless it was unpinned before); this
+    //  is not checked yet, but I may convert this to a hashtable
+    int pinPointer(void* ptr) {
+        if (mFreeList == -1) {
+            extend();
+        }
+        auto alloc = mFreeList;
+        mFreeList = mPinList[alloc]._int;
+        mPinList[alloc].ptr = ptr;
+        return alloc;
+    }
+
+    //undo pinPointer - pinID is the return value of pinPointer
+    //xxx ptr is just passed for debugging
+    void unpinPointer(int pinID, void* ptr) {
+        assert(mPinList[pinID].ptr is ptr);
+        mPinList[pinID] = AmbPtr.init;
+        mPinList[pinID]._int = mFreeList;
+        mFreeList = pinID;
+    }
+
+    //grow internal array; at least provide 1 new freelist entry
+    void extend() {
+        auto oldarray = mPinList;
+        //doesn't make much sense but should work
+        mPinList.length = mPinList.length + 10 + mPinList.length / 2; 
+        assert(mPinList.length > oldarray.length);
+        //add new entries to freelist
+        for (size_t idx = oldarray.length; idx < mPinList.length; idx++) {
+            mPinList[idx]._int = mFreeList;
+            mFreeList = idx;
+        }
+        //free old array, it would only prevent the GC from doing its job
+        if (oldarray.ptr != mPinList.ptr)
+            delete oldarray;
+        assert(mFreeList != -1);
+    }
+}
+
+} //USE_FULL_UD
