@@ -64,7 +64,8 @@ $ Am Seil zielt man immer nach rechts [oder links, wenn wurm kopfüber ist] (soll
 $ axt feuern und anfangen zu laufen bevor die axt "eingeschlagen" hat => man kann nicht mehr feuern, eine andere waffe auswählen, oder die runde beenden
 $ am seil hängen, bazooka auswählen, 'J' drücken -> bazooka wird abgefeuert
 - bei auswählen einer anderen waffe wird die zielrichtung zurückgesetzt (bug oder feature?)
-- minenangriff benutzen, 'J' drücken -> feuer-animation für minenangriff wird nochmal abgespielt, dann wird das jetpack benutzt?
+  ^ Nennen wirs mal "Faulheit" ;)
+$ minenangriff benutzen, 'J' drücken -> feuer-animation für minenangriff wird nochmal abgespielt, dann wird das jetpack benutzt?
 ! zur fehlerbehandlung beim spiel-laden werden CustomExceptions abgefangen (sinn: keine runtime exceptions wie assertion failed oder access violations abfangen, da das zu debugging alptraum führen würde)
   problem: IOExceptions sind keine CustomExceptions => das ganze error-handling funktioniert nicht in diesen fällen (und btw. framework/sdl/rwops.d fängt überhaupt keine exceptions ab => exception handler wird über C stackframes springen, args.)
   mögliche lösungen:
@@ -72,6 +73,9 @@ $ am seil hängen, bazooka auswählen, 'J' drücken -> bazooka wird abgefeuert
     b) alle IOExceptions in utils.stream wrappen und nach CustomException konvertieren (dann hätte utils.stream endlich einen sinn)
        (PS: utils.stream ist von der phobos->tango konvertierung übriggeblieben)
     c) so tun als würde das problem nicht exisistieren (wie oft gibt's schon IOExceptions?)
+  ^ Ich wär für eine Mischung aus b und c: IOExceptions beim Öffnen (z.B. Zugriff verweigert) sollten
+    schon abgefangen werden (passiert insb. unter Windows häufiger), aber IOExceptions beim Lesen
+    kann man wohl ignorieren. Aber wenn dir langweilig ist nur zu ^^
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)

@@ -242,7 +242,7 @@ abstract class GameCore {
 
         //random seed will be fixed later during intialization
         //(currently in game.d)
-        mRnd = new Random(generateRandomSeed());
+        mRnd = new Random(1);
 
         mPhysicWorld = new PhysicWorld(rnd);
 

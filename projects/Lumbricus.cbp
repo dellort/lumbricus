@@ -49,7 +49,6 @@
 		<Unit filename="..\share\lumbricus\data\lua\timer.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\utils.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\vector2.lua" />
-		<Unit filename="..\share\lumbricus\data\lua\wrap.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\debug\cheats.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\gm_luatest\gamemode_test.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\gm_luaturnbased\gm.lua" />

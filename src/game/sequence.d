@@ -988,6 +988,8 @@ class WwpWeaponDisplay : AniStateDisplay {
     //onFireReady = called as soon as the prepare animation is done
     //returns success
     bool fire(DG onFireReady, bool isRefire) {
+        //an unget of the old weapon might still be playing, and will be aborted
+        mCurrent = mRequested;
         if (!mCurrent)
             return false;
         //xxx Proposal: return false if the current Phase does not agree

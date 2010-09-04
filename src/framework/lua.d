@@ -776,7 +776,7 @@ private:
         //add to poll list for deferred freeing
         mDState.mRefList.add(this);
 
-        gDLuaRefs++;
+        debug gDLuaRefs++;
     }
 
     //neutral error handling domain
@@ -1773,9 +1773,9 @@ version (USE_FULL_UD) {
 
         //the userdata on the stack is returned
         assert(lua_type(state, -1) == LUA_TUSERDATA);
-        assert(lua_gettop(state) == top + 1);
+        debug assert(lua_gettop(state) == top + 1);
 
-        gLuaDRefs++;
+        debug gLuaDRefs++;
     }
 
     //called from the __gc method; the userdata is at stackIdx
@@ -2481,7 +2481,7 @@ private class PointerPinTable {
     void extend() {
         auto oldarray = mPinList;
         //doesn't make much sense but should work
-        mPinList.length = mPinList.length + 10 + mPinList.length / 2; 
+        mPinList.length = mPinList.length + 10 + mPinList.length / 2;
         assert(mPinList.length > oldarray.length);
         //add new entries to freelist
         for (size_t idx = oldarray.length; idx < mPinList.length; idx++) {
