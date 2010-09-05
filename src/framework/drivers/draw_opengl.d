@@ -289,14 +289,13 @@ final class GLSurface : DriverSurface {
         delete zero;+/
 
         const cSizePx = 4;
-        const Vector2i cSize = Vector2i(cSizePx);
         const uint[cSizePx*cSizePx] zero;
 
         auto clip = Rect2i(tex);
 
         //clear a small rect starting at pos
         void clearat(Vector2i pos) {
-            auto rc = Rect2i.Span(pos, cSize);
+            auto rc = Rect2i.Span(pos, Vector2i(cSizePx));
             //clip for safety, I wonder how drivers would react to out of bounds
             rc.fitInside(clip);
             auto sz = rc.size;
