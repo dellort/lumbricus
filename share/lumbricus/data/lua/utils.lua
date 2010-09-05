@@ -337,10 +337,16 @@ end
 -- to fix Lua, they just have to be global
 
 local function dodir(t, match, level, done)
-    assert(type(t) == "table" or type(t) == "userdata")
+    if type(t) ~= "table" and type(t) ~= "userdata" then
+        return
+    end
+    if done[t] then
+        printf("[recursive metatable]")
+        return
+    end
+    done[t] = true
     -- skip for userdata, but recurse into metatable later
     if type(t) ~= "userdata" then
-        done[t] = true
         for k, v in pairs(t) do
             if not match or type(k) ~= "string" or string.match(k, match) then
                 printf("{}{} {}", level, type(v), k)
@@ -348,12 +354,8 @@ local function dodir(t, match, level, done)
         end
     end
     local meta = getmetatable(t)
-    if not meta then
-        return
-    end
-    if done[meta] then
-        printf("[recursive metatable]")
-        return
+    if meta then
+        meta = meta.__index
     end
     dodir(meta, match, level .. ":", done)
 end
@@ -813,14 +815,7 @@ function ConsoleUtils.autocomplete(line, c_start, c_end)
         if t == nil then
             return nil
         end
-        -- userdata has a __metatable member set, that doesn't return the
-        --  metatable, but the __index member of the metatable
-        -- as a hack, so what Lua does properly under the hood
-        -- xxx: maybe make the wrapper set a proper (although relatively)
-        --  useless metatable, and remove this hack?
-        if type(x) ~= "userdata" then
-            t = t.__index
-        end
+        t = t.__index
         -- could be a function, we can't follow a function
         if type(t) ~= "table" then
             return nil

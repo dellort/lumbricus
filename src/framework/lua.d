@@ -1615,6 +1615,7 @@ class LuaState {
         //own std stuff
         auto reg = new LuaRegistry();
         reg.method!(Object, "toString")();
+        reg.property_ro!(Object, "classinfo")();
         reg.func!(className);
         reg.func!(fullClassName);
         register(reg);
@@ -1885,6 +1886,17 @@ version (USE_FULL_UD) {
         if (luaPushCachedMetatable(cls))
             return;
 
+        //expects on stack: methodtable sometable
+        //stack is the same when the function leaves
+        //sets up sometable as metatable, e.g. sets __index to methodtable
+        void setupmt() {
+            //stack: mth table
+            //set table.__index to method-table
+            lua_pushliteral(mLua, "__index"); //mth table __index
+            lua_pushvalue(mLua, -3); //mth table __index mth
+            lua_rawset(mLua, -3); //mth table
+        }
+
         //create a new metatable, it didn't exist yet
         lua_newtable(mLua); //mt
         //__gc method only for full userdata
@@ -1896,16 +1908,20 @@ version (USE_FULL_UD) {
         }
         //method-table, that contains a list of all methods
         lua_newtable(mLua); //mt mth
-        //set mt.__index to method-table
-        lua_pushliteral(mLua, "__index"); //mt mth __index
-        lua_pushvalue(mLua, -2); //mt mth __index mth
-        lua_rawset(mLua, -4); //mt mth
+        //
+        lua_pushvalue(mLua, -2); //mt mth mt
+        setupmt(); //mt mth mt
+        lua_pop(mLua, 1); //mt mth
+        //fake metatable for below; indexing set up the same as real metatable
+        lua_newtable(mLua); //mt mth fakemt
+        setupmt(); //mt mth fakemt
+        lua_remove(mLua, -2); //mt fakemt
         //hide metatable from script with the special __metatable field
         //this is critical for memory safety
-        //if a script does getmetatable(userdata), return the method-table
-        lua_pushliteral(mLua, "__metatable"); //mt mth __metatable
-        lua_pushvalue(mLua, -2); //mt mth __metatable mth
-        lua_rawset(mLua, -4); //mt mth
+        //if a script does getmetatable(userdata), return a fake metatable
+        lua_pushliteral(mLua, "__metatable"); //mt fakemt __metatable
+        lua_pushvalue(mLua, -2); //mt fakemt __metatable fakemt
+        lua_rawset(mLua, -4); //mt fakemt
         lua_pop(mLua, 1); //mt
         //store in global cache table
         lua_getfield(mLua, LUA_REGISTRYINDEX, cMetatableCache.ptr); //mt mc

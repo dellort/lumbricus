@@ -73,29 +73,40 @@ ConfigNode loadConfigDef(char[] section, bool asfilename = false) {
     return res;
 }
 
+private bool doSaveConfig(ConfigNode node, char[] filename, bool compress,
+    bool logerror = true)
+{
+    try {
+        auto stream = gFS.open(filename, File.WriteCreate);
+        scope(exit) stream.close();
+        auto outw = stream.pipeOut();
+        if (compress)
+            outw = GZWriter.Pipe(outw);
+        scope(exit) outw.close();
+        node.writeFile(outw);
+        return true;
+    } catch (FilesystemException e) {
+        //this is perfectly fine: just show the user the error (unless the
+        //  caller would like to detect this failure programmatically => return
+        //  value and logerror param)
+        if (logerror)
+            logConf.error("saving config file {} failed: {}", filename, e);
+        return false;
+    }
+}
+
 //arrgh
 //compress = true: do gzip compression, adds .gz to filename
-void saveConfig(ConfigNode node, char[] filename, bool compress = false) {
-    if (compress) {
-        saveConfigGz(node, filename~".gz");
-        return;
-    }
-    auto stream = gFS.open(filename, File.WriteCreate);
-    try {
-        node.writeFile(stream.pipeOut());
-    } finally {
-        stream.close();
-    }
+bool saveConfig(ConfigNode node, char[] filename, bool compress = false) {
+    return compress
+        ? doSaveConfig(node, filename~".gz", true)
+        : doSaveConfig(node, filename, false);
 }
 
 //same as above, always gzipped
 //will not modify file extension
-void saveConfigGz(ConfigNode node, char[] filename) {
-    auto stream = gFS.open(filename, File.WriteCreate);
-    scope(exit) stream.close();
-    auto w = GZWriter.Pipe(stream.pipeOut());
-    scope(exit) w.close();
-    node.writeFile(w);
+bool saveConfigGz(ConfigNode node, char[] filename) {
+    return doSaveConfig(node, filename, true);
 }
 
 ubyte[] saveConfigGzBuf(ConfigNode node) {

@@ -192,12 +192,12 @@ class GameLoader {
         //save last played level functionality
         //xxx should this really be here
         if (mGameConfig.level.saved) {
-            try {
+            //try {
                 saveConfig(mGameConfig.level.saved, "lastlevel.conf");
-            } catch (IOException e) {
-                //happens when testing network with 2 clients on 1 machine
-                log.warn("Failed to write lastlevel.conf: {}", e.msg);
-            }
+            //} catch (IOException e) {
+            //    //happens when testing network with 2 clients on 1 machine
+            //    log.warn("Failed to write lastlevel.conf: {}", e.msg);
+            //}
         }
 
         //this doesn't really make sense, but is a helpful hack for now
@@ -220,7 +220,7 @@ class GameLoader {
                 auto threadstr = new ThreadedWriter(outstr);
                 mDemoOutput = threadstr.pipeOut();
                 saveConfig(demoFile, filename ~ "conf");
-            } catch (IOException e) {
+            } catch (CustomException e) {
                 log.warn("Failed to create demo file ({}). Demo"
                     " writing disabled.", e.msg);
             }

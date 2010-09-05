@@ -176,7 +176,7 @@ void init(char[][] args) {
             //write buffered log
             c.sink(gLogFileTmp);
             gLogFileSink = &c.sink;
-        } catch (stream.IOException e) {
+        } catch (FilesystemException e) {
             gLogInit.error("Failed to open logfile: {}", e.msg);
             gLogFileSink = null;
         }

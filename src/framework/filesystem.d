@@ -138,12 +138,17 @@ private class HandlerDirectory : HandlerInstance {
     private void createPath(VFSPath handlerPath) {
         if (!pathExists(handlerPath)) {
             if (handlerPath.isEmpty())
-                throw new CustomException("createPath error: handler"
+                throw new FilesystemException("createPath error: handler"
                     ~ " path does not exist");
             //recursively create parent dir
             createPath(handlerPath.parent);
             //create last path
-            tpath.createFolder(handlerPath.makeAbsolute(mDirPath));
+            try {
+                tpath.createFolder(handlerPath.makeAbsolute(mDirPath));
+            } catch (IOException e) {
+                throw new FilesystemException(myformat("createPath error: {}",
+                    e));
+            }
         }
     }
 
@@ -153,8 +158,11 @@ private class HandlerDirectory : HandlerInstance {
             //make sure path exists
             createPath(handlerPath.parent);
         }
-        return new ConduitStream(castStrict!(Conduit)(
-            new File(handlerPath.makeAbsolute(mDirPath), mode)));
+        try {
+            return Stream.OpenFile(handlerPath.makeAbsolute(mDirPath), mode);
+        } catch (IOException e) {
+            throw new FilesystemException(e.toString);
+        }
     }
 
     bool listdir(VFSPath handlerPath, char[] pattern, bool findDirs,

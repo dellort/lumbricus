@@ -386,25 +386,59 @@ function findSequenceState(fstr)
     return SequenceType_findState(seq, post)
 end
 
+-- maps function names to a table that maps type names to a conversion function
 autoProperties = {
-    WeaponClass_set_icon = {
+    [WeaponClass_set_icon] = {
         string = lookupResource,
     },
-    SpriteClass_set_sequenceType = {
+    [SpriteClass_set_sequenceType] = {
         string = lookupResource,
     },
-    SpriteClass_set_sequenceState = {
+    [SpriteClass_set_sequenceState] = {
         string = findSequenceState,
     },
-    SpriteClass_set_initParticle = {
+    [SpriteClass_set_initParticle] = {
         string = lookupResource,
     },
-    POSP_set_collisionID = {
-        string = function(x)
-            return CollisionMap_find(x)
-        end,
+    [POSP_set_collisionID] = {
+        string = CollisionMap_find,
     },
 }
+
+-- cache for listProperties/setProperties
+-- xxx: should be cleared if new D class bindings are added while Lua is running
+_d_metadata_cache = {}
+-- make weak
+setmetatable(_d_metadata_cache, { __mode = "v" })
+
+function listProperties(d_class)
+    local res = _d_metadata_cache[d_class]
+    if res then
+        return res
+    end
+    res = {}
+    _d_metadata_cache[d_class] = res
+    local list = d_get_class_metadata(d_class)
+    for i, v in ipairs(list) do
+        local is_r = v.type == "Property_R"
+        local is_w = v.type == "Property_W"
+        if (is_r or is_w) and not v.inherited then
+            local entry
+            if not res[v.name] then
+                res[v.name] = { name = v.name }
+            end
+            entry = assert(res[v.name])
+            local fn = _G[v.lua_g_name]
+            assert(type(fn) == "function")
+            if is_r then
+                entry.read = fn
+            else
+                entry.write = fn
+            end
+        end
+    end
+    return res
+end
 
 -- this is magic
 -- d_object = a D object, that was bound with framework.lua
@@ -419,31 +453,36 @@ autoProperties = {
 -- xxx 2: setting references to null by using nil obviously isn't going to
 --  work; we should add some placeholder value to allow this...
 function setProperties(d_object, data)
-    local list = d_get_obj_metadata(d_object)
-    local data = table_copy(data)
-    for i, v in ipairs(list) do
-        local value = data[v.name]
+    local list = listProperties(d_get_class(d_object))
+    local failed
+    for name, value in pairs(data) do
+        local entry = list[name] or {}
         local is_relay = getmetatable(value) == _RelayMetaTable
-        if is_relay and v.type == "Property_R" then
-            data[v.name] = nil
-            local relayed = _G[v.lua_g_name](d_object)
-            setProperties(relayed, value)
-        elseif (not is_relay) and (value ~= nil) and v.type == "Property_W"
-        then
-            data[v.name] = nil -- delete for later check for completeness
-            local autoprop = autoProperties[v.lua_g_name]
+        if entry.write and not is_relay then
+            -- set that value; possibly convert according to autoProperties
+            local autoprop = autoProperties[entry.write]
             if autoprop then
                 local converter = autoprop[type(value)]
                 if converter then
                     value = converter(value)
                 end
             end
-            _G[v.lua_g_name](d_object, value)
+            entry.write(d_object, value)
+        elseif entry.read and is_relay then
+            -- special case: redirect
+            local relayed = entry.read(d_object)
+            setProperties(relayed, value)
+        else
+            if not failed then
+                failed = {}
+            end
+            failed[name] = value
         end
     end
     -- error if a property in data wasn't in d_object
-    if not table_empty(data) then
-        error(utils.format("the following stuff couldn't be set: {}", data), 2)
+    if failed then
+        error(utils.format("the following stuff couldn't be set: {}", failed),
+            2)
     end
 end
 

@@ -259,6 +259,7 @@ private:
     //save a screenshot to a png image
     //  activeWindow: only save area of active window, with decorations
     //    (screen contents of window area, also saves overlapping stuff)
+    //throws exception on error (catched by the command line handler)
     private void saveScreenshot(ref char[] filename,
         bool activeWindow = false)
     {
@@ -280,13 +281,15 @@ private:
                 activeWindow?"window-"~wndTitle~"{}":"screen{}", ".png", i);
         }
 
-        scope surf = gFramework.screenshot();
-        scope ssFile = gFS.open(filename, File.WriteCreate);
-        scope(exit) ssFile.close();  //no close on delete? strange...
+        auto surf = gFramework.screenshot();
+        scope(exit) surf.free();
+        auto ssFile = gFS.open(filename, File.WriteCreate);
+        scope(exit) ssFile.close();
         if (activeWindow) {
             //copy out area of active window
             Rect2i r = topWnd.containedBounds;
-            scope subsurf = surf.subrect(r);
+            auto subsurf = surf.subrect(r);
+            scope(exit) subsurf.free();
             saveImage(subsurf, ssFile, "png");
         } else
             saveImage(surf, ssFile, "png");
