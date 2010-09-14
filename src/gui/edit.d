@@ -231,7 +231,7 @@ class EditLine : Widget {
     private void updateSelection() {
         //create/destroy/recreate mRenderSel as necessary
         auto sel = orderedSelection();
-        bool want_sel = sel.start != sel.end;
+        bool want_sel = sel.start != sel.end && focused;
         bool sel_ok = mRenderSel && mRenderSel.range == sel;
         if (!sel_ok || (mRenderSel && !want_sel)) {
             mRender.removeStyleRange(mRenderSel);
@@ -303,6 +303,11 @@ class EditLine : Widget {
             //X11-style mouse selection clipboard
             clipCopy(false);
         }
+    }
+
+    override void onFocusChange() {
+        super.onFocusChange();
+        updateSelection();
     }
 
     override Vector2i layoutSizeRequest() {

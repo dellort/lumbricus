@@ -21,6 +21,7 @@ static this() {
     styleRegisterStrParser!(ImageDrawStyle)("bitmap-background-tile");
     styleRegisterInt("widget-pad");
     styleRegisterInt("border-min");
+    styleRegisterInt("focus-border");
 
     styleRegisterFont("text-font");
     styleRegisterColor("selection-foreground");

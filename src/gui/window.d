@@ -466,6 +466,10 @@ class WindowWidget : Widget {
             mDraging = true;
             return true;
         }
+        //always handle clicks (don't click through)
+        if (key.isMouseButton()) {
+            return true;
+        }
 
         return false;
     }

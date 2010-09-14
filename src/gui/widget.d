@@ -179,6 +179,8 @@ class Widget {
         int mWidgetPad = 0;
         int mBorderMin = 0;
         Rect2i mBorderArea;   //just for drawing
+        //draw focus rect this many pixels inside from containedBorderBounds
+        int mFocusBorder = 3;
 
         //invisible widgets don't draw anything, and don't accept
         //or forward events
@@ -1508,6 +1510,7 @@ class Widget {
 
         //draw-border is a misnomer, because it has influence on layout (size)?
         mDrawBorder = styles.get!(bool)("border-enable");
+        mFocusBorder = styles.get!(int)("focus-border");
     }
 
     //check if there were style changes, and if yes, do all necessary updates
@@ -1647,10 +1650,9 @@ class Widget {
             return;
 
         auto rc = containedBorderBounds();
-        const border = 3;
         auto s = rc.size;
-        if (border*2 < min(s.x, s.y)) {
-            rc.extendBorder(Vector2i(-border));
+        if (mFocusBorder*2 < min(s.x, s.y)) {
+            rc.extendBorder(Vector2i(-mFocusBorder));
         }
         c.drawStippledRect(rc, Color(0.5), 2);
     }
