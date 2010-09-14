@@ -55,7 +55,7 @@ void lmain(char[][] args) {
 
     try {
         gFramework.setIcon(loadImage("lumbricus-icon.png"));
-    } catch (IOException e) {
+    } catch (CustomException e) {
     }
 
     globals.initGUIStuff();

@@ -136,6 +136,9 @@ class GameEngine : GameCore {
         particles.zorder = GameZOrder.Particles;
         scene.add(particles);
 
+        //scripting initialization
+        //code loaded here can be considered "internal" and should explode
+        //  on errors
         foreach (char[] name, char[] value; mGameConf.getSubNode("scripts")) {
             loadScript(scripting(), value);
         }

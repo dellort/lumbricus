@@ -1,8 +1,12 @@
 module common.debugstuff;
 
 import common.common;
+import common.init; //import to force log initialization
+import common.resources;
 import common.task;
 import framework.commandline;
+import framework.event;
+import framework.keybindings;
 import framework.main;
 import framework.sound;
 import gui.boxcontainer;
@@ -28,11 +32,18 @@ import str = utils.string;
 
 import memory = tango.core.Memory;
 import conv = tango.util.Convert;
+import cstdlib = tango.stdc.stdlib;
 
 debug {
 } else {
     //not debug
     static assert("debugstuff.d should be included in debug mode only");
+}
+
+static if (is(typeof(&memory.GC.getDebug))) {
+    const GCStatsHack = true;
+} else {
+    const GCStatsHack = false;
 }
 
 //gc_stats() API, which Tango doesn't expose to the user for very retarded
@@ -51,6 +62,7 @@ extern (C) GCStats gc_stats(); //from gc.d
 
 Time gGcTime = Time.Null;
 Time gGcLastTime = Time.Null;
+size_t gGcFreed = 0;
 size_t gGcCounter;
 
 //was added after 0.99.9 to trunk (xxx: remove the static if on next release)
@@ -68,6 +80,7 @@ void gc_monitor_begin() {
 void gc_monitor_end(int a, int b) {
     gGcLastTime = perfThreadTime() - gGcStart;
     gGcTime += gGcLastTime;
+    gGcFreed += a;
 }
 static this() {
     //not using toDelegate() here, because the wrappers would be GC'ed
@@ -133,6 +146,8 @@ class Stuff {
 
     int mPrevGCCount;
 
+    bool mKeyNameIt = false;
+
     private this() {
         assert(!gStuff);
         gStuff = this;
@@ -141,9 +156,23 @@ class Stuff {
 
         globals.cmdLine.registerCommand("gc", &testGC, "", ["bool?=true"]);
         globals.cmdLine.registerCommand("gcmin", &cmdGCmin, "");
+        globals.cmdLine.registerCommand("gciter", &cmdGCIter, "");
+        globals.cmdLine.registerCommand("gctrace", &cmdGCTrace, "", ["text", "int?=1"]);
+        globals.cmdLine.registerCommand("gcarrtrace", &cmdGCArrayTrace, "",
+            ["text"]);
+
+        globals.catchInput ~= &nameit;
+        globals.cmdLine.registerCommand("nameit", &cmdNameit, "");
+
+        globals.cmdLine.registerCommand("res_load", &cmdResLoad, "", ["text"]);
+        globals.cmdLine.registerCommand("res_unload", &cmdResUnload, "", []);
+
+        static if (GCStatsHack) {
+            gLog.notice("precise GC: {}", memory.GC.getDebug()
+                .precise_scanning());
+        }
 
         gFramework.onFrameEnd = &onFrameEnd;
-
         addTask(&onFrame);
     }
 
@@ -244,7 +273,57 @@ class Stuff {
     private void cmdGCmin(MyBox[] args, Output write) {
         memory.GC.minimize();
     }
+    private void cmdGCIter(MyBox[] args, Output write) {
+        static if (GCStatsHack)
+            doiter();
+    }
+    private void cmdGCTrace(MyBox[] args, Output write) {
+        static if (GCStatsHack)
+            dotrace(args[0].unbox!(char[]), args[1].unbox!(int));
+    }
+    private void cmdGCArrayTrace(MyBox[] args, Output write) {
+        static if (GCStatsHack)
+            //pure evil
+            doarraytrace(cast(void*)cstdlib.strtoul((args[0].unbox!(char[])~'\0').ptr, null, 16));
+    }
 
+    private void cmdNameit(MyBox[] args, Output write) {
+        mKeyNameIt = true;
+    }
+
+    private bool nameit(InputEvent event) {
+        //something similar will be needed for a proper keybindings editor
+        if (!mKeyNameIt)
+            return false;
+        if (!event.isKeyEvent || !event.keyEvent.isDown)
+            return false;
+
+        BindKey key = BindKey.FromKeyInfo(event.keyEvent);
+
+        gLog.notice("Key: '{}' '{}', code={} mods={}",
+            key.unparse(), globals.translateKeyshortcut(key),
+            key.code, key.mods);
+
+        //modifiers are also keys, ignore them
+        if (!event.keyEvent.isModifierKey()) {
+            mKeyNameIt = false;
+        }
+
+        return true;
+    }
+
+    private void cmdResUnload(MyBox[] args, Output write) {
+        gResources.unloadAll();
+    }
+
+    private void cmdResLoad(MyBox[] args, Output write) {
+        char[] s = args[0].unbox!(char[])();
+        try {
+            gResources.loadResources(s);
+        } catch (CustomException e) {
+            write.writefln("failed: {}", e);
+        }
+    }
 }
 
 
@@ -324,6 +403,7 @@ class StatsWindow {
             number("GC count", gGcCounter);
             time("GC collect time", gGcLastTime);
             time("GC collect time (sum)", gGcTime);
+            size("GC free'd", gGcFreed);
 
             size_t[3] mstats;
             get_cmalloc_stats(mstats);
@@ -423,8 +503,207 @@ class LogConfig {
 }
 
 static this() {
-    registerTask("console", function(char[] args) {
+    registerTask("console", (char[] args) {
         gWindowFrame.createWindowFullscreen(new GuiConsole(globals.real_cmdLine),
             "Console");
+        return Object.init;
     });
+}
+
+static if (GCStatsHack) {
+
+import tango.core.Array;
+
+class Unknown {
+    char[] toString() { return "<?> unknown type"; }
+}
+
+void doiter() {
+    scope xx = new BigArray!(memory.BlockInfo);
+    memory.GC.collect();
+    memory.GC.getDebug().iterate((memory.BlockInfo blk) {
+        xx.length = xx.length + 1;
+        xx[][$-1] = blk;
+        return true;
+    });
+    scope Unknown anon = new Unknown;
+    struct Foo {
+        Object type;
+        size_t size;
+        size_t rsize;
+        size_t count;
+    }
+    Foo[Object] stuff;
+    foreach (ref memory.BlockInfo b; xx[]) {
+        Object c = b.tag ? b.tag : anon;
+        auto p = c in stuff;
+        if (!p) {
+            stuff[c] = Foo.init;
+            p = c in stuff;
+            p.type = c;
+        }
+        p.size += b.size;
+        p.rsize += b.blksize;
+        p.count++;
+    }
+    Foo[] moo = stuff.values;
+    sort(moo, (Foo a, Foo b) {
+        return a.rsize < b.rsize;
+    });
+    size_t sum, rsum, count;
+    foreach (ref x; moo) {
+        Trace.formatln("{}   {} ({} {})", x.count, x.type.toString, str.sizeToHuman(x.rsize),
+            str.sizeToHuman(0)); //x.count * x.type.init.length));
+        sum += x.size;
+        rsum += x.rsize;
+        count += x.count;
+    }
+    Trace.formatln("#={} types={} sum={}, rsum={}", count, moo.length, str.sizeToHuman(sum), str.sizeToHuman(rsum));
+    foreach (ref f; moo) {
+        stuff.remove(f.type);
+    }
+    stuff.rehash;
+    delete moo;
+}
+
+//look for objects whose class name contains x
+//trace the nth found object
+void dotrace(char[] x, int nth) {
+    scope bits_st = new BigArray!(ubyte);
+    //spanning all of the 4GB address room, in 16 byte units (8 bit => 16*8 per byte)
+    bits_st.length = 33554432;
+    ubyte[] bits = bits_st[];
+    bits[] = 0;
+    memory.GC.collect();
+    memory.BlockInfo start;
+    auto dbg = memory.GC.getDebug();
+    dbg.iterate((memory.BlockInfo blk) {
+        if ((blk.tag && str.find(blk.tag.toString, x) >= 0)
+            || (x == "?" && !blk.tag))
+        {
+            nth--;
+            if (nth == 0) {
+                start = blk;
+                return false;
+            }
+        }
+        return true;
+    });
+    if (!start.ptr) {
+        Trace.formatln("nothing found");
+        return;
+    }
+
+    bool dotrace(int maxdepth, memory.BlockInfo trace) {
+        if (maxdepth < 0)
+            return false;
+
+        //prevent exponential complexity
+        size_t px = (cast(size_t)trace.ptr) / 16;
+        auto bp = px/8;
+        auto bit = 1 << (px%8);
+        if (bits[bp] & bit)
+            return false;
+        bits[bp] |= bit;
+
+        Trace.formatln("tracing: {} {} {}", trace.ptr, trace.size,
+            trace.tag ? trace.tag.toString : "<?>");
+
+        bool retval;
+        dbg.trace(trace.ptr, trace.ptr + trace.size, (memory.TraceInfo info) {
+
+            Trace.formatln(" => {}", info.ref_from);
+            auto pp = *cast(void**)(info.ref_from);
+            assert(pp >= trace.ptr && pp < trace.ptr + trace.size);
+
+            memory.BlockInfo ntrace;
+
+            if (info.is_gc) {
+                if (!dbg.getinfo(info.ref_from, ntrace)) {
+                    assert(false, "internal error");
+                }
+                if (dotrace(maxdepth - 1, ntrace)) {
+                    goto success;
+                }
+                return true;
+            }
+
+            Trace.formatln("terminate at: {} -> {}", info.ref_from, trace.ptr);
+
+            //recursion termination
+            if (info.is_dataseg)
+                Trace.formatln("data segment");
+            if (info.is_stack)
+                Trace.formatln("stack");
+            if (info.is_range)
+                Trace.formatln("range/root");
+        success:
+            if (ntrace.ptr) {
+                assert(info.ref_from - ntrace.ptr < ntrace.size);
+                Trace.formatln("- {} ({}+{}) => {} {} : {}", info.ref_from,
+                    ntrace.ptr, info.ref_from - ntrace.ptr, trace.ptr,
+                    trace.size, trace.tag ? trace.tag.toString : "<?>");
+            } else {
+                Trace.formatln("- {} => {} {} : {}", info.ref_from, trace.ptr,
+                    trace.size, trace.tag ? trace.tag.toString : "<?>");
+            }
+            retval = true;
+            return false;
+        });
+        return retval;
+    }
+
+    if (!dotrace(100, start)) {
+        Trace.formatln("failed.");
+    }
+    Trace.formatln("was tracing: {} {} {}", start.ptr, start.size,
+        start.tag ? start.tag.toString : "<?>");
+}
+
+//assume p points to array memory (i.e. the stuff starting at arr.ptr)
+//find all array slice descriptors pointing to it and print how much of the
+//  array is covered
+void doarraytrace(void* p) {
+    auto dbg = memory.GC.getDebug();
+    memory.BlockInfo blk;
+    if (!dbg.getinfo(p, blk)) {
+        Trace.formatln("not a GC block");
+        return;
+    }
+    Trace.formatln("found ptr={} size={} type={}", blk.ptr, blk.size, blk.tag);
+    auto tia = cast(TypeInfo_Array)blk.tag;
+    if (!tia) {
+        Trace.formatln("doesn't seem to be an array");
+        return;
+    }
+    size_t sz = tia.next.tsize;
+    size_t maxlen = blk.size / sz;
+    Trace.formatln("   item type={} size={}", tia.next, sz);
+    Trace.formatln("   maxlen={}", maxlen);
+    Trace.formatln("trace:");
+    size_t smin = maxlen;
+    size_t smax = 0;
+    dbg.trace(blk.ptr, blk.ptr + blk.size, (memory.TraceInfo info) {
+        void* from = info.ref_from;
+        struct Array {
+            size_t length; //in items, not bytes
+            void* ptr;
+        }
+        Array* slice = cast(Array*)(from - size_t.sizeof);
+        size_t offset = (slice.ptr - blk.ptr) / sz;
+        smin = min(smin, offset);
+        smax = max(smax, offset + slice.length);
+        Trace.formatln("  {} start={} length={}", from, offset, slice.length);
+        return true;
+    });
+    Trace.formatln("min={} max={}", smin, smax);
+    if (sz == size_t.sizeof && blk.size < 10) {
+        Trace.formatln("dumping array as void*[]...");
+        for (uint n = 0; n < blk.size/(void*).sizeof; n++) {
+            void* d = *((cast(void**)blk.ptr) + n);
+            Trace.formatln("    [{}] = {}", n, d);
+        }
+    }
+}
+
 }

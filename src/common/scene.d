@@ -41,6 +41,10 @@ class Scene : SceneObjectCentered {
             //NOTE: old array data must not be lost
             mActiveObjects = static_storage[0..max_zorder+1];
         } else {
+            if (mActiveObjects.ptr == static_storage.ptr) {
+                //temporary fix for Tango issue #1987
+                mActiveObjects = mActiveObjects.dup;
+            }
             mActiveObjects.length = max_zorder + 1;
         }
         foreach (ref cur; mActiveObjects) {

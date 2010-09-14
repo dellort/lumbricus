@@ -48,7 +48,7 @@ abstract class DriverSurface : DriverResource {
     //  pointer; drivers should never store the Surface directly)
     //may return null in rare cases (Surface has been free'd, but the lazy
     //  notification hasn't triggered destruction of the DriverSurface yet)
-    Surface getSurface() {
+    final Surface getSurface() {
         return castStrict!(Surface)(getResource());
     }
 }
@@ -164,21 +164,19 @@ final class Surface : ResourceT!(DriverSurface) {
 
     //--- driver interface end
 
+    /// to avoid memory leaks
     override void dispose() {
         //per definition, GC references are still valid when this is called
         //=> unlike in ~this(), can call free() here
-        free();
-    }
-
-    /// to avoid memory leaks
-    final void free() {
+        super.dispose();
+        assert(!driverResource);
         if (!mAllocator)
             return; //already free'd
-        //xxx don't copy back data from driver!
-        passivate();
         mAllocator.length = 0;
         delete mAllocator;
     }
+
+    alias dispose free;
 
     //this is the finalizer (not destructor), usually called by the GC
     //according to D's rules, you must not access other GC references here!

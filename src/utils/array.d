@@ -179,8 +179,10 @@ void arrayRemoveN(T)(inout T[] arr, uint index, uint count = 1) {
 
 unittest {
     int[] a = [1,2,3,4,5,6,7,8];
+    int[] oa = a;
     arrayRemoveN(a, 3, 2);
     assert(a == [1,2,3,6,7,8]);
+    assert(oa == [1,2,3,6,7,8,0,0]);
 }
 
 //return true when b is contained completely in a

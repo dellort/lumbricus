@@ -79,11 +79,7 @@ LuaState createScriptingState() {
     loadScript(state, "lua/color.lua");
     state.addScriptType!(Color)("Color");
 
-    //logging - utils.lua will use the d_logoutput functions if available
-    static void emitlog(LogPriority pri, TempString s) {
-        gLuaLog.emit(pri, "{}", s.raw);
-    }
-    state.setGlobal("d_logoutput", toDelegate(&emitlog));
+    setLogger(state, gLuaLog.get);
 
     return state;
 }

@@ -3,6 +3,7 @@ import framework.filesystem;
 import framework.drawing;
 import framework.driver_base;
 import framework.surface;
+import utils.array;
 import utils.color;
 import utils.configfile;
 import utils.factory;
@@ -51,6 +52,12 @@ struct FontProperties {
         return FaceStyle.normal;
     }
 }
+
+//xxx: it'd be better to just keep a file handle to the font file,
+//     or to share all FT_Face-s across all FTGlyphCache-s (srsly),
+//     but for now I'm doing this due to various circumstances
+//     FT doesn't seem to have stream abstractions either
+alias BigArray!(ubyte) FontData;
 
 //xxx it would really be much better to provide methods like
 //  FontDriver.draw(FontProperties style, Vector2i pos, char[] text);
@@ -170,12 +177,8 @@ final class Font : ResourceT!(DriverFont) {
 class FontManager : ResourceManagerT!(FontDriver) {
     private {
         struct FaceStyles {
-            //xxx: it'd be better to just keep a file handle to the font file,
-            //     or to share all FT_Face-s across all FTGlyphCache-s (srsly),
-            //     but for now I'm doing this due to various circumstances
-            //     FT doesn't seem to have stream abstractions either
             //for each style, the font file loaded into memory
-            ubyte[][FaceStyle.max+1] styles;
+            FontData[FaceStyle.max+1] styles;
         }
 
         Font[char[]] mIDtoFont;
@@ -198,12 +201,16 @@ class FontManager : ResourceManagerT!(FontDriver) {
                 scope st = gFS.open(faceFile);
                 scope(exit) st.close();
                 ubyte[] ms = st.readAll();
+                scope(exit) delete ms;
+                FontData data = new BigArray!(ubyte);
+                data.length = ms.length;
+                data[][] = ms[];
                 if (!(n.name in mFaces)) {
                     FaceStyles fstyles;
-                    fstyles.styles[cast(FaceStyle)idx] = ms;
+                    fstyles.styles[cast(FaceStyle)idx] = data;
                     mFaces[n.name] = fstyles;
                 } else
-                    mFaces[n.name].styles[cast(FaceStyle)idx] = ms;
+                    mFaces[n.name].styles[cast(FaceStyle)idx] = data;
             }
         }
         mNodes = node.getSubNode("styles").copy();
@@ -260,7 +267,7 @@ class FontManager : ResourceManagerT!(FontDriver) {
     }
 
     //driver uses this
-    ubyte[] findFace(char[] face, FaceStyle style = FaceStyle.normal) {
+    FontData findFace(char[] face, FaceStyle style = FaceStyle.normal) {
         FaceStyles* fstyles = face in mFaces;
         if (!fstyles)
             return null;

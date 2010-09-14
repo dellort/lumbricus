@@ -118,6 +118,14 @@ abstract class Resource {
             assert(!driverResource());
         }
     }
+
+    override void dispose() {
+        super.dispose();
+        if (driverResource) {
+            driverResource.loseDataAndDestroy();
+            assert(!driverResource());
+        }
+    }
 }
 
 //shitty helper with exact DriverResource type
@@ -186,6 +194,12 @@ abstract class DriverResource {
         mDriver.mRefList.remove(this);
         mRef.clear();
         delete mRef;
+    }
+
+    //optional - destroy and don't write back data to the actual Resource
+    //(used to free "stolen" GL surfaces without copying back data)
+    protected void loseDataAndDestroy() {
+        destroy();
     }
 }
 

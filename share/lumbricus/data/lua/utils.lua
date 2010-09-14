@@ -694,6 +694,38 @@ function export_from_table(table)
     end
 end
 
+-- minor premature coroutine support
+
+-- handle coroutine "scheduling" (or whatever)
+local function mayrun(cor)
+    -- not sure what should go in here...
+    local status, cmd, p = coroutine.resume(cor)
+    if not status == true then
+        return
+    end
+    if cmd == "sleep" then
+        return
+    elseif cmd == nil then
+        return
+    else
+        assert(false, "invalid coroutine return: " .. cmd)
+    end
+end
+
+-- create and run a couroutine
+function cospawn(fn)
+    mayrun(coroutine.create(fn))
+end
+
+-- put a coroutine to sleep for some time (time values see time.lua)
+function cosleep(t)
+    local co = assert(coroutine.running())
+    addTimer(t, function()
+        mayrun(co)
+    end)
+    coroutine.yield("sleep")
+end
+
 -- some command line interpreter support
 -- should probably be moved into its own module
 

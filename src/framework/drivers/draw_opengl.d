@@ -256,19 +256,30 @@ final class GLSurface : DriverSurface {
         steal();
 
         if (mError)
-            mLog.warn("Failed to create texture of size {}.", mTexSize);
+            mLog.error("Failed to create texture of size {}.", mTexSize);
     }
 
     override void destroy() {
+        do_destroy(false);
+        super.destroy();
+    }
+
+    override void loseDataAndDestroy() {
+        do_destroy(true);
+        //will call do_destroy() again (through destroy()), but that's fine
+        super.loseDataAndDestroy();
+    }
+
+    private void do_destroy(bool killdata) {
         if (mTexId != GLID_INVALID) {
-            lockData(); //possibly read back memory
+            if (!killdata)
+                lockData(); //possibly read back memory
             mLocked = false;
             glDeleteTextures(1, &mTexId);
             mTexId = GLID_INVALID;
             mDrawDriver.mCanvas.rawBindTex(GLID_INVALID);
         }
         mError = false;
-        super.destroy();
     }
 
     //initialize borders with 0 (sucks, but otherwise there will be visible

@@ -398,6 +398,10 @@ private char[] fullClassName(Object o) {
     return o.classinfo.name;
 }
 
+private bool canCast(ClassInfo from, ClassInfo to) {
+    return rtraits.isImplicitly(from, to);
+}
+
 private void luaExpected(lua_State* state, int stackIdx, char[] expected) {
     char* s = luaL_typename(state, stackIdx);
     luaExpected(state, expected, czstr.fromStringz(s));
@@ -752,7 +756,6 @@ private void luaPushFunction(T)(lua_State* state, T fn) {
 //this is just derived from WeakRef to save the overhead for 2 objects
 private final class RealLuaRef : WeakRef {
 private:
-    lua_State* mState;
     int mLuaRef;
     LuaState mDState; //required to keep mState alive
     public ObjListNode!(typeof(this)) mNode;
@@ -765,12 +768,11 @@ private:
         assert(!!referrer);
         super(referrer);
 
-        mState = state;
-        mDState = LuaState.getInstance(mState);
+        mDState = LuaState.getInstance(state);
 
         //put a "Lua ref" to the value into the reference table
-        lua_pushvalue(mState, stackIdx);
-        mLuaRef = luaL_ref(mState, LUA_REGISTRYINDEX);
+        lua_pushvalue(state, stackIdx);
+        mLuaRef = luaL_ref(state, LUA_REGISTRYINDEX);
         assert(mLuaRef != LUA_NOREF);
 
         //add to poll list for deferred freeing
@@ -781,7 +783,6 @@ private:
 
     //neutral error handling domain
     void push(lua_State* state) {
-        assert(mState is state); //thinking of coroutines
         assert(mLuaRef != LUA_NOREF, "call .push() after .release()");
         //get ref'ed value from the reference table
         lua_rawgeti(state, LUA_REGISTRYINDEX, mLuaRef);
@@ -794,10 +795,11 @@ private:
         if (!valid())
             throw new CustomException("invalid Lua reference");
         T res;
-        luaProtected(mState, {
-            push(mState);
-            res = luaStackValue!(T)(mState, -1);
-            lua_pop(mState, 1);
+        auto state = mDState.mLua;
+        luaProtected(state, {
+            push(state);
+            res = luaStackValue!(T)(state, -1);
+            lua_pop(state, 1);
         });
         return res;
     }
@@ -807,7 +809,7 @@ private:
     void release() {
         if (!valid())
             return;
-        luaL_unref(mState, LUA_REGISTRYINDEX, mLuaRef);
+        luaL_unref(mDState.mLua, LUA_REGISTRYINDEX, mLuaRef);
         mLuaRef = LUA_NOREF;
         mDState.mRefList.remove(this);
     }
@@ -999,7 +1001,7 @@ private void luaProtected(lua_State* state, void delegate() code) {
         throw e;
     }
     //remove the error handler
-    lua_remove(state, -1);
+    lua_pop(state, 1);
 }
 
 //call D -> Lua
@@ -1514,6 +1516,7 @@ class LuaState {
         bool[ClassInfo] mClassUpdate;
         ObjectList!(RealLuaRef, "mNode") mRefList; //D->Lua references
         int mRefListWatermark; //pseudo-GC
+        bool mDestroyed;
         version (USE_FULL_UD) {
             //Lua->D references
             PointerPinTable mPtrList;
@@ -1644,9 +1647,40 @@ class LuaState {
         setGlobal("d_is_class", &script_is_class);
     }
 
-    void destroy() {
-        //let the GC do the work (for now)
+    override void dispose() {
+        super.dispose();
+        lua_close(mLua);
         mLua = null;
+        version (USE_FULL_UD) {
+            delete mPtrList;
+        }
+        foreach (r; mRefList) {
+            delete r;
+        }
+        delete mRefList;
+        foreach (ClassInfo k, ref Object v; mSingletons) {
+            v = null;
+        }
+    }
+
+    ~this() {
+        //if the program temrinates, it will call modules dtors, and after this
+        //  it will call finalizers on all GC objects that are still alive. but
+        //  the module dtors will make derelict to unload liblua, so finalizers
+        //  for left over LuaStates can't call lua_close() LOL
+        if (!DerelictLua.loaded())
+            return;
+        //this is VERY questionable - it does a lot of stuff in this function,
+        //  and I don't know if it's really safe (the problem is that ~this can
+        //  get called from foreign threads etc.)
+        //at the very least, we shouldn't access stuff in __gc methods (which
+        //  this function calls), and we set mLua to null to know about this
+        if (mLua) {
+            mDestroyed = true;
+            //close the state (will call all left userdata __gc)
+            lua_close(mLua);
+            mLua = null;
+        }
     }
 
     //return instance of LuaState from the registry
@@ -1750,7 +1784,7 @@ version (USE_FULL_UD) {
         ud.pinID = pinID;
 
         //set metatable (list of methods for the D object and __gc)
-        lstate.luaPushMetatable(value.classinfo); //ud metatable
+        lstate.luaPushMetatable(state, value.classinfo); //ud metatable
         lua_setmetatable(state, -2); //ud
 
         //set the ID table as userdata environment table - need this to quickly
@@ -1782,6 +1816,10 @@ version (USE_FULL_UD) {
     //called from the __gc method; the userdata is at stackIdx
     private static void luaDestroyDObject(lua_State* state, int stackIdx) {
         LuaState lstate = LuaState.getInstance(state);
+
+        //special case for ~this
+        if (lstate.mDestroyed)
+            return;
 
         assert(luaIsDObject(state, 1));
 
@@ -1863,14 +1901,14 @@ version (USE_FULL_UD) {
     //like luaPushMetatable, but don't create MT if it doesn't exist
     //returns true: metatable has been pushed on Lua stack
     //returns false: no metatable returned, Lua stack is untouched
-    private bool luaPushCachedMetatable(ClassInfo cls) {
+    private bool luaPushCachedMetatable(lua_State* state, ClassInfo cls) {
         lua_getfield(state, LUA_REGISTRYINDEX, cMetatableCache.ptr); //mc
         //the ClassInfo is used as key; assumes all ClassInfos are static data
-        lua_pushlightuserdata(mLua, cast(void*)cls); //mc cls
-        lua_rawget(mLua, -2); //mc mt
-        lua_replace(mLua, -2); //mt
-        if (lua_isnil(mLua, -1)) {
-            lua_pop(mLua, 1);
+        lua_pushlightuserdata(state, cast(void*)cls); //mc cls
+        lua_rawget(state, -2); //mc mt
+        lua_replace(state, -2); //mt
+        if (lua_isnil(state, -1)) {
+            lua_pop(state, 1);
             return false;
         }
         return true; //return mt
@@ -1882,8 +1920,8 @@ version (USE_FULL_UD) {
     //because of the __gc method, it must only be used on userdata wrapping D
     //  objects, see luaCreateDObject()
     //returns metatable for cls on Lua stack
-    private void luaPushMetatable(ClassInfo cls) {
-        if (luaPushCachedMetatable(cls))
+    private void luaPushMetatable(lua_State* state, ClassInfo cls) {
+        if (luaPushCachedMetatable(state, cls))
             return;
 
         //expects on stack: methodtable sometable
@@ -1892,43 +1930,43 @@ version (USE_FULL_UD) {
         void setupmt() {
             //stack: mth table
             //set table.__index to method-table
-            lua_pushliteral(mLua, "__index"); //mth table __index
-            lua_pushvalue(mLua, -3); //mth table __index mth
-            lua_rawset(mLua, -3); //mth table
+            lua_pushliteral(state, "__index"); //mth table __index
+            lua_pushvalue(state, -3); //mth table __index mth
+            lua_rawset(state, -3); //mth table
         }
 
         //create a new metatable, it didn't exist yet
-        lua_newtable(mLua); //mt
+        lua_newtable(state); //mt
         //__gc method only for full userdata
         version (USE_FULL_UD) {
-            lua_pushliteral(mLua, "__gc"); //mt "__gc"
-            lua_pushliteral(mLua, cGCHandler); //mt "__gc" handlerkey
-            lua_rawget(mLua, LUA_REGISTRYINDEX); //mt "__gc" gchandler
-            lua_rawset(mLua, -3); //mt
+            lua_pushliteral(state, "__gc"); //mt "__gc"
+            lua_pushliteral(state, cGCHandler); //mt "__gc" handlerkey
+            lua_rawget(state, LUA_REGISTRYINDEX); //mt "__gc" gchandler
+            lua_rawset(state, -3); //mt
         }
         //method-table, that contains a list of all methods
-        lua_newtable(mLua); //mt mth
+        lua_newtable(state); //mt mth
         //
-        lua_pushvalue(mLua, -2); //mt mth mt
+        lua_pushvalue(state, -2); //mt mth mt
         setupmt(); //mt mth mt
-        lua_pop(mLua, 1); //mt mth
+        lua_pop(state, 1); //mt mth
         //fake metatable for below; indexing set up the same as real metatable
-        lua_newtable(mLua); //mt mth fakemt
+        lua_newtable(state); //mt mth fakemt
         setupmt(); //mt mth fakemt
-        lua_remove(mLua, -2); //mt fakemt
+        lua_remove(state, -2); //mt fakemt
         //hide metatable from script with the special __metatable field
         //this is critical for memory safety
         //if a script does getmetatable(userdata), return a fake metatable
-        lua_pushliteral(mLua, "__metatable"); //mt fakemt __metatable
-        lua_pushvalue(mLua, -2); //mt fakemt __metatable fakemt
-        lua_rawset(mLua, -4); //mt fakemt
-        lua_pop(mLua, 1); //mt
+        lua_pushliteral(state, "__metatable"); //mt fakemt __metatable
+        lua_pushvalue(state, -2); //mt fakemt __metatable fakemt
+        lua_rawset(state, -4); //mt fakemt
+        lua_pop(state, 1); //mt
         //store in global cache table
-        lua_getfield(mLua, LUA_REGISTRYINDEX, cMetatableCache.ptr); //mt mc
-        lua_pushlightuserdata(mLua, cast(void*)cls); //mt mc cls
-        lua_pushvalue(mLua, -3); //mt mc cls mt
-        lua_rawset(mLua, -3); //mt mc
-        lua_pop(mLua, 1); //mt
+        lua_getfield(state, LUA_REGISTRYINDEX, cMetatableCache.ptr); //mt mc
+        lua_pushlightuserdata(state, cast(void*)cls); //mt mc cls
+        lua_pushvalue(state, -3); //mt mc cls mt
+        lua_rawset(state, -3); //mt mc
+        lua_pop(state, 1); //mt
         //fill the metatable with methods
         luaUpdateMetatable(cls);
         //return mt
@@ -2069,7 +2107,7 @@ version (USE_FULL_UD) {
                     auto cur = cls;
                     while (cur) {
                         if (auto pcls = cur in mClassUpdate) {
-                            if ((*pcls) && rtraits.isDerived(cls, cur)) {
+                            if ((*pcls) && canCast(cls, cur)) {
                                 update = true;
                                 change = true;
                                 continue outer;
@@ -2102,7 +2140,7 @@ version (USE_FULL_UD) {
 
         //pushes metatable on stack (only on success)
         //if the metatable doesn't exist, nothing has to be done
-        if (!luaPushCachedMetatable(cls))
+        if (!luaPushCachedMetatable(mLua, cls))
             return;
 
         //get to method-table
@@ -2118,7 +2156,7 @@ version (USE_FULL_UD) {
             if (!m.classinfo)
                 continue;
             //only if cls is derived from m.classinfo
-            if (!rtraits.isDerived(cls, m.classinfo))
+            if (!canCast(cls, m.classinfo))
                 continue;
             //don't want the ctors for super classes in a class' metatable
             if (m.type == LuaRegistry.MethodType.Ctor && cls !is m.classinfo)
@@ -2154,7 +2192,7 @@ version (USE_FULL_UD) {
             return null;
         MetaData[] res;
         foreach (LuaRegistry.Method m; mMethods) {
-            if (rtraits.isDerived(from, m.classinfo))
+            if (canCast(from, m.classinfo))
                 res ~= convert_md(m);
         }
         return res;
@@ -2220,7 +2258,7 @@ version (USE_FULL_UD) {
         ClassInfo cls1 = cast(ClassInfo)obj;
         if (!cls1)
             cls1 = obj.classinfo;
-        return rtraits.isDerived(cls1, cls);
+        return canCast(cls1, cls);
     }
 
     void addSingleton(T)(T instance) {
@@ -2508,6 +2546,10 @@ private class PointerPinTable {
         if (oldarray.ptr != mPinList.ptr)
             delete oldarray;
         assert(mFreeList != -1);
+    }
+
+    //in theory, would have to un-pin all references here
+    ~this() {
     }
 }
 

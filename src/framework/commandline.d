@@ -310,7 +310,6 @@ class CommandBucket {
     private {
         Command[] mCommands;
         CommandBucket[] mSubs;
-        CommandBucket[] mParent; //lol, don't ask...
         Entry[] mSorted;   //sorted list of commands, including subs
         Translator mHelpTrans;
     }
@@ -396,7 +395,6 @@ class CommandBucket {
     void addSub(CommandBucket sub) {
         removeSub(sub); //just to be safe
         mSubs ~= sub;
-        sub.mParent ~= this;
         invalidate();
     }
 
@@ -407,21 +405,15 @@ class CommandBucket {
     void removeSub(CommandBucket sub) {
         if (arraySearch(mSubs, sub) < 0)
             return;
-        arrayRemove(mSubs, sub);
-        arrayRemove(sub.mParent, this);
         invalidate();
-    }
-
-    void kill() {
-        while (mParent.length)
-            mParent[0].removeSub(this);
+        arrayRemove(mSubs, sub);
     }
 
     //clear command cache
     void invalidate() {
         mSorted = null;
-        foreach (p; mParent)
-            p.invalidate();
+        foreach (s; mSubs)
+            s.invalidate();
     }
 
     Translator helpTranslator() {

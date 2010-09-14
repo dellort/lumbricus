@@ -1,28 +1,54 @@
 -- game specific machinery for timers and per frame callbacks
 -- makes use of the Time data type in time.lua
 
-_currentTime = timeSecs(0)
-_gameTimeSource = Game_gameTime()
-
--- return the current frame's time as Time object
-function currentTime()
-    return _currentTime
+-- silly hack for initialization, assumes time starts at 0 (or very close to 0)
+if not _G.d_current_time then
+    _G.d_current_time = 0
 end
 
--- changes each frame; used to catch the special case when timers re-add
---  themselves with duration 0 on a timer callback (the current code in
---  _run_timers() would go into an endless loop)
-_frameCounter = 0
+-- return the current frame's time in seconds (with fractional parts)
+-- e.g. 1.2345 = 1 seconds 234 milliseconds 500 microseconds
+-- used to be an object instead, see time.lua
+function currentTime()
+    -- the D host is expected to set this to the number of seconds (each frame)
+    return _G.d_current_time
+end
 
--- gets called by game.d
-function game_per_frame()
-    _currentTime = Time_current(_gameTimeSource)
-    _frameCounter = _frameCounter + 1
+-- changes each run_timers() call; used to catch the special case when timers
+--  re-add themselves with duration 0 on a timer callback (the current code in
+--  _run_timers() would go into an endless loop)
+local _frameCounter = 0
+local _run_timers
+
+-- must be called when the next timer elapses
+-- just calling it each frame works fine too
+-- in case of the game: gets called by game.d
+function run_timers()
     _run_timers()
 end
 
 -- singly linked list of Timers, sorted by earlierst trigger time
-_timerHead = nil
+-- call _update_timerlist on each modification
+local _timerHead = nil
+
+-- hack-replacement for Time.Never (problem is: Lua time is double, D is int64)
+local very_high = 10000000
+-- tell D when to do the next run_timers() call
+_G.run_timers_next = very_high
+
+local function _update_timerlist()
+    --[[
+    -- optional function to notify the D host when the host must call
+    --  run_timers() next - this way D can avoid having to call run_timers() in
+    --  each single frame
+    -- signature: `void d_set_next_timer(Time next_time_absolute)`
+    local nextfn = _G.d_set_next_timer
+    if nextfn and _timerHead then
+        nextfn(_timerHead._destTime)
+    end
+    ]]
+    _G.run_timers_next = (_timerHead and _timerHead._destTime) or very_high
+end
 
 Timer = {}
 Timer.__index = Timer
@@ -178,6 +204,7 @@ function Timer:_insert()
     self._added = true
     -- see _frameCounter for purpose
     self._added_frame = _frameCounter
+    _update_timerlist()
 end
 
 function Timer:_remove()
@@ -202,6 +229,7 @@ function Timer:_remove()
     end
     self._next = nil
     self._added = false
+    _update_timerlist()
 end
 
 -- if timer is actually running (started and not paused)
@@ -267,6 +295,19 @@ function addPeriodicTimer(time, cb)
     return addTimer(time, cb, true)
 end
 
+-- at first, the timer gets called in the next frame
+-- after this, re-add the timer with time duration
+-- the timer is stopped if cb returns false
+function addWorkTimer(time, cb)
+    local tr = Timer.New()
+    tr:setCallback(function()
+        if cb() then
+            tr:start(time)
+        end
+    end)
+    tr:start(0)
+end
+
 -- call cb in the next game engine frame
 function addOnNextFrame(cb)
     addTimer(Time.Null, cb)
@@ -276,6 +317,7 @@ function _run_timers()
     -- the time list is sorted; so we need to check only the head of the list,
     --  and can stop iterating it as soon as the time is too high
     local ct = currentTime()
+    _frameCounter = _frameCounter + 1
     while _timerHead do
         local cur = _timerHead
         assert(cur._added)
@@ -284,8 +326,11 @@ function _run_timers()
         end
         -- remove from list & trigger
         _timerHead = cur._next
+        _update_timerlist()
         cur._next = nil
         cur._added = false
+        -- call at last; so that if the call triggers an error, nothing bad
+        --  happens to the timer mechanism
         cur:_trigger()
     end
 end
@@ -325,6 +370,10 @@ function timertest()
     end)
     addTimer(timeSecs(12), function()
         printf("c={},c2={},c3={}", c, c2, c3)
-        addTimer(Time.Null, function() printf("all should be done now") end)
+        printf("ten seconds...")
+        addTimer(timeSecs(10), function()
+            printf("done")
+            addTimer(Time.Null, function() printf("all should be done now") end)
+        end)
     end)
 end

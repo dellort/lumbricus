@@ -49,7 +49,7 @@ class FTGlyphCache {
         int mUnderlineOffset, mUnderlineHeight;
         FT_Face mFace;
         //referenced across shared font instances
-        ubyte[] mFontStream;
+        FontData mFontStream;
         bool mDoBold, mDoItalic;
         FTFontDriver mDriver;
     }

@@ -2,12 +2,14 @@
 module common.toplevel;
 
 import common.common;
+import common.lua;
 import common.task;
 import framework.commandline;
 import framework.font;
 import framework.globalsettings;
 import framework.i18n;
 import framework.imgwrite;
+import framework.lua;
 import framework.keysyms;
 import framework.main;
 import gui.fps;
@@ -45,6 +47,7 @@ enum GUIZOrder : int {
 TopLevel gTopLevel;
 
 //this contains the mainframe
+//reason why this is an object: you want to get a delegate to most functions
 class TopLevel {
 private:
     KeyBindings keybindings;
@@ -52,7 +55,8 @@ private:
     GUI mGui;
     SystemConsole mGuiConsole;
 
-    bool mKeyNameIt = false;
+    //privileged Lua state
+    LuaState mLua;
 
     int mOldFixedFramerate;
 
@@ -81,6 +85,7 @@ private:
         mGui.mainFrame.add(mGuiConsole, clay);
 
         initConsole();
+        initLua();
 
         gWindowFrame = new WindowFrame();
         mGui.mainFrame.add(gWindowFrame);
@@ -97,10 +102,17 @@ private:
         keybindings = new KeyBindings();
         keybindings.loadFrom(loadConfig("binds").getSubNode("binds"));
 
+        loadScript(mLua, "init.lua");
+
         ConfigNode autoexec = loadConfig("autoexec");
         foreach (char[] name, char[] value; autoexec) {
             mGuiConsole.cmdline.execute(value);
         }
+    }
+
+    static ~this() {
+        if (gTopLevel)
+            delete gTopLevel.mLua;
     }
 
     private void initConsole() {
@@ -112,7 +124,6 @@ private:
 
         globals.cmdLine.registerCommand("quit", &killShortcut, "");
         globals.cmdLine.registerCommand("toggle", &showConsole, "");
-        globals.cmdLine.registerCommand("nameit", &cmdNameit, "");
         globals.cmdLine.registerCommand("video", &cmdVideo, "",
             ["int", "int", "int?=0", "bool?"]);
         globals.cmdLine.registerCommand("fullscreen", &cmdFS, "", ["text?"]);
@@ -124,9 +135,6 @@ private:
         globals.cmdLine.registerCommand("spawn", &cmdSpawn, "",
             ["text", "text?..."], [&complete_spawn]);
         globals.cmdLine.registerCommand("help_spawn", &cmdSpawnHelp, "");
-
-        globals.cmdLine.registerCommand("res_load", &cmdResLoad, "", ["text"]);
-        globals.cmdLine.registerCommand("res_unload", &cmdResUnload, "", []);
 
         globals.cmdLine.registerCommand("release_caches", &cmdReleaseCaches,
             "", ["bool?=true"]);
@@ -143,6 +151,52 @@ private:
         //used for key shortcuts
         globals.cmdLine.registerCommand("settings_cycle", &cmdSetCycle, "",
             ["text"]);
+
+        //bridge to Lua
+        globals.cmdLine.registerCommand("execlua", &cmdLua, "", ["text..."]);
+    }
+
+    //add a Lua command - del should be a delegate or a function ptr
+    private void addL(T)(char[] name, T del) {
+        //may change; maybe put all commands into a special table, and do the
+        //  same stuff as cmdLine does (providing help, auto completion, etc.)
+        mLua.setGlobal(name, del);
+    }
+
+    private void initLua() {
+        //remember, the state is privileged
+        mLua = new LuaState(LuaLib.all);
+        loadScript(mLua, "lua/utils.lua");
+        loadScript(mLua, "lua/time.lua");
+        loadScript(mLua, "lua/timer.lua");
+        setLogger(mLua, registerLog("global_lua"));
+
+        auto reg = new LuaRegistry();
+        reg.method!(IKillable, "kill");
+        //xxx taken from game/lua/base.d, should factor that
+        reg.func!(Time.fromString)("timeParse");
+        mLua.register(reg);
+
+        //bridge to cmdLine
+        addL("exec", function(char[] cmd) {
+            globals.real_cmdLine.execute(cmd);
+        });
+
+        addL("spawn", function(char[] cmd) {
+            return spawnTask(cmd);
+        });
+        addL("spawnargs", function(char[] cmd, char[] args) {
+            return spawnTask(cmd, args);
+        });
+
+        addL("dofile", function(char[] fn) {
+            loadScript(gTopLevel.mLua, fn);
+        });
+    }
+
+    private void cmdLua(MyBox[] args, Output write) {
+        char[] cmd = args[0].unbox!(char[]);
+        mLua.scriptExec(cmd);
     }
 
     private void cmdFwSettings(MyBox[] args, Output write) {
@@ -176,25 +230,10 @@ private:
         write.writefln("released {} memory consuming house shoes", released);
     }
 
-    private void cmdResUnload(MyBox[] args, Output write) {
-        gResources.unloadAll();
-    }
-
-    private void cmdResLoad(MyBox[] args, Output write) {
-        char[] s = args[0].unbox!(char[])();
-        try {
-            gResources.loadResources(s);
-        } catch (CustomException e) {
-            write.writefln("failed: {}", e);
-        }
-    }
-
     private void cmdSpawn(MyBox[] args, Output write) {
         char[] name = args[0].unbox!(char[])();
         char[] spawnArgs = args[1].unboxMaybe!(char[])();
-        if (!spawnTask(name, spawnArgs)) {
-            write.writefln("not found ({})", name);
-        }
+        spawnTask(name, spawnArgs);
     }
 
     private char[][] complete_spawn() {
@@ -202,7 +241,7 @@ private:
     }
 
     private void cmdSpawnHelp(MyBox[] args, Output write) {
-        write.writefln("registered task classes: {}", taskList());
+        write.writefln("registered tasks: {}", taskList());
     }
 
     private void onVideoInit() {
@@ -295,10 +334,6 @@ private:
             saveImage(surf, ssFile, "png");
     }
 
-    private void cmdNameit(MyBox[] args, Output write) {
-        mKeyNameIt = true;
-    }
-
     private void showConsole(MyBox[], Output) {
         mGuiConsole.toggle();
     }
@@ -318,6 +353,8 @@ private:
         mGuiFrameTime.start();
         mGui.frame();
         mGuiFrameTime.stop();
+
+        updateTimers(mLua, timeCurrentTime());
     }
 
     private void onFrame(Canvas c) {
@@ -327,24 +364,9 @@ private:
     }
 
     private void onInput(InputEvent event) {
-        //for debugging
-        //but something similar will be needed for a proper keybindings editor
-        if (mKeyNameIt && event.isKeyEvent) {
-            if (!event.keyEvent.isDown)
+        foreach (c; globals.catchInput) {
+            if (c(event))
                 return;
-
-            BindKey key = BindKey.FromKeyInfo(event.keyEvent);
-
-            mGuiConsole.output.writefln("Key: '{}' '{}', code={} mods={}",
-                key.unparse(), globals.translateKeyshortcut(key),
-                key.code, key.mods);
-
-            //modifiers are also keys, ignore them
-            if (!event.keyEvent.isModifierKey()) {
-                mKeyNameIt = false;
-            }
-
-            return;
         }
 
         //execute global shortcuts

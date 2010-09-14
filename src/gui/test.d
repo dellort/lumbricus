@@ -29,7 +29,7 @@ import gui.rendertext;
 import framework.framework;
 import framework.font;
 import framework.commandline : CommandBucket, Command;
-import utils.mybox;
+import utils.mybox : MyBox;
 import utils.output;
 import utils.perf;
 import utils.time;

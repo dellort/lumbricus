@@ -51,6 +51,12 @@ class ResourceSet {
         }
     }
 
+    override void dispose() {
+        foreach (char[] n, ref Entry e; mResByName) {
+            e = null;
+        }
+    }
+
     ///add a resource with that name
     void addResource(Object res, char[] name) {
         doAddResource(res, name, false);

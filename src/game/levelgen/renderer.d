@@ -329,15 +329,18 @@ class LandscapeBitmap {
     private this() {
     }
 
-    public void free() {
+    override void dispose() {
+        super.dispose();
+        previewDestroy();
         foreach (ref t; mTiles) {
             t.surface.free();
         }
-        mTiles = null;
+        delete mTiles;
         mLevelData = null;
         delete mLDStorage;
-        previewDestroy();
     }
+
+    alias dispose free;
 
     //if the level was created as "data only", add the image part
     //this means after this call the level is not data only anymore

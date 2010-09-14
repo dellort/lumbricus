@@ -48,6 +48,13 @@ class Common {
     //xxx move this to where-ever
     Translator localizedKeynames;
 
+    //globally capture input
+    //if a delegate returns true, propagation of the event is stopped, and on
+    //  false, the next delegate will tried. if no delegate wants to catch the
+    //  input, it is propagated to the GUI.
+    alias bool delegate(InputEvent event) CatchInput;
+    CatchInput[] catchInput;
+
     private this() {
         cmdLine = new CommandBucket();
         localizedKeynames = localeRoot.bindNamespace("keynames");
@@ -59,7 +66,8 @@ class Common {
         if (!gFramework.videoActive) {
             //this means we're F****D!!1  ("FOOLED")
             log.error("couldn't initialize video");
-            throw new CustomException("can't continue");
+            //end program in some way
+            throw new Exception("can't continue");
         }
 
         //xxx there was some reason why this was here (after video init), but
@@ -129,6 +137,8 @@ class Common {
             return translateKeyshortcut(k);
         }
     }
+
+    //debugging crap
 
     public PerfTimer newTimer(char[] name) {
         auto pold = name in timers;

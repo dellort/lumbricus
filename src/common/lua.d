@@ -2,7 +2,9 @@ module common.lua;
 
 import framework.filesystem;
 import framework.lua;
+import utils.log;
 import utils.misc;
+import utils.time;
 
 //didn't want to put this in framework.lua (too many weird dependencies)
 void loadScript(LuaState state, char[] filename, char[] environment = null) {
@@ -12,6 +14,39 @@ void loadScript(LuaState state, char[] filename, char[] environment = null) {
     auto data = st.readAll();
     scope(exit) delete data;
     state.loadScript(filename, cast(char[])data, environment);
+}
+
+//call each frame; will update the frame time and possibly call the Lua timers
+//strictly for use with timer.lua
+void updateTimers(LuaState state, Time current) {
+    state.setGlobal("d_current_time", current);
+    //actually this is just a bad hack to keep my beloved D<->Lua call count
+    //  statistic clean, and I feel bad for it (the run_timers() function
+    //  already does a similar check, so this one here is redundant)
+    auto next = state.getGlobal!(Time)("run_timers_next");
+    if (current >= next)
+        state.call("run_timers");
+}
+
+//set the lua/utils.lua log backend
+void setLogger(LuaState state, Log log) {
+    //logging - utils.lua will use the d_logoutput functions if available
+    struct Closure {
+        Log log;
+        void emitlog(LogPriority pri, TempString s) {
+            log.emit(pri, "{}", s.raw);
+        }
+        void printsink(char[] msg) {
+            if (msg == "\n")
+                return;   //hmm
+            log.notice("{}", msg);
+        }
+    }
+    auto c = new Closure;
+    c.log = log;
+    state.setGlobal("d_logoutput", &c.emitlog);
+    //output of script print calls lands here
+    state.setPrintOutput(&c.printsink);
 }
 
 alias LuaInterpreter ScriptInterpreter;

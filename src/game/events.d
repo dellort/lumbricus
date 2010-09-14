@@ -107,6 +107,12 @@ private class EventType {
     EventEntry[] unreg_list;
 
     this() {}
+
+    override void dispose() {
+        super.dispose();
+        delete handlers;
+        delete unreg_list;
+    }
 }
 
 //create marshaller for D <-> Lua event transport
@@ -158,6 +164,14 @@ final class Events {
     this(char[] target_type, Events parent = null) {
         mParent = parent;
         mTargetType = target_type;
+    }
+
+    override void dispose() {
+        super.dispose();
+        foreach (ref e; mEvents) {
+            delete e;
+        }
+        delete mEvents;
     }
 
     //this is a hack insofar, that only the global Events instance should have

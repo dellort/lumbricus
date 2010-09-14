@@ -207,11 +207,6 @@ public class ConfigNode {
         return node;
     }
 
-    //hurf
-    ConfigNode[] subNodesToArray() {
-        return mItems.dup;
-    }
-
     /// Find a subnode by following a path.
     /// Path component separator is "."
     public ConfigNode getPath(char[] path, bool create = false) {

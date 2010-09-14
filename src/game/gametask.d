@@ -42,7 +42,7 @@ import gui.boxcontainer;
 import gui.list;
 import utils.array;
 import utils.misc;
-import utils.mybox;
+import utils.mybox : MyBox;
 import utils.output;
 import utils.rect2;
 import utils.time;
@@ -59,6 +59,7 @@ import str = utils.string;
 
 import utils.stream;
 import tango.io.device.File : File;
+import memory = tango.core.Memory;
 
 //these imports register classes in a factory on module initialization
 import game.animation;
@@ -116,7 +117,7 @@ class Fader : Widget {
 
 LogStruct!("game") gGameLog;
 
-class GameTask {
+class GameTask : IKillable {
     private {
         GameShell mGameShell;
         GameLoader mGameLoader; //creates a GameShell
@@ -307,14 +308,16 @@ class GameTask {
         mLoadLog = null;
 
         //--- game (remains)
-        if (mGameShell) {
-            mGameShell.terminate();
-        }
-        mGameShell = null;
         if (mGameFrame) {
             mGameFrame.kill();
             mGameFrame.remove();
         }
+        if (mGameShell) {
+            mGameShell.terminate();
+        }
+        delete mGameShell;
+        mGameShell = null;
+        delete mGame;
         mGame = null;
         mControl = null;
         mConnection = null;
@@ -393,6 +396,11 @@ class GameTask {
             mFader = new Fader(cFadeInDuration, true);
             mWindow.add(mFader);
         }
+
+        //this helps a small little bit to reduce heap growth, and also defers
+        //  the first collection to a later point in the game, giving the user
+        //  the impression that using a GC in a game is a good idea - INGENIOUS!
+        memory.GC.collect();
     }
 
     private void loadingFailed() {
@@ -453,13 +461,14 @@ class GameTask {
         mErrorDialog = null;
     }
 
-    void kill() {
+    //IKillable.kill()
+    override void kill() {
         if (mDead)
             return;
         mDead = true;
         mRealWindow.remove();
         unloadAndReset();
-        mCmds.kill();
+        globals.cmdLine.removeSub(mCmds);
     }
 
     void terminateWithFadeOut() {

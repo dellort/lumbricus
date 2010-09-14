@@ -131,6 +131,7 @@ void init(char[][] args) {
     gLogBackendFile.sink = toDelegate(&logToConsoleAndFile);
 
     cmdlineCheckHelp(args);
+    cmdlineEnableLogs(args);
 
     //init filesystem
     auto fs = new FileSystem(APP_ID);
@@ -147,7 +148,6 @@ void init(char[][] args) {
     //  only later that change handlers accessing the FS are installed (such as
     //  locales or GUI themes)
     loadSettings();
-    cmdlineEnableLogs(args);
     cmdlineLoadSettings(args);
 
     cmdlineTerminate(args);

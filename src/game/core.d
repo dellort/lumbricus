@@ -258,7 +258,7 @@ abstract class GameCore {
         OnHudAdd.handler(events, &onHudAdd);
 
         mScripting = createScriptingState();
-        mScripting.setPrintOutput(&luaPrintSink);
+
         scripting.addSingleton(this); //doesn't work as expected, see GameEngine
         scripting.addSingleton(rnd);
         scripting.addSingleton(physicWorld);
@@ -268,10 +268,23 @@ abstract class GameCore {
 
         events.setScripting(scripting);
 
-        //scripting initialization
-        //code loaded here can be considered "internal" and should explode
-        //  on errors
         scripting.onError = &scriptingObjError;
+    }
+
+    override void dispose() {
+        super.dispose();
+        delete mScripting;
+        delete mResources;
+        delete mParticleWorld;
+        delete mEvents;
+        delete mAllObjects;
+        delete mActiveObjects;
+        delete mKillList;
+        delete mScene;
+        delete mGameConfig.level;
+        foreach (ClassInfo k, ref Object v; mSingletons) {
+            v = null;
+        }
     }
 
     //-- boring getters (but better than making everything world-writeable)
@@ -403,13 +416,12 @@ abstract class GameCore {
     //-- scripting
 
     private void scriptingObjError(ScriptingException e) {
-        log.error("Scripting error in delegate call: {}", e.msg);
+        scriptingError("in delegate call", e);
     }
 
-    private void luaPrintSink(char[] msg) {
-        if (msg == "\n")
-            return;   //hmm
-        log.notice("{}", msg);
+    private void scriptingError(char[] where, ScriptingException e) {
+        log.error("Scripting error ({}): {}", where, e.msg);
+        traceException(log, e, "for scripting error");
     }
 
     //-- GameObject managment
@@ -425,13 +437,11 @@ abstract class GameCore {
 
         objects_simulate();
 
-        //xxx not sure where script functions should be called
-        //  this will handle all script timers and per-frame functions
-        //null termination for efficient toStringz
+        //this will handle all script timers
         try {
-            scripting().call("game_per_frame");
+            updateTimers(mScripting, gameTime.current);
         } catch (ScriptingException e) {
-            log.error("Scripting error: {}", e.msg);
+            scriptingError("running scripting timers", e);
         }
 
         objects_cleanup();

@@ -17,6 +17,10 @@ bool isSubClass(ClassInfo sub, ClassInfo c) {
     return false;
 }
 
+//version = OldBox;
+
+version (OldBox) {
+
 /// most simple, but generic class that works similar to std.Boxer
 /// this is nazi-typed and neither converts between integer types (i.e. if box
 /// contains int, can't unpack as uint), not does it do upcasting for classes.
@@ -228,6 +232,94 @@ struct MyBox {
     }
 }
 
+} else { //version (OldBox)
+
+//this version of MyBox works better with the patches in dmd bugzilla #3463, and
+//  doesn't force the contained type to be scanned conservatively - but it also
+//  forces heap memory allocation even for small types (plus it loses some
+//  other features of MyBox, but they are not used anywhere in lumbricus)
+
+private class Container {
+    abstract TypeInfo type();
+}
+
+private class ContainerT(T) : Container {
+    T data;
+    this(T a_data) {
+        data = a_data;
+    }
+    override TypeInfo type() {
+        return typeid(T);
+    }
+}
+
+struct MyBox {
+    private {
+        Container mData;
+    }
+
+    /// Box data (should work like assignment if there's no opAssign).
+    void box(T)(T data) {
+        mData = new ContainerT!(T)(data);
+    }
+
+    /// Unbox; throw an exception if the types are not exactly the same.
+    /// Implicit conversion is never supported (not even upcasts).
+    T unbox(T)() {
+        auto xdata = cast(ContainerT!(T))mData;
+        if (!xdata) {
+            throw new MyBoxException("MyBox says no: unbox "
+                ~ (type ? type.toString : "<empty>") ~ " to " ~ T.stringof);
+        }
+        return xdata.data;
+    }
+
+    /// Like unbox(), but return type-default if box is empty.
+    /// (Especially useful to get null-references for classes, if box empty)
+    T unboxMaybe(T)(T def = T.init) {
+        if (mData is null) {
+            return def;
+        } else {
+            return unbox!(T)();
+        }
+    }
+
+    /// Initialize box to contain that type with default initializer.
+    void init(T)() {
+        T lala;
+        box!(T)(lala);
+    }
+
+    /// Type stored in the box; null if empty.
+    TypeInfo type() {
+        return mData ? mData.type : null;
+    }
+    bool empty() {
+        return mData is null;
+    }
+
+    /// Empty the box.
+    void nullify() {
+        mData = null;
+    }
+
+    /// Default constructor: Empty box.
+    static MyBox opCall()() {
+        MyBox box;
+        return box;
+    }
+
+    /// Construct a box with that parameter in it.
+    /// Because opCall doesntwork it's named Box
+    static MyBox Box(T)(T data) {
+        MyBox box;
+        box.box!(T)(data);
+        return box;
+    }
+}
+
+} //version(!OldBox)
+
 
 unittest {
     MyBox box;
@@ -268,6 +360,11 @@ unittest {
     if (typeid(int).init.length > 0) {
         debug Trace.formatln("mybox.d unittest: zero-init not tested!");
     }
+
+    box.init!(huh)();
+    assert(box.unbox!(huh) == huh.init);
+
+version (OldBox) {
     box.initDynamic(typeid(int));
     assert(box.unbox!(int) == 0);
 
@@ -277,9 +374,6 @@ unittest {
     box.initDynamic(typeid(FooFoo));
     assert(box.unbox!(FooFoo) == FooFoo.init);
 
-    box.init!(huh)();
-    assert(box.unbox!(huh) == huh.init);
-
     MyBox box2;
     box.box!(int)(7);
     assert(!box.compare(box2));
@@ -288,6 +382,7 @@ unittest {
     box2.box!(int)(7);
     assert(box.compare(box2));
     box2.box!(uint)(7);
+
     thrown = false;
     try { box.compare(box2); } catch (Exception e) { thrown = true; }
     assert(thrown);
@@ -308,4 +403,6 @@ unittest {
     //assert(box3.toObject() is f);
     box3.box!(long)(123);
     assert(box3.asObject() is null);
+}
+
 }

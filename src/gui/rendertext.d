@@ -154,7 +154,7 @@ public class FormattedText {
         Surface[] mImages;
         Style mRootStyle; //style at start
         Part* mParts;
-        Part[] mPartsAlloc; //for "saturating" memory allocation
+        Part* mPartsAlloc; //freelist
         StyleRange*[] mStyles;
         Vector2i mSize;
         BoxProperties mBorder;
@@ -308,18 +308,37 @@ public class FormattedText {
     private void doInit() {
         mStyleStack.length = 1;
         mStyleStack[0] = mRootStyle;
-        mPartsAlloc.length = 0;
+        while (mParts) {
+            Part* cur = mParts;
+            mParts = mParts.next;
+            freepart(cur);
+        }
         mParts = null;
     }
 
     //allocate default initialized Part
     private Part* allocpart() {
-        //allocpart() allocates from an array so that after doInit, it will
-        //  reuse the same memory, instead of thrashing the GC ("saturating"
-        //  memory allocation => actual memory allocations only until the max.
-        //  working set size is reached, then the GC isn't called anymore)
-        mPartsAlloc.length = mPartsAlloc.length + 1;
-        return &mPartsAlloc[$-1];
+        if (!mPartsAlloc) {
+            //get some (new'ing each one separately would be too simple)
+            auto some = new Part[4];
+            mPartsAlloc = &some[0];
+            for (uint n = 0; n < some.length - 1; n++) {
+                some[n].next = &some[n+1];
+            }
+        }
+        assert(mPartsAlloc);
+        auto cur = mPartsAlloc;
+        mPartsAlloc = cur.next;
+        cur.next = null;
+        return cur;
+    }
+
+    private void freepart(Part* p) {
+        if (!p)
+            return;
+        *p = Part.init;
+        p.next = mPartsAlloc;
+        mPartsAlloc = p;
     }
 
     //alloc a part, init with the current style, and append to mParts
