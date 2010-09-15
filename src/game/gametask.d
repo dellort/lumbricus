@@ -168,7 +168,7 @@ class GameTask : IKillable {
             node = loadConfig(args);
             args = "";
         } else {
-            node = loadConfig("newgame");
+            node = loadConfig("newgame.conf");
         }
 
         //hack, what else

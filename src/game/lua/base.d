@@ -48,7 +48,8 @@ static this() {
     gScripting.method!(ConfigNode, "setStringValue")("set");
     gScripting.method!(ConfigNode, "getStringArray")("getArray");
     gScripting.method!(ConfigNode, "setStringArray")("setArray");
-    gScripting.func!(loadConfig)();
+    //--what..., this is unsafe or barely safe
+    //--gScripting.func!(loadConfig)();
 }
 
 LogStruct!("lua") gLuaLog;

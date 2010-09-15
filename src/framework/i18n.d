@@ -87,12 +87,12 @@ private ConfigNode findNamespaceNode(ConfigNode rel, char[] idpath) {
 }
 
 private ConfigNode loadLocaleNodeFromPath(char[] localePath) {
-    char[] localeFile = localePath ~ '/' ~ gActiveLanguage;
-    char[] fallbackFile = localePath ~ '/' ~ gFallbackLanguage;
-    ConfigNode node = loadConfig(localeFile, false, true);
+    char[] localeFile = localePath ~ '/' ~ gActiveLanguage ~ ".conf";
+    char[] fallbackFile = localePath ~ '/' ~ gFallbackLanguage ~ ".conf";
+    ConfigNode node = loadConfig(localeFile, true);
     if (!node)
         //try fallback
-        node = loadConfig(fallbackFile, false, true);
+        node = loadConfig(fallbackFile, true);
     if (!node) {
         log.warn("Failed to load any locale file from " ~ localePath
             ~ " with language '" ~ gActiveLanguage ~ "', fallback '"
@@ -332,7 +332,7 @@ void scanLocales(void delegate(char[] id, char[] name_en, char[] name_loc) cb) {
         const trail = ".conf";
         if (!str.endsWith(filename, trail))
             return true;
-        auto node = loadConfig(cLocalePath ~ '/' ~ filename, true, true);
+        auto node = loadConfig(cLocalePath ~ '/' ~ filename, true);
         if (node) {
             char[] name_en = node["langname_en"];
             char[] name_loc = node["langname_local"];

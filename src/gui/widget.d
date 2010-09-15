@@ -2259,9 +2259,9 @@ final class GUI {
             mStyleRoot.addRules(from.getSubNode("styles"));
         }
         mStyleRoot.clearRules();
-        loadRules(loadConfig("gui_style_root"));
+        loadRules(loadConfig("gui_style_root.conf"));
         if (theme != cThemeNone)
-            loadRules(loadConfig(cThemeFolder ~ theme, true));
+            loadRules(loadConfig(cThemeFolder ~ theme));
 
         return true;
     }

@@ -64,7 +64,7 @@ int wrapMain(char[][] args, void function(char[][]) realmain) {
 }
 
 private void readLogConf() {
-    ConfigNode conf = loadConfig("logconfig.conf", true, true);
+    ConfigNode conf = loadConfig("logconfig.conf", true);
     if (!conf)
         return;
     foreach (ConfigNode sub; conf.getSubNode("logs")) {
@@ -198,7 +198,7 @@ void init(char[][] args) {
     //  language is the same
     initI18N();
 
-    loadColors(loadConfig("colors"));
+    loadColors(loadConfig("colors.conf"));
 }
 
 void cmdlineEnableLogs(ref char[][] args) {
@@ -333,7 +333,7 @@ void initFSMounts() {
     gFS.mount(MountPath.user, "/", "/", false, 0);
     ConfigNode mountConfUser;
     if (gFS.exists("mount.conf"))
-        mountConfUser = loadConfig("mount");
+        mountConfUser = loadConfig("mount.conf");
     //clear temp mounts
     gFS.reset();
 
@@ -356,7 +356,7 @@ void initFSMounts() {
 
         //temporary mounts to read mount.conf
         gFS.mount(MountPath.data, "/", "/", false, 0);
-        auto mountConf = loadConfig("mount");
+        auto mountConf = loadConfig("mount.conf");
         gFS.reset();
 
         readMountConf(mountConf);

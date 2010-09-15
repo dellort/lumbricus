@@ -591,7 +591,7 @@ class GameView : Widget {
 
         //all keybinding stuff
 
-        ConfigNode wormbindings = loadConfig("wormbinds");
+        ConfigNode wormbindings = loadConfig("wormbinds.conf");
         mCommandMap = wormbindings.getSubNode("map_commands");
 
         bindings = new KeyBindings();

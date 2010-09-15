@@ -73,7 +73,7 @@ class CmdNetClientTask {
         mClient.onDisconnect = &onDisconnect;
         mClient.onError = &onError;
 
-        auto config = loadConfig("dialogs/connect_gui");
+        auto config = loadConfig("dialogs/connect_gui.conf");
         auto loader = new LoadGui(config);
         loader.load();
 
@@ -270,7 +270,7 @@ class CreateNetworkGame : SimpleContainer {
     void delegate(GameConfig conf) onStart;
 
     this() {
-        auto config = loadConfig("dialogs/netgamesetup_gui");
+        auto config = loadConfig("dialogs/netgamesetup_gui.conf");
         auto loader = new LoadGui(config);
 
         mLevelSelector = new LevelWidget();
@@ -311,7 +311,7 @@ class CreateNetworkGame : SimpleContainer {
         auto finalLevel = mLevelSelector.currentLevel.render();
 
         //everything else uses defaults...
-        ConfigNode node = loadConfig("newgame_net");
+        ConfigNode node = loadConfig("newgame_net.conf");
         int wormHP = node.getValue("worm_hp", 150);
         int wormCount = node.getValue("worm_count", 4);
 
@@ -399,7 +399,7 @@ class CmdNetLobbyTask {
         mClient.onHostGrant = &onHostGrant;
         mClient.onHostAccept = &onHostAccept;
 
-        auto config = loadConfig("dialogs/lobby_gui");
+        auto config = loadConfig("dialogs/lobby_gui.conf");
         auto loader = new LoadGui(config);
         loader.load();
 
@@ -408,7 +408,7 @@ class CmdNetLobbyTask {
         mLobbyDlg = loader.lookup("lobby_root");
 
         mTeams = loader.lookup!(DropDownList)("dd_teams");
-        mTeamNode = loadConfig("teams").getSubNode("teams");
+        mTeamNode = loadConfig("teams.conf").getSubNode("teams");
         char[][] contents;
         foreach (ConfigNode subn; mTeamNode) {
             contents ~= subn.name;

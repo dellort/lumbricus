@@ -125,7 +125,7 @@ class GameEngine : GameCore {
         //xxx: strangely, this is necessary (see core.d)
         scripting.addSingleton(this);
 
-        mGameConf = loadConfig("game");
+        mGameConf = loadConfig("game.conf");
 
         physicWorld.gravity = Vector2f(0, mGameConf.getFloatValue("gravity",
             100));

@@ -54,7 +54,7 @@ class LevelGeneratorShared {
         themes.update();
         templates.update();
 
-        generatorConfig = loadConfig("levelgenerator");
+        generatorConfig = loadConfig("levelgenerator.conf");
         foreach (ConfigNode v; generatorConfig.getSubNode("preview_colors")) {
             previewColors[parseMarker(v.name)] = Color.fromString(v.value);
         }
@@ -695,7 +695,7 @@ class LevelTemplate {
     ConfigNode data;
 
     this(char[] path, char[] a_name) {
-        auto f = loadConfig(path, true);
+        auto f = loadConfig(path);
         name = a_name;
         data = f;
         description = data["description"];

@@ -32,11 +32,11 @@ class TeamEditorTask {
     }
 
     this() {
-        mTeamConf = loadConfig("teams");
+        mTeamConf = loadConfig("teams.conf");
         mTeams = mTeamConf.getSubNode("teams");
         mLastTeamId = mTeamConf.getIntValue("lastid", mLastTeamId);
 
-        auto loader = new LoadGui(loadConfig("dialogs/teamedit_gui"));
+        auto loader = new LoadGui(loadConfig("dialogs/teamedit_gui.conf"));
         loader.load();
 
         loader.lookup!(Button)("ok").onClick = &okClick;

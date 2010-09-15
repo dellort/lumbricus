@@ -184,11 +184,11 @@ class Plugin {
                 throw e;
             }
             //load collisions
-            char[] colFile = mConfig.getStringValue("collisions",
-                "collisions.conf");
-            mCollisions = loadConfig(mResources.fixPath(colFile), true, true);
-            if (mCollisions)
-                mCollisions = mCollisions.getSubNode("collisions");
+            char[] colFile = mConfig.getStringValue("collisions", "");
+            if (colFile.length) {
+                auto c = loadConfig(mResources.fixPath(colFile));
+                mCollisions = c.getSubNode("collisions");
+            }
             //load locale
             //  each entry is name=path
             //  name is the namespace under which the locales are loaded

@@ -442,7 +442,7 @@ private:
 
         mWindow = gWindowFrame.createWindow(new IO(), "BomberWorm");
 
-        ConfigNode config = loadConfig("bomberworm");
+        ConfigNode config = loadConfig("bomberworm.conf");
         const nPlayers = 1;
         for (int n = 0; n < nPlayers; n++) {
             auto p = new Player();

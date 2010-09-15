@@ -100,11 +100,11 @@ private:
         onVideoInit();
 
         keybindings = new KeyBindings();
-        keybindings.loadFrom(loadConfig("binds").getSubNode("binds"));
+        keybindings.loadFrom(loadConfig("binds.conf").getSubNode("binds"));
 
         loadScript(mLua, "init.lua");
 
-        ConfigNode autoexec = loadConfig("autoexec");
+        ConfigNode autoexec = loadConfig("autoexec.conf");
         foreach (char[] name, char[] value; autoexec) {
             mGuiConsole.cmdline.execute(value);
         }

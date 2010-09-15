@@ -25,10 +25,6 @@ class ResourceItem : ResourceObject {
     ///unique id of resource
     char[] id;
 
-    private {
-        bool mValid = false;
-    }
-
     protected {
         Object mContents;
         ResourceFile mContext;
@@ -36,10 +32,11 @@ class ResourceItem : ResourceObject {
     }
 
     final bool isLoaded() {
-        return mValid;
+        return !!mContents;
     }
 
-    public ConfigNode config() {
+    //only available before preload() is done
+    protected ConfigNode config() {
         return mConfig;
     }
 
@@ -61,11 +58,15 @@ class ResourceItem : ResourceObject {
 
     //preloads the resource from disk
     package void preload() {
+        //already loaded?
+        if (mContents)
+            return;
         try {
             Resources.log("Loading resource "~id);
             load();
             assert(!!mContents, "was not loaded?");
-            mValid = true;
+            //save a little bit of memory
+            mConfig = null;
         } catch (CustomException e) {
             char[] errMsg = "Resource " ~ id ~ " (" ~ toString()
                 ~ ") failed to load: "~e.toString~"  - location: "
@@ -78,9 +79,8 @@ class ResourceItem : ResourceObject {
 
     ///destroy contents and make resource reload on next use
     package void invalidate() {
-        if (mValid)
+        if (mContents)
             doUnload();
-        mValid = false;
     }
 
     ///implement this to actually load the data
@@ -387,7 +387,7 @@ public class Resources {
 
     ///also just for simplicity
     public static ConfigNode loadConfigForRes(char[] path) {
-        ConfigNode config = loadConfig(path, true);
+        ConfigNode config = loadConfig(path);
         config[cResourcePathName] = path;
         return config;
     }

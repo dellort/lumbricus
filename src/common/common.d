@@ -77,7 +77,7 @@ class Common {
         //GUI resources, this is a bit off here
         gGuiResources = gResources.loadResSet("guires.conf");
 
-        gFontManager.readFontDefinitions(loadConfig("fonts"));
+        gFontManager.readFontDefinitions(loadConfig("fonts.conf"));
     }
 
     const cVideoFS = "video.fullscreen";

@@ -43,7 +43,7 @@ class LevelWidget : SimpleContainer {
         LevelSelector mSelector;  //8-level window, created once and reused then
 
         const cSavedLevelsPath = "storedlevels/";
-        const cLastlevelConf = "lastlevel";
+        const cLastlevelConf = "lastlevel.conf";
     }
 
     void delegate(bool busy) onSetBusy;
@@ -51,7 +51,7 @@ class LevelWidget : SimpleContainer {
     this() {
         mGenerator = new LevelGeneratorShared();
 
-        auto config = loadConfig("dialogs/gamesetupshared_gui");
+        auto config = loadConfig("dialogs/gamesetupshared_gui.conf");
         auto loader = new LoadGui(config);
         loader.load();
 
@@ -112,7 +112,7 @@ class LevelWidget : SimpleContainer {
     }
 
     private void loadLastPlayedLevel() {
-        auto level = loadConfig(cLastlevelConf, false, true);
+        auto level = loadConfig(cLastlevelConf);
         if (level) {
             auto gen = new GenerateFromSaved(mGenerator, level);
             setCurrentLevel(gen);
@@ -124,7 +124,7 @@ class LevelWidget : SimpleContainer {
             loadLastPlayedLevel();
             return;
         }
-        auto level = loadConfig(cSavedLevelsPath~sender.selection);
+        auto level = loadConfig(cSavedLevelsPath~sender.selection~".conf");
         auto gen = new GenerateFromSaved(mGenerator, level);
         setCurrentLevel(gen);
         //level is already saved
@@ -264,7 +264,7 @@ class LocalGameSetupTask {
     }
 
     this() {
-        auto config = loadConfig("dialogs/localgamesetup_gui");
+        auto config = loadConfig("dialogs/localgamesetup_gui.conf");
         auto loader = new LoadGui(config);
 
         mLevelSelector = new LevelWidget();
@@ -308,7 +308,7 @@ class LocalGameSetupTask {
 
     //reload teams from config file and show in dialog
     private void loadTeams() {
-        auto conf = loadConfig("teams");
+        auto conf = loadConfig("teams.conf");
         if (!conf)
             return;
         mTeams = conf.getSubNode("teams");
@@ -412,7 +412,7 @@ class LocalGameSetupTask {
 
         assert(!mGame); //hm, no idea
         //create default GameConfig with custom level
-        auto gc = loadGameConfig(loadConfig("newgame"), level, true,
+        auto gc = loadGameConfig(loadConfig("newgame.conf"), level, true,
             mGamePersist);
         gc.teams = buildGameTeams();
         gc.randomSeed = to!(char[])(generateRandomSeed());

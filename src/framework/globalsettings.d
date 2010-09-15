@@ -265,7 +265,7 @@ char[] settingValueHelp(char[] setting) {
 //helpers to load/save to disk
 
 void loadSettings() {
-    ConfigNode node = loadConfig("settings2.conf", true, true);
+    ConfigNode node = loadConfig("settings2.conf", true);
     if (!node)
         return;
     foreach (ConfigNode sub; node) {

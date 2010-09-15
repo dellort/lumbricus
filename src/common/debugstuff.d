@@ -464,7 +464,7 @@ class LogConfig {
 
     void onSave(Button sender) {
         char[] fname = "logconfig.conf";
-        ConfigNode config = loadConfig(fname, true, true);
+        ConfigNode config = loadConfig(fname, true);
         config = config ? config : new ConfigNode();
         auto logs = config.getSubNode("logs");
         foreach (char[] name, Log log; gAllLogs) {

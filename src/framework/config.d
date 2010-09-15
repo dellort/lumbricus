@@ -16,16 +16,13 @@ private LogStruct!("configfile") logConf;
 ///load a config file from disk; file will be automatically unpacked
 ///if applicable
 ///Params:
-///  asfilename = true: append ".conf" to section name
 ///  allowFail = if the passed file could not be loaded, a value of
 ///       false -> will throw an exception (default)
 ///       true  -> will return null
-ConfigNode loadConfig(char[] section, bool asfilename = false,
-    bool allowFail = false)
+ConfigNode loadConfig(char[] filename, bool allowFail = false)
 {
-    char[] fnConf = section ~ (asfilename ? "" : ".conf");
-    VFSPath file = VFSPath(fnConf);
-    VFSPath fileGz = VFSPath(fnConf~".gz");
+    VFSPath file = VFSPath(filename);
+    VFSPath fileGz = VFSPath(filename~".gz");
     bool gzipped;
     if (!gFS.exists(file) && gFS.exists(fileGz)) {
         //found gzipped file instead of original
@@ -66,8 +63,8 @@ error:
 
 ///Same as above, but will return an empty ConfigNode on error
 ///Never returns null or throws
-ConfigNode loadConfigDef(char[] section, bool asfilename = false) {
-    ConfigNode res = loadConfig(section, asfilename, true);
+ConfigNode loadConfigDef(char[] filename) {
+    ConfigNode res = loadConfig(filename, true);
     if (!res)
         res = new ConfigNode();
     return res;

@@ -143,7 +143,7 @@ class GameLoader {
         auto r = new GameLoader();
         auto lg = new GameShell.InputLog;
         r.mDemoInput = lg;
-        auto demoFile = loadConfig(filename_prefix ~ ".conf", true);
+        auto demoFile = loadConfig(filename_prefix ~ ".conf");
         auto cfg = new GameConfig();
         r.mGameConfig = cfg;
         cfg.load(demoFile.getSubNode("game_config"));

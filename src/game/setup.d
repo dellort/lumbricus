@@ -104,7 +104,7 @@ GameConfig doLoadGameConfig(ConfigNode mConfig, Level level = null,
             break;
         case "load":
             cfg.level = loadSavedLevel(x,
-                loadConfig(mConfig["level_load"], true), renderBitmaps);
+                loadConfig(mConfig["level_load"]), renderBitmaps);
             break;
         case "loadbmp":
             auto gen = new GenerateFromBitmap(x);
@@ -121,12 +121,12 @@ GameConfig doLoadGameConfig(ConfigNode mConfig, Level level = null,
 
     cfg.saved_level = cfg.level.saved;
 
-    auto teamconf = loadConfig("teams");
+    auto teamconf = loadConfig("teams.conf");
     cfg.teams = teamconf.getSubNode("teams");
 
     cfg.levelobjects = mConfig.getSubNode("levelobjects");
 
-    auto gamemodecfg = loadConfig("gamemode");
+    auto gamemodecfg = loadConfig("gamemode.conf");
     auto modes = gamemodecfg.getSubNode("modes");
     auto modeNode = modes.getSubNode(
         mConfig.getStringValue("gamemode",""));

@@ -105,7 +105,9 @@ GenericLoader DerelictENet;
 static this() {
     DerelictENet.setup(
         "enet.dll",
-        "libenet.so.2",
+        //not sure what this is with the library name on my debian system, but
+        //  it works anyway
+        "libenet.so.2,libenet.so.0debian1",
         "",
         &load
     );

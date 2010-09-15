@@ -582,7 +582,7 @@ class WindowFrame : Container {
 
         styles.addClass("mainframe");
 
-        mConfig = loadConfig("window");
+        mConfig = loadConfig("window.conf");
 
         mKeysWindow = new KeyBindings();
         mKeysWindow.loadFrom(mConfig.getSubNode("window_bindings"));

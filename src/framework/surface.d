@@ -170,10 +170,11 @@ final class Surface : ResourceT!(DriverSurface) {
         //=> unlike in ~this(), can call free() here
         super.dispose();
         assert(!driverResource);
-        if (!mAllocator)
-            return; //already free'd
-        mAllocator.length = 0;
+        if (mAllocator)
+            mAllocator.length = 0;
         delete mAllocator;
+        delete mSubsurfaces;
+        mFullSubSurface = null;
     }
 
     alias dispose free;

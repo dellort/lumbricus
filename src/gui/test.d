@@ -376,7 +376,7 @@ class TestTask {
         createWindow("Tabs", new TestFrame10());
 
         //test loading GUIs from file
-        auto loader = new LoadGui(loadConfig("dialogs/test_gui"));
+        auto loader = new LoadGui(loadConfig("dialogs/test_gui.conf"));
         loader.load();
         createWindow("Test5", loader.lookup("root"));
 

@@ -25,7 +25,7 @@ class GameSummary {
     }
 
     this(ConfigNode persist) {
-        auto config = loadConfig("dialogs/gamesummary_gui");
+        auto config = loadConfig("dialogs/gamesummary_gui.conf");
         auto loader = new LoadGui(config);
         loader.load();
 
@@ -44,7 +44,7 @@ class GameSummary {
         //xxx for debugging, you can do "spawn scores last" and it will show
         //    the last debug dump
         if (args == "last") {
-            init(loadConfig("persistence_debug"));
+            init(loadConfig("persistence_debug.conf"));
         }
 +/
 

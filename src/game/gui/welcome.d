@@ -45,7 +45,7 @@ class WelcomeTask {
     }
 
     this(char[] args = "") {
-        auto config = loadConfig("dialogs/welcome_gui");
+        auto config = loadConfig("dialogs/welcome_gui.conf");
         auto loader = new LoadGui(config);
         mDefaultCommand = config["default_command"];
         loader.load();

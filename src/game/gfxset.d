@@ -80,7 +80,7 @@ class GfxSet {
     }
 
     private void loadParticles() {
-        auto conf = loadConfig("particles");
+        auto conf = loadConfig("particles.conf");
         foreach (ConfigNode node; conf.getSubNode("particles")) {
             ParticleType p = new ParticleType();
             p.read(resources, node);
@@ -121,7 +121,7 @@ class GfxSet {
         //...
 
         //xxx this file is loaded at two places (gravity in game engine)
-        auto gameConf = loadConfig("game.conf", true);
+        auto gameConf = loadConfig("game.conf");
 
         mCollisionMap = core.physicWorld.collide;
         addCollideConf(gameConf.getSubNode("collisions"));

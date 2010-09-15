@@ -34,7 +34,7 @@ class LocaleSwitch {
         //for reset on cancel
         mOldLanguage = gCurrentLanguage.value;
 
-        auto loader = new LoadGui(loadConfig("dialogs/locale_gui"));
+        auto loader = new LoadGui(loadConfig("dialogs/locale_gui.conf"));
         loader.load();
 
         loader.lookup!(Button)("btn_ok").onClick = &okClick;

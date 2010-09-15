@@ -895,7 +895,7 @@ bool gTerminate = false;
 
 void runCmdServer() {
     setupConsole("Lumbricus Server");
-    auto server = new CmdNetServer(loadConfigDef("server"));
+    auto server = new CmdNetServer(loadConfigDef("server.conf"));
     scope(exit) server.shutdown();
     while (!gTerminate) {
         server.frame();
