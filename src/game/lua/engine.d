@@ -28,6 +28,9 @@ static this() {
     gScripting.properties!(GameEngine, "persistentState", "gameLandscapes",
         "enableDebugDraw");
 
+    gScripting.method!(GameEngine, "placeObjectRandomScript")
+        ("placeObjectRandom");
+
     gScripting.methods!(GameCore, "animationEffect");
 
     gScripting.properties_ro!(GameLandscape, "landscape", "rect");
@@ -49,8 +52,8 @@ static this() {
     gScripting.property_ro!(GameObject, "objectAlive");
 
     gScripting.methods!(Sprite, "setPos", "activate", "setParticle");
-    gScripting.properties!(Sprite, "graphic", "noActivityWhenGlued",
-        "exceedVelocity", "notifyAnimationEnd");
+    gScripting.properties!(Sprite, "graphic", "noActivity",
+        "noActivityWhenGlued", "exceedVelocity", "notifyAnimationEnd");
     gScripting.properties_ro!(Sprite, "physics", "isUnderWater", "visible",
         "type");
 
@@ -59,7 +62,7 @@ static this() {
         "getInitSequenceType");
     gScripting.property_ro!(SpriteClass, "name");
     gScripting.properties!(SpriteClass, "initialHp", "initPhysic",
-        "initParticle", "sequenceType", "sequenceState",
+        "initParticle", "sequenceType", "sequenceState", "initNoActivity",
         "initNoActivityWhenGlued");
 
     gScripting.properties_ro!(SequenceState, "owner");
@@ -67,7 +70,8 @@ static this() {
     gScripting.methods!(SequenceType, "findState");
 
     gScripting.methods!(Sequence, "setState", "queueState");
-    gScripting.properties!(Sequence, "attachText");
+    gScripting.properties!(Sequence, "attachText", "cameraArrows",
+        "positionArrow");
     gScripting.properties_ro!(Sequence, "currentState");
 
     gScripting.methods!(ParticleWorld, "emitParticle");

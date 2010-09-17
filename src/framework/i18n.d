@@ -119,6 +119,7 @@ void addLocaleDir(char[] targetId, char[] localePath) {
 private void reloadLocaleDir(LocaleDir dir) {
     ConfigNode newNode = findNamespaceNode(gRootNode, dir.targetId);
     assert(!!newNode);
+    log.trace("reload locale: id={} path={}", dir.targetId, dir.localePath);
     auto node = loadLocaleNodeFromPath(dir.localePath);
     newNode.mixinNode(node);
 }

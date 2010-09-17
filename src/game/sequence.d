@@ -211,6 +211,13 @@ final class Sequence : SceneObject {
     //just used to display jetpack exhaust flames
     Vector2f selfForce;
 
+    //if true, draw out-of-camera arrows instead of out-of-level arrows
+    bool cameraArrows;
+
+    //if true, the arrow is oriented by the position of the Sequence, not by its
+    //  velocity
+    bool positionArrow;
+
     //and this is a hack... but I guess it's good enough for now
     FormattedText attachText;
 
@@ -369,6 +376,53 @@ final class Sequence : SceneObject {
         assert(displayObjectOk(mDisplay));
         mDisplay.init(mCurrentState);
     }
+
+    //draw out of level/out of camera arrows
+    void drawArrowStuff(Canvas c) {
+        Animation arrow = team ? team.cursor : null;
+        if (arrow) {
+            auto ipos = interpolated_position();
+
+            //if object is out of world boundaries, show arrow
+            Rect2i bounds = engine.level.worldBounds;
+            if (cameraArrows)
+                bounds = c.visibleArea();
+            if (!bounds.isInside(ipos) && ipos.y < bounds.p2.y) {
+                const int cMargin = 20; //est. size for arrow / 2
+
+                auto itime = interpolated_time();
+
+                auto posrect = bounds;
+                posrect.extendBorder(Vector2i(-cMargin));
+                auto apos = posrect.clip(ipos);
+                Vector2f dir = void;
+                if (positionArrow) {
+                    //rotation so that it points to the position of the arrow
+                    dir = toVector2f(ipos - apos);
+                } else {
+                    //use object velocity for arrow rotation
+                    dir = velocity;
+                }
+                int a = 90;
+                if (dir.quad_length > float.epsilon)
+                    a = cast(int)(dir.toAngle()*180.0f/math.PI);
+                AnimationParams aparams;
+                //arrow animation seems rotated by 180° <- no it's not!!1
+                aparams.p1 = (a+180)%360;
+                //arrows used to have zorder GameZOrder.RangeArrow
+                //now they have the zorder of the object; I think it's ok
+                arrow.draw(c, apos, aparams, itime);
+
+                //label for distance between outer border and object
+                posrect.extendBorder(Vector2i(-cMargin));
+                FormattedText txt = engine.getTempLabel(team);
+                txt.setTextFmt(false, "{}", (ipos-apos).length - cMargin);
+                Vector2i s = txt.textSize();
+                Rect2i rn = posrect.moveInside(Rect2i(s).centeredAt(ipos));
+                txt.draw(c, rn.p1);
+            }
+        }
+    }
 }
 
 //xxx: could be made a SceneObject (for fun and profit)
@@ -458,35 +512,7 @@ class AniStateDisplay : StateDisplay {
 
         mAnimation.draw(c, ipos, ani_params, (itime - mStart) * mSpeed);
 
-        Animation arrow = owner.team ? owner.team.cursor : null;
-        if (arrow) {
-            //if object is out of world boundaries, show arrow
-            Rect2i worldbounds = owner.engine.level.worldBounds;
-            if (!worldbounds.isInside(ipos) && ipos.y < worldbounds.p2.y) {
-                const int cMargin = 20; //est. size for arrow / 2
-                auto posrect = worldbounds;
-                posrect.extendBorder(Vector2i(-cMargin));
-                auto apos = posrect.clip(ipos);
-                //use object velocity for arrow rotation
-                int a = 90;
-                if (owner.velocity.quad_length > float.epsilon)
-                    a = cast(int)(owner.velocity.toAngle()*180.0f/math.PI);
-                AnimationParams aparams;
-                //arrow animation seems rotated by 180° <- no it's not!!1
-                aparams.p1 = (a+180)%360;
-                //arrows used to have zorder GameZOrder.RangeArrow
-                //now they have the zorder of the object; I think it's ok
-                arrow.draw(c, apos, aparams, itime - mStart);
-
-                //label for distance between outer border and object
-                posrect.extendBorder(Vector2i(-cMargin));
-                FormattedText txt = owner.engine.getTempLabel(owner.team);
-                txt.setTextFmt(false, "{}", (ipos-apos).length - cMargin);
-                Vector2i s = txt.textSize();
-                Rect2i rn = posrect.moveInside(Rect2i(s).centeredAt(ipos));
-                txt.draw(c, rn.p1);
-            }
-        }
+        owner.drawArrowStuff(c);
     }
 
     final void setAnimation(Animation a_animation, Time startAt = Time.Null) {

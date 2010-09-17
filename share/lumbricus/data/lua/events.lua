@@ -11,6 +11,7 @@
 local eventhandlers = {}
 
 local function do_addEventHandler(events, event_name, handler)
+    assert(handler)
     -- garbage collection: keep each "events" instance forever, assuming there's
     --  a bounded number of event instances per game
     local ns = eventhandlers[events]

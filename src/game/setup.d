@@ -67,6 +67,7 @@ class GameConfig {
 }
 
 //xxx doesn't really belong here
+//config = i.e. newgame.conf
 //not to be called by GameTask; instead, anyone who wants to start a game can
 //call this to the params out from a configfile
 //GameTask should not be responsible to choose any game configuration for you
@@ -121,15 +122,16 @@ GameConfig doLoadGameConfig(ConfigNode mConfig, Level level = null,
 
     cfg.saved_level = cfg.level.saved;
 
-    auto teamconf = loadConfig("teams.conf");
-    cfg.teams = teamconf.getSubNode("teams");
+    if (auto teams = mConfig.findNode("teams")) {
+        cfg.teams = teams;
+    } else {
+        auto teamconf = loadConfig("teams.conf");
+        cfg.teams = teamconf.getSubNode("teams");
+    }
 
     cfg.levelobjects = mConfig.getSubNode("levelobjects");
 
     auto gamemodecfg = loadConfig("gamemode.conf");
-    auto modes = gamemodecfg.getSubNode("modes");
-    auto modeNode = modes.getSubNode(
-        mConfig.getStringValue("gamemode",""));
 
     //gamemode.conf contains all defined weapon sets, but we only
     //  want the ones used in the current game
@@ -155,11 +157,27 @@ GameConfig doLoadGameConfig(ConfigNode mConfig, Level level = null,
 
     cfg.gfx = mConfig.getSubNode("gfx");
     cfg.plugins = mConfig.getSubNode("plugins");
-    //xxx always load default weaponset
-    if (!cfg.plugins.hasSubNodes()) {
-        cfg.plugins.getSubNode("ws_default");
+
+    auto mode = mConfig.getSubNode("gamemode");
+    ConfigNode modeNode;
+    if (mode.value.length) {
+        //mode = "moderef"
+        //where moderef is an entry in gamemode.conf/modes
+        auto modes = gamemodecfg.getSubNode("modes");
+        modeNode = modes.getSubNode(mode.value);
+    } else {
+        //mode { ... }
+        //the contents of the node is the same as in gamemode.conf/modes
+        modeNode = mode;
     }
-    cfg.plugins.getSubNode(modeNode["mode"]).mixinNode(modeNode, true);
+
+    char[] modeplugin = modeNode["plugin"];
+    if (!modeplugin.length)
+        throwError("game mode plugin missing in {}", modeNode.locationString());
+
+    //add the game mode plugin at the end of the plugin list, or if it is
+    //  already listed as plugin, add the game mode parameters (?)
+    cfg.plugins.getSubNode(modeplugin).mixinNode(modeNode, true);
 
     if (!persistentState)
         persistentState = mConfig.getSubNode("gamestate");

@@ -699,16 +699,22 @@ end
 -- handle coroutine "scheduling" (or whatever)
 local function mayrun(cor)
     -- not sure what should go in here...
-    local status, cmd, p = coroutine.resume(cor)
+    local status, cmd_or_err, p = coroutine.resume(cor)
     if not status == true then
-        return
+        local msg = utils.format("{}", cmd_or_err)
+        if debug and debug.traceback then
+            -- xxx a bit whacky
+            msg = debug.traceback(cor, msg)
+        end
+        print(msg)
+        error("when running coroutine: " .. msg)
     end
-    if cmd == "sleep" then
+    if cmd_or_err == "sleep" then
         return
-    elseif cmd == nil then
+    elseif cmd_or_err == nil then
         return
     else
-        assert(false, "invalid coroutine return: " .. cmd)
+        assert(false, "invalid coroutine return: " .. cmd_or_err)
     end
 end
 

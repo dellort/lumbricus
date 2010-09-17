@@ -795,3 +795,22 @@ end
 function emitShooterParticle(particle_type, shooter)
     emitSpriteParticle(particle_type, Shooter_owner(shooter))
 end
+
+-- sender = object whose type is one of TeamTheme, Team, TeamMember
+--          if nil, the message is neutral
+-- id = translation id string
+-- args = translation arguments (nil if none)
+function gameMessage(sender, id, args)
+    if d_is_class(sender, d_find_class("Member")) then
+        sender = Member_team(sender)
+    end
+    if d_is_class(sender, d_find_class("Team")) then
+        sender = Team_theme(sender)
+    end
+    local msg = {
+        lm = { id = id, args = args, rnd = Random_rangef(0, 1000) },
+        color = sender,
+        is_private = false,
+    }
+    raiseGlobalEvent("game_message", msg)
+end

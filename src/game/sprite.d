@@ -64,6 +64,9 @@ class Sprite : GameObject {
     //if it gets active again it's recreated again LOL
     Sequence graphic;
 
+    //if true, activity() never returns true
+    bool noActivity;
+
     //if false, sprite is considered active if visible/alive
     //if true, sprite is considered active only if it's moving (== unglued)
     bool noActivityWhenGlued;
@@ -82,6 +85,7 @@ class Sprite : GameObject {
         assert(!!mType);
 
         noActivityWhenGlued = type.initNoActivityWhenGlued;
+        noActivity = type.initNoActivity;
 
         physics = new PhysicObjectCircle();
         physics.backlink = this;
@@ -141,6 +145,8 @@ class Sprite : GameObject {
     }
 
     override bool activity() {
+        if (noActivity)
+            return false;
         return internal_active && !(physics.isGlued && noActivityWhenGlued);
     }
 
@@ -328,6 +334,7 @@ class SpriteClass {
     POSP initPhysic;
     ParticleType initParticle;
     bool initNoActivityWhenGlued = false;
+    bool initNoActivity = false;
 
     this (GameCore a_core, char[] a_name) {
         engine = a_core;

@@ -103,6 +103,12 @@ class WeaponSet : GameObject {
             dg(e);
     }
 
+    //xxx can't use overloading because of Lua wrapper
+    void iterate2(void delegate(WeaponClass weapon, uint quantity) dg) {
+        foreach (e; mEntries)
+            dg(e.weapon, e.quantity);
+    }
+
     //linear search, but this isn't called that often and item count is low
     private Entry* do_find(WeaponClass w, bool add) {
         foreach (ref e; mEntries) {

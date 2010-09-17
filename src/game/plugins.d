@@ -193,6 +193,7 @@ class Plugin {
             //  each entry is name=path
             //  name is the namespace under which the locales are loaded
             //  path is a relative path within the plugin's directory
+            //xxx: the locales remain globally available, even if the game ends?
             auto locales = mConfig.getValue!(char[][char[]])("locales");
             foreach (char[] name, char[] path; locales) {
                 addLocaleDir(name, mResources.fixPath(path));

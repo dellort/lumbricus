@@ -156,38 +156,57 @@ class GameTask : IKillable {
     this(char[] args = "") {
         createWindow();
 
-        if (str.eatStart(args, "demo:")) {
+        //hack, what else
+        //there should be a proper command line parser (for lumbricus.d too)
+        //actually, normally the newgame.conf would contain all this stuff, and
+        //  we need a proper way to create sucha a .conf to start a new game
+        char[][] argv = str.split(args);
+        char[] start_config;
+        char[] start_demo;
+        bool freegraphics;
+
+        foreach (arg; argv) {
+            if (str.eatStart(arg, "demo:")) {
+                start_demo = arg;
+                continue;
+            }
+
+            if (str.eatStart(arg, "config:")) {
+                start_config = arg;
+                continue;
+            }
+
+            if (arg == "freegraphics") {
+                freegraphics = true;
+                continue;
+            }
+
+            //error
+            kill(); //remove that window
+            throwError("unknown argument for game spawning: '{}'", arg);
+        }
+
+        if (start_demo.length) {
             doInit({
-                mGameLoader = GameLoader.CreateFromDemo(args);
+                mGameLoader = GameLoader.CreateFromDemo(start_demo);
             });
             return;
         }
 
         ConfigNode node;
-        if (str.eatStart(args, "config:")) {
-            node = loadConfig(args);
-            args = "";
+
+        if (start_config.length) {
+            node = loadConfig(start_config);
         } else {
             node = loadConfig("newgame.conf");
         }
 
-        //hack, what else
-        //there should be a proper command line parser (for lumbricus.d too)
-        if (args == "freegraphics") {
-            args = "";
+        if (freegraphics)
             node.getSubNode("gfx")["config"] = "freegraphics.conf";
-        }
 
-        if (args == "") {
-            doInit({
-                mGameLoader = GameLoader.CreateNewGame(loadGameConfig(node));
-            });
-            return;
-        }
-
-        kill(); //remove that window
-
-        throw new CustomException("unknown commandline params: >"~args~"<");
+        doInit({
+            mGameLoader = GameLoader.CreateNewGame(loadGameConfig(node));
+        });
     }
 
     //start a game

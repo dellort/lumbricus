@@ -15,6 +15,7 @@ import game.weapon.napalm;
 import game.weapon.parachute;
 import game.weapon.rope;
 import game.weapon.weapon;
+import game.weapon.weaponset;
 import utils.color;
 import utils.time;
 import utils.vector2;
@@ -28,6 +29,9 @@ static this() {
     gScripting.methods!(Shooter, "finished", "reduceAmmo");
     gScripting.properties!(Shooter, "owner", "fireinfo", "selector");
     gScripting.func!(gameObjectFindShooter)();
+
+    gScripting.methods!(WeaponSet, "addWeapon", "canUseWeapon");
+    gScripting.method!(WeaponSet, "iterate2")("iterate");
 
     //------- specific weapons implemented in D
 

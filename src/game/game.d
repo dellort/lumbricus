@@ -516,6 +516,21 @@ class GameEngine : GameCore {
         return false;
     }
 
+    struct PlaceObjectStruct {
+        const cTupleReturn = true;
+        int numReturnValues;
+        Vector2f drop;
+        Vector2f dest;
+    }
+    PlaceObjectStruct placeObjectRandomScript(float radius, bool inAir = false,
+        int retrycount = 20)
+    {
+        PlaceObjectStruct ret;
+        if (placeObjectRandom(radius, retrycount, ret.drop, ret.dest, inAir))
+            ret.numReturnValues = 2;
+        return ret;
+    }
+
     ///Queued placing:
     ///as placeObjectDet always returns the same positions for the same call
     ///order, use queuePlaceOnLandscape() to add all sprites to the queue,
