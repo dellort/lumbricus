@@ -89,8 +89,8 @@ class ModeTurnbased : Gamemode {
 
         OnCollectTool.handler(engine.events, &doCollectTool);
 
-        OnHudAdd.raise(engine.events, "timer", mTimeSt);
-        OnHudAdd.raise(engine.events, "prepare", mPrepareSt);
+        OnHudAdd.raise(engine.events, mTimeSt);
+        OnHudAdd.raise(engine.events, mPrepareSt);
     }
 
     override void startGame() {

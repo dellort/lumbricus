@@ -706,7 +706,6 @@ local function mayrun(cor)
             -- xxx a bit whacky
             msg = debug.traceback(cor, msg)
         end
-        print(msg)
         error("when running coroutine: " .. msg)
     end
     if cmd_or_err == "sleep" then
@@ -714,7 +713,7 @@ local function mayrun(cor)
     elseif cmd_or_err == nil then
         return
     else
-        assert(false, "invalid coroutine return: " .. cmd_or_err)
+        error(utils.format("invalid coroutine return: {}", cmd_or_err))
     end
 end
 

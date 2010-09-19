@@ -36,9 +36,10 @@ alias DeclareGlobalEvent!("game_init") OnGameInit;
 alias DeclareGlobalEvent!("game_end") OnGameEnd;
 alias DeclareGlobalEvent!("game_sudden_death") OnSuddenDeath;
 //add a HUD object to the GUI;
-//  char[] id = type of the HUD object to add
 //  Object info = status object, that is used to pass information to the HUD
-alias DeclareGlobalEvent!("game_hud_add", char[], Object) OnHudAdd;
+alias DeclareGlobalEvent!("game_hud_add", Object) OnHudAdd;
+//remove previously added HUD element (passing the status object)
+alias DeclareGlobalEvent!("game_hud_remove", Object) OnHudRemove;
 
 ///let the client display a message (like it's done on round's end etc.)
 ///this is a bit complicated because message shall be translated on the
@@ -195,7 +196,7 @@ abstract class GameCore {
         PhysicWorld mPhysicWorld;
         ResourceSet mResources;
         ParticleWorld mParticleWorld;
-        Object[char[]] mHudRequests;
+        bool[Object] mHudRequests;
         Log mLog;
         //blergh
         bool mBenchMode;
@@ -256,6 +257,7 @@ abstract class GameCore {
         mResources = new ResourceSet();
 
         OnHudAdd.handler(events, &onHudAdd);
+        OnHudRemove.handler(events, &onHudRemove);
 
         mScripting = createScriptingState();
 
@@ -349,15 +351,18 @@ abstract class GameCore {
         return null;
     }
 
-    private void onHudAdd(char[] id, Object obj) {
-        assert(!(id in mHudRequests), "id must be unique?");
-        mHudRequests[id] = obj;
+    private void onHudAdd(Object obj) {
+        mHudRequests[obj] = true;
+    }
+
+    private void onHudRemove(Object obj) {
+        mHudRequests.remove(obj);
     }
 
     //just needed for game loading (see gameframe.d)
     //(actually, this is needed even on normal game start)
-    Object[char[]] allHudRequests() {
-        return mHudRequests;
+    Object[] allHudRequests() {
+        return mHudRequests.keys;
     }
 
     //remove all objects etc. from the scene

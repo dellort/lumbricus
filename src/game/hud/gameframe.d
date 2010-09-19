@@ -92,6 +92,8 @@ class GameFrame : SimpleContainer {
         Label mPauseLabel;
         BoxContainer mSideBar;
 
+        Widget[] mHudWidgets;
+
         enum ConsoleMode {
             Chat,
             Script,
@@ -334,13 +336,19 @@ class GameFrame : SimpleContainer {
     }
 
     //hud elements requested by gamemode
-    private void onHudAdd(char[] id, Object link) {
-        addHud(id, link);
+    private void onHudAdd(Object link) {
+        argcheck(link);
+        mHudWidgets ~= instantiateHud(mGui, game, link);
     }
 
-    private void addHud(char[] id, Object link) {
-        argcheck(link);
-        HudFactory.instantiate(id, mGui, game, link);
+    private void onHudRemove(Object link) {
+        foreach (int idx, h; mHudWidgets) {
+            if (h is link) {
+                mHudWidgets = mHudWidgets[0..idx] ~ mHudWidgets[idx+1..$];
+                h.remove();
+                break;
+            }
+        }
     }
 
     private void showLogEntry(LogEntry e) {
@@ -520,8 +528,8 @@ class GameFrame : SimpleContainer {
         OnWeaponSetChanged.handler(game.engine.events, &updateWeapons);
         OnHudAdd.handler(game.engine.events, &onHudAdd);
 
-        foreach (char[] id, Object obj; game.engine.allHudRequests) {
-            addHud(id, obj);
+        foreach (Object obj; game.engine.allHudRequests) {
+            onHudAdd(obj);
         }
 
         //this is very violent; but I don't even know yet how game specific

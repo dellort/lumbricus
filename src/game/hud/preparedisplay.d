@@ -58,6 +58,6 @@ class PrepareDisplay : Label {
     }
 
     static this() {
-        HudFactory.register!(typeof(this))("prepare");
+        registerHud!(typeof(this), PrepareStatus)();
     }
 }

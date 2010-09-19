@@ -871,15 +871,16 @@ final class LuaReference {
 
 //wrapper for D->Lua delegates (implemented in Lua, called by D)
 private class LuaDelegateWrapper(T) {
-    private lua_State* mState;
+    private LuaState mDState;
     private RealLuaRef mRef;
     alias ParameterTupleOf!(T) Params;
     alias ReturnTypeOf!(T) RetType;
 
     //only to be called from luaStackDelegate()
     private this(lua_State* state, int stackIdx) {
-        mState = state;
         mRef = new RealLuaRef(state, stackIdx, this);
+        mDState = mRef.mDState;
+        assert(!!mDState);
     }
 
     //delegate to this is returned by luaStackDelegate/luaStackValue!(T)
@@ -889,20 +890,20 @@ private class LuaDelegateWrapper(T) {
         static if (novoid)
             RetType res;
         try {
-            luaProtected(mState, {
-                mRef.push(mState);
-                assert(lua_isfunction(mState, -1));
+            lua_State* state = mDState.state;
+            luaProtected(state, {
+                mRef.push(state);
+                assert(lua_isfunction(state, -1));
                 static if (novoid)
-                    res = luaCall!(RetType, Params)(mState, args);
+                    res = luaCall!(RetType, Params)(state, args);
                 else
-                    luaCall!(void, Params)(mState, args);
+                    luaCall!(void, Params)(state, args);
             });
         } catch (LuaException e) {
             //we could be anywhere in the code, and letting the LuaException
             //  through would most certainly cause a crash. So it is passed
             //  to the parent LuaState, which can report it back
-            auto lsInst = LuaState.getInstance(mState);
-            lsInst.reportDelegateError(e);
+            mDState.reportDelegateError(e);
             //if reportDelegate doesn't re-throw, return default
         }
         static if (novoid)
@@ -975,17 +976,18 @@ private void luaProtected(lua_State* state, void delegate() code) {
     //NOTE: heavily relies on the fact that all these functions don't raise any
     //  Lua errors (check the manual for the API); neutral error domain
     //get the cached C closure for the pcall_err_handler function
-    lua_pushlightuserdata(state, &cErrorHandlerKey);
-    lua_rawget(state, LUA_REGISTRYINDEX);
+    lua_pushlightuserdata(state, &cErrorHandlerKey); //key
+    lua_rawget(state, LUA_REGISTRYINDEX); //eh
     //get the cached C closure for the pcall_invoke_handler function
-    lua_pushlightuserdata(state, &cPInvokeHandlerKey);
-    lua_rawget(state, LUA_REGISTRYINDEX);
+    lua_pushlightuserdata(state, &cPInvokeHandlerKey); //eh key
+    lua_rawget(state, LUA_REGISTRYINDEX); //eh ih
     //push the parts of the delegate, these are the function arguments
-    lua_pushlightuserdata(state, code.ptr);
-    lua_pushlightuserdata(state, code.funcptr);
+    lua_pushlightuserdata(state, code.ptr); //eh ih ptr
+    lua_pushlightuserdata(state, code.funcptr); //eh ih ptr fptr
     //stack: -4:errorfn -3:callfunction -2:arg1 -1:arg2
     int res = lua_pcall(state, 2, 0, -4);
     if (res != 0) {
+        //stack: eh error
         if (res != LUA_ERRRUN) {
             //something REALLY bad happened *shrug*
             //  LUA_ERRMEM: out of memory... nothing will work anymore, go die
@@ -1000,6 +1002,7 @@ private void luaProtected(lua_State* state, void delegate() code) {
         assert(!!e);
         throw e;
     }
+    //stack: eh
     //remove the error handler
     lua_pop(state, 1);
 }
@@ -1550,6 +1553,8 @@ class LuaState {
         version (USE_FULL_UD) {
             mLua = luaL_newstate();
             mPtrList = new PointerPinTable();
+            //needed in theory, pointless in practise (at least currently)
+            mPtrList.pinPointer(cast(void*)this);
         } else {
             mLua = lua_newstate(&my_lua_alloc, null);
         }

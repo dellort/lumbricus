@@ -57,7 +57,7 @@ class ModeRealtime : Gamemode {
         mStatus.showGameTime = true;
         this.config = config.getCurValue!(ModeConfig)();
 
-        OnHudAdd.raise(engine.events, "timer", mStatus);
+        OnHudAdd.raise(engine.events, mStatus);
     }
 
     override void simulate() {

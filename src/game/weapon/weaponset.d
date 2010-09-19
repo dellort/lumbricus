@@ -153,13 +153,20 @@ class WeaponSet : GameObject {
     }
 
     //decrease weapon by one - return if success
-    bool decreaseWeapon(WeaponClass w) {
+    bool decreaseWeapon(WeaponClass w, uint quantity = 1) {
         Entry* e = do_find(w, false);
         if (!e)
             return false;
         assert(e.quantity != 0); //unallowed state
-        if (!e.infinite())
-            e.quantity -= 1;
+        if (!e.infinite()) {
+            if (e.quantity < quantity)
+                return false;
+            e.quantity -= quantity;
+        } else {
+            //inf-inf = 0
+            if (quantity == Entry.cINF)
+                e.quantity = 0;
+        }
         if (e.quantity == 0) {
             //remove from array by moving the last array element into its place
             size_t idx = e - mEntries.ptr;

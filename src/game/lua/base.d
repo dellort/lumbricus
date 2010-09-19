@@ -27,10 +27,19 @@ debug {
 
 LuaRegistry gScripting;
 
+//sigh..
+private Time timeParse(char[] s) {
+    try {
+        return Time.fromString(s);
+    } catch (ConversionException e) {
+        throwError("{}", e);
+    }
+}
+
 static this() {
     gScripting = new typeof(gScripting)();
     //I'm not gonna rewrite that
-    gScripting.func!(Time.fromString)("timeParse");
+    gScripting.func!(timeParse);
 
     gScripting.setClassPrefix!(TimeSourcePublic)("Time");
     gScripting.methods!(TimeSourcePublic, "current", "difference");

@@ -30,7 +30,8 @@ static this() {
     gScripting.properties!(Shooter, "owner", "fireinfo", "selector");
     gScripting.func!(gameObjectFindShooter)();
 
-    gScripting.methods!(WeaponSet, "addWeapon", "canUseWeapon");
+    gScripting.methods!(WeaponSet, "addWeapon", "canUseWeapon",
+        "decreaseWeapon");
     gScripting.method!(WeaponSet, "iterate2")("iterate");
 
     //------- specific weapons implemented in D

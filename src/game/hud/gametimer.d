@@ -154,6 +154,6 @@ class GameTimer : BoxContainer {
     }
 
     static this() {
-        HudFactory.register!(typeof(this))("timer");
+        registerHud!(typeof(this), TimeStatus)();
     }
 }
