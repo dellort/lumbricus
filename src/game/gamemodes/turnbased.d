@@ -8,7 +8,8 @@ import game.controller_plugins;
 import game.game;
 import game.plugins;
 import game.gamemodes.base;
-import game.gamemodes.shared;
+import game.hud.gametimer;
+import game.hud.preparedisplay;
 import utils.array;
 import utils.configfile;
 import utils.time;
@@ -58,8 +59,8 @@ class ModeTurnbased : Gamemode {
         Team mCurrentTeam;
         Team mLastTeam;
 
-        TimeStatus mTimeSt;
-        PrepareStatus mPrepareSt;
+        HudGameTimer mTimeSt;
+        HudPrepare mPrepareSt;
         bool mSuddenDeath;
         int mTurnCrateCounter = 0;
         int mInTurnActivity = cInTurnActCheckC;
@@ -82,15 +83,12 @@ class ModeTurnbased : Gamemode {
 
     this(GameCore a_engine, ConfigNode config) {
         super(a_engine);
-        mTimeSt = new TimeStatus();
-        mPrepareSt = new PrepareStatus();
+        mTimeSt = new HudGameTimer(engine);
+        mPrepareSt = new HudPrepare(engine);
         assert(!!config);
         this.config = config.getCurValue!(ModeConfig)();
 
         OnCollectTool.handler(engine.events, &doCollectTool);
-
-        OnHudAdd.raise(engine.events, mTimeSt);
-        OnHudAdd.raise(engine.events, mPrepareSt);
     }
 
     override void startGame() {

@@ -13,8 +13,9 @@ import gui.rendertext;
 import gui.tablecontainer;
 import gui.widget;
 import game.controller;
+import game.core;
 import game.teamtheme;
-import game.hud.teaminfo;
+import game.hud.hudbase;
 import utils.array;
 import utils.misc;
 import utils.time;
@@ -22,6 +23,14 @@ import utils.vector2;
 
 import tango.math.Math : PI;
 import marray = utils.array;
+
+class HudTeams : HudElementWidget {
+    this(GameCore engine) {
+        super(engine);
+        auto w = new TeamWindow(engine);
+        set(w);
+    }
+}
 
 class WormLabel : Widget {
     Team team;
@@ -57,6 +66,7 @@ class TeamWindow : Widget {
         const cWidgetsPerRow = 3;
         TableContainer mTable;
         PerTeam[Team] mTeam;
+        GameController mController;
         Team[] mLines; //keep track to which team a table line maps
         //if >= 0, the first line when swapping them
         int currentSwapLine = -1; //this and this+1 are the lines being swapped
@@ -80,21 +90,33 @@ class TeamWindow : Widget {
         return a.totalCurrentHealth() > b.totalCurrentHealth();
     }
 
-    this(GameInfo game) {
+    this(GameCore engine) {
         setVirtualFrame(false);
 
-        mTimeSource = game.engine.interpolateTime;
+        mController = engine.singleton!(GameController)();
+        mTimeSource = engine.interpolateTime;
 
         //cells both expanded and homogeneous in x-dir => centered correctly
         //will give you headaches if you want more than two columns
-        auto table = new TableContainer(3, 0, Vector2i(3, 2),
+        mTable = new TableContainer(3, 0, Vector2i(3, 2),
             [false, true], [true, false]);
 
         //MAGIC to make column 0 and 2 the same size
-        table.setHomogeneousGroup(0, 0, 1);
-        table.setHomogeneousGroup(0, 2, 1);
+        mTable.setHomogeneousGroup(0, 0, 1);
+        mTable.setHomogeneousGroup(0, 2, 1);
 
-        Team[] teams = game.controller.teams().dup;
+        mTable.setLayout(WidgetLayout.Aligned(0, 1, Vector2i(0, 7)));
+        addChild(mTable);
+
+        //teams maybe are or are not added at this stage
+        reloadTeams();
+        OnGameStart.handler(engine.events, &reloadTeams);
+    }
+
+    private void reloadTeams() {
+        mTable.clear();
+
+        Team[] teams = mController.teams.dup;
 
         marray.mergeSort(teams, (Team a, Team b) {
             return a.name < b.name;
@@ -105,15 +127,15 @@ class TeamWindow : Widget {
         marray.mergeSort(teams, &compareTeam);
 
         foreach (t; teams) {
-            table.addRow();
+            mTable.addRow();
 
-            table.add(new WormLabel(t), 0, table.height() - 1,
+            mTable.add(new WormLabel(t), 0, mTable.height() - 1,
                 WidgetLayout.Aligned(1, 0));
 
             PerTeam ti = new PerTeam();
 
             ti.global_wins = new WormLabel(t);
-            table.add(ti.global_wins, 1, table.height() -1,
+            mTable.add(ti.global_wins, 1, mTable.height() -1,
                 WidgetLayout.Noexpand());
 
             ti.bar = new Foobar();
@@ -122,19 +144,13 @@ class TeamWindow : Widget {
             WidgetLayout lay; //expand in y, but left-align in x
             lay.alignment[0] = 0;
             lay.expand[0] = false;
-            table.add(ti.bar, 2, table.height() - 1, lay);
+            mTable.add(ti.bar, 2, mTable.height() - 1, lay);
 
             mTeam[t] = ti;
             mLines ~= t;
 
             //mMaxHealth = max(mMaxHealth, teams[n].totalHealth);
         }
-
-        table.setLayout(WidgetLayout.Aligned(0, 1, Vector2i(0, 7)));
-
-        addChild(table);
-
-        mTable = table;
     }
 
     /+
@@ -154,7 +170,7 @@ class TeamWindow : Widget {
     theres also that thing that the health is counted down, this is in
     gameframe.d; during that update(false) is called to update the bar widths
     +/
-    void update(bool doanimation) {
+    private void update(bool doanimation) {
         foreach (Team team, PerTeam ti; mTeam) {
             //bar.percent = mMaxHealth ? 1.0f*team.totalHealth/mMaxHealth : 0;
             //this makes 10 life points exactly a pixel on the screen
@@ -235,6 +251,9 @@ class TeamWindow : Widget {
 
     //"how to make simple things complicated"
     override void simulate() {
+        //only do the rest (like animated sorting) when all was counted down
+        update(mController.healthUpdating());
+
         if (!mUpdating)
             return;
 

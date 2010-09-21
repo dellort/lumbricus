@@ -24,7 +24,7 @@ class GameInfo {
         control = ct;
 
         //doesn't necessarily belong here
-        engine.getControlledTeamMember = &controlled;
+        engine.getControlledTeamMemberCallback = &controlled;
     }
 
     private Actor controlled() {

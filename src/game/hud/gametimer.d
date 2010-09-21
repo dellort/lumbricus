@@ -3,10 +3,10 @@ module game.hud.gametimer;
 import framework.framework;
 import framework.font;
 import common.scene;
+import game.core;
 import game.controller;
-import game.hud.register;
-import game.hud.teaminfo;
-import game.gamemodes.shared;
+import game.lua.base;
+import game.hud.hudbase;
 import gui.container;
 import gui.boxcontainer;
 import gui.label;
@@ -17,21 +17,36 @@ import utils.misc;
 import utils.vector2;
 import utils.interpolate;
 
+//(used to be class TimeStatus)
+class HudGameTimer : HudElementWidget {
+    bool showTurnTime, showGameTime;
+    bool timePaused;
+    Time turnRemaining, gameRemaining;
+
+    this(GameCore engine) {
+        super(engine);
+        auto w = new GameTimer(engine, this);
+        w.setLayout(WidgetLayout.Aligned(-1, 1, Vector2i(5, 5)));
+        set(w);
+    }
+}
+
+//xxx: don't know why it's derived from a random GUI class; leaving as is
 class GameTimer : BoxContainer {
     private {
-        GameInfo mGame;
+        GameController mController;
         Label mTurnTime, mGameTime;
         Font[5] mFont;
         //xxx load this from somewhere
         bool mShowGameTime, mShowTurnTime;
         Color mOldBordercolor;
-        TimeStatus mStatus;
+        HudGameTimer mStatus;
         InterpolateExp!(float) mPosInterp;
     }
 
-    this(SimpleContainer hudBase, GameInfo game, Object link) {
-        mGame = game;
-        mStatus = castStrict!(TimeStatus)(link);
+    this(GameCore engine, HudGameTimer link) {
+        mController = engine.singleton!(GameController)();
+        mStatus = link;
 
         styles.addClass("gametimer");
 
@@ -59,8 +74,6 @@ class GameTimer : BoxContainer {
         minSize = toVector2i(toVector2f(mTurnTime.font.textSize("99"))*1.5f);
 
         mPosInterp.init_done(timeSecs(0.4), 0, 1);
-
-        hudBase.add(this, WidgetLayout.Aligned(-1, 1, Vector2i(5, 5)));
     }
 
     private bool isVisible() {
@@ -116,8 +129,9 @@ class GameTimer : BoxContainer {
         setGameTimeMode(mStatus.showGameTime, mStatus.showTurnTime);
         bool active = mStatus.showGameTime || mStatus.showTurnTime;
 
-        auto m = mGame.control.getControlledMember;
-        foreach (t; mGame.controller.teams) {
+        auto ctrl_m = mController.getControlledMember;
+        auto m = ctrl_m;
+        foreach (t; mController.teams) {
             if (m)
                 break;
             m = t.current;
@@ -131,8 +145,7 @@ class GameTimer : BoxContainer {
         if (mStatus.showTurnTime) {
             setTurnTime(mStatus.turnRemaining, mStatus.timePaused);
         }
-        styles.setState("active",
-            m && (m is mGame.control.getControlledMember));
+        styles.setState("active", m && (m is ctrl_m));
 
         if (active != isVisible) {
             toggleVisible();
@@ -151,9 +164,5 @@ class GameTimer : BoxContainer {
 
         int edge = findParentBorderDistance(0, 1, false);
         setAddToPos(Vector2i(0, cast(int)(mPosInterp.value*edge)));
-    }
-
-    static this() {
-        registerHud!(typeof(this), TimeStatus)();
     }
 }

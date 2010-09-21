@@ -35,11 +35,6 @@ alias DeclareGlobalEvent!("game_start") OnGameStart;
 alias DeclareGlobalEvent!("game_init") OnGameInit;
 alias DeclareGlobalEvent!("game_end") OnGameEnd;
 alias DeclareGlobalEvent!("game_sudden_death") OnSuddenDeath;
-//add a HUD object to the GUI;
-//  Object info = status object, that is used to pass information to the HUD
-alias DeclareGlobalEvent!("game_hud_add", Object) OnHudAdd;
-//remove previously added HUD element (passing the status object)
-alias DeclareGlobalEvent!("game_hud_remove", Object) OnHudRemove;
 
 ///let the client display a message (like it's done on round's end etc.)
 ///this is a bit complicated because message shall be translated on the
@@ -75,6 +70,8 @@ abstract class GameObject : EventTarget {
 
     //event_target_type: not needed anymore, but leaving it in for now
     //  basically should give the type of the game object as a string
+    //xxx: should do something against the fact that if construction fails (in
+    //  a sub-class constructor), the object will still be in the global list
     this(GameCore a_engine, char[] event_target_type) {
         assert(a_engine !is null);
         super(event_target_type, a_engine.events);
@@ -196,7 +193,6 @@ abstract class GameCore {
         PhysicWorld mPhysicWorld;
         ResourceSet mResources;
         ParticleWorld mParticleWorld;
-        bool[Object] mHudRequests;
         Log mLog;
         //blergh
         bool mBenchMode;
@@ -255,9 +251,6 @@ abstract class GameCore {
         //xxx rest of particle initialization in game.d
 
         mResources = new ResourceSet();
-
-        OnHudAdd.handler(events, &onHudAdd);
-        OnHudRemove.handler(events, &onHudRemove);
 
         mScripting = createScriptingState();
 
@@ -320,18 +313,33 @@ abstract class GameCore {
         mSingletons[key] = o;
     }
 
-    final T singleton(T)() {
+    //return singleton for class T if it exists, or null
+    final T querySingleton(T)() {
         auto ps = T.classinfo in mSingletons;
         if (!ps)
-            assert(false, "singleton doesn't exist");
+            return null;
         //cast must always succeed, else addSingleton is broken
         return castStrict!(T)(*ps);
+    }
+
+    //like querySingleton, but it must exist
+    final T singleton(T)() {
+        T r = querySingleton!(T)();
+        if (!r)
+            throwError("singleton {} doesn't exist", T.classinfo.name);
+        return r;
     }
 
     //-- crap and hacks
 
     //needed for rendering team specific stuff (crate spies)
-    Actor delegate() getControlledTeamMember;
+    Actor delegate() getControlledTeamMemberCallback;
+
+    Actor getControlledTeamMember() {
+        if (!getControlledTeamMemberCallback)
+            return null;
+        return getControlledTeamMemberCallback();
+    }
 
     TeamTheme teamThemeOf(GameObject obj) {
         auto actor = actorFromGameObject(obj);
@@ -349,20 +357,6 @@ abstract class GameCore {
             obj = obj.createdBy;
         }
         return null;
-    }
-
-    private void onHudAdd(Object obj) {
-        mHudRequests[obj] = true;
-    }
-
-    private void onHudRemove(Object obj) {
-        mHudRequests.remove(obj);
-    }
-
-    //just needed for game loading (see gameframe.d)
-    //(actually, this is needed even on normal game start)
-    Object[] allHudRequests() {
-        return mHudRequests.keys;
     }
 
     //remove all objects etc. from the scene

@@ -4,13 +4,14 @@ import framework.framework;
 import game.core;
 import game.game;
 import game.controller;
+import game.hud.gameteams;
 import utils.configfile;
 import utils.time;
 import utils.timesource;
 import utils.misc;
 
 //NOTE: a game mode doesn't need to derive from this object; it's just for
-//  convenience (hud managment, some strange timing helpers)
+//  convenience (only some strange timing helpers)
 class Gamemode : GameObject2 {
     private {
         Time[5] mWaitStart, mWaitStartLocal;
@@ -24,20 +25,19 @@ class Gamemode : GameObject2 {
         mWaitStart[] = Time.Never;
         mWaitStartLocal[] = Time.Never;
         modeTime = new TimeSource("modeTime", engine.gameTime);
+        mController = engine.singleton!(GameController)();
+        //because all two subclasses want this
+        new HudTeams(engine);
         OnGameStart.handler(engine.events, &startGame);
         internal_active = true;
     }
 
     GameController logic() {
-        //the controller is created in a late stage of game initialization
-        //I have no idea, in network/realtime mode, this stuff seems to be
-        //  different, for now this works
-        if (!mController)
-            mController = engine.singleton!(GameController)();
         return mController;
     }
 
     ///Start a new game, called before first simulate call
+    //xxx shouldn't the time be 0 anyway????
     protected void startGame() {
         modeTime.resetTime();
     }

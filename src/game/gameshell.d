@@ -249,6 +249,8 @@ class GameLoader {
             mShell.mGameTime, mShell.mInterpolateTime);
         auto engine = mShell.mEngine;
 
+        new GameController(engine);
+
         //input for this never takes the "normal" path, but it's needed for
         //  input validation
         engine.input.addSub(mShell.mInput);
@@ -277,7 +279,7 @@ class GameLoader {
         GameEngine rengine = GameEngine.fromCore(mShell.mEngine);
         rengine.initGame();
 
-        new GameController(mShell.mEngine);
+        mShell.mEngine.singleton!(GameController)().finishLoading();
 
         if (mDemoInput) {
             //changed because replays were ditched (and it looks nicer)
@@ -290,6 +292,7 @@ class GameLoader {
         //  if loading was slow
         //a good way to test this is to comment out the sleep call in doInit()
         //xxx setting pause while it's loaded etc. didn't work for some reason
+        //xxx-2 should do this after waiting a until next frame in gsmetask.d
         mShell.mMasterTime.resetTime();
 
         if (onLoadDone)

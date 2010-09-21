@@ -69,6 +69,7 @@ $ minenangriff benutzen, 'J' drücken -> feuer-animation für minenangriff wird no
 - wurm hat komische animation wenn madcow benutzt wird
 - lumbricus stürzt ab im netzwerk-modus wenn die runde zu ende geht und die spiel-gui ausgeblendet wird
   nur mein problem unter Linux? (vllt. hat debian was komisches mit dem enet binärpackage gemacht)
+- jetpack kann nicht mehr aktiviert werden nachdem man eines komplett verbraucht hat
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
@@ -198,3 +199,26 @@ vllt: http://tekui.teklib.org/index.html
 * controller clusterfuck:
     - spiel sollte ohne controller (teams) startbar sein?
     - spieler sollten nicht zwingend WormSprite benutzen müssen
+- könnte helfen für game engine-zeug http://cowboyprogramming.com/2007/01/05/evolve-your-heirachy/
+
+== Wechsel der Programmiersprache ==
+
+Das Projekt in eine andere Programmiersprache zu konvertieren wäre eine undankbare, langwierige Arbeit, und danach hätte man wahrscheinlich nur ein paar Features verloren und Bugs gewonnen. Trotzdem könnte es sein, dass einem D irgendwann so sehr auf die Nerven geht, um es zu riskieren.
+
+Gute Kandidaten:
+- C++: weite Verbreitung, hässliche Sprache, lange Compilezeiten
+    => mag ich (faulty) nicht so
+- C/C++ (C++ kompatibles C): noch weitere Verbeitung als C++, ziemlich umständlich manchmal (kein Operator-Overloading für Vektoren...), möglicherweise viel bessere Compilezeiten (besonders mit sowas wie TCC), teilweise Mischung mit C++ möglich
+    => würde ich (faulty) vorziehen
+- C#: ...
+    => Mono (für Linux-Support) ist eher müllig, meh
+- irgendwelche existierenden geskripteten 2D-Engines benutzen oder benutzen+erweitern
+    => bloß was? LÖVE? PyGame? (halt, Python ist verboten langsam...)
+
+Schlechte Kandidaten:
+- D2: ist wie D1, mit ein paar zusätzlichen "Features" (wie das unsägliche const/immutable), ohne Tango, ein Phobos das um Tonnen von Bloat erweitert wurde (siehe z.B. http://d.puremagic.com/issues/show_bug.cgi?id=2254#c12), und kein gdc/ldc
+    => nicht wirklich, haufen Arbeit und die gleichen Probleme (oder noch mehr)
+- Scala: wäre interessant, aber ist (noch) beschränkt auf die Java-VM, und der Compiler ist langsam und buggy
+- Java: igitt
+- Go: ist höchst experimentiell, schlechter Windows-Support, schlechte GC die erzwungen wird, ...
+- ActionScript+Flash: igitt

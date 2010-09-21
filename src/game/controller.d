@@ -746,10 +746,26 @@ class GameController : GameObject2 {
         engine.scripting.addSingleton(this);
         engine.addSingleton(this);
 
-        GameConfig config = engine.gameConfig;
-
         assert(engine.onOffworld is null);
         engine.onOffworld = &onOffworld;
+
+        mInput = new InputGroup();
+        //per-team input
+        mInput.addSub(new InputProxy(&getTeamInput));
+        //global input (always available)
+        mInput.add("crate_test", &inpDropCrate);
+        mInput.add("exec", &inpExec);
+        //adding this after team input important for weapon_fire to work as
+        //  expected (only execute if no team active)
+        mInput.add("weapon_fire", &inpInstantDropCrate);
+        engine.input.addSub(mInput);
+    }
+
+    //later construction; needs access to lots of sprite types (worms, mines)
+    //will also place the worms
+    //and prepares for calling startGame()
+    void finishLoading() {
+        GameConfig config = engine.gameConfig;
 
         //those work for all gamemodes
         addCrateTool("cratespy");
@@ -773,17 +789,7 @@ class GameController : GameObject2 {
         OnCollectTool.handler(engine.events, &doCollectTool);
         OnCrateCollect.handler(engine.events, &collectCrate);
 
-        mInput = new InputGroup();
-        //per-team input
-        mInput.addSub(new InputProxy(&getTeamInput));
-        //global input (always available)
-        mInput.add("crate_test", &inpDropCrate);
-        mInput.add("exec", &inpExec);
-        //adding this after team input important for weapon_fire to work as
-        //  expected (only execute if no team active)
-        mInput.add("weapon_fire", &inpInstantDropCrate);
-        engine.input.addSub(mInput);
-
+        //for startGame(); see simulate()
         internal_active = true;
     }
 
@@ -827,6 +833,13 @@ class GameController : GameObject2 {
             }
         }
         return null;
+    }
+
+    //get the TeamMember currently controlled by this game engine instance
+    //non-deterministic! (different peers have different controlled members)
+    //xxx: not sure what exactly the difference to getInputTeam.current is
+    TeamMember getControlledMember() {
+        return cast(TeamMember)(engine.getControlledTeamMember());
     }
 
     //decide to which team input goes
@@ -959,6 +972,18 @@ class GameController : GameObject2 {
         foreach (t; mTeams) {
             if (t.needUpdateHealth())
                 return true;
+        }
+        return false;
+    }
+
+    //return true if health is being updated (like in the GUI)
+    //xxx: not sure why this is different from needUpdateHealth(); bug?
+    bool healthUpdating() {
+        foreach (Team t; teams) {
+            foreach (TeamMember tm; t.members) {
+                if (tm.currentHealth != tm.healthTarget())
+                    return true;
+            }
         }
         return false;
     }

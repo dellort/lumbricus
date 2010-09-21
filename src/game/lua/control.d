@@ -1,6 +1,5 @@
 module game.lua.control;
 
-import game.lua.base;
 import game.controller;
 import game.core;
 import game.crate;
@@ -8,7 +7,11 @@ import game.input;
 import game.weapon.weapon;
 import game.worm;
 import game.wcontrol;
-import game.gamemodes.shared;
+import game.hud.gameteams;
+import game.hud.gametimer;
+import game.hud.hudbase;
+import game.hud.preparedisplay;
+import game.lua.base;
 
 static this() {
     gScripting.setClassPrefix!(GameController)("Control");
@@ -35,7 +38,7 @@ static this() {
     gScripting.methods!(WormControl, "isAlive", "sprite", "controlledSprite",
         "setLimitedMode", "weaponUsed", "resetActivity", "lastAction",
         "lastActivity", "actionPerformed", "forceAbort", "pushControllable",
-        "releaseControllable", "engaged", "setEngaged");
+        "releaseControllable", "engaged", "setEngaged", "selectWeapon");
 
     gScripting.setClassPrefix!(WormSprite)("Worm");
     gScripting.methods!(WormSprite, "beamTo", "freeze");
@@ -54,11 +57,16 @@ static this() {
     gScripting.methods!(CrateSprite, "blowStuffies")();
     gScripting.property_ro!(CrateSprite, "crateType")();
 
-    gScripting.ctor!(TimeStatus)();
-    gScripting.properties!(TimeStatus, "showTurnTime", "showGameTime",
+    gScripting.properties!(HudElement, "visible");
+
+    gScripting.ctor!(HudPrepare, GameCore);
+    gScripting.properties!(HudPrepare, "prepareRemaining");
+
+    gScripting.ctor!(HudGameTimer, GameCore);
+    gScripting.properties!(HudGameTimer, "showTurnTime", "showGameTime",
         "timePaused", "turnRemaining", "gameRemaining");
-    gScripting.ctor!(PrepareStatus)();
-    gScripting.properties!(PrepareStatus, "visible", "prepareRemaining");
+
+    gScripting.ctor!(HudTeams, GameCore);
 
     gScripting.ctor!(CollectableTool, char[])();
     gScripting.ctor!(CollectableWeapon, WeaponClass, int)();

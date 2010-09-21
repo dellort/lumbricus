@@ -8,7 +8,8 @@ import game.core;
 import game.game;
 import game.plugins;
 import game.gamemodes.base;
-import game.gamemodes.shared;
+import game.hud.gametimer;
+import game.hud.preparedisplay;
 
 import utils.array;
 import utils.configfile;
@@ -47,17 +48,15 @@ class ModeRealtime : Gamemode {
         //how long you can still move before control is taken on victory
         const cWinRetreatTime = timeSecs(10);
         Time[Team] mTeamDeactivateTime;
-        TimeStatus mStatus;
+        HudGameTimer mStatus;
         bool mSuddenDeath;
     }
 
     this(GameCore a_engine, ConfigNode config) {
         super(a_engine);
-        mStatus = new TimeStatus();
+        mStatus = new HudGameTimer(engine);
         mStatus.showGameTime = true;
         this.config = config.getCurValue!(ModeConfig)();
-
-        OnHudAdd.raise(engine.events, mStatus);
     }
 
     override void simulate() {

@@ -22,18 +22,15 @@ import game.controller;
 import game.core;
 import game.game;
 import game.hud.camera;
-import game.hud.gameteams;
-import game.hud.gametimer;
 import game.hud.gameview;
 import game.hud.windmeter;
 import game.hud.teaminfo;
-import game.hud.preparedisplay;
 import game.hud.weaponsel;
 import game.hud.messageviewer;
 import game.hud.powerups;
 import game.hud.replaytimer;
 import game.hud.network;
-import game.hud.register;
+import game.hud.hudbase;
 import game.hud.chatbox;
 import game.hud.weapondisplay;
 import game.lua.base;
@@ -88,11 +85,10 @@ class GameFrame : SimpleContainer {
         //InterpolateLinear!(float) mWeaponInterp;
         InterpolateExp!(float) mWeaponInterp;
 
-        TeamWindow mTeamWindow;
         Label mPauseLabel;
         BoxContainer mSideBar;
 
-        Widget[] mHudWidgets;
+        Widget[Object] mHudWidgets;
 
         enum ConsoleMode {
             Chat,
@@ -179,16 +175,6 @@ class GameFrame : SimpleContainer {
             mLastFrameTime = curtime;
         auto delta = curtime - mLastFrameTime;
         mLastFrameTime = curtime;
-
-        bool finished = true;
-        foreach (Team t; game.controller.teams) {
-            foreach (TeamMember tm; t.members) {
-                if (tm.currentHealth != tm.healthTarget())
-                    finished = false;
-            }
-        }
-        //only do the rest (like animated sorting) when all was counted down
-        mTeamWindow.update(finished);
 
         mScroller.scale = Vector2f(gameView.zoomLevel, gameView.zoomLevel);
 
@@ -335,22 +321,6 @@ class GameFrame : SimpleContainer {
             || (game.shell.paused() && !mPauseLabel.visible());
     }
 
-    //hud elements requested by gamemode
-    private void onHudAdd(Object link) {
-        argcheck(link);
-        mHudWidgets ~= instantiateHud(mGui, game, link);
-    }
-
-    private void onHudRemove(Object link) {
-        foreach (int idx, h; mHudWidgets) {
-            if (h is link) {
-                mHudWidgets = mHudWidgets[0..idx] ~ mHudWidgets[idx+1..$];
-                h.remove();
-                break;
-            }
-        }
-    }
-
     private void showLogEntry(LogEntry e) {
         writeColoredLogEntry(e, false, &mConsoleBox.output.writefln);
     }
@@ -475,9 +445,6 @@ class GameFrame : SimpleContainer {
         mConsoleBox.setTabCompletion(&tabComplete);
         mGui.add(mConsoleBox, WidgetLayout.Aligned(-1, -1, Vector2i(5, 5)));
 
-        mTeamWindow = new TeamWindow(game);
-        mGui.add(mTeamWindow);
-
         gameView = new GameView(game);
         gameView.onTeamChange = &teamChanged;
         gameView.onSelectCategory = &selectCategory;
@@ -526,11 +493,9 @@ class GameFrame : SimpleContainer {
         setPosition(game.engine.level.worldCenter);
 
         OnWeaponSetChanged.handler(game.engine.events, &updateWeapons);
-        OnHudAdd.handler(game.engine.events, &onHudAdd);
 
-        foreach (Object obj; game.engine.allHudRequests) {
-            onHudAdd(obj);
-        }
+        //engine created HUD elements
+        mGui.add(HudManager.Get(game.engine).hudFrame);
 
         //this is very violent; but I don't even know yet how game specific
         //  scripts would link into the client gui
