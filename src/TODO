@@ -9,6 +9,7 @@ $ sollte behoben sein / works for me (muss getestet werden)
 == Sonstiges/Minor ==
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
 + weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
+  ^ es gibt jetzt ein Waffensymbol das rot blinkt bei Cooldown, reicht das?
 - animation für kranke würmer benutzen
 - lua console: the in-game lua one can't do anything when the game is paused
 - parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
@@ -21,9 +22,9 @@ $ sollte behoben sein / works for me (muss getestet werden)
   Schaden reduziert werden die Löcher zu klein)
   Genauso: Minigun macht zuviel Schaden (bis 350 für die volle Ladung)
   ^ Idee: Nichtlineare Funktion für die Lochgröße (nur welche?)
-- wenn man nur noch eine axt hat, axt abfeuern + während des feuerns bazooka auswählen => wurm hat nach axt-release keine waffe ausgewählt (sollte aber bazooka ausgewählt haben)
-- wurm hat komische animation wenn madcow benutzt wird
-- jetpack kann nicht mehr aktiviert werden nachdem man eines komplett verbraucht hat
+$ wenn man nur noch eine axt hat, axt abfeuern + während des feuerns bazooka auswählen => wurm hat nach axt-release keine waffe ausgewählt (sollte aber bazooka ausgewählt haben)
+$ wurm hat komische animation wenn madcow benutzt wird
+$ jetpack kann nicht mehr aktiviert werden nachdem man eines komplett verbraucht hat
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
@@ -78,6 +79,9 @@ vllt: http://tekui.teklib.org/index.html
     - nachricht, die den tod/die feigheit eines wurmers mitteilt
 * physik: box stacking
   (zusätzliche ideen: bewegende platformen, jump pads, wurmlöcher)
+- physik: keine Kollision wenn ein Objekt innerhalb eines existierenden beweglichen erzeugt wird
+  (so macht es wohl WWP; würde ein paar Probleme beim Projektil-Spawn lösen)
+  nur wie genau? Probleme mit dicht beinander stehenden Objekten sollten vermieden werden
 [- statt aktive Teams aktive TeamMembers]
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
     ^ die gibt es doch schon; müssen nur angezeigt werden

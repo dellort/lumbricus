@@ -103,13 +103,6 @@ class NetBase {
 
         return new NetHost(this, 0, maxConnections, client);
     }
-
-    ///create a broadcast server or client
-    ///maximum message size is 1kb
-    //this is here because it needs enet initialization
-    NetBroadcast createBroadcast(ushort port, bool server = false) {
-        return new NetBroadcast(port, server);
-    }
 }
 
 private ENetPacket* prepareENetPacket(ubyte[] data, bool reliable = true,

@@ -41,6 +41,7 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="..\share\lumbricus\data\init.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\color.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\events.lua" />
 		<Unit filename="..\share\lumbricus\data\lua\gameutils.lua" />
@@ -52,6 +53,8 @@
 		<Unit filename="..\share\lumbricus\data\plugins\debug\cheats.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\gm_luatest\gamemode_test.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\gm_luaturnbased\gm.lua" />
+		<Unit filename="..\share\lumbricus\data\plugins\gm_training\program.lua" />
+		<Unit filename="..\share\lumbricus\data\plugins\gm_training\target.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\worms_shared\barrel.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\worms_shared\crate.lua" />
 		<Unit filename="..\share\lumbricus\data\plugins\worms_shared\grave.lua" />
@@ -153,7 +156,6 @@
 		<Unit filename="..\src\game\game.d" />
 		<Unit filename="..\src\game\gamemodes\base.d" />
 		<Unit filename="..\src\game\gamemodes\realtime.d" />
-		<Unit filename="..\src\game\gamemodes\shared.d" />
 		<Unit filename="..\src\game\gamemodes\turnbased.d" />
 		<Unit filename="..\src\game\gameshell.d" />
 		<Unit filename="..\src\game\gametask.d" />
@@ -172,11 +174,11 @@
 		<Unit filename="..\src\game\hud\gameteams.d" />
 		<Unit filename="..\src\game\hud\gametimer.d" />
 		<Unit filename="..\src\game\hud\gameview.d" />
+		<Unit filename="..\src\game\hud\hudbase.d" />
 		<Unit filename="..\src\game\hud\messageviewer.d" />
 		<Unit filename="..\src\game\hud\network.d" />
 		<Unit filename="..\src\game\hud\powerups.d" />
 		<Unit filename="..\src\game\hud\preparedisplay.d" />
-		<Unit filename="..\src\game\hud\register.d" />
 		<Unit filename="..\src\game\hud\replaytimer.d" />
 		<Unit filename="..\src\game\hud\teaminfo.d" />
 		<Unit filename="..\src\game\hud\weapondisplay.d" />

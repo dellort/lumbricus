@@ -685,8 +685,8 @@ class WormControl : WeaponController {
             unselectWeapon(sh);
         }
         checkWeaponStack();
-        if ((sh.weapon.deselectAfterFire && mCurrentWeapon is sh.weapon)
-            || !canUseWeapon(sh.weapon))
+        if ((sh.weapon.deselectAfterFire || !canUseWeapon(sh.weapon))
+            && mCurrentWeapon is sh.weapon)
         {
             selectWeapon(null);
         }

@@ -80,6 +80,7 @@ class Jetpack : Shooter, Controllable {
         if (active) {
             mWorm.activateJetpack(true);
             mMember.pushControllable(this);
+            mJetTimeUsed = 0f;
         } else {
             mWorm.activateJetpack(false);
             mMember.releaseControllable(this);

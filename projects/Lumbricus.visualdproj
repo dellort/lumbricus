@@ -189,7 +189,6 @@
    <Folder name="gamemodes">
     <File path="..\src\game\gamemodes\base.d" />
     <File path="..\src\game\gamemodes\realtime.d" />
-    <File path="..\src\game\gamemodes\shared.d" />
     <File path="..\src\game\gamemodes\turnbased.d" />
    </Folder>
    <Folder name="gui">
@@ -208,13 +207,14 @@
     <File path="..\src\game\hud\gameteams.d" />
     <File path="..\src\game\hud\gametimer.d" />
     <File path="..\src\game\hud\gameview.d" />
+    <File path="..\src\game\hud\hudbase.d" />
     <File path="..\src\game\hud\messageviewer.d" />
     <File path="..\src\game\hud\network.d" />
     <File path="..\src\game\hud\powerups.d" />
     <File path="..\src\game\hud\preparedisplay.d" />
-    <File path="..\src\game\hud\register.d" />
     <File path="..\src\game\hud\replaytimer.d" />
     <File path="..\src\game\hud\teaminfo.d" />
+    <File path="..\src\game\hud\weapondisplay.d" />
     <File path="..\src\game\hud\weaponsel.d" />
     <File path="..\src\game\hud\windmeter.d" />
    </Folder>

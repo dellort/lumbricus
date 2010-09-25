@@ -38,9 +38,13 @@ Sprite spawnSprite(GameObject spawned_by, SpriteClass sclass, Vector2f pos,
 
 Sprite spawnFromFireInfo(SpriteClass sclass, Shooter shooter, FireInfo fireinfo)
 {
-    // copied from game.action.spawn (5 = sprite.physics.radius, 2 = spawndist)
-    // eh, and why not use those values directly?
-    auto dist = (fireinfo.shootbyRadius + 5) * 1.5 + 2;
+    argcheck(sclass);
+    argcheck(shooter);
+    assert(!!shooter.owner);
+
+    //creator and new sprite shouldn't touch
+    auto dist = sclass.initPhysic.radius
+        + shooter.owner.physics.posp.radius + 2;
     return spawnSprite(shooter, sclass, fireinfo.pos + fireinfo.dir * dist,
         fireinfo.dir * fireinfo.strength);
 }

@@ -2,12 +2,12 @@ module net.announce_lan;
 
 import net.announce;
 import net.broadcast;
-import net.netlayer;
 import net.marshal;
 import utils.random;
 import utils.time;
 import utils.configfile;
 
+import tango.net.device.Berkeley : IPv4Address;
 import tango.util.Convert;
 
 //How this works:
@@ -29,7 +29,6 @@ const cBroadcastInterval = timeSecs(1);
 class LanAnnouncer : NetAnnouncer {
     private {
         bool mActive;
-        NetBase mBase;
         NetBroadcast mBroadcast;
         Time mLastTime;
         AnnounceInfo mInfo;
@@ -39,9 +38,8 @@ class LanAnnouncer : NetAnnouncer {
 
     this(ConfigNode cfg) {
         mPort = cfg.getValue("port", cDefBroadcastPort);
-        mBase = new NetBase();
         //the (game) server creates a broadcast client (for sending updates)
-        mBroadcast = mBase.createBroadcast(mPort, false);
+        mBroadcast = new NetBroadcast(mPort, false);
         mLastTime = timeCurrentTime() - cBroadcastInterval;
         mId = rngShared.next();
     }
@@ -77,7 +75,6 @@ class LanAnnouncer : NetAnnouncer {
 
     void close() {
         mBroadcast.close();
-        delete mBase;
     }
 
     static this() {
@@ -92,16 +89,14 @@ class LanAnnouncer : NetAnnouncer {
 class LanAnnounceClient : NACPeriodically {
     private {
         bool mActive;
-        NetBase mBase;
         NetBroadcast mBroadcast;
         ushort mPort;
     }
 
     this(ConfigNode cfg) {
         mPort = cfg.getValue("port", cDefBroadcastPort);
-        mBase = new NetBase();
         //client announcer creates a server to listen for broadcast packets
-        mBroadcast = mBase.createBroadcast(mPort, true);
+        mBroadcast = new NetBroadcast(mPort, true);
         mBroadcast.onReceive = &bcReceive;
         mServerTimeout = timeSecs(3);
     }
@@ -121,15 +116,16 @@ class LanAnnounceClient : NACPeriodically {
 
     void close() {
         mBroadcast.close();
-        delete mBase;
     }
 
-    private void bcReceive(NetBroadcast sender, ubyte[] data, BCAddress from) {
+    private void bcReceive(NetBroadcast sender, ubyte[] data,
+        IPv4Address from)
+    {
         //server announce packet incoming
         scope um = new UnmarshalBuffer(data);
         uint id = um.read!(uint)();
         auto ai = um.read!(AnnounceInfo)();  //xxx error checking
-        char[] addr = mBroadcast.getIP(from);
+        char[] addr = from.toAddrString();
 
         refreshServer(addr, ai, to!(char[])(id));
     }

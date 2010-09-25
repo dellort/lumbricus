@@ -1167,9 +1167,17 @@ class WwpWeaponDisplay : AniStateDisplay {
                 mPhase = Phase.Hold;
                 setAnimation(mCurrent.hold);
                 //maybe change weapon
-                //xxx visible skip, could also do unget() but takes longer
-                if (mCurrent !is mRequested)
-                    setNormalAnim();
+                if (mCurrent !is mRequested) {
+                    if (mRequested) {
+                        //another weapon is waiting, change faster without unget
+                        //xxx visible skip, could also do unget() but
+                        //    takes longer
+                        setNormalAnim();
+                    } else {
+                        //no weapon requested, we are in no hurry
+                        unget();
+                    }
+                }
             }
         } else if (mPhase == Phase.Normal) {
             //set idle animations
