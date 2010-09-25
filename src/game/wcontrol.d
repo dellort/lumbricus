@@ -156,6 +156,9 @@ class WormControl : WeaponController {
         int mWeaponParam;
         Shooter[] mWeapons;
 
+        //hack to make weapon angle permanent
+        float mWeaponAngle = float.nan;
+
         bool delegate(Canvas, Vector2i) mMouseRender;
     }
 
@@ -484,6 +487,10 @@ class WormControl : WeaponController {
             sh.setControl(this);
             sh.isSelected = true;
             mWeapons ~= sh;
+            gWeaponLog.trace("weapons: {}", mWeapons);
+            //hack to make weapon angle permanent
+            if (sh is mWeapons[0] && mWeaponAngle == mWeaponAngle)
+                sh.weaponAngle = mWeaponAngle;
         }
     }
 
@@ -620,6 +627,7 @@ class WormControl : WeaponController {
         if (mWeapons.length > idx) {
             mWeapons[idx].kill();
             arrayRemoveN(mWeapons, idx);
+            gWeaponLog.trace("weapons: {}", mWeapons);
         }
     }
 
@@ -627,6 +635,7 @@ class WormControl : WeaponController {
         if (mWeapons.length > 0 && sh) {
             sh.kill();
             arrayRemove(mWeapons, sh);
+            gWeaponLog.trace("weapons: {}", mWeapons);
         }
     }
 
@@ -791,6 +800,9 @@ class WormControl : WeaponController {
         if (mWeapons.length > 0 && mWorm) {
             mWorm.isFixed = mWeapons[0].isFixed;
             mWeapons[0].isSelected = mWorm.currentState.canFire;
+
+            //hack to make weapon angle permanent
+            mWeaponAngle = mWeapons[0].weaponAngle;
         }
     }
 

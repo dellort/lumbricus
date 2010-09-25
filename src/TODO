@@ -10,65 +10,19 @@ $ sollte behoben sein / works for me (muss getestet werden)
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
 + weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
 - animation für kranke würmer benutzen
-- lua console:
-    $ the Lua console stuff was never meant to be deterministic, and commands like "pickMakeActive()" use the GUI anyway
-    - the in-game lua one can't do anything when the game is paused
+- lua console: the in-game lua one can't do anything when the game is paused
 - parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
+- Bohrer/Lötlampe stoßen Würmer weg: verbessern (mehr impuls, weniger schaden?)
+- axt abfeuern + sofort bazooka auswählen => falsche zielkreuz animation
 
 == bekannte, lösbare Bugs ==
-$ am seil hängen, mit landschaft kolidieren => seil wird kürzer (commit 1163 ???)
-$ wurm, der im napalm kocht, zeigt animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
-  ^ manchmal wird immernoch eine chaotische "schneller fall" animation angezeigt, 
-$ Schwarzes Loch kann ertrinkende Würmer aus dem Wasser saugen; Ideen:
-  1. Würmern erlauben, das Wasser wieder zu verlassen (und Zustand korrigieren)
-  2. unter Wasser keine Bewegung nach oben zulassen
-  3. bei Verlassen des Wasser Objekt einfach löschen
-  ^ 2. wurde implementiert
-[- Bohrer/Lötlampe stoßen Würmer nicht weg]
-    notdürftig implementiert, muss verbessert werden (mehr impuls, weniger schaden?)
-$ Kisten erscheinen manchmal in der Landschaft oder an komischen Stellen
-$ wenn von einer waffe nur noch ein schuss übrig ist, wird die feuer-animation nicht mehr gezeigt, weil die spielelogik die waffe verschwinden lässt
-  und: feuer animation kann verfrüht durch selektion anderer waffe abgebrochen werden (z.B. axt)
-  Beispiel: Baseballschläger
-    ^ nur, wenn die eig. waffe direkt nach dem feuern inaktiv wird... dann kann die feuer-animation später einfach abgebrochen werden
-    ^ auch während der "prepare" animation
-  Ursache: der code in worm.d erzwingt die animation nur, wenn der shooter aktiv ist; beim baseballschläger ist der shooter aber nur einen kurzen bruchteil aktiv, der rest ist nur "graphik" und ist unbeständig
-  ist nur noch ein schuss übrig, wird die waffe nach beendung des shooters abselektiert, und dadurch die verbleibenden animationen abgebrochen
 - log nachrichten sollten durch ein globales widget angezeigt werden; z.zt. werden extra umstände gemacht, damit sie in GameFrame/mChatbox angezeigt werden
-$ während die feuer-animation abgespielt wird, sollte der wurm keine eingabe akzeptieren (z.b. shotgun => kein waffen-winkel verstellen) (abhängig von der waffe; bei anderen waffen ist es vorgesehen, dass z.b. der waffen-winkel während des feuerns geändert werden kann)
-  ebenso wenn die "prepare"-animation abgespielt wird
-  ^ Bei der Shotgun ist es erwünscht, dass zwischen den Schüssen der Winkel verstellt werden kann
-$ flammenwerfer: wenn sich der wurm selbst verletzt, macht der flammenwerfer einfach weiter (mit falscher wurm animation etc.)
-  ^ nur wenn kein spielmodus aktiv ist der bei schaden die kontrolle nimmt; ich hab mal einen fix dagegen in worm.d gehackt
-- wenn datenverzeichnis nicht gefunden wird, bessere fehlermeldung ausgeben
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
   Schaden reduziert werden die Löcher zu klein)
   Genauso: Minigun macht zuviel Schaden (bis 350 für die volle Ladung)
   ^ Idee: Nichtlineare Funktion für die Lochgröße (nur welche?)
-$ Waffenbugs von r1164 (grmbl):
-  $ Bazooka etc. am Zugende (Zeit 0) wird zwar aufgezogen aber nicht abgefeuert
-    ^ nur gepatcht, hätte die bazooka eine "prepare" animation, würde es immernoch nicht funktionieren
-    ^ ich hab noch einen hack für prepare-animationen dazugemacht; sollte jetzt passen
-  $ Beamen am Zugende wird abgebrochen
-  $ J zum Jetpack aktivieren muss zweimal gedrückt werden, wenn man vorher eine andere Waffe auswählt
-    ^ Bug ist von selbst verschwunden??
-$ Falsches Zielkreuz wenn man eine andere Waffe auswählt während noch Animationen laufen
-  z.B. Axt feuern und sofort Bazooka wählen
-  ^ nicht gefixt für die axt-release-animation, aber gut genug
-$ wenn man nur noch eine axt hat, axt abfeuern + während des feuerns bazooka auswählen => wurm hat nach axt-release keine waffe ausgewählt (sollte aber bazooka ausgewählt haben)
-  ausserdem: seltsames verhalten, wenn man nach auswahl der bazooka feuertaste drückt
-$ Zielkreuz und aufziehen am Seil/Jetpack: Bug oder Feature? Ich finds ganz gut
-    ^ ok... zielkreuz sollte aber trotzdem vielleicht exakt in abschussrichtung zeigen
-$ Am Seil zielt man immer nach rechts [oder links, wenn wurm kopfüber ist] (sollte sein: In Bewegungsrichtung)
-    ^ wurde wohl behoben; geht jetzt in bewegungsrichtung
-$ axt feuern und anfangen zu laufen bevor die axt "eingeschlagen" hat => man kann nicht mehr feuern, eine andere waffe auswählen, oder die runde beenden
-$ am seil hängen, bazooka auswählen, 'J' drücken -> bazooka wird abgefeuert
-- bei auswählen einer anderen waffe wird die zielrichtung zurückgesetzt (bug oder feature?)
-  ^ Nennen wirs mal "Faulheit" ;)
-$ minenangriff benutzen, 'J' drücken -> feuer-animation für minenangriff wird nochmal abgespielt, dann wird das jetpack benutzt?
+- wenn man nur noch eine axt hat, axt abfeuern + während des feuerns bazooka auswählen => wurm hat nach axt-release keine waffe ausgewählt (sollte aber bazooka ausgewählt haben)
 - wurm hat komische animation wenn madcow benutzt wird
-- lumbricus stürzt ab im netzwerk-modus wenn die runde zu ende geht und die spiel-gui ausgeblendet wird
-  nur mein problem unter Linux? (vllt. hat debian was komisches mit dem enet binärpackage gemacht)
 - jetpack kann nicht mehr aktiviert werden nachdem man eines komplett verbraucht hat
 
 == bekannte, unlösbare Bugs ==
@@ -86,6 +40,7 @@ $ minenangriff benutzen, 'J' drücken -> feuer-animation für minenangriff wird no
 - Zuständigkeit von globaler und Chatbox-Konsole überarbeiten (i.V. mit dem mysteriösen "server"-Befehl)
   (evtl. einfach den "server"-Befehl entfernen und die Chatbox-Konsole nur "server"-Kommandos ausführen lassen; könnte andererseits auch gewaltige Engine-Änderungen benötigen)
   ^ wie genau?
+- wurm, der im napalm kocht, zeigt manchmal animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)

@@ -334,9 +334,10 @@ class GameTask : IKillable {
         if (mGameShell) {
             mGameShell.terminate();
         }
-        delete mGameShell;
+        //xxx manual free causes problems when ending network game
+        //delete mGameShell;
+        //delete mGame;
         mGameShell = null;
-        delete mGame;
         mGame = null;
         mControl = null;
         mConnection = null;

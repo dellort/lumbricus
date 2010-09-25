@@ -646,8 +646,20 @@ class LandscapeBitmap {
     void addPolygon(Vector2i[] points, Vector2i texture_offset, Surface texture,
         Lexel marker, bool subdiv = false, uint[] nosubdiv = null)
     {
+        addPolygonScaled(Vector2f(1.0), points, texture_offset, texture, marker,
+            subdiv, nosubdiv);
+    }
+
+    //like addPolygon(), but each item of points is multiplied with scale
+    //the texture pixels will have the same size as unscaled
+    void addPolygonScaled(Vector2f scale, Vector2i[] points,
+        Vector2i texture_offset, Surface texture, Lexel marker,
+        bool subdiv = false, uint[] nosubdiv = null)
+    {
         //meh
-        auto pt = arrayMap(points, (Vector2i p) { return toVector2f(p); });
+        auto pt = arrayMap(points, (Vector2i p) {
+            return toVector2f(p).mulEntries(scale);
+        });
 
         if (subdiv) {
             auto pt2 = drawing.cornercut(pt, nosubdiv);

@@ -699,7 +699,7 @@ class FileSystem {
         }
         if (!tpath.exists(absPath))
             throw new FilesystemException("Failed to mount "~sysPath
-                ~": Path/file not found");
+                ~" (to "~absPath~"): Path/file not found");
 
         //find a handler for this path
         MountPointHandler currentHandler = null;

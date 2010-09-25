@@ -198,6 +198,8 @@ Shooter gameObjectFindShooter(GameObject o) {
     return null;
 }
 
+LogStruct!("shooter") gWeaponLog;
+
 //simulates the whole lifetime of a weapon: selection, aiming, charging, firing
 //interacts with owner sprite via sequence, and with controller via
 //  WeaponController interface
@@ -216,7 +218,7 @@ abstract class Shooter : GameObject {
     }
 
     private {
-        LogStruct!("shooter") log;
+        alias gWeaponLog log;
         //null if not there, instantiated all the time it's needed
         RenderCrosshair mCrosshair;
 
@@ -270,6 +272,7 @@ abstract class Shooter : GameObject {
         selector = weapon.createSelector(owner);
         mLastStateChange = engine.gameTime.current;
         internal_active = true;
+        log.trace("create {}", this);
     }
 
     //can't use controlFromGameObject because of dependency hell
@@ -428,10 +431,14 @@ abstract class Shooter : GameObject {
     }
 
     //-PI/2..+PI/2, actual angle depends from whether worm looks left or right
-    private float weaponAngle() {
+    float weaponAngle() {
         if (mFixedWeaponAngle == mFixedWeaponAngle)
             return mFixedWeaponAngle;
         return mWeaponAngle;
+    }
+
+    void weaponAngle(float a) {
+        mWeaponAngle = a;
     }
 
     private void updateWeaponAngle(float move) {

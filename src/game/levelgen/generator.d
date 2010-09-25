@@ -1183,13 +1183,9 @@ Surface landscapeRenderPreview(LandscapeGeometry land, Vector2i size,
 
     foreach (LandscapeGeometry.Polygon p; land.polygons) {
         //scale down the points first
-        auto npts = p.points.dup;
-        foreach (inout Vector2i point; npts) {
-            point = toVector2i(toVector2f(point).mulEntries(scale));
-        }
         auto color = (p.marker <= Lexel.Max) ? markers[p.marker] : nocolor;
         if (p.visible) {
-            renderer.addPolygon(npts, Vector2i(0, 0),
+            renderer.addPolygonScaled(scale, p.points, Vector2i(0, 0),
                 color, p.marker, false, /+p.changeable,+/ p.nochange);
         }
     }
@@ -1215,13 +1211,8 @@ LandscapeBitmap landscapeRenderData(LandscapeGeometry geo, Vector2i size) {
         Vector2i(), null, Lexel.Null, false);
 
     foreach (LandscapeGeometry.Polygon p; geo.polygons) {
-        //scale down the points first
-        auto npts = p.points.dup;
-        foreach (inout Vector2i point; npts) {
-            point = toVector2i(toVector2f(point).mulEntries(scale));
-        }
         if (p.visible) {
-            renderer.addPolygon(npts, Vector2i(0, 0),
+            renderer.addPolygonScaled(scale, p.points, Vector2i(0, 0),
                 null, p.marker, p.changeable, p.nochange);
         }
     }

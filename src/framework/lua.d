@@ -124,7 +124,7 @@ In general:
 //table that maps chunk_name->environment_table
 const char[] cEnvTable = "D_chunk_environment";
 
-//c closure used as __gc metatable function - free's D object wrappers
+//c closure used as __gc metatable function - frees D object wrappers
 const char[] cGCHandler = "D_gc_handler";
 
 //map ClassInfos (wrapped as light userdata) to the userdata metatables

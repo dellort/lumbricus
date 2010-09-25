@@ -355,8 +355,15 @@ void initFSMounts() {
         //normal code path
 
         //temporary mounts to read mount.conf
-        gFS.mount(MountPath.data, "/", "/", false, 0);
-        auto mountConf = loadConfig("mount.conf");
+        ConfigNode mountConf;
+        try {
+            gFS.mount(MountPath.data, "/", "/", false, 0);
+            mountConf = loadConfig("mount.conf");
+        } catch (FilesystemException e) {
+            gLogInit.error("Can't read mount.conf ({}), maybe the data "
+                "directory is not setup correctly?", e);
+            exit();
+        }
         gFS.reset();
 
         readMountConf(mountConf);
