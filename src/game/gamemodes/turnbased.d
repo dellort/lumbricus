@@ -66,8 +66,10 @@ class ModeTurnbased : Gamemode {
         int mInTurnActivity = cInTurnActCheckC;
         int mCleanupCtr = 1;
         int[] mTeamPerm;
+        int mLastPrepareTurn; //mRoundCounter of last OnPrepareTurn
 
         //incremented on beginning of each round
+        //xxx actually it's "turn"
         int mRoundCounter;
 
         const cSilenceWait = timeMsecs(400);
@@ -232,6 +234,11 @@ class ModeTurnbased : Gamemode {
                 //if there are more to blow up, go back to waiting
                 if (logic.checkDyingWorms())
                     return TurnState.waitForSilence;
+
+                if (mLastPrepareTurn < mRoundCounter) {
+                    mLastPrepareTurn = mRoundCounter;
+                    OnPrepareTurn.raise(engine.events);
+                }
 
                 //wait some msecs to show the health labels
                 if (wait(cNextRoundWait, 0, false) && logic.isIdle()) {

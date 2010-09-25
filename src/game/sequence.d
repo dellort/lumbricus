@@ -198,6 +198,9 @@ final class Sequence : SceneObject {
         Interpolate mIP;
     }
 
+    //xxx there's too much overly specific crap in there, maybe componentize
+    //  (as described in Game Programming Gems 6 chapter 4.6)
+
     //was: SequenceUpdate
     //(or: read directly from a sprite??)
     Vector2f position;
@@ -206,6 +209,7 @@ final class Sequence : SceneObject {
     float lifepower;    //absolute hp
     float lifePercent;  //percent of initial life remaining, may go > 1.0
     //bool visible;
+    bool poisoned;  //request animation for being poisoned, e.g. skunk
 
     //was: WormSequenceUpdate
     //just used to display jetpack exhaust flames
@@ -1071,7 +1075,12 @@ class WwpWeaponDisplay : AniStateDisplay {
     private void setNormalAnim() {
         mPhase = Phase.Normal;
         mCurrent = mRequested;
-        auto ani = (hasLowHp && myclass.lowhp) ? myclass.lowhp : myclass.normal;
+        Animation ani = myclass.normal;
+        if (owner.poisoned && myclass.poisoned) {
+            ani = myclass.poisoned;
+        } else if (hasLowHp && myclass.lowhp) {
+            ani = myclass.lowhp;
+        }
         //a weapon is selected, display it
         if (mCurrent) {
             mPhase = Phase.Get;
@@ -1080,6 +1089,18 @@ class WwpWeaponDisplay : AniStateDisplay {
         //don't reset the ani if it's already set
         if (ani !is animation)
             setAnimation(ani);
+    }
+
+    private void setIdleAnim() {
+        mPhase = Phase.Idle;
+        mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
+        Animation[] arr = myclass.idle_animations;
+        if (owner.poisoned && myclass.poisoned
+            && myclass.idle_animations_poisoned.length > 0)
+        {
+            arr = myclass.idle_animations_poisoned;
+        }
+        setAnimation(arr[owner.engine.rnd.next(arr.length)]);
     }
 
     //deselect weapon (only does something if weapon is selected in any way)
@@ -1180,14 +1201,10 @@ class WwpWeaponDisplay : AniStateDisplay {
                 }
             }
         } else if (mPhase == Phase.Normal) {
-            //set idle animations
             if (myclass.idle_animations.length
                 && animation_start + mNextIdle <= now())
             {
-                mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
-                Animation[] arr = myclass.idle_animations;
-                setAnimation(arr[owner.engine.rnd.next(arr.length)]);
-                mPhase = Phase.Idle;
+                setIdleAnim();
             }
         }
     }
@@ -1260,13 +1277,16 @@ class WwpWeaponDisplay : AniStateDisplay {
 }
 
 class WwpWeaponState : SequenceState {
-    Animation normal, lowhp; //stand state, normal and "not feeling well"
+    Animation normal; //stand state, normal
+    Animation lowhp; //stand state, "not feeling well"
+    Animation poisoned; //stand state, poisoned by skunk or other weapons
     //indexed by the name, which is referred to by WeaponClass.animation
     Weapon[char[]] weapons;
     Weapon weapon_unknown;
     //idle animations (xxx: maybe should moved into a more generic class?)
     RandomValue!(Time) idle_wait;
     Animation[] idle_animations;
+    Animation[] idle_animations_poisoned; //hacky
 
     class Weapon {
         char[] name;    //of the weapon
@@ -1285,8 +1305,8 @@ class WwpWeaponState : SequenceState {
         super(a_owner, node);
 
         normal = loadanim(node, "animation");
-        if (node["lowhp_animation"] != "")
-            lowhp = loadanim(node, "lowhp_animation");
+        lowhp = loadanim(node, "lowhp_animation", true);
+        poisoned = loadanim(node, "poisoned_animation", true);
 
         foreach (char[] key, char[] value; node.getSubNode("weapons")) {
             //this '+' thing is just to remind the user that value is a prefix
@@ -1356,9 +1376,16 @@ class WwpWeaponState : SequenceState {
         }
 
         idle_wait = node.getValue!(typeof(idle_wait))("idle_wait");
-        foreach (char[] k, char[] value; node.getSubNode("idle_animations")) {
-            idle_animations ~= loadanim(value);
+
+        Animation[] load_idle(char[] subnode) {
+            Animation[] res;
+            foreach (char[] k, char[] value; node.getSubNode(subnode)) {
+                res ~= loadanim(value);
+            }
+            return res;
         }
+        idle_animations = load_idle("idle_animations");
+        idle_animations_poisoned = load_idle("idle_animations_poisoned");
     }
 
     override DisplayType getDisplayType() {

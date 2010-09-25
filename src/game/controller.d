@@ -450,6 +450,12 @@ class Team : GameObject2 {
         current = null;
     }
 
+    void prepareTurn() {
+        foreach (m; mMembers) {
+            m.prepareTurn();
+        }
+    }
+
     void surrenderTeam() {
         OnTeamSurrender.raise(this);
         current = null;
@@ -704,6 +710,10 @@ class TeamMember : Actor {
         //forced stop of all action (like when being damaged)
         control.forceAbort();
     }
+
+    void prepareTurn() {
+        control.prepareTurn();
+    }
 }
 
 //the GameController controlls the game play; especially, it converts keyboard
@@ -788,6 +798,7 @@ class GameController : GameObject2 {
 
         OnCollectTool.handler(engine.events, &doCollectTool);
         OnCrateCollect.handler(engine.events, &collectCrate);
+        OnPrepareTurn.handler(engine.events, &prepareTurn);
 
         //for startGame(); see simulate()
         internal_active = true;
@@ -949,6 +960,12 @@ class GameController : GameObject2 {
     //note: even during onGameEnded event, still returns the current index
     int currentRound() {
         return engine.persistentState.getValue("round_counter", 0);
+    }
+
+    void prepareTurn() {
+        foreach (t; mTeams) {
+            t.prepareTurn();
+        }
     }
 
     //return true if there are dying worms

@@ -451,12 +451,16 @@ class WormControl : WeaponController {
         updateWeapon();
     }
 
+    //deselects the old weapon
+    //decides whether the new weapon should be added as primary (returns true)
+    //  or secondary (returns false)
+    //caller has to make sure the weapon is allowed to use at all
     private bool prepareSelect(WeaponClass weapon) {
         //set as new main
         if (mWeapons.length == 0)
             return true;
         if (mWeapons[$-1].isIdle && mWeapons[$-1].weapon !is weapon) {
-            if (mWeapons.length == 2 && weapon.allowSecondary)
+            if (mWeapons.length == 2 && weapon && weapon.allowSecondary)
                 return false;
             //replace current main / secondary
             unselectWeapon(mWeapons.length - 1);
@@ -882,6 +886,18 @@ class WormControl : WeaponController {
         }
 
         return true;
+    }
+
+    void prepareTurn() {
+        digestPoison();
+    }
+
+    //if the worm is poisoned, die a little bit more 
+    void digestPoison() {
+        if (mWorm.poisoned) {
+            //xxx should be configureable
+            mWorm.physics.lifepower -= 5;
+        }
     }
 
     //--

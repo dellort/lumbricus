@@ -8,9 +8,11 @@ $ sollte behoben sein / works for me (muss getestet werden)
 
 == Sonstiges/Minor ==
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
-+ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
+$ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
   ^ es gibt jetzt ein Waffensymbol das rot blinkt bei Cooldown, reicht das?
+  ^ hm ja, besser als keine Reaktion
 - animation für kranke würmer benutzen
+  ^ es gibt schon eine lowhp_animation, die auch ihren Sinn in WWP hat; mir ist nicht ganz klar wann genau die Animation für kranke Würmer stattdessen angezeigt werden soll (nur wenn der Wurm vergifted wurde? das hab ich implementiert)
 - lua console: the in-game lua one can't do anything when the game is paused
 - parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
 - Bohrer/Lötlampe stoßen Würmer weg: verbessern (mehr impuls, weniger schaden?)
@@ -22,9 +24,6 @@ $ sollte behoben sein / works for me (muss getestet werden)
   Schaden reduziert werden die Löcher zu klein)
   Genauso: Minigun macht zuviel Schaden (bis 350 für die volle Ladung)
   ^ Idee: Nichtlineare Funktion für die Lochgröße (nur welche?)
-$ wenn man nur noch eine axt hat, axt abfeuern + während des feuerns bazooka auswählen => wurm hat nach axt-release keine waffe ausgewählt (sollte aber bazooka ausgewählt haben)
-$ wurm hat komische animation wenn madcow benutzt wird
-$ jetpack kann nicht mehr aktiviert werden nachdem man eines komplett verbraucht hat
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
@@ -82,6 +81,7 @@ vllt: http://tekui.teklib.org/index.html
 - physik: keine Kollision wenn ein Objekt innerhalb eines existierenden beweglichen erzeugt wird
   (so macht es wohl WWP; würde ein paar Probleme beim Projektil-Spawn lösen)
   nur wie genau? Probleme mit dicht beinander stehenden Objekten sollten vermieden werden
+  ^ "richtige" Physikengines speichern Kontakte bzw. Paare überlappender Objekte permanent (über mehrere Iterationen), z.B. Chipmunk mit "Arbitern"... dann könnte man solche überlappende Paare, die durch Erzeugung eines Objektes entstanden sind, speziell Markieren und keine Reaktionskontakte erzeugen... wird die Überlappung aufgehoben, verschwindet auch die Markierung, und alles funktioniert normal wenn die Objekte wieder kollidieren
 [- statt aktive Teams aktive TeamMembers]
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
     ^ die gibt es doch schon; müssen nur angezeigt werden
@@ -159,6 +159,7 @@ vllt: http://tekui.teklib.org/index.html
     - spiel sollte ohne controller (teams) startbar sein?
     - spieler sollten nicht zwingend WormSprite benutzen müssen
 - könnte helfen für game engine-zeug http://cowboyprogramming.com/2007/01/05/evolve-your-heirachy/
+  Game Programming Gems 6, Kapitel 4.6
 
 == Wechsel der Programmiersprache ==
 

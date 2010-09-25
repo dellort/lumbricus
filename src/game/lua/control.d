@@ -42,6 +42,7 @@ static this() {
 
     gScripting.setClassPrefix!(WormSprite)("Worm");
     gScripting.methods!(WormSprite, "beamTo", "freeze");
+    gScripting.properties!(WormSprite, "poisoned");
 
     gScripting.ctor!(WormSpriteClass, GameCore, char[])();
     gScripting.methods!(WormSpriteClass, "finishLoading", "findState")();

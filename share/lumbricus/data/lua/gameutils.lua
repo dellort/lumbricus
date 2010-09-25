@@ -814,3 +814,26 @@ function gameMessage(sender, id, args)
     }
     raiseGlobalEvent("game_message", msg)
 end
+
+-- calls cb(team, member) for each TeamMember in the game
+function foreachMember(cb)
+    for i, team in ipairs(Control_teams()) do
+        for n, member in ipairs(Team_members(team)) do
+            cb(team, member)
+        end
+    end
+end
+
+-- calls cb(team, member, worm) for each worm in the game
+-- "worm" is defined as in worm.d (WormSprite)
+-- if we ever should allow members that are not WormSprite, revisit all code
+--  that uses it (or if it's agnostic, use foreachMember and then member:sprite)
+function foreachWorm(cb)
+    local wormclass = d_find_class("Worm")
+    foreachMember(function(team, member)
+        local sprite = Member_sprite(member)
+        if sprite and d_is_class(sprite, wormclass) then
+            cb(team, member, sprite)
+        end
+    end)
+end

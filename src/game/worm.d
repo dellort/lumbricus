@@ -57,6 +57,8 @@ class WormSprite : Sprite {
         bool mDelayedDeath;
         bool mIsFixed;
 
+        bool mPoisoned;
+
         int mGravestone;
 
         FlyMode mLastFlyMode;
@@ -188,6 +190,15 @@ class WormSprite : Sprite {
             assert(!isAlive());
             setState(wsc.st_die);
         }
+    }
+
+    void poisoned(bool set) {
+        mPoisoned = set;
+        if (graphic)
+            graphic.poisoned = set;
+    }
+    bool poisoned() {
+        return mPoisoned;
     }
 
     override protected void onKill() {

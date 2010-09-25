@@ -35,6 +35,14 @@ alias DeclareGlobalEvent!("game_start") OnGameStart;
 alias DeclareGlobalEvent!("game_init") OnGameInit;
 alias DeclareGlobalEvent!("game_end") OnGameEnd;
 alias DeclareGlobalEvent!("game_sudden_death") OnSuddenDeath;
+//next turn gets prepared; intended for handlers of worm poisoning and
+//  turn-persistent napalm, which both need to do something "per turn"
+//xxx maybe something that would allow to make events happen in sequence
+//  (including waiting for them to finish) instead of once would be nice
+//- idea: a function that allows to "pause" the whoever is calling
+//  OnPrepareTurn, and then resuming it after the event is done, allowing other
+//  handlers to do the same
+alias DeclareGlobalEvent!("game_prepare_turn") OnPrepareTurn;
 
 ///let the client display a message (like it's done on round's end etc.)
 ///this is a bit complicated because message shall be translated on the

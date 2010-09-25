@@ -331,6 +331,12 @@ do
     enableSpriteCrateBlowup(w, sprite_class, 3)
 end
 
+local function poisonAllWorms()
+    foreachWorm(function(team, member, worm)
+        Worm_set_poisoned(worm, true)
+    end)
+end
+
 createWeapon {
     name = "w_atomtest",
     value = 10000,
@@ -344,6 +350,7 @@ createWeapon {
         Game_raiseWater(60)
         Game_addEarthQuake(500, time(4))
         Game_nukeSplatEffect()
+        poisonAllWorms()
     end,
     onBlowup = function(weapon)
         Game_addEarthQuake(150, time(4))
