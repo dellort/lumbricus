@@ -807,12 +807,16 @@ class WormControl : WeaponController {
             wormAction();
         }
 
-        if (mWeapons.length > 0 && mWorm) {
-            mWorm.isFixed = mWeapons[0].isFixed;
-            mWeapons[0].isSelected = mWorm.currentState.canFire;
+        if (mWorm) {
+            if (mWeapons.length > 0) {
+                mWorm.isFixed = mWeapons[0].isFixed;
+                mWeapons[0].isSelected = mWorm.currentState.canFire;
 
-            //hack to make weapon angle permanent
-            mWeaponAngle = mWeapons[0].weaponAngle;
+                //hack to make weapon angle permanent
+                mWeaponAngle = mWeapons[0].weaponAngle;
+            } else {
+                mWorm.isFixed = false;
+            }
         }
     }
 
