@@ -27,6 +27,7 @@ import gui.container;
 import net.netlayer;
 import net.announce;
 import net.cmdclient;
+import net.serverlist;
 import utils.array;
 import utils.configfile;
 import utils.log;
@@ -52,12 +53,12 @@ class CmdNetClientTask {
         const cRefreshInterval = timeSecs(2);
         int mMode = -1;
         AnnounceSt[] mAnnounce;
-        char[][] mCurServers;
+        ServerAddress[] mCurServers;
         Time mLastTime;
 
         //contains announcer-widget mapping
         struct AnnounceSt {
-            NetAnnounceClient announce;
+            ServerList servers;
             //if this widget is activated in the tab control, use this announcer
             Widget marker;
             //target list for servers
@@ -81,7 +82,9 @@ class CmdNetClientTask {
         foreach (ConfigNode sub; ann) {
             AnnounceSt as;
             log.minor("Init announce client: {}", sub.name);
-            as.announce = AnnounceClientFactory.instantiate(sub.name, sub);
+            as.servers = new ServerList(
+                AnnounceClientFactory.instantiate(sub.name, sub));
+            as.servers.onChange = &serverListChange;
             as.marker = loader.lookup(sub["ctl_marker"]);
             as.list = loader.lookup!(StringListWidget)(sub["ctl_list"]);
             mAnnounce ~= as;
@@ -153,7 +156,7 @@ class CmdNetClientTask {
             int sel = mAnnounce[mMode].list.selectedIndex;
             if (sel < 0 || sel >= mCurServers.length)
                 return;
-            addr = mCurServers[sel];
+            addr = mCurServers[sel].toString();
         }
         log.notice("Trying to connect to {}", NetAddress(addr));
         mClient.connect(NetAddress(addr), mNickname.text);
@@ -189,12 +192,12 @@ class CmdNetClientTask {
 
     private void setMode(int idx) {
         if (mMode >= 0)
-            mAnnounce[mMode].announce.active = false;
+            mAnnounce[mMode].servers.active = false;
+        mMode = idx;
         if (idx >= 0) {
             assert(idx < mAnnounce.length);
-            mAnnounce[idx].announce.active = true;
+            mAnnounce[idx].servers.active = true;
         }
-        mMode = idx;
     }
 
     private void onKill() {
@@ -203,11 +206,32 @@ class CmdNetClientTask {
             delete mClient;
         }
         foreach (ref as; mAnnounce) {
-            as.announce.close();
+            as.servers.close();
         }
         arrayRemoveUnordered(mNickSetting.onChange, &nickSettingChange, true);
         //xxx I don't know about that
         saveSettings();
+    }
+
+    private void serverListChange(ServerList sender) {
+        if (sender is mAnnounce[mMode].servers) {
+            char[][] contents;
+            mCurServers = null;
+            foreach (s; sender.list) {
+                contents ~= s.toString();
+                mCurServers ~= s.addr;
+            }
+            //nothing found
+            //xxx: currently we can't separate between
+            //     "still searching" or "no servers there"
+            if (contents.length == 0) {
+                if (mAnnounce[mMode].servers.active)
+                    contents ~= translate("connect.noservers");
+                else
+                    contents ~= translate("connect.announceerror");
+            }
+            mAnnounce[mMode].list.setContents(contents);
+        }
     }
 
     private bool onFrame() {
@@ -219,34 +243,7 @@ class CmdNetClientTask {
         if (mClient)
             mClient.tick();
         if (mMode >= 0) {
-            mAnnounce[mMode].announce.tick();
-            Time t = timeCurrentTime();
-            //refresh servers periodically
-            //Note: depending on announcer, this does not mean to actually
-            //      request a new list, it just gets the announcer's current one
-            if (t - mLastTime > cRefreshInterval) {
-                char[][] contents;
-                mCurServers = null;
-                foreach (s; mAnnounce[mMode].announce) {
-                    //full info for gui display
-                    contents ~= myformat("{}:{} ({}/{}) {}", s.address,
-                        s.info.port, s.info.curPlayers, s.info.maxPlayers,
-                        s.info.serverName);
-                    //address only for connecting
-                    mCurServers ~= myformat("{}:{}", s.address, s.info.port);
-                }
-                //nothing found
-                //xxx: currently we can't separate between
-                //     "still searching" or "no servers there"
-                if (contents.length == 0) {
-                    if (mAnnounce[mMode].announce.active)
-                        contents ~= translate("connect.noservers");
-                    else
-                        contents ~= translate("connect.announceerror");
-                }
-                mAnnounce[mMode].list.setContents(contents);
-                mLastTime = t;
-            }
+            mAnnounce[mMode].servers.tick();
         }
 
         return true;

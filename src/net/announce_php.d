@@ -183,7 +183,7 @@ class PhpAnnounceClient : NetAnnounceClient {
     private {
         char[] mUrl;
         Time mLastUpdateTime;
-        ServerInfo[] mServers;
+        ServerAddress[] mServers;
         bool mActive;
         HttpGetter mGetter;
     }
@@ -218,21 +218,14 @@ class PhpAnnounceClient : NetAnnounceClient {
             forline: foreach (line; lines) {
                 //expected format: address|time|info
                 //we don't actually need time?
+                //good news: we don't need info either xD
                 auto comps = str.split(line, "|");
                 if (comps.length == 3) {
-                    ServerInfo sinf;
-                    //NetAddress ctor parses the text; throws no exceptions
-                    auto addr = NetAddress(comps[0]);
-                    try {
-                        sinf.info = unmarshalBase64!(AnnounceInfo)(comps[2]);
-                    } catch (UnmarshalException e) {
-                        //ignore bad entries
-                        continue forline;
-                    }
-                    sinf.address = addr.hostName;
-                    sinf.info.port = addr.port;
-                    //not sure about rest
-                    mServers ~= sinf;
+                    ServerAddress saddr;
+                    //ServerAddress parses the text; throws no exceptions
+                    if (!saddr.parse(comps[0]))
+                        continue;
+                    mServers ~= saddr;
                 }
             }
         }
@@ -241,7 +234,7 @@ class PhpAnnounceClient : NetAnnounceClient {
     ///loop over internal server list
     ///behavior is implementation-specific, but it should be implemented to
     ///block as short as possible (best not at all)
-    override int opApply(int delegate(ref ServerInfo) del) {
+    override int opApply(int delegate(ref ServerAddress) del) {
         int result = 0;
         foreach (s; mServers) {
             result = del(s);

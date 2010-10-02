@@ -59,6 +59,7 @@ class CmdNetServer {
         AnnounceInfo mAnnounceInfo;
         Time mLastInfo;
         uint[] mRecentDisconnects;
+        MarshalBuffer mQueryMarshal;
 
         const cInfoInterval = timeSecs(2);
     }
@@ -83,11 +84,14 @@ class CmdNetServer {
         mGameTime = new TimeSourceFixFramerate("ServerGameTime", mMasterTime,
             cFrameLength);
 
+        mQueryMarshal = new MarshalBuffer();
+
         //create and open server
         log.notice("Server listening on port {}", mPort);
         mBase = new NetBase();
         mHost = mBase.createServer(mPort, mMaxPlayers+1);
         mHost.onConnect = &onConnect;
+        mHost.onPacketPreview = &onPacketPreview;
 
         mAnnounce = new NetAnnounce(serverConfig.getSubNode("announce"));
         updateAnnounce();
@@ -200,6 +204,36 @@ class CmdNetServer {
         }
         nick = curNick;
         return true;
+    }
+
+    //preview packets to the listening socket and look for server queries
+    //return true if a custom packet was processed (to keep it away from enet)
+    //xxx opening a second socket for queries would also be possible (and a lot
+    //    of games do it), but I would consider that a dirty hack because it
+    //    would cause problems with NAT and require a game port to be
+    //    transmitted with the query response
+    private bool onPacketPreview(NetHost sender, IPv4Address from,
+        ubyte[] data)
+    {
+        if (data.length == cQueryIdent.length
+            && data[0..cQueryIdent.length] == cast(ubyte[])cQueryIdent)
+        {
+            //query request, send server information
+            QueryResponse resp;
+            resp.serverName = mServerName;
+            resp.curPlayers = mPlayerCount;
+            resp.maxPlayers = mMaxPlayers;
+            //xxx
+            resp.players = null;
+
+            mQueryMarshal.reset();
+            mQueryMarshal.writeRaw(cast(ubyte[])cQueryIdent);
+            mQueryMarshal.write(cProtocolVersion);
+            mQueryMarshal.write(resp);
+            mHost.socket.sendTo(mQueryMarshal.data, from);
+            return true;
+        }
+        return false;
     }
 
     //new client is trying to connect
@@ -454,10 +488,10 @@ class CmdNetServer {
     }
 
     void updateAnnounce() {
-        mAnnounceInfo.serverName = mServerName;
+        //mAnnounceInfo.serverName = mServerName;
         mAnnounceInfo.port = mPort;
-        mAnnounceInfo.maxPlayers = mMaxPlayers;
-        mAnnounceInfo.curPlayers = mPlayerCount;
+        //mAnnounceInfo.maxPlayers = mMaxPlayers;
+        //mAnnounceInfo.curPlayers = mPlayerCount;
         mAnnounce.update(mAnnounceInfo);
     }
 

@@ -5,6 +5,7 @@ import net.broadcast;
 import str = utils.string;
 import tango.util.Convert;
 import tango.stdc.stringz;
+import tango.net.device.Berkeley;
 import utils.misc;
 
 struct NetAddress {
@@ -129,19 +130,34 @@ class NetHost {
     //reference to NetBase so its destructor won't unload the library until
     //it's really not needed anymore; apart from that it's unused
     private NetBase mBase;
+    private Berkeley mSocket;
+    private SocketSet mSocketSet;
+    private ubyte[1024] mBuffer;
+    private IPv4Address mFrom;
 
     ///called whenever a new connection is established
     void delegate(NetHost sender, NetPeer peer) onConnect;
+    ///low-level packet preview
+    bool delegate(NetHost sender, IPv4Address from, ubyte[] data)
+        onPacketPreview;
 
     private this(NetBase b, ushort port, int maxConnections, ENetHost* host) {
         mMaxConnections = maxConnections;
         mBoundPort = port;
         mHost = host;
         mBase = b;
+        mSocketSet = new SocketSet();
+        mSocket.reopen(cast(socket_t)host.socket);
+        mFrom = new IPv4Address(0);
     }
 
     ~this()  {
         enet_host_destroy(mHost);
+    }
+
+    ///for custom, low-level action
+    Berkeley* socket() {
+        return &mSocket;
     }
 
     ///is this host bound to a port (i.e. accepting incoming connections),
@@ -177,11 +193,36 @@ class NetHost {
         return getNetPeer(peer);
     }
 
+    //Quite a dirty hack, but seemed to be the only way (without hacking enet)
+    //  to inspect packets to the server port before enet gets them
+    private void checkPacketPreview() {
+        if (onPacketPreview) {
+            mSocketSet.reset().add(&mSocket);
+            //check if a packet is waiting
+            if (SocketSet.select(mSocketSet, null, null, 0) > 0) {
+                //set MSG_PEEK, so the packet can still be processed by enet
+                int res = mSocket.receiveFrom(mBuffer, SocketFlags.PEEK, mFrom);
+                if (res > 0) {
+                    //if onPacketPreview returns true, it was a custom packet
+                    //  and will be removed from the socket queue
+                    bool handled = onPacketPreview(this, mFrom,
+                        mBuffer[0..res]);
+                    if (handled) {
+                        //actually read (and remove) it
+                        mSocket.receiveFrom(mBuffer, mFrom);
+                    }
+                }
+            }
+        }
+    }
+
     ///process all waiting events and return immediately
     void serviceAll() {
         ENetEvent event;
+        checkPacketPreview();
         while (enet_host_service(mHost, &event, 0) > 0) {
             handleEvent(event);
+            checkPacketPreview();
         }
     }
 

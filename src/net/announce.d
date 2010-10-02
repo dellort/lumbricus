@@ -1,5 +1,7 @@
 module net.announce;
 
+import net.netlayer;
+import tango.net.device.Berkeley;
 import utils.misc;
 import utils.configfile;
 import utils.factory;
@@ -9,10 +11,7 @@ import tango.util.Convert;
 
 ///Filled by the server, will be transmitted to clients via announcer
 struct AnnounceInfo {
-    char[] serverName;
     ushort port;
-    int curPlayers;
-    int maxPlayers;
 }
 
 ///Interface for servers to announce over various methods
@@ -91,9 +90,26 @@ alias StaticFactory!("Announcers", NetAnnouncer, ConfigNode) AnnouncerFactory;
 
 
 
-struct ServerInfo {
-    char[] address;
-    AnnounceInfo info;
+struct ServerAddress {
+    //ip address, host order
+    uint address = IPv4Address.ADDR_NONE;
+    ushort port = 0;
+
+    char[] toString() {
+        return myformat("{}.{}.{}.{}:{}", address >> 24 & 0xFF,
+            address >> 16 & 0xFF, address >> 8 & 0xFF, address & 0xFF, port);
+    }
+
+    bool parse(char[] addr) {
+        auto tmp = NetAddress(addr);
+        port = tmp.port;
+        address = IPv4Address.parse(tmp.hostName);
+        return valid();
+    }
+
+    bool valid() {
+        return address != IPv4Address.ADDR_NONE && port > 0;
+    }
 }
 
 ///Client part of announcer
@@ -104,9 +120,12 @@ abstract:
     ///loop over internal server list
     ///behavior is implementation-specific, but it should be implemented to
     ///block as short as possible (best not at all)
-    int opApply(int delegate(ref ServerInfo) del);
+    int opApply(int delegate(ref ServerAddress) del);
 
     ///Client starts inactive
+    ///by definition, setting active from false to true will cause an announce
+    ///  query to be sent (if supported and not being flooded)
+    ///server list will not be cleared if act == false
     void active(bool act);
     bool active();
 
@@ -118,10 +137,10 @@ abstract:
 //(a server not sending an update for mServerTimeout is removed from the list)
 abstract class NACPeriodically : NetAnnounceClient {
     private {
-        MyServerInfo[char[]] mServers;
+        MyServerInfo[ulong] mServers;
         struct MyServerInfo {
+            ServerAddress info;
             Time lastSeen;
-            ServerInfo info;
         }
     }
     //derived classes may change this for custom server timeout
@@ -129,10 +148,10 @@ abstract class NACPeriodically : NetAnnounceClient {
 
     //Returns the current internal server list, and also checks if server
     //entries have timed out
-    int opApply(int delegate(ref ServerInfo) del) {
+    int opApply(int delegate(ref ServerAddress) del) {
         Time t = timeCurrentTime();
-        char[][] invalid;
-        foreach (char[] key, ref MyServerInfo srv; mServers) {
+        ulong[] invalid;
+        foreach (ulong key, ref MyServerInfo srv; mServers) {
             //check for timeout
             //xxx monitor disconnect messages for more accurate info
             if (t - srv.lastSeen > mServerTimeout) {
@@ -144,26 +163,24 @@ abstract class NACPeriodically : NetAnnounceClient {
             }
         }
         //remove timed-out servers
-        foreach (char[] i; invalid) {
+        foreach (ulong i; invalid) {
             mServers.remove(i);
         }
         return 0;
     }
 
-    protected void refreshServer(char[] addr, ref AnnounceInfo info,
-        char[] id = null)
-    {
-        if (id.length == 0)
-            id = addr ~ to!(char[])(info.port);
+    protected void refreshServer(uint addr, ushort port, ulong id = 0) {
+        if (id == 0)
+            id = ((cast(ulong)addr) << 16) | port;
         //Servers are identified by hostname and port
         MyServerInfo* srv = id in mServers;
         if (!srv) {
-            mServers[id] = MyServerInfo();
+            mServers[id] = MyServerInfo.init;
             srv = id in mServers;
         }
         srv.lastSeen = timeCurrentTime();
         srv.info.address = addr;
-        srv.info.info = info;
+        srv.info.port = port;
     }
 }
 

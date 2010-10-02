@@ -264,6 +264,7 @@
 		<Unit filename="..\src\net\lobby.d" />
 		<Unit filename="..\src\net\marshal.d" />
 		<Unit filename="..\src\net\netlayer.d" />
+		<Unit filename="..\src\net\serverlist.d" />
 		<Unit filename="..\src\physics\all.d" />
 		<Unit filename="..\src\physics\base.d" />
 		<Unit filename="..\src\physics\broadphase.d" />

@@ -18,6 +18,24 @@ import utils.time;
 const ushort cProtocolVersion = 3;
 
 
+//-------------------- Query protocol ----------------------
+//Request: cQueryIdent
+//Response: cQueryIdent + marshal(cProtocolVersion ~ QueryResponse)
+//query port is the same as gameport, so no port in response
+
+//Note: enet header is 8 bytes, so no danger of mixup
+const cQueryIdent = "LQ";
+
+//contents of this may depend on server version
+//so check version before reading response data
+struct QueryResponse {
+    char[] serverName;
+    ushort curPlayers;
+    ushort maxPlayers;
+    char[][] players;
+}
+
+
 //---------------------- Packet IDs ------------------------
 
 //Server-to-client packet IDs

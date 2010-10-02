@@ -23,7 +23,7 @@ class NetBroadcast {
     void delegate(NetBroadcast sender, ubyte[] data,
         IPv4Address from) onReceive;
 
-    package this(ushort port, bool server = false) {
+    this(ushort port, bool server = false) {
         mServer = server;
         mPort = port;
         //setup broadcast addresses for all network interfaces
@@ -61,14 +61,14 @@ class NetBroadcast {
     }
 
     //send message (in reply to onReceive)
-    void send(ubyte[] data, IPv4Address dest) {
+    void send(void[] data, IPv4Address dest) {
         if (!mSocket)
             return;
         mSocket.native.sendTo(data, dest);
     }
 
     //broadcast message
-    void sendBC(ubyte[] data) {
+    void sendBC(void[] data) {
         if (!mSocket)
             return;
         assert(data.length <= cBufSize);

@@ -5,7 +5,7 @@
 		<Option title="server" />
 		<Option makefile="makefile" />
 		<Option makefile_is_custom="1" />
-		<Option execution_dir="..\src" />
+		<Option execution_dir="..\src\" />
 		<Option compiler="dmd" />
 		<Build>
 			<Target title="Debug">

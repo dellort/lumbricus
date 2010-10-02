@@ -451,9 +451,12 @@ class WormControl : WeaponController {
         updateWeapon();
     }
 
-    //deselects the old weapon
-    //decides whether the new weapon should be added as primary (returns true)
-    //  or secondary (returns false)
+    //makes room on the weapon stack to select the passed weapon, and
+    //  decides whether the new weapon should be added as primary or secondary
+    //also checks if the current stack state allows selecting this weapon
+    //Returns: true if the stack was prepared ok and the weapon can be pushed
+    //         false if the weapon cannot be selected (e.g. cannot select rope
+    //           while jetpack is working)
     //caller has to make sure the weapon is allowed to use at all
     private bool prepareSelect(WeaponClass weapon) {
         //set as new main
@@ -892,7 +895,7 @@ class WormControl : WeaponController {
         digestPoison();
     }
 
-    //if the worm is poisoned, die a little bit more 
+    //if the worm is poisoned, die a little bit more
     void digestPoison() {
         if (mWorm.poisoned) {
             //xxx should be configureable

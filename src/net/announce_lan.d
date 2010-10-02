@@ -55,7 +55,7 @@ class LanAnnouncer : NetAnnouncer {
             //bc packets may be reaching the client over multiple routes,
             //  so add an id to identify the server
             m.write(mId);
-            m.write(mInfo);
+            m.write(mInfo.port);
             //broadcast an info packet
             mBroadcast.sendBC(m.data());
             mLastTime = t;
@@ -123,11 +123,15 @@ class LanAnnounceClient : NACPeriodically {
     {
         //server announce packet incoming
         scope um = new UnmarshalBuffer(data);
-        uint id = um.read!(uint)();
-        auto ai = um.read!(AnnounceInfo)();  //xxx error checking
-        char[] addr = from.toAddrString();
+        try {
+            uint id = um.read!(uint)();
+            ushort port = um.read!(ushort)();
 
-        refreshServer(addr, ai, to!(char[])(id));
+            //make id even more unique
+            refreshServer(from.addr, port, ((cast(ulong)id) << 16) | port);
+        } catch (UnmarshalException e) {
+            //invalid packet, ignore
+        }
     }
 
     static this() {
