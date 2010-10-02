@@ -2094,7 +2094,7 @@ version (USE_FULL_UD) {
                     //  debugging; most likely multiple bind calls for a method
                     error = new CustomException("attempting to overwrite "
                         "existing name in _G when adding D method: "~m.fname);
-                    break;
+                    return;
                 }
 
                 if (m.classinfo) {

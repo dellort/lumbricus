@@ -210,6 +210,7 @@ class WormControl : WeaponController {
 
     private bool inpMove(char[] cmd) {
         mInputMoveState.handleCommand(cmd);
+        engine.log.trace("move state for {:x}: {}", toHash, mInputMoveState);
         move(toVector2f(mInputMoveState.direction));
         return true;
     }
@@ -384,6 +385,8 @@ class WormControl : WeaponController {
         }
 
         mOnHold = false;
+        //stale keypresses
+        mInputMoveState.reset();
 
         resetActivity();
     }

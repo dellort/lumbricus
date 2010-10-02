@@ -249,5 +249,14 @@ struct MoveStateXY {
         auto p = parseParams!(char[], bool)(args);
         return handleKeys(p.expand);
     }
+
+    void reset() {
+        keyState_lu = keyState_rd = Vector2i.init;
+    }
+
+    char[] toString() {
+        return myformat("lu={} ld={} dir={}", keyState_lu, keyState_rd,
+            direction);
+    }
 }
 

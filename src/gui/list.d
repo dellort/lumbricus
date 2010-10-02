@@ -34,6 +34,7 @@ class AbstractListWidget : Widget {
     this() {
         styles.addClass("w-list");
         focusable = true;
+        doClipping = true;
     }
 
     int count() {

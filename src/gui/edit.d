@@ -20,7 +20,8 @@ import str = utils.string;
 class EditLine : Widget {
     private {
         char[] mCurline;
-        uint mCursor;
+        uint mCursor;       //call updateCursor on change
+        Vector2i mOffset;   //text rendering offset for scrolling
         FormattedText mRender;
         FormattedText.StyleRange* mRenderSel; //render text selection
         //not necessarily mSelStart >= mSelEnd, can also be backwards
@@ -40,6 +41,8 @@ class EditLine : Widget {
         mRender = new FormattedText();
         mCursorTimer = new Timer(timeMsecs(500), &onTimer);
         focusable = true;
+        //when scrolling is in use
+        doClipping = true;
     }
 
     override bool greedyFocus() { return true; }
@@ -59,6 +62,7 @@ class EditLine : Widget {
             } else {
                 killSelection();
             }
+            updateCursor();
         }
 
         if (infos.code == Keycode.RIGHT) {
@@ -193,6 +197,7 @@ class EditLine : Widget {
         }
         assert(mCursor >= 0 && mCursor <= mCurline.length);
         mRender.setLiteral(mCurline);
+        updateCursor();
     }
 
     //do everything what's typically done when text is entered by the user
@@ -258,8 +263,35 @@ class EditLine : Widget {
     }
 
     ///byteindex into text at the given pixel pos
-    private uint indexAt(Vector2i pos) {
-        return mRender.indexFromPosFuzzy(pos);
+    uint indexAt(Vector2i pos) {
+        return mRender.indexFromPosFuzzy(pos + mOffset);
+    }
+
+    private const cCursorWidth = 1;
+
+    Rect2i cursorRect() {
+        Rect2i rc = mRender.getCursorPos(mCursor) - mOffset;
+        //the rc has the width of the char it's over - make it one pixel thick
+        rc.p2.x = rc.p1.x + cCursorWidth;
+        return rc;
+    }
+
+    //ensure the cursor is visible (adjust scroll offset)
+    void updateCursor() {
+        //currently only vertical scrolling
+        int px = cursorRect.p2.x;       //current relative offset
+        int real_px = px + mOffset.x;   //absolute offset
+        int ts_x = mRender.textSize().x;
+        if (px + cCursorWidth > size.x) {
+            mOffset.x = real_px - size.x;
+        } else if (px <= 0) {
+            mOffset.x = real_px - cCursorWidth;
+        }
+        if (mOffset.x < 0)
+            mOffset.x = 0;
+        //no scrolling if text isn't larger than widget
+        if (ts_x < size.x)
+            mOffset.x = 0;
     }
 
     override bool onKeyDown(KeyInfo info) {
@@ -317,17 +349,17 @@ class EditLine : Widget {
 
     override void layoutSizeAllocation() {
         super.layoutSizeAllocation();
-        mRender.setArea(size, -1, -1);
+        //mRender.setArea(size, -1, -1);
+        //updateCursor();
     }
 
     override void onDraw(Canvas c) {
-        mRender.draw(c, Vector2i(0));
+        mRender.draw(c, -mOffset);
 
         if (focused) {
             mCursorTimer.enabled = true;
             if (mCursorVisible && !mMouseDown) {
-                Rect2i rc = mRender.getCursorPos(mCursor);
-                c.drawFilledRect(Rect2i(rc.p1, Vector2i(rc.p1.x+1, rc.p2.y)),
+                c.drawFilledRect(cursorRect(),
                     mRender.font.properties.fore_color);
             }
             mCursorTimer.update();
@@ -350,15 +382,19 @@ class EditLine : Widget {
     }
     public void text(char[] newtext) {
         editText(0, mCurline.length, newtext);
+        cursorPos = 0;
     }
 
     public uint cursorPos() {
         return mCursor;
     }
     public void cursorPos(uint newPos) {
+        if (mCursor == newPos)
+            return;
         mCursor = newPos;
         if (mCursor > mCurline.length)
             mCursor = mCurline.length;
+        updateCursor();
     }
 
     override void readStyles() {
@@ -387,6 +423,8 @@ class EditLine : Widget {
 }
 
 //xxx this should actually do scrolling or something
+//xxx2 line wrapping (ShinkMode.wrap) is broken, because mRender.setArea is
+//  commented in EditLine (because of vetical scrolling)
 class MultilineEdit : EditLine {
     this() {
         //just for fun
