@@ -31,6 +31,8 @@ private bool http_get(char[] url, out char[] result, char[][char[]] args) {
     try {
         //hostname is resolved here (which may fail)
         auto client = new HttpClient(HttpClient.Get, url);
+        //5 seconds timeout
+        client.setTimeout(5.0f);
         scope(exit) client.close();
 
         foreach (char[] k, char[] v; args) {
@@ -54,7 +56,7 @@ private bool http_get(char[] url, out char[] result, char[][char[]] args) {
             return true;
         } else {
             //hm, I don't know
-            result = "HTTP error: I have no idea";
+            result = "HTTP error: " ~ client.getResponse().toString();
             return false;
         }
     } catch (SocketException e) {
@@ -102,13 +104,14 @@ private class HttpGetter : Thread {
     }
 }
 
+private LogStruct!("php_announce") log;
+
 class PhpAnnouncer : NetAnnouncer {
     private {
         char[] mUrl;
         Time mLastUpdate;
         AnnounceInfo mInfo;
         char[] mInfoData;
-        LogStruct!("php_server_announce") log;
         bool mActive;
         HttpGetter mLastGetter;
     }
@@ -129,7 +132,7 @@ class PhpAnnouncer : NetAnnouncer {
     }
 
     //actually trigger a PHP request to add/update/keep-alive the announcement
-    void do_update() {
+    private void do_update() {
         log("announcing");
         char[][char[]] hdrs;
         hdrs["action"] = "add";
@@ -141,7 +144,7 @@ class PhpAnnouncer : NetAnnouncer {
         mLastUpdate = timeCurrentTime();
     }
 
-    void do_remove() {
+    private void do_remove() {
         log("removing");
         char[][char[]] hdrs;
         hdrs["action"] = "remove";
@@ -155,12 +158,14 @@ class PhpAnnouncer : NetAnnouncer {
             return;
         mInfo = info;
         mInfoData = marshalBase64(info);
-        do_update();
+        if (mActive)
+            do_update();
     }
 
     override void active(bool act) {
         if (act == mActive)
             return;
+        log("active = {}", act);
         mActive = act;
         if (act)
             do_update();
@@ -171,7 +176,8 @@ class PhpAnnouncer : NetAnnouncer {
     override void close() {
         active = false;
         //on shutdown, wait for remove request to finish
-        mLastGetter.join();
+        if (mLastGetter)
+            mLastGetter.join();
     }
 
     static this() {
@@ -188,7 +194,8 @@ class PhpAnnounceClient : NetAnnounceClient {
         HttpGetter mGetter;
     }
 
-    const Time cUpdateTime = timeSecs(10);
+    //regular update of server list (will also be updated when active gets true)
+    const Time cUpdateTime = timeSecs(60);
 
     this(ConfigNode cfg) {
         mUrl = cfg.getStringValue("script_url");
@@ -203,17 +210,19 @@ class PhpAnnounceClient : NetAnnounceClient {
             do_update();
     }
 
-    void do_update() {
+    private void do_update() {
         //only one update a time
         if (mGetter.isRunning())
             return;
+        log("Updating");
         mGetter.start();
         mLastUpdateTime = timeCurrentTime();
     }
 
-    void requestFinish(bool success, char[] result) {
+    private void requestFinish(bool success, char[] result) {
         mServers.length = 0;
         if (success) {
+            log("requestFinish OK (length = {})", result.length);
             auto lines = str.splitlines(result);
             forline: foreach (line; lines) {
                 //expected format: address|time|info
@@ -228,6 +237,8 @@ class PhpAnnounceClient : NetAnnounceClient {
                     mServers ~= saddr;
                 }
             }
+        } else {
+            log.warn("Request failed ({})", result);
         }
     }
 
@@ -248,6 +259,7 @@ class PhpAnnounceClient : NetAnnounceClient {
     override void active(bool act) {
         if (act == mActive)
             return;
+        log("active = {}", act);
         mActive = act;
         if (mActive)
             do_update();

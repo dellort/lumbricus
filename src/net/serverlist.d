@@ -16,7 +16,7 @@ private LogStruct!("serverlist") log;
 //  servers and query them regularly for ping time and more information
 class ServerList {
     //time for query retry
-    const cQueryTimeout = timeSecs(5);
+    const cQueryTimeout = timeSecs(8);
     //re-query interval (must be > cQueryTimeout)
     const cSeenTimeout = timeSecs(60);
     //announcer refresh interval (sync announcer's server list with ours)

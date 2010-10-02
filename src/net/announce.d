@@ -19,7 +19,7 @@ class NetAnnounce {
     private {
         NetAnnouncer[] mAnnouncers;
         bool mActive;
-        bool mInternet;
+        bool mInternet = true;
     }
 
     ///cfg contains multiple announcer configurations, e.g.

@@ -87,6 +87,11 @@ class CmdNetClientTask {
             as.servers.onChange = &serverListChange;
             as.marker = loader.lookup(sub["ctl_marker"]);
             as.list = loader.lookup!(StringListWidget)(sub["ctl_list"]);
+            char[] refreshBtn = sub["ctl_refresh"];
+            if (refreshBtn.length > 0) {
+                loader.lookup!(Button)(sub["ctl_refresh"]).onClick =
+                    &refreshClick;
+            }
             mAnnounce ~= as;
         }
         mDirectMarker = loader.lookup(config["direct_marker"]);
@@ -166,6 +171,12 @@ class CmdNetClientTask {
 
     private void cancelClick(Button sender) {
         mConnectWnd.remove();
+    }
+
+    private void refreshClick(Button sender) {
+        if (mMode >= 0) {
+            mAnnounce[mMode].servers.refreshAll();
+        }
     }
 
     private void tabActivate(Tabs sender) {
