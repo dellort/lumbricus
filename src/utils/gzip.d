@@ -5,7 +5,8 @@ import utils.stream;
 //hack for tango 0.99.9 <-> svn trunk change
 import tango.core.Version;
 static if (Tango.Major == 0 && Tango.Minor == 999) {
-    import czlib = tango.io.compress.c.zlib;
+    //lol rebuild xD
+    mixin(`import czlib = tango.io.compress.c.zlib;`);
 } else {
     import czlib = tango.util.compress.c.zlib;
 }
