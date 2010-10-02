@@ -978,9 +978,11 @@ private void luaProtected(lua_State* state, void delegate() code) {
     //get the cached C closure for the pcall_err_handler function
     lua_pushlightuserdata(state, &cErrorHandlerKey); //key
     lua_rawget(state, LUA_REGISTRYINDEX); //eh
+    assert(lua_iscfunction(state, -1));
     //get the cached C closure for the pcall_invoke_handler function
     lua_pushlightuserdata(state, &cPInvokeHandlerKey); //eh key
     lua_rawget(state, LUA_REGISTRYINDEX); //eh ih
+    assert(lua_iscfunction(state, -1));
     //push the parts of the delegate, these are the function arguments
     lua_pushlightuserdata(state, code.ptr); //eh ih ptr
     lua_pushlightuserdata(state, code.funcptr); //eh ih ptr fptr
@@ -2317,10 +2319,10 @@ version (USE_FULL_UD) {
         int res = luaL_loadbuffer(mLua, data.ptr, data.length,
             czstr.toStringz('='~chunkname));
         if (res != 0) {
-            scope (exit) lua_pop(mLua, 1);  //remove error message
             //xxx if this fails to get the message (e.g. utf8 error), there
             //    will be no line number
             char[] err = lua_todstring_protected(mLua, -1);
+            lua_pop(mLua, 1);  //remove error message
             luaErrorf(mLua, "Parse error: {}", err);
         }
     }

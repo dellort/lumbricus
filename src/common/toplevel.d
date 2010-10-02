@@ -196,7 +196,7 @@ private:
 
     private void cmdLua(MyBox[] args, Output write) {
         char[] cmd = args[0].unbox!(char[]);
-        mLua.scriptExec(cmd);
+        mLua.scriptExec("ConsoleUtils.exec(...)", cmd, &write.writeString);
     }
 
     private void cmdFwSettings(MyBox[] args, Output write) {

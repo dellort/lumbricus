@@ -516,8 +516,14 @@ class CmdNetClient : SimpleNetConnection {
             case Client2ClientPacket.chatMessage:
                 auto p = unmarshal.read!(CCChatMessage)();
                 if (onMessage) {
-                    onMessage(this,
-                        [myformat("<{}> {}", name, p.witty_comment)]);
+                    char[] text = myformat("<{}> {}", name, p.witty_comment);
+                    onMessage(this, [text]);
+                }
+                if (onChat) {
+                    if (isIdValid(pkt.senderPlayerId)) {
+                        onChat(this, mPlayerInfo[pkt.senderPlayerId].info,
+                            p.witty_comment);
+                    }
                 }
                 break;
             default:
@@ -560,8 +566,12 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     private void cmdSay(MyBox[] args, Output write) {
+        sendChat(args[0].unboxMaybe!(char[])());
+    }
+
+    void sendChat(char[] msg) {
         CCChatMessage m;
-        m.witty_comment = args[0].unboxMaybe!(char[])();
+        m.witty_comment = msg;
         if (m.witty_comment.length > 0)
             broadcast(Client2ClientPacket.chatMessage, m);
     }

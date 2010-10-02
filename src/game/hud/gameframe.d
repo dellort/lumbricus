@@ -21,6 +21,7 @@ import gui.window;
 import game.controller;
 import game.core;
 import game.game;
+import game.gameshell;
 import game.hud.camera;
 import game.hud.gameview;
 import game.hud.windmeter;
@@ -374,8 +375,12 @@ class GameFrame : SimpleContainer {
         if (mConsoleMode == ConsoleMode.Script) {
             mScriptInterpreter.exec(text);
         } else if (mConsoleMode == ConsoleMode.Chat) {
-            mConsoleBox.output.writefln("chat not implemented, lol, but you "
-                "wanted to say: {}", text);
+            if (game.connection) {
+                game.connection.sendChat(text);
+            } else {
+                mConsoleBox.output.writefln("no chat in local mode, but you "
+                    "wanted to say: {}", text);
+            }
         }
     }
 
@@ -414,6 +419,21 @@ class GameFrame : SimpleContainer {
     private void levelPaintHack() {
         gWindowFrame.createWindow(new PainterWidget(
             (cast(GameEngine)game.engine).gameLandscapes[0].landscape), "hi");
+    }
+
+    private void chatMessage(SimpleNetConnection sender, NetPlayerInfo player,
+        char[] text)
+    {
+        char[] color = "white";
+        //hacky hack hack
+        foreach (team; game.engine.singleton!(GameController)().teams) {
+            uint ownerId = to!(uint)(team.netId);
+            if (ownerId == player.id) {
+                color = team.theme.color.toString();
+            }
+        }
+        mConsoleBox.output.writefln(myformat("\\c({})\\b{}\\r: {}",
+            color, player.name, text));
     }
 
     this(GameInfo g) {
@@ -465,6 +485,8 @@ class GameFrame : SimpleContainer {
             //network error screen covers all hud elements
             n.zorder = 10;
             add(n);
+
+            game.connection.onChat = &chatMessage;
         }
 
         gameView.camera.control = mScroller;

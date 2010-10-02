@@ -902,7 +902,7 @@ abstract class SimpleNetConnection {
     //all clients finished loading, game is starting
     void delegate(SimpleNetConnection sender, ClientControl control) onGameStart;
     //receiving a chat message
-    void delegate(SimpleNetConnection sender, char[] playerName,
+    void delegate(SimpleNetConnection sender, NetPlayerInfo player,
         char[] msg) onChat;
     //you are allowed to host a game
     void delegate(SimpleNetConnection sender, uint playerId,
@@ -932,4 +932,6 @@ abstract:
 
     //returns true if the game is paused because server frames are not available
     bool waitingForServer();
+
+    void sendChat(char[] msg);
 }
