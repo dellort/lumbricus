@@ -406,6 +406,7 @@ class CmdNetClient : SimpleNetConnection {
                     }
                     mPlayerInfo[curId].info.name = player.name;
                     mPlayerInfo[curId].info.teamName = player.teamName;
+                    mPlayerInfo[curId].info.id = curId;
                     curId++;
                 }
                 if (onUpdatePlayers)
