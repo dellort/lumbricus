@@ -111,7 +111,6 @@ class PhpAnnouncer : NetAnnouncer {
         char[] mUrl;
         Time mLastUpdate;
         AnnounceInfo mInfo;
-        char[] mInfoData;
         bool mActive;
         HttpGetter mLastGetter;
     }
@@ -137,7 +136,6 @@ class PhpAnnouncer : NetAnnouncer {
         char[][char[]] hdrs;
         hdrs["action"] = "add";
         hdrs["port"] = myformat("{}", mInfo.port);
-        hdrs["info"] = mInfoData;
         //run and forget, we don't need the result
         mLastGetter = new HttpGetter(mUrl, hdrs, null);
         mLastGetter.start();
@@ -157,7 +155,6 @@ class PhpAnnouncer : NetAnnouncer {
         if (mInfo == info)
             return;
         mInfo = info;
-        mInfoData = marshalBase64(info);
         if (mActive)
             do_update();
     }
@@ -200,7 +197,7 @@ class PhpAnnounceClient : NetAnnounceClient {
     this(ConfigNode cfg) {
         mUrl = cfg.getStringValue("script_url");
         char[][char[]] hdrs;
-        hdrs["action"] = "list";
+        hdrs["action"] = "blist";
         mGetter = new HttpGetter(mUrl, hdrs, &requestFinish);
     }
 
@@ -223,19 +220,13 @@ class PhpAnnounceClient : NetAnnounceClient {
         mServers.length = 0;
         if (success) {
             log("requestFinish OK (length = {})", result.length);
-            auto lines = str.splitlines(result);
-            forline: foreach (line; lines) {
-                //expected format: address|time|info
-                //we don't actually need time?
-                //good news: we don't need info either xD
-                auto comps = str.split(line, "|");
-                if (comps.length == 3) {
-                    ServerAddress saddr;
-                    //ServerAddress parses the text; throws no exceptions
-                    if (!saddr.parse(comps[0]))
-                        continue;
-                    mServers ~= saddr;
-                }
+            //result is a binary list (4 bytes ip, 2 bytes port little endian)
+            for (int idx = 0; idx + 6 <= result.length; idx += 6) {
+                ServerAddress saddr;
+                //xxx convert on big endian platform (I'm lazy)
+                saddr.address = *cast(uint*)(result.ptr + idx);
+                saddr.port = *cast(ushort*)(result.ptr + idx + 4);
+                mServers ~= saddr;
             }
         } else {
             log.warn("Request failed ({})", result);

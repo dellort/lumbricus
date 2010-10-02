@@ -3,91 +3,96 @@
 # I can only hope that there are no "security issues"
 # but anyone could use the server for temporary light-weight storage of data
 
-try {
-    $dblink = new PDO('mysql:host=localhost;port=3307;dbname=foo', 'debian-sys-maint', 'xlz5V2owQsZZarzR');
-
-    # output is stored in a variable, because when writing the output directly, the
-    # http header can't be changed afterwards (on errors)
-    $output = "";
-
-    switch ($_GET["action"]) {
-        case "getip":
-            # ip is the "detected" remote address
-            # remoteip is the actual remote address as seen by the web server
-            $output = "state=ip\nip=" . get_ip() . "\nremoteip=" . $_SERVER["REMOTE_ADDR"];
-            break;
-        case "list":
-            # return a list of all announcements
-            do_timeouts($dblink);
-            $output = "state=list\n";
-            $data = myquery($dblink, "select address, time, info from server_list");
-            foreach ($data as $row) {
-                $output = $output . $row["address"] . "|" . $row["time"]
-                    . "|" . $row["info"] . "\n";
-            }
-            break;
-        case "add":
-            # add/update an announcement entry
-            # not sure how to deal with "address", the internet is full of
-            # firewalls and HTTP proxies; how to get the actual address?
-            do_timeouts($dblink);
-            $address = get_address();
-            $info = $_GET["info"];
-            $info_ok = false;
-            if (filter_var($info, FILTER_SANITIZE_STRING)) {
-                # sorry I have no clue
-                # it doesn't even work lololoo
-                $info_ok = true;
-                for ($n = 0; $n < strlen($info); $n = $n + 1) {
-                    if (($info[$n] < 32) || ($info[$n] > 127)) {
-                        $info_ok = false;
-                        break;
-                    }
-                }
-            }
-            if (!info_ok) {
-                throw new Exception("info argument invalid");
-            }
-            $dblink->beginTransaction();
-            mystatement($dblink, "delete from server_list where address=:addr",
-                array(":addr" => $address));
-            myquery($dblink, "insert into server_list values(:addr, :time, :info)",
-                array(":addr" => $address, ":time" => time(), ":info" => $info));
-            $dblink->commit();
-            $output = "state=added";
-            break;
-        case "remove":
-            $address = get_address();
-            mystatement($dblink, "delete from server_list where address=:addr",
-                array(":addr" => $address));
-            $output = "state=deleted";
-            break;
-        case "clear":
-            # empty caches
-            # also used to initially create the database
-            # not really a problem to allow this for everyone
-            try {
-                mystatement($dblink, "drop table server_list");
-            } catch (Exception $e) {
-                //lol
-            }
-            mystatement($dblink, "create table server_list (address varchar(100) not null primary key, time integer not null, info varchar(100) not null)");
-            $output = "state=ok";
-            break;
-        default:
-            throw new Exception("invalid action");
-    }
-
-    # when everything went right
-    header("Content-Type: text/plain");
-    header("Connection: Close"); #how to do this correctly?
-    echo $output;
-
-} catch (Exception $e) {
+function exception_handler($exception) {
     # retarded PHP crap doesn't do this automatically
     header("HTTP/1.0 400 Bad Request");
-    throw $e;
+    header("Content-Type: text/plain");
+    echo "Error: " , $exception->getMessage(), "\n";
 }
+set_exception_handler('exception_handler');
+
+# enable output buffer, so headers can be manipulated
+# buffer is flushed automatically on script end
+ob_start();
+
+$dblink = new PDO('mysql:host=localhost;port=3307;dbname=foo', 'debian-sys-maint', 'xlz5V2owQsZZarzR');
+
+$binary = false;
+
+switch ($_GET["action"]) {
+    case "getip":
+        # ip is the "detected" remote address
+        # remoteip is the actual remote address as seen by the web server
+        echo "state=ip\nip=" . get_ip() . "\nremoteip=" . $_SERVER["REMOTE_ADDR"];
+        break;
+    case "list":
+        # return a list of all announcements
+        do_timeouts($dblink);
+        echo "state=list\n";
+        $data = myquery($dblink, "select address, time from server_list");
+        foreach ($data as $row) {
+            # last | for backwards compatiblity
+            echo $row["address"] . "|" . $row["time"] . "|\n";
+        }
+        break;
+    case "blist":
+        # return a binary list of all announcements without state prefix
+        # format: (4 bytes ip little endian + 2 bytes port little endian)*
+        do_timeouts($dblink);
+        $data = myquery($dblink, "select address from server_list");
+        foreach ($data as $row) {
+            # split into ip and port
+            $addr = explode(":", $row["address"]);
+            echo pack("Vv", ip2long($addr[0]), $addr[1]);
+        }
+        # for content type
+        $binary = true;
+        break;
+    case "add":
+        # add/update an announcement entry
+        # not sure how to deal with "address", the internet is full of
+        # firewalls and HTTP proxies; how to get the actual address?
+        do_timeouts($dblink);
+        $address = get_address();
+        $dblink->beginTransaction();
+        mystatement($dblink, "delete from server_list where address=:addr",
+            array(":addr" => $address));
+        myquery($dblink, "insert into server_list values(:addr, :time)",
+            array(":addr" => $address, ":time" => time()));
+        $dblink->commit();
+        echo "state=added";
+        break;
+    case "remove":
+        $address = get_address();
+        mystatement($dblink, "delete from server_list where address=:addr",
+            array(":addr" => $address));
+        echo "state=deleted";
+        break;
+    case "clear":
+        # empty caches
+        # also used to initially create the database
+        # not really a problem to allow this for everyone
+        try {
+            mystatement($dblink, "drop table server_list");
+        } catch (Exception $e) {
+            //lol
+        }
+        mystatement($dblink, "create table server_list (address varchar(100) not null primary key, time integer not null)");
+        echo "state=ok";
+        break;
+    default:
+        throw new Exception("invalid action");
+}
+
+# when everything went right
+if ($binary) {
+    header("Content-Type: application/octet-stream");
+} else {
+    header("Content-Type: text/plain");
+}
+# seems this doesn't work at all
+header('Connection: close');
+
 
 function do_timeouts($link) {
     $now = time();
