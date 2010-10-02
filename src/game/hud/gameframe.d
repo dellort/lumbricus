@@ -432,8 +432,10 @@ class GameFrame : SimpleContainer {
                 color = team.theme.color.toString();
             }
         }
-        mConsoleBox.output.writefln(myformat("\\c({})\\b{}\\r: {}",
-            color, player.name, text));
+        //the \litx prevents interpretation of the nick name as markup
+        //we decided to allow markup in the message text
+        mConsoleBox.output.writefln(myformat(r"\[\c({})\b\litx({},{}): \]{}",
+            color, player.name.length, player.name, text));
     }
 
     this(GameInfo g) {

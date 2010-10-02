@@ -73,7 +73,7 @@ struct TextRange {
  +      i==0 center, i<0 top, i>0 bottom
  +  \r
  +    Reset the font to the previous style.
- +    If there was a \{, set style as if you'd do \} (but without poping stack).
+ +    If there was a \[, set style as if you'd do \] (but without poping stack).
  +    If the stack is empty, set to default font.
  +  \[  \]
  +    Push/pop the font style to the stack.
