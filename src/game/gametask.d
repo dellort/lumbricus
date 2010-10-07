@@ -245,7 +245,7 @@ class GameTask : IKillable {
         mCmds.helpTranslator = localeRoot.bindNamespace(
             "console_commands.gametask");
         registerCommands();
-        gCommands.addSub(mCmds);
+        mRealWindow.commands = mCmds;
     }
 
     private void netGameStart(SimpleNetConnection sender, ClientControl control)
@@ -493,7 +493,6 @@ class GameTask : IKillable {
         mDead = true;
         mRealWindow.remove();
         unloadAndReset();
-        gCommands.removeSub(mCmds);
     }
 
     void terminateWithFadeOut() {

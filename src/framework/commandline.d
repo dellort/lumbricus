@@ -309,15 +309,14 @@ private:
 class CommandBucket {
     private {
         Command[] mCommands;
-        struct SubBucket {
-            CommandBucket bucket;
-            int seenGeneration = -1;
-        }
-        SubBucket[] mSubs;
-        Entry[] mSorted;   //sorted list of commands, including subs
+        CommandBucket[] mSubs;
         Translator mHelpTrans;
-        int generation = 0;
     }
+
+    //hack to get more sub-commands
+    //common/toplevel.d uses this to delegate commands to the current active
+    //  window
+    CommandBucket delegate() onGetSubCommands;
 
     //entry for each command
     struct Entry {
@@ -383,7 +382,6 @@ class CommandBucket {
 
     void register(Command cmd) {
         mCommands ~= cmd;
-        invalidate();
     }
 
     public void registerCommand(Command cmd) {
@@ -399,8 +397,7 @@ class CommandBucket {
     /// Merge the commands from sub with this
     void addSub(CommandBucket sub) {
         removeSub(sub); //just to be safe
-        mSubs ~= SubBucket(sub);
-        invalidate();
+        mSubs ~= sub;
     }
 
     void bind(CommandLine cmdline) {
@@ -408,26 +405,7 @@ class CommandBucket {
     }
 
     void removeSub(CommandBucket sub) {
-        int idx = -1;
-        foreach (int i, SubBucket entry; mSubs) {
-            if (entry.bucket is sub) {
-                idx = i;
-                break;
-            }
-        }
-        if (idx < 0)
-            return;
-        invalidate();
-        arrayRemoveN(mSubs, idx);
-    }
-
-    //clear command cache
-    void invalidate() {
-        if (mSorted.length > 0) {
-            mSorted = null;
-            //own contents are updating, mark for parent CommandBuckets
-            generation++;
-        }
+        arrayRemove(mSubs, sub, true);
     }
 
     Translator helpTranslator() {
@@ -435,59 +413,34 @@ class CommandBucket {
     }
     void helpTranslator(Translator tr) {
         mHelpTrans = tr;
-        invalidate();
     }
 
-    Entry[] sorted() {
-        bool needResort = mSorted.length == 0;
-        //need to invalidate if a sub-bucket changed
-        foreach (ref sub; mSubs) {
-            needResort |= sub.seenGeneration < sub.bucket.generation;
+    //iterate over all added commands with foreach
+    int opApply(int delegate(ref Entry e) dg) {
+        foreach (cmd; mCommands) {
+            auto e = Entry(cmd.name, cmd, mHelpTrans);
+            if (auto i = dg(e))
+                return i;
         }
-        if (needResort) {
-            invalidate();
-            //recursively add from all sub-entries etc.
-            foreach (m; mCommands) {
-                mSorted ~= Entry(m.name, m, helpTranslator);
-            }
-            foreach (ref s; mSubs) {
-                s.seenGeneration = s.bucket.generation;
-                auto subEntries = s.bucket.sorted().dup;
-                //reset alias names
-                foreach (ref e; subEntries) {
-                    e.alias_name = e.cmd.name;
-                }
-                mSorted ~= subEntries;
-            }
-
-            //sort the mess and deal with double entries
-            for (;;) {
-                bool change = false;
-                mSorted.sort;
-                char[] last_entry;
-                int n_entry;
-                foreach (inout e; mSorted) {
-                    if (e.alias_name == last_entry) {
-                        change = true;
-                        n_entry++;
-                        e.alias_name = myformat("{}_{}", last_entry, n_entry);
-                    } else {
-                        last_entry = e.alias_name;
-                        n_entry = 1;
-                    }
-                }
-                if (!change)
-                    break;
+        foreach (s; mSubs) {
+            if (auto i = s.opApply(dg))
+                return i;
+        }
+        if (onGetSubCommands) {
+            CommandBucket sub = onGetSubCommands();
+            if (sub) {
+                if (auto i = sub.opApply(dg))
+                    return i;
             }
         }
-        return mSorted;
+        return 0;
     }
 
     //for quickly converting old to new help format; prints to stdout
     //can also be used to change format of locale (in case "someone"
     //  doesn't like it)
     debug void convertHelpToLocales() {
-        foreach (e; sorted) {
+        foreach (e; this) {
             Trace.formatln("{} = \"{}\"", e.cmd.name, e.helpText());
             for (int n = 0; n < e.cmd.param_types.length; n++) {
                 Trace.formatln("{}_arg{} = \"{}\"", e.cmd.name, n,
@@ -558,7 +511,7 @@ class CommandLineInstance {
 
     private char[][] complete_command_list() {
         char[][] res;
-        foreach (CommandEntry e; mCommands.sorted) {
+        foreach (CommandEntry e; mCommands) {
             res ~= e.alias_name;
         }
         return res;
@@ -581,7 +534,7 @@ class CommandLineInstance {
         if (foo.length == 0) {
             mConsole.writefln("List of commands: ");
             uint count = 0;
-            foreach (c; mCommands.sorted) {
+            foreach (c; mCommands) {
                 c.showShortHelp(mConsole);
                 count++;
             }
@@ -866,7 +819,7 @@ class CommandLineInstance {
 
         res.length = 0;
 
-        foreach (CommandEntry cur; mCommands.sorted) {
+        foreach (CommandEntry cur; mCommands) {
             //xxx: make string comparisions case insensitive
             //xxx: incorrect utf-8 handling?
             if (cur.alias_name.length >= cmd.length

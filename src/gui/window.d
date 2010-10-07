@@ -1,6 +1,7 @@
 module gui.window;
 
 import common.task;
+import framework.commandline;
 import framework.config;
 import framework.drawing;
 import framework.event;
@@ -183,6 +184,10 @@ class WindowWidget : Widget {
 
     //for popups
     bool closeOnDefocus = false;
+
+    //if the window is active, the commands are available on the global cmdline
+    //for use with common/toplevel.d
+    CommandBucket commands;
 
     this() {
         focusable = true;

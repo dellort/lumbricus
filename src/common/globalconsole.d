@@ -8,6 +8,7 @@ import framework.i18n;
 import gui.console;
 import gui.chatbox;
 import gui.widget;
+import gui.window;
 import utils.log;
 import utils.misc;
 import utils.vector2;
@@ -32,6 +33,7 @@ private {
 
 static this() {
     gCommands = new CommandBucket();
+    gCommands.onGetSubCommands = toDelegate(&onGetWindowCommands);
     gLogBackendGui = new LogBackend("gui", LogPriority.Notice, null);
 }
 
@@ -170,4 +172,13 @@ private void onTabComplete(char[] line, int cursor1, int cursor2,
 
 private void logGui(LogEntry e) {
     writeColoredLogEntry(e, false, &gConsoleOut.writefln);
+}
+
+private CommandBucket onGetWindowCommands() {
+    if (!gWindowFrame)
+        return null;
+    auto window = gWindowFrame.activeWindow();
+    if (!window)
+        return null;
+    return window.commands;
 }
