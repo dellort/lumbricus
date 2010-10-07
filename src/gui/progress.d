@@ -1,6 +1,6 @@
 module gui.progress;
 
-import framework.framework;
+import framework.drawing;
 import gui.container;
 import gui.label;
 import gui.renderbox;

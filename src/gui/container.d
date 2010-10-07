@@ -1,7 +1,5 @@
 module gui.container;
 
-import framework.framework : Canvas;
-import framework.event;
 import gui.widget;
 import utils.configfile;
 import utils.misc;

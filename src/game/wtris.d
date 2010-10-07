@@ -2,11 +2,12 @@
 //  if it causes problems at compilation or so, just remove it from lumbricus.d
 module game.wtris;
 
-import framework.framework;
+import framework.config;
+import framework.drawing;
+import framework.surface;
 import framework.event;
 import framework.imgread;
 import utils.timesource;
-import common.common;
 import common.task;
 import gui.widget;
 import gui.container;

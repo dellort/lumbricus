@@ -2,8 +2,8 @@ module gui.propedit;
 
 import common.task;
 
-import framework.framework;
 import framework.globalsettings;
+import framework.main;
 
 import gui.boxcontainer;
 import gui.button;

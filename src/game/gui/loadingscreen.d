@@ -1,12 +1,12 @@
 module game.gui.loadingscreen;
 
-import framework.framework;
 import framework.i18n;
 import gui.boxcontainer;
 import gui.container;
 import gui.label;
 import gui.progress;
 import gui.widget;
+import utils.color;
 import utils.time;
 import utils.vector2;
 

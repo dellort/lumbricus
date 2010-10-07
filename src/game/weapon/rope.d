@@ -1,6 +1,7 @@
 module game.weapon.rope;
 
-import framework.framework;
+import framework.drawing;
+import framework.surface;
 import common.animation;
 import common.resset;
 import common.scene;

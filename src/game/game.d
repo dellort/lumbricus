@@ -1,4 +1,8 @@
 module game.game;
+
+import framework.config;
+import framework.drawing;
+import framework.surface;
 import game.effects;
 import game.levelgen.level;
 import game.levelgen.landscape;
@@ -7,7 +11,6 @@ import game.gfxset;
 import game.glevel;
 import game.sprite;
 import common.animation;
-import common.common;
 import common.lua; // : loadScript
 import common.scene;
 import game.core;
@@ -28,9 +31,9 @@ import utils.math;
 import utils.misc;
 import utils.perf;
 import utils.random;
-import framework.framework;
+import utils.vector2;
+import utils.rect2;
 import utils.timesource;
-import framework.commandline;
 import common.resset;
 
 import tango.math.Math;

@@ -2,7 +2,8 @@ module game.glevel;
 
 import common.resset;
 import common.scene;
-import framework.framework;
+import framework.drawing;
+import framework.surface;
 import game.core;
 import game.levelgen.landscape;
 import game.levelgen.level;

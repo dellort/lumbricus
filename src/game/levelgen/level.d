@@ -1,7 +1,7 @@
 module game.levelgen.level;
 
 import common.animation;
-import framework.framework;
+import framework.surface;
 import common.resources;
 import common.resset;
 import game.levelgen.landscape;

@@ -1,7 +1,8 @@
 module game.particles;
 
-import framework.framework;
+import framework.drawing;
 import framework.sound;
+import framework.surface;
 import utils.timesource;
 import common.animation;
 import common.resset;

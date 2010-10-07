@@ -1,6 +1,5 @@
 module game.hud.gametimer;
 
-import framework.framework;
 import framework.font;
 import common.scene;
 import game.core;
@@ -13,6 +12,7 @@ import gui.boxcontainer;
 import gui.label;
 import gui.renderbox;
 import gui.widget;
+import utils.color;
 import utils.time;
 import utils.misc;
 import utils.vector2;

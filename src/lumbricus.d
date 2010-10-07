@@ -19,8 +19,6 @@ version = Game;
 //drivers etc.
 import framework.stuff;
 
-import gui.test; //GUI test code
-
 version (Game) {
     import game.gametask; //the game itself
     import game.gui.welcome;
@@ -34,7 +32,6 @@ version (Game) {
 
 import game.wtris; //lol
 import game.bomberworm; //?
-import common.resview; //debugging
 import common.localeswitch;
 
 void lmain(char[][] args) {

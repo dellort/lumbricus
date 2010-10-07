@@ -3,8 +3,6 @@ module game.gfxset;
 import common.animation;
 import common.resources;
 import framework.config;
-import framework.framework;
-import framework.font;
 import game.particles : ParticleType;
 public import game.teamtheme;
 import gui.rendertext;

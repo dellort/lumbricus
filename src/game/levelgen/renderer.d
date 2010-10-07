@@ -6,7 +6,9 @@ module game.levelgen.renderer;
 //Also handles collision and in-game modification of the landscape.
 
 import game.levelgen.landscape;
-import framework.framework;
+import framework.drawing;
+import framework.surface;
+import framework.main; //just for preloading images
 import utils.vector2;
 import utils.time;
 import utils.list2;

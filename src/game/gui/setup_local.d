@@ -1,9 +1,11 @@
 module game.gui.setup_local;
 
-import framework.framework;
+import framework.config;
+import framework.drawing;
+import framework.filesystem;
 import framework.i18n;
+import framework.surface;
 import common.task;
-import common.common;
 import game.gametask;
 import game.setup;
 import game.levelgen.generator;

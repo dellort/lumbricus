@@ -1,6 +1,5 @@
 module game.weapon.jetpack;
 
-import framework.framework;
 import game.controller;
 import game.core;
 import game.sprite;

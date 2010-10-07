@@ -1,9 +1,8 @@
 module game.gui.teamedit;
 
-import framework.framework;
+import framework.config;
 import framework.i18n;
 import common.task;
-import common.common;
 import game.teamtheme;
 import gui.widget;
 import gui.edit;
@@ -13,6 +12,7 @@ import gui.renderbox;
 import gui.window;
 import gui.loader;
 import gui.list;
+import utils.color;
 import utils.configfile;
 import utils.misc;
 

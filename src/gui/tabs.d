@@ -1,6 +1,6 @@
 module gui.tabs;
 
-import framework.framework;
+import framework.drawing;
 import gui.container;
 import gui.button;
 import gui.widget;

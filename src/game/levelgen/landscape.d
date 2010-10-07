@@ -1,8 +1,9 @@
 module game.levelgen.landscape;
 
-import framework.framework;
+import framework.surface;
 import common.resources;
 import common.resset;
+import utils.color;
 import utils.configfile;
 
 //LEvel ELement

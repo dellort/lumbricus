@@ -1,10 +1,8 @@
 module game.controller;
 
+import framework.config; //for some debug stuff?
 import common.animation;
-import common.common;
-import common.scene;
 import common.resset;
-import framework.commandline;
 import game.core;
 import game.events;
 import game.game;

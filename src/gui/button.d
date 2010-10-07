@@ -1,8 +1,9 @@
 module gui.button;
 
+import framework.drawing;
 import framework.event;
-import framework.framework;
 import framework.font;
+import framework.surface;
 import gui.boxcontainer;
 import gui.global;
 import gui.label;

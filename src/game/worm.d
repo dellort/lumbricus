@@ -1,7 +1,7 @@
 module game.worm;
 
 import common.animation;
-import framework.framework;
+import framework.drawing;
 import game.core;
 import game.sequence;
 import game.sprite;

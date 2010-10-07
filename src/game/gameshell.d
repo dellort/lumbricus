@@ -1,9 +1,8 @@
 module game.gameshell;
 
-import common.common;
 import common.resources;
 import common.resset;
-import common.scene;
+import framework.config;
 import framework.filesystem;
 import framework.i18n;
 

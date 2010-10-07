@@ -1,7 +1,8 @@
 module gui.edit;
 
+import framework.drawing;
+import framework.event;
 import framework.font;
-import framework.framework;
 import framework.clipboard;
 import gui.global;
 import gui.rendertext;

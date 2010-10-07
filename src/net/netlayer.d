@@ -195,6 +195,7 @@ class NetHost {
 
     //Quite a dirty hack, but seemed to be the only way (without hacking enet)
     //  to inspect packets to the server port before enet gets them
+    //^ ok, but what's the problem with enet getting them?
     private void checkPacketPreview() {
         if (onPacketPreview) {
             mSocketSet.reset().add(&mSocket);
@@ -224,17 +225,6 @@ class NetHost {
             handleEvent(event);
             checkPacketPreview();
         }
-    }
-
-    ///wait timeoutMs for an event and return true if one occured
-    bool serviceOne(int timeoutMs) {
-        ENetEvent event;
-        if (enet_host_service(mHost, &event, timeoutMs) > 0) {
-            //got event
-            if (handleEvent(event))
-                return true;
-        }
-        return false;
     }
 
     private NetPeer getNetPeer(ENetPeer* peer) {

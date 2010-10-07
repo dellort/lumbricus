@@ -1,7 +1,9 @@
 module gui.list;
 
+import framework.drawing;
+import framework.event;
 import framework.font;
-import framework.framework;
+import framework.main;
 import gui.container;
 import gui.scrollwindow;
 import gui.widget;

@@ -2,8 +2,9 @@ module gui.window;
 
 import common.task;
 import framework.config;
+import framework.drawing;
 import framework.event;
-import framework.framework;
+import framework.keybindings;
 import gui.boxcontainer;
 import gui.button;
 import gui.container;
@@ -39,6 +40,16 @@ struct WindowProperties {
     bool canMove = true;    //disallow the user to move the window (by kb/mouse)
     Color background = Color.Invalid; //of the client part of the window
     WindowZOrder zorder; //static zorder
+}
+
+//return the window w is under, or null if none is found
+WindowWidget findWindowFor(Widget widget) {
+    while (widget) {
+        if (auto wnd = cast(WindowWidget)widget)
+            return wnd;
+        widget = widget.parent;
+    }
+    return null;
 }
 
 /// A window with proper window decorations and behaviour

@@ -1,7 +1,8 @@
 module common.restypes.bitmap;
 
-import framework.framework;
 import framework.imgread;
+import framework.surface;
+import framework.main;
 import common.resources;
 import utils.configfile;
 import utils.misc;

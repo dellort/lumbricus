@@ -1,10 +1,11 @@
 module game.bomberworm;
 
-import framework.framework;
+import framework.config;
+import framework.drawing;
+import framework.surface;
 import framework.event;
 import utils.timesource;
 import framework.keybindings;
-import common.common;
 import common.task;
 import gui.widget;
 import gui.container;

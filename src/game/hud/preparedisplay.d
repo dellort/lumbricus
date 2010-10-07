@@ -1,6 +1,5 @@
 module game.hud.preparedisplay;
 
-import framework.framework;
 import framework.font;
 import framework.i18n;
 import game.core;
@@ -12,6 +11,7 @@ import gui.label;
 import gui.widget;
 import utils.misc;
 import utils.time;
+import utils.vector2;
 
 class HudPrepare : HudElementWidget {
     Time prepareRemaining;

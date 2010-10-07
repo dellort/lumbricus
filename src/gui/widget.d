@@ -2,10 +2,13 @@ module gui.widget;
 
 import framework.config;
 import framework.filesystem;
-import framework.framework;
+import framework.drawing;
 import framework.globalsettings;
 import framework.event;
 import framework.i18n;
+import framework.keybindings;
+import framework.main;
+import framework.surface;
 import gui.global;
 import gui.renderbox;
 import gui.rendertext;

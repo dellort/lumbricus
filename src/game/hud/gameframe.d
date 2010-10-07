@@ -5,7 +5,7 @@ import common.lua;
 import common.scene;
 import common.task;
 import common.toplevel;
-import framework.framework;
+import framework.drawing;
 import framework.event;
 import framework.i18n;
 import framework.lua;
@@ -325,19 +325,10 @@ class GameFrame : SimpleContainer {
         writeColoredLogEntry(e, false, &mConsoleBox.output.writefln);
     }
 
-    private bool mLogAdded;
     override void onLinkChange() {
-        if (!mLogAdded && isLinked()) {
-            Widget cur = this;
-            while (cur) {
-                if (auto w = cast(WindowWidget)cur) {
-                    mLogAdded = true;
-                    w.guiLogSink = &showLogEntry;
-                    return;
-                }
-                cur = cur.parent;
-            }
-        }
+        WindowWidget w = findWindowFor(this);
+        if (w)
+            w.guiLogSink = &showLogEntry;
     }
 
     void scriptAddHudWidget(LuaGuiAdapter gui, char[] where = "sidebar") {

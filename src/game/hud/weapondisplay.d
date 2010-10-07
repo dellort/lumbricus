@@ -1,7 +1,6 @@
 module game.hud.weapondisplay;
 
-import framework.framework;
-import framework.font;
+import framework.drawing;
 import game.controller;
 import game.wcontrol;
 import game.hud.teaminfo;
@@ -11,6 +10,7 @@ import gui.container;
 import gui.label;
 import gui.renderbox;
 import gui.widget;
+import utils.color;
 import utils.time;
 import utils.misc;
 import utils.vector2;

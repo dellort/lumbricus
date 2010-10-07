@@ -2,9 +2,10 @@
 module gui.rendertext;
 
 import common.resset;
-import framework.framework;
+import framework.drawing;
 import framework.font;
 import framework.i18n;
+import framework.surface;
 import gui.global;
 import gui.renderbox;
 import utils.configfile;

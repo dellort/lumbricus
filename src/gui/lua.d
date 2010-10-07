@@ -3,6 +3,7 @@
 module gui.lua;
 
 import common.scene;
+import framework.drawing;
 import framework.event;
 import framework.keybindings;
 import framework.lua;

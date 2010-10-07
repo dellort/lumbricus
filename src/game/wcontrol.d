@@ -5,7 +5,7 @@
 module game.wcontrol;
 
 import common.animation;
-import framework.framework;
+import framework.drawing;
 import game.core;
 import game.events;
 import game.input;

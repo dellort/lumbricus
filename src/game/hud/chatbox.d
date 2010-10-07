@@ -1,8 +1,7 @@
 module game.hud.chatbox;
 
-import framework.framework;
-import framework.font;
 import framework.commandline;
+import framework.event;
 import gui.widget;
 import gui.container;
 import gui.boxcontainer;

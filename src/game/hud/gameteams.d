@@ -1,10 +1,9 @@
 ///in-game display of team infos
 module game.hud.gameteams;
 
-import common.common;
 import common.scene;
+import framework.drawing;
 import framework.font;
-import framework.framework;
 import utils.timesource;
 import gui.container;
 import gui.label;

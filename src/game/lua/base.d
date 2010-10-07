@@ -2,8 +2,8 @@ module game.lua.base;
 
 import common.lua;
 import framework.config;
-import framework.framework;
 import framework.lua;
+import framework.surface;
 import gui.lua;
 import gui.rendertext; //: FormattedText
 import utils.color;

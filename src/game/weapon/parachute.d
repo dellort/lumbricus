@@ -1,6 +1,5 @@
 module game.weapon.parachute;
 
-import framework.framework;
 import game.controller;
 import game.core;
 import game.sprite;

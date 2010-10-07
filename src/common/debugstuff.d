@@ -5,6 +5,7 @@ import common.init; //import to force log initialization
 import common.resources;
 import common.task;
 import framework.commandline;
+import framework.config;
 import framework.event;
 import framework.keybindings;
 import framework.main;
@@ -33,6 +34,10 @@ import str = utils.string;
 import memory = tango.core.Memory;
 import conv = tango.util.Convert;
 import cstdlib = tango.stdc.stdlib;
+
+//some more debugging - these use static this to register themselves
+import common.resview;
+import gui.test;
 
 debug {
 } else {

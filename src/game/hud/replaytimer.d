@@ -1,8 +1,5 @@
 module game.hud.replaytimer;
 
-import framework.framework;
-import framework.font;
-import framework.i18n;
 import game.hud.teaminfo;
 import gui.boxcontainer;
 import gui.label;

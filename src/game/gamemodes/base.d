@@ -1,6 +1,5 @@
 module game.gamemodes.base;
 
-import framework.framework;
 import game.core;
 import game.game;
 import game.controller;

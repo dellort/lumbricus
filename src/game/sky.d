@@ -2,7 +2,8 @@ module game.sky;
 
 import common.animation;
 import common.scene;
-import framework.framework;
+import framework.drawing;
+import framework.surface;
 import game.core;
 import game.game;
 import game.gfxset;
@@ -18,8 +19,8 @@ import utils.vector2;
 class SkyDrawer : SceneObject {
     private GameSky mParent;
     private Color mSkyColor;
-    private Texture mSkyTex;
-    private Texture mSkyBackdrop;
+    private Surface mSkyTex;
+    private Surface mSkyBackdrop;
     private Color[3] mGradient;
 
     this(GameSky parent, EnvironmentTheme theme) {

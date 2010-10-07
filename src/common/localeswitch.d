@@ -1,9 +1,7 @@
 module common.localeswitch;
 
-import common.common;
 import common.task;
-import framework.framework;
-import framework.font;
+import framework.config;
 import framework.globalsettings;
 import framework.i18n;
 import gui.loader;

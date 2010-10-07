@@ -1,6 +1,7 @@
 module game.weapon.girder;
 
-import framework.framework;
+import framework.drawing;
+import framework.surface;
 import game.controller;
 import game.game;
 import game.sprite;

@@ -1,9 +1,9 @@
 module game.sequence;
 
 import common.animation;
-import common.common;
 import common.scene;
 import common.resset;
+import framework.drawing;
 import gui.rendertext;
 import utils.configfile;
 import utils.factory;

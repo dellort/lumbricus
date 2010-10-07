@@ -1,7 +1,8 @@
 module game.hud.windmeter;
 
-import framework.framework;
-import common.common;
+import framework.config;
+import framework.drawing;
+import framework.surface;
 import common.scene;
 import game.game;
 import game.teamtheme;
@@ -17,7 +18,7 @@ class WindMeter : Widget {
     private {
         GameInfo mGame;
         //Texture mBackgroundTex;
-        Texture mWindLeft, mWindRight;
+        Surface mWindLeft, mWindRight;
         Vector2i mPosCenter;
         BoxProperties mBoxStyle;
 

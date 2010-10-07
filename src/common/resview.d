@@ -1,15 +1,16 @@
 //trivial resource viewer (see framework) to ease debugging
 module common.resview;
 
-import common.common;
-import common.task;
-
-import framework.font;
-import framework.framework;
-import framework.sound;
+import common.allres;
 import common.resources;
 import common.resset;
-import common.allres;
+import common.task;
+import framework.font;
+import framework.drawing;
+import framework.event;
+import framework.sound;
+import framework.surface;
+import framework.main;
 import utils.timesource;
 import gui.boxcontainer;
 import gui.button;

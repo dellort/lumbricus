@@ -1,9 +1,8 @@
 module gui.console;
 
 import framework.commandline;
-import framework.framework;
-import framework.font;
 import framework.event;
+import framework.font;
 import gui.boxcontainer;
 import gui.container;
 import gui.edit;
@@ -14,6 +13,7 @@ import gui.styles;
 import utils.output;
 import utils.time;
 import utils.interpolate;
+import utils.vector2;
 
 //need to make this available to derived classes
 class ConsoleEditLine : EditLine {

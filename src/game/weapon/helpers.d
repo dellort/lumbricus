@@ -2,6 +2,7 @@
 module game.weapon.helpers;
 
 import common.scene;
+import framework.drawing;
 import game.controller;
 import game.core;
 import game.sprite;

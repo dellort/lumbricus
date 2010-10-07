@@ -1,8 +1,9 @@
 module gui.dropdownlist;
 
 
+import framework.drawing;
 import framework.font;
-import framework.framework;
+import framework.surface;
 
 import gui.button;
 import gui.boxcontainer;

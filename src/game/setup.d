@@ -3,8 +3,7 @@ module game.setup;
 ///should contain stuff for configuring a game before GameTask is spawned
 ///currently, only GameConfig setup and savegame utility functions
 
-import common.common;
-import framework.framework;
+import framework.config;
 import framework.imgread;
 import game.levelgen.level;
 import game.levelgen.generator;

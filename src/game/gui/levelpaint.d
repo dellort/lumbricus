@@ -1,8 +1,10 @@
 module game.gui.levelpaint;
 
-import framework.framework;
+import framework.drawing;
+import framework.event;
 import framework.i18n;
-import common.common;
+import framework.main;
+import framework.surface;
 import game.levelgen.generator;
 import game.levelgen.renderer;
 import game.levelgen.level;

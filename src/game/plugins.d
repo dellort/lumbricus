@@ -4,7 +4,7 @@ import common.lua; // : loadScript
 import common.resset;
 import common.resources : gResources, ResourceFile;
 import framework.config;
-import framework.framework;
+import framework.filesystem;
 import framework.i18n; //just because of weapon loading...
 import game.core;
 import game.gfxset;

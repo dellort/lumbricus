@@ -1,13 +1,15 @@
 module common.common;
 
-public import framework.config;
+import framework.config;
 import common.resources;
 import common.resset;
 import framework.commandline;
+import framework.event;
 import framework.filesystem;
-import framework.framework;
 import framework.font;
 import framework.globalsettings;
+import framework.keybindings;
+import framework.main;
 import utils.timesource;
 import framework.i18n;
 import gui.global;
@@ -19,6 +21,7 @@ import utils.misc;
 import utils.path;
 import utils.perf;
 import utils.gzip;
+import utils.vector2;
 
 public Common globals;
 

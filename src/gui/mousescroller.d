@@ -1,14 +1,14 @@
 module gui.mousescroller;
 
-//xxx I like the idea of gui being independent from common
-import common.common;
 import common.task;
 
 import gui.scrollwindow;
 import gui.widget;
 import framework.event;
-import framework.framework;
+import framework.main;
 import utils.time;
+import utils.rect2;
+import utils.vector2;
 
 /// This frame always sizes its child to its requested size, and enables
 /// scrolling within it.

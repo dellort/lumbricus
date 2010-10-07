@@ -2,7 +2,6 @@ module game.teamtheme;
 
 import common.animation;
 import framework.font;
-import framework.framework;
 import gui.rendertext;
 import gui.renderbox;
 import common.resset;

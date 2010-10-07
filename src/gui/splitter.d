@@ -1,6 +1,6 @@
 module gui.splitter;
 
-import framework.framework;
+import framework.event;
 import gui.container;
 import gui.global;
 import gui.widget;

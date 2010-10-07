@@ -1,7 +1,7 @@
 module game.weapon.airstrike;
 
+import framework.drawing;
 import common.animation;
-import framework.framework;
 import game.controller;
 import game.sprite;
 import game.weapon.weapon;

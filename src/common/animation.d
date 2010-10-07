@@ -1,13 +1,13 @@
 module common.animation;
 
-import common.common;
 import common.scene;
-import framework.framework;
+import framework.drawing;
 import utils.timesource;
-public import common.restypes.animation;
 import utils.rect2;
 import utils.time;
 import utils.vector2;
+
+public import common.restypes.animation;
 
 class Animator : SceneObjectCentered {
     private {

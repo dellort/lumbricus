@@ -1,7 +1,7 @@
 module game.gui.welcome;
 
-import framework.framework;
 import framework.commandline;
+import framework.config;
 import framework.i18n;
 import common.task;
 import common.common;

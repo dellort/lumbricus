@@ -1,7 +1,9 @@
 //actually independent from GUI
 module gui.renderbox;
 
-import framework.framework;
+import framework.drawing;
+import framework.surface;
+import framework.driver_base;
 import utils.configfile;
 import utils.misc;
 import utils.rect2;

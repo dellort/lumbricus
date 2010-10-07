@@ -1,6 +1,6 @@
 module game.sprite;
 
-import framework.framework;
+import framework.drawing;
 import game.core;
 import game.events;
 import game.sequence;

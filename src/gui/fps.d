@@ -1,8 +1,9 @@
 module gui.fps;
 
+import framework.drawing;
 import framework.font;
-import framework.framework;
 import framework.globalsettings;
+import framework.main;
 import gui.widget;
 import utils.time;
 import utils.misc;

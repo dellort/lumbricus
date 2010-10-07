@@ -1,16 +1,17 @@
 module game.levelgen.generator;
 
-import common.common;
 import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.renderer;
 import game.levelgen.genrandom;
 import game.levelgen.placeobjects;
-import framework.framework;
+import framework.config;
+import framework.surface;
 import framework.filesystem;
 import framework.imgread;
 import common.resources;
 import common.resset;
+import utils.color;
 import utils.configfile;
 import utils.vector2;
 import utils.log;
@@ -18,6 +19,7 @@ import utils.array;
 import utils.factory;
 import utils.random : rngShared;
 import utils.misc;
+import utils.rect2;
 
 debug {
     import utils.perf;

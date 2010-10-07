@@ -1,6 +1,7 @@
 module common.scene;
 
-import framework.framework;
+import framework.drawing;
+import framework.surface;
 import gui.renderbox;
 import gui.rendertext;
 import utils.list2;
@@ -9,8 +10,6 @@ import utils.rect2;
 import utils.misc;
 
 import arr = tango.core.Array;
-
-public import framework.framework : Canvas;
 
 private alias ObjectList!(SceneObject, "node") SList;
 

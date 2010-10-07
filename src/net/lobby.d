@@ -1,9 +1,8 @@
 module net.lobby;
 
-import common.common;
 import common.task;
 import framework.commandline;
-import framework.framework;
+import framework.config;
 import framework.globalsettings;
 import framework.i18n;
 import game.gameshell;
@@ -34,6 +33,7 @@ import utils.log;
 import utils.misc;
 import utils.random;
 import utils.time;
+import utils.vector2;
 
 import tango.util.Convert : to;
 

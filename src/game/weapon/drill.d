@@ -1,6 +1,5 @@
 module game.weapon.drill;
 
-import framework.framework;
 import game.core;
 import game.game;
 import game.sprite;

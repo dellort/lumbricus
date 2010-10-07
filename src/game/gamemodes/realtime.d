@@ -1,6 +1,5 @@
 module game.gamemodes.realtime;
 
-import framework.framework;
 import utils.timesource;
 import game.controller;
 import game.core;

@@ -2,7 +2,8 @@ module game.weapon.weapon;
 
 import common.animation;
 import common.scene;
-import framework.framework; //: Surface
+import framework.drawing;
+import framework.surface;
 import game.events;
 import game.core;
 import game.sprite;

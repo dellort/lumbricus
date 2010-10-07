@@ -2,11 +2,14 @@ module common.restypes.atlas;
 
 import common.resfileformats;
 import common.resources;
-import framework.framework;
+import framework.filesystem;
+import framework.surface;
 import framework.imgread;
+import framework.main;
 import utils.configfile;
 import utils.log;
 import utils.misc;
+import utils.rect2;
 import utils.vector2;
 
 class Atlas {

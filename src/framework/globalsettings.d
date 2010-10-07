@@ -2,8 +2,11 @@ module framework.globalsettings;
 
 import framework.config;
 import utils.configfile;
+import utils.log;
 import utils.misc;
 import utils.strparser;
+
+private LogStruct!("settings") log;
 
 enum SettingType {
     Unknown,
@@ -264,8 +267,11 @@ char[] settingValueHelp(char[] setting) {
 
 //helpers to load/save to disk
 
+const cSettingsFile = "settings2.conf";
+
 void loadSettings() {
-    ConfigNode node = loadConfig("settings2.conf", true);
+    log.minor("Loading global settings from {}", cSettingsFile);
+    ConfigNode node = loadConfig(cSettingsFile, true);
     if (!node)
         return;
     foreach (ConfigNode sub; node) {
@@ -280,9 +286,10 @@ void loadSettings() {
 }
 
 void saveSettings() {
+    log.minor("Saving global settings to {}", cSettingsFile);
     auto n = new ConfigNode();
     foreach (s; gSettings) {
         n[s.name] = s.value;
     }
-    saveConfig(n, "settings2.conf");
+    saveConfig(n, cSettingsFile);
 }

@@ -1,9 +1,8 @@
 module game.gui.preview;
 
-import framework.framework;
+import framework.config;
 import framework.i18n;
 import common.task;
-import common.common;
 import gui.widget;
 import gui.container;
 import gui.button;

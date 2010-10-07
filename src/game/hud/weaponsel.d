@@ -2,9 +2,12 @@ module game.hud.weaponsel;
 
 import common.common;
 import common.scene;
-import framework.framework;
+import framework.config;
+import framework.drawing;
+import framework.surface;
 import framework.font;
 import framework.i18n;
+import framework.keybindings;
 import game.controller;
 import game.core;
 import game.weapon.weapon;

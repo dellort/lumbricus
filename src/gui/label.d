@@ -5,9 +5,10 @@ import gui.styles;
 import gui.widget;
 import gui.renderbox;
 import gui.rendertext;
-import framework.framework;
+import framework.drawing;
 import framework.font;
 import framework.i18n;
+import framework.surface;
 import utils.configfile;
 import utils.misc;
 

@@ -5,7 +5,6 @@ import gui.container;
 import gui.scrollbar;
 import gui.tablecontainer;
 import gui.widget;
-import framework.framework;
 import framework.event;
 import utils.vector2;
 import utils.rect2;

@@ -1,6 +1,5 @@
 module game.weapon.napalm;
 
-import framework.framework;
 import game.core;
 import game.particles;
 import game.sprite;

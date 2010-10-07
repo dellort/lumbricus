@@ -1,12 +1,12 @@
 module game.weapon.luaweapon;
 
-import framework.framework;
 import game.core;
 import game.sprite;
 import game.weapon.weapon;
 import game.weapon.types;
 import utils.misc;
 import utils.time;
+import utils.vector2;
 
 class LuaWeaponClass : WeaponClass {
     void delegate(Shooter, FireInfo) onFire;

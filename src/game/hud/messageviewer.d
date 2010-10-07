@@ -1,6 +1,5 @@
 module game.hud.messageviewer;
 
-import framework.framework;
 import framework.font;
 import framework.i18n;
 import common.scene;
@@ -15,6 +14,7 @@ import utils.misc;
 import utils.time;
 import utils.queue;
 import utils.interpolate;
+import utils.vector2;
 
 class HudMessageViewer : HudElementWidget {
     void delegate(GameMessage msg) onMessage;

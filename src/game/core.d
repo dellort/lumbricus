@@ -5,7 +5,7 @@ import common.common;
 import common.lua;
 import common.resset;
 import common.scene;
-import framework.framework;
+import framework.drawing;
 import framework.i18n; //for LocalizedMessage
 import framework.lua;
 import game.effects;

@@ -1,7 +1,7 @@
 module common.restypes.sound;
 
 import common.resources;
-import framework.framework;
+import framework.main;
 import framework.sound;
 import utils.configfile;
 import utils.misc;

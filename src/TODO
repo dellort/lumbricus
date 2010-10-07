@@ -41,6 +41,10 @@ $ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen l
   (evtl. einfach den "server"-Befehl entfernen und die Chatbox-Konsole nur "server"-Kommandos ausführen lassen; könnte andererseits auch gewaltige Engine-Änderungen benötigen)
   ^ wie genau?
 - wurm, der im napalm kocht, zeigt manchmal animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
+- net server sollte nicht 100% CPU benutzen
+    zur zeit wird alles gepollt: enet, broadcast sockets (announce zeug), timeouts...
+    schwierigkeit: man muss alles gleichzeitig im blockierenden modus irgendwie gut zusammenarbeiten lassen
+    ausserdem, was ist denn checkPacketPreview() für eine katastrophe? macht es sicher unmöglich, enet blockierend einzusetzen
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)

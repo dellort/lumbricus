@@ -1,6 +1,6 @@
 module net.cmdclient;
 
-import common.common;
+import framework.config;
 import framework.commandline;
 import game.controller;
 import game.gameshell;

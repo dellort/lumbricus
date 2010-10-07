@@ -1,16 +1,14 @@
 module game.gui.gamesummary;
 
-import common.common;
-import common.task;
-import framework.framework;
+import framework.config;
 import framework.i18n;
-import framework.font;
 import gui.loader;
 import gui.window;
 import gui.widget;
 import gui.button;
 import gui.label;
 import gui.tablecontainer;
+import utils.color;
 import utils.configfile;
 import utils.strparser : ConversionException;
 

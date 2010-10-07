@@ -1,6 +1,7 @@
 module gui.logwindow;
 
-import framework.framework;
+import framework.drawing;
+import framework.event;
 import framework.font;
 import gui.widget;
 import gui.rendertext;

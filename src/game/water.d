@@ -1,6 +1,6 @@
 module game.water;
 
-import framework.framework;
+import framework.drawing;
 import game.core;
 import game.game;
 import game.gfxset;
