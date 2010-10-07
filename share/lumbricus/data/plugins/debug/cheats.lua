@@ -62,6 +62,10 @@ end
 
 -- drop a crate with a weapon in it; p is a string for the weapon
 function E.dropCrate(p, spy)
+    if not CratePlugin_dropCrate then
+        printf("Crate plugin not loaded")
+        return
+    end
     local stuff = {
         doubledamage = CollectableToolDoubleDamage_ctor,
         doubletime = CollectableToolDoubleTime_ctor,
@@ -92,7 +96,7 @@ function E.dropCrate(p, spy)
         printf("don't know what '{}' is", p)
         return
     end
-    Control_dropCrate(true, fill)
+    CratePlugin_dropCrate(true, fill)
     if ifnil(spy, true) then
         E.crateSpy()
     end

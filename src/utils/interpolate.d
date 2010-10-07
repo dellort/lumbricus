@@ -2,6 +2,7 @@ module utils.interpolate;
 
 import utils.time;
 import math = tango.math.Math;
+import tango.core.Traits : ParameterTupleOf;
 
 typedef int Missing;
 
@@ -23,6 +24,17 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
     private T doneValue;
     Time delegate() currentTimeDg;
 
+    //[0.0; 1.0] progress -> [0.0; 1.0] output value
+    private float mappingFunc(float value) {
+        //the mapping function may take the total interpolation time as
+        //  second parameter
+        static if (is(ParameterTupleOf!(FN)[1])) {
+            return FN(value, duration);
+        } else {
+            return FN(value);
+        }
+    }
+
     Time currentTime() {
         if (!currentTimeDg)
             return timeCurrentTime();
@@ -36,7 +48,7 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
         start = a_start;
         target = a_target;
         //not all functions have to end at f(x) = 1.0f
-        doneValue = start + cast(T)((target - start) * FN(1.0f));
+        doneValue = start + cast(T)((target - start) * mappingFunc(1.0f));
     }
 
     ///init as if the animation is done and has stopped; it's like a_duration
@@ -55,7 +67,7 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
         }
         //have to scale it without knowing what datatype it is
         return start + cast(T)((target - start)
-            * FN(cast(float)d.msecs / duration.msecs));
+            * mappingFunc(cast(float)d.msecs / duration.msecs));
     }
 
     //like value(), but between 0..1 instead of start..target
@@ -66,7 +78,7 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
         if (d >= duration) {
             return 1.0f;
         }
-        return FN(cast(float)d.msecs / duration.msecs);
+        return mappingFunc(cast(float)d.msecs / duration.msecs);
     }
 
     Time endTime() {
@@ -80,12 +92,22 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
 
 //we need the inverse function of FN for this
 static if (!is(FN_1 == Missing)) {
+    private float mappingFuncInv(float value) {
+        static if (is(ParameterTupleOf!(FN)[1])) {
+            static assert(is(ParameterTupleOf!(FN_1)[1]), "Mapping function"
+                " and inverse function need to have same signature");
+            return FN_1(value, duration);
+        } else {
+            return FN_1(value);
+        }
+    }
+
     ///calculate startTime so that value() will return a_value
     ///must call init() before
     void set(T a_value) {
         assert(duration != Time.Never, "Call init() before");
         float progress = cast(float)(a_value - start) / (target - start);
-        startTime = currentTime() - duration * FN_1(progress);
+        startTime = currentTime() - duration * mappingFuncInv(progress);
     }
 
     ///Change parameters without losing current value

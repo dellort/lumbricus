@@ -73,7 +73,9 @@ import game.weapon.airstrike;
 import game.weapon.luaweapon;
 import game.gamemodes.turnbased;
 import game.gamemodes.realtime;
-import game.controller_plugins;
+import game.plugin.messages;
+import game.plugin.persistence;
+import game.plugin.statistics;
 import game.lua.all;
 
 
@@ -525,7 +527,6 @@ class GameTask : IKillable {
             if (mGUIGameLoader.fullyLoaded) {
                 if (mGameShell) {
                     mGameShell.frame();
-                    mGameInfo.replayRemain = mGameShell.replayRemain;
                     if (mGameShell.terminated)
                         kill();
                 }

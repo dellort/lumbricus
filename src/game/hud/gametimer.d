@@ -7,6 +7,7 @@ import game.core;
 import game.controller;
 import game.lua.base;
 import game.hud.hudbase;
+import game.hud.teaminfo;
 import gui.container;
 import gui.boxcontainer;
 import gui.label;
@@ -34,6 +35,8 @@ class HudGameTimer : HudElementWidget {
 //xxx: don't know why it's derived from a random GUI class; leaving as is
 class GameTimer : BoxContainer {
     private {
+        GameCore mEngine;
+        GameInfo mGame;
         GameController mController;
         Label mTurnTime, mGameTime;
         Font[5] mFont;
@@ -45,6 +48,7 @@ class GameTimer : BoxContainer {
     }
 
     this(GameCore engine, HudGameTimer link) {
+        mEngine = engine;
         mController = engine.singleton!(GameController)();
         mStatus = link;
 
@@ -129,7 +133,12 @@ class GameTimer : BoxContainer {
         setGameTimeMode(mStatus.showGameTime, mStatus.showTurnTime);
         bool active = mStatus.showGameTime || mStatus.showTurnTime;
 
-        auto ctrl_m = mController.getControlledMember;
+        if (!mGame) {
+            mGame = mEngine.singleton!(GameInfo)();
+        }
+        TeamMember ctrl_m;
+        if (mGame)
+            ctrl_m = mGame.control.getControlledMember();
         auto m = ctrl_m;
         foreach (t; mController.teams) {
             if (m)

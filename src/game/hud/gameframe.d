@@ -27,7 +27,6 @@ import game.hud.gameview;
 import game.hud.windmeter;
 import game.hud.teaminfo;
 import game.hud.weaponsel;
-import game.hud.messageviewer;
 import game.hud.powerups;
 import game.hud.replaytimer;
 import game.hud.network;
@@ -452,9 +451,6 @@ class GameFrame : SimpleContainer {
             WidgetLayout.Aligned(1, -1, Vector2i(5, 20)));
         mWeaponDisplay = new WeaponDisplay(game);
         mGui.add(mWeaponDisplay, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
-        auto lay = WidgetLayout.Aligned(0, -1, Vector2i(0, 5));
-        lay.border = Vector2i(5, 1);
-        mGui.add(new MessageViewer(game), lay);
         mGui.add(new ReplayTimer(game),
             WidgetLayout.Aligned(-1, -1, Vector2i(10, 0)));
         mConsoleBox = new Chatbox();

@@ -319,7 +319,9 @@ states.roundEnd = state {
 }
 
 local function doinit()
-    Control_addCrateTool("doubletime")
+    if CratePlugin_addCrateTool then
+        CratePlugin_addCrateTool("doubletime")
+    end
 
     teams = Control_teams()
 

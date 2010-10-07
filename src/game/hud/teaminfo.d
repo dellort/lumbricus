@@ -15,20 +15,13 @@ class GameInfo {
     GameController controller;
     ClientControl control;
     SimpleNetConnection connection;
-    Time replayRemain;
 
     this(GameShell a_shell, ClientControl ct) {
         shell = a_shell;
         engine = shell.serverEngine();
         controller = engine.singleton!(GameController)();
+        engine.addSingleton(this);
         control = ct;
-
-        //doesn't necessarily belong here
-        engine.getControlledTeamMemberCallback = &controlled;
-    }
-
-    private Actor controlled() {
-        return control.getControlledMember();
     }
 }
 

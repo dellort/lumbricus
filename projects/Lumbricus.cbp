@@ -148,9 +148,7 @@
 		<Unit filename="..\src\game\animation.d" />
 		<Unit filename="..\src\game\bomberworm.d" />
 		<Unit filename="..\src\game\controller.d" />
-		<Unit filename="..\src\game\controller_plugins.d" />
 		<Unit filename="..\src\game\core.d" />
-		<Unit filename="..\src\game\crate.d" />
 		<Unit filename="..\src\game\effects.d" />
 		<Unit filename="..\src\game\events.d" />
 		<Unit filename="..\src\game\game.d" />
@@ -199,6 +197,10 @@
 		<Unit filename="..\src\game\lua\physics.d" />
 		<Unit filename="..\src\game\lua\weapon.d" />
 		<Unit filename="..\src\game\particles.d" />
+		<Unit filename="..\src\game\plugin\crate.d" />
+		<Unit filename="..\src\game\plugin\messages.d" />
+		<Unit filename="..\src\game\plugin\persistence.d" />
+		<Unit filename="..\src\game\plugin\statistics.d" />
 		<Unit filename="..\src\game\plugins.d" />
 		<Unit filename="..\src\game\sequence.d" />
 		<Unit filename="..\src\game\setup.d" />

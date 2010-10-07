@@ -11,7 +11,6 @@ import game.game;
 import game.gfxset;
 import game.input;
 import game.worm;
-import game.crate;
 import game.sprite;
 import game.weapon.types;
 import game.weapon.weapon;
@@ -40,9 +39,6 @@ const Time cTimePerHealthTick = timeMsecs(4);
 alias DeclareEvent!("team_member_start_die", TeamMember) OnTeamMemberStartDie;
 alias DeclareEvent!("team_member_set_active", TeamMember, bool)
     OnTeamMemberSetActive;
-//hack for message display
-alias DeclareEvent!("team_member_collect_crate", TeamMember, CrateSprite)
-    OnTeamMemberCollectCrate;
 //first time a team does an action (should probably be per team member?)
 //xxx actually those should be WormControl events?
 alias DeclareEvent!("team_on_first_action", Team) OnTeamFirstAction;
@@ -53,11 +49,6 @@ alias DeclareEvent!("team_surrender", Team) OnTeamSurrender;
 //the team wins; all OnVictory events will be raised before game_end (so you can
 //  know exactly who wins, even if there can be 0 or >1 winners)
 alias DeclareEvent!("team_victory", Team) OnVictory;
-//when a worm collects a tool from a crate
-alias DeclareEvent!("collect_tool", TeamMember, CollectableTool) OnCollectTool;
-
-//make crates fall faster by pressing "space" (also known as unParachute)
-alias DeclareGlobalEvent!("game_crate_skip") OnGameCrateSkip;
 
 
 class Team : GameObject2 {
@@ -724,19 +715,13 @@ class GameController : GameObject2 {
     private {
         Team[] mTeams;
 
-        //xxx for loading only
+        //for instantiating new weapon sets
         ConfigNode[char[]] mWeaponSets;
-        WeaponSet mCrateSet;
 
         bool mIsAnythingGoingOn; // (= hack)
 
         bool mGameEnded;
 
-        //Medkit, medkit+tool, medkit+tool+unrigged weapon
-        //  (rest is rigged weapon)
-        const cCrateProbs = [0.20f, 0.40f, 0.95f];
-        //list of tool crates that can drop
-        char[][] mActiveCrateTools;
         int[] mTeamColorCache;
 
         InputGroup mInput;
@@ -763,11 +748,7 @@ class GameController : GameObject2 {
         //per-team input
         mInput.addSub(new InputProxy(&getTeamInput));
         //global input (always available)
-        mInput.add("crate_test", &inpDropCrate);
         mInput.add("exec", &inpExec);
-        //adding this after team input important for weapon_fire to work as
-        //  expected (only execute if no team active)
-        mInput.add("weapon_fire", &inpInstantDropCrate);
         engine.input.addSub(mInput);
     }
 
@@ -776,10 +757,6 @@ class GameController : GameObject2 {
     //and prepares for calling startGame()
     void finishLoading() {
         GameConfig config = engine.gameConfig;
-
-        //those work for all gamemodes
-        addCrateTool("cratespy");
-        addCrateTool("doubledamage");
 
         if (config.weapons) {
             loadWeaponSets(config.weapons);
@@ -791,13 +768,8 @@ class GameController : GameObject2 {
             loadLevelObjects(config.levelobjects);
         }
 
-        //only valid while loading
-        mWeaponSets = null;
-
         engine.finishPlace();
 
-        OnCollectTool.handler(engine.events, &doCollectTool);
-        OnCrateCollect.handler(engine.events, &collectCrate);
         OnPrepareTurn.handler(engine.events, &prepareTurn);
 
         //for startGame(); see simulate()
@@ -836,7 +808,7 @@ class GameController : GameObject2 {
         return false;
     }
 
-    Team getInputTeam(char[] client_id) {
+    private Team getInputTeam(char[] client_id) {
         foreach (Team t; teams) {
             if (t.active) {
                 if (checkAccess(client_id, t))
@@ -846,32 +818,15 @@ class GameController : GameObject2 {
         return null;
     }
 
-    //get the TeamMember currently controlled by this game engine instance
-    //non-deterministic! (different peers have different controlled members)
-    //xxx: not sure what exactly the difference to getInputTeam.current is
-    TeamMember getControlledMember() {
-        return cast(TeamMember)(engine.getControlledTeamMember());
-    }
-
     //decide to which team input goes
     //in network & realtime mode, multiple teams can be active, and the
     //  client_id helps delivering a client's input to the right team
     //this is also needed for cheat-prevention (client_id is verified)
-    Input getTeamInput(char[] client_id) {
+    private Input getTeamInput(char[] client_id) {
         //hurrr
         if (auto team = getInputTeam(client_id))
             return team.mInput;
         return null;
-    }
-
-    private bool inpDropCrate() {
-        dropCrate(true);
-        return true;
-    }
-
-    private bool inpInstantDropCrate() {
-        instantDropCrate();
-        return true;
     }
 
     private bool inpExec(char[] client_id, char[] cmd) {
@@ -900,11 +855,6 @@ class GameController : GameObject2 {
     ///True if game has ended
     bool gameEnded() {
         return mGameEnded;
-    }
-
-    void addCrateTool(char[] id) {
-        assert(arraySearch(mActiveCrateTools, id) < 0);
-        mActiveCrateTools ~= id;
     }
 
     bool isIdle() {
@@ -1107,8 +1057,6 @@ class GameController : GameObject2 {
             log.warn("enforcing default weaponset");
             mWeaponSets["default"] = firstSet;
         }
-        //crate weapon set is named "crate_set" (will fall back to "default")
-        mCrateSet = initWeaponSet("crate_set", true, true);
     }
 
     //create and place worms when necessary
@@ -1190,186 +1138,11 @@ class GameController : GameObject2 {
         return m ? m.control : null;
     }
 
-    Collectable[] fillCrate() {
-        Collectable[] ret;
-        float r = engine.rnd.nextDouble2();
-        if (r < cCrateProbs[0]) {
-            //medkit
-            ret ~= new CollectableMedkit(50);
-        } else if (r < cCrateProbs[1]) {
-            //tool
-            ret ~= new CollectableTool(mActiveCrateTools[engine.rnd.next($)]);
-        } else {
-            //weapon
-            auto content = mCrateSet.chooseRandomForCrate();
-            if (content) {
-                ret ~= new CollectableWeapon(content, content.crateAmount);
-                if (r > cCrateProbs[2]) {
-                    //add a bomb to that :D
-                    ret ~= new CollectableBomb();
-                }
-            } else {
-                log.warn("failed to create crate contents");
-            }
-        }
-        return ret;
-    }
-
-    //  silent = true to prevent generating an event (for debug drop, to
-    //           prevent message spam)
-    bool dropCrate(bool silent = false, Collectable[] contents = null) {
-        Vector2f from, to;
-        if (!engine.placeObjectRandom(10, 25, from, to)) {
-            log.warn("couldn't find a safe drop-position for crate");
-            return false;
-        }
-
-        Sprite s = engine.resources.get!(SpriteClass)("x_crate").createSprite();
-        CrateSprite crate = cast(CrateSprite)s;
-        assert(!!crate);
-        //put stuffies into it
-        if (!contents.length) {
-            crate.stuffies = fillCrate();
-        } else {
-            crate.stuffies = contents;
-        }
-        //actually start it
-        crate.activate(from);
-        if (!silent) {
-            //xxx move into CrateSprite.activate()
-            OnCrateDrop.raise(crate);
-        }
-        log.minor("drop crate {} -> {}", from, to);
-        return true;
-    }
-
-    void instantDropCrate() {
-        log.trace("instant drop crate");
-        OnGameCrateSkip.raise(engine.events);
-    }
-
-    //xxx wouldn't need this anymore, but doubletime still makes it a bit messy
-    private void doCollectTool(TeamMember collector, CollectableTool tool) {
-        char[] id = tool.toolID();
-        if (id == "cratespy") {
-            collector.team.addCrateSpy();
-        }
-        if (id == "doubledamage") {
-            collector.team.addDoubleDamage();
-        }
-    }
-
     //show effects of sudden death start
     //doesn't raise water / affect gameplay
     void startSuddenDeath() {
         engine.addEarthQuake(500, timeSecs(4.5f), true);
         engine.nukeSplatEffect();
         OnSuddenDeath.raise(engine.events);
-    }
-
-    private void collectCrate(CrateSprite crate, GameObject finder) {
-        if (crate.wasCollected())
-            return;
-        //for some weapons like animal-weapons, transitive should be true
-        //and normally a non-collecting weapon should just explode here??
-        auto member = memberFromGameObject(finder, true);
-        if (!member)
-            return;
-        //only collect crates when it's your turn
-        if (!member.active)
-            return;
-        OnTeamMemberCollectCrate.raise(member, crate);
-        //transfer stuffies
-        foreach (Collectable c; crate.stuffies) {
-            c.collect(crate, finder);
-            if (auto tc = cast(TeamCollectable)c)
-                tc.teamcollect(crate, member);
-        }
-        //and destroy crate
-        crate.collected();
-    }
-}
-
-class TeamCollectable : Collectable {
-    override void collect(CrateSprite parent, GameObject finder) {
-    }
-
-    abstract void teamcollect(CrateSprite parent, TeamMember member);
-}
-
-///Adds a weapon to your inventory
-class CollectableWeapon : TeamCollectable {
-    WeaponClass weapon;
-    int quantity;
-
-    this(WeaponClass w, int quantity = 1) {
-        weapon = w;
-        this.quantity = quantity;
-    }
-
-    void teamcollect(CrateSprite parent, TeamMember member) {
-        member.team.addWeapon(weapon, quantity);
-    }
-
-    CrateType type() {
-        return CrateType.weapon;
-    }
-
-    char[] id() {
-        return "weapons." ~ weapon.name;
-    }
-
-    override void blow(CrateSprite parent) {
-        //think about the crate-sheep
-        //ok, made more generic
-        OnWeaponCrateBlowup.raise(weapon, parent);
-    }
-}
-
-///Gives the collecting worm some health
-class CollectableMedkit : TeamCollectable {
-    int amount;
-
-    this(int amount = 50) {
-        this.amount = amount;
-    }
-
-    CrateType type() {
-        return CrateType.med;
-    }
-
-    char[] id() {
-        return "game_msg.crate.medkit";
-    }
-
-    void teamcollect(CrateSprite parent, TeamMember member) {
-        member.addHealth(amount);
-    }
-}
-
-class CollectableTool : TeamCollectable {
-    private {
-        char[] mToolID;
-    }
-
-    this(char[] tool_id) {
-        mToolID = tool_id;
-    }
-
-    override CrateType type() {
-        return CrateType.tool;
-    }
-
-    override char[] id() {
-        return "game_msg.crate." ~ mToolID;
-    }
-
-    char[] toolID() {
-        return mToolID;
-    }
-
-    void teamcollect(CrateSprite parent, TeamMember member) {
-        //roundabout way, but I hope it makes a bit sense with double time tool?
-        OnCollectTool.raise(member, this);
     }
 }

@@ -33,10 +33,11 @@ class ReplayTimer : BoxContainer {
     }
 
     override protected void simulate() {
-        if (mGame.replayRemain != Time.Null) {
+        if (mGame.shell.replayRemain != Time.Null) {
             mReplayImg.visible = (timeCurrentTime().msecs/500)%2 == 0;
             mReplayTimer.visible = true;
-            mReplayTimer.text = myformat("{:f1}s", mGame.replayRemain.secsf);
+            mReplayTimer.text = myformat("{:f1}s",
+                mGame.shell.replayRemain.secsf);
         } else {
             mReplayImg.visible = false;
             mReplayTimer.visible = false;

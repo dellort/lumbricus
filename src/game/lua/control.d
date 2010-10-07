@@ -2,7 +2,6 @@ module game.lua.control;
 
 import game.controller;
 import game.core;
-import game.crate;
 import game.input;
 import game.weapon.weapon;
 import game.worm;
@@ -19,7 +18,7 @@ static this() {
         "checkDyingWorms", "updateHealth", "needUpdateHealth", "teams",
         "deactivateAll", "isIdle",
         "memberFromGameObject", "weaponFromGameObject", "controlFromGameObject",
-        "dropCrate", "startSuddenDeath", "endGame", "addCrateTool");
+        "startSuddenDeath", "endGame");
 
     gScripting.setClassPrefix!(TeamMember)("Member");
     gScripting.methods!(TeamMember, "updateHealth", "lifeLost", "addHealth");
@@ -53,11 +52,6 @@ static this() {
         "particle", "isGrounded", "canWalk", "canAim", "canFire",
         "onAnimationEnd", "isUnderWater")();
 
-    gScripting.ctor!(CrateSpriteClass, GameCore, char[])();
-    gScripting.properties!(CrateSpriteClass, "collectRadius");
-    gScripting.methods!(CrateSprite, "blowStuffies")();
-    gScripting.property_ro!(CrateSprite, "crateType")();
-
     gScripting.properties!(HudElement, "visible");
 
     gScripting.ctor!(HudPrepare, GameCore);
@@ -68,11 +62,6 @@ static this() {
         "timePaused", "turnRemaining", "gameRemaining");
 
     gScripting.ctor!(HudTeams, GameCore);
-
-    gScripting.ctor!(CollectableTool, char[])();
-    gScripting.ctor!(CollectableWeapon, WeaponClass, int)();
-    gScripting.ctor!(CollectableBomb)();
-    gScripting.ctor!(CollectableMedkit)();
 
     /+
     gScripting.ctor!(InputScript)();

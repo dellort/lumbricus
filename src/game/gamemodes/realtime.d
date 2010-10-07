@@ -3,10 +3,10 @@ module game.gamemodes.realtime;
 import framework.framework;
 import utils.timesource;
 import game.controller;
-import game.controller_plugins;
 import game.core;
 import game.game;
 import game.plugins;
+import game.plugin.crate;
 import game.gamemodes.base;
 import game.hud.gametimer;
 import game.hud.preparedisplay;
@@ -50,6 +50,7 @@ class ModeRealtime : Gamemode {
         Time[Team] mTeamDeactivateTime;
         HudGameTimer mStatus;
         bool mSuddenDeath;
+        CratePlugin mCratePlugin;
     }
 
     this(GameCore a_engine, ConfigNode config) {
@@ -57,6 +58,11 @@ class ModeRealtime : Gamemode {
         mStatus = new HudGameTimer(engine);
         mStatus.showGameTime = true;
         this.config = config.getCurValue!(ModeConfig)();
+    }
+
+    override void startGame() {
+        super.startGame();
+        mCratePlugin = engine.querySingleton!(CratePlugin);
     }
 
     override void simulate() {
@@ -117,10 +123,10 @@ class ModeRealtime : Gamemode {
 
         //------------ one crate every mCrateInterval -------------
 
-        if (wait(config.crate_interval) && engine.countSprites("crate")
-            < config.maxcrates)
+        if (mCratePlugin && wait(config.crate_interval)
+            && engine.countSprites("crate") < config.maxcrates)
         {
-            logic.dropCrate();
+            mCratePlugin.dropCrate();
         }
 
         //----------- Team activating ---------------

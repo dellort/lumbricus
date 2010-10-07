@@ -309,9 +309,14 @@ private:
 class CommandBucket {
     private {
         Command[] mCommands;
-        CommandBucket[] mSubs;
+        struct SubBucket {
+            CommandBucket bucket;
+            int seenGeneration = -1;
+        }
+        SubBucket[] mSubs;
         Entry[] mSorted;   //sorted list of commands, including subs
         Translator mHelpTrans;
+        int generation = 0;
     }
 
     //entry for each command
@@ -394,7 +399,7 @@ class CommandBucket {
     /// Merge the commands from sub with this
     void addSub(CommandBucket sub) {
         removeSub(sub); //just to be safe
-        mSubs ~= sub;
+        mSubs ~= SubBucket(sub);
         invalidate();
     }
 
@@ -403,17 +408,26 @@ class CommandBucket {
     }
 
     void removeSub(CommandBucket sub) {
-        if (arraySearch(mSubs, sub) < 0)
+        int idx = -1;
+        foreach (int i, SubBucket entry; mSubs) {
+            if (entry.bucket is sub) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx < 0)
             return;
         invalidate();
-        arrayRemove(mSubs, sub);
+        arrayRemoveN(mSubs, idx);
     }
 
     //clear command cache
     void invalidate() {
-        mSorted = null;
-        foreach (s; mSubs)
-            s.invalidate();
+        if (mSorted.length > 0) {
+            mSorted = null;
+            //own contents are updating, mark for parent CommandBuckets
+            generation++;
+        }
     }
 
     Translator helpTranslator() {
@@ -425,17 +439,26 @@ class CommandBucket {
     }
 
     Entry[] sorted() {
-        if (mSorted.length == 0) {
+        bool needResort = mSorted.length == 0;
+        //need to invalidate if a sub-bucket changed
+        foreach (ref sub; mSubs) {
+            needResort |= sub.seenGeneration < sub.bucket.generation;
+        }
+        if (needResort) {
+            invalidate();
             //recursively add from all sub-entries etc.
-            void doAdd(CommandBucket b) {
-                foreach (m; b.mCommands) {
-                    mSorted ~= Entry(m.name, m, b.helpTranslator);
-                }
-                foreach (s; b.mSubs) {
-                    doAdd(s);
-                }
+            foreach (m; mCommands) {
+                mSorted ~= Entry(m.name, m, helpTranslator);
             }
-            doAdd(this);
+            foreach (ref s; mSubs) {
+                s.seenGeneration = s.bucket.generation;
+                auto subEntries = s.bucket.sorted().dup;
+                //reset alias names
+                foreach (ref e; subEntries) {
+                    e.alias_name = e.cmd.name;
+                }
+                mSorted ~= subEntries;
+            }
 
             //sort the mess and deal with double entries
             for (;;) {

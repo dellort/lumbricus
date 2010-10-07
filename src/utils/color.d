@@ -318,6 +318,16 @@ public struct Color {
         else
             return myformat("r={}, g={}, b={}", r, g, b);
     }
+
+    //produce hex string (no prefix, parseable by parse())
+    char[] toStringHex() {
+        auto rgba = toRGBA32();
+        if (hasAlpha)
+            return myformat("{:x2}{:x2}{:x2}{:x2}", rgba.r, rgba.g, rgba.b,
+                rgba.a);
+        else
+            return myformat("{:x2}{:x2}{:x2}", rgba.r, rgba.g, rgba.b);
+    }
 }
 
 //a unittest never hurts

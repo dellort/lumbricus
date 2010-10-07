@@ -44,24 +44,6 @@ alias DeclareGlobalEvent!("game_sudden_death") OnSuddenDeath;
 //  handlers to do the same
 alias DeclareGlobalEvent!("game_prepare_turn") OnPrepareTurn;
 
-///let the client display a message (like it's done on round's end etc.)
-///this is a bit complicated because message shall be translated on the
-///client (i.e. one client might prefer Klingon, while the other is used
-///to Latin); so msgid and args are passed to the translation functions
-///this returns a value, that is incremented everytime a new message is
-///available
-///a random int is passed along, so all clients with the same locale
-///will select the same message
-struct GameMessage {
-    LocalizedMessage lm;
-    //Actor actor;    //who did the action (normally a TeamMember), may be null
-    TeamTheme color;//for message color, null for neutral
-    bool is_private;//who should see it (only players with same color see it),
-                    //  false for all
-}
-
-alias DeclareGlobalEvent!("game_message", GameMessage) OnGameMessage;
-
 //fixed framerate for the game logic (all of GameEngine)
 //also check physic frame length cPhysTimeStepMs in world.d
 const Time cFrameLength = timeMsecs(20);
@@ -339,15 +321,6 @@ abstract class GameCore {
     }
 
     //-- crap and hacks
-
-    //needed for rendering team specific stuff (crate spies)
-    Actor delegate() getControlledTeamMemberCallback;
-
-    Actor getControlledTeamMember() {
-        if (!getControlledTeamMemberCallback)
-            return null;
-        return getControlledTeamMemberCallback();
-    }
 
     TeamTheme teamThemeOf(GameObject obj) {
         auto actor = actorFromGameObject(obj);

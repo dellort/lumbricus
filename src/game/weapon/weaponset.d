@@ -73,6 +73,8 @@ class WeaponSet : GameObject {
             if (crateSet) {
                 //only drop weapons that are not infinite already,
                 //  and that can be used in the current world
+                if (quantity == 0)
+                    quantity = 1;
                 if (quantity == Entry.cINF || !w.canUse(engine))
                     quantity = 0;
             }

@@ -2,11 +2,10 @@ module game.gamemodes.turnbased;
 
 import framework.framework;
 import game.core;
-import game.crate;
 import game.controller;
-import game.controller_plugins;
 import game.game;
 import game.plugins;
+import game.plugin.crate;
 import game.gamemodes.base;
 import game.hud.gametimer;
 import game.hud.preparedisplay;
@@ -67,6 +66,7 @@ class ModeTurnbased : Gamemode {
         int mCleanupCtr = 1;
         int[] mTeamPerm;
         int mLastPrepareTurn; //mRoundCounter of last OnPrepareTurn
+        CratePlugin mCratePlugin;
 
         //incremented on beginning of each round
         //xxx actually it's "turn"
@@ -96,7 +96,11 @@ class ModeTurnbased : Gamemode {
     override void startGame() {
         super.startGame();
 
-        logic.addCrateTool("doubletime");
+        mCratePlugin = engine.querySingleton!(CratePlugin);
+        //only if the crate plugin is loaded
+        if (mCratePlugin) {
+            mCratePlugin.addCrateTool("doubletime");
+        }
 
         //we want teams to be activated in a random order that stays the same
         //  over all rounds
@@ -174,7 +178,8 @@ class ModeTurnbased : Gamemode {
                 if (wait!(true)(cTurnCrateDelay, 3) && mTurnCrateCounter > 0
                     && engine.countSprites("crate") < config.maxcrates)
                 {
-                    logic.dropCrate();
+                    if (mCratePlugin)
+                        mCratePlugin.dropCrate();
                     mTurnCrateCounter--;
                 }
                 //check for silence every 500ms
@@ -280,7 +285,7 @@ class ModeTurnbased : Gamemode {
                             && engine.countSprites("crate") < config.maxcrates
                             && !(mRoundCounter == 0 && cNoCrateOnStart))
                         {
-                            if (logic.dropCrate()) {
+                            if (mCratePlugin && mCratePlugin.dropCrate()) {
                                 return TurnState.waitForSilence;
                             }
                         }
