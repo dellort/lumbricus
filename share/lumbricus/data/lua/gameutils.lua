@@ -391,6 +391,12 @@ autoProperties = {
     [WeaponClass_set_icon] = {
         string = lookupResource,
     },
+    [WeaponClass_set_prepareParticle] = {
+        string = lookupResource,
+    },
+    [WeaponClass_set_fireParticle] = {
+        string = lookupResource,
+    },
     [SpriteClass_set_sequenceType] = {
         string = lookupResource,
     },

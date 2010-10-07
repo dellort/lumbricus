@@ -72,8 +72,9 @@
 		<Unit filename="..\share\lumbricus\data\plugins\ws_lua\tools.lua" />
 		<Unit filename="..\src\common\allres.d" />
 		<Unit filename="..\src\common\animation.d" />
-		<Unit filename="..\src\common\common.d" />
 		<Unit filename="..\src\common\debugstuff.d" />
+		<Unit filename="..\src\common\globalconsole.d" />
+		<Unit filename="..\src\common\gui_init.d" />
 		<Unit filename="..\src\common\init.d" />
 		<Unit filename="..\src\common\localeswitch.d" />
 		<Unit filename="..\src\common\lua.d" />
@@ -87,6 +88,7 @@
 		<Unit filename="..\src\common\restypes\sound.d" />
 		<Unit filename="..\src\common\resview.d" />
 		<Unit filename="..\src\common\scene.d" />
+		<Unit filename="..\src\common\stats.d" />
 		<Unit filename="..\src\common\task.d" />
 		<Unit filename="..\src\common\toplevel.d" />
 		<Unit filename="..\src\derelict\directx\d3d9.d" />
@@ -128,7 +130,6 @@
 		<Unit filename="..\src\framework\event.d" />
 		<Unit filename="..\src\framework\filesystem.d" />
 		<Unit filename="..\src\framework\font.d" />
-		<Unit filename="..\src\framework\framework.d" />
 		<Unit filename="..\src\framework\globalsettings.d" />
 		<Unit filename="..\src\framework\i18n.d" />
 		<Unit filename="..\src\framework\imgread.d" />
@@ -167,7 +168,6 @@
 		<Unit filename="..\src\game\gui\teamedit.d" />
 		<Unit filename="..\src\game\gui\welcome.d" />
 		<Unit filename="..\src\game\hud\camera.d" />
-		<Unit filename="..\src\game\hud\chatbox.d" />
 		<Unit filename="..\src\game\hud\gameframe.d" />
 		<Unit filename="..\src\game\hud\gameteams.d" />
 		<Unit filename="..\src\game\hud\gametimer.d" />
@@ -227,6 +227,7 @@
 		<Unit filename="..\src\game\wtris.d" />
 		<Unit filename="..\src\gui\boxcontainer.d" />
 		<Unit filename="..\src\gui\button.d" />
+		<Unit filename="..\src\gui\chatbox.d" />
 		<Unit filename="..\src\gui\console.d" />
 		<Unit filename="..\src\gui\container.d" />
 		<Unit filename="..\src\gui\dropdownlist.d" />

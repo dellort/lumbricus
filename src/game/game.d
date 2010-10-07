@@ -41,6 +41,9 @@ import tango.util.Convert : to;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 
+//a Sprite goes off the visible game area (by GameCore.level.worldSize)
+alias DeclareEvent!("sprite_offworld", Sprite) OnSpriteOffworld;
+
 //legacy crap (makes engine available as GameEngine, instead of GameCore)
 abstract class GameObject2 : GameObject {
     this(GameCore aengine, char[] event_target_type) {
@@ -68,9 +71,6 @@ class GameEngine : GameCore {
 
     const cDamageToImpulse = 140.0f;
     const cDamageToRadius = 2.0f;
-
-    //dependency hack
-    void delegate(Sprite s) onOffworld;
 
     private {
         PhysicZonePlane mWaterBorder;
@@ -312,8 +312,8 @@ class GameEngine : GameCore {
 
     private void offworldTrigger(PhysicTrigger sender, PhysicObject other) {
         auto x = cast(Sprite)(other.backlink);
-        if (x && onOffworld) {
-            onOffworld(x);
+        if (x) {
+            OnSpriteOffworld.raise(x);
         }
     }
 

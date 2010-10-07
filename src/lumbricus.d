@@ -51,7 +51,7 @@ void lmain(char[][] args) {
     gFramework.setCaption("Lumbricus");
 
     try {
-        gFramework.setIcon(loadImage("lumbricus-icon.png"));
+        gFramework.setIcon(loadImage("lumbricus-icon.png"), "MAINICON");
     } catch (CustomException e) {
     }
 

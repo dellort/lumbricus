@@ -44,6 +44,17 @@ $ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen l
     zur zeit wird alles gepollt: enet, broadcast sockets (announce zeug), timeouts...
     schwierigkeit: man muss alles gleichzeitig im blockierenden modus irgendwie gut zusammenarbeiten lassen
     ausserdem, was ist denn checkPacketPreview() für eine katastrophe? macht es sicher unmöglich, enet blockierend einzusetzen
+  ^ a) Ich weiß ja nicht was da unter Linux schiefläuft, aber unter Windows braucht
+       der Server dank yield() ca. 0% CPU
+    b) Nicht wirklich, man müsste halt checkPacketPreview() und nicht enet blockierend machen;
+       aber natürlich ist checkPacketPreview() ein dreckiger hack; ein callback aus enet
+       (onRawReceive oder so) wäre da wesentlich schöner, nur den gibts halt nicht;
+       btw: checkPacketPreview dient hauptsächlich dazu die raw-pakete vor enet zu inspizieren
+            und weniger, die pakete von enet fernzuhalten; ich weiß halt nicht wie enet auf
+            protokollverletzungen reagiert
+    c) Ein blockierender Server müsste zwangsläufig mehrere Threads verwenden (regelmäßig
+       ausgehende Timestamp-Pakete + warten auf eingehende Pakete); also ich hab keine Lust das
+       zu implementieren
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)

@@ -27,6 +27,7 @@ enum ThrowDirection {
 enum WeaponMisfireReason {
     cooldown,
     targetNotSet,
+    targetInvalid,
 }
 
 static this() {

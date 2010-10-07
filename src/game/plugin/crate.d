@@ -21,6 +21,8 @@ import utils.misc;
 import utils.array;
 import utils.configfile;
 import utils.log;
+import str = utils.string;
+import tango.util.Convert;
 
 //hack for message display
 alias DeclareEvent!("team_member_collect_crate", TeamMember, CrateSprite)
@@ -308,7 +310,7 @@ class CratePlugin : GameObject2 {
     private {
         //Medkit, medkit+tool, medkit+tool+unrigged weapon
         //  (rest is rigged weapon)
-        const cCrateProbs = [0.20f, 0.40f, 0.95f];
+        float[3] mCrateProbs = [0.20f, 0.40f, 0.95f];
         //list of tool crates that can drop
         char[][] mActiveCrateTools;
 
@@ -317,7 +319,7 @@ class CratePlugin : GameObject2 {
         InputGroup mInput;
     }
 
-    this(GameCore c, ConfigNode o) {
+    this(GameCore c, ConfigNode conf) {
         super(c, "crate_plugin");
         c.scripting.register(gCrateRegistry);
         //plugins are singleton; we can abuse this fact to allow using this
@@ -329,6 +331,23 @@ class CratePlugin : GameObject2 {
         OnGameStart.handler(engine.events, &doGameStart);
         OnCollectTool.handler(engine.events, &doCollectTool);
         OnCrateCollect.handler(engine.events, &doCollectCrate);
+
+        auto probs = conf.getValue!(float[])("probs");
+        //the values don't have to add up to 1
+        float sum = 0;
+        foreach (float p; probs) {
+            sum += p;
+        }
+        //check if it was a valid list
+        if (sum > 0) {
+            //accumulate probabilities for easy random selection
+            float curAcc = 0;
+            for (int i = 0; i < mCrateProbs.length && i < probs.length; i++) {
+                curAcc += probs[i] / sum;
+                mCrateProbs[i] = curAcc;
+            }
+        }
+        log.trace("Crate probabilites: {}", mCrateProbs);
 
         //those work for all gamemodes
         addCrateTool("cratespy");
@@ -356,10 +375,10 @@ class CratePlugin : GameObject2 {
     Collectable[] fillCrate() {
         Collectable[] ret;
         float r = engine.rnd.nextDouble2();
-        if (r < cCrateProbs[0]) {
+        if (r < mCrateProbs[0]) {
             //medkit
             ret ~= new CollectableMedkit(50);
-        } else if (r < cCrateProbs[1]) {
+        } else if (r < mCrateProbs[1]) {
             //tool
             ret ~= new CollectableTool(mActiveCrateTools[engine.rnd.next($)]);
         } else {
@@ -367,7 +386,7 @@ class CratePlugin : GameObject2 {
             auto content = mCrateSet ? mCrateSet.chooseRandomForCrate() : null;
             if (content) {
                 ret ~= new CollectableWeapon(content, content.crateAmount);
-                if (r > cCrateProbs[2]) {
+                if (r > mCrateProbs[2]) {
                     //add a bomb to that :D
                     ret ~= new CollectableBomb();
                 }

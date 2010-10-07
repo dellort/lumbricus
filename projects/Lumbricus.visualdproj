@@ -98,8 +98,9 @@
    </Folder>
    <File path="..\src\common\allres.d" />
    <File path="..\src\common\animation.d" />
-   <File path="..\src\common\common.d" />
    <File path="..\src\common\debugstuff.d" />
+   <File path="..\src\common\globalconsole.d" />
+   <File path="..\src\common\gui_init.d" />
    <File path="..\src\common\init.d" />
    <File path="..\src\common\localeswitch.d" />
    <File path="..\src\common\lua.d" />
@@ -108,6 +109,7 @@
    <File path="..\src\common\resset.d" />
    <File path="..\src\common\resview.d" />
    <File path="..\src\common\scene.d" />
+   <File path="..\src\common\stats.d" />
    <File path="..\src\common\task.d" />
    <File path="..\src\common\toplevel.d" />
   </Folder>
@@ -170,7 +172,6 @@
    <File path="..\src\framework\event.d" />
    <File path="..\src\framework\filesystem.d" />
    <File path="..\src\framework\font.d" />
-   <File path="..\src\framework\framework.d" />
    <File path="..\src\framework\globalsettings.d" />
    <File path="..\src\framework\i18n.d" />
    <File path="..\src\framework\imgread.d" />
@@ -202,7 +203,6 @@
    </Folder>
    <Folder name="hud">
     <File path="..\src\game\hud\camera.d" />
-    <File path="..\src\game\hud\chatbox.d" />
     <File path="..\src\game\hud\gameframe.d" />
     <File path="..\src\game\hud\gameteams.d" />
     <File path="..\src\game\hud\gametimer.d" />
@@ -234,6 +234,12 @@
     <File path="..\src\game\lua\physics.d" />
     <File path="..\src\game\lua\weapon.d" />
    </Folder>
+   <Folder name="plugin">
+    <File path="..\src\game\plugin\crate.d" />
+    <File path="..\src\game\plugin\messages.d" />
+    <File path="..\src\game\plugin\persistence.d" />
+    <File path="..\src\game\plugin\statistics.d" />
+   </Folder>
    <Folder name="weapon">
     <File path="..\src\game\weapon\airstrike.d" />
     <File path="..\src\game\weapon\drill.d" />
@@ -252,9 +258,7 @@
    <File path="..\src\game\animation.d" />
    <File path="..\src\game\bomberworm.d" />
    <File path="..\src\game\controller.d" />
-   <File path="..\src\game\controller_plugins.d" />
    <File path="..\src\game\core.d" />
-   <File path="..\src\game\crate.d" />
    <File path="..\src\game\effects.d" />
    <File path="..\src\game\events.d" />
    <File path="..\src\game\game.d" />
@@ -280,6 +284,7 @@
   <Folder name="gui">
    <File path="..\src\gui\boxcontainer.d" />
    <File path="..\src\gui\button.d" />
+   <File path="..\src\gui\chatbox.d" />
    <File path="..\src\gui\console.d" />
    <File path="..\src\gui\container.d" />
    <File path="..\src\gui\dropdownlist.d" />
@@ -320,6 +325,7 @@
    <File path="..\src\net\lobby.d" />
    <File path="..\src\net\marshal.d" />
    <File path="..\src\net\netlayer.d" />
+   <File path="..\src\net\serverlist.d" />
   </Folder>
   <Folder name="physics">
    <File path="..\src\physics\all.d" />

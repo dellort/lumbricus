@@ -14,7 +14,7 @@ import str = utils.string;
 //hack for tango 0.99.9 <-> svn trunk change
 import tango.core.Version;
 static if (Tango.Major == 0 && Tango.Minor == 999) {
-    import tango.io.compress.Zip;
+    mixin(`tango.io.compress.Zip;`);
 } else {
     import tango.util.compress.Zip;
 }

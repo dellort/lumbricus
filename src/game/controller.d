@@ -739,8 +739,7 @@ class GameController : GameObject2 {
         engine.scripting.addSingleton(this);
         engine.addSingleton(this);
 
-        assert(engine.onOffworld is null);
-        engine.onOffworld = &onOffworld;
+        OnSpriteOffworld.handler(engine.events, &onOffworld);
 
         mInput = new InputGroup();
         //per-team input

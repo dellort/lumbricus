@@ -943,8 +943,13 @@ class WormControl : WeaponController {
 
         if (mPointMode == PointMode.instantFree) {
             //move point out of landscape
-            if (!mEngine.physicWorld.freePoint(where, 6))
+            if (!mEngine.physicWorld.freePoint(where, 6)) {
+                if (mCurrentWeapon) {
+                    OnWeaponMisfire.raise(mCurrentWeapon, this,
+                        WeaponMisfireReason.targetInvalid);
+                }
                 return;
+            }
         }
 
         mTargetIsSet = true;

@@ -297,6 +297,7 @@ mainspr {
                 worm_no_weapon_get = "338"
                 worm_atomtest_get = "320"
                 worm_beamer_get = "428"
+                worm_beamer_prepare = "431"
                 worm_dynamite_get = "344"
                 worm_airstrike_get = "422"
                 worm_mingvase_get = "347"
@@ -408,7 +409,6 @@ mainspr {
                 worm_sad = "+repeat; 188"
 
                 worm_airstrike_prepare = "425"
-                worm_usebeamer = "431"
             }
             {
                 _flags = "+backwards_a"
@@ -420,7 +420,7 @@ mainspr {
                 //animations that would require time as the third parameter
                 _params = "p2/rot180,p1/step3,time"
 
-                worm_pistol_fire = "+repeat,f:300; 568 | 571"
+                worm_pistol_fire = "+repeat,f:200; 571 | 568"
                 worm_uzi_fire = "+repeat,f:100; 574 | 577"
                 worm_minigun_fire = "+repeat,f:50; 580 | 583"
                 worm_shotgun_prepare = "f:250; 556 | 553"

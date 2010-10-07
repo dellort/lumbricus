@@ -46,6 +46,10 @@ abstract class WeaponClass : EventTarget {
 
     //for the weapon selection; only needed on client-side
     Surface icon;
+    //particles are mostly for repeating sounds that play while the weapon is
+    //  firing (e.g. minigun); it doesn't work well for one-shot weapons
+    //  because the Shooter dies immediately
+    ParticleType prepareParticle, fireParticle;
 
     FireMode fireMode;
 
@@ -243,6 +247,9 @@ abstract class Shooter : GameObject {
         //  animation is playing -> should be able to fire after that
         bool mWaitFireStart;
 
+        ParticleEmitter mParticleEmitter;
+        ParticleType mCurrentParticle;
+
         const Time cWeaponLoadTime = timeMsecs(1500);
     }
     protected {
@@ -362,6 +369,22 @@ abstract class Shooter : GameObject {
         return cast(WwpWeaponDisplay)owner.graphic.stateDisplay();
     }
 
+    //copy+paste, lol
+    protected void updateParticles() {
+        mParticleEmitter.active = true;
+        mParticleEmitter.current = mCurrentParticle;
+        mParticleEmitter.pos = owner.physics.pos;
+        mParticleEmitter.velocity = owner.physics.velocity;
+        mParticleEmitter.update(engine.particleWorld);
+    }
+
+    final void setParticle(ParticleType pt) {
+        if (mCurrentParticle is pt)
+            return;
+        mCurrentParticle = pt;
+        updateParticles();
+    }
+
     //return the fire strength value, always between 0.0 and 1.0
     private float currentFireStrength() {
         if (mState != WeaponState.charge)
@@ -380,6 +403,7 @@ abstract class Shooter : GameObject {
             setState(WeaponState.prepare);
         } else {
             assert(mState == WeaponState.fire);
+            setParticle(mClass.prepareParticle);
         }
         auto ani = weaponAniState();
         bool ok = false;
@@ -643,6 +667,15 @@ abstract class Shooter : GameObject {
                 wani.stopFire();
             }
         }
+        if (mState != oldState) {
+            if (mState == WeaponState.prepare) {
+                setParticle(mClass.prepareParticle);
+            } else if (mState == WeaponState.fire) {
+                setParticle(mClass.fireParticle);
+            } else {
+                setParticle(null);
+            }
+        }
         updateAnimation();
         if (wcontrol) {
             if (mIsSelected) {
@@ -733,6 +766,7 @@ abstract class Shooter : GameObject {
         if (mQueueAnimUpdate) {
             updateAnimation();
         }
+        updateParticles();
     }
 
     private bool canAim() {

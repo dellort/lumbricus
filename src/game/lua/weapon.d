@@ -23,7 +23,8 @@ import utils.vector2;
 static this() {
     gScripting.properties!(WeaponClass, "value", "category", "isAirstrike",
         "allowSecondary", "dontEndRound", "deselectAfterFire",
-        "cooldown", "crateAmount", "icon", "fireMode", "animation");
+        "cooldown", "crateAmount", "icon", "fireMode", "animation",
+        "prepareParticle", "fireParticle");
     gScripting.properties_ro!(WeaponClass, "name");
 
     gScripting.methods!(Shooter, "finished", "reduceAmmo");
@@ -61,7 +62,7 @@ static this() {
     gScripting.ctor!(RopeClass, GameCore, char[]);
     gScripting.properties!(RopeClass, "shootSpeed", "maxLength", "moveSpeed",
         "swingForce", "swingForceUp", "hitImpulse", "ropeColor", "ropeSegment",
-        "anchorAnim");
+        "anchorAnim", "impactParticle");
 
     gScripting.ctor!(NapalmSpriteClass, GameCore, char[]);
     gScripting.properties!(NapalmSpriteClass, "damage", "initialDelay",

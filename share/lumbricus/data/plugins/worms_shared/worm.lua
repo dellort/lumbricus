@@ -286,3 +286,9 @@ end
 
 WormSpriteClass_finishLoading(sprite_class)
 registerResource(sprite_class, SpriteClass_name(sprite_class))
+
+-- play bleep on misfire (xxx not sure if this is the right place to put this)
+addGlobalEventHandler("weapon_misfire", function(weapon, wcontrol, reason)
+    local s = WormControl_sprite(wcontrol)
+    emitSpriteParticle("p_warning", s)
+end)

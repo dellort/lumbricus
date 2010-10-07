@@ -69,6 +69,7 @@ struct VideoWindowState {
     bool fullscreen;
     char[] window_caption;
     Surface window_icon;
+    char[] window_icon_res_win32;
     SysWinHandle window_handle;
 
     Vector2i actualSize() {
@@ -564,9 +565,10 @@ class Framework {
         mDriver.setVideoWindowState(state);
     }
 
-    void setIcon(Surface icon) {
+    void setIcon(Surface icon, char[] win32ResItem = "") {
         VideoWindowState state = mDriver.getVideoWindowState();
         state.window_icon = icon;
+        state.window_icon_res_win32 = win32ResItem;
         mDriver.setVideoWindowState(state);
     }
 

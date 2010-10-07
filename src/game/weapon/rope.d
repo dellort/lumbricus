@@ -13,6 +13,7 @@ import game.weapon.weapon;
 import game.worm;
 import game.sequence;
 import game.temp : GameZOrder;
+import game.particles;
 import game.wcontrol;
 import physics.all;
 import utils.time;
@@ -34,6 +35,7 @@ class RopeClass : WeaponClass {
     float hitImpulse = 700;      //impulse when pushing away from a wall
     Color ropeColor = Color(1);
     Surface ropeSegment;
+    ParticleType impactParticle;
 
     Animation anchorAnim;
 
@@ -174,6 +176,7 @@ class Rope : Shooter, Controllable {
     private void shootRope() {
         if (mShooting)
             return;
+        setParticle(myclass.fireParticle);
         mShooting = true;
         mShootStart = engine.gameTime.current;
         if (!mRender)
@@ -184,6 +187,7 @@ class Rope : Shooter, Controllable {
     //abort the flying (unattached) rope
     private void abortShoot() {
         mShooting = false;
+        setParticle(null);
         //if (mRender)
           //  mRender.removeThis();
     }
@@ -268,6 +272,11 @@ class Rope : Shooter, Controllable {
                     mRope = new PhysicConstraint(mWorm.physics, hit1, ropeLen,
                         0.8, false);
                     engine.physicWorld.add(mRope);
+                    if (myclass.impactParticle) {
+                        engine.particleWorld.emitParticle(owner.physics.pos,
+                            owner.physics.velocity, myclass.impactParticle);
+                    }
+                    setParticle(myclass.impactParticle);
                     wormRopeActivate(true);
                 } else {
                     finished();

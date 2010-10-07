@@ -23,6 +23,9 @@ import utils.stream;
 import tango.stdc.stringz;
 import tango.sys.Environment;
 import tunicode = tango.text.Unicode;
+version(Windows) {
+    import tango.sys.win32.UserGdi;
+}
 
 import str = utils.string;
 
@@ -222,25 +225,39 @@ class SDLDriver : FrameworkDriver {
                 assert(r == 1);
                 state.window_handle = wminfo.window;
             }
-            //set main window icon to executable icon
-            //sync with name in .rc file
         }
         SDL_WM_SetCaption(toStringz(state.window_caption), null);
         if (auto ico = state.window_icon) {
+            bool iconDone = false;
+            version(Windows) if (state.window_icon_res_win32.length > 0) {
+                //special case for Win32, because SDL icon scaling looks
+                //  like crap; downscaling the icon file to 16x16 gave me
+                //  lots of pixel artifacts
+                //load the icon from a resource identifier
+                auto hicon = LoadIconA(GetModuleHandleA(null),
+                    toStringz(state.window_icon_res_win32));
+                if (hicon != null) {
+                    SetClassLongA(state.window_handle, GCL_HICON,
+                        cast(LONG)hicon);
+                    iconDone = true;
+                }
+            }
             //there are some retarded restrictions about SDL_WM_SetIcon - I
             //  ignore most of them because conforming would make the API
             //  useless - but it seems to work anyway (lol SDL)
             //see http://www.libsdl.org/cgi/docwiki.cgi/SDL_WM_SetIcon
-            Color.RGBA32* pixels;
-            uint pitch;
-            ico.lockPixelsRGBA32(pixels, pitch);
-            scope (exit) ico.unlockPixels(Rect2i.init);
-            SDL_Surface* sicon = SDL_CreateRGBSurfaceFrom(pixels,
-                ico.size.x, ico.size.y, 32, pitch * Color.RGBA32.sizeof,
-                Color.cMaskR, Color.cMaskG, Color.cMaskB, Color.cMaskA);
-            if (sicon) {
-                SDL_WM_SetIcon(sicon, null);
-                SDL_FreeSurface(sicon);
+            if (!iconDone) {
+                Color.RGBA32* pixels;
+                uint pitch;
+                ico.lockPixelsRGBA32(pixels, pitch);
+                scope (exit) ico.unlockPixels(Rect2i.init);
+                SDL_Surface* sicon = SDL_CreateRGBSurfaceFrom(pixels,
+                    ico.size.x, ico.size.y, 32, pitch * Color.RGBA32.sizeof,
+                    Color.cMaskR, Color.cMaskG, Color.cMaskB, Color.cMaskA);
+                if (sicon) {
+                    SDL_WM_SetIcon(sicon, null);
+                    SDL_FreeSurface(sicon);
+                }
             }
         }
         mCurVideoState = state;

@@ -13,6 +13,8 @@ local function createGun(params)
         value = pick(params, "value", 0),
         animation = pick(params, "animation"),
         icon = pick(params, "icon"),
+        prepareParticle = pick(params, "prepareParticle"),
+        fireParticle = pick(params, "fireParticle"),
         fireMode = {
             direction = "any",
         },
@@ -25,6 +27,7 @@ createGun {
     value = 10,
     animation = "weapon_minigun",
     icon = "icon_minigun",
+    fireParticle = "p_minigun_fire",
     nrounds = 50,
     interval = time(0.05),
     damage = 5,
@@ -40,6 +43,9 @@ createGun {
     interval = time(0.4),
     damage = 7,
     spread = 5,
+    effect = function(pos, hit)
+        emitParticle("p_pistol_fire", pos)
+    end,
 }
 
 createGun {
@@ -47,6 +53,7 @@ createGun {
     value = 10,
     animation = "weapon_uzi",
     icon = "icon_uzi",
+    fireParticle = "p_uzi_fire",
     nrounds = 15,
     interval = time(0.15),
     damage = 5,
@@ -69,6 +76,7 @@ do
     local name = "w_shotgun"
 
     local function doshot(shooter)
+        emitShooterParticle("a_shotgun_fire", shooter)
         local ctx = get_context(shooter)
         ctx.shots = ctx.shots - 1
         -- (gives readjusted fireinfo after 1st shot)
@@ -103,6 +111,7 @@ do
         value = 10,
         animation = "weapon_shotgun",
         icon = "icon_shotgun",
+        prepareParticle = "p_shotgun_reload",
         fireMode = {
             direction = "any",
         }

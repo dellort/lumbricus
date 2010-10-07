@@ -35,7 +35,10 @@ createWeapon {
         point = "instantFree"
     },
     animation = "weapon_beamer",
+    prepareParticle = "p_beam_select",
     onFire = function(shooter, fireinfo)
+        -- can't use fireParticle as Shooter dies immediately
+        emitShooterParticle("p_beam", shooter)
         Shooter_reduceAmmo(shooter)
         Shooter_finished(shooter) -- probably called by BeamHandler on the end?
         Worm_beamTo(Shooter_owner(shooter), fireinfo.pointto.pos)
@@ -211,6 +214,7 @@ createWeapon {
     value = 10,
     category = "tools",
     icon = "icon_rope",
+    fireParticle = "p_rope_fire",
     allowSecondary = true,
     dontEndRound = true,
 
@@ -222,6 +226,7 @@ createWeapon {
     hitImpulse = 700,
     ropeColor = {0.8, 0.8, 0.8},
     ropeSegment = lookupResource("rope_segment"),
+    impactParticle = lookupResource("p_rope_impact"),
 
     animation = "weapon_rope",
     anchorAnim = lookupResource("rope_anchor"),
