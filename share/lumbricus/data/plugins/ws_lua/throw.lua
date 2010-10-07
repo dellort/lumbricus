@@ -38,7 +38,6 @@ do
         icon = "icon_banana",
         fireMode = {
             direction = "any",
-            variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
             paramFrom = 1,
@@ -183,7 +182,6 @@ do
         icon = "icon_superbanana",
         fireMode = {
             direction = "any",
-            variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
         }
@@ -225,7 +223,6 @@ do
         crateAmount = 3,
         fireMode = {
             direction = "any",
-            variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
             paramFrom = 1,
@@ -277,7 +274,6 @@ do
         animation = "weapon_cluster",
         fireMode = {
             direction = "any",
-            variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
             paramFrom = 1,
@@ -318,7 +314,6 @@ do
         icon = "icon_holy",
         fireMode = {
             direction = "any",
-            variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
         }
@@ -408,7 +403,6 @@ do
         crateAmount = 3,
         fireMode = {
             direction = "any",
-            variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
             paramFrom = 1,

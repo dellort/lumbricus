@@ -15,7 +15,6 @@ import gui.tablecontainer;
 import gui.widget;
 import utils.array;
 import utils.configfile;
-import utils.log;
 import utils.math;
 import utils.misc;
 import utils.rect2;
@@ -168,9 +167,6 @@ class WindowWidget : Widget {
             }
         }
     }
-
-    //is called to display messages from utils/log.d
-    LogSink guiLogSink;
 
     ///clock on close button or close shortcut
     ///if null, remove the window from the GUI
@@ -822,51 +818,4 @@ class WindowFrame : Container {
 
         return w;
     }
-}
-
-//-- log message dispatching
-//this is all stupid, but I couldn't think of anything better right now
-//the main problem is that each game has its own message window in GameFrame
-
-private {
-    LogBackend gLogBackendGui;
-    LogEntry[] gGuiLogBuffer;
-}
-
-static this() {
-    gLogBackendGui = new LogBackend("gui", LogPriority.Notice, null);
-    gLogBackendGui.sink = toDelegate(&logGui);
-    addTask(toDelegate(&dispatchGuiLog));
-}
-
-private LogSink getGuiLogSink() {
-    if (!gWindowFrame)
-        return null;
-    WindowWidget wnd = gWindowFrame.activeWindow();
-    if (!wnd)
-        return null;
-    //no logging set => log message is displayed when a window with a logsink
-    //  finally is on top (= active) again
-    return wnd.guiLogSink;
-}
-
-private void logGui(LogEntry e) {
-    if (auto sink = getGuiLogSink()) {
-        sink(e);
-    } else {
-        //leave it to dispatchGuiLog(), which basically polls if something gets
-        //  available
-        gGuiLogBuffer ~= e.dup;
-    }
-}
-
-private bool dispatchGuiLog() {
-    if (auto sink = getGuiLogSink()) {
-        LogEntry[] buffer = gGuiLogBuffer;
-        gGuiLogBuffer = null;
-        foreach (x; buffer) {
-            sink(x);
-        }
-    }
-    return true;
 }

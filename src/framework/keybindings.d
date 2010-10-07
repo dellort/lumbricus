@@ -1,7 +1,8 @@
 module framework.keybindings;
 
-import framework.keysyms;
 import framework.event;
+import framework.i18n; //for translate* functions
+import framework.keysyms;
 import config = utils.configfile;
 import utils.log;
 import utils.misc;
@@ -161,5 +162,36 @@ public class KeyBindings {
         foreach (Entry e; mBindings) {
             callback(e.bind_to, e.key);
         }
+    }
+}
+
+Translator localizedKeynames() {
+    //NOTE: bindNamespace can't cache Translators on its own, because they are
+    //  not stateless for stupid reasons (something with error handling...)
+    static Translator gKeynameTranslator;
+    if (!gKeynameTranslator)
+        gKeynameTranslator = localeRoot.bindNamespace("keynames");
+    return gKeynameTranslator;
+}
+
+//translate into translated user-readable string
+char[] translateKeyshortcut(BindKey key) {
+    auto tl = localizedKeynames();
+    char[] res = tl(translateKeycodeToKeyID(key.code), "?");
+    foreachSetModifier(key.mods,
+        (Modifier mod) {
+            res = tl(modifierToString(mod), "?") ~ "+" ~ res;
+        }
+    );
+    return res;
+}
+
+//xxx maybe move to framework
+char[] translateBind(KeyBindings b, char[] bind) {
+    BindKey k;
+    if (!b.readBinding(bind, k)) {
+        return "-";
+    } else {
+        return translateKeyshortcut(k);
     }
 }

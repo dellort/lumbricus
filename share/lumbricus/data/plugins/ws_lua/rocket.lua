@@ -26,7 +26,6 @@ do
         icon = "icon_bazooka",
         fireMode = {
             direction = "any",
-            variableThrowStrength = true,
             throwStrengthFrom = 200,
             throwStrengthTo = 1200,
         }
@@ -199,7 +198,6 @@ do -- xxx missing: deathzone_immune for active missile
         fireMode = {
             point = "targetTracking",
             direction = "any",
-            variableThrowStrength = true,
             throwStrengthFrom = 200,
             throwStrengthTo = 1200,
         }

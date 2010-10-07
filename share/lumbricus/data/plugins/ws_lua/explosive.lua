@@ -115,7 +115,6 @@ do
         animation = "weapon_mingvase",
         fireMode = {
             direction = "fixed",
-            variableThrowStrength = true,
             throwStrengthFrom = 40,
             throwStrengthTo = 40,
         }

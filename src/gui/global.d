@@ -8,9 +8,9 @@ import utils.strparser;
 ResourceSet gGuiResources;
 
 static this() {
-    //this is actually initialized somewhere in common.common
+    //this is actually initialized somewhere in common.gui_init
     //loaded from guires.conf
-    gGuiResources = new ResourceSet();
+    gGuiResources = null; //new ResourceSet();
 
     styleRegisterFloat("highlight-alpha");
     styleRegisterBorder("border");

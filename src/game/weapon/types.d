@@ -37,7 +37,6 @@ static this() {
 struct FireMode {
     //needed by both client and server (server should verify with this data)
     ThrowDirection direction; //what directions the user can choose
-    bool variableThrowStrength; //chooseable throw strength
     //if variableThrowStrength is true, FireInfo.strength is interpolated
     //between From and To by a player chosen value (that fire strength thing)
     float throwStrengthFrom = 0;   //1?? wtf?!
@@ -52,5 +51,10 @@ struct FireMode {
     int getParamDefault() {
         //xxx should this be configurable?
         return (paramFrom + paramTo)/2;
+    }
+
+    //chooseable throw strength
+    bool variableThrowStrength() {
+        return throwStrengthFrom != throwStrengthTo;
     }
 }

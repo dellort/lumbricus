@@ -18,7 +18,7 @@ import utils.strparser;
 import math = tango.math.Math;
 import cstdlib = tango.stdc.stdlib;
 
-debug import common.common;
+debug import stats = common.stats;
 debug import utils.perf;
 
 //use C memory for particles (is lighter on the GC)
@@ -580,12 +580,12 @@ class ParticleWorld {
             return;
 
         debug {
-            PerfTimer timer = globals.newTimer("particles");
+            PerfTimer timer = stats.newTimer("particles");
             timer.start();
 
             scope(success) {
                 timer.stop();
-                globals.setCounter("particles", mParticles.count);
+                stats.setCounter("particles", mParticles.count);
             }
         }
 

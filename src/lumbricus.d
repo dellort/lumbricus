@@ -7,7 +7,7 @@ import framework.filesystem;
 import framework.imgread;
 import framework.main;
 import common.init;
-import common.common : globals;
+import common.gui_init;
 import toplevel = common.toplevel;
 import utils.misc;
 
@@ -55,7 +55,7 @@ void lmain(char[][] args) {
     } catch (CustomException e) {
     }
 
-    globals.initGUIStuff();
+    initGUI();
 
     //installs callbacks to framework, which get called in the mainloop
     new toplevel.TopLevel();

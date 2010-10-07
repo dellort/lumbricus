@@ -1,6 +1,5 @@
 module game.hud.weaponsel;
 
-import common.common;
 import common.scene;
 import framework.config;
 import framework.drawing;
@@ -291,7 +290,7 @@ class WeaponSelWindow : Container {
             //and yes, the shortcut bind-name is the category-id itself
             const cCShortcut = "category_"; //xxx duplicated in gameview.d
             shortcut.text = selectionBindings ?
-                globals.translateBind(selectionBindings, cCShortcut ~ category)
+                translateBind(selectionBindings, cCShortcut ~ category)
                 : category;
             shortcut.styles.addClass("weaponsel_shortcut");
             mGrid.add(shortcut, 0, y, WidgetLayout.Noexpand);

@@ -1,8 +1,10 @@
 module common.debugstuff;
 
-import common.common;
+import common.globalconsole;
+import common.gui_init;
 import common.init; //import to force log initialization
 import common.resources;
+import common.stats;
 import common.task;
 import framework.commandline;
 import framework.config;
@@ -157,20 +159,21 @@ class Stuff {
         assert(!gStuff);
         gStuff = this;
 
-        mFrameTime = globals.newTimer("frame_time");
+        mFrameTime = newTimer("frame_time");
 
-        globals.cmdLine.registerCommand("gc", &testGC, "", ["bool?=true"]);
-        globals.cmdLine.registerCommand("gcmin", &cmdGCmin, "");
-        globals.cmdLine.registerCommand("gciter", &cmdGCIter, "");
-        globals.cmdLine.registerCommand("gctrace", &cmdGCTrace, "", ["text", "int?=1"]);
-        globals.cmdLine.registerCommand("gcarrtrace", &cmdGCArrayTrace, "",
+        auto cmds = gCommands;
+        cmds.registerCommand("gc", &testGC, "", ["bool?=true"]);
+        cmds.registerCommand("gcmin", &cmdGCmin, "");
+        cmds.registerCommand("gciter", &cmdGCIter, "");
+        cmds.registerCommand("gctrace", &cmdGCTrace, "", ["text", "int?=1"]);
+        cmds.registerCommand("gcarrtrace", &cmdGCArrayTrace, "",
             ["text"]);
 
-        globals.catchInput ~= &nameit;
-        globals.cmdLine.registerCommand("nameit", &cmdNameit, "");
+        gCatchInput ~= &nameit;
+        cmds.registerCommand("nameit", &cmdNameit, "");
 
-        globals.cmdLine.registerCommand("res_load", &cmdResLoad, "", ["text"]);
-        globals.cmdLine.registerCommand("res_unload", &cmdResUnload, "", []);
+        cmds.registerCommand("res_load", &cmdResLoad, "", ["text"]);
+        cmds.registerCommand("res_unload", &cmdResUnload, "", []);
 
         static if (GCStatsHack) {
             gLog.notice("precise GC: {}", memory.GC.getDebug()
@@ -190,7 +193,7 @@ class Stuff {
             }
         }
 
-        globals.setCounter("soundchannels", gSoundManager.activeSources());
+        setCounter("soundchannels", gSoundManager.activeSources());
 
         return true;
     }
@@ -209,17 +212,17 @@ class Stuff {
             mLastTimerStatsUpdate = cur;
             int div = mLastTimerStatsFrames;
             mLastTimerStatsFrames = 0;
-            foreach (PerfTimer cnt; globals.timers) {
+            foreach (PerfTimer cnt; gTimers) {
                 assert(!cnt.active, "timers must be off across frames");
                 auto t = cnt.time();
                 mLastTimerValues[cnt] = t / div;
                 cnt.reset();
             }
-            foreach (char[] name, ref long cnt; globals.counters) {
+            foreach (char[] name, ref long cnt; gCounters) {
                 mLastCounterValues[name] = cnt;
                 cnt = 0;
             }
-            foreach (char[] name, ref size_t sz; globals.size_stats) {
+            foreach (char[] name, ref size_t sz; gSizeStats) {
                 mLastSizeStatValues[name] = sz;
                 sz = 0;
             }
@@ -230,7 +233,7 @@ class Stuff {
     }
 
     void listTimers(void delegate(char[] name, Time value) cb) {
-        foreach (char[] name, PerfTimer cnt; globals.timers) {
+        foreach (char[] name, PerfTimer cnt; gTimers) {
             Time* pt = cnt in mLastTimerValues;
             Time t = Time.Never;
             if (pt)
@@ -239,7 +242,7 @@ class Stuff {
         }
     }
     void listCounters(void delegate(char[] name, long value) cb) {
-        foreach (char[] name, long cnt; globals.counters) {
+        foreach (char[] name, long cnt; gCounters) {
             long* pt = name in mLastCounterValues;
             long t = 0;
             if (pt)
@@ -248,7 +251,7 @@ class Stuff {
         }
     }
     void listSizeStats(void delegate(char[] name, size_t sz) cb) {
-        foreach (char[] name, size_t sz; globals.size_stats) {
+        foreach (char[] name, size_t sz; gSizeStats) {
             size_t* ps = name in mLastSizeStatValues;
             size_t s = 0;
             if (ps)
@@ -306,8 +309,7 @@ class Stuff {
         BindKey key = BindKey.FromKeyInfo(event.keyEvent);
 
         gLog.notice("Key: '{}' '{}', code={} mods={}",
-            key.unparse(), globals.translateKeyshortcut(key),
-            key.code, key.mods);
+            key.unparse(), translateKeyshortcut(key), key.code, key.mods);
 
         //modifiers are also keys, ignore them
         if (!event.keyEvent.isModifierKey()) {
@@ -509,7 +511,7 @@ class LogConfig {
 
 static this() {
     registerTask("console", (char[] args) {
-        gWindowFrame.createWindowFullscreen(new GuiConsole(globals.real_cmdLine),
+        gWindowFrame.createWindowFullscreen(new GuiConsole(getCommandLine()),
             "Console");
         return Object.init;
     });

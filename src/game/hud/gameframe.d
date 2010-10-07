@@ -1,6 +1,6 @@
 module game.hud.gameframe;
 
-import common.common;
+import common.globalconsole;
 import common.lua;
 import common.scene;
 import common.task;
@@ -31,7 +31,6 @@ import game.hud.powerups;
 import game.hud.replaytimer;
 import game.hud.network;
 import game.hud.hudbase;
-import game.hud.chatbox;
 import game.hud.weapondisplay;
 import game.lua.base;
 import game.weapon.weapon;
@@ -90,13 +89,6 @@ class GameFrame : SimpleContainer {
 
         Widget[Object] mHudWidgets;
 
-        enum ConsoleMode {
-            Chat,
-            Script,
-        }
-
-        Chatbox mConsoleBox;
-        ConsoleMode mConsoleMode;
         LuaInterpreter mScriptInterpreter;
 
         Time mLastFrameTime;
@@ -321,16 +313,6 @@ class GameFrame : SimpleContainer {
             || (game.shell.paused() && !mPauseLabel.visible());
     }
 
-    private void showLogEntry(LogEntry e) {
-        writeColoredLogEntry(e, false, &mConsoleBox.output.writefln);
-    }
-
-    override void onLinkChange() {
-        WindowWidget w = findWindowFor(this);
-        if (w)
-            w.guiLogSink = &showLogEntry;
-    }
-
     void scriptAddHudWidget(LuaGuiAdapter gui, char[] where = "sidebar") {
         argcheck(gui);
         Widget w = gui.widget();
@@ -360,49 +342,39 @@ class GameFrame : SimpleContainer {
 
     //chatbox or whatever it is
 
-    private void cmdExecConsole(MyBox[] args, Output output) {
-        char[] text = args[0].unbox!(char[])();
-        if (mConsoleMode == ConsoleMode.Script) {
-            mScriptInterpreter.exec(text);
-        } else if (mConsoleMode == ConsoleMode.Chat) {
-            if (game.connection) {
-                game.connection.sendChat(text);
-            } else {
-                mConsoleBox.output.writefln("no chat in local mode, but you "
-                    "wanted to say: {}", text);
-            }
-        }
-    }
-
-    private void tabComplete(char[] line, int cursor1, int cursor2,
-        void delegate(int, int, char[]) edit)
-    {
-        //chat mode could have completion for nicks or common words
-        if (mConsoleMode == ConsoleMode.Script) {
-            mScriptInterpreter.tabcomplete(line, cursor1, cursor2, edit);
+    private void chatInput(char[] text) {
+        if (game.connection) {
+            game.connection.sendChat(text);
+        } else {
+            gConsoleOut.writefln("no chat in local mode, but you "
+                "wanted to say: {}", text);
         }
     }
 
     private void toggleChat() {
-        setConsoleMode(ConsoleMode.Chat, true);
-    }
-    private void toggleScript() {
-        setConsoleMode(ConsoleMode.Script, true);
+        setConsoleMode("chat", &chatInput);
+        //chat mode could have completion for nicks or common words
+        //setConsoleTabHandler(&...)
+        activateConsole();
     }
 
-    private void setConsoleMode(ConsoleMode mode, bool activate) {
-        if (mode != mConsoleMode) {
-            mConsoleMode = mode;
-            char[] name = "unknown";
-            if (mode == ConsoleMode.Chat) {
-                name = "chat";
-            } else if (mode == ConsoleMode.Script) {
-                name = "scripting";
-            }
-            mConsoleBox.output.writefln("Chat box set to {} mode.", name);
+    private void scriptInput(char[] text) {
+        mScriptInterpreter.exec(text);
+    }
+
+    private void toggleScript() {
+        setConsoleMode("script", &scriptInput);
+        setConsoleTabHandler(&mScriptInterpreter.tabcomplete);
+        activateConsole();
+    }
+
+    override void onLinkChange() {
+        super.onLinkChange();
+        if (!isLinked()) {
+            //remove the handlers if they're still set
+            disableConsoleMode(&scriptInput);
+            disableConsoleMode(&chatInput);
         }
-        if (activate)
-            mConsoleBox.activate();
     }
 
     //this is just some sort of joke/easteregg/test/doingitbecauseican
@@ -424,7 +396,7 @@ class GameFrame : SimpleContainer {
         }
         //the \litx prevents interpretation of the nick name as markup
         //we decided to allow markup in the message text
-        mConsoleBox.output.writefln(myformat(r"\[\c({})\b\litx({},{}): \]{}",
+        gConsoleOut.writefln(myformat(r"\[\c({})\b\litx({},{}): \]{}",
             color, player.name.length, player.name, text));
     }
 
@@ -432,6 +404,9 @@ class GameFrame : SimpleContainer {
         game = g;
 
         doClipping = true;
+
+        mScriptInterpreter = new GameLuaInterpreter(
+            &gConsoleOut.writeString, g);
 
         mGui = new SimpleContainer();
 
@@ -444,15 +419,6 @@ class GameFrame : SimpleContainer {
         mGui.add(mWeaponDisplay, WidgetLayout.Aligned(1, 1, Vector2i(5, 40)));
         mGui.add(new ReplayTimer(game),
             WidgetLayout.Aligned(-1, -1, Vector2i(10, 0)));
-        mConsoleBox = new Chatbox();
-        mScriptInterpreter = new GameLuaInterpreter(
-            &mConsoleBox.output.writeString, g);
-        mConsoleBox.cmdline.commands.addSub(globals.cmdLine);
-        mConsoleBox.cmdline.commands.registerCommand("input", &cmdExecConsole,
-            "text goes here", ["text..."]);
-        mConsoleBox.cmdline.setPrefix("/", "input");
-        mConsoleBox.setTabCompletion(&tabComplete);
-        mGui.add(mConsoleBox, WidgetLayout.Aligned(-1, -1, Vector2i(5, 5)));
 
         gameView = new GameView(game);
         gameView.onTeamChange = &teamChanged;

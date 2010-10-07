@@ -1,4 +1,4 @@
-module game.hud.chatbox;
+module gui.chatbox;
 
 import framework.commandline;
 import framework.event;

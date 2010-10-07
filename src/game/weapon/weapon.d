@@ -315,7 +315,7 @@ abstract class Shooter : GameObject {
             return initiateFire();
         } else if (mState == WeaponState.idle && mIsSelected && !keyUp) {
             //start firing
-            if (weapon.fireMode.variableThrowStrength) {
+            if (weapon.fireMode.variableThrowStrength()) {
                 //charge up fire strength
                 log.trace("start charge");
                 setState(WeaponState.charge);

@@ -1,6 +1,6 @@
 module game.gametask;
 
-import common.common;
+import common.globalconsole;
 import common.lua;
 import common.task;
 import common.resources;
@@ -245,7 +245,7 @@ class GameTask : IKillable {
         mCmds.helpTranslator = localeRoot.bindNamespace(
             "console_commands.gametask");
         registerCommands();
-        globals.cmdLine.addSub(mCmds);
+        gCommands.addSub(mCmds);
     }
 
     private void netGameStart(SimpleNetConnection sender, ClientControl control)
@@ -493,7 +493,7 @@ class GameTask : IKillable {
         mDead = true;
         mRealWindow.remove();
         unloadAndReset();
-        globals.cmdLine.removeSub(mCmds);
+        gCommands.removeSub(mCmds);
     }
 
     void terminateWithFadeOut() {

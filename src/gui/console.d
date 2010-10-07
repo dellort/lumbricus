@@ -67,6 +67,15 @@ class ConsoleEditLine : EditLine {
     }
 }
 
+//Replace the text between start and end by text
+//operation: newline = line[0..start] ~ text ~ line[end..$];
+alias void delegate(int start, int end, char[] text) EditDelegate;
+
+//line is the current line, cursor1+cursor2 are the selection/cursor-
+//  position, and edit can be used to change the text
+alias void delegate(char[] line, int cursor1, int cursor2, EditDelegate edit)
+    TabCompleteDelegate;
+
 //a generic console (basically just a LogWindow over an EditLine)
 class GuiConsole : VBoxContainer {
     private {
@@ -79,15 +88,6 @@ class GuiConsole : VBoxContainer {
         Label mPrompt;
         TabCompleteDelegate mCustomTabComplete;
     }
-
-    //Replace the text between start and end by text
-    //operation: newline = line[0..start] ~ text ~ line[end..$];
-    alias void delegate(int start, int end, char[] text) EditDelegate;
-
-    //line is the current line, cursor1+cursor2 are the selection/cursor-
-    //  position, and edit can be used to change the text
-    alias void delegate(char[] line, int cursor1, int cursor2,
-        EditDelegate edit) TabCompleteDelegate;
 
     //cmdline: use that cmdline, if null create a new one
     this(CommandLine cmdline = null) {

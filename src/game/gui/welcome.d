@@ -3,8 +3,8 @@ module game.gui.welcome;
 import framework.commandline;
 import framework.config;
 import framework.i18n;
+import common.globalconsole;
 import common.task;
-import common.common;
 import gui.widget;
 import gui.container;
 import gui.button;
@@ -22,7 +22,7 @@ class CommandButton : Button {
     override protected void doClick() {
         super.doClick();
         if (mCommand)
-            globals.real_cmdLine.execute(mCommand);
+            executeGlobalCommand(mCommand);
     }
 
     override void loadFrom(GuiLoader loader) {

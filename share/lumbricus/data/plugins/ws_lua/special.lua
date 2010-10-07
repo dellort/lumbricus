@@ -71,7 +71,6 @@ do
         crateAmount = 2,
         fireMode = {
             direction = "any",
-            variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
         }
@@ -259,7 +258,6 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
         icon = "icon_blackhole",
         fireMode = {
             direction = "any",
-            variableThrowStrength = true,
             throwStrengthFrom = 20,
             throwStrengthTo = 1200,
             paramFrom = 1,

@@ -1,6 +1,6 @@
 module game.hud.gameview;
 
-import common.common;
+import common.globalconsole;
 import framework.font;
 import framework.config;
 import framework.drawing;
@@ -662,7 +662,7 @@ class GameView : Widget {
     //  teamlabels ("delete") would be globally catched, and you couldn't use
     //  them e.g. in a text edit field
     private bool inpCmd(char[] cmd) {
-        globals.real_cmdLine.execute(cmd);
+        executeGlobalCommand(cmd);
         return true;
     }
 
@@ -738,7 +738,7 @@ class GameView : Widget {
                 caption.text = tr_ids(id);
                 caption.styles.addClass("keybind_help_caption");
                 auto bind = new Label();
-                bind.text = globals.translateBind(this.bindings, id);
+                bind.text = translateBind(this.bindings, id);
                 bind.styles.addClass("keybind_help_bind");
                 table.addRow();
                 table.add(caption, 0, table.height-1);

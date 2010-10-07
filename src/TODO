@@ -19,7 +19,6 @@ $ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen l
 - axt abfeuern + sofort bazooka auswählen => falsche zielkreuz animation
 
 == bekannte, lösbare Bugs ==
-- log nachrichten sollten durch ein globales widget angezeigt werden; z.zt. werden extra umstände gemacht, damit sie in GameFrame/mChatbox angezeigt werden
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
   Schaden reduziert werden die Löcher zu klein)
   Genauso: Minigun macht zuviel Schaden (bis 350 für die volle Ladung)

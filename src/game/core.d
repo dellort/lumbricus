@@ -1,7 +1,6 @@
 module game.core;
 
 import common.animation;
-import common.common;
 import common.lua;
 import common.resset;
 import common.scene;
@@ -29,6 +28,8 @@ import utils.time;
 import utils.timesource;
 
 import net.marshal; // : Hasher;
+
+import stats = common.stats;
 
 alias DeclareGlobalEvent!("game_start") OnGameStart;
 //init plugins
@@ -410,7 +411,7 @@ abstract class GameCore {
         if (mBenchSimTime)
             mBenchSimTime.start();
 
-        auto physicTime = globals.newTimer("game_physic");
+        auto physicTime = stats.newTimer("game_physic");
         physicTime.start();
         physicWorld.simulate(gameTime.current);
         physicTime.stop();
@@ -440,15 +441,15 @@ abstract class GameCore {
         }
 
         debug {
-            globals.setCounter("active_gameobjects", mActiveObjects.count);
-            globals.setCounter("all_gameobjects", mAllObjects.count);
-            globals.setByteSizeStat("game_lua_vm", scripting.vmsize());
-            globals.setCounter("Lua->D calls", gLuaToDCalls);
-            globals.setCounter("D->Lua calls", gDToLuaCalls);
-            globals.setCounter("D->Lua refs", scripting.reftableSize());
-            globals.setCounter("D->Lua refs (total)", gDLuaRefs);
-            globals.setCounter("Lua->D refs", scripting.objtableSize());
-            globals.setCounter("Lua->D refs (total)", gLuaDRefs);
+            stats.setCounter("active_gameobjects", mActiveObjects.count);
+            stats.setCounter("all_gameobjects", mAllObjects.count);
+            stats.setByteSizeStat("game_lua_vm", scripting.vmsize());
+            stats.setCounter("Lua->D calls", gLuaToDCalls);
+            stats.setCounter("D->Lua calls", gDToLuaCalls);
+            stats.setCounter("D->Lua refs", scripting.reftableSize());
+            stats.setCounter("D->Lua refs (total)", gDLuaRefs);
+            stats.setCounter("Lua->D refs", scripting.objtableSize());
+            stats.setCounter("Lua->D refs (total)", gLuaDRefs);
         }
     }
 

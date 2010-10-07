@@ -22,7 +22,6 @@ import gui.splitter;
 import gui.loader;
 import gui.tabs;
 import gui.progress;
-import common.common;
 import common.task;
 import gui.renderbox;
 import gui.rendertext;

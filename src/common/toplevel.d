@@ -1,7 +1,8 @@
 //connects GUI, Task-stuff and the framework; also contains general stuff
 module common.toplevel;
 
-import common.common;
+import common.globalconsole;
+import common.gui_init;
 import common.lua;
 import common.task;
 import framework.commandline;
@@ -28,9 +29,10 @@ import utils.log;
 import utils.misc;
 import utils.mybox;
 import utils.output;
-import utils.perf;
 import utils.stream;
 import utils.time;
+
+import stats = common.stats;
 
 //import all restypes because of the factories (more for debugging...)
 import common.allres;
@@ -57,7 +59,6 @@ class TopLevel {
 private:
     KeyBindings keybindings;
 
-    GUI mGui;
     SystemConsole mGuiConsole;
 
     //privileged Lua state
@@ -65,35 +66,33 @@ private:
 
     int mOldFixedFramerate;
 
-    PerfTimer mTaskTime, mGuiDrawTime, mGuiFrameTime;
-
     public this() {
         assert(!gTopLevel, "singleton");
         gTopLevel = this;
 
-        mTaskTime = globals.newTimer("tasks");
-        mGuiDrawTime = globals.newTimer("gui_draw");
-        mGuiFrameTime = globals.newTimer("gui_frame");
-
-        mGui = new GUI();
+        auto mainFrame = gGui.mainFrame;
 
         GuiFps fps = new GuiFps();
         fps.zorder = GUIZOrder.FPS;
-        mGui.mainFrame.add(fps);
+        mainFrame.add(fps);
 
+        //"old" console
         mGuiConsole = new SystemConsole();
         mGuiConsole.zorder = GUIZOrder.Console;
         WidgetLayout clay;
         clay.fill[1] = 1.0f/2;
         clay.alignment[1] = 0;
         clay.border = Vector2i(4);
-        mGui.mainFrame.add(mGuiConsole, clay);
+        mainFrame.add(mGuiConsole, clay);
 
         initConsole();
         initLua();
 
         gWindowFrame = new WindowFrame();
-        mGui.mainFrame.add(gWindowFrame);
+        mainFrame.add(gWindowFrame);
+
+        //"new" console
+        .initConsole(mainFrame, GUIZOrder.Console);
 
         gFramework.onUpdate = &onUpdate;
         gFramework.onFrame = &onFrame;
@@ -121,44 +120,44 @@ private:
     }
 
     private void initConsole() {
-        globals.real_cmdLine = mGuiConsole.cmdline;
+        auto cmds = gCommands;
 
-        mGuiConsole.cmdline.commands.addSub(globals.cmdLine);
-        globals.cmdLine.helpTranslator = localeRoot.bindNamespace(
+        mGuiConsole.cmdline.commands.addSub(cmds);
+        cmds.helpTranslator = localeRoot.bindNamespace(
             "console_commands.global");
 
-        globals.cmdLine.registerCommand("quit", &killShortcut, "");
-        globals.cmdLine.registerCommand("toggle", &showConsole, "");
-        globals.cmdLine.registerCommand("video", &cmdVideo, "",
+        cmds.registerCommand("quit", &killShortcut, "");
+        cmds.registerCommand("toggle", &showConsole, "");
+        cmds.registerCommand("video", &cmdVideo, "",
             ["int", "int", "int?=0", "bool?"]);
-        globals.cmdLine.registerCommand("fullscreen", &cmdFS, "", ["text?"]);
-        globals.cmdLine.registerCommand("screenshot", &cmdScreenshot,
+        cmds.registerCommand("fullscreen", &cmdFS, "", ["text?"]);
+        cmds.registerCommand("screenshot", &cmdScreenshot,
             "", ["text?"]);
-        globals.cmdLine.registerCommand("screenshotwnd", &cmdScreenshotWnd,
+        cmds.registerCommand("screenshotwnd", &cmdScreenshotWnd,
             "", ["text?"]);
 
-        globals.cmdLine.registerCommand("spawn", &cmdSpawn, "",
+        cmds.registerCommand("spawn", &cmdSpawn, "",
             ["text", "text?..."], [&complete_spawn]);
-        globals.cmdLine.registerCommand("help_spawn", &cmdSpawnHelp, "");
+        cmds.registerCommand("help_spawn", &cmdSpawnHelp, "");
 
-        globals.cmdLine.registerCommand("release_caches", &cmdReleaseCaches,
+        cmds.registerCommand("release_caches", &cmdReleaseCaches,
             "", ["bool?=true"]);
 
-        globals.cmdLine.registerCommand("fw_settings", &cmdFwSettings,
+        cmds.registerCommand("fw_settings", &cmdFwSettings,
             "", null);
 
         //settings
-        globals.cmdLine.registerCommand("settings_set", &cmdSetSet, "",
+        cmds.registerCommand("settings_set", &cmdSetSet, "",
             ["text", "text..."]);
-        globals.cmdLine.registerCommand("settings_help", &cmdSetHelp, "",
+        cmds.registerCommand("settings_help", &cmdSetHelp, "",
             ["text"]);
-        globals.cmdLine.registerCommand("settings_list", &cmdSetList, "", []);
+        cmds.registerCommand("settings_list", &cmdSetList, "", []);
         //used for key shortcuts
-        globals.cmdLine.registerCommand("settings_cycle", &cmdSetCycle, "",
+        cmds.registerCommand("settings_cycle", &cmdSetCycle, "",
             ["text"]);
 
         //bridge to Lua
-        globals.cmdLine.registerCommand("execlua", &cmdLua, "", ["text..."]);
+        cmds.registerCommand("execlua", &cmdLua, "", ["text..."]);
     }
 
     //add a Lua command - del should be a delegate or a function ptr
@@ -184,7 +183,7 @@ private:
 
         //bridge to cmdLine
         addL("exec", function(char[] cmd) {
-            globals.real_cmdLine.execute(cmd);
+            executeGlobalCommand(cmd);
         });
 
         addL("spawn", function(char[] cmd) {
@@ -250,9 +249,9 @@ private:
     }
 
     private void onVideoInit() {
-        globals.log("Changed video: {}", gFramework.screenSize);
-        mGui.size = gFramework.screenSize;
-        globals.saveVideoConfig();
+        //globals.log("Changed video: {}", gFramework.screenSize);
+        gGui.size = gFramework.screenSize;
+        saveVideoConfig();
     }
 
     private void cmdVideo(MyBox[] args, Output write) {
@@ -278,7 +277,7 @@ private:
                 gFramework.setVideoMode(gFramework.desktopResolution, -1, true);
             } else {
                 //toggle fullscreen
-                globals.setVideoFromConf(true);
+                setVideoFromConf(true);
             }
         } catch (CustomException e) {
             //fullscreen switch failed
@@ -351,25 +350,25 @@ private:
     }
 
     private void onUpdate() {
-        mTaskTime.start();
+        stats.startTimer("tasks");
         runTasks();
-        mTaskTime.stop();
+        stats.stopTimer("tasks");
 
-        mGuiFrameTime.start();
-        mGui.frame();
-        mGuiFrameTime.stop();
+        stats.startTimer("gui_frame");
+        gGui.frame();
+        stats.stopTimer("gui_frame");
 
         updateTimers(mLua, timeCurrentTime());
     }
 
     private void onFrame(Canvas c) {
-        mGuiDrawTime.start();
-        mGui.draw(c);
-        mGuiDrawTime.stop();
+        stats.startTimer("gui_draw");
+        gGui.draw(c);
+        stats.stopTimer("gui_draw");
     }
 
     private void onInput(InputEvent event) {
-        foreach (c; globals.catchInput) {
+        foreach (c; gCatchInput) {
             if (c(event))
                 return;
         }
@@ -385,7 +384,7 @@ private:
         }
 
         //deliver event to the GUI
-        mGui.putInput(event);
+        gGui.putInput(event);
     }
 
     //app input focus changed
