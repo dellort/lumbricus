@@ -17,12 +17,15 @@ $ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen l
 - parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
 - Bohrer/Lötlampe stoßen Würmer weg: verbessern (mehr impuls, weniger schaden?)
 - axt abfeuern + sofort bazooka auswählen => falsche zielkreuz animation
+- entscheiden, ob Lua Full-Userdata verwendet werden soll, und dann die Entscheidung konsequent durchsetzen (z.B. keine globalen Class_method Funktionen mehr)
+  im Moment geht noch beides; vielleicht sollte man erst Performance-Tests durchführen? (bloss welche...)
 
 == bekannte, lösbare Bugs ==
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
   Schaden reduziert werden die Löcher zu klein)
   Genauso: Minigun macht zuviel Schaden (bis 350 für die volle Ladung)
   ^ Idee: Nichtlineare Funktion für die Lochgröße (nur welche?)
+    ^^ kann man nicht einfach den Schaden->Lochgröße Multiplikator erhöhen
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
@@ -39,6 +42,7 @@ $ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen l
 - Zuständigkeit von globaler und Chatbox-Konsole überarbeiten (i.V. mit dem mysteriösen "server"-Befehl)
   (evtl. einfach den "server"-Befehl entfernen und die Chatbox-Konsole nur "server"-Kommandos ausführen lassen; könnte andererseits auch gewaltige Engine-Änderungen benötigen)
   ^ wie genau?
+    die globale Konsole und die Chatbox sind jetzt praktisch gleich
 - wurm, der im napalm kocht, zeigt manchmal animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
 - net server sollte nicht 100% CPU benutzen
     zur zeit wird alles gepollt: enet, broadcast sockets (announce zeug), timeouts...
@@ -46,6 +50,7 @@ $ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen l
     ausserdem, was ist denn checkPacketPreview() für eine katastrophe? macht es sicher unmöglich, enet blockierend einzusetzen
   ^ a) Ich weiß ja nicht was da unter Linux schiefläuft, aber unter Windows braucht
        der Server dank yield() ca. 0% CPU
+       ^^ der Unterschied ist wahrscheinlich, dass yield unter Windows den Thread in den Wartezustand versetzt (und dieser vllt. ein Timeslice lang schläft?), während er in Linux nur ein Rescheduling verursacht, d.h. wenn kein anderer Prozess im System aktiv ist, macht yield nichts. Der Server wird anderen Prozessen keine CPU-Zeit weggnehmen, aber es wird trotzdem 100% Belastung angezeigt (und die CPU heizt sich auf).
     b) Nicht wirklich, man müsste halt checkPacketPreview() und nicht enet blockierend machen;
        aber natürlich ist checkPacketPreview() ein dreckiger hack; ein callback aus enet
        (onRawReceive oder so) wäre da wesentlich schöner, nur den gibts halt nicht;
@@ -55,6 +60,7 @@ $ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen l
     c) Ein blockierender Server müsste zwangsläufig mehrere Threads verwenden (regelmäßig
        ausgehende Timestamp-Pakete + warten auf eingehende Pakete); also ich hab keine Lust das
        zu implementieren
+       ^^ ich auch nicht, deshalb ist es ja auch unter "unlösbar".... das Blöde dabei ist, ein zentrales select() könnte sich um alles kümmern (inklusive Timeouts), also bräuchte man eigentlich keine extra Threads. man müsste halt alle verwendeten Sockets kennen, vor allem enets.
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)
@@ -100,7 +106,7 @@ vllt: http://tekui.teklib.org/index.html
 + Spiel-Statistiken, insb. Team- und Wurm-bezogene
     ^ die gibt es doch schon; müssen nur angezeigt werden
 + Mehr Powerup-Kisten (Niedrige Schwerkraft etc.)
-+ Vergiftete Würmer (nach Atomangriff/Sudden death oder Stinktiertreffer)
++ Vergiftete Würmer (nach Sudden death oder Stinktiertreffer)
 *** KI
 
 == Spiel-Anzeige (Grafiken, Präsentation) ==

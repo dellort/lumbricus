@@ -491,6 +491,7 @@ class CratePlugin : GameObject2 {
 
 //xxx is it ok to have Lua binding stuff here? Not sure about that, but we don't
 //    want to register functions of a non-loaded plugin
+//^ don't know; the registered functions would be simply useless, nothing else
 private LuaRegistry gCrateRegistry;
 
 static this() {

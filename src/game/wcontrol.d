@@ -27,19 +27,6 @@ import game.temp : GameZOrder;
 //renamed imports being public is actually a dmd bug
 public import game.worm : JumpMode;
 
-/+
-//feedback WormControl -> WormSprite
-interface SpriteControl {
-    //enable/disable equipment (right now: jetpack, rope)
-    //returns success
-    //(fails when...:
-    //  enable: not possible or available
-    //  disable: equipment wasn't enabled)
-    //WeaponClass is only used for simplification (to identify jetpack/rope)
-    bool enableEquipment(WeaponClass type, bool enable);
-}
-+/
-
 //for GUI, to give the user some feedback when the keypress did nothing
 //xxx I would love to use TeamMember as sender, but that would get messy
 alias DeclareEvent!("weapon_misfire", WeaponClass, WormControl,
@@ -54,69 +41,6 @@ interface Controllable {
     //returning null => no active sprite; worm is considered to be active
     Sprite getSprite();
 }
-
-/+ list of methods used by controller.d
-interface WormControl {
-    isControllable
-    setOnHold
-    lastActivity
-    actionPerformed
-    isIdle
-    checkDying
-    isAlive
-    sprite
-    setWeaponSet
-    setAlternateControl
-    input
-    setEngaged
-    engaged
-    youWinNow
-    delayedAction
-    forceAbort
-    simulate
-}
-+/
-
-/+ WormSprite (not Sprite) methods used here
-interface Worm {
-    wcontrol [set]
-    setWeaponParam
-    delayedDeath
-    activateJetpack         //replace by "Equipment"?
-    isAlive                 //only depends from Sprite stuff
-    forceAbort
-    weapon [set]
-    altWeapon [get]
-    jump                    //replaceable by Input
-    fireAlternate           //Input?
-    wouldFire               //Input?
-    allowAlternate
-    fire
-    allowFireSecondary
-    requestedWeapon [get]
-    move
-    haveAnyControl
-    youWinNow
-    delayedAction
-    isReallyDead
-    isDelayedDying
-    finallyDie
-    teamColor [get]
-}
-+/
-
-/+ list of WormControl methods used by weapons
-interface ... {
-    pushControllable
-    popControllable
-    addRenderOnMouse
-    removeRenderOnMouse
-    color [get]
-}
-jetpack.d additionally uses some methods on WormSprite about jetpacks
-drill.d uses WormSprite for torches/drills and weaponDir
-rope.d for ropes, ropeCanFire, and updateAnimation
-+/
 
 //every worm, that's controllable by the user (includes all TeamMembers) has
 //  an instance of this class
@@ -304,16 +228,10 @@ class WormControl : WeaponController {
     }
 
     //xxx what is this equipment stuff? a planned feature?
+    //  ^ older idea to unify handling of jetpacks, drills, etc. without
+    //    having to have special methods for it (which worm.d still has); all
+    //    that is on hold and I'm really unsure how to proceed
     private void setEquipment(WeaponClass e) {
-        /+
-        if (e is mCurrentEquipment)
-            return;
-        if (mCurrentEquipment)
-            mWormControl.enableEquipment(mCurrentEquipment, false);
-        mCurrentEquipment = e;
-        if (mCurrentEquipment)
-            mWormControl.enableEquipment(mCurrentEquipment, true);
-        +/
         if (!e)
             mWorm.activateJetpack(false);
     }

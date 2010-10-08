@@ -16,6 +16,8 @@ import utils.misc;
 import utils.log;
 import utils.vector2;
 
+import tango.core.WeakRef;
+
 import str = utils.string;
 import tango.util.Convert;
 
@@ -41,7 +43,7 @@ class CmdNetClient : SimpleNetConnection {
         ClientState mState;
         Time mStateEnter;
         NetAddress mTmpAddr;
-        GameShell mShell;
+        WeakReference!(GameShell) mShellPtr;
         //lol. this simply maps playerId -> makeAccessTag(playerId)
         //maybe this could go into mPlayerInfo, but I'm not sure
         //most likely it would be fine to call makeAccessTag directly, but apart
@@ -72,6 +74,8 @@ class CmdNetClient : SimpleNetConnection {
     void delegate(CmdNetClient sender, char[][] text) onMessage;
 
     this() {
+        mShellPtr = new typeof(mShellPtr)(null);
+
         registerCmds();
 
         mMarshal = new MarshalBuffer();
@@ -84,6 +88,14 @@ class CmdNetClient : SimpleNetConnection {
     ~this() {
         delete mHost;
         delete mBase;
+    }
+
+    //warning: if(shell()) shell().something(); is a race condition
+    //  the underlying weakref may become null any time
+    GameShell shell() {
+        //why a weak-ptr? because then the reference is properly set to null
+        //  when the game is destroyed
+        return mShellPtr.get();
     }
 
     void tick() {
@@ -134,8 +146,8 @@ class CmdNetClient : SimpleNetConnection {
     //close connection, or abort connecting
     void close(DiscReason why) {
         state(ClientState.idle);
-        if (mShell) {
-            mShell.terminated = true;
+        if (auto sh = shell()) {
+            sh.terminated = true;
         }
         if (!mServerCon)
             return;
@@ -202,7 +214,7 @@ class CmdNetClient : SimpleNetConnection {
 
     //called by GameLoader.finish
     void signalLoadingDone(GameShell shell) {
-        mShell = shell;
+        mShellPtr.set(shell);
         sendEmpty(ClientPacket.loadDone);
     }
 
@@ -271,23 +283,24 @@ class CmdNetClient : SimpleNetConnection {
         //if setMe() is never called, we are spectator
         mClControl = new CmdNetControl(this);
         mSrvControl = null;
-        if (!mShell) {
+        auto sh = shell();
+        if (!sh) {
             close(DiscReason.internalError);
             return;
         }
-        foreach (team; mShell.serverEngine.singleton!(GameController)().teams) {
+        foreach (team; sh.serverEngine.singleton!(GameController)().teams) {
             uint ownerId = to!(uint)(team.netId);
             if (!(ownerId in mSrvControl))
                 mSrvControl[ownerId] = makeAccessTag(ownerId);
         }
 
-        mShell.masterTime.paused = false;
+        sh.masterTime.paused = false;
         mLastAck = 0;
         onGameStart(this, mClControl);
     }
 
     void gameKilled(ConfigNode persistentState) {
-        mShell = null;
+        mShellPtr.clear();
         if (connected) {
             mPersistentState = persistentState;
             sendEmpty(ClientPacket.gameTerminated);
@@ -305,8 +318,8 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     bool waitingForServer() {
-        if (mShell)
-            return mShell.waitingForFrame();
+        if (auto sh = shell())
+            return sh.waitingForFrame();
         return false;
     }
 
@@ -443,13 +456,14 @@ class CmdNetClient : SimpleNetConnection {
                 break;
             case ServerPacket.gameStart:
                 //all players finished loading
-                if (!mShell)
+                if (!shell())
                     break;
                 auto p = unmarshal.read!(SPGameStart)();
                 doGameStart(p);
                 break;
             case ServerPacket.gameCommands:
-                if (!mShell)
+                auto sh = shell();
+                if (!sh)
                     break;
                 //incoming aggregated game commands of all players for
                 //one server frame
@@ -457,18 +471,18 @@ class CmdNetClient : SimpleNetConnection {
                 //forward all commands to the engine
                 foreach (gce; p.commands) {
                     if (auto ptr = gce.playerId in mSrvControl) {
-                        mShell.addLoggedInput(*ptr, gce.cmd, p.timestamp);
+                        sh.addLoggedInput(*ptr, gce.cmd, p.timestamp);
                     }
                 }
                 //execute all player disconnects
                 foreach (uint id; p.disconnectIds) {
                     if (auto ptr = id in mSrvControl) {
-                        mShell.addLoggedInput(*ptr, "remove_control",
+                        sh.addLoggedInput(*ptr, "remove_control",
                             p.timestamp);
                         mSrvControl.remove(id);
                     }
                 }
-                mShell.setFrameReady(p.timestamp);
+                sh.setFrameReady(p.timestamp);
                 checkAck(p.timestamp);
                 break;
             case ServerPacket.ping:
@@ -595,7 +609,7 @@ class CmdNetControl : ClientControl {
     }
 
     this(CmdNetClient con) {
-        super(con.mShell, makeAccessTag(con.myId()));
+        super(con.shell, makeAccessTag(con.myId()));
         mConnection = con;
     }
 
