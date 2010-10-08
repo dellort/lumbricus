@@ -8,14 +8,13 @@ module net.cmdprotocol;
 
 import utils.time;
 
-//xxx never implemented; should you ever do so, please move EngineHash somewhere
-//    else and remove this horrible import (~ +4mb server debug executable)
-//import game.gameshell : EngineHash; //sorry
+//xxx still hacky, but game.temp is an isolated module (will not import engine)
+import game.temp : EngineHash;
 
 //anytime you change some detail about the protocol, increment this
 //  (including encoding/marshalling changes)
 //only clients with the same version will be accepted
-const ushort cProtocolVersion = 3;
+const ushort cProtocolVersion = 4;
 
 
 //-------------------- Query protocol ----------------------
@@ -54,6 +53,7 @@ enum ServerPacket : ushort {
     clientBroadcast,
     grantCreateGame,
     acceptCreateGame,
+    gameAsync,
 }
 
 //Client-to-server packet IDs
@@ -193,8 +193,14 @@ struct SPClientBroadcast {
 }
 
 struct SPGrantCreateGame {
+    enum State {
+        granted,
+        revoked,
+        starting,
+    }
+
     uint playerId;
-    bool granted;
+    State state;
 }
 
 struct SPAcceptCreateGame {
@@ -205,6 +211,12 @@ struct SPAcceptCreateGame {
         char[] teamName;
         ubyte[] teamConf;
     }
+}
+
+//game is async (will only be sent once per round)
+struct SPGameAsync {
+    uint timestamp;
+    EngineHash hash, expected;
 }
 
 
@@ -248,8 +260,10 @@ struct CPPong {
     Time ts;
 }
 
+//ack that frame timestamp was executed and send hash for comparison
 struct CPAck {
     uint timestamp;
+    EngineHash hash;
 }
 
 //-------- Client-to-client

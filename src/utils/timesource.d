@@ -25,6 +25,11 @@ class TimeSourcePublic {
     final Time difference() {
         return mSimTime - mLastSimTime;
     }
+
+    //speed of current() time relative to external/parent time
+    float slowDown() {
+        return 1.0f;
+    }
 }
 
 final class TimeSource : TimeSourcePublic {
@@ -102,7 +107,7 @@ final class TimeSource : TimeSourcePublic {
 
         mSlowDown = factor;
     }
-    float slowDown() {
+    override float slowDown() {
         return mSlowDown;
     }
 
@@ -119,6 +124,16 @@ final class TimeSource : TimeSourcePublic {
         return timeCurrentTime();
     }
 
+    //slowDown relative to "root" (real) time (for skip calculation)
+    private float extSlowDown() {
+        if (mParent)
+            //xxx this would be the "really correct" way, but I don't think
+            //    it's worth it
+            //return mParent.extSlowDown() * mParent.slowDown();
+            return mParent.slowDown();
+        return 1.0f;
+    }
+
     //update time!
     public void update() {
         mExternalTime = sampleExternal();
@@ -130,7 +145,9 @@ final class TimeSource : TimeSourcePublic {
             //compensate and do as if no time passed
             internalFixTime();
         }
-        if (mExternalTime - mLastExternalTime > cMaxFrameTime) {
+        //cMaxFrameTime is relative to a drawing frame, so we have to take
+        //  the speed of our external time into account
+        if (mExternalTime - mLastExternalTime > cMaxFrameTime*extSlowDown()) {
             Time error = mExternalTime - mLastExternalTime;
             log.warn("[{}] Time just jumped by {}, discarding frame", mName,
                 error);
@@ -211,7 +228,7 @@ class TimeSourceFixFramerate : TimeSourcePublic {
     void slowDown(float factor) {
         mChain.slowDown = factor;
     }
-    float slowDown() {
+    override float slowDown() {
         return mChain.slowDown;
     }
 

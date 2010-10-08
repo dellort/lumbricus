@@ -1,5 +1,6 @@
 module utils.array;
 import utils.misc;
+import utils.random;
 import cstdlib = tango.stdc.stdlib;
 import array = tango.core.Array;
 
@@ -209,6 +210,52 @@ unittest {
     assert(!arraySortedIsContained(cast(int[])[], [1,2,5]));
 }
 
+struct MajorityCounter(T) {
+    private {
+        //hashmap for counting elements
+        int[T] mCounter;
+        int mMax;
+    }
+
+    T result;
+    //set true to return a random one of the maximum elements
+    bool random = false;
+
+    void count(ref T item) {
+        int* pCount = item in mCounter;
+        int newCount;
+        if (pCount) {
+            (*pCount)++;
+            newCount = *pCount;
+        } else {
+            newCount = 1;
+            mCounter[item] = newCount;
+        }
+        //if random is true, there is a 0.5 chance to select the new element
+        //  on equal count
+        if (newCount > mMax
+            || (random && newCount == mMax && rngShared.next(2) == 0))
+        {
+            mMax = newCount;
+            result = item;
+        }
+    }
+}
+
+//returns the item that appears most in a
+T arrayMajority(T)(T[] a) {
+    assert(a.length > 0);
+    MajorityCounter!(T) counter;
+    foreach (ref item; a) {
+        counter.count(item);
+    }
+    return counter.result;
+}
+
+unittest {
+    assert(arrayMajority([1,2,4,5,3,2,2]) == 2);
+    assert(arrayMajority([3,1,1,2,4,4]) == 1);
+}
 
 //for array appending - because using builtin functionality is slow (the main
 //  reason being that you have to lock the global GC mutex and look up the GC

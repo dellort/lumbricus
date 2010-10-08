@@ -2,7 +2,7 @@ module net.cmdserver;
 
 import framework.config;
 import framework.commandline;
-import utils.timesource;
+import game.temp;
 public import net.cmdprotocol;
 import net.netlayer;
 import net.marshal;
@@ -11,10 +11,13 @@ import net.announce_php;
 import net.announce_lan;
 import utils.configfile;
 import utils.time;
+import utils.timesource;
 import utils.list2;
 import utils.output;
 import utils.log;
 import utils.misc;
+import utils.array;
+import utils.queue;
 debug import utils.random;
 
 import tango.core.Thread; //for yield()
@@ -28,9 +31,6 @@ enum CmdServerState {
     loading,
     playing,
 }
-
-//xxx synchronize with GameShell; maybe transmit with GameConfig
-const Time cFrameLength = timeMsecs(20);
 
 class CmdNetServer {
     private {
@@ -122,7 +122,7 @@ class CmdNetServer {
             mMasterTime.initTime();
             mTimeStamp = 0;
             foreach (cl; mClients) {
-                cl.lastAckTS = 0;
+                cl.resetGameState();
             }
         } else {
             mMasterTime.paused = true;
@@ -301,7 +301,7 @@ class CmdNetServer {
         client.hostRequestTime = timeCurrentTime();
         SPGrantCreateGame p;
         p.playerId = client.id;
-        p.granted = true;
+        p.state = SPGrantCreateGame.State.granted;
         //notify everybody
         sendAll(ServerPacket.grantCreateGame, p);
     }
@@ -448,21 +448,72 @@ class CmdNetServer {
         }
     }
 
+    //compare CPAck packets from all clients
+    //all packets should be the same (timestamp and hash),
+    //  if not something is wrong
+    private void performHashCheck() {
+        //find the hash value appearing most
+        MajorityCounter!(CPAck) majority;
+        //randomize the returned element on equal count (for security)
+        //  else, in 1vs1 one client could intentionally send an invalid
+        //  hash to disconnect the other if he is the first client
+        majority.random = true;
+        foreach (cl; mClients) {
+            if (cl.gameTerminated)
+                continue;
+            assert(cl.hasAck());
+            majority.count(cl.topAck());
+        }
+        CPAck expected = majority.result;
+        //now compare and notify the minority
+        foreach (cl; mClients) {
+            if (cl.gameTerminated)
+                continue;
+            //remove the ack packet from the queue
+            CPAck ack = cl.popAck();
+            //compare with expectation
+            if (expected != ack) {
+                if (expected.timestamp != ack.timestamp) {
+                    //acks are sent in order at a fixed interval, so if the
+                    //  ack timestamp doesn't match, the client implementation
+                    //  is somehow wrong, or crap was sent
+                    cl.close("ack for wrong timestamp",
+                        DiscReason.internalError);
+                } else {
+                    //handleDesync will notify the client that his game is
+                    //  out of sync; the client should then cause the game to
+                    //  terminate (or just display a message)
+                    cl.handleDesync(expected.timestamp, ack.hash,
+                        expected.hash);
+                }
+            }
+        }
+    }
+
     //execute a server frame
     private void gameTick(Time overdue) {
         //Trace.formatln("Tick, {} commands", mPendingCommands.length);
         CmdNetClientConnection[] lagClients;
+        bool haveAllAck = true;
         foreach (cl; mClients) {
             if (cl.gameTerminated)
                 continue;
             if (mTimeStamp - cl.lastAckTS > mMaxLag)
                 lagClients ~= cl;
+            haveAllAck &= cl.hasAck();
         }
         if (lagClients.length > 0) {
             //don't execute frame
             //xxx inform players
             //    also, is it ok to let mGameTime continue?
             return;
+        }
+        if (haveAllAck) {
+            //if there is an Ack packet from all playing clients, do a
+            //  hash check
+            //Note: because ack packets are received in order, the waiting
+            //      Ack packet has to be for the same timestamp for every client
+            performHashCheck();
         }
         SPGameCommands p;
         //one packet (with one timestamp) for all commands
@@ -547,7 +598,9 @@ class CmdNetClientConnection {
         PongEntry[10] mPongs; //enough room for all pings in cPingAvgOver
         int mPongIdx;
         Time mAvgPing = timeMsecs(100);
-        uint lastAckTS;
+        uint lastAckTS = 0;
+        Queue!(CPAck) mAckQueue;
+        bool mDesyncSent;
         bool gameTerminated;
 
         //time when this client requested to host a game
@@ -565,6 +618,7 @@ class CmdNetClientConnection {
         mPeer.onReceive = &onReceive;
         mCmdOutBuffer = new StringOutput();
         mMarshal = new MarshalBuffer();
+        mAckQueue = new typeof(mAckQueue);
         state(ClientConState.establish);
         if (mOwner.state != CmdServerState.lobby) {
             close("game started", DiscReason.gameStarted);
@@ -633,6 +687,25 @@ class CmdNetClientConnection {
 
     char[] playerName() {
         return mPlayerName;
+    }
+
+    //true if there is an Ack packet waiting
+    bool hasAck() {
+        return !mAckQueue.empty();
+    }
+
+    CPAck popAck() {
+        return mAckQueue.pop();
+    }
+
+    CPAck topAck() {
+        return mAckQueue.top();
+    }
+
+    void resetGameState() {
+        mAckQueue.clear();
+        lastAckTS = 0;
+        mDesyncSent = false;
     }
 
     private void tick() {
@@ -716,6 +789,22 @@ class CmdNetClientConnection {
         });
     }
 
+    void handleDesync(uint timestamp, EngineHash hash, EngineHash expected) {
+        //send only once per round
+        if (mDesyncSent)
+            return;
+        mDesyncSent = true;
+        log.warn("Game is out of sync for player '{}'", mPlayerName);
+        log.warn("  Timestamp: {}  Hash: {}  Expected: {}", timestamp,
+            hash, expected);
+
+        SPGameAsync p;
+        p.timestamp = timestamp;
+        p.hash = hash;
+        p.expected = expected;
+        send(ServerPacket.gameAsync, p);
+    }
+
     //incoming client packet, all data (including id) is in unmarshal buffer
     private void receive(ubyte channelId, UnmarshalBuffer unmarshal) {
         auto pid = unmarshal.read!(ClientPacket)();
@@ -783,7 +872,7 @@ class CmdNetClientConnection {
                     if (hasHostPermission()) {
                         SPGrantCreateGame reply;
                         reply.playerId = id;
-                        reply.granted = false;
+                        reply.state = SPGrantCreateGame.State.revoked;
                         //notify everybody
                         mOwner.sendAll(ServerPacket.grantCreateGame, reply);
                     }
@@ -796,6 +885,13 @@ class CmdNetClientConnection {
                     sendError("error_wrongstate");
                     return;
                 }
+                //notify everybody
+                SPGrantCreateGame reply;
+                reply.playerId = id;
+                reply.state = SPGrantCreateGame.State.starting;
+                mOwner.sendAll(ServerPacket.grantCreateGame, reply);
+                //remove hosting permission
+                hostRequestTime = Time.Never;
                 mOwner.doPrepareCreateGame(this);
                 break;
             case ClientPacket.createGame:
@@ -851,8 +947,12 @@ class CmdNetClientConnection {
                 auto p = unmarshal.read!(CPAck)();
                 if (p.timestamp > mOwner.mTimeStamp)
                     close("timestamp from future", DiscReason.protocolError);
-                else
+                else {
                     lastAckTS = p.timestamp;
+                    mAckQueue.push(p);
+                }
+                log.trace("[{}] Ack for frame {}, hash = {}", mId, p.timestamp,
+                    p.hash);
                 break;
             case ClientPacket.pong:
                 auto p = unmarshal.read!(CPPong)();

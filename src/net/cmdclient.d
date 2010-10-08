@@ -6,6 +6,7 @@ import game.controller;
 import game.gameshell;
 import game.levelgen.level;
 import game.setup;
+import game.temp;
 public import net.cmdprotocol;
 import net.netlayer;
 import net.marshal;
@@ -64,7 +65,7 @@ class CmdNetClient : SimpleNetConnection {
         }
         MyPlayerInfo[] mPlayerInfo;
         int mPlayerCount;
-        uint mLastAck;
+        //send ack packet if (timestamp % cAckInterval == 0)
         const cAckInterval = 10;
     }
 
@@ -72,6 +73,12 @@ class CmdNetClient : SimpleNetConnection {
     void delegate(CmdNetClient sender, DiscReason code) onDisconnect;
     void delegate(CmdNetClient sender, char[] msg, char[][] args) onError;
     void delegate(CmdNetClient sender, char[][] text) onMessage;
+    //you are allowed to host a game
+    void delegate(CmdNetClient sender, uint playerId,
+        SPGrantCreateGame.State state) onHostGrant;
+    //incoming team info
+    void delegate(CmdNetClient sender, NetTeamInfo info,
+        ConfigNode persistentState) onHostAccept;
 
     this() {
         mShellPtr = new typeof(mShellPtr)(null);
@@ -215,6 +222,7 @@ class CmdNetClient : SimpleNetConnection {
     //called by GameLoader.finish
     void signalLoadingDone(GameShell shell) {
         mShellPtr.set(shell);
+        shell.onPostFrame = &shellPostFrame;
         sendEmpty(ClientPacket.loadDone);
     }
 
@@ -280,14 +288,14 @@ class CmdNetClient : SimpleNetConnection {
 
     private void doGameStart(SPGameStart info) {
         assert(!!onGameStart, "Need to set callbacks");
-        //if setMe() is never called, we are spectator
-        mClControl = new CmdNetControl(this);
-        mSrvControl = null;
         auto sh = shell();
         if (!sh) {
             close(DiscReason.internalError);
             return;
         }
+        //if setMe() is never called, we are spectator
+        mClControl = new CmdNetControl(this);
+        mSrvControl = null;
         foreach (team; sh.serverEngine.singleton!(GameController)().teams) {
             uint ownerId = to!(uint)(team.netId);
             if (!(ownerId in mSrvControl))
@@ -295,7 +303,6 @@ class CmdNetClient : SimpleNetConnection {
         }
 
         sh.masterTime.paused = false;
-        mLastAck = 0;
         onGameStart(this, mClControl);
     }
 
@@ -307,14 +314,17 @@ class CmdNetClient : SimpleNetConnection {
         }
     }
 
-    private void checkAck(uint timestamp) {
-        assert(mLastAck <= timestamp);
-        if (timestamp - mLastAck > cAckInterval) {
-            CPAck p;
-            p.timestamp = timestamp;
-            send(ClientPacket.ack, p);
-            mLastAck = timestamp;
+    private void shellPostFrame(GameShell shell, long timestamp) {
+        if (timestamp % cAckInterval == 0) {
+            sendAck(timestamp, shell.engineHash());
         }
+    }
+
+    private void sendAck(uint timestamp, EngineHash hash) {
+        CPAck p;
+        p.timestamp = timestamp;
+        p.hash = hash;
+        send(ClientPacket.ack, p);
     }
 
     bool waitingForServer() {
@@ -456,8 +466,6 @@ class CmdNetClient : SimpleNetConnection {
                 break;
             case ServerPacket.gameStart:
                 //all players finished loading
-                if (!shell())
-                    break;
                 auto p = unmarshal.read!(SPGameStart)();
                 doGameStart(p);
                 break;
@@ -483,7 +491,6 @@ class CmdNetClient : SimpleNetConnection {
                     }
                 }
                 sh.setFrameReady(p.timestamp);
-                checkAck(p.timestamp);
                 break;
             case ServerPacket.ping:
                 auto p = unmarshal.read!(SPPing)();
@@ -497,7 +504,7 @@ class CmdNetClient : SimpleNetConnection {
             case ServerPacket.grantCreateGame:
                 auto p = unmarshal.read!(SPGrantCreateGame)();
                 if (onHostGrant)
-                    onHostGrant(this, p.playerId, p.granted);
+                    onHostGrant(this, p.playerId, p.state);
                 break;
             case ServerPacket.acceptCreateGame:
                 auto p = unmarshal.read!(SPAcceptCreateGame)();
@@ -511,6 +518,12 @@ class CmdNetClient : SimpleNetConnection {
                 }
                 if (onHostAccept)
                     onHostAccept(this, info, mPersistentState);
+                break;
+            case ServerPacket.gameAsync:
+                auto p = unmarshal.read!(SPGameAsync)();
+                if (auto sh = shell()) {
+                    sh.logAsyncError(p.timestamp, p.hash, p.expected);
+                }
                 break;
             default:
                 close(DiscReason.protocolError);

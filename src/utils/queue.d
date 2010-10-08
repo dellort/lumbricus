@@ -1,6 +1,6 @@
 module utils.queue;
 
-import utils.misc;
+import utils.array;
 
 //a little funny Queue class, because Phobos doesn't have one (argh)
 class Queue(T) {
@@ -13,13 +13,17 @@ class Queue(T) {
         mItems ~= item;
     }
 
-    //throws exception if empty
     T pop() {
-        if (empty)
-            throw new CustomException("Queue.pop: Queue is empty!");
+        assert(!empty);
         T res = mItems[0];
-        mItems = mItems[1..$];
+        arrayRemoveN(mItems, 0);
         return res;
+    }
+
+    //item that would be returned by pop
+    T top() {
+        assert(!empty);
+        return mItems[0];
     }
 
     bool empty() {
@@ -27,7 +31,7 @@ class Queue(T) {
     }
 
     void clear() {
-        mItems = null;
+        mItems.length = 0;
     }
 }
 

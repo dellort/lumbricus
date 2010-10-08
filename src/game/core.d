@@ -13,7 +13,7 @@ import game.input;
 import game.particles;
 import game.setup; //: GameConfig
 import game.teamtheme;
-import game.temp : GameZOrder;
+import game.temp;
 import game.levelgen.level;
 import game.lua.base;
 import gui.rendertext;
@@ -44,10 +44,6 @@ alias DeclareGlobalEvent!("game_sudden_death") OnSuddenDeath;
 //  OnPrepareTurn, and then resuming it after the event is done, allowing other
 //  handlers to do the same
 alias DeclareGlobalEvent!("game_prepare_turn") OnPrepareTurn;
-
-//fixed framerate for the game logic (all of GameEngine)
-//also check physic frame length cPhysTimeStepMs in world.d
-const Time cFrameLength = timeMsecs(20);
 
 abstract class GameObject : EventTarget {
     private bool mIsAlive, mInternalActive;

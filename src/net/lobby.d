@@ -488,12 +488,12 @@ class CmdNetLobbyTask {
     }
 
     //the server allowed someone to create a game
-    private void onHostGrant(SimpleNetConnection sender, uint playerId,
-        bool granted)
+    private void onHostGrant(CmdNetClient sender, uint playerId,
+        SPGrantCreateGame.State state)
     {
         if (playerId == mClient.myId) {
             //we want to create a game, show the setup window
-            if (granted) {
+            if (state == SPGrantCreateGame.State.granted) {
                 mCreateDlg.reset();
                 if (!mCreateWnd) {
                     mCreateWnd = gWindowFrame.createWindow(mCreateDlg,
@@ -509,16 +509,23 @@ class CmdNetLobbyTask {
             //show a message that someone else is creating a game
             char[] name;
             mClient.idToPlayerName(playerId, name);
-            if (granted)
-                mConsole.writefln(translate("lobby.hostinprogress", name));
-            else
-                mConsole.writefln(translate("lobby.hostaborted", name));
+            switch (state) {
+                case SPGrantCreateGame.State.granted:
+                    mConsole.writefln(translate("lobby.hostinprogress", name));
+                    break;
+                case SPGrantCreateGame.State.revoked:
+                    mConsole.writefln(translate("lobby.hostaborted", name));
+                    break;
+                case SPGrantCreateGame.State.starting:
+                    mConsole.writefln(translate("lobby.hoststarting", name));
+                    break;
+            }
         }
     }
 
     //got team info, assemble and send GameConfig
     //Big xxx: all data is loaded from newgame_net.conf, need setup dialog
-    private void onHostAccept(SimpleNetConnection sender, NetTeamInfo info,
+    private void onHostAccept(CmdNetClient sender, NetTeamInfo info,
         ConfigNode persistentState)
     {
         mCreateDlg.doStart(info, persistentState);

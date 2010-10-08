@@ -18,6 +18,7 @@ import game.levelgen.landscape;
 import game.levelgen.level;
 import game.levelgen.renderer;
 import game.setup;
+import game.temp;
 import game.weapon.weapon;
 import net.marshal;
 
@@ -39,17 +40,6 @@ import utils.stream;
 import tango.math.Math : pow;
 import convert = tango.util.Convert;
 
-
-//see GameShell.engineHash()
-//type of hash might be changed in the future
-//special case: if the struct is EngineHash.init, the hash is invalid
-struct EngineHash {
-    uint hash;
-
-    char[] toString() {
-        return myformat("0x{:x}", hash);
-    }
-}
 
 //the optimum length of the input queue in network mode (i.e. what the engine
 //  will try to reach)
@@ -383,6 +373,11 @@ class GameShell {
         }
     }
 
+    //called before a frame (and inputs) are executed
+    void delegate(GameShell shell, long timestamp) onPreFrame;
+    //called after the engine frame marked with timestamp has been executed
+    void delegate(GameShell shell, long timestamp) onPostFrame;
+
     //use GameLoader.Create*() instead
     private this() {
         mInput = new InputGroup();
@@ -413,6 +408,24 @@ class GameShell {
         return true;
     }
 
+    void logAsyncError(long timestamp, EngineHash current,
+        EngineHash expected)
+    {
+         if (!mSOMETHINGISWRONG) {
+            void woosh() {
+                log.error("------------ wooooosh -------------");
+            }
+            woosh();
+            log.error("oh hi, something is severely wrong");
+            log.error("current hash: {}", current);
+            log.error("LogEntry/Network hash: {}", expected);
+            log.error("timestamp: {}", mTimeStamp);
+            log.error("not bothering you anymore, enjoy your day");
+            mSOMETHINGISWRONG = true;
+            woosh();
+        }
+    }
+
     private void execEntry(LogEntry e) {
         //empty commands are used for hash frames in demos
         bool for_hash = e.cmd.length == 0;
@@ -425,18 +438,8 @@ class GameShell {
         //if e.hash is invalid, e is fresh input (or the hash wasn't stored)
         if (e.hash !is EngineHash.init) {
             auto expect = engineHash();
-            if (expect != e.hash && !mSOMETHINGISWRONG) {
-                void woosh() {
-                    log.error("------------ wooooosh -------------");
-                }
-                woosh();
-                log.error("oh hi, something is severely wrong");
-                log.error("current hash: {}", expect);
-                log.error("LogEntry hash: {}", e.hash);
-                log.error("timestamp: {}", mTimeStamp);
-                log.error("not bothering you anymore, enjoy your day");
-                mSOMETHINGISWRONG = true;
-                woosh();
+            if (expect != e.hash) {
+                logAsyncError(mTimeStamp, expect, e.hash);
             }
         }
 
@@ -660,6 +663,9 @@ class GameShell {
             mPrintFrameTime = false;
         }
 
+        if (onPreFrame)
+            onPreFrame(this, mTimeStamp);
+
         //execute input at correct time, which is particularly important for
         //replays (input is reused on a snapshot of the deterministic engine)
         while (mCurrentInput.entries.length > 0) {
@@ -677,6 +683,9 @@ class GameShell {
         }
 
         mEngine.frame();
+        if (onPostFrame)
+            onPostFrame(this, mTimeStamp);
+
         mTimeStamp++;
 
         //xxx not sure if the input for this frame should be fed to the engine
@@ -903,12 +912,6 @@ abstract class SimpleNetConnection {
     //receiving a chat message
     void delegate(SimpleNetConnection sender, NetPlayerInfo player,
         char[] msg) onChat;
-    //you are allowed to host a game
-    void delegate(SimpleNetConnection sender, uint playerId,
-        bool granted) onHostGrant;
-    //incoming team info
-    void delegate(SimpleNetConnection sender, NetTeamInfo info,
-        ConfigNode persistentState) onHostAccept;
 
 abstract:
 

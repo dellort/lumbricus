@@ -50,6 +50,7 @@
 		<Unit filename="..\src\framework\globalsettings.d" />
 		<Unit filename="..\src\framework\i18n.d" />
 		<Unit filename="..\src\framework\keysyms.d" />
+		<Unit filename="..\src\game\temp.d" />
 		<Unit filename="..\src\lumbricus_server.d" />
 		<Unit filename="..\src\net\announce.d" />
 		<Unit filename="..\src\net\announce_lan.d" />
@@ -72,6 +73,7 @@
 		<Unit filename="..\src\utils\mybox.d" />
 		<Unit filename="..\src\utils\output.d" />
 		<Unit filename="..\src\utils\path.d" />
+		<Unit filename="..\src\utils\queue.d" />
 		<Unit filename="..\src\utils\random.d" />
 		<Unit filename="..\src\utils\rndkiss.d" />
 		<Unit filename="..\src\utils\stream.d" />

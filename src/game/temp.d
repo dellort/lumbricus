@@ -1,5 +1,9 @@
 module game.temp;
 
+//No game. imports here!
+import utils.misc;
+import utils.time;
+
 //enum dumping ground...
 //http://d.puremagic.com/issues/show_bug.cgi?id=1160
 
@@ -22,3 +26,21 @@ enum GameZOrder {
     RangeArrow,  //object-off-level-area arrow
     Splat,   //Fullscreen effect
 }
+
+//... and dumping ground for client/server shared stuff
+
+//fixed framerate for the game logic (all of GameEngine)
+//also check physic frame length cPhysTimeStepMs in world.d
+const Time cFrameLength = timeMsecs(20);
+
+//see GameShell.engineHash()
+//type of hash might be changed in the future
+//special case: if the struct is EngineHash.init, the hash is invalid
+struct EngineHash {
+    uint hash;
+
+    char[] toString() {
+        return myformat("0x{:x}", hash);
+    }
+}
+

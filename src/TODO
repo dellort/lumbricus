@@ -160,7 +160,7 @@ vllt: http://tekui.teklib.org/index.html
 *** Interpolation/Dead reckoning/Lag compensation/sowas in die Richtung, muhahar (siehe Deadlock/Boxen)
     http://bitbucket.org/h3r3tic/boxen/src/tip/src/xf/
 *** determinismus garantieren (benutzung der FPU ist ein problem, da nicht alle plattformen die gleiche präzission für floating point haben), z.b. fixed point zahlen benutzen, oder regelmäßig zustand der clienten wieder synchronisieren
-- einfache erkennung von clients mit abweichender simulation (periodisch einen einfachen engine-hash berechnen und an den server schicken)
+$ einfache erkennung von clients mit abweichender simulation (periodisch einen einfachen engine-hash berechnen und an den server schicken)
 * Client-Netzwerkcode in Thread verlagern (Performance/genaue Ping-Werte)
 - chat innerhalb des spieles (es gibt schon GUI-teile dafür in gameframe.d, ausserdem hat die lobby einen [funktionierenden?] chat)
 
