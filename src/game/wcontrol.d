@@ -130,8 +130,8 @@ class WormControl : WeaponController {
         WormSprite mWorm;
         //SpriteControl mWormControl; //is cast(SpriteControl)mWorm
         WeaponClass mCurrentWeapon;
-        WeaponClass mWormLastWeapon;
         WeaponClass mCurrentEquipment;
+        WeaponClass mOnHoldWeapon;
         bool mEngaged;
         Time mLastAction;
         Time mLastActivity = timeSecs(-40);
@@ -291,15 +291,19 @@ class WormControl : WeaponController {
     //  it stays engaged (e.g. weapon state is not changed)
     //on-hold mode is automatically reset to false if worm is (de)activated
     void setOnHold(bool v) {
-        if (!mEngaged)
+        if (!mEngaged || v == mOnHold)
             return;
         mOnHold = v;
+        if (!mOnHold && mOnHoldWeapon) {
+            selectWeapon(mOnHoldWeapon);
+        }
     }
 
     bool isOnHold() {
         return mOnHold;
     }
 
+    //xxx what is this equipment stuff? a planned feature?
     private void setEquipment(WeaponClass e) {
         /+
         if (e is mCurrentEquipment)
@@ -370,7 +374,6 @@ class WormControl : WeaponController {
             mControlStack = null;
             move(Vector2f(0));
             setPointMode(PointMode.none);
-            mWormLastWeapon = null;
             mLastAction = Time.Null;
 
             //stop all action when turn ends
@@ -385,6 +388,7 @@ class WormControl : WeaponController {
         }
 
         mOnHold = false;
+        mOnHoldWeapon = null;
         //stale keypresses
         mInputMoveState.reset();
 
@@ -442,8 +446,10 @@ class WormControl : WeaponController {
     }
 
     void selectWeapon(WeaponClass weapon) {
-        if (!isControllable || mLimitedMode)
+        if (!isControllable || mLimitedMode) {
+            mOnHoldWeapon = weapon;
             return;
+        }
         if (!canUseWeapon(weapon))
             weapon = null;
         //(changed later: selecting no-weapon is an action too)

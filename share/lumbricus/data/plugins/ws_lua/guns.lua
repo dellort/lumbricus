@@ -76,7 +76,7 @@ do
     local name = "w_shotgun"
 
     local function doshot(shooter)
-        emitShooterParticle("a_shotgun_fire", shooter)
+        emitShooterParticle("p_shotgun_fire", shooter)
         local ctx = get_context(shooter)
         ctx.shots = ctx.shots - 1
         -- (gives readjusted fireinfo after 1st shot)
