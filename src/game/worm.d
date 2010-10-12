@@ -344,6 +344,9 @@ class WormSprite : Sprite {
     }
     void isFixed(bool f) {
         mIsFixed = f;
+        if (mIsFixed) {
+            physics.setWalking(Vector2f(0));
+        }
     }
 
     bool delayedAction() {
