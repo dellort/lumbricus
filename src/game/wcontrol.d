@@ -90,6 +90,8 @@ class WormControl : WeaponController {
         assert(!!worm);
         mEngine = worm.engine;
         mWeaponSet = new WeaponSet(mEngine);
+        //mWeaponSet can change; this seems to be the easiest way
+        OnWeaponSetChanged.handler(mEngine.events, &weaponSetChanged);
         mWorm = castStrict!(WormSprite)(worm);
         //mWormControl = cast(SpriteControl)mWorm;
         //assert(!!mWormControl);
@@ -425,6 +427,15 @@ class WormControl : WeaponController {
             //hack to make weapon angle permanent
             if (sh is mWeapons[0] && mWeaponAngle == mWeaponAngle)
                 sh.weaponAngle = mWeaponAngle;
+        }
+    }
+
+    private void weaponSetChanged(WeaponSet sender) {
+        //if a weapon is removed externally (like by script), make sure
+        //  it is also removed from the worm
+        //Note: updateWeapon() will not remove an active weapon
+        if (sender is mWeaponSet) {
+            updateWeapon();
         }
     }
 

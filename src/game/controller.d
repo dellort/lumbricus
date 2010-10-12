@@ -507,7 +507,6 @@ class TeamMember : Actor {
     //called by Team to update the Actor fields
     private void updateHacks() {
         damage_multiplier = team.hasDoubleDamage() ? 2.0f : 1.0f;
-        crate_spy = team.hasCrateSpy();
     }
 
     final WormControl control() {

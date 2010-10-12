@@ -74,6 +74,10 @@ function initthread()
     targets_left = scenario.count
     targets_spawn = scenario.multitarget
     trainee:team():set_active(true)
+    -- oh man, how long until I found out that game messages are normally
+    --  namespaced into game_msg, and that there's even already a hack to make
+    --  them global... and that hack is to prepend the id with a '.'
+    gameMessage(trainee, ".training.msg." .. scenario.start_msg, nil, time("4s"))
     cosleep(2)
     if not scenario then
         return
@@ -88,10 +92,6 @@ function initthread()
     timer_target = Timer.New()
     timer_target:setCallback(targetTimeout)
     timer_target:setDuration(scenario.target_timeout or time("30s"))
-    -- oh man, how long until I found out that game messages are normally
-    --  namespaced into game_msg, and that there's even already a hack to make
-    --  them global... and that hack is to prepend the id with a '.'
-    gameMessage(trainee, ".training.msg." .. scenario.start_msg)
     checkSpawn()
 end
 
@@ -196,6 +196,9 @@ function check()
     end
     -- maybe target spawning failed before; retry
     checkSpawn()
+    if winstate ~= nil then
+        return
+    end
     -- check if the weaponset is empty
     --- (only if there were any weapons to begin with)
     if not table_empty(scenario.weapons) then
@@ -235,14 +238,15 @@ function ending(win)
     assert(type(win) == "boolean")
     winstate = win
     if winstate then
-        gameMessage(trainee, ".training.msg.won")
+        gameMessage(trainee, ".training.msg.wonround")
         --trainee:team():youWinNow()
     else
         gameMessage(trainee, ".training.msg.lost")
     end
+    trainee:team():set_active(false)
     if onend then
+        killAll()
         addTimer(time("2s"), function()
-            killAll()
             onend(winstate)
         end)
     end

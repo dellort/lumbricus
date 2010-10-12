@@ -1,5 +1,6 @@
 module game.plugin.messages;
 
+import framework.lua;
 import framework.i18n;
 import game.controller;
 import game.core;
@@ -19,7 +20,7 @@ import tango.util.Convert : to;
 //the idea was that the whole game state should be observable (including
 //events), so you can move displaying all messages into a separate piece of
 //code, instead of creating messages directly
-class ControllerMsgs : GameObject {
+class MessagePlugin : GameObject {
     private {
         GameController mController;
         const cWinMessageTime = timeSecs(5.0f);
@@ -31,23 +32,29 @@ class ControllerMsgs : GameObject {
         HudMessageViewer mMessageViewer;
     }
 
-    this(GameCore c, ConfigNode o) {
+    this(GameCore c, ConfigNode conf) {
         super(c, "msg_plugin");
+
+        c.scripting.register(gMsgRegistry);
+        c.addSingleton(this);
+        c.scripting.addSingleton(this);
+
         mController = engine.singleton!(GameController)();
         mMessageViewer = new HudMessageViewer(c);
-        auto ev = engine.events;
-        OnGameStart.handler(ev, &onGameStart);
-        OnGameEnd.handler(ev, &onGameEnd);
-        OnSuddenDeath.handler(ev, &onSuddenDeath);
-        OnSpriteDie.handler(ev, &onSpriteDie);
-        OnTeamMemberStartDie.handler(ev, &onTeamMemberStartDie);
-        OnTeamMemberSetActive.handler(ev, &onTeamMemberSetActive);
-        OnTeamSkipTurn.handler(ev, &onTeamSkipTurn);
-        OnTeamSurrender.handler(ev, &onTeamSurrender);
-        OnCrateDrop.handler(ev, &onCrateDrop);
-        OnTeamMemberCollectCrate.handler(ev, &onCrateCollect);
-        OnVictory.handler(ev, &onVictory);
-        internal_active = true;
+        if (!conf.getValue("no_default_msgs", false)) {
+            auto ev = engine.events;
+            OnGameStart.handler(ev, &onGameStart);
+            OnGameEnd.handler(ev, &onGameEnd);
+            OnSuddenDeath.handler(ev, &onSuddenDeath);
+            OnSpriteDie.handler(ev, &onSpriteDie);
+            OnTeamMemberStartDie.handler(ev, &onTeamMemberStartDie);
+            OnTeamMemberSetActive.handler(ev, &onTeamMemberSetActive);
+            OnTeamSkipTurn.handler(ev, &onTeamSkipTurn);
+            OnTeamSurrender.handler(ev, &onTeamSurrender);
+            OnCrateDrop.handler(ev, &onCrateDrop);
+            OnTeamMemberCollectCrate.handler(ev, &onCrateCollect);
+            OnVictory.handler(ev, &onVictory);
+        }
     }
 
     private void onGameStart() {
@@ -151,20 +158,26 @@ class ControllerMsgs : GameObject {
     private void messageAdd(char[] msg, char[][] args = null, Team actor = null,
         bool is_private = false, Time displayTime = GameMessage.cMessageTime)
     {
-        //maybe reset wait time
-        if (mMessagesDone < engine.gameTime.current)
-            mMessagesDone = engine.gameTime.current;
-        mMessagesDone += displayTime;
-
         GameMessage gameMsg;
         gameMsg.lm.id = msg;
         gameMsg.lm.args = args;
-        gameMsg.lm.rnd = engine.rnd.next;
         gameMsg.color = actor ? actor.theme : null;
         gameMsg.is_private = is_private;
         gameMsg.displayTime = displayTime;
+        add(gameMsg);
+    }
+
+    void add(GameMessage msg) {
+        //no point in setting that manually
+        msg.lm.rnd = engine.rnd.next;
+
+        //maybe reset wait time
+        if (mMessagesDone < engine.gameTime.current)
+            mMessagesDone = engine.gameTime.current;
+        mMessagesDone += msg.displayTime;
+
         if (mMessageViewer.onMessage)
-            mMessageViewer.onMessage(gameMsg);
+            mMessageViewer.onMessage(msg);
     }
 
     override bool activity() {
@@ -182,4 +195,12 @@ class ControllerMsgs : GameObject {
     static this() {
         GamePluginFactory.register!(typeof(this))("messages");
     }
+}
+
+private LuaRegistry gMsgRegistry;
+
+static this() {
+    gMsgRegistry = new typeof(gMsgRegistry)();
+
+    gMsgRegistry.methods!(MessagePlugin, "add");
 }

@@ -79,7 +79,18 @@ local function endgame(won)
         end
     end
     if current == nil then
-        current = training_program[1]
+        if won == true then
+            -- this was the last program entry, win
+            trainee:team():youWinNow()
+            gameMessage(trainee, ".training.msg.wonall", nil, time("3s"))
+            -- give him time to celebrate
+            addTimer(time("3s"), function()
+                Control:endGame()
+            end)
+            return
+        else
+            current = training_program[1]
+        end
     end
     local fn = assert(current.type)
     current_ctx = fn(trainee, current, endgame)

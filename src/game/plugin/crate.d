@@ -289,7 +289,7 @@ class CrateSprite : Sprite {
         auto m = mGameInfo ? mGameInfo.control.getControlledMember() : null;
         if (!m)
             return false;
-        return m.crate_spy && !isUnderWater();
+        return m.team.hasCrateSpy() && !isUnderWater();
     }
 }
 
@@ -426,12 +426,10 @@ class CratePlugin : GameObject2 {
     }
 
     private bool inpDropCrate() {
-        //xxx disabled for now (use lua instead)
         dropCrate(true);
         return true;
     }
 
-    //xxx this is still here because input handling is messed up
     private bool inpInstantDropCrate() {
         instantDropCrate();
         return true;

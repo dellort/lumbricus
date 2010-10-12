@@ -75,7 +75,7 @@ class CmdNetServerTask {
         //  kill the process, the implementation specifically contains calls to
         //  blocking syscalls *sigh*
         mProcess.kill();
-        array.arrayRemoveUnordered(gAllProcesses, mProcess);
+        array.arrayRemoveUnordered(gAllProcesses, mProcess, true);
     }
 
     private void start() {

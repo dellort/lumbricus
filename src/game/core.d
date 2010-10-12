@@ -151,14 +151,12 @@ abstract class GameObject : EventTarget {
 //abstract TeamMember - required hack for now to do the following things:
 //- get TeamTheme for team dependend sprite rendering (e.g. mines)
 //- get double damage on explosions
-//- crate spy
 //if there are better ways to do any of these things, feel free to change them
 abstract class Actor : GameObject {
     this(GameCore a, char[] b) { super(a, b); }
 
     TeamTheme team_theme;
     float damage_multiplier = 1.0f;
-    bool crate_spy;
 }
 
 //for now, this is the base class of GameEngine

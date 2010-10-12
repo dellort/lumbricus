@@ -170,7 +170,8 @@ class FMODChannel : DriverChannel {
     }
 
     private void update(ref SoundSourceInfo pos) {
-        assert(state != PlaybackState.stopped);
+        if (state == PlaybackState.stopped)
+            return;
         //pos.position.x should be in [-1, +1], -1 for left, +1 for right
         //xxx why is position a Vector2f??
         FMOD_ErrorCheck(FMOD_Channel_SetPan(mChannel, pos.position.x));

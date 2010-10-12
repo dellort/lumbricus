@@ -806,7 +806,13 @@ end
 --          if nil, the message is neutral
 -- id = translation id string
 -- args = translation arguments (nil if none)
-function gameMessage(sender, id, args)
+-- displayTime = time to show (nil for default)
+-- xxx this is not the right place for that function
+function gameMessage(sender, id, args, displayTime)
+    if not MessagePlugin_add then
+        -- plugin not loaded
+        return
+    end
     if d_is_class(sender, d_find_class("Member")) then
         sender = Member_team(sender)
     end
@@ -814,11 +820,12 @@ function gameMessage(sender, id, args)
         sender = Team_theme(sender)
     end
     local msg = {
-        lm = { id = id, args = args, rnd = Random_rangef(0, 1000) },
+        lm = { id = id, args = args },
         color = sender,
         is_private = false,
+        displayTime = displayTime,
     }
-    raiseGlobalEvent("game_message", msg)
+    MessagePlugin_add(msg)
 end
 
 -- calls cb(team, member) for each TeamMember in the game
