@@ -97,7 +97,8 @@ class Team : GameObject2 {
         }
         weapons = parent.initWeaponSet(node["weapon_set"]);
         gravestone = node.getIntValue("grave", 0);
-        mAlternateControl = node.getStringValue("control") != "default";
+        mAlternateControl =
+            node.getStringValue("control", "default") != "default";
         mTeamId = node["id"];
         mTeamNetId = node["net_id"];
 

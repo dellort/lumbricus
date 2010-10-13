@@ -7,7 +7,7 @@ module physics.sortandsweep;
 
 import physics.broadphase;
 import physics.contact;
-import physics.world;
+import physics.collisionmap;
 import utils.array;
 import utils.vector2;
 
@@ -17,8 +17,8 @@ class BPSortAndSweep : BroadPhase {
         PhysicObject[] mObjArr;
     }
 
-    this(PhysicWorld a_world) {
-        super(a_world);
+    this(CollisionMap cmap) {
+        super(cmap);
     }
 
     override void add(PhysicObject o) {

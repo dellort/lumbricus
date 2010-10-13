@@ -4,7 +4,6 @@ public import physics.physobj;
 import physics.collide;
 import physics.collisionmap;
 import physics.contact;
-import physics.world;
 import utils.misc;
 import utils.rect2;
 
@@ -12,14 +11,14 @@ import utils.rect2;
 //xxx rename? (maybe "ObjectSpace"?)
 abstract class BroadPhase {
     private {
-        PhysicWorld mWorld;
+        CollisionMap mCollide;
     }
 
     //from outside: read only variable & contents, just for iteration
     PhysicObjectList list;
 
-    this(PhysicWorld world) {
-        mWorld = world;
+    this(CollisionMap cmap) {
+        mCollide = cmap;
         list = new typeof(list)();
     }
 
@@ -37,7 +36,8 @@ abstract class BroadPhase {
     {
         //no collision if unwanted
         //xxx only place where mWorld is needed
-        ContactHandling ch = mWorld.canCollide(obj1, obj2);
+        ContactHandling ch = mCollide.canCollide(obj1.collision,
+            obj2.collision);
         if (ch == ContactHandling.none)
             return;
 
@@ -50,6 +50,7 @@ abstract class BroadPhase {
         Contact c;
         c.obj[0] = obj1;
         c.obj[1] = obj2;
+        c.handling = ch;
 
         //actually collide
         if (!doCollide(obj1.shape_id, obj1.shape_ptr, obj2.shape_id,
@@ -63,35 +64,13 @@ abstract class BroadPhase {
                 swap(c.obj[0], c.obj[1]);
                 swap(obj1, obj2);
             }
-            c.geomPostprocess(ch);
+            c.geomPostprocess();
             obj1.checkGroundAngle(c);
         }
 
         //add contact(s)
-        if (ch != ContactHandling.noImpulse) {
-            //normal, pushBack
-            c.fromObjInit();
-            contactHandler(c);
-        } else {
-            //lol, generate 2 contacts that behave like the objects hit a wall
-            // (avoids special code in contact.d)
-            if (obj1.velocity.length > float.epsilon || obj1.isWalking()) {
-                Contact c1 = c;
-                c1.obj[1] = null;
-                c1.depth /= 2;
-                c1.fromObjInit();
-                contactHandler(c1);
-            }
-            if (obj2.velocity.length > float.epsilon || obj2.isWalking()) {
-                Contact c2 = c;
-                c2.obj[0] = c2.obj[1];
-                c2.obj[1] = null;
-                c2.depth /= 2;
-                c2.normal = -c2.normal;
-                c2.fromObjInit();
-                contactHandler(c2);
-            }
-        }
+        c.fromObjInit();
+        contactHandler(c);
     }
 
     //collide all objects with each other
@@ -106,7 +85,7 @@ abstract class BroadPhase {
         //naive algorithm
         for (PhysicObject o = list.head; o; o = list.next(o)) {
             //xxx duplication of collision logic
-            ContactHandling ch = mWorld.collide.canCollide(filter, o.collision);
+            ContactHandling ch = mCollide.canCollide(filter, o.collision);
             if (ch == ContactHandling.none)
                 continue;
 
@@ -147,8 +126,8 @@ abstract class BroadPhase {
 
 ///O(n^2), iterates over all objects
 class BPIterate : BroadPhase {
-    this(PhysicWorld a_world) {
-        super(a_world);
+    this(CollisionMap cmap) {
+        super(cmap);
     }
 
     override void collide(CollideDelegate contactHandler) {

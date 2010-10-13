@@ -2,6 +2,7 @@
 //with dmd+Tango
 module game.weapon.types;
 
+import utils.misc;
 import utils.randval;
 import utils.strparser;
 import utils.time;
@@ -48,10 +49,21 @@ struct FireMode {
     int paramFrom; //minimal param chooseable
     int paramTo;   //maximal param
 
+    bool requireParam() {
+        return paramFrom < paramTo;
+    }
+
     //return default value for weapon param
     int getParamDefault() {
         //xxx should this be configurable?
         return (paramFrom + paramTo)/2;
+    }
+
+    int actualParam(int userValue) {
+        //check if a value was set
+        if (userValue == 0)
+            userValue = getParamDefault();
+        return clampRangeC(userValue, paramFrom, paramTo);
     }
 
     //chooseable throw strength

@@ -566,10 +566,7 @@ abstract class Shooter : GameObject {
         int p = 0;
         if (wcontrol)
             p = wcontrol.getWeaponParam();
-        if (p == 0)
-            p = weapon.fireMode.getParamDefault();
-        fireinfo.param = clampRangeC(p, weapon.fireMode.paramFrom,
-            weapon.fireMode.paramTo);
+        fireinfo.param = weapon.fireMode.actualParam(p);
         if (wcontrol)
             fireinfo.pointto = wcontrol.getTarget;
         else
@@ -628,13 +625,16 @@ abstract class Shooter : GameObject {
     }
 
     //set if the weapon is selected (i.e. ready to fire)
-    //will not abort firing
+    //will not abort firing (but will abort charging when deselected)
     final void isSelected(bool s) {
         if (mIsSelected == s)
             return;
         mIsSelected = s;
         //xxx hacky
         onStateChange(mState);
+        if (!isSelected && currentState == WeaponState.charge) {
+            setState(WeaponState.idle);
+        }
     }
     final bool isSelected() {
         return mIsSelected;

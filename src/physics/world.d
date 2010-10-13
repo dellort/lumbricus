@@ -56,9 +56,9 @@ class PhysicWorld {
         mTriggers = new typeof(mTriggers)();
         mContactGenerators = new typeof(mContactGenerators)();
         mContacts.length = 1024;  //xxx arbitrary number
-        mDynamic = new BPSortAndSweep(this);
+        mDynamic = new BPSortAndSweep(collide);
         //mDynamic = new BPIterate(this);
-        mStatic = new BPIterate(this);
+        mStatic = new BPIterate(collide);
     }
 
     public void add(PhysicBase obj) {

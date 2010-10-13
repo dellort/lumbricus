@@ -410,6 +410,6 @@ do
         }
     }
     enableSpriteCrateBlowup(w, sprite_class)
-    grenade_class = sprite_class
+    tunnelbomb_class = sprite_class
 end
 

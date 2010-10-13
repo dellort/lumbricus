@@ -26,10 +26,6 @@ $ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen l
   Genauso: Minigun macht zuviel Schaden (bis 350 für die volle Ladung)
   ^ Idee: Nichtlineare Funktion für die Lochgröße (nur welche?)
     ^^ kann man nicht einfach den Schaden->Lochgröße Multiplikator erhöhen
-- Heilige senkrecht nach oben -> Bazooka wählen -> So feuern dass charge durch Impuls der kollidierenden
-  Granate unterbrochen wird -> seltsames Verhalten
-- Wieso kann man Würmer eigentlich wieder mit Granaten rumschubsen? Das hatten wir doch
-  mal mühsam verhindert
 
 == bekannte, unlösbare Bugs ==
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)

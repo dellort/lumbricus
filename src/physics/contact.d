@@ -29,6 +29,7 @@ struct Contact {
 
     ///how this contact was generated
     ContactSource source = ContactSource.object;
+    ContactHandling handling;
 
     //only used by links.d anymore
     void fromObj(PhysicObject obj1, PhysicObject obj2, Vector2f n, float d) {
@@ -60,9 +61,34 @@ struct Contact {
     //xxx ROFL, for geometry collisions, this was solved
     //    in 4 (four) lines before
     package void resolve(float deltaT) {
-        matchGlueState();
-        resolveVel(deltaT);
-        resolvePt(deltaT);
+        if (handling != ContactHandling.noImpulse) {
+            //normal, pushBack
+            matchGlueState();
+            resolveVel(deltaT);
+            resolvePt(deltaT);
+        } else {
+            assert(!!obj[1]);
+            //generate 2 contacts that behave like the objects hit a wall
+            // (avoids special code in the complicated mess below)
+            if (obj[0].velocity.length > float.epsilon || obj[0].isWalking()) {
+                Contact c1 = *this;
+                c1.obj[1] = null;
+                c1.depth /= 2;
+                c1.handling = ContactHandling.normal;
+                c1.fromObjInit();
+                c1.resolve(deltaT);
+            }
+            if (obj[1].velocity.length > float.epsilon || obj[1].isWalking()) {
+                Contact c2 = *this;
+                c2.obj[0] = c2.obj[1];
+                c2.obj[1] = null;
+                c2.depth /= 2;
+                c2.normal = -c2.normal;
+                c2.handling = ContactHandling.normal;
+                c2.fromObjInit();
+                c2.resolve(deltaT);
+            }
+        }
     }
 
     ///calculate the initial separating velocity of the contact
@@ -209,9 +235,7 @@ struct Contact {
 
     //this used to be in PhysicWorld.collideObjectWithGeometry()
     //not used with PhysicWorld.collideGeometry()
-    //ch = simply the result of canCollide()
-    //  (xxx could remove that, because we have both objects available)
-    void geomPostprocess(ContactHandling ch) {
+    void geomPostprocess() {
         PhysicObject o = obj[0]; //non-static one
         assert(!o.isStatic);
         //kind of hack for LevelGeometry
@@ -240,7 +264,7 @@ struct Contact {
                     depth = o.posp.radius*2;  //step-by-step
                 }
             }
-        } else if (ch == ContactHandling.pushBack) {
+        } else if (handling == ContactHandling.pushBack) {
             //back along velocity vector
             //only allowed if less than 90° off from surface normal
             Vector2f vn = -o.velocity.normal;

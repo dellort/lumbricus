@@ -297,7 +297,7 @@ mainspr {
                 worm_no_weapon_get = "338"
                 worm_atomtest_get = "320"
                 worm_beamer_get = "428"
-                worm_beamer_prepare = "431"
+                worm_beamer_prepare = "f:50; 431"
                 worm_dynamite_get = "344"
                 worm_airstrike_get = "422"
                 worm_mingvase_get = "347"
@@ -332,7 +332,7 @@ mainspr {
                 worm_bow_fire = "f:150; 565"
             }
             {
-                worm_beaming = "f:25; 434"
+                worm_beaming = "f:20; 434"
                 worm_jetpack_enter = "341"
                 worm_parachute_sitdown = "298"
                 worm_enter_sad = "311"
@@ -412,7 +412,7 @@ mainspr {
             }
             {
                 _flags = "+backwards_a"
-                worm_beaming_backwards = "f:25; 434"
+                worm_beaming_backwards = "f:20; 434"
                 worm_frightened = "212"
                 worm_frozen_leave = "f:25; 485"
             }

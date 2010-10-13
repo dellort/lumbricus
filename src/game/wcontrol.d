@@ -223,6 +223,7 @@ class WormControl : WeaponController {
         if (!mOnHold && mOnHoldWeapon) {
             selectWeapon(mOnHoldWeapon);
         }
+        move(mMoveVector);
     }
 
     bool isOnHold() {
@@ -533,11 +534,11 @@ class WormControl : WeaponController {
                 if (checkPointMode()) {
                     if (!mWeaponSet.coolingDown(mWeapons[$-1].weapon)) {
                         success = mWeapons[$-1].startFire();
-                    } else {
+                    } else if (!mFireDown) {
                         OnWeaponMisfire.raise(mWeapons[$-1].weapon, this,
                             WeaponMisfireReason.cooldown);
                     }
-                } else {
+                } else if (!mFireDown) {
                     OnWeaponMisfire.raise(mWeapons[$-1].weapon, this,
                         WeaponMisfireReason.targetNotSet);
                 }
@@ -686,23 +687,21 @@ class WormControl : WeaponController {
     }
 
     private void move(Vector2f vec) {
-        if (!isAlive() || !isControllable) {
-            mMoveVector = Vector2f(0);
-            mWorm.move(mMoveVector);
-            return;
-        }
-
-        if (vec == mMoveVector)
-            return;
-
-        wormAction();
-
         mMoveVector = vec;
+
+        bool canMove = isAlive() && isControllable();
+        applyMoveVector(canMove ? mMoveVector : Vector2f(0));
+
+        if (vec != mMoveVector && canMove)
+            wormAction();
+    }
+
+    private void applyMoveVector(Vector2f vec) {
         if (!controllableMove(vec)) {
             mWorm.move(vec);
             if (mWeapons.length > 0) {
                 //screen to math
-                mWeapons[0].move(-mMoveVector.y);
+                mWeapons[0].move(-vec.y);
                 mWeapons[0].isSelected = mWorm.currentState.canFire;
             }
         }
@@ -787,7 +786,7 @@ class WormControl : WeaponController {
     void pushControllable(Controllable c) {
         //if the new top object takes movement input, stop the current top
         if (c.move(mMoveVector))
-            move(Vector2f(0));
+            applyMoveVector(Vector2f(0));
         mControlStack ~= c;
     }
 
@@ -795,13 +794,17 @@ class WormControl : WeaponController {
         //stack gets cleared if the worm becomes unengaged
         if (mControlStack.length == 0)
             return;
+        bool transferMove = false;
         if (mControlStack.length > 1 && c is mControlStack[$-1]) {
             //if removing the top object, transfer current movement to next
             c.move(Vector2f(0));
-            mControlStack[$-2].move(mMoveVector);
+            transferMove = true;
         }
         //c does not have to be at the top of mControlStack
         arrayRemove(mControlStack, c);
+        if (transferMove) {
+            controllableMove(mMoveVector);
+        }
     }
 
     //checks if this worm wants to blow up, returns true if it wants to or is
