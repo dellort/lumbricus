@@ -98,14 +98,33 @@ class GfxSet {
 
         ConfigNode gfx = cfg.gfx;
 
-        char[] gfxconf = gfx.getStringValue("config", "wwp.conf");
+        const char[] cPreferredGraphics = "wwp.conf";
+        const char[] cFailsafeGraphics = "freegraphics.conf";
+
+        ResourceFile resfile;
+
+        char[] gfxconf = gfx.getStringValue("config", cPreferredGraphics);
+        try {
+            config = gResources.loadConfigForRes(gfxconf);
+            resfile = addGfxSet(config);
+        } catch (CustomException e) {
+            //if that failed, try to load the free graphics set, which should be
+            //  always available (only if that isn't already being loaded)
+            //(xxx: the intention is to switch to the failsafe graphics if the
+            //  requested ones don't exist; not to deal with buggy graphic sets,
+            //  but right now we can't just test for the existence of a file to
+            //  check the actual presence of a graphic set => we are more error
+            //  tolerant than what we want and what is good, blergh)
+            if (gfxconf == cFailsafeGraphics)
+                throw e;
+            core.log.error("Loading graphicsset in '{}' failed ({}), trying to"
+                " load {} instead.", gfxconf, e, cFailsafeGraphics);
+            gfxconf = cFailsafeGraphics;
+            config = gResources.loadConfigForRes(gfxconf);
+            resfile = addGfxSet(config);
+        }
+
         char[] watername = gfx.getStringValue("waterset", "blue");
-
-        //resources = new ResourceSet();
-
-        config = gResources.loadConfigForRes(gfxconf);
-        auto resfile = addGfxSet(config);
-
         //resfile.fixPath for making the water dir relative to the other
         //  resources
         auto waterpath = resfile.fixPath(config.getStringValue("water_path"));

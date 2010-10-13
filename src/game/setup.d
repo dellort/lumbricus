@@ -4,12 +4,23 @@ module game.setup;
 ///currently, only GameConfig setup and savegame utility functions
 
 import framework.config;
+import framework.globalsettings;
 import framework.imgread;
 import game.levelgen.level;
 import game.levelgen.generator;
 import utils.configfile;
 import utils.log;
 import utils.misc;
+
+//graphic set used when the game config passed to loadGameConfig() doesn't have
+//  a graphic set explicitly set
+Setting gGraphicSet;
+
+static this() {
+    const char[][] cSets = ["wwp", "freegraphics"];
+    gGraphicSet = addSetting("game.graphicset", cSets[0], SettingType.Choice);
+    gGraphicSet.choices = cSets;
+}
 
 ///Initial game configuration
 //xxx this sucks etc.
@@ -155,6 +166,9 @@ GameConfig doLoadGameConfig(ConfigNode mConfig, Level level = null,
     }
 
     cfg.gfx = mConfig.getSubNode("gfx");
+    if (cfg.gfx["config"] == "")
+        cfg.gfx["config"] = gGraphicSet.value ~ ".conf";
+
     cfg.plugins = mConfig.getSubNode("plugins");
 
     auto mode = mConfig.getSubNode("gamemode");

@@ -19,6 +19,9 @@ $ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen l
 - axt abfeuern + sofort bazooka auswählen => falsche zielkreuz animation
 - entscheiden, ob Lua Full-Userdata verwendet werden soll, und dann die Entscheidung konsequent durchsetzen (z.B. keine globalen Class_method Funktionen mehr)
   im Moment geht noch beides; vielleicht sollte man erst Performance-Tests durchführen? (bloss welche...)
+- jetpack einschalten, homing missile auswählen, feuertaste drücken (ohne ziel auszuwählen, d.h. es wird nichts abgefeuert), bazooka auswählen => bazooka wird abgefeuert, obwohl man sie nur ausgewählt hat
+- settings sollten nicht bei jedem window resize gespeichert werden, sondern in einem settings dialog?
+  wenn man wollte, könnte man settings2.conf auch nach _irgendeiner_ änderung speichern
 
 == bekannte, lösbare Bugs ==
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
@@ -162,7 +165,12 @@ vllt: http://tekui.teklib.org/index.html
 *** determinismus garantieren (benutzung der FPU ist ein problem, da nicht alle plattformen die gleiche präzission für floating point haben), z.b. fixed point zahlen benutzen, oder regelmäßig zustand der clienten wieder synchronisieren
 $ einfache erkennung von clients mit abweichender simulation (periodisch einen einfachen engine-hash berechnen und an den server schicken)
 * Client-Netzwerkcode in Thread verlagern (Performance/genaue Ping-Werte)
-- chat innerhalb des spieles (es gibt schon GUI-teile dafür in gameframe.d, ausserdem hat die lobby einen [funktionierenden?] chat)
++ folgende nutzlosen features sollten in der lobby-gui integriert sein:
+    - möglichkeit den server öffentlich/privat zu machen (wird den server auch veranlassen, das announcen einzuschalten/einzustellen), ein passwort zu setzen, usw.
+    - server name ändern (niemand wird die server.conf dafür editieren...)
+    - nicknamen ändern?
+    - hosts kicken/bannen oder privilegien geben
+  vllt. damit warten, bis das GUI-chaos beseitigt ist
 
 == nicht wirklich wichtig ==
 - locales: übersetzungen vergleichen (z.b. de mit en -> fehlende einträge finden)

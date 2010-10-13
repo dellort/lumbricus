@@ -198,7 +198,8 @@ class CmdNetClientTask {
     }
 
     private void nickSettingChange(Setting sender) {
-        mNickname.text = sender.value;
+        if (mNickname.text != sender.value)
+            mNickname.text = sender.value;
     }
 
     private void setMode(int idx) {

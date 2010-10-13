@@ -5,8 +5,10 @@ import framework.config;
 import framework.i18n;
 import common.globalconsole;
 import common.task;
+import game.setup; // : gGraphicSet
 import gui.widget;
 import gui.container;
+import gui.dropdownlist;
 import gui.button;
 import gui.boxcontainer;
 import gui.label;
@@ -32,6 +34,23 @@ class CommandButton : Button {
 
     static this() {
         WidgetFactory.register!(typeof(this))("commandbutton");
+    }
+}
+
+//xxx and this neither
+class ChooseGraphicSet : DropDownList {
+    this() {
+        list.setContents(gGraphicSet.choices);
+        selection = gGraphicSet.value;
+        onSelect = &doSelect;
+    }
+
+    private void doSelect(DropDownList sender) {
+        gGraphicSet.set(selection);
+    }
+
+    static this() {
+        WidgetFactory.register!(typeof(this))("choosegraphicset");
     }
 }
 

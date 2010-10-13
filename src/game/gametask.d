@@ -168,7 +168,7 @@ class GameTask : IKillable {
         char[][] argv = str.split(args);
         char[] start_config;
         char[] start_demo;
-        bool freegraphics;
+        char[] graphics;
 
         foreach (arg; argv) {
             if (str.eatStart(arg, "demo:")) {
@@ -181,8 +181,8 @@ class GameTask : IKillable {
                 continue;
             }
 
-            if (arg == "freegraphics") {
-                freegraphics = true;
+            if (str.eatStart(arg, "graphics:")) {
+                graphics = arg;
                 continue;
             }
 
@@ -206,8 +206,8 @@ class GameTask : IKillable {
             node = loadConfig("newgame.conf");
         }
 
-        if (freegraphics)
-            node.getSubNode("gfx")["config"] = "freegraphics.conf";
+        if (graphics.length)
+            node.getSubNode("gfx")["config"] = graphics ~ ".conf";
 
         doInit({
             mGameLoader = GameLoader.CreateNewGame(loadGameConfig(node));
