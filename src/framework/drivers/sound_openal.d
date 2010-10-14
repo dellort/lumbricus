@@ -33,6 +33,7 @@ private LogStruct!("openal") gLog;
 class ALChannel : DriverChannel {
     ALuint source;
     ALSound mSound;
+    private float mPriority = 0;
 
     this() {
         owner = gBase;
@@ -93,6 +94,13 @@ class ALChannel : DriverChannel {
         }
     }
 
+    void priority(float prio) {
+        mPriority = prio;
+    }
+    float priority() {
+        return mPriority;
+    }
+
     void setVolume(float value) {
         alSourcef(source, AL_GAIN, value);
     }
@@ -131,6 +139,13 @@ class ALChannel : DriverChannel {
 
     void check() {
         if (state == PlaybackState.stopped) {
+            reserved_for = null;
+        }
+    }
+
+    void checkWithPrio(float prio) {
+        //allow stealing if this priority is lower than requested priority
+        if (state == PlaybackState.stopped || mPriority < prio) {
             reserved_for = null;
         }
     }
@@ -453,9 +468,18 @@ class ALSoundDriver : SoundDriver {
         //AL_ORIENTATION), but there are defaults
     }
 
-    DriverChannel getChannel(Object reserve_for) {
+    DriverChannel getChannel(Object reserve_for, float priority = 0) {
         foreach (c; mChannels) {
             c.check();
+            if (!c.reserved_for) {
+                c.reserved_for = reserve_for;
+                return c;
+            }
+        }
+        //no free channel found, check if we can take a playing one with
+        //  low priority
+        foreach (c; mChannels) {
+            c.checkWithPrio(priority);
             if (!c.reserved_for) {
                 c.reserved_for = reserve_for;
                 return c;

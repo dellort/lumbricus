@@ -92,6 +92,8 @@ abstract class DriverChannel {
     //implementing note: can be called either before or after play(); both
     //  should work
     abstract void looping(bool loop);
+    //from -1 (lowest) to 1 (highest)
+    abstract void priority(float prio);
 
     //play() and stop() must only be called if you're still the owner by
     //reserved_by
@@ -112,7 +114,9 @@ abstract class SoundDriver : ResDriver {
     //create/get a free channel to play stuff
     //returns null if none available
     //reserve_for: DriverChannel.reserved_for is set to it
-    abstract DriverChannel getChannel(Object reserve_for);
+    //priority: -1 (lowest) to 1 (highest); when no channels are available
+    //          a driver may reallocate a playing channel with lower priority
+    abstract DriverChannel getChannel(Object reserve_for, float priority = 0);
 }
 
 ///main sound class, loads samples and music and sets volume
@@ -303,6 +307,7 @@ class Source {
 
         Sample mSample;
         bool mLooping;
+        float mPriority = 0;
         float mVolume = 1.0f;
         DriverChannel mDC;
         PlaybackState mState;  //the state wanted by the user
@@ -344,6 +349,18 @@ class Source {
             dc.looping = l;
     }
 
+    ///priority is the "importance" of the sound:
+    ///  -1 is least important, 0 is standard, 1 is most important
+    final float priority() {
+        return mPriority;
+    }
+    final void priority(float p) {
+        mPriority = clampRangeC(p, -1.0f, 1.0f);
+        auto dc = createDC(false);
+        if (dc)
+            dc.priority = p;
+    }
+
     ///Private volume for this source
     ///Relative to global volume settings
     final float volume() {
@@ -381,6 +398,7 @@ class Source {
                 startFade(FadeType.fadeIn, fadeinTime);
             }
             dc.looping = mLooping;
+            dc.priority = mPriority;
 
             try {
                 dc.play(gSoundManager.getDriverSound(mSample), start);
@@ -538,7 +556,7 @@ class NullSound : SoundDriver {
         return null;
     }
 
-    DriverChannel getChannel(Object reserve_for) {
+    DriverChannel getChannel(Object reserve_for, float priority = 0) {
         return null;
     }
 

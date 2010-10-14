@@ -87,6 +87,7 @@ class FMODChannel : DriverChannel {
         FMOD_CHANNEL* mChannel;
         float mVolume;
         bool mLooping;
+        float mPriority = 0;
     }
     ObjListNode!(typeof(this)) chNode;
 
@@ -111,14 +112,14 @@ class FMODChannel : DriverChannel {
     void looping(bool loop) {
         mLooping = loop;
         if (state() != PlaybackState.stopped) {
-            setLooping(loop);
+            applyLooping();
         }
     }
 
-    private void setLooping(bool loop) {
+    private void applyLooping() {
         if (!checkChannel())
             return;
-        if (loop) {
+        if (mLooping) {
             FMOD_ErrorCheck(FMOD_Channel_SetMode(mChannel, FMOD_LOOP_NORMAL));
             //0 = no looping, -1 = loop forever
             FMOD_ErrorCheck(FMOD_Channel_SetLoopCount(mChannel, -1));
@@ -127,19 +128,35 @@ class FMODChannel : DriverChannel {
         }
     }
 
+    void priority(float prio) {
+        if (state() != PlaybackState.stopped) {
+            //map [-1; 1] to [256; 0]
+            FMOD_Channel_SetPriority(mChannel, cast(int)(-prio * 128) + 128);
+        }
+        mPriority = prio;
+    }
+
     override void play(DriverSound s, Time startAt) {
         auto fs = castStrict!(FMODSound)(s);
         assert(!!fs);
         assert(!!reserved_for);
+        //validate mChannel (cannot reuse it if it has been taken by another
+        //  FMODChannel or another sound may be interrupted)
+        checkChannel();
         stop(false);
         //allocate a channel, start paused
         FMOD_ErrorCheck(FMOD_System_PlaySound(gBase.system, FMOD_CHANNEL_REUSE,
             fs.mSound, true, &mChannel));
+        //mark the channel as ours (FMOD seems to randomly use a different
+        //  channel even if mChannel was valid)
+        //this pointer is just used as an id, no gc issue
+        FMOD_Channel_SetUserData(mChannel, cast(void*)this);
 
         update(mSourceInfo);
         FMOD_ErrorCheck(FMOD_Channel_SetPosition(mChannel, startAt.msecs(),
             FMOD_TIMEUNIT_MS));
-        setLooping(mLooping);
+        applyLooping();
+        priority = mPriority;
         setVolume(mVolume);
 
         FMOD_ErrorCheck(FMOD_Channel_SetPaused(mChannel, false));
@@ -201,13 +218,16 @@ class FMODChannel : DriverChannel {
     }
 
     //returns true if mChannel is still valid (may get stolen)
+    //also sets mChannel to null if it was invalid
     private bool checkChannel() {
         if (!mChannel)
             return false;
-        int idx;
-        auto res = FMOD_Channel_GetIndex(mChannel, &idx);
-        if (res == FMOD_OK)
+        void* data;
+        auto res = FMOD_Channel_GetUserData(mChannel, &data);
+        if (res == FMOD_OK && data is cast(void*)this)
             return true;
+        //channel is invalid or taken by another FMODChannel object
+        mChannel = null;
         return false;
     }
 
@@ -264,7 +284,8 @@ class FMODSoundDriver : SoundDriver {
         }
     }
 
-    DriverChannel getChannel(Object reserve_for) {
+    //priority is unused because FMOD handles that for us
+    DriverChannel getChannel(Object reserve_for, float priority = 0) {
         //look for a free channel (reuse class)
         foreach (c; mChannels) {
             c.check();

@@ -63,6 +63,7 @@ class ParticleType {
     //  the sound is done playing
     Sample[] sound;
     bool sound_looping;
+    float sound_priority = 0;
 
     //array of particles that can be emitted (random pick)
     ParticleEmit[] emit;
@@ -174,6 +175,7 @@ class ParticleType {
         }
 
         sound_looping = node.getValue("sound_looping", sound_looping);
+        sound_priority = node.getValue("sound_priority", sound_priority);
 
         read_sub("emit", emit);
         read_sub("emit_on_death", emit_on_death);
@@ -232,8 +234,12 @@ struct Particle {
         if (!snd) {
             sound = null;
         } else {
-            sound = snd.play();
+            sound = snd.createSource();
             sound.looping = props.sound_looping;
+            //it is important to set priority before play() because otherwise
+            //  the sound driver cannot perform channel stealing
+            sound.priority = props.sound_priority;
+            sound.play();
         }
         //reasonable defaults of other state that gets set anyway?
         pos.x = pos.y = velocity.x = velocity.y = 0f;

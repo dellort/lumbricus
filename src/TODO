@@ -20,6 +20,7 @@ $ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen l
 - entscheiden, ob Lua Full-Userdata verwendet werden soll, und dann die Entscheidung konsequent durchsetzen (z.B. keine globalen Class_method Funktionen mehr)
   im Moment geht noch beides; vielleicht sollte man erst Performance-Tests durchführen? (bloss welche...)
 - jetpack einschalten, homing missile auswählen, feuertaste drücken (ohne ziel auszuwählen, d.h. es wird nichts abgefeuert), bazooka auswählen => bazooka wird abgefeuert, obwohl man sie nur ausgewählt hat
+  ^ Kann ich nicht reproduzieren
 - settings sollten nicht bei jedem window resize gespeichert werden, sondern in einem settings dialog?
   wenn man wollte, könnte man settings2.conf auch nach _irgendeiner_ änderung speichern
 
