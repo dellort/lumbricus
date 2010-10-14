@@ -7,7 +7,9 @@ import framework.surface;
 import framework.sdl.rwops;
 import framework.sdl.sdl;
 import utils.stream;
+import utils.string : tolower;
 import utils.misc;
+import utils.path;
 
 import tango.stdc.stringz;
 
@@ -28,12 +30,18 @@ private void ensure_init() {
     gIMGLoadInitialized = true;
 }
 
+//extension: file extension (with .), because some image formats can't be
+//           identified by header alone
 Surface loadImage(Stream source, Transparency transparency
-    = Transparency.AutoDetect)
+    = Transparency.AutoDetect, char[] extension = null)
 {
     ensure_init();
     SDL_RWops* ops = rwopsFromStream(source);
-    SDL_Surface* surf = IMG_Load_RW(ops, 0);
+    SDL_Surface* surf;
+    if (tolower(extension) == ".tga")
+        surf = IMG_LoadTGA_RW(ops);
+    else
+        surf = IMG_Load_RW(ops, 0);
     if (!surf) {
         auto err = fromStringz(IMG_GetError());
         throwError("image couldn't be loaded: {}", err);
@@ -44,8 +52,9 @@ Surface loadImage(Stream source, Transparency transparency
 
 Surface loadImage(char[] path, Transparency t = Transparency.AutoDetect) {
     //mLog("load image: {}", path);
-    scope stream = gFS.open(path, File.ReadShared);
+    auto p = VFSPath(path);
+    scope stream = gFS.open(p, File.ReadShared);
     scope(exit) stream.close();
-    auto image = loadImage(stream, t);
+    auto image = loadImage(stream, t, p.extension);
     return image;
 }

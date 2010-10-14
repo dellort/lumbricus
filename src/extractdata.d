@@ -184,6 +184,26 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
             convert_level(setpath~"/",destpath~"/",importDir);
         }
     }
+
+    //****** Drawn level images ******
+    char[] imagespath = wormsDataDir~"Image";
+    char[] imageDir = outputDir~"/levelimages";
+    trymkdir(imageDir);
+    char[][] imgFiles;
+    //list all .img files
+    foreach (fi; FilePath(imagespath)) {
+        if (fi.name.length < 5 || str.tolower(fi.name[$-4..$]) != ".img")
+            continue;
+        imgFiles ~= fi.name.dup;
+    }
+    //convert to png
+    foreach (int idx, filename; imgFiles) {
+        Stdout.format("Converting level image '{}' ({}/{})             \r",
+            filename, idx+1, imgFiles.length).flush();
+        char[] srcpath = imagespath ~ "/" ~ filename;
+        readImg(Stream.OpenFile(srcpath), imageDir, filename[0..$-4]);
+    }
+    Stdout.newline();
 }
 
 int main(char[][] args)
@@ -215,7 +235,7 @@ int main(char[][] args)
     <outputDir>: where to write stuff to (defaults to
                  prefix/share/lumbricus/data2 )
 Options:
-    -T  don't extract/convert/write level themes
+    -T  don't extract/convert/write level themes and images
     -z  pack everything into a zip archive`).newline;
         return 1;
     }

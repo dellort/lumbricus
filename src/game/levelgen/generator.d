@@ -148,6 +148,10 @@ class GenerateFromTemplate : LevelGenerator {
         if (mLand.length == 1) {
             geo = mLand.values[0].geo_generated;
             lex = mLand.values[0].geo_pregenerated;
+            char[] pre_id = mLand.values[0].prerender_id;
+            if (!lex && pre_id.length > 0 && pre_id in prerendered) {
+                lex = prerendered[pre_id];
+            }
         }
         if (!geo && !lex)
             return null;
@@ -163,6 +167,10 @@ class GenerateFromTemplate : LevelGenerator {
         if (mLand.length == 1) {
             geo = mLand.values[0].geo_generated;
             lex = mLand.values[0].geo_pregenerated;
+            char[] pre_id = mLand.values[0].prerender_id;
+            if (!lex && pre_id.length > 0 && pre_id in prerendered) {
+                lex = prerendered[pre_id];
+            }
         }
         if (lex)
             return (cast(float)lex.size.x)/lex.size.y;
@@ -176,6 +184,10 @@ class GenerateFromTemplate : LevelGenerator {
         if (mLand.length == 1) {
             if (mLand.values[0].geo_pregenerated)
                 return mLand.values[0].geo_pregenerated;
+            char[] pre_id = mLand.values[0].prerender_id;
+            if (pre_id.length > 0 && pre_id in prerendered) {
+                return prerendered[pre_id];
+            }
             geo = mLand.values[0].geo_generated;
         }
         if (!geo)

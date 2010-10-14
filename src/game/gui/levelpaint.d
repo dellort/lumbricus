@@ -317,7 +317,7 @@ class PainterWidget : Widget {
     //transfer_ownership = if we can free the level when we're done
     void setData(LandscapeBitmap level, bool transfer_ownership) {
         argcheck(level);
-        if (mOwnsLevel && mLevel) {
+        if (mOwnsLevel && mLevel && mLevel !is level) {
             mLevel.free();
             mLevel = null;
             mOwnsLevel = false;
