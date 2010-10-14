@@ -240,11 +240,7 @@ BoxTex getBox(BoxProperties props) {
         size[dir] = 50; //choose as you like
         size[inv] = q*2;
 
-        bool needAlpha = (props.back.a < (1.0f - Color.epsilon))
-            || (sideFore.a < (1.0f - Color.epsilon));
-
-        auto surface = new Surface(size,
-            needAlpha ? Transparency.Alpha : Transparency.None);
+        auto surface = new Surface(size);
 
         Vector2i p1 = Vector2i(0), p2 = size;
         auto bw = props.borderWidth;
@@ -350,7 +346,7 @@ BoxTex getBox(BoxProperties props) {
     }
 
     auto size = Vector2i(q)*2;
-    auto corners = new Surface(size, Transparency.Alpha);
+    auto corners = new Surface(size);
     drawCorner(corners);
 
     //store struct with texture refs in hashmap

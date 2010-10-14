@@ -127,7 +127,7 @@ class DXDrawDriver : DrawDriver {
         d3dDevice.GetDisplayMode(0, &displayMode);
 
         Surface res = new Surface(
-            Vector2i(displayMode.Width, displayMode.Height), Transparency.None);
+            Vector2i(displayMode.Width, displayMode.Height));
         Color.RGBA32* pDest;
         uint pitch;
         res.lockPixelsRGBA32(pDest, pitch);

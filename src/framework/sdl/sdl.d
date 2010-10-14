@@ -75,30 +75,8 @@ Color fromSDLColor(SDL_PixelFormat* fmt, uint c) {
 }
 
 //warning: modifies the source surface! (changes transparency modes)
-Surface convertFromSDLSurface(SDL_Surface* surf, Transparency transparency,
-    bool free_surf)
-{
-    if (transparency == Transparency.AutoDetect) {
-        //guess by looking at the alpha channel
-        if (sdlIsAlpha(surf)) {
-            transparency = Transparency.Alpha;
-        } else if (surf.flags & SDL_SRCCOLORKEY) {
-            transparency = Transparency.Colorkey;
-        } else {
-            transparency = Transparency.None;
-        }
-    }
-
-    bool hascc = transparency == Transparency.Colorkey;
-    Color colorkey = Color(0);
-
-    if (hascc) {
-        //NOTE: the png loader from SDL_Image sometimes uses the colorkey
-        colorkey = fromSDLColor(surf.format, surf.format.colorkey);
-    }
-
-    Surface res = new Surface(Vector2i(surf.w, surf.h), transparency,
-        colorkey);
+Surface convertFromSDLSurface(SDL_Surface* surf, bool free_surf) {
+    Surface res = new Surface(Vector2i(surf.w, surf.h));
 
     Color.RGBA32* ptr;
     uint pitch;
@@ -110,7 +88,9 @@ Surface convertFromSDLSurface(SDL_Surface* surf, Transparency transparency,
 
     //possibly convert it to RGBA32 (except if it is already)
     //if there's a colorkey, always convert, hoping the alpha channel gets
-    //fixed (setting the alpha according to colorkey)
+    //  fixed (setting the alpha according to colorkey - the colorkey itself
+    //  never appears in Surface's image memory, it's just "advisory" for
+    //  drivers and image saving)
     auto rgba32 = sdlpfRGBA32();
     if (!(not_crap && cmpPixelFormat(surf.format, &rgba32))) {
         SDL_Surface* ns = SDL_CreateRGBSurfaceFrom(ptr,

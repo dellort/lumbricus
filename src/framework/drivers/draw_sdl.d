@@ -74,7 +74,7 @@ class SDLDrawDriver : DrawDriver {
 
     override Surface screenshot() {
         //this is possibly dangerous, but I'm too lazy to write proper code
-        return convertFromSDLSurface(mSDLScreen, Transparency.None, false);
+        return convertFromSDLSurface(mSDLScreen, false);
     }
 
     override int getFeatures() {
@@ -96,7 +96,7 @@ class SDLDrawDriver : DrawDriver {
 
         const cTileSize = 64;
 
-        Surface tile = new Surface(Vector2i(cTileSize), Transparency.Alpha);
+        Surface tile = new Surface(Vector2i(cTileSize));
 
         tile.fill(Rect2i(tile.size), c);
 
@@ -132,10 +132,11 @@ final class SDLSurface : DriverSurface {
     SDLDrawDriver mDrawDriver;
     Vector2i mSize;
     Transparency mTransparency;
-    Color mColorkey;
+    Color.RGBA32 mColorKey;
     bool mEnableCache;
-    SDL_Surface* mSurfaceRGBA32;
-    SDL_Surface* mSurfaceConverted;
+    SDL_Surface* mSurfaceRGBA32;        //original image data (by ref!)
+    SDL_Surface* mSurfaceCCed;          //colorkey converted copy; may be null
+    SDL_Surface* mSurfaceConverted;     //display converted copy; may be null
 
     SubCache[] mCache; //array is in sync to Surface.mSubsurfaces[]
     struct SubCache {
@@ -160,8 +161,6 @@ final class SDLSurface : DriverSurface {
     this(SDLDrawDriver driver, Surface surface) {
         mDrawDriver = driver;
         mSize = surface.size;
-        mTransparency = surface.transparency;
-        mColorkey = surface.colorkey;
         mEnableCache = surface.enableCaching;
 
         //NOTE: SDL_CreateRGBSurfaceFrom doesn't copy the data... so, be sure
@@ -169,25 +168,20 @@ final class SDLSurface : DriverSurface {
         auto rgba32 = sdlpfRGBA32();
         Color.RGBA32* pixels = surface._rawPixels.ptr;
         assert(!!pixels);
-        if (mTransparency != Transparency.Colorkey) {
-            mSurfaceRGBA32 = SDL_CreateRGBSurfaceFrom(pixels,
-                mSize.x, mSize.y, 32, mSize.x*4,
-                rgba32.Rmask, rgba32.Gmask, rgba32.Bmask, rgba32.Amask);
-        } else {
-            //colorkey surfaces require that the pixel data is changed to
-            //  correctly handle transparency (see updatePixels()), so allocate
-            //  new memory for it
-            mSurfaceRGBA32 = SDL_CreateRGBSurface(SDL_SWSURFACE, mSize.x,
-                mSize.y, 32, rgba32.Rmask, rgba32.Gmask, rgba32.Bmask, 0);
-        }
+
+        mTransparency = Transparency.None;
+
+        mSurfaceRGBA32 = SDL_CreateRGBSurfaceFrom(pixels,
+            mSize.x, mSize.y, 32, mSize.x*4, rgba32.Rmask, rgba32.Gmask,
+            rgba32.Bmask, rgba32.Amask);
         if (!mSurfaceRGBA32) {
             throw new Exception(
                 myformat("couldn't create SDL surface, size={}", mSize));
         }
 
-        assert(!SDL_MUSTLOCK(mSurfaceRGBA32));
+        SDL_SetAlpha(mSurfaceRGBA32, SDL_SRCALPHA, SDL_ALPHA_OPAQUE);
 
-        adjust_transparency_mode(mSurfaceRGBA32);
+        assert_good_surface(mSurfaceRGBA32);
 
         ctor(driver, surface);
 
@@ -207,6 +201,19 @@ final class SDLSurface : DriverSurface {
             SDL_FreeSurface(mSurfaceRGBA32);
             mSurfaceRGBA32 = null;
         }
+        if (mSurfaceCCed) {
+            SDL_FreeSurface(mSurfaceCCed);
+            mSurfaceCCed = null;
+        }
+    }
+
+    //plain RGBA32 surface, no scanline padding, no locking
+    private void assert_good_surface(SDL_Surface* s) {
+        assert(s.format.BitsPerPixel == 32);
+        assert(s.format.BytesPerPixel == 4);
+        assert(s.pitch == s.w * 4);
+        assert(!SDL_MUSTLOCK(s));
+        assert(s.pixels !is null);
     }
 
     private void update_subsurfaces() {
@@ -231,56 +238,75 @@ final class SDLSurface : DriverSurface {
         }
     }
 
-    private void adjust_transparency_mode(SDL_Surface* src,
-        bool force_alpha = false)
-    {
-        if (!src)
-            return;
-
-        //lol SDL - need to clear any transparency modes first
-        //but I don't understand why (maybe because there's an alpha channel)
-        SDL_SetAlpha(src, 0, 0);
-        //SDL_SetColorKey(src, 0, 0);
-
-        if (force_alpha || mTransparency == Transparency.Alpha) {
-            SDL_SetAlpha(src, SDL_SRCALPHA, SDL_ALPHA_OPAQUE);
-        } else if (mTransparency == Transparency.Colorkey) {
-            uint key = simpleColorToSDLColor(src, mColorkey);
-            SDL_SetColorKey(src, SDL_SRCCOLORKEY, key);
-        }
-    }
-
     override void unlockData(in Rect2i rc) {
         rc.fitInsideB(Rect2i(mSize));
 
         if (rc.size.quad_length <= 0)
             return;
 
-        Surface surface = getSurface();
-        assert(!!surface);
+        Rect2i fullrc = Rect2i(0, 0, mSize.x, mSize.y);
 
-        Color.RGBA32* pixels = surface._rawPixels.ptr;
-        assert(!!pixels);
+        assert(!!mSurfaceRGBA32.pixels);
+        Color.RGBA32[] pixels = (cast(Color.RGBA32*)mSurfaceRGBA32.pixels)
+            [0..mSize.x*mSize.y];
+
+        Transparency oldt = mTransparency;
+        Color.RGBA32 oldcc = mColorKey;
+
+        checkTransparency(pixels[rc.p1.y*mSize.x + rc.p1.x .. mSize.x*mSize.y],
+            mSize.x, rc.size, mTransparency, mColorKey);
+        if (rc != fullrc) {
+            //local changes can't make the full bitmap "better"
+            mTransparency = mergeTransparency(oldt, mTransparency);
+            //different colorkey wouldn't be useable
+            if (mTransparency == Transparency.Colorkey && oldcc != mColorKey)
+                mTransparency = Transparency.Alpha;
+        }
 
         if (mTransparency == Transparency.Colorkey) {
+            Rect2i crc = rc;
+
+            //colorkey surfaces require that the pixel data is changed to
+            //  correctly handle transparency (see updatePixels()), so allocate
+            //  new memory for it
+            if (!mSurfaceCCed) {
+                auto rgba32 = sdlpfRGBA32();
+                mSurfaceCCed = SDL_CreateRGBSurface(SDL_SWSURFACE, mSize.x,
+                    mSize.y, 32, rgba32.Rmask, rgba32.Gmask, rgba32.Bmask, 0);
+                //xxx we're fucked
+                if (!mSurfaceCCed)
+                    throw new Exception("out of surface memory?");
+                assert_good_surface(mSurfaceCCed);
+                SDL_SetColorKey(mSurfaceCCed, SDL_SRCCOLORKEY,
+                    mColorKey.uint_val);
+                crc = fullrc; //update full surface
+            }
+
             //if colorkey is enabled, one must "fix up" the updated pixels, so
             //one can be sure non-transparent pixels are actually equal to the
             //color key
             //reason: user code is allowed to use the alpha channel to set
             //  transparency (makes code simpler because they don't have to
             //  remember about colorkey... maybe that was a bad idea)
-            auto ckey = mColorkey.toRGBA32();
+            auto ckey = mColorKey;
             ckey.a = 0;
 
-            assert(!(mSurfaceRGBA32.flags & SDL_RLEACCEL));
-            assert(mSurfaceRGBA32.format.BytesPerPixel == 4);
+            Color.RGBA32* dest_pixels = cast(Color.RGBA32*)mSurfaceCCed.pixels;
+            assert(!!dest_pixels);
 
-            for (int y = rc.p1.y; y < rc.p2.y; y++) {
-                Color.RGBA32* pix = pixels + mSize.x*y + rc.p1.x;
-                auto pix_dest = cast(Color.RGBA32*)(mSurfaceRGBA32.pixels +
-                    mSurfaceRGBA32.pitch*y) + rc.p1.x;
-                auto sz = rc.size.x;
-                blitWithColorkey(ckey, pix[0..sz], pix_dest[0..sz]);
+            size_t sz = crc.size.x;
+            for (int y = crc.p1.y; y < crc.p2.y; y++) {
+                size_t offset = mSize.x*y + crc.p1.x;
+                auto pix_src = pixels.ptr + offset;
+                auto pix_dest = dest_pixels + offset;
+                blitWithColorkey(ckey, pix_src[0..sz], pix_dest[0..sz]);
+            }
+        } else {
+            //make sure the whole surface will be updated next time transparency
+            //  switches back to colorkey => simply free it
+            if (mSurfaceCCed) {
+                SDL_FreeSurface(mSurfaceCCed);
+                mSurfaceCCed = null;
             }
         }
 
@@ -303,7 +329,7 @@ final class SDLSurface : DriverSurface {
 
     //create a sub-surface; mostly needed because rotozoom and
     //  convert_to_display work on full surfaces
-    //note that the data isn't copied
+    //note that the data isn't copied!
     private SDL_Surface* create_subsurface(Rect2i rc) {
         auto rgba32 = sdlpfRGBA32();
         auto nsurf = SDL_CreateRGBSurfaceFrom(mSurfaceRGBA32.pixels
@@ -311,7 +337,9 @@ final class SDLSurface : DriverSurface {
             + rc.p1.x * mSurfaceRGBA32.format.BytesPerPixel,
             rc.size.x, rc.size.y, 32, mSurfaceRGBA32.pitch,
             rgba32.Rmask, rgba32.Gmask, rgba32.Bmask, rgba32.Amask);
-        adjust_transparency_mode(nsurf);
+        //subsurfaces often get rotated and so on; always enabling alpha is
+        //  simplest here
+        SDL_SetAlpha(nsurf, SDL_SRCALPHA, SDL_ALPHA_OPAQUE);
         return nsurf;
     }
 
@@ -323,7 +351,7 @@ final class SDLSurface : DriverSurface {
     }
 
     //convert the surface to display format and RLE compress it
-    //return new surface, or null on failure
+    //return new surface, or null on failure or format already ok
     private SDL_Surface* convert_to_display(SDL_Surface* surf) {
         assert(!!surf);
 
@@ -332,51 +360,42 @@ final class SDLSurface : DriverSurface {
 
         bool rle = mDrawDriver.opts.RLE;
 
-        SDL_Surface* nsurf;
-        bool colorkey;
-        switch (mTransparency) {
-            case Transparency.Colorkey:
-                colorkey = true;
-                //yay, first time in my life I want to fall through!
-            case Transparency.None: {
-                if (rle || !isDisplayFormat(surf, false)) {
-                    nsurf = SDL_DisplayFormat(surf);
-                    assert(!!nsurf);
-                    if (rle) {
-                        uint key = simpleColorToSDLColor(nsurf, mColorkey);
-                        SDL_SetColorKey(nsurf, (colorkey ? SDL_SRCCOLORKEY : 0)
-                            | SDL_RLEACCEL, key);
-                    }
-                }
-                break;
+        //xxx ok this really sucks now *shrug*
+        if (surf is mSurfaceCCed) {
+            auto nsurf = SDL_DisplayFormat(surf);
+            if (nsurf && rle) {
+                uint key = SDL_MapRGBA(nsurf.format, mColorKey.r, mColorKey.g,
+                    mColorKey.b, mColorKey.a);
+                SDL_SetColorKey(nsurf, SDL_SRCCOLORKEY | SDL_RLEACCEL, key);
             }
-            case Transparency.Alpha: {
-                if (rle || !isDisplayFormat(surf, true)) {
-                    nsurf = SDL_DisplayFormatAlpha(surf);
-                    assert(!!nsurf);
-                    //does RLE with alpha make any sense?
-                    if (rle) {
-                        SDL_SetAlpha(nsurf, SDL_SRCALPHA | SDL_RLEACCEL,
-                            SDL_ALPHA_OPAQUE);
-                    }
-                }
-                break;
-            }
-            default:
-                assert(false);
+            return nsurf;
         }
 
-        return nsurf;
-    }
-
-    private SDL_Surface* convert_free(SDL_Surface* src) {
-        auto res = convert_to_display(src);
-        if (res) {
-            SDL_FreeSurface(src);
-            return res;
-        } else {
-            return src;
+        if (surf is mSurfaceRGBA32 && mTransparency == Transparency.None) {
+            if (!rle && isDisplayFormat(surf, false))
+                return null;
+            auto nsurf = SDL_DisplayFormat(surf);
+            assert(!!nsurf);
+            //does this do anything at all?
+            if (rle)
+                SDL_SetColorKey(nsurf, SDL_RLEACCEL, 0);
+            return nsurf;
         }
+
+        //code path mostly for SubSurfaces or full alpha surfaces
+        //don't really know if alpha is required (would need to loop over image
+        //  data or add more complicated crap for guessing)
+        if (rle || !isDisplayFormat(surf, true)) {
+            auto nsurf = SDL_DisplayFormatAlpha(surf);
+            assert(!!nsurf);
+            //does RLE with alpha make any sense?
+            if (rle)
+                SDL_SetAlpha(nsurf, SDL_SRCALPHA | SDL_RLEACCEL,
+                    SDL_ALPHA_OPAQUE);
+            return nsurf;
+        }
+
+        return null;
     }
 
     //src must be in the RGBA32 format
@@ -390,27 +409,20 @@ final class SDLSurface : DriverSurface {
         return r;
     }
 
-    //includes special handling for the alpha value: if completely transparent,
-    //and if using colorkey transparency, return the colorkey
-    final uint colorToSDLColor(Color color) {
-        if (mTransparency == Transparency.Colorkey
-            && color.a <= Color.epsilon)
-        {
-            //color = mColorkey;
-            return mSurfaceRGBA32.format.colorkey;
-        }
-        return simpleColorToSDLColor(mSurfaceRGBA32, color);
-    }
-
     //possibly convert this surface to display format first
     package SDL_Surface* get_normal() {
+        SDL_Surface* base = mSurfaceRGBA32;
+        if (mSurfaceCCed && mTransparency == Transparency.Colorkey)
+            base = mSurfaceCCed;
+
         if (!mSurfaceConverted && allow_conversion()) {
             //assumption: if someone draws this surface "normally" (=> no sub-
             //  surface stuff), he wants to use the full surface anyway
             //so, convert the full surface
-            mSurfaceConverted = convert_to_display(mSurfaceRGBA32);
+            mSurfaceConverted = convert_to_display(base);
         }
-        return mSurfaceConverted ? mSurfaceConverted : mSurfaceRGBA32;
+
+        return mSurfaceConverted ? mSurfaceConverted : base;
     }
 
     package void get_from_effect_cache(SubSurface sub, BitmapEffect* effect,
@@ -494,13 +506,13 @@ final class SDLSurface : DriverSurface {
         assert(!!surf);
 
         if (k_mirror) {
-            //copy
+            //copy because surface data isn't copied by create_subsurface
             auto nsurf = copy_surface(surf);
             assert(!!nsurf, "out of memory?");
             SDL_FreeSurface(surf);
             surf = nsurf;
             //mirror along X and/or Y axis
-            assert(surf.pitch % 4 == 0);
+            assert(surf.pitch == sub.size.x * 4);
             if (k_mirror & 1)
                 pixelsMirrorX(cast(Color.RGBA32*)surf.pixels, surf.pitch/4,
                     Vector2i(surf.w, surf.h));
@@ -519,8 +531,9 @@ final class SDLSurface : DriverSurface {
                 (out Pixels dst, int w, int h) {
                     nsurf = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 32,
                         Color.cMaskR, Color.cMaskG, Color.cMaskB, Color.cMaskA);
-                    adjust_transparency_mode(nsurf, smooth);
-                    SDL_FillRect(nsurf, null, colorToSDLColor(Color.Transparent));
+                    SDL_SetAlpha(nsurf, SDL_SRCALPHA, SDL_ALPHA_OPAQUE);
+                    SDL_FillRect(nsurf, null,
+                        SDL_MapRGBA(nsurf.format, 0, 0, 0, 0));
                     dst = pixels_from_sdl(nsurf);
                 }
             );
@@ -538,7 +551,13 @@ final class SDLSurface : DriverSurface {
             entry.y = ( entry.b*s.x +  entry.a*s.y - surf.h) / 2;
         }
 
-        entry.surface = convert_free(surf);
+        auto res = convert_to_display(surf);
+        if (res) {
+            SDL_FreeSurface(surf);
+            surf = res;
+        }
+
+        entry.surface = surf;
         cache.entries ~= entry;
 
         get(entry);
@@ -547,29 +566,6 @@ final class SDLSurface : DriverSurface {
     override void newSubSurface(SubSurface ss) {
         update_subsurfaces();
     }
-
-/+
-    private void update_subsurfaces(SubSurface[] ss) {
-        foreach (s; ss) {
-            if (s.index >= mCache.length) {
-                mCache.length = s.index+1;
-            }
-
-            //create entry 0 for the cache (it's an "optimization")
-            SubCache* cache = &mCache[s.index];
-            if (cache.entries.length > 0)
-                continue;
-
-            cache.entries.length = 1;
-            CacheEntry* entry = &cache.entries[0];
-
-            //alternatively, could just use get_normal() (=> old behaviour)
-            SDL_Surface* sub = create_subsurface(s.rect);
-            assert(!!sub, "out of memory?"); //could handle this better
-            entry.surface = convert_free(sub);
-        }
-    }
-+/
 }
 
 

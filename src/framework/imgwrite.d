@@ -23,6 +23,25 @@ void saveImage(Surface img, Stream stream, char[] fmt = "png") {
 }
 
 //libpng sucks, all is done manually
+
+const ubyte[] cPNGSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+
+struct PNG_IHDR {
+    uint width, height;
+    ubyte depth = 8;
+    ubyte colour_type;
+    ubyte compression_method = 0;
+    ubyte filter_method = 0;
+    ubyte interlace_method = 0;
+}
+
+struct PNG_tRNS {
+    ushort r, g, b;
+}
+
+const cPNGTruecolor = 2;            //"Truecolour", possible use of colorkey
+const cPNGTruecolorWithAlpha = 6;   //"Truecolour with alpha"
+
 private void writePNG(Surface img, Stream stream) {
     auto chunk_crc = new ZLibCrc32(); //Crc32();
     bool chunk_writing;
@@ -65,50 +84,40 @@ private void writePNG(Surface img, Stream stream) {
         chunkData(data);
     }
 
-    static ubyte[] sig = [137, 80, 78, 71, 13, 10, 26, 10];
-    stream.writeExact(sig);
+    stream.writeExact(cPNGSignature);
 
     startChunk("IHDR");
 
-    struct PNG_IHDR {
-        uint width, height;
-        ubyte depth = 8;
-        ubyte colour_type;
-        ubyte compression_method = 0;
-        ubyte filter_method = 0;
-        ubyte interlace_method = 0;
-    }
+    Color.RGBA32* data;
+    uint pitch;
+    img.lockPixelsRGBA32(data, pitch);
 
-    bool write_alpha = false;
+    assert(pitch == img.size.x);
+    Color.RGBA32[] data_arr = data[0..img.size.x*img.size.y];
+
+    scope(exit) img.unlockPixels(Rect2i.init);
+
+    //this is an optional "optimization"; we could just dump plain alpha instead
+    Transparency transp;
+    Color.RGBA32 ckey;
+    checkTransparency(data_arr, img.size.x, img.size, transp, ckey);
 
     PNG_IHDR ihdr;
     ihdr.width = img.size.x;
     ihdr.height = img.size.y;
 
-    switch (img.transparency) {
-        case Transparency.None, Transparency.Colorkey:
-            ihdr.colour_type = 2; //"Truecolour"
-            break;
-        case Transparency.Alpha:
-            ihdr.colour_type = 6; //"Truecolour with alpha"
-            write_alpha = true;
-            break;
-        default:
-            throwError("writing png: unknown transparency type");
+    if (transp == Transparency.Alpha) {
+        ihdr.colour_type = cPNGTruecolorWithAlpha;
+    } else {
+        ihdr.colour_type = cPNGTruecolor;
     }
 
     Marshaller(&marshw).write(ihdr);
 
-    if (img.transparency == Transparency.Colorkey) {
+    if (transp == Transparency.Colorkey) {
         //tRNS chunk defines (in this case) the "transparent colour"
-
-        struct PNG_tRNS {
-            ushort r, g, b;
-        }
-
         startChunk("tRNS");
-        auto cc = img.colorkey().toRGBA32();
-        Marshaller(&marshw).write(PNG_tRNS(cc.r, cc.g, cc.b));
+        Marshaller(&marshw).write(PNG_tRNS(ckey.r, ckey.g, ckey.b));
     }
 
     //put in the image data
@@ -123,49 +132,40 @@ private void writePNG(Surface img, Stream stream) {
         zwriter.write((&filter_type)[0..1]);
     }
 
-    Color.RGBA32* data;
-    uint pitch;
-    img.lockPixelsRGBA32(data, pitch);
-
-    try {
-        if (write_alpha) {
-            //our format is compatible with PNG's, just dump the scanlines
-            for (int y = 0; y < img.size.y; y++) {
-                filterType();
-                zwriter.write(cast(ubyte[])(data[0..img.size.x]));
-                data += pitch;
-            }
-        } else {
-            //write only 3 color components; have to convert scanlines
-            bool conv_cc = img.transparency == Transparency.Colorkey;
-            uint sx = img.size.x;
-            Color.RGBA32[] cckey = conv_cc ? new Color.RGBA32[sx] : null;
-            ubyte[] converted = new ubyte[sx*3];
-            for (uint y = 0; y < img.size.y; y++) {
-                filterType();
-                Color.RGBA32* data2 = data;
-                if (conv_cc) {
-                    //replace transparent by colorkey
-                    data2 = cckey.ptr;
-                    blitWithColorkey(img.colorkey.toRGBA32,
-                        data[0..sx], data2[0..sx]);
-                }
-                ubyte* pconv = converted.ptr;
-                for (uint x = 0; x < sx; x++) {
-                    pconv[0] = data2.r;
-                    pconv[1] = data2.g;
-                    pconv[2] = data2.b;
-                    pconv += 3;
-                    data2++;
-                }
-                zwriter.write(converted);
-                data += pitch;
-            }
-            delete converted;
-            delete cckey;
+    if (transp == Transparency.Alpha) {
+        //our format is compatible with PNG's, just dump the scanlines
+        for (int y = 0; y < img.size.y; y++) {
+            filterType();
+            zwriter.write(cast(ubyte[])(data[0..img.size.x]));
+            data += pitch;
         }
-    } finally {
-        img.unlockPixels(Rect2i.init);
+    } else {
+        //write only 3 color components; have to convert scanlines
+        bool conv_cc = transp == Transparency.Colorkey;
+        uint sx = img.size.x;
+        Color.RGBA32[] cckey = conv_cc ? new Color.RGBA32[sx] : null;
+        ubyte[] converted = new ubyte[sx*3];
+        for (uint y = 0; y < img.size.y; y++) {
+            filterType();
+            Color.RGBA32* data2 = data;
+            if (conv_cc) {
+                //replace transparent by colorkey
+                blitWithColorkey(ckey, data[0..sx], cckey);
+                data2 = cckey.ptr;
+            }
+            ubyte* pconv = converted.ptr;
+            for (uint x = 0; x < sx; x++) {
+                pconv[0] = data2.r;
+                pconv[1] = data2.g;
+                pconv[2] = data2.b;
+                pconv += 3;
+                data2++;
+            }
+            zwriter.write(converted);
+            data += pitch;
+        }
+        delete converted;
+        delete cckey;
     }
 
     zwriter.finish();

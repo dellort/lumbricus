@@ -32,9 +32,7 @@ private void ensure_init() {
 
 //extension: file extension (with .), because some image formats can't be
 //           identified by header alone
-Surface loadImage(Stream source, Transparency transparency
-    = Transparency.AutoDetect, char[] extension = null)
-{
+Surface loadImage(Stream source, char[] extension = null) {
     ensure_init();
     SDL_RWops* ops = rwopsFromStream(source);
     SDL_Surface* surf;
@@ -47,14 +45,14 @@ Surface loadImage(Stream source, Transparency transparency
         throwError("image couldn't be loaded: {}", err);
     }
 
-    return convertFromSDLSurface(surf, transparency, true);
+    return convertFromSDLSurface(surf, true);
 }
 
-Surface loadImage(char[] path, Transparency t = Transparency.AutoDetect) {
+Surface loadImage(char[] path) {
     //mLog("load image: {}", path);
     auto p = VFSPath(path);
     scope stream = gFS.open(p, File.ReadShared);
     scope(exit) stream.close();
-    auto image = loadImage(stream, t, p.extension);
+    auto image = loadImage(stream, p.extension);
     return image;
 }

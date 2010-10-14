@@ -13,13 +13,6 @@ import array = utils.array;
 import math = tango.math.Math;
 import cstdlib = tango.stdc.stdlib;
 
-enum Transparency {
-    None,
-    Colorkey,
-    Alpha,
-    AutoDetect, //special value: get transparency from file when loading
-                //invalid as surface transparency type
-}
 
 //actual surface stored/managed in a driver specific way
 //i.e. SDL_Surface for SDL, a texture in OpenGL...
@@ -63,6 +56,11 @@ bool pixelIsTransparent(Color.RGBA32* p) {
     return p.a < cAlphaTestRef;
 }
 
+//some good (but completely random) pick for a colorkey
+//should be a rarely used color, and be representable in 16 bit colors
+//PNG image writer and SDL driver may use this
+const Color cStdColorKey = Color(1,0,1,0);
+
 /// a Surface
 /// This is used by the user and this also can survive framework driver
 /// reinitialization
@@ -74,16 +72,6 @@ final class Surface : ResourceT!(DriverSurface) {
         bool mEnableCache = true;
         bool mLocked;
         Vector2i mSize;
-        //NOTE: the transparency is merely a hint to the backend (if the hint is
-        //      wrong, the backend might output a corrupted image)
-        //e.g. png writer won't write an alpha channel with Transparency.None
-        Transparency mTransparency = Transparency.Alpha;
-        //the image data doesn't use the colorkey (it uses the alpha channel
-        //  instead); the colorkey is just a hint to the driver, that the color
-        //  is "free" and can be used as colorkey in the final display stage.
-        //used by sdl backend and png writer
-        //only valid when transparency == Transparency.Colorkey
-        Color mColorkey;
         //if allocated, its .ptr is always !is null, even if size is (0,0)
         //it is null if uninitialized or if surface data has been stolen
         //this field is null if the surface has been completely free'd
@@ -104,16 +92,12 @@ final class Surface : ResourceT!(DriverSurface) {
     //actually, it doesn't make sense at all
     const cStdSize = Vector2i(512, 512);
 
-    this(Vector2i size, Transparency transparency = Transparency.Alpha,
-        Color colorkey = Color(1,0,1,0))
-    {
+    this(Vector2i size) {
         argcheck(size.x >= 0 && size.y >= 0);
 
         mAllocator = new typeof(mAllocator)();
 
         mSize = size;
-        mTransparency = transparency;
-        mColorkey = colorkey;
 
         _pixelsAlloc();
 
@@ -124,9 +108,6 @@ final class Surface : ResourceT!(DriverSurface) {
     final SubSurface fullSubSurface() { return mFullSubSurface; }
     final Vector2i size() { return mSize; }
     final Rect2i rect() { return Rect2i(mSize); }
-    //colorkey and transparency are only driver hints (see mColorkey etc. above)
-    final Color colorkey() { return mColorkey; }
-    final Transparency transparency() { return mTransparency; }
 
     //--- driver interface
 
@@ -239,8 +220,8 @@ final class Surface : ResourceT!(DriverSurface) {
     }
 
     /// direct access to pixels (in Color.RGBA32 format)
-    /// must not call any other surface functions (except size() and
-    /// transparency()) between this and unlockPixels()
+    /// must not call any other surface functions (except size()) between this
+    ///     and unlockPixels()
     /// pitch is now number of Color.RGBA32 units to advance by 1 line vetically
     /// why not just use size.x? I thought this would provide a simple way to
     ///     represent sub-surfaces (so that a Surface can reference a part of a
@@ -264,13 +245,6 @@ final class Surface : ResourceT!(DriverSurface) {
             driverSurface.unlockData(rc);
     }
 
-    //if t==Transparency.Colorkey, you must also pass the colorkey
-    final void setTransparency(Transparency t, Color k = Color(0)) {
-        passivate();
-        mTransparency = t;
-        mColorkey = k;
-    }
-
     final Surface clone() {
         return subrect(rect());
     }
@@ -284,7 +258,7 @@ final class Surface : ResourceT!(DriverSurface) {
             rc = Rect2i.init;
         }
         auto sz = rc.size();
-        auto s = new Surface(sz, transparency, colorkey());
+        auto s = new Surface(sz);
         s.copyFrom(this, Vector2i(0), rc.p1, sz);
         return s;
     }
@@ -325,7 +299,7 @@ final class Surface : ResourceT!(DriverSurface) {
 
     //change each colorchannel according to colormap
     //channels are r=0, g=1, b=2, a=3
-    //xxx is awfully slow and handling of transparency is fundamentally broken
+    //xxx is awfully slow
     void mapColorChannels(ubyte[256][4] colormap) {
         Color.RGBA32* data; uint pitch;
         lockPixelsRGBA32(data, pitch);
@@ -347,7 +321,6 @@ final class Surface : ResourceT!(DriverSurface) {
     }
 
     ///works like Canvas.draw, but doesn't do any blending
-    ///surfaces must have same transparency settings (=> same pixel format)
     ///xxx bitmap memory must not overlap
     void copyFrom(Surface source, Vector2i destPos, Vector2i sourcePos,
         Vector2i sourceSize)
@@ -362,7 +335,7 @@ final class Surface : ResourceT!(DriverSurface) {
         src.fitInsideB(source.rect());
         if (!dest.isNormal() || !src.isNormal())
             return; //no overlap
-        //check memory overlap (problem with assigning slices)
+        //check memory overlap (slice copying must not overlap, uses memcpy)
         argcheck(!(source is this && dest.intersects(src)),
             "copyFrom(): overlapping memory");
         auto sz = dest.size.min(src.size);
@@ -416,8 +389,7 @@ final class Surface : ResourceT!(DriverSurface) {
         }
         Surface n;
         void doalloc(out rotozoom.Pixels dst, int w, int h) {
-            n = new Surface(Vector2i(w, h),
-                interpolate ? Transparency.Alpha : transparency, colorkey);
+            n = new Surface(Vector2i(w, h));
             n.fill(n.rect, Color.Transparent);
             dst = lockpixels(n);
         }
@@ -510,4 +482,83 @@ void pixelsMirrorX(Color.RGBA32* data, size_t pitch, Vector2i size) {
         data[ym*pitch..(ym+1)*pitch] = tmp;
     }
     delete tmp;
+}
+
+enum Transparency : uint {
+    None = 0,
+    Colorkey = 1,
+    Alpha = 2,
+}
+
+Transparency mergeTransparency(Transparency base, Transparency part) {
+    return base >= part ? base : part;
+}
+
+//check that the colorkey isn't used by the image
+//if this returns true, blitWithColorkey can be used
+//otherwise, you have to find an unique colorkey, or use alpha transparency
+bool checkColorkey(Color.RGBA32 ckey, Color.RGBA32[] data) {
+    const uint cColorMask = Color.cMaskR | Color.cMaskG | Color.cMaskB;
+
+    uint ckeyval = ckey.uint_val;
+    auto pcur = data.ptr;
+    auto pend = data.ptr + data.length;
+    while (pcur < pend) {
+        if ((pcur.uint_val & cColorMask) == ckeyval)
+            return false;
+        pcur++;
+    }
+    return true;
+}
+
+//check if there are any non/half-transparent areas in the image
+//return values:
+//  Transparency.None: 100% opaque
+//  Transparency.Colorkey: only pixels with 0% or 100% transparency
+//  Transparency.Alpha: any alpha values are in use
+Transparency checkAlphaness(Color.RGBA32[] data) {
+    const uint cAlphaMask = Color.cMaskA;
+    const uint cAlphaOpaque = cAlphaMask;
+    const uint cAlphaNone = 0;
+
+    auto pcur = data.ptr;
+    auto pend = data.ptr + data.length;
+    Transparency type;
+    while (pcur < pend) {
+        uint pixel = pcur.uint_val;
+        uint alpha = pixel & cAlphaMask;
+        //xxx this is probably too much for a loop that's supposed to be tight?
+        if (type == Transparency.None && alpha != cAlphaOpaque)
+            type = Transparency.Colorkey;
+        if (alpha != cAlphaOpaque && alpha != cAlphaNone) {
+            type = Transparency.Alpha;
+            break;
+        }
+        pcur++;
+    }
+    return type;
+}
+
+//analyze the image data and find the "tightest" transparency mode that can be
+//  used without damaging the image
+//colorkey is only valid if transparency == Transparency.Colorkey
+//pitch is in pixels
+void checkTransparency(Color.RGBA32[] data, size_t pitch, Vector2i size,
+    out Transparency transparency, out Color.RGBA32 colorkey)
+{
+    transparency = Transparency.None;
+    //(putting more effort into finding a colorkey probably doesn't pay off)
+    //xxx: some code doesn't react good if the returned colorkey actually
+    //  changes, so revisit that if you change it (have fun)
+    colorkey = cStdColorKey.toRGBA32();
+
+    for (int y = 0; y < size.y; y++) {
+        auto scanline = data[y*pitch .. y*pitch + size.x];
+        transparency = mergeTransparency(transparency, checkAlphaness(scanline));
+        if (transparency == Transparency.Colorkey) {
+            //binary transparency detected; need to find/verify a colorkey
+            if (!checkColorkey(colorkey, scanline))
+                transparency = Transparency.Alpha;
+        }
+    }
 }

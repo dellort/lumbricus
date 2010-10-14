@@ -38,6 +38,12 @@ static this() {
 
 private const cLoadTemplateName = "load_defaults";
 
+Surface createPixelSurface(Color c) {
+    auto s = new Surface(Vector2i(1));
+    s.fill(s.rect, c);
+    return s;
+}
+
 //keeps some stuff from the disk in memory during level generation, like the
 //template and theme list - recreate to update this data
 class LevelGeneratorShared {
@@ -792,8 +798,7 @@ class LandscapeGenTheme {
             } else {
                 //sucky color-border hack
                 int height = texNode.getIntValue("height", 1);
-                tex = new Surface(Vector2i(1, height),
-                    Transparency.None);
+                tex = new Surface(Vector2i(1, height));
                 auto col = texNode.getValue("color", Color(0,0,0));
                 tex.fill(Rect2i(tex.size), col);
             }
@@ -1168,12 +1173,6 @@ LandscapeBitmap landscapeRenderPregenerated(LandscapeBitmap lexelData,
 Surface landscapeRenderPreview(LandscapeGeometry land, Vector2i size,
     Color[Lexel] colors)
 {
-    Surface createPixelSurface(Color c) {
-        auto s = new Surface(Vector2i(1), Transparency.Alpha);
-        s.fill(s.rect, c);
-        return s;
-    }
-
     //just the fallback for markers[]
     auto nocolor = createPixelSurface(Color(0, 0, 0));
 

@@ -278,8 +278,7 @@ class FTGlyphCache {
 
     private SubSurface ftbitmapToTex(FT_Bitmap* bmp, Color color) {
         //create a surface for a glyph
-        Surface tmp = new Surface(Vector2i(bmp.width, bmp.rows),
-            Transparency.Alpha);
+        Surface tmp = new Surface(Vector2i(bmp.width, bmp.rows));
 
         Color.RGBA32 forecol = color.toRGBA32();
 

@@ -349,7 +349,7 @@ class PainterWidget : Widget {
             mLexelToColor[cast(Lexel)idx] = c;
         }
         for (int i = 0; i < cDefLexelToBmpColor.length; i++) {
-            mTex[i] = new Surface(Vector2i(1), Transparency.Alpha);
+            mTex[i] = new Surface(Vector2i(1));
             mTex[i].fill(Rect2i(0,0,1,1), cDefLexelToBmpColor[i]);
         }
     }

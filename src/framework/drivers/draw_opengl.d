@@ -130,7 +130,7 @@ class GLDrawDriver : DrawDriver {
     }
 
     override Surface screenshot() {
-        Surface res = new Surface(mScreenSize, Transparency.None);
+        Surface res = new Surface(mScreenSize);
         //get screen contents, (0, 0) is bottom left in OpenGL, so
         //  image will be upside-down
         Color.RGBA32* ptr;
@@ -570,9 +570,8 @@ class GLCanvas : Canvas3DHelper {
         bool want_atest = !want_blend;
 
         if (requested_texture && requested_texture !is state_texture) {
-            if (mDrawDriver.opts.low_quality &&
-                requested_texture.transparency == Transparency.Alpha)
-            {
+            //xxx not sure about this, may make no sense
+            if (mDrawDriver.opts.low_quality) {
                 want_blend = true;
                 want_atest = false;
             }

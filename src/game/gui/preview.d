@@ -139,7 +139,7 @@ class LevelSelector : SimpleContainer {
         if (lvl) {
             LandscapeBitmap lex = lvl.renderData();
             assert(!!lex, "how woudl this be null?");
-            mPainter.setData(lex, true);
+            mPainter.setData(lex.copy(), true);
             //get parameters from loaded level
             auto props = lvl.properties();
             mIsCave.checked = props.isCave;

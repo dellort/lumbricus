@@ -201,7 +201,9 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         Stdout.format("Converting level image '{}' ({}/{})             \r",
             filename, idx+1, imgFiles.length).flush();
         char[] srcpath = imagespath ~ "/" ~ filename;
-        readImg(Stream.OpenFile(srcpath), imageDir, filename[0..$-4]);
+        auto f = Stream.OpenFile(srcpath);
+        scope(exit) f.close();
+        readImg(f, imageDir, filename[0..$-4]);
     }
     Stdout.newline();
 }

@@ -61,7 +61,7 @@ class GirderControl : WeaponSelector, Controllable {
         mGirders = create_girders(girder, cRotateSteps);
 
         Surface longGirder = new Surface(
-            Vector2i(girder.size.x*2, girder.size.y), girder.transparency);
+            Vector2i(girder.size.x*2, girder.size.y));
         longGirder.copyFrom(girder, Vector2i(0), Vector2i(0), girder.size);
         longGirder.copyFrom(girder, Vector2i(girder.size.x,0),
             Vector2i(0), girder.size);

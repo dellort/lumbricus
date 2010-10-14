@@ -308,7 +308,7 @@ class LevelColTest : Widget {
         ls = new LandscapeBitmap(loadImage("ltest.png"));
         geo = new LandscapeGeometry(Vector2f(0), ls);
         Surface colorpix(Color col) {
-            auto s = new Surface(Vector2i(1), Transparency.None);
+            auto s = new Surface(Vector2i(1));
             s.fill(s.rect, col);
             return s;
         }

@@ -364,7 +364,7 @@ class LandscapeBitmap {
                 t.ty = ty;
                 t.pos = Vector2i(tx, ty) * cTileSize;
                 t.size = Vector2i(cTileSize).min(mSize - t.pos);
-                t.surface = new Surface(t.size, Transparency.Colorkey);
+                t.surface = new Surface(t.size);
                 t.surface.enableCaching = false;
                 t.surface.fill(Rect2i(mSize), Color.Transparent);
             }
@@ -382,7 +382,7 @@ class LandscapeBitmap {
     Surface createImage() {
         argcheck(!mDataOnly, "Not for data-only renderer");
         //xxx transparency mode?
-        Surface s = new Surface(mSize, Transparency.Alpha);
+        Surface s = new Surface(mSize);
         foreach (ref t; mTiles) {
             s.copyFrom(t.surface, t.pos, Vector2i(0), t.size);
         }
@@ -465,7 +465,7 @@ class LandscapeBitmap {
             mPreviewColors[l] = c.toRGBA32();
         }
 
-        mPreviewImage = new Surface(s, Transparency.Colorkey);
+        mPreviewImage = new Surface(s);
 
         previewUpdate(Rect2i(mSize));
     }

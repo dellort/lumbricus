@@ -797,7 +797,7 @@ class OffByOneTest {
         Surface bmp;
         this() {
             //black pixel
-            bmp = new Surface(Vector2i(1), Transparency.None);
+            bmp = new Surface(Vector2i(1));
             bmp.fill(bmp.rect(), Color(0,0,0));
         }
         override void onDraw(Canvas c) {

@@ -24,8 +24,6 @@ class Image {
     void blit(Image source, int xsrc, int ysrc, int aw, int ah, int xdst, int ydst) {
         mImg.copyFrom(source.mImg, Vector2i(xdst, ydst), Vector2i(xsrc, ysrc),
             Vector2i(aw, ah));
-        if (source.mImg.transparency == Transparency.Alpha)
-            enableAlpha();
     }
 
     void blitRGBData(RGBAColor[] data, int aw, int ah) {
@@ -94,13 +92,6 @@ class Image {
         }
         mImg.unlockPixels(mImg.rect);
         mask.mImg.unlockPixels(Rect2i.init);
-
-        enableAlpha();
-    }
-
-    //if it had colorkey transparency, change it to alpha
-    void enableAlpha() {
-        mImg.setTransparency(Transparency.Alpha);
     }
 
     void save(char[] filename) {
@@ -120,10 +111,7 @@ class Image {
     }
 
     this(int aw, int ah, bool colorkey = true) {
-        //create with colorkey because it makes converted WWP files smaller
-        //actually, it didn't get smaller
-        mImg = new Surface(Vector2i(aw, ah),
-            colorkey ? Transparency.Colorkey : Transparency.Alpha);
+        mImg = new Surface(Vector2i(aw, ah));
     }
 
     void free() {

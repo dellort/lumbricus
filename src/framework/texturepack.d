@@ -41,8 +41,7 @@ class TexturePack {
         //check if the BoxPacker added a page and possibly create it
         while (mPacker.pages.length > mPages.length) {
             auto cur = mPages.length;
-            auto surface = new Surface(mDefaultSize,
-                s.transparency, s.colorkey());
+            auto surface = new Surface(mDefaultSize);
             surface.enableCaching = false;
             mSurfaces ~= surface;
             mPages ~= surface;
