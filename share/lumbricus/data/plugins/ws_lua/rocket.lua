@@ -260,7 +260,11 @@ do
             at = at - Surface_size(bmp) / 2
             Game_insertIntoLandscape(at, bmp, Lexel_soft)
         elseif other then
-            applyMeleeImpulse(other, sender, 20, 50, normal)
+            -- xxx I tested using real physics to pass the impulse, but it was
+            --     way to random (sometimes no move, sometimes the whole screen)
+            local ph = Sprite_physics(sender)
+            local vel = Phys_velocity(ph)
+            applyMeleeImpulse(other, sender, 2, 30, vel)
         else
             -- can happen when it hits via "hit_noimpulse"
             log.warn("arrow impacted on unknown object")

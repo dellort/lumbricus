@@ -28,8 +28,8 @@ createGun {
     animation = "weapon_minigun",
     icon = "icon_minigun",
     fireParticle = "p_minigun_fire",
-    nrounds = 50,
-    interval = time(0.05),
+    nrounds = 25,
+    interval = time(0.09),
     damage = 5,
     spread = 15,
 }

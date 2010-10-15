@@ -512,8 +512,12 @@ class WormControl : WeaponController {
         if (!isControllable)
             return false;
 
-        if (mAlternateControl && allowAlternate)
-            return fireMainWeapon(keyDown);
+        if (mAlternateControl && allowAlternate) {
+            fireMainWeapon(keyDown);
+            //take key even on failure (in which case mFireDown would be set),
+            //  so the keyUp gets here too
+            return true;
+        }
 
         if (keyDown)
             return fireSecondaryWeapon();

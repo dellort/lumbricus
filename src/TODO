@@ -19,7 +19,7 @@ $ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen l
 - axt abfeuern + sofort bazooka auswählen => falsche zielkreuz animation
 - entscheiden, ob Lua Full-Userdata verwendet werden soll, und dann die Entscheidung konsequent durchsetzen (z.B. keine globalen Class_method Funktionen mehr)
   im Moment geht noch beides; vielleicht sollte man erst Performance-Tests durchführen? (bloss welche...)
-- jetpack einschalten, homing missile auswählen, feuertaste drücken (ohne ziel auszuwählen, d.h. es wird nichts abgefeuert), bazooka auswählen => bazooka wird abgefeuert, obwohl man sie nur ausgewählt hat
+$ jetpack einschalten, homing missile auswählen, feuertaste drücken (ohne ziel auszuwählen, d.h. es wird nichts abgefeuert), bazooka auswählen => bazooka wird abgefeuert, obwohl man sie nur ausgewählt hat
   ^ Kann ich nicht reproduzieren
     ^^ passiert anscheinend nur mit control="worms"
 - settings sollten nicht bei jedem window resize gespeichert werden, sondern in einem settings dialog?
