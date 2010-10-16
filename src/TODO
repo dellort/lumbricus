@@ -7,23 +7,17 @@
 $ sollte behoben sein / works for me (muss getestet werden)
 
 == Sonstiges/Minor ==
-+ editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
-$ weapon cooldown: wenn feuer-taste nichts tut, rauchwolke vom wurm aufsteigen lassen?
-  ^ es gibt jetzt ein Waffensymbol das rot blinkt bei Cooldown, reicht das?
-  ^ hm ja, besser als keine Reaktion
 - animation für kranke würmer benutzen
   ^ es gibt schon eine lowhp_animation, die auch ihren Sinn in WWP hat; mir ist nicht ganz klar wann genau die Animation für kranke Würmer stattdessen angezeigt werden soll (nur wenn der Wurm vergifted wurde? das hab ich implementiert)
-- lua console: the in-game lua one can't do anything when the game is paused
 - parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
 - Bohrer/Lötlampe stoßen Würmer weg: verbessern (mehr impuls, weniger schaden?)
 - axt abfeuern + sofort bazooka auswählen => falsche zielkreuz animation
 - entscheiden, ob Lua Full-Userdata verwendet werden soll, und dann die Entscheidung konsequent durchsetzen (z.B. keine globalen Class_method Funktionen mehr)
   im Moment geht noch beides; vielleicht sollte man erst Performance-Tests durchführen? (bloss welche...)
-$ jetpack einschalten, homing missile auswählen, feuertaste drücken (ohne ziel auszuwählen, d.h. es wird nichts abgefeuert), bazooka auswählen => bazooka wird abgefeuert, obwohl man sie nur ausgewählt hat
-  ^ Kann ich nicht reproduzieren
-    ^^ passiert anscheinend nur mit control="worms"
 - settings sollten nicht bei jedem window resize gespeichert werden, sondern in einem settings dialog?
   wenn man wollte, könnte man settings2.conf auch nach _irgendeiner_ änderung speichern
+- blowtorch: kann richtung nicht ändern (bricht ab)
++ wurm "blut" wenn dieser verletzt wird (wurmfabige partikel)
 
 == bekannte, lösbare Bugs ==
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
@@ -49,6 +43,7 @@ $ jetpack einschalten, homing missile auswählen, feuertaste drücken (ohne ziel a
   ^ wie genau?
     die globale Konsole und die Chatbox sind jetzt praktisch gleich
 - wurm, der im napalm kocht, zeigt manchmal animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
+  oder auch diese "zuck" animation
 - net server sollte nicht 100% CPU benutzen
     zur zeit wird alles gepollt: enet, broadcast sockets (announce zeug), timeouts...
     schwierigkeit: man muss alles gleichzeitig im blockierenden modus irgendwie gut zusammenarbeiten lassen
@@ -66,6 +61,7 @@ $ jetpack einschalten, homing missile auswählen, feuertaste drücken (ohne ziel a
        ausgehende Timestamp-Pakete + warten auf eingehende Pakete); also ich hab keine Lust das
        zu implementieren
        ^^ ich auch nicht, deshalb ist es ja auch unter "unlösbar".... das Blöde dabei ist, ein zentrales select() könnte sich um alles kümmern (inklusive Timeouts), also bräuchte man eigentlich keine extra Threads. man müsste halt alle verwendeten Sockets kennen, vor allem enets.
+- lua console: the in-game lua one can't do anything when the game is paused
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)
@@ -190,6 +186,7 @@ $ einfache erkennung von clients mit abweichender simulation (periodisch einen e
     - spieler sollten nicht zwingend WormSprite benutzen müssen
 - könnte helfen für game engine-zeug http://cowboyprogramming.com/2007/01/05/evolve-your-heirachy/
   Game Programming Gems 6, Kapitel 4.6
++ editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
 
 == Wechsel der Programmiersprache ==
 

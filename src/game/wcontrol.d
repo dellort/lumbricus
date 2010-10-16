@@ -42,6 +42,12 @@ interface Controllable {
     Sprite getSprite();
 }
 
+//ridiculous hack for blowtorch weapon
+interface IFixWorm {
+    //returns WormFix bitmask
+    uint fixWorm();
+}
+
 //every worm, that's controllable by the user (includes all TeamMembers) has
 //  an instance of this class
 //user input is directly (after command parsing) fed to this class
@@ -286,7 +292,7 @@ class WormControl : WeaponController {
             //    mCurrentWeapon = mTeam.defaultWeapon;
             selectWeapon(mCurrentWeapon);
             inputEnabled = true;
-            mWorm.isFixed = false;
+            mWorm.fixed = WormFix.none;
         } else {
             //being deactivated
             inputEnabled = false;
@@ -747,13 +753,19 @@ class WormControl : WeaponController {
 
         if (mWorm) {
             if (mWeapons.length > 0) {
-                mWorm.isFixed = mWeapons[0].isFixed;
-                mWeapons[0].isSelected = mWorm.currentState.canFire;
+                auto weapon = mWeapons[0];
+
+                if (auto fix = cast(IFixWorm)weapon) {
+                    mWorm.fixed = fix.fixWorm();
+                } else {
+                    mWorm.fixed = weapon.isFixed ? WormFix.all : WormFix.none;
+                }
+                weapon.isSelected = mWorm.currentState.canFire;
 
                 //hack to make weapon angle permanent
-                mWeaponAngle = mWeapons[0].weaponAngle;
+                mWeaponAngle = weapon.weaponAngle;
             } else {
-                mWorm.isFixed = false;
+                mWorm.fixed = WormFix.none;
             }
         }
     }

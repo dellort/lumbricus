@@ -184,7 +184,7 @@ local states = {
         physic = "worm_walk",
         animation = "walk_blowtorch",
         isGrounded = true,
-        -- canWalk = true,
+        canWalk = true,
         canAim = true,
     },
     jetpack = {

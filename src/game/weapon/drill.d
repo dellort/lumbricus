@@ -3,14 +3,15 @@ module game.weapon.drill;
 import game.core;
 import game.game;
 import game.sprite;
-import game.weapon.weapon;
+import game.wcontrol;
 import game.worm;
+import game.weapon.weapon;
 import physics.all;
-import utils.time;
-import utils.vector2;
 import utils.math;
 import utils.misc;
 import utils.randval;
+import utils.time;
+import utils.vector2;
 
 //drill (changes worm state etc.)
 class DrillClass : WeaponClass {
@@ -33,7 +34,7 @@ class DrillClass : WeaponClass {
     }
 }
 
-class Drill : Shooter {
+class Drill : Shooter, IFixWorm {
     private {
         DrillClass myclass;
         WormSprite mWorm;
@@ -110,5 +111,15 @@ class Drill : Shooter {
             false, false, &checkApply);
 
         mNext = engine.gameTime.current + myclass.interval.sample(engine.rnd);
+    }
+
+    //IFixWorm
+    override uint fixWorm() {
+        if (isFixed) {
+            //allow walking in blowtorch mode
+            return WormFix.all & ~WormFix.walk;
+        } else {
+            return WormFix.none;
+        }
     }
 }

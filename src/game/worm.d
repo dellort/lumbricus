@@ -39,6 +39,15 @@ enum FlyMode {
     heavy,
 }
 
+//flags to inhibit certain types of worm movements
+//they are used as bit flags for WormSprite.fixed
+enum WormFix : uint {
+    none = 0,           //allow all
+    walk = 1,           //disallow walking
+    jump = 2,           //disallow jumping
+    all = walk | jump   //disallow all
+}
+
 class WormSprite : Sprite {
     private {
         WormSpriteClass wsc;
@@ -46,8 +55,6 @@ class WormSprite : Sprite {
 
         //beam destination, only valid while state is st_beaming
         Vector2f mBeamDest;
-        //cached movement, will be applied in simulate
-        Vector2f mMoveVector;
         //hack for rope (animation only)
         float mRotationOverride = float.nan;
 
@@ -55,7 +62,7 @@ class WormSprite : Sprite {
 
         //by default off, GameController can use this
         bool mDelayedDeath;
-        bool mIsFixed;
+        uint mFixed; //bitmask of WormFix
 
         bool mPoisoned;
 
@@ -256,7 +263,9 @@ class WormSprite : Sprite {
 
     //movement for walking/jetpack
     void move(Vector2f dir) {
-        mMoveVector = dir;
+        if (wormCanWalk()) {
+            physics.setWalking(dir);
+        }
     }
 
     bool isBeaming() {
@@ -305,10 +314,6 @@ class WormSprite : Sprite {
 
         setParticle(currentState.particle);
 
-        if (wormCanWalkJump()) {
-            physics.setWalking(mMoveVector);
-        }
-
         //when in stand state, draw weapon after 350ms
         //xxx visual only, maybe Sequence should do it (disabled for now)
         /*if (isStanding() && mRequestedWeapon) {
@@ -324,7 +329,7 @@ class WormSprite : Sprite {
     }
 
     void jump(JumpMode m) {
-        if (wormCanWalkJump()) {
+        if (wormCanJump()) {
             mJumpMode = m;
             setState(wsc.st_jump_start);
         } else if (currentState is wsc.st_jump_start) {
@@ -334,19 +339,29 @@ class WormSprite : Sprite {
         }
     }
 
-    private bool wormCanWalkJump() {
-        //no walk while shooting (or charging)
-        return currentState.canWalk && !isFixed();
+    //no walk while shooting (or charging)
+    private bool wormCanWalk() {
+        return currentState.canWalk && !(fixed & WormFix.walk);
+    }
+    private bool wormCanJump() {
+        return currentState.canWalk && !(fixed & WormFix.jump);
     }
 
-    bool isFixed() {
-        return mIsFixed;
-    }
-    void isFixed(bool f) {
-        mIsFixed = f;
-        if (mIsFixed) {
+    private void checkWalking() {
+        //stop movement if not possible
+        if (!wormCanWalk()) {
             physics.setWalking(Vector2f(0));
         }
+    }
+
+    //returns bitmask of WormFix
+    uint fixed() {
+        return mFixed;
+    }
+    //sets bitmask of WormFix
+    void fixed(uint flags) {
+        mFixed = flags;
+        checkWalking();
     }
 
     bool delayedAction() {
@@ -406,10 +421,7 @@ class WormSprite : Sprite {
             }
         }
 
-        //stop movement if not possible
-        if (!currentState.canWalk) {
-            physics.setWalking(Vector2f(0));
-        }
+        checkWalking();
         mRotationOverride = float.nan;
     }
 
