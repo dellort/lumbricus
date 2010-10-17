@@ -128,6 +128,7 @@ local states = {
         animation = "stand",
         isGrounded = true,
         canWalk = true,
+        canJump = true,
         canFire = true,
     },
     weapon = {
@@ -136,6 +137,7 @@ local states = {
         animation = "stand",
         isGrounded = true,
         canWalk = true,
+        canJump = true,
         canAim = true,
         canFire = true,
     },
@@ -179,13 +181,17 @@ local states = {
         animation = "walk",
         isGrounded = true,
         canWalk = true,
+        canJump = true,
     },
     blowtorch = {
         physic = "worm_walk",
         animation = "walk_blowtorch",
         isGrounded = true,
         canWalk = true,
+        canJump = false,
         canAim = true,
+        -- hack to make changing direction work, seems to be ok
+        canFire = true,
     },
     jetpack = {
         physic = "jetworm",

@@ -16,7 +16,9 @@ $ sollte behoben sein / works for me (muss getestet werden)
   im Moment geht noch beides; vielleicht sollte man erst Performance-Tests durchführen? (bloss welche...)
 - settings sollten nicht bei jedem window resize gespeichert werden, sondern in einem settings dialog?
   wenn man wollte, könnte man settings2.conf auch nach _irgendeiner_ änderung speichern
-- blowtorch: kann richtung nicht ändern (bricht ab)
+- blowtorch: komische verzögerung beim setzen der richtung: 1. blowtorch auswählen und sich eingraben 2. deaktivieren und richtung ändern 3. wieder aktivieren => gräbt sich für einen frame oder so in die alte richtung
+  die richtung in makeTunnel scheint aber immer richtig zu sein
+- blowtorch animation: sollte nach deaktiverung nicht die waffen-hol animation abspielen, sondern direkt den blowtorch anzeigen
 + wurm "blut" wenn dieser verletzt wird (wurmfabige partikel)
 
 == bekannte, lösbare Bugs ==

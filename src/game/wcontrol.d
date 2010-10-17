@@ -42,12 +42,6 @@ interface Controllable {
     Sprite getSprite();
 }
 
-//ridiculous hack for blowtorch weapon
-interface IFixWorm {
-    //returns WormFix bitmask
-    uint fixWorm();
-}
-
 //every worm, that's controllable by the user (includes all TeamMembers) has
 //  an instance of this class
 //user input is directly (after command parsing) fed to this class
@@ -71,6 +65,7 @@ class WormControl : WeaponController {
         bool mWeaponUsed;
         bool mLimitedMode;
         Controllable[] mControlStack;
+        bool mInhibitWormMovement;
         //usually shared with other team members (but that doesn't concern us)
         WeaponSet mWeaponSet;
         bool mAlternateControl;
@@ -292,7 +287,7 @@ class WormControl : WeaponController {
             //    mCurrentWeapon = mTeam.defaultWeapon;
             selectWeapon(mCurrentWeapon);
             inputEnabled = true;
-            mWorm.fixed = WormFix.none;
+            mWorm.fixed = false;
         } else {
             //being deactivated
             inputEnabled = false;
@@ -316,6 +311,7 @@ class WormControl : WeaponController {
 
         mOnHold = false;
         mOnHoldWeapon = null;
+        mInhibitWormMovement = false;
         //stale keypresses
         mInputMoveState.reset();
 
@@ -708,13 +704,22 @@ class WormControl : WeaponController {
 
     private void applyMoveVector(Vector2f vec) {
         if (!controllableMove(vec)) {
-            mWorm.move(vec);
+            //xxx assumes the worm uses only the x part (for now always true)
+            if (!mInhibitWormMovement)
+                mWorm.move(vec);
             if (mWeapons.length > 0) {
                 //screen to math
                 mWeapons[0].move(-vec.y);
                 mWeapons[0].isSelected = mWorm.currentState.canFire;
             }
         }
+    }
+
+    //don't call mWorm.move on input
+    //shitty hack for blowtorch (don't interrupt blowtorch when changing
+    //  direction)
+    void inhibitWormMovement(bool v) {
+        mInhibitWormMovement = v;
     }
 
     bool isIdle() {
@@ -755,17 +760,13 @@ class WormControl : WeaponController {
             if (mWeapons.length > 0) {
                 auto weapon = mWeapons[0];
 
-                if (auto fix = cast(IFixWorm)weapon) {
-                    mWorm.fixed = fix.fixWorm();
-                } else {
-                    mWorm.fixed = weapon.isFixed ? WormFix.all : WormFix.none;
-                }
+                mWorm.fixed = weapon.isFixed;
                 weapon.isSelected = mWorm.currentState.canFire;
 
                 //hack to make weapon angle permanent
                 mWeaponAngle = weapon.weaponAngle;
             } else {
-                mWorm.fixed = WormFix.none;
+                mWorm.fixed = false;
             }
         }
     }

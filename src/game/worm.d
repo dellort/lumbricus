@@ -39,15 +39,6 @@ enum FlyMode {
     heavy,
 }
 
-//flags to inhibit certain types of worm movements
-//they are used as bit flags for WormSprite.fixed
-enum WormFix : uint {
-    none = 0,           //allow all
-    walk = 1,           //disallow walking
-    jump = 2,           //disallow jumping
-    all = walk | jump   //disallow all
-}
-
 class WormSprite : Sprite {
     private {
         WormSpriteClass wsc;
@@ -62,7 +53,7 @@ class WormSprite : Sprite {
 
         //by default off, GameController can use this
         bool mDelayedDeath;
-        uint mFixed; //bitmask of WormFix
+        bool mFixed;
 
         bool mPoisoned;
 
@@ -341,10 +332,10 @@ class WormSprite : Sprite {
 
     //no walk while shooting (or charging)
     private bool wormCanWalk() {
-        return currentState.canWalk && !(fixed & WormFix.walk);
+        return currentState.canWalk && !fixed;
     }
     private bool wormCanJump() {
-        return currentState.canWalk && !(fixed & WormFix.jump);
+        return currentState.canJump && !fixed;
     }
 
     private void checkWalking() {
@@ -354,12 +345,10 @@ class WormSprite : Sprite {
         }
     }
 
-    //returns bitmask of WormFix
-    uint fixed() {
+    bool fixed() {
         return mFixed;
     }
-    //sets bitmask of WormFix
-    void fixed(uint flags) {
+    void fixed(bool flags) {
         mFixed = flags;
         checkWalking();
     }
@@ -661,6 +650,7 @@ class WormStateInfo {
 
     bool isGrounded = false;    //is this a standing-on-ground state
     bool canWalk = false;       //should the worm be allowed to walk
+    bool canJump = false;       //  ... allowed to jump via jump()
     bool canAim = false;        //can the target cross be moved
     bool canFire = false;       //can the main weapon be fired
 

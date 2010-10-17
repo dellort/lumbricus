@@ -33,8 +33,9 @@ class LuaWeaponClass : WeaponClass {
 class LuaShooter : Shooter {
     private {
         LuaWeaponClass myclass;
-        bool mIsFixed, mIsDelayed;
     }
+
+    bool fixed, delayed;
 
     this(LuaWeaponClass base, Sprite a_owner) {
         super(base, a_owner);
@@ -42,7 +43,7 @@ class LuaShooter : Shooter {
     }
 
     override protected void doFire() {
-        mIsFixed = false;
+        fixed = false;
         fireinfo.pos = owner.physics.pos;   //?
         if (myclass.onFire) {
             myclass.onFire(this, fireinfo);
@@ -68,17 +69,13 @@ class LuaShooter : Shooter {
     }
 
     override bool isFixed() {
-        //lua code (which sets mIsFixed) is only active in WeaponState.fire
+        //lua code (which sets fixed) is only active in WeaponState.fire
         //  (same for delayedAction)
-        return activity && (currentState != WeaponState.fire || mIsFixed);
-    }
-    void setFixed(bool fix, bool delayed = true) {
-        mIsFixed = fix;
-        mIsDelayed = delayed;
+        return activity && (currentState != WeaponState.fire || fixed);
     }
 
     //xxx I don't know if it's always correct to link this to isFixed
     override bool delayedAction() {
-        return activity && (currentState != WeaponState.fire || mIsDelayed);
+        return activity && (currentState != WeaponState.fire || delayed);
     }
 }

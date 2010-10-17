@@ -83,5 +83,5 @@ static this() {
     gScripting.ctor!(LuaWeaponClass, GameCore, char[])();
     gScripting.properties!(LuaWeaponClass, "onFire",
         "onCreateSelector", "onInterrupt", "onRefire", "onReadjust");
-    gScripting.methods!(LuaShooter, "setFixed");
+    gScripting.properties!(LuaShooter, "fixed", "delayed");
 }

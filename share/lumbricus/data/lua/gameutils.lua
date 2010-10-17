@@ -107,7 +107,8 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
             -- this may call onInterrupt if the last piece of ammo is fired
             Shooter_reduceAmmo(shooter)
         end
-        LuaShooter_setFixed(shooter, true)
+        LuaShooter_set_fixed(shooter, true)
+        LuaShooter_set_delayed(shooter, true)
         local remains = nsprites
         if remains == -1 then
             remains = fireinfo.param

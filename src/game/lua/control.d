@@ -49,7 +49,7 @@ static this() {
         "rollVelocity", "suicideDamage")();
 
     gScripting.properties!(WormStateInfo, "physic", "noleave", "animation",
-        "particle", "isGrounded", "canWalk", "canAim", "canFire",
+        "particle", "isGrounded", "canWalk", "canJump", "canAim", "canFire",
         "onAnimationEnd", "isUnderWater")();
 
     gScripting.properties!(HudElement, "visible");
