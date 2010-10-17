@@ -140,6 +140,11 @@ class FMODChannel : DriverChannel {
         auto fs = castStrict!(FMODSound)(s);
         assert(!!fs);
         assert(!!reserved_for);
+        if (fs.length == Time.Null) {
+            //apparently FMOD can't handle empty sounds (would fail in
+            //  FMOD_System_PlaySound with FMOD_ERR_INVALID_PARAM)
+            return;
+        }
         //validate mChannel (cannot reuse it if it has been taken by another
         //  FMODChannel or another sound may be interrupted)
         checkChannel();

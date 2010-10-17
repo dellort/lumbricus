@@ -150,6 +150,16 @@ class SoundManager : ResourceManagerT!(SoundDriver) {
         }
     }
 
+    override void loadDriver(char[] name) {
+        try {
+            super.loadDriver(name);
+        } catch (CustomException e) {
+            gLog.error("Sound driver '{}' failed to load: {}. "
+                "Sound is disabled.", name, e.msg);
+            super.loadDriver("sound_none");
+        }
+    }
+
     DriverSound getDriverSound(Sample s) {
         if (!driver)
             return null;

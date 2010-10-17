@@ -55,7 +55,7 @@ void registerFrameworkDriver(T)(char[] name) {
 static this() {
     addDriverType("base", "sdl");       //main.d
     addDriverType("draw", "opengl");    //surface.d or drawing.d
-    addDriverType("sound", "none");     //sound.d
+    addDriverType("sound", "openal");     //sound.d
     addDriverType("font", "freetype");  //font.d
 }
 

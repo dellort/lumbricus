@@ -15,7 +15,6 @@ sounds {
         dest_path = "sound_samples"
         conffile = "sounds.conf"
         files {
-            a_test1 = "FrenchAnthem.wav"
             a_scales = "ScalesOfJustice.wav"
             a_holy = "HOLYGRENADE.WAV"
 
