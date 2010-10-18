@@ -114,7 +114,7 @@ class LevelWidget : SimpleContainer {
     }
 
     private void loadLastPlayedLevel() {
-        auto level = loadConfig(cLastlevelConf);
+        auto level = loadConfig(cLastlevelConf, true);
         if (level) {
             auto gen = new GenerateFromSaved(mGenerator, level);
             setCurrentLevel(gen);
