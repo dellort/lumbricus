@@ -95,10 +95,14 @@ struct MouseCursor {
 const cDrvBase = "base";
 const cDrvDraw = "draw";
 
-private SettingVar!(int) gFrameRate;
+private {
+    SettingVar!(int) gFrameRate;
+    Setting gEnableSound;
+}
 
 static this() {
     gFrameRate = gFrameRate.Add("fps.max", 100);
+    gEnableSound = addSetting("sound.enable", true);
 
     new Framework();
 }
@@ -142,6 +146,8 @@ class Framework {
         gFramework = this;
 
         mKeyStateMap.length = Keycode.max - Keycode.min + 1;
+
+        gEnableSound.onChange ~= &onChangeEnableSound;
     }
 
     //call this if you actually want to create a window and so on
@@ -165,14 +171,14 @@ class Framework {
 
         //new driver
         mDriver = createDriver!(FrameworkDriver)(getSelectedDriver(cDrvBase));
+
         //for graphics (pure SDL, OpenGL...)
         mDrawDriver = createDriver!(DrawDriver)(getSelectedDriver(cDrvDraw));
-        //font and sound drivers
-        void load(ResourceManager m) {
-            m.loadDriver(getSelectedDriver(m.getDriverType()));
-        }
-        load(gFontManager);
-        load(gSoundManager);
+
+        gFontManager.loadDriver(getSelectedDriver(
+            gFontManager.getDriverType()));
+
+        reloadSoundDriver();
 
         mDriver.setVideoWindowState(vstate);
         mDriver.setInputState(istate);
@@ -182,8 +188,20 @@ class Framework {
         mLog.minor("reloaded driver");
     }
 
-    struct DriverReload {
-        //ConfigNode ndriver;
+    private void reloadSoundDriver() {
+        char[] driver = "sound_none";
+        //special exception for simple activation/deactivation of sound
+        //disabling sound simply overrides normal sound driver choice
+        if (gEnableSound.get!(bool)()) {
+            driver = getSelectedDriver(gSoundManager.getDriverType());
+        }
+        gSoundManager.releaseCaches(CacheRelease.Hard);
+        gSoundManager.unloadDriver();
+        gSoundManager.loadDriver(driver);
+    }
+
+    private void onChangeEnableSound(Setting s) {
+        reloadSoundDriver();
     }
 
     void scheduleDriverReload() {

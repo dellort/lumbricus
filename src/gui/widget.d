@@ -2289,8 +2289,11 @@ final class GUI {
 
 Setting gThemeSetting;
 
+const cDefTheme = "normal.conf";
+
 static this() {
-    gThemeSetting = addSetting!(char[])("gui.theme", "", SettingType.Choice);
+    gThemeSetting = addSetting!(char[])("gui.theme", cDefTheme,
+        SettingType.Choice);
     gOnRelistSettings ~= {
         gThemeSetting.choices = GUI.listThemes();
     };
