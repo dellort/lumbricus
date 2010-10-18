@@ -106,7 +106,6 @@ class Team : GameObject2 {
         //(NOTE: each team member adds its input to mInput later, see place())
         mInput = new InputGroup();
         mInput.add("next_member", &inpChooseWorm);
-        mInput.add("remove_control", &inpRemoveControl);
 
         internal_active = true;
     }
@@ -470,14 +469,6 @@ class Team : GameObject2 {
             m.updateHacks();
         }
     }
-
-    //there's remove_control somewhere in cmdclient.d, and apparently this is
-    //  called when a client disconnects; the teams owned by that client
-    //  surrender
-    private bool inpRemoveControl() {
-        surrenderTeam();
-        return true;
-    }
 }
 
 //member of a team, currently (and maybe always) capsulates a WormSprite object
@@ -746,6 +737,8 @@ class GameController : GameObject2 {
         mInput.addSub(new InputProxy(&getTeamInput));
         //global input (always available)
         mInput.add("exec", &inpExec);
+        //hack (team-based command, but always available)
+        mInput.add("remove_control", &inpRemoveControl);
         engine.input.addSub(mInput);
     }
 
@@ -838,6 +831,19 @@ class GameController : GameObject2 {
             ConsoleUtils.exec(cmd)
             _G._currentInputTeam = nil
         `, client_team, cmd);
+        return true;
+    }
+
+    //there's remove_control somewhere in cmdclient.d, and apparently this is
+    //  called when a client disconnects; the teams owned by that client
+    //  surrender
+    private bool inpRemoveControl(char[] client_id, char[] cmd) {
+        //quite ugly: the team doesn't have to be active when the player leaves
+        foreach (Team t; teams) {
+            if (checkAccess(client_id, t)) {
+                t.surrenderTeam();
+            }
+        }
         return true;
     }
 

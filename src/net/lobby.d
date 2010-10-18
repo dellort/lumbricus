@@ -37,6 +37,10 @@ import utils.vector2;
 
 import tango.util.Convert : to;
 
+char[] translateError(DiscReason code) {
+    return translate("neterror." ~ reasonToString[code]);
+}
+
 class CmdNetClientTask {
     private {
         static LogStruct!("connect") log;
@@ -141,7 +145,7 @@ class CmdNetClientTask {
             mLblError.text = "";
         } else {
             type = LogPriority.Error;
-            mLblError.text = translate("connect.error", reasonToString[code]);
+            mLblError.text = translate("connect.error", translateError(code));
         }
         mConnectButton.text = translate("connect.connect");
         mConnectButton.enabled = true;
@@ -469,7 +473,7 @@ class CmdNetLobbyTask {
         mReadyButton.enabled = false;
         //show error message in console
         mConsole.writefln(translate("lobby.c_disconnect",
-            reasonToString[code]));
+            translateError(code)));
         mConsoleWidget.enabled = false;
     }
 

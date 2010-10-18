@@ -24,6 +24,8 @@ $ sollte behoben sein / works for me (muss getestet werden)
     WWP verwendet übrigens die Waffenrichtung
 - blowtorch animation: sollte nach deaktiverung nicht die waffen-hol animation abspielen, sondern direkt den blowtorch anzeigen
 + wurm "blut" wenn dieser verletzt wird (wurmfabige partikel)
+- Hämmert man in der Netzwerklobby auf den "Spiel beenden"-Knopf wird die Serververbindung nicht geschlossen
+  Grund: CmdNetLobbyTask.onKill wird beim Programmende nicht aufgerufen (früher ging das aber mal, hmm)
 
 == bekannte, lösbare Bugs ==
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
@@ -160,14 +162,11 @@ vllt: http://tekui.teklib.org/index.html
 == Netzwerk ==
 [- Teams: Waffenset-Zuordnung, Lebenspunkte vom Server behandeln bzw. überprüfen,
          nicht allein den Client entscheiden lassen (Fairness)]
-+ Server im Verbindungs-Dialog pingen bzw. mehr Informationen anzeigen
-- Replays überprüfen/abstellen
 - Fix für spielbeeinflussende Befehle (z.B. slowdown), die mom. keine Timestamps haben
 + Ready-Check zum Spielstart
 *** Interpolation/Dead reckoning/Lag compensation/sowas in die Richtung, muhahar (siehe Deadlock/Boxen)
     http://bitbucket.org/h3r3tic/boxen/src/tip/src/xf/
 *** determinismus garantieren (benutzung der FPU ist ein problem, da nicht alle plattformen die gleiche präzission für floating point haben), z.b. fixed point zahlen benutzen, oder regelmäßig zustand der clienten wieder synchronisieren
-$ einfache erkennung von clients mit abweichender simulation (periodisch einen einfachen engine-hash berechnen und an den server schicken)
 * Client-Netzwerkcode in Thread verlagern (Performance/genaue Ping-Werte)
 + folgende nutzlosen features sollten in der lobby-gui integriert sein:
     - möglichkeit den server öffentlich/privat zu machen (wird den server auch veranlassen, das announcen einzuschalten/einzustellen), ein passwort zu setzen, usw.
@@ -175,6 +174,7 @@ $ einfache erkennung von clients mit abweichender simulation (periodisch einen e
     - nicknamen ändern?
     - hosts kicken/bannen oder privilegien geben
   vllt. damit warten, bis das GUI-chaos beseitigt ist
++ Crasht/laggt ein Client, sollte angezeigt werden "Warte auf <Spielername>", nicht "Warte auf Server"
 
 == nicht wirklich wichtig ==
 - locales: übersetzungen vergleichen (z.b. de mit en -> fehlende einträge finden)

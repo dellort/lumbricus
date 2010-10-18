@@ -96,15 +96,15 @@ enum DiscReason : uint {
 }
 
 const char[][DiscReason.max+1] reasonToString = [
-    "",
-    "error_internal",
-    "error_protocol",
-    "error_timeout",
-    "error_wrongversion",
-    "error_servershutdown",
-    "error_invalidnick",
-    "error_gamestarted",
-    "error_serverfull",
+    "none",
+    "internal_error",
+    "protocol_error",
+    "timeout",
+    "wrong_version",
+    "server_shutdown",
+    "invalid_nick",
+    "game_started",
+    "server_full",
     ];
 
 
