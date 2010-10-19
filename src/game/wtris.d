@@ -53,7 +53,7 @@ public class WTris {
         //substracted time per speed
         const SPEED_SUB_MS = 50;
 
-        Texture boxes;
+        Surface boxes;
         const BOX_TYPE_COUNT = 7;
         int PIECE_DRAW_W, PIECE_DRAW_H;
 

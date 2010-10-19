@@ -797,7 +797,7 @@ class SDLCanvas : Canvas {
         if (alpha != 255) {
             //SDL doesn't do alpha blending with SDL_FillRect
             //=> we create a solid colored surface with alpha, and blend this
-            Texture s = mDrawDriver.insanityCache(color);
+            Surface s = mDrawDriver.insanityCache(color);
             assert(s !is null);
             drawTiled(s, rc.p1, rc.size);
         } else {

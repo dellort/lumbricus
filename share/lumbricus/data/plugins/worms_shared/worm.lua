@@ -13,6 +13,9 @@ setProperties(sprite_class, {
         Vector2(0, -3000),  -- straightUp
     },
     rollVelocity = 400,
+    heavyVelocity = 600,
+    hitParticle = lookupResource("p_hit_worm"),
+    hitParticleDamage = 10,
     sequenceType = sequence_object,
 })
 
@@ -184,13 +187,13 @@ local states = {
         canJump = true,
     },
     blowtorch = {
+        -- walk while the (blowtorch) weapon is active
         physic = "worm_walk",
-        animation = "walk_blowtorch",
+        animation = "stand", -- will "overlay" the blowtorch fire animation
         isGrounded = true,
         canWalk = true,
         canJump = false,
         canAim = true,
-        -- hack to make changing direction work, seems to be ok
         canFire = true,
     },
     jetpack = {

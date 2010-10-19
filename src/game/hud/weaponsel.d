@@ -42,8 +42,8 @@ class WeaponSelWindow : Container {
 
             ImageLabel image;
 
-            Texture active;   //enabled, selectable weapon
-            Texture inactive; //disabled weapon (like airstrikes in caves)
+            Surface active;   //enabled, selectable weapon
+            Surface inactive; //disabled weapon (like airstrikes in caves)
 
             bool infinite() {
                 return item.infinite;

@@ -412,9 +412,6 @@ final class Surface : ResourceT!(DriverSurface) {
     }
 }
 
-//for "compatibility"
-alias Surface Texture;
-
 //represents a sub rectangle of a Surface
 //used to speed up drawing (HOPEFULLY)
 final class SubSurface {

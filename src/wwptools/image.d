@@ -1,4 +1,6 @@
 //left-overs of scr/devil/image.d
+//don't use for new code
+//should be replaced by free functions using Surface directly
 module wwptools.image;
 
 import framework.surface;
@@ -114,9 +116,18 @@ class Image {
         mImg = new Surface(Vector2i(aw, ah));
     }
 
+    private this() {
+    }
+
     void free() {
         mImg.free();
         mImg = null;
+    }
+
+    Image dup() {
+        Image n = new Image();
+        n.mImg = mImg.clone();
+        return n;
     }
 }
 

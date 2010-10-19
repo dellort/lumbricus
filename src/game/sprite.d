@@ -228,11 +228,20 @@ class Sprite : GameObject {
         mParticleEmitter.update(engine.particleWorld);
     }
 
+    //set particle emitter
     final void setParticle(ParticleType pt) {
         if (mCurrentParticle is pt)
             return;
         mCurrentParticle = pt;
         updateParticles();
+    }
+
+    //emit transient particle
+    final void emitParticle(ParticleType pt) {
+        if (pt) {
+            engine.particleWorld.emitParticle(physics.pos, physics.velocity,
+                pt);
+        }
     }
 
     //called by GameEngine on each frame if it's really under water

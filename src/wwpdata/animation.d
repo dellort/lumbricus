@@ -90,6 +90,12 @@ class Animation {
             blitOn(img, 0, 0);
             img.save(filename);
         }
+
+        FrameInfo dup() {
+            FrameInfo n = *this;
+            n.frameImg = frameImg.dup;
+            return n;
+        }
     }
 
     FrameInfo[] frames;

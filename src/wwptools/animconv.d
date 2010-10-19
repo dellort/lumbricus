@@ -20,6 +20,7 @@ const pathsep = FileConst.PathSeparatorChar;
 alias FileAnimationParamType Param;
 
 AnimList gAnimList;  //source animations
+bool[] gAnimListUsed;//used entries in gAnimList.animations
 AtlasPacker gPacker; //where the bitmaps go to
 AniFile gAnims;      //where the animation (+ frame descriptors) go to
 char[] gWorkPath;    //output path
@@ -352,6 +353,7 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
 {
     //wtf?
     gAnimList = anims;
+    gAnimListUsed = new bool[gAnimList.animations.length];
 
     //NOTE: of course one could use one atlas or even one AniFile for all
     // animations, didn't just do that yet to avoid filename collisions
@@ -383,6 +385,14 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
     gPacker.write(workPath);
     gAnims.write(workPath);
 
+    int[] unused;
+    foreach (size_t idx, bool used; gAnimListUsed) {
+        if (!used)
+            unused ~= idx;
+    }
+    if (unused.length)
+        Stdout.formatln("Unused animations (indices): {}", unused);
+
     gAnims.free();
     gPacker.free();
 
@@ -390,6 +400,14 @@ void do_write_anims(AnimList anims, ConfigNode config, char[] name,
     gAnims = null;
     gAnimList = null;
     gWorkPath = null;
+}
+
+Animation getAnimation(int index) {
+    if (!indexValid(gAnimList.animations, index))
+        assert(false, "invalid animation");
+    assert(gAnimListUsed.length == gAnimList.animations.length);
+    gAnimListUsed[index] = true;
+    return gAnimList.animations[index];
 }
 
 //val must contain exactly n entries separated by whitespace
@@ -406,7 +424,7 @@ Animation[] getSimple(char[] val, int n, int x) {
     foreach (s; strs) {
         auto z = conv.to!(int)(s);
         for (int i = 0; i < x; i++)
-            res ~= gAnimList.animations[z+i];
+            res ~= getAnimation(z+i);
     }
     if (res.length != n*x) {
         throw new Exception(myformat("unexpected blahblah {}/{}: {}",
@@ -541,6 +559,19 @@ private void loadGeneralW(ConfigNode node) {
             Animation[] anims = getSimple(str.strip(v), intFlag("n", -1), x);
             int n = anims.length / x;
             assert(anims.length==n*x); //should be guaranteed by getSimple()
+            if (boolFlag("fill_length")) {
+                //make all animations in anims the same length
+                //fill the shorter animations by appending the last frame
+                int len = 0;
+                foreach (a; anims) {
+                    len = max(len, a.frames.length);
+                }
+                foreach (a; anims) {
+                    while (a.frames.length < len) {
+                        a.frames ~= a.frames[$-1].dup;
+                    }
+                }
+            }
             if (!boolFlag("append_a_hack", false)) {
                 //normal case
                 ani.addFrames(anims, c_idx);
@@ -646,9 +677,7 @@ private void loadBitmapFrames(ConfigNode node) {
         for (int i = 0; i < 2; i++) {
             f[i] = fromStr!(int)(x[i]);
         }
-        if (!indexValid(gAnimList.animations, f[0]))
-            assert(false, "unknown animation: "~frame);
-        auto ani = gAnimList.animations[f[0]];
+        auto ani = getAnimation(f[0]);
         if (!indexValid(ani.frames, f[1]))
             assert(false, "unknown frame: "~frame);
         auto fr = ani.frames[f[1]];

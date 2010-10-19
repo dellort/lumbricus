@@ -166,14 +166,14 @@ struct BoxTex {
     //         | left-top    |    right-top |
     //         | left-bottom | right-bottom |
     //this is actually simply a circle, which is used by drawCircle
-    Texture corners;
+    Surface corners;
     //sides[0]: | top x-axis    |
     //          | bottom x-axis |
     //sides[1]: | left y-axis | right y-axis |
-    Texture[2] sides;
+    Surface[2] sides;
     //same as above, just a different color
-    Texture[2] bevelSides;
-    static BoxTex opCall(Texture c, Texture[2] s, Texture[2] b = [null, null]) {
+    Surface[2] bevelSides;
+    static BoxTex opCall(Surface c, Surface[2] s, Surface[2] b = [null, null]) {
         BoxTex ret;
         ret.corners = c;
         ret.sides[] = s;
@@ -191,7 +191,7 @@ static this() {
 int releaseBoxCache(CacheRelease pri) {
     int rel;
 
-    void killtex(Texture t) {
+    void killtex(Surface t) {
         if (t) {
             t.free();
             rel++;
@@ -233,7 +233,7 @@ BoxTex getBox(BoxProperties props) {
     //border textures on the box sides
 
     //dir = 0 x-axis, 1 y-axis
-    Texture createSide(int dir, Color sideFore) {
+    Surface createSide(int dir, Color sideFore) {
         int inv = !dir;
 
         Vector2i size;
@@ -254,10 +254,10 @@ BoxTex getBox(BoxProperties props) {
         return surface;
     }
 
-    Texture[2] sides; //will be BoxText.sides
+    Surface[2] sides; //will be BoxText.sides
     sides[0] = createSide(0, props.border);
     sides[1] = createSide(1, props.border);
-    Texture[2] bevelSides;
+    Surface[2] bevelSides;
     if (props.drawBevel) {
         bevelSides[0] = createSide(0, props.bevel);
         bevelSides[1] = createSide(1, props.bevel);

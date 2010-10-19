@@ -349,7 +349,7 @@ class DXCanvas : Canvas3DHelper {
             &tr, effect.color);
     }
 
-    override void drawPart(Texture source, Vector2i destPos, Vector2i sourcePos,
+    override void drawPart(Surface source, Vector2i destPos, Vector2i sourcePos,
         Vector2i sourceSize)
     {
         if (!visibleArea.intersects(destPos, destPos + sourceSize))

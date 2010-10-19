@@ -59,8 +59,9 @@ class WormSprite : Sprite {
 
         int mGravestone;
 
+        float mPreviousVelocity = 0;
         FlyMode mLastFlyMode;
-        Time mLastFlyChange, mLastDmg;
+        Time mLastFlyChange;
 
         JumpMode mJumpMode;
 
@@ -542,6 +543,10 @@ class WormSprite : Sprite {
     private void setFlyAnim(FlyMode m) {
         if (!graphic)
             return;
+
+        if (graphic.currentState is wsc.flyState[m])
+            return;
+
         if (currentState is wsc.st_fly) {
             //going for roll or heavy flight -> look in flying direction
             if (m == FlyMode.roll || m == FlyMode.heavy)
@@ -556,36 +561,65 @@ class WormSprite : Sprite {
         }
     }
 
-    override protected void physImpact(PhysicObject other, Vector2f normal) {
-        super.physImpact(other, normal);
-        if (currentState is wsc.st_fly) {
-            //impact -> roll
-            if (physics.velocity.length >= wsc.rollVelocity)
-                setFlyAnim(FlyMode.roll);
-            else
-                //too slow? so use slide animation
-                //xxx not so sure about that
-                setFlyAnim(FlyMode.slide);
-        }
-    }
-
-    override protected void physDamage(float amout, DamageCause type,
+    override protected void physDamage(float amount, DamageCause type,
         Object cause)
     {
-        super.physDamage(amout, type, cause);
+        super.physDamage(amount, type, cause);
         if (type != DamageCause.explosion)
             return;
-        if (currentState is wsc.st_fly) {
-            //when damaged in-flight, switch to heavy animation
-            //xxx better react to impulse rather than damage
-            //setFlyAnim(FlyMode.heavy);
-        } else {
+        if (currentState !is wsc.st_fly) {
             //hit by explosion, abort everything (code below will immediately
             //  correct the state)
             forceAbort();
             setState(wsc.st_stand);
         }
-        mLastDmg = engine.gameTime.current;
+
+        //xxx possible improvement: measure damage over time, and emit particles
+        //  at a corresponding rate
+        if (amount > wsc.hitParticleDamage)
+            emitParticle(wsc.hitParticle);
+    }
+
+    //this function is called each frame with the relative velocity change
+    //this means amount is something like the summed impulses over a frame
+    private void handleVelocityChange(float amount) {
+        auto velocity = physics.velocity.length;
+
+        if (currentState is wsc.st_fly && graphic) {
+            //xxx finding "current" is somewhat silly
+            FlyMode current = FlyMode.slide;
+            for (FlyMode idx; idx <= FlyMode.max; idx++) {
+                if (graphic.currentState is wsc.flyState[idx]) {
+                    current = idx;
+                    break;
+                }
+            }
+
+            FlyMode newfly = FlyMode.slide;
+
+            if (velocity >= wsc.heavyVelocity) {
+                newfly = FlyMode.heavy;
+            } else if (velocity >= wsc.rollVelocity) {
+                newfly = FlyMode.roll;
+            } else if (current == FlyMode.fall) {
+                newfly = FlyMode.fall;
+            }
+
+            if (newfly < current) {
+                //if the new mode is less "heavy" than the old one, only change
+                //  it if there was a big velocity change
+                //e.g.:
+                //- worm in FlyMode.heavy flies a parable and slow down at
+                //  the top (velocity=0) => keep heavy
+                //- worm in FlyMode.heavy collides with a wall and slows down
+                //  => set to lower selected fly mode
+                //and this value is just a "heuristic" (i.e. completely random)
+                if (amount < wsc.heavyVelocity / 2)
+                    newfly = current;
+            }
+
+            setFlyAnim(newfly);
+        }
     }
 
     private void physUpdate() {
@@ -604,26 +638,19 @@ class WormSprite : Sprite {
             bool onGround = currentState.isGrounded;
             if (physics.isGlued != onGround) {
                 setState(physics.isGlued ? wsc.st_stand : wsc.st_fly);
-                //recent damage -> ungluing possibly caused by explosion
-                //xxx better physics feedback
-                if (engine.gameTime.current - mLastDmg < timeMsecs(100))
-                    setFlyAnim(FlyMode.heavy);
             }
-            if (currentState is wsc.st_fly && graphic) {
-                //worm is falling to fast -> use roll animation
-                if (physics.velocity.length >= wsc.rollVelocity)
-                    if (graphic.currentState is wsc.flyState[FlyMode.fall]
-                        || graphic.currentState is
-                            wsc.flyState[FlyMode.slide])
-                    {
-                        setFlyAnim(FlyMode.roll);
-                    }
-            }
-            if (currentState is wsc.st_jump && physics.velocity.y > 0) {
-                setState(wsc.st_jump_to_fly);
-            }
-
         }
+
+        if (currentState is wsc.st_jump && physics.velocity.y > 0) {
+            setState(wsc.st_jump_to_fly);
+        }
+
+        //probably should be considered a hack for physics not providing more
+        //  information
+        auto nvel = physics.velocity.length;
+        handleVelocityChange(nvel - mPreviousVelocity);
+        mPreviousVelocity = nvel;
+
         //check death
         if (internal_active && !isAlive() && !delayedDeath()) {
             finallyDie();
@@ -669,7 +696,11 @@ class WormSpriteClass : SpriteClass {
     //SequenceObject[] gravestones;
     Vector2f[JumpMode.max+1] jumpStrength;
     Vector2f[] jumpStrengthScript; //no static arrays with Lua wrapper
-    float rollVelocity = 400;
+    float rollVelocity = 0;
+    float heavyVelocity = 0;
+
+    float hitParticleDamage = 0;
+    ParticleType hitParticle;
 
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,

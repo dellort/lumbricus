@@ -46,7 +46,8 @@ static this() {
     gScripting.ctor!(WormSpriteClass, GameCore, char[])();
     gScripting.methods!(WormSpriteClass, "finishLoading", "findState")();
     gScripting.properties!(WormSpriteClass, "jumpStrengthScript",
-        "rollVelocity", "suicideDamage")();
+        "rollVelocity", "heavyVelocity", "suicideDamage", "hitParticleDamage",
+        "hitParticle")();
 
     gScripting.properties!(WormStateInfo, "physic", "noleave", "animation",
         "particle", "isGrounded", "canWalk", "canJump", "canAim", "canFire",

@@ -12,6 +12,19 @@ $ sollte behoben sein / works for me (muss getestet werden)
 - parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
 - Bohrer/Lötlampe stoßen Würmer weg: verbessern (mehr impuls, weniger schaden?)
 - axt abfeuern + sofort bazooka auswählen => falsche zielkreuz animation
+    ^ bug oder features? man sollte sich für eines entscheiden:
+    a) während der zeit in der die axt zurückgeholt und die bazooka geholt wird,
+       kann man schon die bazooka abschiessen
+    b) man muss warten bis eine der animationen oder beide abgeschlossen wird
+       ausserdem soll das zielkreuz sichtbar sein wenn die bazooka ausgewählt
+       ist, aber die animation nicht ausgewählt ist, z.b. wenn der wurm am seil
+       hängt
+    also a) => es ist ein feature, man muss nichts machen,
+         b) => man muss implementieren, dass auf die animationen gewartet wird
+    oder:
+    c) das zielkreuz soll tatsächlich erst bei der bazooka-get animation
+       angezeigt werden, und man braucht speziellen code (?) für den fall wenn
+       die animation nicht angezeigt werden kann (z.b. seil, jetpack)
 - entscheiden, ob Lua Full-Userdata verwendet werden soll, und dann die Entscheidung konsequent durchsetzen (z.B. keine globalen Class_method Funktionen mehr)
   im Moment geht noch beides; vielleicht sollte man erst Performance-Tests durchführen? (bloss welche...)
 - settings sollten nicht bei jedem window resize gespeichert werden, sondern in einem settings dialog?
@@ -22,10 +35,10 @@ $ sollte behoben sein / works for me (muss getestet werden)
     (was leider etwas kompliziert zu ändern ist weil es ja eine Laufanimation ist; auch würden 
     bei Änderung die Wurm"füße" nicht mehr in Bodenrichtung laufen)
     WWP verwendet übrigens die Waffenrichtung
-- blowtorch animation: sollte nach deaktiverung nicht die waffen-hol animation abspielen, sondern direkt den blowtorch anzeigen
-+ wurm "blut" wenn dieser verletzt wird (wurmfabige partikel)
+    ^^ und warum geht es da?
 - Hämmert man in der Netzwerklobby auf den "Spiel beenden"-Knopf wird die Serververbindung nicht geschlossen
   Grund: CmdNetLobbyTask.onKill wird beim Programmende nicht aufgerufen (früher ging das aber mal, hmm)
+  ^ welcher ""Spiel beenden"-Knopf? onKill sollte nach der Logik in onFrame aufgerufen werden (d.h. sobald mLobbyWnd geschlossen wird)
 
 == bekannte, lösbare Bugs ==
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
@@ -70,6 +83,13 @@ $ sollte behoben sein / works for me (muss getestet werden)
        zu implementieren
        ^^ ich auch nicht, deshalb ist es ja auch unter "unlösbar".... das Blöde dabei ist, ein zentrales select() könnte sich um alles kümmern (inklusive Timeouts), also bräuchte man eigentlich keine extra Threads. man müsste halt alle verwendeten Sockets kennen, vor allem enets.
 - lua console: the in-game lua one can't do anything when the game is paused
+- es sollte so eine art testmodus geben, in dem bekannte szenarien automatisch abgearbeitet werden
+  testbeschreibungen landen oft in der TODO datei und manchmal im source code, sind aber zu unverbindlich und zu umständlich um sie regelmässig zu testen
+  automatische tests würden z.b. erlauben, einfach auf eine test-nummer zu verweisen
+  jeder test wäre eine demo datei (zu fragil?) oder eine lua coroutine
+  vor jedem testschritt würde das level zurückgesetzt werden (vllt. neue engine starten)
+  manche tests könnten ganz gut automatisch verifiziert werden
+  in den anderen fällen könnte zumindest visuell überprüfen, ob ein testschritt erfolgreich war (immer noch besser als garnichts)
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)

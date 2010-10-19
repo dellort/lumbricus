@@ -1,4 +1,5 @@
 //for mainspr.bnk within gfx.dir
+//mainly used by wwp.conf
 mainspr {
     frametime_def = "50"
     general {
@@ -237,7 +238,7 @@ mainspr {
             worm_roll = "f:13; 157"
             worm_firepunch_up = "522"
             worm_firepunch_down = "-repeat,f:25; 292"
-            
+
             //could be appended to fire animation, but has different parameter mapping
             worm_kamikaze_ready = "-repeat,f:25; 384"
 
@@ -245,7 +246,6 @@ mainspr {
             worm_bump_into_ground = "-repeat; 301"
             worm_parachute_enter = "-repeat; 296"
             worm_parachute_fly = "+append_backwards_a; 297"
-            worm_drill_get = "-repeat,f:25; 368" //wtf, 369/370 are longer???
             worm_usedrill = "f:15,+append_backwards_a; 371"
 
             //vertical/horizontal jetpack exhaust flames
@@ -283,15 +283,8 @@ mainspr {
                 worm_slide = "523"
             }
             worm_walk = "+repeat,+walkfix,f:25; 146"
-            worm_walk_blowtorch = "+repeat,+walkfix,f:25; 149"
+            worm_blowtorch_fire = "+repeat,+walkfix,f:25; 149"
             {
-                //explanation for weapon animations:
-                //   get: played when weapon is selected
-                //   hold: played while aiming (not all weapons have this)
-                //   prepare: played after pressing space, but before actually firing
-                //   fire: played after or while firing (sometimes repeated)
-                //   release: played after firing when weapon is put away (most
-                //            weapons will play "get" backwards)
                 _flags = "f:25"
 
                 worm_no_weapon_get = "338"
@@ -313,6 +306,11 @@ mainspr {
                 worm_mole_get = "362"
                 worm_headband_get = "419"
                 worm_freezer_get = "479"
+
+                //animations 369/370 are longer (wtf?), so this hack is used; it
+                //  multiplicates the last frame of each animation until all
+                //  have the same length (as required by the animation code)
+                worm_drill_get = "+fill_length; 368"
             }
             {
                 //special: limited angle range
@@ -382,8 +380,10 @@ mainspr {
                 worm_dragonball_fire = "391"
                 worm_bow_get = "f:25; 504"
                 worm_blowtorch_get = "f:25; 314"
-                worm_bow_release = "f:25; 507"
-                
+
+                //works, but disabled because it looks silly IMO
+                //worm_bow_release = "f:25; 507"
+
                 worm_firepunch_prepare = "f:25; 289"
                 worm_firepunch_sitdown = "f:25; 293"
                 worm_kamikaze_prepare = "f:25; 381"
