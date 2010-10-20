@@ -63,6 +63,9 @@ class WormSprite : Sprite {
         FlyMode mLastFlyMode;
         Time mLastFlyChange;
 
+        Time mPreGetupStart;    //time when st_pre_getup was entered
+        Time mLastFlyReset;     //hack for FlyMode.slide => FlyMode.fall
+
         JumpMode mJumpMode;
 
         static LogStruct!("worm") log;
@@ -99,6 +102,7 @@ class WormSprite : Sprite {
             || currentState == wsc.st_beaming
             || currentState == wsc.st_reverse_beaming
             || currentState == wsc.st_getup
+            || currentState == wsc.st_pre_getup
             || isDelayedDying;
     }
 
@@ -318,6 +322,22 @@ class WormSprite : Sprite {
         } else {
             mStandTime = Time.Never;
         }*/
+
+        if (currentState is wsc.st_pre_getup) {
+            //was long enough in this state => play actual getup animation
+            if (engine.gameTime.current >= mPreGetupStart + wsc.getupDelay) {
+                setState(wsc.st_getup);
+            }
+        }
+
+        //xxx was too lazy to add something new, so I used getupDelay
+        if (engine.gameTime.current >= mLastFlyReset + wsc.getupDelay) {
+            //ensure that "fall" is showed, not "slide", when worm is falling
+            //"slide" is default to deal with worms sizzling in napalm
+            if (getFlyMode(FlyMode.fall) == FlyMode.slide) {
+                setFlyMode(FlyMode.fall);
+            }
+        }
     }
 
     void jump(JumpMode m) {
@@ -364,10 +384,7 @@ class WormSprite : Sprite {
         abortBeaming();
     }
 
-    protected void stateTransition(WormStateInfo from,
-        WormStateInfo to)
-    {
-
+    protected void stateTransition(WormStateInfo from, WormStateInfo to) {
         if (from is wsc.st_beaming) {
             setPos(mBeamDest);
         }
@@ -420,7 +437,16 @@ class WormSprite : Sprite {
             (currentState is wsc.st_fly || currentState is wsc.st_jump ||
             currentState is wsc.st_jump_to_fly))
         {
-            nstate = wsc.st_getup;
+            if (getFlyMode(FlyMode.fall) == FlyMode.fall) {
+                //landing straight => don't slide first
+                nstate = wsc.st_getup;
+            } else {
+                //show slide animation for a small time; this way the animation
+                //  looks less stupid if the worm changes quickly between
+                //  flying and being glued
+                nstate = wsc.st_pre_getup;
+                mPreGetupStart = engine.gameTime.current;
+            }
         }
         //if (nstate !is wsc.st_stand)
           //  Trace.formatln(nstate.name);
@@ -457,6 +483,8 @@ class WormSprite : Sprite {
 
         //update water state (to catch an underwater state transition)
         waterStateChange();
+
+        mLastFlyReset = engine.gameTime.current;
     }
 
         //do as less as necessary to force a new state
@@ -540,7 +568,7 @@ class WormSprite : Sprite {
         return currentState is wsc.st_fly;
     }
 
-    private void setFlyAnim(FlyMode m) {
+    private void setFlyMode(FlyMode m) {
         if (!graphic)
             return;
 
@@ -558,7 +586,24 @@ class WormSprite : Sprite {
             graphic.setState(wsc.flyState[m]);
             mLastFlyChange = engine.gameTime.current;
             mLastFlyMode = m;
+
+            mLastFlyReset = engine.gameTime.current;
         }
+    }
+
+    private FlyMode getFlyMode(FlyMode def) {
+        if (!(currentState is wsc.st_fly && graphic))
+            return def;
+
+        //xxx finding "current" is somewhat silly
+        FlyMode current = def;
+        for (FlyMode idx; idx <= FlyMode.max; idx++) {
+            if (graphic.currentState is wsc.flyState[idx]) {
+                current = idx;
+                break;
+            }
+        }
+        return current;
     }
 
     override protected void physDamage(float amount, DamageCause type,
@@ -586,14 +631,7 @@ class WormSprite : Sprite {
         auto velocity = physics.velocity.length;
 
         if (currentState is wsc.st_fly && graphic) {
-            //xxx finding "current" is somewhat silly
-            FlyMode current = FlyMode.slide;
-            for (FlyMode idx; idx <= FlyMode.max; idx++) {
-                if (graphic.currentState is wsc.flyState[idx]) {
-                    current = idx;
-                    break;
-                }
-            }
+            FlyMode current = getFlyMode(FlyMode.slide);
 
             FlyMode newfly = FlyMode.slide;
 
@@ -618,8 +656,13 @@ class WormSprite : Sprite {
                     newfly = current;
             }
 
-            setFlyAnim(newfly);
+            setFlyMode(newfly);
         }
+    }
+
+    override void physImpact(PhysicObject other, Vector2f normal) {
+        super.physImpact(other, normal);
+        mLastFlyReset = engine.gameTime.current;
     }
 
     private void physUpdate() {
@@ -637,7 +680,14 @@ class WormSprite : Sprite {
             //update if worm is flying around...
             bool onGround = currentState.isGrounded;
             if (physics.isGlued != onGround) {
-                setState(physics.isGlued ? wsc.st_stand : wsc.st_fly);
+                if (physics.isGlued) {
+                    //setState may correct state to getup etc.
+                    setState(wsc.st_stand);
+                } else {
+                    setState(wsc.st_fly);
+                    //start with this mode; will be corrected later if needed
+                    setFlyMode(FlyMode.slide);
+                }
             }
         }
 
@@ -678,7 +728,7 @@ class WormStateInfo {
     bool isGrounded = false;    //is this a standing-on-ground state
     bool canWalk = false;       //should the worm be allowed to walk
     bool canJump = false;       //  ... allowed to jump via jump()
-    bool canAim = false;        //can the target cross be moved
+    bool canAim = false;        //can the crosshair be moved/is it displayed
     bool canFire = false;       //can the main weapon be fired
 
     bool isUnderWater = false;
@@ -702,10 +752,13 @@ class WormSpriteClass : SpriteClass {
     float hitParticleDamage = 0;
     ParticleType hitParticle;
 
+    Time getupDelay;
+
     WormStateInfo st_stand, st_fly, st_walk, st_jet, st_weapon, st_dead,
         st_die, st_drowning, st_beaming, st_reverse_beaming, st_getup,
         st_jump_start, st_jump, st_jump_to_fly, st_rope, st_drill, st_blowtorch,
-        st_parachute, st_win, st_frozen, st_unfreeze, st_drowning_frozen;
+        st_parachute, st_win, st_frozen, st_unfreeze, st_drowning_frozen,
+        st_pre_getup;
 
     //alias WormSprite.FlyMode FlyMode;
 
@@ -745,6 +798,7 @@ class WormSpriteClass : SpriteClass {
         st_frozen = state("frozen");
         st_unfreeze = state("unfreeze");
         st_drowning_frozen = state("drowning_frozen");
+        st_pre_getup = state("pre_getup");
     }
 
     void finishLoading() {

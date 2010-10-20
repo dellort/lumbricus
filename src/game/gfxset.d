@@ -61,7 +61,7 @@ class GfxSet {
 
     Color waterColor;
 
-    //how the target cross looks like
+    //what the crosshair looks like
     CrosshairSettings crosshair;
 
     ExplosionSettings expl;

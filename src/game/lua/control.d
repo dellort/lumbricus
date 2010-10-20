@@ -47,7 +47,7 @@ static this() {
     gScripting.methods!(WormSpriteClass, "finishLoading", "findState")();
     gScripting.properties!(WormSpriteClass, "jumpStrengthScript",
         "rollVelocity", "heavyVelocity", "suicideDamage", "hitParticleDamage",
-        "hitParticle")();
+        "hitParticle", "getupDelay")();
 
     gScripting.properties!(WormStateInfo, "physic", "noleave", "animation",
         "particle", "isGrounded", "canWalk", "canJump", "canAim", "canFire",

@@ -6,6 +6,24 @@
 [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
 $ sollte behoben sein / works for me (muss getestet werden)
 
+-------------------------
+
+Irgendjemmand hat den Source Code von Worms Armageddon in die Finger gekriegt
+(es ist aber nicht und wird nicht Open Source sein). Es wird sogar geplant,
+Teile in D (ich hab das alles durch Zufall auf #D erfahren) geplant:
+
+http://worms2d.info
+http://worms2d.info/4
+http://stats.worms2d.info
+http://worms2d.info/Tricks_and_glitches_(Second_generation)
+
+Es gibt auch Pläne, schließlich Scripting zu erlauben usw.
+
+Unser Projekt einschrotten?
+j/n
+
+-------------------------
+
 == Sonstiges/Minor ==
 - animation für kranke würmer benutzen
   ^ es gibt schon eine lowhp_animation, die auch ihren Sinn in WWP hat; mir ist nicht ganz klar wann genau die Animation für kranke Würmer stattdessen angezeigt werden soll (nur wenn der Wurm vergifted wurde? das hab ich implementiert)

@@ -904,22 +904,7 @@ class RenderCrosshair : SceneObject {
             init_ip();
         }
 
-        //xxx: forgot what this was about
-        /+
-        //NOTE: in this case, the readyflag is true, if the weapon is already
-        // fully rotated into the target direction
-        bool nactive = true; //mAttach.readyflag;
-        if (mTarget.active != nactive) {
-            mTarget.active = nactive;
-            if (nactive)
-                reset();
-        }
-        +/
-
-        Sequence infos = mAttach;
-        //xxx make this restriction go away?
-        assert(!!infos,"Can only attach a target cross to worm sprites");
-        auto pos = mAttach.interpolated_position; //toVector2i(infos.position);
+        auto pos = mAttach.interpolated_position;
         auto angle = mWeaponAngle ? mWeaponAngle() : PI/2;
         //normalized weapon direction
         auto dir = Vector2f.fromPolar(1.0f, angle);

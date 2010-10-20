@@ -16,6 +16,7 @@ setProperties(sprite_class, {
     heavyVelocity = 600,
     hitParticle = lookupResource("p_hit_worm"),
     hitParticleDamage = 10,
+    getupDelay = time("100ms"),
     sequenceType = sequence_object,
 })
 
@@ -177,6 +178,12 @@ local states = {
         physic = "worm_getup",
         animation = "bounce_minor",
         onAnimationEnd = "stand",
+        isGrounded = true,
+    },
+    pre_getup = {
+        physic = "worm_getup",
+        animation = "fly_slide",
+        --onAnimationEnd = "getup",
         isGrounded = true,
     },
     walk = {
