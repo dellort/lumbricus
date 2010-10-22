@@ -697,6 +697,17 @@ function E.guiPickObject(obj)
     end
 end
 
+function E.pickSpawn(spriteclass)
+    local sc = lookupResource(spriteclass, true)
+    if not sc then
+        printf("what?")
+        return
+    end
+    pickPosition(function(pos)
+        spawnSprite(nil, sc, pos)
+    end)
+end
+
 -- sillyness
 
 function landscapeFromPos(pos)

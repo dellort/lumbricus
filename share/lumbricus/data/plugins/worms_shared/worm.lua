@@ -44,6 +44,8 @@ local physics = {
     worm_stand = {
         -- sitting worm
         collisionID = "worm_noself",
+        -- hack
+        walkingCollisionID = "worm_walk",
         gluedForceLook = true,
     },
     worm_getup = {
@@ -56,6 +58,14 @@ local physics = {
         collisionID = "worm_walk",
         walkingSpeed = 50,
         gluedForceLook = true,
+    },
+    worm_jump = {
+        collisionID = "worm_air",
+        glueForce = 20,
+        bounceAbsorb = 400,
+        -- no friction when jumping off (would influence jumping angle)
+        slideAbsorb = 0,
+        friction = 0,
     },
     beaming = {
         collisionID = "worm_n",
@@ -218,7 +228,7 @@ local states = {
         onAnimationEnd = "jump",
     },
     jump = {
-        physic = "worm",
+        physic = "worm_jump",
         -- custom animation
     },
     jump_to_fly = {

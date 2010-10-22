@@ -65,7 +65,6 @@ class WormControl : WeaponController {
         bool mWeaponUsed;
         bool mLimitedMode;
         Controllable[] mControlStack;
-        bool mInhibitWormMovement;
         //usually shared with other team members (but that doesn't concern us)
         WeaponSet mWeaponSet;
         bool mAlternateControl;
@@ -311,7 +310,6 @@ class WormControl : WeaponController {
 
         mOnHold = false;
         mOnHoldWeapon = null;
-        mInhibitWormMovement = false;
         //stale keypresses
         mInputMoveState.reset();
 
@@ -705,21 +703,13 @@ class WormControl : WeaponController {
     private void applyMoveVector(Vector2f vec) {
         if (!controllableMove(vec)) {
             //xxx assumes the worm uses only the x part (for now always true)
-            if (!mInhibitWormMovement)
-                mWorm.move(vec);
+            mWorm.move(vec);
             if (mWeapons.length > 0) {
                 //screen to math
                 mWeapons[0].move(-vec.y);
                 mWeapons[0].isSelected = mWorm.currentState.canFire;
             }
         }
-    }
-
-    //don't call mWorm.move on input
-    //shitty hack for blowtorch (don't interrupt blowtorch when changing
-    //  direction)
-    void inhibitWormMovement(bool v) {
-        mInhibitWormMovement = v;
     }
 
     bool isIdle() {

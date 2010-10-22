@@ -21,12 +21,16 @@ Es gibt auch Pläne, schließlich Scripting zu erlauben usw.
 
 Unser Projekt einschrotten?
 j/n
+^ Dass aus unserem Projekt niemals was brauchbares wird war doch von vornherein klar ^^
+  Also ich werd weiterhin meine Zeit verschwenden; ist doch gut wenn jemand anders das
+  "wirkliche" Spiel macht
 
 -------------------------
 
 == Sonstiges/Minor ==
 - animation für kranke würmer benutzen
   ^ es gibt schon eine lowhp_animation, die auch ihren Sinn in WWP hat; mir ist nicht ganz klar wann genau die Animation für kranke Würmer stattdessen angezeigt werden soll (nur wenn der Wurm vergifted wurde? das hab ich implementiert)
+  ^^ In WWP ist es so: if (vergiftet) krankAni; else if (<30 hp) lowhpAni; else normalAni
 - parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
 - Bohrer/Lötlampe stoßen Würmer weg: verbessern (mehr impuls, weniger schaden?)
 - axt abfeuern + sofort bazooka auswählen => falsche zielkreuz animation
@@ -43,10 +47,16 @@ j/n
     c) das zielkreuz soll tatsächlich erst bei der bazooka-get animation
        angezeigt werden, und man braucht speziellen code (?) für den fall wenn
        die animation nicht angezeigt werden kann (z.b. seil, jetpack)
+    ^^ Ich bin ja für a), diese künstlichen Verzögerungen sind lästig und bremsen den Spielfluss
+         In dem Fall macht das Zielkreuz Sinn, da man ja schon zielen und schießen kann
+       Auch möglich wäre b) zu implementieren und optional zu machen (mit WeaponState.release
+         hatte ich ja schon sowas geplant, aber nicht implementiert)
 - entscheiden, ob Lua Full-Userdata verwendet werden soll, und dann die Entscheidung konsequent durchsetzen (z.B. keine globalen Class_method Funktionen mehr)
   im Moment geht noch beides; vielleicht sollte man erst Performance-Tests durchführen? (bloss welche...)
 - settings sollten nicht bei jedem window resize gespeichert werden, sondern in einem settings dialog?
   wenn man wollte, könnte man settings2.conf auch nach _irgendeiner_ änderung speichern
+  ^ Ich finde speichern nach jeder Änderung (oder automatisch bei Programmende) wäre ok; nur 
+    sollte der Optionsdialog eine Möglichkeit zum Abbrechen/Rückgängig machen bieten
 - blowtorch: komische verzögerung beim setzen der richtung: 1. blowtorch auswählen und sich eingraben 2. deaktivieren und richtung ändern 3. wieder aktivieren => gräbt sich für einen frame oder so in die alte richtung
   die richtung in makeTunnel scheint aber immer richtig zu sein
   ^ Das liegt daran dass die Wurmanimation die Bodennormale und nicht die Waffenrichtung verwendet 
@@ -54,9 +64,11 @@ j/n
     bei Änderung die Wurm"füße" nicht mehr in Bodenrichtung laufen)
     WWP verwendet übrigens die Waffenrichtung
     ^^ und warum geht es da?
+    wasweisichhabichdasdingprogrammiert? Die Wurmfüße sind halt dann falsch aber das fällt fast nicht auf
 - Hämmert man in der Netzwerklobby auf den "Spiel beenden"-Knopf wird die Serververbindung nicht geschlossen
   Grund: CmdNetLobbyTask.onKill wird beim Programmende nicht aufgerufen (früher ging das aber mal, hmm)
   ^ welcher ""Spiel beenden"-Knopf? onKill sollte nach der Logik in onFrame aufgerufen werden (d.h. sobald mLobbyWnd geschlossen wird)
+  ^^ Der dicke im Hauptmenü? Also wenn man das Programm beendet ohne vorher das Lobbyfenster zu schließen
 
 == bekannte, lösbare Bugs ==
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
@@ -69,6 +81,7 @@ j/n
 - physik mehr wie wwp (z.b. wenn ein wurm nach unten fällt, bleibt er in wwp im boden stecken, zieht sich raus, und bleibt sitzen, während er in lumbricus wie ein gummiball abprallt)
 - Projektil fliegt durch wenige Pixel dicke Landschaft, wenn der Wurm beim Feuern direkt davorsteht
 - wurm laufen auf objekten (statt landschaft) ist kaputt
+  ^ Es ist jetzt nicht mehr ganz so kaputt, aber die Normale stimmt nicht (und es ist ein dreckiger Hack)
 - physik: "kleben" verbessern, v.a. sollte es möglich sein, dass würmer über andere würmer laufen und wurmtürme gebaut werden können (wie in WWP)
   idee: features aus rigid-body physic engines klauen und box stacking möglich machen (z.b. chipmunk); dazu bräuchte man aber trotzdem noch "kleben", was chipmunk nicht hat
   idee fürs "kleben":

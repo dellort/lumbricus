@@ -112,7 +112,7 @@ final class POSP {
     //let the object only move in that direction (i.e. vector +- 90°)
     Vector2f directionConstraint = {float.nan, float.nan};
 
-    CollisionType collisionID;
+    CollisionType collisionID, walkingCollisionID;
 
     typeof(this) copy() {
         auto other = new typeof(this)();

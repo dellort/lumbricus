@@ -66,6 +66,7 @@ class WormSprite : Sprite {
         Time mPreGetupStart;    //time when st_pre_getup was entered
         Time mLastFlyReset;     //hack for FlyMode.slide => FlyMode.fall
 
+        Vector2f mMoveVector;
         JumpMode mJumpMode;
 
         static LogStruct!("worm") log;
@@ -259,9 +260,8 @@ class WormSprite : Sprite {
 
     //movement for walking/jetpack
     void move(Vector2f dir) {
-        if (wormCanWalk()) {
-            physics.setWalking(dir);
-        }
+        mMoveVector = dir;
+        checkWalking();
     }
 
     bool isBeaming() {
@@ -360,9 +360,14 @@ class WormSprite : Sprite {
     }
 
     private void checkWalking() {
+        //hack for correct blowtorch handling (Drill class controls walking)
+        if (blowtorchActivated)
+            return;
         //stop movement if not possible
         if (!wormCanWalk()) {
             physics.setWalking(Vector2f(0));
+        } else {
+            physics.setWalking(mMoveVector);
         }
     }
 

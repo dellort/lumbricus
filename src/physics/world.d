@@ -247,7 +247,7 @@ class PhysicWorld {
                 return doCollide(Circle_ID, &c, o.shape_id, o.shape_ptr, ct);
             }
 
-            if (!canCollide(o, me))
+            if (!collide.canCollide(o.collision, me.walkingCollision))
                 continue;
 
             //no self-collision, no collision with other walking objects

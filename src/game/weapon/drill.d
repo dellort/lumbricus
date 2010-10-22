@@ -12,10 +12,6 @@ import utils.randval;
 import utils.time;
 import utils.vector2;
 
-//xxx hacks, I'd prefer them to go away
-import game.controller;
-import game.wcontrol;
-
 //drill (changes worm state etc.)
 class DrillClass : WeaponClass {
     Time duration = timeSecs(5);
@@ -53,12 +49,6 @@ class Drill : Shooter {
     override protected void onWeaponActivate(bool active) {
         //xxx simply activate "firing" state for drill weapon (like minigun...)
         //^ what?
-
-        //hack for proper behavior when blowtorch direction is changed
-        WormControl ctl = engine.singleton!(GameController)
-            .controlFromGameObject(mWorm);
-        if (ctl)
-            ctl.inhibitWormMovement = active;
 
         if (myclass.blowtorch) {
             mWorm.activateBlowtorch(active);

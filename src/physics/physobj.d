@@ -16,6 +16,7 @@ import physics.contact;
 import physics.links;
 import physics.misc;
 import physics.plane;
+import physics.collisionmap;
 
 
 debug {
@@ -128,6 +129,10 @@ class PhysicObject : PhysicBase {
         //if the object should never collide, must use CollisionMap.none()
         if (!collision)
             throw new CustomException("null collisionID");
+    }
+
+    final CollisionType walkingCollision() {
+        return mPosp.walkingCollisionID ? mPosp.walkingCollisionID : collision;
     }
 
     //hopefully inlined, extensively used by broadphase, performance critical

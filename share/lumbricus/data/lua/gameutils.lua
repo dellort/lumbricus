@@ -410,6 +410,9 @@ autoProperties = {
     [POSP_set_collisionID] = {
         string = CollisionMap_find,
     },
+    [POSP_set_walkingCollisionID] = {
+        string = CollisionMap_find,
+    },
 }
 
 -- cache for listProperties/setProperties
