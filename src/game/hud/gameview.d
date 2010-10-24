@@ -315,7 +315,7 @@ private class ViewMember : SceneObject {
         if (tlv) {
             //flash label color to white for active worm
             auto t = owner.mGame.engine.interpolateTime.current;
-            bool flash_on = (isActiveWorm && cast(int)(t.secsf*2)%2 == 0);
+            bool flash_on = (member.active && cast(int)(t.secsf*2)%2 == 0);
             Font f = flash_on ? team.color.font_flash : team.color.font;
             wormName.font = f;
             wormTeam.font = f;

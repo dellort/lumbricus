@@ -17,6 +17,7 @@ class Gamemode : GameObject2 {
         GameController mController;
     }
     protected TimeSource modeTime;
+    protected HudTeams mTeamView;
 
     this(GameCore a_engine) {
         super(a_engine, "gamemode");
@@ -26,7 +27,7 @@ class Gamemode : GameObject2 {
         modeTime = new TimeSource("modeTime", engine.gameTime);
         mController = engine.singleton!(GameController)();
         //because all two subclasses want this
-        new HudTeams(engine);
+        mTeamView = new HudTeams(engine);
         OnGameStart.handler(engine.events, &startGame);
         internal_active = true;
     }

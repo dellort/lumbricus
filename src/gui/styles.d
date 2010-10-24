@@ -528,11 +528,14 @@ final class StylesLookupImpl : StylesLookup {
         //only do this if a property was overridden; in the general case, use
         //  the cached summaries, because that's more efficient (esp. on
         //  frequent state changes and so on)
-        if (!mSummaryHack) {
+        //xxx I don't really understand that, but updating a style override
+        //    multiple times without other changes doesn't work with this
+        //    check enabled
+        //if (!mSummaryHack) {
             mSummaryHack = true;
             mAge = -1;
             checkChanges();
-        }
+        //}
     }
 }
 

@@ -18,11 +18,12 @@ enum ContactHandling : ubyte {
                 //this may be useful if you want an object to block,
                 // but not be moved
     pushBack,   //push object back where it came from (special case for ropes)
+    weirdHacks, //special shit for worms, to make it behave more like wwp
 }
 
 //for loading from ConfigNode
 private const char[][ContactHandling.max+1] cChNames =
-    ["", "hit", "hit_noimpulse", "hit_pushback"];
+    ["", "hit", "hit_noimpulse", "hit_pushback", "hit_weirdhacks"];
 
 //the physics stuff uses an ID to test if collision between objects is wanted
 //all physic objects (type PhysicBase) have an CollisionType

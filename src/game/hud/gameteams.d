@@ -24,9 +24,11 @@ import tango.math.Math : PI;
 import marray = utils.array;
 
 class HudTeams : HudElementWidget {
+    bool flashActive = true;
+
     this(GameCore engine) {
         super(engine);
-        auto w = new TeamWindow(engine);
+        auto w = new TeamWindow(engine, this);
         set(w);
     }
 }
@@ -60,6 +62,7 @@ class TeamWindow : Widget {
     const Time cSwapLinesDuration = timeMsecs(500);
     const Time cRemoveLinesDuration = timeMsecs(500);
     const Time cDropLineDuration = timeMsecs(150);
+    const Time cFlashInterval = timeMsecs(500);
     private {
         //for memory managment reasons, make larger if too small
         const cWidgetsPerRow = 3;
@@ -76,8 +79,10 @@ class TeamWindow : Widget {
         Time mDropStart;
         bool mUpdating;
         TimeSourcePublic mTimeSource;
+        HudTeams mLink;
 
         class PerTeam {
+            WormLabel name;
             Foobar bar;
             WormLabel global_wins;
             int last_global_wins = -1; //-1: force lazy initialization
@@ -89,9 +94,10 @@ class TeamWindow : Widget {
         return a.totalCurrentHealth() > b.totalCurrentHealth();
     }
 
-    this(GameCore engine) {
+    this(GameCore engine, HudTeams link) {
         setVirtualFrame(false);
 
+        mLink = link;
         mController = engine.singleton!(GameController)();
         mTimeSource = engine.interpolateTime;
 
@@ -128,10 +134,11 @@ class TeamWindow : Widget {
         foreach (t; teams) {
             mTable.addRow();
 
-            mTable.add(new WormLabel(t), 0, mTable.height() - 1,
-                WidgetLayout.Aligned(1, 0));
-
             PerTeam ti = new PerTeam();
+
+            ti.name = new WormLabel(t);
+            mTable.add(ti.name, 0, mTable.height() - 1,
+                WidgetLayout.Aligned(1, 0));
 
             ti.global_wins = new WormLabel(t);
             mTable.add(ti.global_wins, 1, mTable.height() -1,
@@ -250,13 +257,22 @@ class TeamWindow : Widget {
 
     //"how to make simple things complicated"
     override void simulate() {
+        //flash the currently active team(s)
+        Time curt = mTimeSource.current();
+        bool flash_on = mLink.flashActive && cast(int)(curt.secsf*2)%2 == 0;
+        foreach (Team t, PerTeam ti; mTeam) {
+            Font f = (flash_on && t.active) ? t.color.font_flash : t.color.font;
+            ti.name.txt.font = f;
+            ti.global_wins.txt.font = f;
+            ti.bar.fill = flash_on ? f.properties.fore_color : t.color.color;
+        }
+
         //only do the rest (like animated sorting) when all was counted down
         update(mController.healthUpdating());
 
         if (!mUpdating)
             return;
 
-        Time curt = mTimeSource.current();
 
         //return all Widgets in this table row
         //mem = trying to avoid memory allocation in a per-frame function

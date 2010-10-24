@@ -120,6 +120,17 @@ struct Contact {
     //of both objects involved
     private void resolveVel(float deltaT) {
         assert(obj[0] !is null);
+        Vector2f collNormal = normal;
+        if (handling == ContactHandling.weirdHacks) {
+            //when coming roughly from above, change surface normal to (0, -1)
+            //  so the object will not bounce away
+            Vector2f vn = -obj[0].velocity.normal;
+            float a = -vn.y;   //(0, -1) * vn
+            //30° to upwards, surface normal pointing up
+            if (a > 0.86 && normal.y < 0) {
+                collNormal = Vector2f(0, -1);
+            }
+        }
         float vSep = calcSepVel();
         if (vSep >= 0)
             //not moving, or moving apart (for whatever reason, dunno if ever)
@@ -143,7 +154,7 @@ struct Contact {
         Vector2f acc = obj[0].fullAcceleration;
         if (obj[1] && source != ContactSource.geometry)
             acc -= obj[1].fullAcceleration;
-        float accCausedSepVel = acc * normal * deltaT;
+        float accCausedSepVel = acc * collNormal * deltaT;
         if (accCausedSepVel < 0) {
             vSepNew += restitution*accCausedSepVel;
             if (vSepNew < 0)
@@ -161,7 +172,7 @@ struct Contact {
             return;
 
         float impulse = vDelta / totalInvMass;
-        Vector2f impulsePerIMass = impulse * normal;
+        Vector2f impulsePerIMass = impulse * collNormal;
 
         //apply impulses
         obj[0].addImpulse(impulsePerIMass, source);

@@ -128,7 +128,7 @@ class GameTimer : BoxContainer {
     }
 
     override void simulate() {
-        Color bordercolor = Color(0.7f);
+        Color bordercolor = Color.Invalid;
 
         setGameTimeMode(mStatus.showGameTime, mStatus.showTurnTime);
         bool active = mStatus.showGameTime || mStatus.showTurnTime;

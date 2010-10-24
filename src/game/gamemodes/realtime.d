@@ -54,6 +54,8 @@ class ModeRealtime : Gamemode {
 
     this(GameCore a_engine, ConfigNode config) {
         super(a_engine);
+        //all teams would be constantly flashing
+        mTeamView.flashActive = false;
         mStatus = new HudGameTimer(engine);
         mStatus.showGameTime = true;
         this.config = config.getCurValue!(ModeConfig)();
