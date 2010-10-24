@@ -10,6 +10,7 @@ import game.temp;
 public import net.cmdprotocol;
 import net.netlayer;
 import net.marshal;
+import utils.array;
 import utils.configfile;
 import utils.time;
 import utils.gzip;
@@ -31,6 +32,15 @@ enum ClientState {
 //playerId corresponds to CmdNetClient.myId() and NetTeamInfo.Team.playerId
 char[] makeAccessTag(uint playerId) {
     return myformat("net_id::{}", playerId);
+}
+
+private CmdNetClient[] gClients;
+
+static ~this() {
+    while (gClients.length > 0) {
+        //xxx possibly needs to poll/block on network to handle this properly
+        gClients[0].close();
+    }
 }
 
 class CmdNetClient : SimpleNetConnection {
@@ -105,6 +115,16 @@ class CmdNetClient : SimpleNetConnection {
         return mShellPtr.get();
     }
 
+    //xxx: should add its own per-frame callback via common.task.addTask,
+    //  instead of the user requiring to call a magical tick() function each
+    //  frame. further, there should be a ClientState.disconnect, to handle
+    //  gracefully disconnecting properly (right now it somehow assumes
+    //  disconnection is instant).
+    //the GUI doesn't actually know when to stop calling tick(), it just
+    //  randomly stops as the GUI window is closed => makes no sense
+    //that globallyAdded stuff needs similar information, and mHost/mBase would
+    //  also need to be deleted when everything is finished (deleting mHost/
+    //  mBase in ~this() is uncanny, or actually completely bogus)
     void tick() {
         mHost.serviceAll();
         Time t = timeCurrentTime();
@@ -116,6 +136,17 @@ class CmdNetClient : SimpleNetConnection {
                 }
                 break;
             default:
+        }
+    }
+
+    private void globallyAdded(bool added) {
+        bool is_added = arraySearch(gClients, this) >= 0;
+        if (added != is_added) {
+            if (added) {
+                gClients ~= this;
+            } else {
+                arrayRemove(gClients, this);
+            }
         }
     }
 
@@ -137,6 +168,7 @@ class CmdNetClient : SimpleNetConnection {
         mServerCon.onDisconnect = &conDisconnect;
         state(ClientState.connecting);
         mHadDisconnect = false;
+        globallyAdded = true;
     }
 
     //true if fully connected (with handshake)
@@ -161,6 +193,7 @@ class CmdNetClient : SimpleNetConnection {
         mServerCon.disconnect(why);
         mHost.serviceAll();
         if (!mHadDisconnect) {
+            globallyAdded = false;
             if (onDisconnect)
                 onDisconnect(this, why);
             mHadDisconnect = true;
@@ -359,6 +392,7 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     private void conDisconnect(NetPeer sender, uint code) {
+        globallyAdded = false;
         mHadDisconnect = true;
         assert(sender is mServerCon);
         state(ClientState.idle);

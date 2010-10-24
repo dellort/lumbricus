@@ -12,6 +12,7 @@ import gui.dropdownlist;
 import gui.edit;
 import gui.label;
 import gui.scrollbar;
+import gui.scrollwindow;
 import gui.tablecontainer;
 import gui.widget;
 
@@ -30,7 +31,12 @@ class PropertyEditor : Container {
     }
 
     this() {
+        auto box = new VBoxContainer();
         mStuff = new TableContainer(2, 0, Vector2i(3, 5));
+        auto scr = new ScrollWindow();
+        scr.area.add(mStuff);
+        scr.area.setEnableScroll([false, true]); //only v scrolling
+        box.add(scr);
         foreach (s; gSettings) {
             switch (s.type) {
             case SettingType.String, SettingType.Integer, SettingType.IntRange,
@@ -54,16 +60,24 @@ class PropertyEditor : Container {
             }
         }
         auto r = mStuff.addRow();
+        void addbutton(Button b) {
+            b.setLayout(WidgetLayout.Expand(true));
+            box.add(b);
+        }
         auto fwreload = new Button();
-        fwreload.text = "reload framework";
+        fwreload.text = "reload drivers";
         fwreload.onClick2 = { gFramework.scheduleDriverReload(); };
-        mStuff.add(fwreload, 0, r, 2, 1);
+        addbutton(fwreload);
         r = mStuff.addRow();
         auto save = new Button();
         save.text = "save to disk";
         save.onClick2 = { saveSettings(); };
-        mStuff.add(save, 0, r, 2, 1);
-        addChild(mStuff);
+        addbutton(save);
+        auto load = new Button();
+        load.text = "load from disk (overwrite current settings)";
+        load.onClick2 = { loadSettings(); };
+        addbutton(load);
+        addChild(box);
     }
 
     private void addValue(T)(Setting v) {
@@ -222,5 +236,5 @@ import gui.window;
 
 WindowWidget createPropertyEditWindow(char[] caption) {
     auto edit = new PropertyEditor();
-    return gWindowFrame.createWindow(edit, caption);
+    return gWindowFrame.createWindow(edit, caption, Vector2i(600, 500));
 }

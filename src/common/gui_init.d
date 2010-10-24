@@ -89,6 +89,6 @@ void saveVideoConfig() {
     setSetting!(bool)(cVideoFS, fs);
     Vector2i res = gFramework.screenSize;
     setSetting!(Vector2i)(fs ? cVideoSizeFS : cVideoSizeWnd, res);
-    saveSettings();
+    //saveSettings();
 }
 

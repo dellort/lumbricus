@@ -4,6 +4,7 @@ module lumbricus;
 debug import tango.core.tools.TraceExceptions;
 
 import framework.filesystem;
+import framework.globalsettings;
 import framework.imgread;
 import framework.main;
 import common.init;
@@ -61,6 +62,8 @@ void lmain(char[][] args) {
     new toplevel.TopLevel();
 
     gFramework.run();
+
+    saveSettings();
 
     gFramework.deinitialize();
 }

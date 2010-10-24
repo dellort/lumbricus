@@ -6,26 +6,6 @@
 [] wurde versucht, aber nur kompromiss wurde implementiert oder es hat nicht geklappt
 $ sollte behoben sein / works for me (muss getestet werden)
 
--------------------------
-
-Irgendjemmand hat den Source Code von Worms Armageddon in die Finger gekriegt
-(es ist aber nicht und wird nicht Open Source sein). Es wird sogar geplant,
-Teile in D (ich hab das alles durch Zufall auf #D erfahren) geplant:
-
-http://worms2d.info
-http://worms2d.info/4
-http://stats.worms2d.info
-http://worms2d.info/Tricks_and_glitches_(Second_generation)
-
-Es gibt auch Pläne, schließlich Scripting zu erlauben usw.
-
-Unser Projekt einschrotten?
-j/n
-^ Dass aus unserem Projekt niemals was brauchbares wird war doch von vornherein klar ^^
-  Also ich werd weiterhin meine Zeit verschwenden; ist doch gut wenn jemand anders das
-  "wirkliche" Spiel macht
-
--------------------------
 
 == Sonstiges/Minor ==
 - animation für kranke würmer benutzen
@@ -33,30 +13,14 @@ j/n
   ^^ In WWP ist es so: if (vergiftet) krankAni; else if (<30 hp) lowhpAni; else normalAni
 - parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
 - Bohrer/Lötlampe stoßen Würmer weg: verbessern (mehr impuls, weniger schaden?)
-- axt abfeuern + sofort bazooka auswählen => falsche zielkreuz animation
-    ^ bug oder features? man sollte sich für eines entscheiden:
-    a) während der zeit in der die axt zurückgeholt und die bazooka geholt wird,
-       kann man schon die bazooka abschiessen
-    b) man muss warten bis eine der animationen oder beide abgeschlossen wird
-       ausserdem soll das zielkreuz sichtbar sein wenn die bazooka ausgewählt
-       ist, aber die animation nicht ausgewählt ist, z.b. wenn der wurm am seil
-       hängt
-    also a) => es ist ein feature, man muss nichts machen,
-         b) => man muss implementieren, dass auf die animationen gewartet wird
-    oder:
-    c) das zielkreuz soll tatsächlich erst bei der bazooka-get animation
-       angezeigt werden, und man braucht speziellen code (?) für den fall wenn
-       die animation nicht angezeigt werden kann (z.b. seil, jetpack)
-    ^^ Ich bin ja für a), diese künstlichen Verzögerungen sind lästig und bremsen den Spielfluss
-         In dem Fall macht das Zielkreuz Sinn, da man ja schon zielen und schießen kann
-       Auch möglich wäre b) zu implementieren und optional zu machen (mit WeaponState.release
-         hatte ich ja schon sowas geplant, aber nicht implementiert)
 - entscheiden, ob Lua Full-Userdata verwendet werden soll, und dann die Entscheidung konsequent durchsetzen (z.B. keine globalen Class_method Funktionen mehr)
   im Moment geht noch beides; vielleicht sollte man erst Performance-Tests durchführen? (bloss welche...)
 - settings sollten nicht bei jedem window resize gespeichert werden, sondern in einem settings dialog?
   wenn man wollte, könnte man settings2.conf auch nach _irgendeiner_ änderung speichern
   ^ Ich finde speichern nach jeder Änderung (oder automatisch bei Programmende) wäre ok; nur 
     sollte der Optionsdialog eine Möglichkeit zum Abbrechen/Rückgängig machen bieten
+    ^^ jetzt wird bei Programmende gespeichert
+       Abbrechen/Rückgängig ist einfach; man müsste nur alle Einstellungen als Strings kopieren
 - blowtorch: komische verzögerung beim setzen der richtung: 1. blowtorch auswählen und sich eingraben 2. deaktivieren und richtung ändern 3. wieder aktivieren => gräbt sich für einen frame oder so in die alte richtung
   die richtung in makeTunnel scheint aber immer richtig zu sein
   ^ Das liegt daran dass die Wurmanimation die Bodennormale und nicht die Waffenrichtung verwendet 
@@ -65,10 +29,7 @@ j/n
     WWP verwendet übrigens die Waffenrichtung
     ^^ und warum geht es da?
     wasweisichhabichdasdingprogrammiert? Die Wurmfüße sind halt dann falsch aber das fällt fast nicht auf
-- Hämmert man in der Netzwerklobby auf den "Spiel beenden"-Knopf wird die Serververbindung nicht geschlossen
-  Grund: CmdNetLobbyTask.onKill wird beim Programmende nicht aufgerufen (früher ging das aber mal, hmm)
-  ^ welcher ""Spiel beenden"-Knopf? onKill sollte nach der Logik in onFrame aufgerufen werden (d.h. sobald mLobbyWnd geschlossen wird)
-  ^^ Der dicke im Hauptmenü? Also wenn man das Programm beendet ohne vorher das Lobbyfenster zu schließen
+    ^^^ hört sich aber besser an, zumindest ist der krumme Tunnel den wir bauen ein bisschen komisch
 
 == bekannte, lösbare Bugs ==
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
@@ -144,6 +105,7 @@ vllt: http://tekui.teklib.org/index.html
 [+ Netzwerk-Server-erstell GUI (ähnlich Singleplayer, evtl. verbinden mit s.o.)]
 [+ Optionsmenü (Sprache, Video, Sound etc.)]
 + Locale-Tool ("missing id" finden, Locales vergleichen, aktuelle Locale neu laden)
+    ^ die zufällig ausgewählten Übersetzungen machen das etwas schwierig
 + im-spiel-dialog, der folgende aktionen anbietet: pause, spiel verlassen, speichern, demo aufnahmen, key bindings verändern, obiges optionsmenü
 
 
