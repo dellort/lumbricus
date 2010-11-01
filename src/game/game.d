@@ -673,8 +673,7 @@ class GameEngine : GameCore {
     }
 
     override void explosionAt(Vector2f pos, float damage, GameObject cause,
-        bool effect = true, bool damage_landscape = true,
-        bool delegate(PhysicObject) selective = null)
+        bool effect = true, bool delegate(PhysicObject) selective = null)
     {
         if (damage < float.epsilon)
             return;
@@ -689,8 +688,7 @@ class GameEngine : GameCore {
         float radius = cDamageToRadius * damage;
         //radius of landscape damage and effect
         auto iradius = cast(int)((radius+0.5f)/2.0f);
-        if (damage_landscape)
-            damageLandscape(toVector2i(pos), iradius, cause);
+        damageLandscape(toVector2i(pos), iradius, cause, selective);
         physicWorld.objectsAt(pos, radius, (PhysicObject o) {
             if (selective && !selective(o)) {
                 return true;
@@ -707,12 +705,16 @@ class GameEngine : GameCore {
     }
 
     //destroy a circular area of the damageable landscape
-    void damageLandscape(Vector2i pos, int radius, GameObject cause = null) {
-        int count;
+    void damageLandscape(Vector2i pos, int radius, GameObject cause = null,
+        bool delegate(PhysicObject) selective = null)
+    {
+        //xxx maybe should be unified with applyExplosion(), now that the
+        //  landscape itself is a normal physic object
         foreach (ls; gameLandscapes) {
-            count += ls.damage(pos, radius);
+            if (selective && !selective(ls.physics))
+                continue;
+            ls.damage(pos, radius);
         }
-        //count was used for statistics
     }
 
     //insert bitmap into the landscape

@@ -329,9 +329,12 @@ do
     enableSpriteCrateBlowup(w, sprite_class, 3)
 end
 
-local function poisonAllWorms()
+local function poisonAllWorms(amount)
+    amount = amount or 5
     foreachWorm(function(team, member, worm)
-        Worm_set_poisoned(worm, true)
+        -- the amount is added to the existing amount
+        -- not sure if that is a bug or a feature (or what WWP does)
+        Worm_set_poisoned(worm, Worm_poisoned(worm) + amount)
     end)
 end
 

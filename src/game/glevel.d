@@ -285,6 +285,10 @@ class GameLandscape : GameObject {
         return mLandscape;
     }
 
+    LandscapeGeometry physics() {
+        return mPhysics;
+    }
+
     override void debug_draw(Canvas c) {
         //c.drawRect(rect, Color(1,0,0));
     }

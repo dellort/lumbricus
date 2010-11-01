@@ -323,8 +323,7 @@ abstract class GameCore {
     }
 
     abstract void explosionAt(Vector2f pos, float damage, GameObject cause,
-        bool effect = true, bool damage_landscape = true,
-        bool delegate(PhysicObject) selective = null);
+        bool effect = true, bool delegate(PhysicObject) selective = null);
 
     Actor actorFromGameObject(GameObject obj) {
         while (obj) {

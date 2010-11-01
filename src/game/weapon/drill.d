@@ -110,7 +110,7 @@ class Drill : Shooter {
         const cPush = 3.0f; //multiplier so that other worms get pushed away
         rengine.explosionAt(at,
             myclass.tunnelRadius/GameEngine.cDamageToRadius*cPush, owner,
-            false, false, &checkApply);
+            false, &checkApply);
 
         mNext = engine.gameTime.current + myclass.interval.sample(engine.rnd);
     }

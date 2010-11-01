@@ -817,30 +817,7 @@ class WormControl : WeaponController {
     //checks if this worm wants to blow up, returns true if it wants to or is
     //  in progress of blowing up
     bool checkDying() {
-        //if this delayed dying business is not enabled
-        if (!mWorm.delayedDeath())
-            return false;
-
-        //4 possible states:
-        //  healthy, unhealthy but not suiciding, suiciding, dead and done
-
-        //worm is healthy?
-        if (mWorm.isAlive())
-            return false;
-
-        //dead and done?
-        if (mWorm.isReallyDead())
-            return false;
-
-        //worm is dead, but something is in progress (waiting/suiciding)
-
-        if (!mWorm.isDelayedDying()) {
-            //unhealthy, not suiciding
-            //=> start suiciding
-            mWorm.finallyDie();
-        }
-
-        return true;
+        return mWorm.checkSuiciding();
     }
 
     void prepareTurn() {
@@ -849,10 +826,7 @@ class WormControl : WeaponController {
 
     //if the worm is poisoned, die a little bit more
     void digestPoison() {
-        if (mWorm.poisoned) {
-            //xxx should be configureable
-            mWorm.physics.lifepower -= 5;
-        }
+        mWorm.digestPoison();
     }
 
     //--

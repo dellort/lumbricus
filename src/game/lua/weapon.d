@@ -67,7 +67,8 @@ static this() {
     gScripting.ctor!(NapalmSpriteClass, GameCore, char[]);
     gScripting.properties!(NapalmSpriteClass, "damage", "initialDelay",
         "repeatDelay", "decayTime", "physMedium", "physSmall",
-        "lightupVelocity", "emitOnWater");
+        "lightupVelocity", "emitOnWater", "sticky", "decaySteps");
+    gScripting.methods!(NapalmSpriteClass, "stepDecay");
 
     gScripting.ctor!(StuckTrigger, Sprite, Time, float, bool)();
     gScripting.properties!(StuckTrigger, "onTrigger");

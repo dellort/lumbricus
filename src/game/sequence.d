@@ -209,7 +209,7 @@ final class Sequence : SceneObject {
     float lifepower;    //absolute hp
     float lifePercent;  //percent of initial life remaining, may go > 1.0
     //bool visible;
-    bool poisoned;  //request animation for being poisoned, e.g. skunk
+    float poisoned = 0;  //request animation for being poisoned, e.g. skunk
 
     //was: WormSequenceUpdate
     //just used to display jetpack exhaust flames
@@ -1076,7 +1076,7 @@ class WwpWeaponDisplay : AniStateDisplay {
         mPhase = Phase.Normal;
         mCurrent = mRequested;
         Animation ani = myclass.normal;
-        if (owner.poisoned && myclass.poisoned) {
+        if (owner.poisoned > 0 && myclass.poisoned) {
             ani = myclass.poisoned;
         } else if (hasLowHp && myclass.lowhp) {
             ani = myclass.lowhp;
@@ -1095,7 +1095,7 @@ class WwpWeaponDisplay : AniStateDisplay {
         mPhase = Phase.Idle;
         mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
         Animation[] arr = myclass.idle_animations;
-        if (owner.poisoned && myclass.poisoned
+        if (owner.poisoned > 0 && myclass.poisoned
             && myclass.idle_animations_poisoned.length > 0)
         {
             arr = myclass.idle_animations_poisoned;

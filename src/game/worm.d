@@ -49,13 +49,13 @@ class WormSprite : Sprite {
         //hack for rope (animation only)
         float mRotationOverride = float.nan;
 
-        Time mStandTime;
+        //Time mStandTime;
 
         //by default off, GameController can use this
         bool mDelayedDeath;
         bool mFixed;
 
-        bool mPoisoned;
+        float mPoisoned = 0;    //>0 means worm is poisoned
 
         int mGravestone;
 
@@ -98,13 +98,7 @@ class WormSprite : Sprite {
     }
 
     override bool activity() {
-        return super.activity()
-            || currentState == wsc.st_jump_start
-            || currentState == wsc.st_beaming
-            || currentState == wsc.st_reverse_beaming
-            || currentState == wsc.st_getup
-            || currentState == wsc.st_pre_getup
-            || isDelayedDying;
+        return super.activity() || currentState.activity;
     }
 
     void youWinNow() {
@@ -120,13 +114,6 @@ class WormSprite : Sprite {
         //assert(grave >= 0 && grave < wsc.gravestones.length);
         //mGravestone = wsc.gravestones[grave];
         mGravestone = grave;
-    }
-
-    void delayedDeath(bool delay) {
-        mDelayedDeath = delay;
-    }
-    bool delayedDeath() {
-        return mDelayedDeath;
     }
 
     /+
@@ -145,7 +132,7 @@ class WormSprite : Sprite {
      + <= 0, but for the game logic (and physics etc.), the worm is still alive.
      + The worm can only be engaged in state 1.
      +
-     + If delayed death is not enabled (with setDelayedDeath()), state 2 is
+     + If delayed death is not enabled (with delayedDeath = true), state 2 is
      + skipped.
      +
      + When the worm is drowning, it's still considered alive. (xxx: need to
@@ -155,6 +142,16 @@ class WormSprite : Sprite {
      + Note the the health points amount can be > 0 even if the worm is dead.
      + e.g. when the worm drowned and died on the death zone.
      +/
+
+    //if this is true, a killed worm doesn't die immediately, but remains in
+    //  a half-dead state (death states 2), until the game logic calls
+    //  checkSuiciding(), which initiates the real death
+    void delayedDeath(bool delay) {
+        mDelayedDeath = delay;
+    }
+    bool delayedDeath() {
+        return mDelayedDeath;
+    }
 
     //death states: 1
     //true: alive and healthy
@@ -166,43 +163,62 @@ class WormSprite : Sprite {
     //death states: 2 and 3
     //true: waiting for suicide or suiciding
     //false: anything else
-    bool isWaitingForDeath() {
+    private bool isWaitingForSuicide() {
         return !isAlive() && !isReallyDead();
     }
 
     //death states: 4
     //true: dead and removed from world
     //false: anything else
-    bool isReallyDead()
+    private bool isReallyDead()
     out (res) { assert(!res || (physics.lifepower < 0) || physics.dead); }
     body {
         return currentState is wsc.st_dead;
     }
 
-    //if suicide animation played
-    bool isDelayedDying() {
+    private bool isSuiciding() {
         return currentState is wsc.st_die;
     }
 
-    void finallyDie() {
-        if (isAlive())
-            return;
+    //possibly initiate suicide (== delayed dying)
+    //return true if suicide was initiated or is in progress
+    bool checkSuiciding() {
+        if (!isWaitingForSuicide())
+            return false;
         if (internal_active) {
-            if (isDelayedDying())
-                return;
-            //assert(delayedDeath());
-            assert(!isAlive());
-            setState(wsc.st_die);
+            if (!isSuiciding()) {
+                assert(!isAlive());
+                setState(wsc.st_die);
+            }
+            return true;
         }
+        //xxx not sure what's going on here
+        return false;
     }
 
-    void poisoned(bool set) {
-        mPoisoned = set;
+    //set amount how much the worm is poisoned
+    //every turn (or rather on each digestPoison call) the amount is substracted
+    //  from the worm's health points
+    void poisoned(float val) {
+        mPoisoned = val;
         if (graphic)
-            graphic.poisoned = set;
+            graphic.poisoned = val;
     }
-    bool poisoned() {
+    float poisoned() {
         return mPoisoned;
+    }
+
+    //if the worm is poisoned, die a little bit more
+    void digestPoison() {
+        if (poisoned > 0) {
+            auto cur = physics.lifepower;
+            auto next = cur - poisoned;
+            //poison actually can't kill a worm (normally stops at 1 hp)
+            //also have to take care of wtfish fractional parts between 0.0-1.0
+            if (cur > 0.0f && next < 1.0f)
+                next = min(cur, 1.0f); //min: never increase hp
+            physics.lifepower = next;
+        }
     }
 
     override protected void onKill() {
@@ -225,8 +241,6 @@ class WormSprite : Sprite {
                     auto state = wsc.findSequenceState("jump_backflip", true);
                     graphic.setState(state);
                     break;
-                default:
-                    assert(false, "Implement");
             }
             return; //?
         }
@@ -671,7 +685,7 @@ class WormSprite : Sprite {
     }
 
     private void physUpdate() {
-        if (isDelayedDying)
+        if (isSuiciding)
             return;
 
         if (!jetpackActivated && !blowtorchActivated && !parachuteActivated) {
@@ -706,9 +720,10 @@ class WormSprite : Sprite {
         handleVelocityChange(nvel - mPreviousVelocity);
         mPreviousVelocity = nvel;
 
-        //check death
+        //check death (only if game logic doesn't take care of this by setting
+        //  delayedDeath to true)
         if (internal_active && !isAlive() && !delayedDeath()) {
-            finallyDie();
+            checkSuiciding();
         }
     }
 }
@@ -737,6 +752,8 @@ class WormStateInfo {
     bool canFire = false;       //can the main weapon be fired
 
     bool isUnderWater = false;
+
+    bool activity = false;      //if true, WormSprite.activity() returns true
 
     this (char[] a_name) {
         name = a_name;

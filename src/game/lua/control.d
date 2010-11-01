@@ -51,7 +51,7 @@ static this() {
 
     gScripting.properties!(WormStateInfo, "physic", "noleave", "animation",
         "particle", "isGrounded", "canWalk", "canJump", "canAim", "canFire",
-        "onAnimationEnd", "isUnderWater")();
+        "onAnimationEnd", "isUnderWater", "activity")();
 
     gScripting.properties!(HudElement, "visible");
 

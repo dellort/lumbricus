@@ -160,12 +160,14 @@ local states = {
         animation = "beaming",
         noleave = true,
         onAnimationEnd = "reverse_beaming",
+        activity = true,
     },
     reverse_beaming = {
         physic = "beaming",
         animation = "reverse_beaming",
         noleave = true,
         onAnimationEnd = "fly",
+        activity = true,
     },
     frozen = {
         physic = "frozen",
@@ -189,12 +191,14 @@ local states = {
         animation = "bounce_minor",
         onAnimationEnd = "stand",
         isGrounded = true,
+        activity = true,
     },
     pre_getup = {
         physic = "worm_getup",
         animation = "fly_slide",
         --onAnimationEnd = "getup",
         isGrounded = true,
+        activity = true,
     },
     walk = {
         physic = "worm_walk",
@@ -226,6 +230,7 @@ local states = {
         animation = "jump_start",
         isGrounded = true,
         onAnimationEnd = "jump",
+        activity = true,
     },
     jump = {
         physic = "worm_jump",
@@ -272,6 +277,7 @@ local states = {
         animation = "die",
         noleave = true,
         isGrounded = true,
+        activity = true,
     },
     dead = {
         physic = "grave",
