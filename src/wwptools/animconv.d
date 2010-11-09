@@ -1,6 +1,9 @@
 module wwptools.animconv;
 
+import framework.imgwrite;
+import framework.surface;
 import wwptools.atlaspacker;
+import wwptools.image;
 import utils.stream;
 import str = utils.string;
 import utils.configfile;
@@ -19,19 +22,14 @@ const pathsep = FileConst.PathSeparatorChar;
 
 alias FileAnimationParamType Param;
 
-AnimList gAnimList;  //source animations
-bool[] gAnimListUsed;//used entries in gAnimList.animations
-AtlasPacker gPacker; //where the bitmaps go to
-AniFile gAnims;      //where the animation (+ frame descriptors) go to
-char[] gWorkPath;    //output path
-
-//default frame duration (set to 0 to prevent writing a default when time is
-//unknown)
-const int cDefFrameTimeMS = 0;
 
 //handlers to load specialized animation descriptions
 //(because the generic one is too barfed)
-private alias void function(ConfigNode node) AnimationLoadHandler;
+//AniFile = where the final named & processed animations are added to
+//AniLoadContext = animation source list
+//ConfigNode = import description file (e.g. map animation number to name)
+private alias void function(AniFile, AniLoadContext, ConfigNode)
+    AnimationLoadHandler;
 private AnimationLoadHandler[char[]] gAnimationLoadHandlers;
 
 static this() {
@@ -42,12 +40,43 @@ static this() {
     gAnimationLoadHandlers["bitmaps"] = &loadBitmapFrames;
 }
 
+//as pointless as the AnimList class
+//specific to the task of loading a WWP animation list from a .bnk file (e.g.
+//  animations are not named)
+class AniLoadContext {
+    Animation[] animations;
+    bool[] used; //used entries from animations
+
+    this(AnimList anis) {
+        animations = anis.animations;
+        used = new bool[animations.length];
+    }
+
+    Animation get(int index) {
+        if (!indexValid(animations, index))
+            throwError("invalid animation index: {}", index);
+        assert(used.length == animations.length);
+        used[index] = true;
+        return animations[index];
+    }
+
+    //just for reporting this to the developers
+    int[] unused() {
+        int[] res;
+        foreach (size_t idx, bool used; used) {
+            if (!used)
+                res ~= idx;
+        }
+        return res;
+    }
+}
+
 class AniEntry {
     //map a param to the two axis, params = [axis-A, axis-B, axis-C]
     Param[3] params = [Param.Time, Param.P1, Param.Null];
     char[][] param_conv;
     FileAnimationFlags flags = cast(FileAnimationFlags)0;
-    int frameTimeMS;
+    int frameTimeMS = 50;
     Vector2i box; //user defined "bounding" box
     Vector2i offset; //offset correction, needed for crateN_fly
 
@@ -78,11 +107,11 @@ class AniEntry {
     void addFrames(Animation[] src, int c_idx = 0, bool append_A = false) {
         void addAnimation(Animation a, int b_idx) {
             int len_a = a.frames.length;
-            //xxx: using append_A could lead to deformed "non-scare"
+            //xxx: using append_A could lead to deformed "non-square"
             //  rectangular array, if used incorrectly (maybe)
             if (!append_A && (length_b() > 0 && len_a != length_a())) {
                 //the joined animations always must form a square
-                assert(false, "animations have different lengths");
+                throwError("animations have different lengths");
             }
             auto ft = src[0].frameTimeMS;
             //is that the right thing?
@@ -101,13 +130,12 @@ class AniEntry {
                 cframes ~= cur;
             }
             if (append_A) {
-                //hack
                 //append array contents
                 mFrames[c_idx][b_idx] ~= cframes;
-                return;
+            } else {
+                //append array
+                mFrames[c_idx] ~= cframes;
             }
-            //append array
-            mFrames[c_idx] ~= cframes;
         }
 
         if (mFrames.length <= c_idx)
@@ -218,95 +246,48 @@ class AniEntry {
     int length_c() {
         return mFrames.length;
     }
-}
 
+    void createAnimationData(out FileAnimation ani,
+        out FileAnimationFrame[] frames)
+    {
+        ani.mapParam[] = cast(int[])params;
+        ani.size[0] = box.x;
+        ani.size[1] = box.y;
+        ani.frameCount[0] = length_a();
+        ani.frameCount[1] = length_b();
+        ani.frameCount[2] = length_c();
+        ani.flags = flags;
 
-class AniFile {
-    char[] anifile_name, aniframes_name;
-    AtlasPacker atlas;
-    ConfigNode output_conf, output_res, output_anims;
-    FileAnimation[] animations;
-    FileAnimationFrame[][] animations_frames;
-    private char[] mName;
-    private int mDefFrameTimeMS;
-    private AniEntry[] mEntries;
-
-    this(char[] fnBase, AtlasPacker a_atlas, int frameTimeDef = 0) {
-        atlas = a_atlas;
-        mName = fnBase;
-        anifile_name = fnBase ~ ".meta";
-        aniframes_name = fnBase ~ "_aniframes";
-        mDefFrameTimeMS = frameTimeDef;
-
-        output_conf = new ConfigNode();
-        auto first = output_conf.getSubNode("require_resources");
-        first.add("", atlas.name ~ ".conf");
-        output_res = output_conf.getSubNode("resources");
-        auto anifile = output_res.getSubNode("aniframes")
-            .getSubNode(aniframes_name);
-        anifile.setStringValue("atlas", atlas.name);
-        anifile.setStringValue("datafile", anifile_name);
-
-        output_anims = output_res.getSubNode("animations");
-
-        first.comment = "//automatically created by animconv\n"
-                        "//change animations.txt instead of this file";
-    }
-
-    void write(char[] outPath, bool writeConf = true) {
-        foreach (e; mEntries) {
-            FileAnimation ani;
-
-            ani.mapParam[] = cast(int[])e.params;
-            ani.size[0] = e.box.x;
-            ani.size[1] = e.box.y;
-            ani.frameCount[0] = e.length_a();
-            ani.frameCount[1] = e.length_b();
-            ani.frameCount[2] = e.length_c();
-            ani.flags = e.flags;
-            //dump as rectangular array
-            FileAnimationFrame[] out_frames;
-            out_frames.length = ani.frameCount[0] * ani.frameCount[1]
-                * ani.frameCount[2];
-            int index = 0;
-            foreach (fl; e.mFrames) {
-                foreach (f2; fl) {
-                    foreach (f; f2) {
-                        //offset correction
-                        f.centerX += e.offset.x;
-                        f.centerY += e.offset.y;
-                        //just btw.: fixup mirrored animation offsets
-                        //(must be mirrored as well)
-                        if (f.drawEffects & FileDrawEffects.MirrorY) {
-                            int w = atlas.block(f.bitmapIndex).w;
-                            f.centerX = -f.centerX - w;
-                        }
-                        out_frames[index++] = f;
+        //dump as rectangular array
+        frames.length = ani.frameCount[0] * ani.frameCount[1]
+            * ani.frameCount[2];
+        int index = 0;
+        foreach (fl; mFrames) {
+            foreach (f2; fl) {
+                foreach (FileAnimationFrame f; f2) {
+                    //offset correction
+                    f.centerX += offset.x;
+                    f.centerY += offset.y;
+                    //just btw.: fixup mirrored animation offsets
+                    //(must be mirrored as well)
+                    if (f.drawEffects & FileDrawEffects.MirrorY) {
+                        int w = mOwner.atlas.block(f.bitmapIndex).w;
+                        f.centerX = -f.centerX - w;
                     }
+                    frames[index++] = f;
                 }
             }
-
-            animations ~= ani;
-            animations_frames ~= out_frames;
-
-            auto node = output_anims.getSubNode(e.name);
-            assert(node["index"] == "", "double entry?: "~e.name);
-            node.setIntValue("index", animations.length-1);
-            node.setStringValue("aniframes", aniframes_name);
-            if (e.frameTimeMS == 0)
-                e.frameTimeMS = mDefFrameTimeMS;
-            node.setIntValue("frametime",e.frameTimeMS);
-            node.setStringValue("type", "complicated");
-            foreach (int i, s; e.param_conv) {
-                if (s.length)
-                    node.setStringValue(myformat("param_{}", i+1), s);
-            }
         }
+    }
+}
 
-        auto fnBase = mName;
+//animation metadata
+struct AniData {
+    FileAnimation[] animations;
+    FileAnimationFrame[][] frames;
 
-        scope dataout = Stream.OpenFile(outPath ~ fnBase ~ ".meta",
-            File.WriteCreate);
+    void writeFile(char[] filename) {
+        scope dataout = Stream.OpenFile(filename, File.WriteCreate);
         scope(exit) dataout.close();
         //again, endian issues etc....
         FileAnimations header;
@@ -315,16 +296,114 @@ class AniFile {
         for (int i = 0; i < animations.length; i++) {
             auto ani = animations[i];
             dataout.writeExact(&ani, ani.sizeof);
-            FileAnimationFrame[] frames = animations_frames[i];
+            FileAnimationFrame[] frames = frames[i];
             dataout.writeExact(frames.ptr, typeof(frames[0]).sizeof
                 * frames.length);
         }
+    }
+}
+
+//list of imported animations
+class AniFile {
+    private {
+        AniEntry[] mEntries;
+        Surface[char[]] mBitmaps;
+    }
+
+    AtlasPacker atlas;
+
+    this() {
+        atlas = new AtlasPacker();
+    }
+
+    static char[] atlasName(char[] fnBase) {
+        return fnBase ~ "_atlas";
+    }
+
+    void addBitmap(char[] name, Surface bmp) {
+        argcheck(!(name in mBitmaps));
+        mBitmaps[name] = bmp;
+    }
+
+    AniData createAnimationData() {
+        AniData data;
+
+        foreach (e; mEntries) {
+            FileAnimation ani;
+            FileAnimationFrame[] frames;
+            e.createAnimationData(ani, frames);
+            data.animations ~= ani;
+            data.frames ~= frames;
+        }
+
+        return data;
+    }
+
+    ConfigNode createConfig(char[] fnBase) {
+        auto anifile_name = fnBase ~ ".meta";
+        auto aniframes_name = fnBase ~ "_aniframes";
+
+        auto output_conf = new ConfigNode();
+        auto first = output_conf.getSubNode("require_resources");
+        first.add("", atlasName(fnBase) ~ ".conf");
+        auto output_res = output_conf.getSubNode("resources");
+        auto anifile = output_res.getSubNode("aniframes")
+            .getSubNode(aniframes_name);
+        anifile.setStringValue("atlas", atlasName(fnBase));
+        anifile.setStringValue("datafile", anifile_name);
+
+        first.comment = "//automatically created by animconv\n"
+                        "//change animations.txt instead of this file";
+
+        auto output_anims = output_res.getSubNode("animations");
+
+        foreach (int idx, e; mEntries) {
+            auto node = output_anims.getSubNode(e.name);
+            if (node["index"] != "")
+                throwError("double entry?: {}", e.name);
+            node.setIntValue("index", idx);
+            node.setStringValue("aniframes", aniframes_name);
+            node.setIntValue("frametime",e.frameTimeMS);
+            node.setStringValue("type", "complicated");
+            foreach (int i, s; e.param_conv) {
+                if (s.length)
+                    node.setStringValue(myformat("param_{}", i+1), s);
+            }
+        }
+
+        auto output_bmps = output_res.getSubNode("bitmaps");
+
+        foreach (char[] name, Surface bmp; mBitmaps) {
+            //xxx assuming png
+            output_bmps[name] = name ~ ".png";
+        }
+
+        return output_conf;
+    }
+
+    void write(char[] outPath, char[] fnBase, bool writeConf = true) {
+        writeBitmaps(outPath, fnBase);
+
+        auto base = outPath ~ fnBase;
+
+        createAnimationData().writeFile(base ~ ".meta");
 
         if (writeConf) {
-            scope confst = Stream.OpenFile(outPath ~ fnBase ~ ".conf",
-                File.WriteCreate);
+            auto output_conf = createConfig(fnBase);
+            scope confst = Stream.OpenFile(base ~ ".conf", File.WriteCreate);
             output_conf.writeFile(confst.pipeOut());
             confst.close();
+        }
+    }
+
+    private void writeBitmaps(char[] outPath, char[] fnBase) {
+        //normal animation frames
+        atlas.write(outPath, atlasName(fnBase));
+
+        //hack for free standing bitmaps
+        foreach (char[] name, Surface bmp; mBitmaps) {
+            //xxx assuming png
+            saveImageToFile(bmp, outPath ~ name ~ ".png");
         }
     }
 
@@ -348,66 +427,34 @@ void do_extractbnk(char[] bnkname, Stream bnkfile, ConfigNode bnkNode,
     anis.free();
 }
 
-void do_write_anims(AnimList anims, ConfigNode config, char[] name,
-    char[] workPath)
-{
-    //wtf?
-    gAnimList = anims;
-    gAnimListUsed = new bool[gAnimList.animations.length];
-
-    //NOTE: of course one could use one atlas or even one AniFile for all
-    // animations, didn't just do that yet to avoid filename collisions
-    gPacker = new AtlasPacker(name ~ "_atlas");
-    gAnims = new AniFile(name, gPacker, config.getIntValue("frametime_def",
-        cDefFrameTimeMS));
-    gWorkPath = workPath;
-
-    Stdout.formatln("...writing {}...", name);
-
-    //if this is true, _all_ bitmaps are loaded from the .bnk-file, even if
-    //they're not needed
-    const bool cLoadAll = false;
-    if (cLoadAll) {
-        foreach (ani; gAnimList.animations) {
-            ani.savePacked(gPacker);
-        }
-    }
-
+void importAnimations(AniFile dest, AniLoadContext ctx, ConfigNode config) {
     foreach (ConfigNode item; config) {
         if (!item.hasSubNodes())
             continue;
         if (!(item.name in gAnimationLoadHandlers))
-            throw new Exception("no handler found for: "~item.name);
+            throwError("no handler found for: {}", item.name);
         auto handler = gAnimationLoadHandlers[item.name];
-        handler(item);
+        handler(dest, ctx, item);
     }
+}
 
-    gPacker.write(workPath);
-    gAnims.write(workPath);
+void do_write_anims(AnimList ani_list, ConfigNode config, char[] name,
+    char[] workPath)
+{
+    auto anims = new AniFile();
+    auto ctx = new AniLoadContext(ani_list);
 
-    int[] unused;
-    foreach (size_t idx, bool used; gAnimListUsed) {
-        if (!used)
-            unused ~= idx;
-    }
+    Stdout.formatln("...writing {}...", name);
+
+    importAnimations(anims, ctx, config);
+
+    anims.write(workPath, name);
+
+    auto unused = ctx.unused();
     if (unused.length)
         Stdout.formatln("Unused animations (indices): {}", unused);
 
-    gAnims.free();
-    gPacker.free();
-
-    gPacker = null;
-    gAnims = null;
-    gAnimList = null;
-    gWorkPath = null;
-}
-
-Animation getAnimation(int index) {
-    if (!indexValid(gAnimList.animations, index))
-        assert(false, "invalid animation");
-    assert(gAnimListUsed.length == gAnimList.animations.length);
-    gAnimListUsed[index] = true;
-    return gAnimList.animations[index];
+    anims.free();
 }
 
 //val must contain exactly n entries separated by whitespace
@@ -416,7 +463,7 @@ Animation getAnimation(int index) {
 //so getSimple("x1 x2",2,3) returns [x1+1, x1+2, x1+3, x2+1, ...]
 //actual number of returned animations is n*x
 //when n is -1, n is set to the number of components found in the string
-Animation[] getSimple(char[] val, int n, int x) {
+Animation[] getSimple(AniLoadContext ctx, char[] val, int n, int x) {
     char[][] strs = str.split(val);
     if (n < 0)
         n = strs.length;
@@ -424,7 +471,7 @@ Animation[] getSimple(char[] val, int n, int x) {
     foreach (s; strs) {
         auto z = conv.to!(int)(s);
         for (int i = 0; i < x; i++)
-            res ~= getAnimation(z+i);
+            res ~= ctx.get(z+i);
     }
     if (res.length != n*x) {
         throw new Exception(myformat("unexpected blahblah {}/{}: {}",
@@ -433,17 +480,19 @@ Animation[] getSimple(char[] val, int n, int x) {
     return res;
 }
 
-private void loadWormWeaponAnimation(ConfigNode basenode) {
+private void loadWormWeaponAnimation(AniFile anims, AniLoadContext ctx,
+    ConfigNode basenode)
+{
     foreach (ConfigNode node; basenode) {
-        auto anis = getSimple(node.value, 2, 3);
+        auto anis = getSimple(ctx, node.value, 2, 3);
 
-        auto get = new AniEntry(gAnims, node.name ~ "_get");
+        auto get = new AniEntry(anims, node.name ~ "_get");
         get.addFrames(anis[0..3]);
         get.params[] = [Param.Time, Param.P1, Param.Null];
         get.param_conv = ["step3"];
         get.appendMirrorY_B();
 
-        auto hold = new AniEntry(gAnims, node.name ~ "_hold");
+        auto hold = new AniEntry(anims, node.name ~ "_hold");
         hold.addFrames(anis[3..6]);
         hold.params[] = [Param.P2, Param.P1, Param.Null];
         hold.param_conv = ["step3", "rot180"];
@@ -486,11 +535,11 @@ void parseParams(char[] s, out AniParams p) {
     map["p3"] = Param.P3;
     map["time"] = Param.Time;
     auto stuff = str.split(s, ",");
-    assert(stuff.length <= 3, "only 3 params or less");
+    softAssert(stuff.length <= 3, "only 3 params or less");
     char[][3] conv = ["","",""];
     for (int n = 0; n < stuff.length; n++) {
         auto sub = str.split(stuff[n], "/");
-        assert(sub.length == 1 || sub.length == 2);
+        softAssert(sub.length == 1 || sub.length == 2, "only 1 or 2 stuffies");
         auto param = map[sub[0]];
         p.p[n] = param;
         int intp;
@@ -505,16 +554,16 @@ void parseParams(char[] s, out AniParams p) {
         if (intp >= 0) {
             conv[intp] = sub[1];
         } else {
-            assert(false, "param ignored");
+            throwError("param ignored");
         }
     }
     p.conv = conv.dup;
 }
 
-private void loadGeneralW(ConfigNode node) {
+private void loadGeneralW(AniFile anims, AniLoadContext ctx, ConfigNode node) {
     void loadAnim(char[][] flags, AniParams params, char[] name, char[] value) {
         //actually load an animation
-        auto ani = new AniEntry(gAnims, name);
+        auto ani = new AniEntry(anims, name);
 
         ani.params[] = params.p;
         ani.param_conv = params.conv;
@@ -522,6 +571,8 @@ private void loadGeneralW(ConfigNode node) {
         bool[char[]] boolFlags;
         int[char[]] intFlags;
         char[][] usedFlags; //for error reporting
+
+        intFlags["f"] = 50; //default framerate
 
         foreach (char[] f; flags) {
             if (!f.length)
@@ -534,7 +585,7 @@ private void loadGeneralW(ConfigNode node) {
                 //use this as an int-flag; syntax: <name> ":" <number>
                 int sp = str.find(f, ":");
                 if (sp < 0)
-                    assert(false, "name:number expected, got: " ~ f);
+                    throwError("name:number expected, got: {}", f);
                 auto n = f[0..sp];
                 auto v = f[sp+1..$];
                 int i = fromStr!(int)(v); //might throw ConversionException
@@ -556,7 +607,7 @@ private void loadGeneralW(ConfigNode node) {
         char[][] vals = str.split(value, "|");
         foreach (int c_idx, v; vals) {
             int x = intFlag("x", 1);
-            Animation[] anims = getSimple(str.strip(v), intFlag("n", -1), x);
+            auto anims = getSimple(ctx, str.strip(v), intFlag("n", -1), x);
             int n = anims.length / x;
             assert(anims.length==n*x); //should be guaranteed by getSimple()
             if (boolFlag("fill_length")) {
@@ -634,7 +685,7 @@ private void loadGeneralW(ConfigNode node) {
         }
         auto unused = boolFlags.keys ~ intFlags.keys;
         if (unused.length) {
-            assert(false, myformat("unknown flags: {} in {}", unused, name));
+            throwError("unknown flags: {} in {}", unused, name);
         }
     }
 
@@ -645,7 +696,7 @@ private void loadGeneralW(ConfigNode node) {
             auto subflags = flags.dup;
             subflags ~= parseFlags(flagstr, true);
             if (flagstr.length > 0)
-                assert(false, "unparsed flag values: "~flagstr);
+                throwError("unparsed flag values: {}", flagstr);
             if (paramstr.length > 0) {
                 parseParams(paramstr, params);
             }
@@ -666,26 +717,24 @@ private void loadGeneralW(ConfigNode node) {
     loadRec([], params, node);
 }
 
-private void loadBitmapFrames(ConfigNode node) {
+private void loadBitmapFrames(AniFile anims, AniLoadContext ctx,
+    ConfigNode node)
+{
     foreach (ConfigNode sub; node) {
         char[] name = sub.name;
         //frame is "animationnumber,framenumber"
         char[] frame = sub.value;
         char[][] x = str.split(frame, ",");
-        assert(x.length == 2);
+        if (x.length != 2)
+            throwError("invalid frame reference: {}", frame);
         int[2] f;
         for (int i = 0; i < 2; i++) {
             f[i] = fromStr!(int)(x[i]);
         }
-        auto ani = getAnimation(f[0]);
+        auto ani = ctx.get(f[0]);
         if (!indexValid(ani.frames, f[1]))
-            assert(false, "unknown frame: "~frame);
+            throwError("unknown frame: {}", frame);
         auto fr = ani.frames[f[1]];
-        //xxx assuming png
-        char[] fn = name ~ ".png";
-        fr.save(gWorkPath ~ fn);
-        //abuse
-        auto bmp = gAnims.output_res.getSubNode("bitmaps");
-        bmp.setStringValue(name, fn);
+        anims.addBitmap(name, fr.toBitmap());
     }
 }

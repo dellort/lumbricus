@@ -23,18 +23,12 @@ class AtlasPacker {
         BoxPacker mPacker;
         Image[] mPageImages;
         FileAtlasTexture[] mBlocks;
-        char[] mName;
     }
 
     //fnBase = the name of the atlas resource
-    this(char[] fnBase, Vector2i ps = Vector2i(0)) {
+    this(Vector2i ps = Vector2i(0)) {
         mPacker = new BoxPacker;
         mPacker.pageSize = ps.quad_length == 0 ? Surface.cStdSize : ps;
-        mName = fnBase;
-    }
-
-    char[] name() {
-        return mName;
     }
 
     int blockCount() {
@@ -76,9 +70,9 @@ class AtlasPacker {
 
     //save all generated block images to disk
     //also creates a corresponding resource .conf
-    void write(char[] outPath) {
-        char[] fnBase = mName;
-
+    //  outPath = target directory, where various files will be created
+    //  fnBase = name of the atlas; used config nodes and as base for filenames
+    void write(char[] outPath, char[] fnBase) {
         foreach (int i, img; mPageImages) {
             char[] pagefn, pagepath;
             pagefn = myformat("page_{}", i);

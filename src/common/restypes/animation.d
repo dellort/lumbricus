@@ -119,6 +119,8 @@ abstract class Animation {
         int ft = relFrameTimeMs(t, mLengthMS, repeat);
         assert(ft <= mLengthMS);
         if (ft == mLengthMS) {
+            if (mFrameCount == 0 || mLengthMS == 0)
+                return 0;
             assert(!repeat);
             //always show last frame - gets rid of animation transition "gaps"
             //if you really want the animation to disappear after done, add an

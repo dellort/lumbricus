@@ -1,5 +1,7 @@
 module wwpdata.animation;
 
+import framework.imgwrite;
+import framework.surface;
 import wwptools.atlaspacker;
 import wwptools.image;
 import utils.stream;
@@ -84,11 +86,15 @@ class Animation {
         }
 
         ///saves only this frames' bitmap colorkeyed without filling box
-        void save(char[] filename) {
+        Surface toBitmap() {
             auto img = new Image(w, h);
             img.clear(0, 0, 0, 0);
             blitOn(img, 0, 0);
-            img.save(filename);
+            return img.bitmap();
+        }
+
+        void save(char[] filename) {
+            saveImageToFile(toBitmap(), filename);
         }
 
         FrameInfo dup() {
@@ -119,12 +125,16 @@ class Animation {
     }
 
     void save(char[] outPath, char[] fnBase) {
+        saveImageToFile(toBitmap(), outPath ~ pathsep ~ fnBase ~ ".png");
+    }
+
+    Surface toBitmap() {
         auto img = new Image(boxWidth*frames.length, boxHeight);
         img.clear(0, 0, 0, 0);
         foreach (int i, FrameInfo fi; frames) {
             fi.blitOn(img, i*boxWidth+fi.x, fi.y);
         }
-        img.save(outPath ~ pathsep ~ fnBase ~ ".png");
+        return img.bitmap;
     }
 
     //store all animation bitmaps into the given texture atlas

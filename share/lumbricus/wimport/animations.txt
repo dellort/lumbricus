@@ -1,7 +1,6 @@
 //for mainspr.bnk within gfx.dir
 //mainly used by wwp.conf
 mainspr {
-    frametime_def = "50"
     general {
         //override the default framerate, duh
         _flags = "f:50"
@@ -485,7 +484,6 @@ mainspr {
 //this is done for all water subdirs in <WWP-root>/data/Water
 //it works on water.bnk which is contained in Water.dir
 water_anims {
-    frametime_def = "50"
     general {
         _flags = "+use_bnk_flags"
 
@@ -561,7 +559,6 @@ water_anims {
 }
 //for layer.spr
 water_waves {
-    frametime_def = "50"
     general {
         _flags = "+use_bnk_flags,+repeat"
         water_waves = "0"

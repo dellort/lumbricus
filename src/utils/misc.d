@@ -92,6 +92,13 @@ bool sliceValid(T)(T[] array, uint a, uint b) {
     return a <= array.length && b <= array.length && a <= b;
 }
 
+//set array.length = length, but in such a way that future appends will reuse
+//  the already present array capacity - no-op in D1, but not in D2 (in D2,
+//  int[] x; x ~= 1; x.length = 0; x ~= 2; will allocate two arrays!)
+void resetLength(T)(T[] array, size_t length = 0) {
+    array.length = length;
+}
+
 //clamp to closed range, i.e. val is adjusted so that it fits into [low, high]
 T clampRangeC(T)(T val, T low, T high) {
     if (val > high)
@@ -476,6 +483,14 @@ class CustomException : Exception {
 //I got tired of retyping throw new CustomException...
 void throwError(char[] fmt, ...) {
     throw new CustomException(myformat_fx(fmt, _arguments, _argptr));
+}
+
+//like assert(), but throw a recoverable CustomException on failure
+//similar to Andrei Alexandrescu's enforce()
+void softAssert(bool cond, char[] msg, ...) {
+    if (cond)
+        return;
+    throw new CustomException(myformat_fx(msg, _arguments, _argptr));
 }
 
 //exception thrown by argcheck

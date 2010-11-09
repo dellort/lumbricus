@@ -87,16 +87,14 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     envBitmaps ~= BmpDef("sky_backdrop","backdrop.png");
 
     //debris with metadata
-    scope debrisPacker = new AtlasPacker("debris_atlas",Vector2i(256));
-    scope debrisAnif = new AniFile("debris", debrisPacker);
+    scope debrisAnif = new AniFile();
     auto debrisSpr = ldir.open("debris.spr");
     scope(exit) debrisSpr.close();
     scope AnimList debrisAl = readSprFile(debrisSpr);
     auto debrisAni = new AniEntry(debrisAnif, "debris");
     debrisAni.addFrames(debrisAl.animations);
     debrisAni.flags = FileAnimationFlags.Repeat;
-    debrisPacker.write(destPath);
-    debrisAnif.write(destPath, false);
+    debrisAnif.write(destPath, "debris", false);
 
     //bridges
     trymkdir(destPath~"bridge");

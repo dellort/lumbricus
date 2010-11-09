@@ -17,8 +17,19 @@ import utils.rect2;
 alias Color.RGBA32 RGBAColor;
 const RGBAColor cTransparent = {0, 0, 0, 0};
 
+void saveImageToFile(Surface img, char[] filename) {
+    auto f = Stream.OpenFile(filename, File.WriteCreate);
+    scope(exit) f.close();
+    //xxx extension gets lost; but default (png) is ok => too lazy to fix
+    saveImage(img, f);
+}
+
 class Image {
     private Surface mImg;
+
+    Surface bitmap() {
+        return mImg;
+    }
 
     int w() { return mImg.size.x; }
     int h() { return mImg.size.y; }
@@ -97,9 +108,7 @@ class Image {
     }
 
     void save(char[] filename) {
-        auto f = Stream.OpenFile(filename, File.WriteCreate);
-        scope(exit) f.close();
-        saveTo(f);
+        saveImageToFile(mImg, filename);
     }
 
     void saveTo(Stream s) {
