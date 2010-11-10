@@ -1,10 +1,13 @@
 module wwptools.untile;
 
+import framework.imgwrite;
+import framework.surface;
 import wwptools.image;
 import utils.stream;
 import utils.configfile;
 import utils.filetools;
 import utils.misc;
+import utils.vector2;
 
 import tango.io.FilePath;
 import tango.io.vfs.model.Vfs;
@@ -28,11 +31,11 @@ const pathsep = FileConst.PathSeparatorChar;
 void do_untile(char[] filename, VfsFolder destFolder, char[] imgPath,
     char[] nameHead, char[] nameTail, char[] confName, Stream namefile)
 {
-    scope auto img = new Image(filename);
+    scope auto img = loadImageFromFile(filename);
     do_untile(img, filename, destFolder, imgPath, nameHead, nameTail, confName,
         namefile);
 }
-void do_untile(Image img, char[] filename, VfsFolder destFolder, char[] imgPath,
+void do_untile(Surface img, char[] filename, VfsFolder destFolder, char[] imgPath,
     char[] nameHead, char[] nameTail, char[] confName, Stream namefile)
 {
     //hey there; scope doesn't work on arrays
@@ -63,29 +66,31 @@ void do_untile(Image img, char[] filename, VfsFolder destFolder, char[] imgPath,
         }
     }
 
-    void saveImg(Image imgToSave) {
+    void saveImg(Surface imgToSave) {
         char[] baseName = getNextName();
         auto f = imgFolder.file(baseName ~ ".png").create.output;
         scope(exit) f.close();
-        //eh, so we don't like checking return values?
-        imgToSave.saveTo(new ConduitStream(f));
+        //xxx assumes png
+        saveImage(imgToSave, new ConduitStream(f));
         if (conffile) {
             bmps.setStringValue(baseName, imgPath ~ "/" ~ baseName ~ ".png");
         }
     }
 
-    if (img.h > img.w) {
-        int tilesize = img.w;
-        for (int i = 0; i < img.h/tilesize; i ++) {
-            auto imgout = new Image(tilesize, tilesize);
-            imgout.blit(img, 0, tilesize*i, tilesize, tilesize, 0, 0);
+    if (img.size.y > img.size.x) {
+        int tilesize = img.size.x;
+        for (int i = 0; i < img.size.y/tilesize; i ++) {
+            auto s = Vector2i(tilesize);
+            auto imgout = new Surface(s);
+            imgout.copyFrom(img, Vector2i(0), Vector2i(0, tilesize*i), s);
             saveImg(imgout);
         }
     } else {
-        int tilesize = img.h;
-        for (int i = 0; i < img.w/tilesize; i ++) {
-            auto imgout = new Image(tilesize, tilesize);
-            imgout.blit(img, tilesize*i, 0, tilesize, tilesize, 0, 0);
+        int tilesize = img.size.y;
+        for (int i = 0; i < img.size.x/tilesize; i ++) {
+            auto s = Vector2i(tilesize);
+            auto imgout = new Surface(s);
+            imgout.copyFrom(img, Vector2i(0), Vector2i(tilesize*i, 0), s);
             saveImg(imgout);
         }
     }

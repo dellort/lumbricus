@@ -238,7 +238,6 @@ class AniEntry {
         return length_b ? mFrames[0][0].length : 0;
     }
 
-    //length of axis A, return 0 if empty framearray
     int length_b() {
         return length_c ? mFrames[0].length : 0;
     }
@@ -735,6 +734,6 @@ private void loadBitmapFrames(AniFile anims, AniLoadContext ctx,
         if (!indexValid(ani.frames, f[1]))
             throwError("unknown frame: {}", frame);
         auto fr = ani.frames[f[1]];
-        anims.addBitmap(name, fr.toBitmap());
+        anims.addBitmap(name, fr.frameImg.clone);
     }
 }

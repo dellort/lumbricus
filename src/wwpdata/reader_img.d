@@ -1,7 +1,9 @@
 module wwpdata.reader_img;
 
+import framework.surface;
 import wwptools.image;
 import utils.stream;
+import utils.vector2;
 import wwpdata.common;
 import wwpdata.reader;
 
@@ -11,7 +13,7 @@ const IMG_FLAG_COMPRESSED = 0x40;
 import tango.io.model.IFile : FileConst;
 const pathsep = FileConst.PathSeparatorChar;
 
-Image readImgFile(Stream st) {
+Surface readImgFile(Stream st) {
     char[4] hdr;
     st.readExact(hdr.ptr, 4);
     assert(hdr == "IMG\x1A");
@@ -44,8 +46,8 @@ Image readImgFile(Stream st) {
     }
     RGBAColor[] rgbaData = pal.toRGBA(imgData);
 
-    auto img = new Image(w, h);
-    img.blitRGBData(rgbaData, w, h);
+    auto img = new Surface(Vector2i(w, h));
+    blitRGBData(img, rgbaData, w, h);
 
     delete rgbaData;
     delete decomp;
@@ -56,7 +58,7 @@ Image readImgFile(Stream st) {
 
 void readImg(Stream st, char[] outputDir, char[] fnBase) {
     scope img = readImgFile(st);
-    img.save(outputDir ~ pathsep ~ fnBase ~ ".png");
+    saveImageToFile(img, outputDir ~ pathsep ~ fnBase ~ ".png");
     img.free();
 }
 

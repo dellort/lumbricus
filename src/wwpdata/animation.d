@@ -58,17 +58,18 @@ class Animation {
     bool wasDumped;
 
     struct FrameInfo {
+        //w,h == frameImg.size
         int x, y, w, h;
         int atlasIndex; //page in the atlas it was packaged into (never needed??)
         int blockIndex; //index of the texture in the atlas
-        Image frameImg;
+        Surface frameImg;
 
-        static FrameInfo opCall(int x, int y, Image frameData) {
+        static FrameInfo opCall(int x, int y, Surface frameData) {
             FrameInfo ret;
             ret.x = x;
             ret.y = y;
-            ret.w = frameData.w;
-            ret.h = frameData.h;
+            ret.w = frameData.size.x;
+            ret.h = frameData.size.y;
             ret.frameImg = frameData;
             return ret;
         }
@@ -76,30 +77,22 @@ class Animation {
         static FrameInfo opCall(int x, int y, int w, int h,
             RGBAColor[] frameData)
         {
-            auto img = new Image(w, h);
-            img.blitRGBData(frameData, w, h);
+            auto img = new Surface(Vector2i(w, h));
+            blitRGBData(img, frameData, w, h);
             return opCall(x, y, img);
         }
 
-        void blitOn(Image dest, int x, int y) {
-            dest.blit(frameImg, 0, 0, w, h, x, y);
-        }
-
-        ///saves only this frames' bitmap colorkeyed without filling box
-        Surface toBitmap() {
-            auto img = new Image(w, h);
-            img.clear(0, 0, 0, 0);
-            blitOn(img, 0, 0);
-            return img.bitmap();
+        void blitOn(Surface dest, int x, int y) {
+            dest.copyFrom(frameImg, Vector2i(x, y), Vector2i(0), frameImg.size);
         }
 
         void save(char[] filename) {
-            saveImageToFile(toBitmap(), filename);
+            saveImageToFile(frameImg, filename);
         }
 
         FrameInfo dup() {
             FrameInfo n = *this;
-            n.frameImg = frameImg.dup;
+            n.frameImg = frameImg.clone;
             return n;
         }
     }
@@ -120,7 +113,7 @@ class Animation {
         frames ~= FrameInfo(x, y, w, h, frameData);
     }
 
-    void addFrame(int x, int y, Image frameImg) {
+    void addFrame(int x, int y, Surface frameImg) {
         frames ~= FrameInfo(x, y, frameImg);
     }
 
@@ -129,12 +122,12 @@ class Animation {
     }
 
     Surface toBitmap() {
-        auto img = new Image(boxWidth*frames.length, boxHeight);
-        img.clear(0, 0, 0, 0);
+        auto img = new Surface(Vector2i(boxWidth*frames.length, boxHeight));
+        clearImage(img);
         foreach (int i, FrameInfo fi; frames) {
             fi.blitOn(img, i*boxWidth+fi.x, fi.y);
         }
-        return img.bitmap;
+        return img;
     }
 
     //store all animation bitmaps into the given texture atlas

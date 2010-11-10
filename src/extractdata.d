@@ -1,5 +1,6 @@
 module extractdata;
 
+import framework.surface;
 import tango.io.FilePath;
 import tango.io.model.IFile : FileConst;
 import tango.util.Convert;
@@ -77,10 +78,10 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     //****** Weapon icons ******
     //xxx box packing?
     //convert iconlo.img to png (creates "iconlo.png" in tmp dir)
-    Image iconlo = readImgFile(gfxdir.open("iconlo.img"));
+    Surface iconlo = readImgFile(gfxdir.open("iconlo.img"));
     //apply icons mask
-    Image icMask = new Image(importDir ~ "iconmask.png");
-    iconlo.applyAlphaMask(icMask);
+    Surface icMask = loadImageFromFile(importDir ~ "iconmask.png");
+    applyAlphaMask(iconlo, icMask);
     /+
     //prepare directory "weapons"
     scope wbasef = outFolder.folder("weapons").create;

@@ -21,7 +21,7 @@ public import utils.boxpacker : Block;
 class AtlasPacker {
     private {
         BoxPacker mPacker;
-        Image[] mPageImages;
+        Surface[] mPageImages;
         FileAtlasTexture[] mBlocks;
     }
 
@@ -35,7 +35,7 @@ class AtlasPacker {
         return mBlocks.length;
     }
 
-    Image page(int index) {
+    Surface page(int index) {
         return mPageImages[index];
     }
 
@@ -52,8 +52,8 @@ class AtlasPacker {
 
         while (newBlock.page >= mPageImages.length) {
             //a new page has been started, create a new image
-            auto img = new Image(mPacker.pageSize.x, mPacker.pageSize.y);
-            img.clear(0, 0, 0, 0);
+            auto img = new Surface(mPacker.pageSize);
+            clearImage(img);
             mPageImages ~= img;
         }
 
@@ -78,7 +78,7 @@ class AtlasPacker {
             pagefn = myformat("page_{}", i);
             pagepath = outPath ~ pathsep ~ fnBase;
             trymkdir(pagepath);
-            img.save(pagepath ~ pathsep ~ pagefn ~ ".png");
+            saveImageToFile(img, pagepath ~ pathsep ~ pagefn ~ ".png");
             Stdout.format("Saving {}/{}   \r", i+1, mPageImages.length);
             Stdout.flush();
         }
