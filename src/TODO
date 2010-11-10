@@ -83,6 +83,7 @@ $ animation für kranke würmer benutzen
   vor jedem testschritt würde das level zurückgesetzt werden (vllt. neue engine starten)
   manche tests könnten ganz gut automatisch verifiziert werden
   in den anderen fällen könnte zumindest visuell überprüfen, ob ein testschritt erfolgreich war (immer noch besser als garnichts)
+- utils/stream.d wirft IOException, und wwpdata/* benutzt das direkt => wenn lumbricus direkt WWP daten lädt und wwp_data_path stimmt nicht stürzt es ab
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)

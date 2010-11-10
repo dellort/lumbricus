@@ -59,7 +59,8 @@ class GfxSet {
     //keyed by the theme name (TeamTheme.name)
     TeamTheme[char[]] teamThemes;
 
-    Color waterColor;
+    //default color, for now needed as hack for direct WWP data loading
+    Color waterColor = Color.fromBytes(47, 55, 123);
 
     //what the crosshair looks like
     CrosshairSettings crosshair;
@@ -124,15 +125,18 @@ class GfxSet {
             resfile = addGfxSet(config);
         }
 
-        char[] watername = gfx.getStringValue("waterset", "blue");
-        //resfile.fixPath for making the water dir relative to the other
-        //  resources
-        auto waterpath = resfile.fixPath(config.getStringValue("water_path"));
-        auto waterfile = gResources.loadConfigForRes(waterpath ~ "/" ~
-            watername ~ "/water.conf");
-        load_resources ~= gResources.loadResources(waterfile);
+        char[] waterpath = config.getStringValue("water_path");
+        if (waterpath.length > 0) {
+            char[] watername = gfx.getStringValue("waterset", "blue");
+            //resfile.fixPath for making the water dir relative to the other
+            //  resources
+            waterpath = resfile.fixPath(waterpath);
+            auto waterfile = gResources.loadConfigForRes(waterpath ~ "/" ~
+                watername ~ "/water.conf");
+            load_resources ~= gResources.loadResources(waterfile);
 
-        waterColor = waterfile.getValue("color", waterColor);
+            waterColor = waterfile.getValue("color", waterColor);
+        }
 
         //xxx if you want, add code to load crosshair here
         //...

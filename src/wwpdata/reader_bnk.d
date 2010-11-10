@@ -56,8 +56,8 @@ AnimList readBnkFile(Stream st) {
     ubyte[] chunkDecomp;
     auto alist = new AnimList;
     foreach (int ianim, WWPBnkAnimHdr hanim; animHdr) {
-        Stdout.format("Animation {}/{}   \r", ianim+1, animCount);
-        Stdout.flush();
+        //Stdout.format("Animation {}/{}   \r", ianim+1, animCount);
+        //Stdout.flush();
         auto anim = new Animation(hanim.x, hanim.y,
             (hanim.flags & WWP_ANIMFLAG_REPEAT) > 0,
             (hanim.flags & WWP_ANIMFLAG_BACKWARDS) > 0, hanim.frameTimeMS);

@@ -31,6 +31,10 @@ class AtlasPacker {
         mPacker.pageSize = ps.quad_length == 0 ? Surface.cStdSize : ps;
     }
 
+    //strictly read-only
+    FileAtlasTexture[] blocks() { return mBlocks; }
+    Surface[] images() { return mPageImages; }
+
     int blockCount() {
         return mBlocks.length;
     }

@@ -29,6 +29,11 @@ version (Game) {
     import net.cmdserver;
     import net.cmdserver_gui;
     import net.lobby;
+
+    //support for directly loading WWP data without running extractdata
+    //all that can be removed from the final binary by commenting this line (if
+    //  there ever should be a problem with lowlife scum, i.e. lawyers)
+    import wwptools.load;
 }
 
 import game.wtris; //lol

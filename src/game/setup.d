@@ -17,7 +17,7 @@ import utils.misc;
 Setting gGraphicSet;
 
 static this() {
-    const char[][] cSets = ["wwp", "freegraphics"];
+    const char[][] cSets = ["wwp_conv", "wwp_direct", "freegraphics"];
     gGraphicSet = addSetting("game.graphicset", cSets[0], SettingType.Choice);
     gGraphicSet.choices = cSets;
 }

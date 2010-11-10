@@ -23,10 +23,17 @@ class Atlas {
         static SubSurface mErrorImage;
     }
 
-    private this() {
+    this() {
         if (!mErrorImage) {
             mErrorImage = loadImage("error.png").fullSubSurface();
         }
+    }
+
+    this(FileAtlasTexture[] blocks, Surface[] images) {
+        this();
+        mPages = images;
+        mTextures = blocks;
+        load();
     }
 
     //create the SubSurfaces corresponding to the atlas parts

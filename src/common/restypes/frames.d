@@ -28,19 +28,25 @@ import utils.stream;
 //- at least that was the theory
 //- actually, if you'd care about efficiency, you'd have to pack atlas/texture
 //  pages according to use (it's most important to minimize GL texture changes)
+//
+//all this stuff is relatively animconv specific, which exist just to deal with
+//  the WWP data
 
 ///one animation, contained in an AniFrames instance
+//represents frame/image data for 1 animation
 //xxx better name?
 abstract class Frames {
     struct ParamData {
         int map;   //which of AnimationParamType
         int count; //frame counts for A and B directions
+        char[] conv; //converter to map input parameter to frame number
     }
 
     Rect2i box; //animation box (not really a bounding box, see animconv)
     //for the following array, the indices are: 0 == a, 1 == b
     ParamData[3] params;
     int flags; //bitfield of FileAnimationFlags
+    int frameTimeMS; //framerate
 
     protected int getFrameIdx(int a, int b, int c) {
         assert(a >= 0 && a < params[0].count);
@@ -81,81 +87,80 @@ class ErrorAniFrames : AniFrames {
 
 //--- slightly more complicated animations, with support for texture atlases
 
+class AtlasFrames : Frames {
+    //rectangular array, with the dimensions as in params[].count
+    FileAnimationFrame[] frames;
+    Atlas atlas;
+
+    //takes over ownership of a_frames' memory
+    this(Atlas a_atlas, AnimationData a_data) {
+        atlas = a_atlas;
+
+        foreach (int i, ref par; params) {
+            //xxx what was the point? params.length==mapParam.length==const 3
+            assert(i < a_data.info.mapParam.length);
+            par.map = a_data.info.mapParam[i];
+            par.count = a_data.info.frameCount[i];
+            par.conv = a_data.param_conv[i];
+        }
+
+        flags = a_data.info.flags;
+        frameTimeMS = a_data.info.frametime_ms;
+
+        frames = a_data.frames;
+        argcheck(frames.length == frameCount());
+
+        auto size = Vector2i(a_data.info.size[0], a_data.info.size[1]);
+        box.p1 = -size/2; //(center around (0,0))
+        box.p2 = size + box.p1;
+    }
+
+    void drawFrame(Canvas c, Vector2i pos, int p1, int p2, int p3) {
+        int idx = getFrameIdx(p1, p2, p3);
+        FileAnimationFrame* frame = &frames[idx];
+        auto image = atlas.texture(frame.bitmapIndex);
+
+        //error
+        if (!image)
+            return;
+
+        BitmapEffect eff;
+        eff.mirrorY = !!(frame.drawEffects & FileDrawEffects.MirrorY);
+
+        c.drawSprite(image, pos+Vector2i(frame.centerX, frame.centerY), &eff);
+    }
+
+    //calculate bounds, xxx slight code duplication with drawFrame()
+    Rect2i boundingBox() {
+        Rect2i bnds = Rect2i.Abnormal();
+        foreach (inout frame; frames) {
+            auto image = atlas.texture(frame.bitmapIndex);
+            if (image) {
+                auto origin = Vector2i(frame.centerX, frame.centerY);
+                bnds.extend(origin);
+                bnds.extend(origin + image.size);
+            }
+        }
+        return bnds;
+    }
+}
+
+
 //storage for the binary parts of animations
 //one instance of this class per binary files, supporting multiple animations
 class AniFramesAtlas : AniFrames {
     private {
         Frames[] mAnimations;
-
-        class AtlasFrames : Frames {
-            //rectangular array, with the dimensions as in params[].count
-            FileAnimationFrame[] frames;
-
-            void drawFrame(Canvas c, Vector2i pos, int p1, int p2, int p3) {
-                int idx = getFrameIdx(p1, p2, p3);
-                FileAnimationFrame* frame = &frames[idx];
-                auto image = mImages.texture(frame.bitmapIndex);
-
-                //error
-                if (!image)
-                    return;
-
-                BitmapEffect eff;
-                eff.mirrorY = !!(frame.drawEffects & FileDrawEffects.MirrorY);
-
-                c.drawSprite(image, pos+Vector2i(frame.centerX, frame.centerY),
-                    &eff);
-            }
-
-            //calculate bounds, xxx slight code duplication with drawFrame()
-            Rect2i boundingBox() {
-                Rect2i bnds = Rect2i.Abnormal();
-                foreach (inout frame; frames) {
-                    auto image = mImages.texture(frame.bitmapIndex);
-                    if (image) {
-                        auto origin = Vector2i(frame.centerX, frame.centerY);
-                        bnds.extend(origin);
-                        bnds.extend(origin + image.size);
-                    }
-                }
-                return bnds;
-            }
-        }
-
-        Atlas mImages;
     }
 
     //the AniFramesAtlasResource references an atlas and a binary data file
     //the data file contains indices which must directly match the atlas data
     this(Atlas images, Stream data) {
-        mImages = images;
-        //xxx: I know I shouldn't use the structs directly from the stream,
-        //  because the endianess etc. might be different on various platforms
-        //  the sizes and alignments are ok though, so who cares?
-        FileAnimations header;
-        data.readExact(cast(ubyte[])(&header)[0..1]);
-        for (int idx = 0; idx < header.animationCount; idx++) {
-            AtlasFrames anim = new AtlasFrames();
-            FileAnimation fani;
-            data.readExact(cast(ubyte[])(&fani)[0..1]);
-            foreach (int i, ref par; anim.params) {
-                if (i < fani.mapParam.length) {
-                    par.map = fani.mapParam[i];
-                    par.count = fani.frameCount[i];
-                } else {
-                    par.map = 0;
-                    par.count = 1;
-                }
-            }
-            anim.flags = fani.flags;
-            anim.frames.length = anim.frameCount();
-            data.readExact(cast(ubyte[])anim.frames);
-
-            auto size = Vector2i(fani.size[0], fani.size[1]);
-            anim.box.p1 = -size/2; //(center around (0,0))
-            anim.box.p2 = size + anim.box.p1;
-            mAnimations ~= anim;
+        AnimationData[] anis = readAnimations(data);
+        foreach (ref ani; anis) {
+            mAnimations ~= new AtlasFrames(images, ani);
         }
+        delete anis;
     }
 
     override Frames frames(int anim_index) {

@@ -414,23 +414,27 @@ class ComplicatedAnimation : Animation {
 
     this(ConfigNode node, AniFrames frames) {
         int index = node.getIntValue("index", -1);
-        int frameTimeMS = node.getIntValue("frametime", cDefFrameTimeMS);
-        mFrames = frames.frames(index);
-        if (!mFrames)
+        Frames fr = frames.frames(index);
+        if (!fr)
             throwError("frame index invalid: {}", index);
+        this(fr);
+    }
+
+    this(Frames a_frames) {
+        argcheck(a_frames);
+        mFrames = a_frames;
+
         Rect2i bb = mFrames.box; // = mFrames.boundingBox();
 
-        void loadParamStuff(int index, char[] name) {
-            auto val = node.getStringValue(name, "none");
+        for (int index = 0; index < 3; index++) {
+            char[] val = mFrames.params[index].conv;
+            if (!val.length)
+                val = "none";
             if (!(val in gAnimationParamConverters)) {
-                throwError("unknown param converter for {}", name);
+                throwError("unknown param converter {} => '{}'", index, val);
             }
             mParamConvert[index] = gAnimationParamConverters[val];
         }
-
-        loadParamStuff(0, "param_1");
-        loadParamStuff(1, "param_2");
-        loadParamStuff(2, "param_3");
 
         //find out how long this is - needs reverse lookup
         //default value 1 in case time isn't used for a param (not animated)
@@ -442,7 +446,7 @@ class ComplicatedAnimation : Animation {
             }
         }
 
-        doInit(framelen, bb, frameTimeMS);
+        doInit(framelen, bb, mFrames.frameTimeMS);
 
         repeat = !!(mFrames.flags & FileAnimationFlags.Repeat);
     }

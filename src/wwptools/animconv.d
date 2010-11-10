@@ -246,9 +246,10 @@ class AniEntry {
         return mFrames.length;
     }
 
-    void createAnimationData(out FileAnimation ani,
-        out FileAnimationFrame[] frames)
-    {
+    AnimationData createAnimationData() {
+        FileAnimation ani;
+        FileAnimationFrame[] frames;
+
         ani.mapParam[] = cast(int[])params;
         ani.size[0] = box.x;
         ani.size[1] = box.y;
@@ -256,6 +257,7 @@ class AniEntry {
         ani.frameCount[1] = length_b();
         ani.frameCount[2] = length_c();
         ani.flags = flags;
+        ani.frametime_ms = frameTimeMS;
 
         //dump as rectangular array
         frames.length = ani.frameCount[0] * ani.frameCount[1]
@@ -277,28 +279,15 @@ class AniEntry {
                 }
             }
         }
-    }
-}
 
-//animation metadata
-struct AniData {
-    FileAnimation[] animations;
-    FileAnimationFrame[][] frames;
-
-    void writeFile(char[] filename) {
-        scope dataout = Stream.OpenFile(filename, File.WriteCreate);
-        scope(exit) dataout.close();
-        //again, endian issues etc....
-        FileAnimations header;
-        header.animationCount = animations.length;
-        dataout.writeExact(&header, header.sizeof);
-        for (int i = 0; i < animations.length; i++) {
-            auto ani = animations[i];
-            dataout.writeExact(&ani, ani.sizeof);
-            FileAnimationFrame[] frames = frames[i];
-            dataout.writeExact(frames.ptr, typeof(frames[0]).sizeof
-                * frames.length);
+        AnimationData res;
+        res.info = ani;
+        res.frames = frames;
+        assert(param_conv.length <= 3);
+        foreach (int idx, char[] p; param_conv) {
+            res.param_conv[idx] = p;
         }
+        return res;
     }
 }
 
@@ -324,18 +313,25 @@ class AniFile {
         mBitmaps[name] = bmp;
     }
 
-    AniData createAnimationData() {
-        AniData data;
+    //the returned array is strictly read-only
+    AniEntry[] entries() {
+        return mEntries;
+    }
 
-        foreach (e; mEntries) {
-            FileAnimation ani;
-            FileAnimationFrame[] frames;
-            e.createAnimationData(ani, frames);
-            data.animations ~= ani;
-            data.frames ~= frames;
+    //the returned AA and data is strictly read-only
+    Surface[char[]] bitmaps() {
+        return mBitmaps;
+    }
+
+    AnimationData[] createAnimationData() {
+        AnimationData[] res;
+        res.length = mEntries.length;
+
+        foreach (int idx, e; mEntries) {
+            res[idx] = e.createAnimationData();
         }
 
-        return data;
+        return res;
     }
 
     ConfigNode createConfig(char[] fnBase) {
@@ -362,12 +358,7 @@ class AniFile {
                 throwError("double entry?: {}", e.name);
             node.setIntValue("index", idx);
             node.setStringValue("aniframes", aniframes_name);
-            node.setIntValue("frametime",e.frameTimeMS);
             node.setStringValue("type", "complicated");
-            foreach (int i, s; e.param_conv) {
-                if (s.length)
-                    node.setStringValue(myformat("param_{}", i+1), s);
-            }
         }
 
         auto output_bmps = output_res.getSubNode("bitmaps");
@@ -385,7 +376,9 @@ class AniFile {
 
         auto base = outPath ~ fnBase;
 
-        createAnimationData().writeFile(base ~ ".meta");
+        scope dataout = Stream.OpenFile(base ~ ".meta", File.WriteCreate);
+        scope(exit) dataout.close();
+        writeAnimations(dataout, createAnimationData());
 
         if (writeConf) {
             auto output_conf = createConfig(fnBase);

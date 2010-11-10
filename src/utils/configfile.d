@@ -183,6 +183,9 @@ public class ConfigNode {
     /// find an entry, return null if not found
     /// if there are several items with the same name, return the first one
     ConfigNode find(char[] name) {
+        //unnamed items don't count?
+        if (name.length == 0)
+            return null;
         //linear search - shouldn't be a problem in the general case, most
         //nodes have not many items, and linear search is faster/simpler.
         //if something needs fast lookups, it should create its own index.
@@ -662,13 +665,11 @@ public class ConfigNode {
         assert(node !is this);
         foreach (ConfigNode item; node) {
             auto item2 = find(item.name);
-            auto n1 = item;
-            auto n2 = item2;
-            if (recursive && item2 && n1 && n2)
+            if (recursive && item && item2)
             {
-                n2.mixinNode(n1, overwrite, true);
+                item2.mixinNode(item, overwrite, true);
                 if (overwrite)
-                    n2.value = n1.value;
+                    item2.value = item.value;
                 continue;
             }
             if (overwrite && item2) {

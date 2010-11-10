@@ -12,6 +12,11 @@ import utils.perf;
 
 import common.resset;
 
+//ConfigNode = the node under load_hacks
+//ResourceFile = file operating in
+alias void delegate(ConfigNode, ResourceFile) ResLoadHackDg;
+ResLoadHackDg[char[]] gResLoadHacks;
+
 ///manages a single resource
 class ResourceObject {
     ///the resource, must return always the same object
@@ -25,6 +30,9 @@ class ResourceItem : ResourceObject {
     ///unique id of resource
     char[] id;
 
+    //error reporting?
+    char[] fallbackLocation = "?";
+
     protected {
         Object mContents;
         ResourceFile mContext;
@@ -33,6 +41,10 @@ class ResourceItem : ResourceObject {
 
     final bool isLoaded() {
         return !!mContents;
+    }
+
+    char[] location() {
+        return mConfig ? mConfig.locationString() : fallbackLocation;
     }
 
     //only available before preload() is done
@@ -70,7 +82,7 @@ class ResourceItem : ResourceObject {
         } catch (CustomException e) {
             char[] errMsg = "Resource " ~ id ~ " (" ~ toString()
                 ~ ") failed to load: "~e.toString~"  - location: "
-                ~ mConfig.locationString();
+                ~ location();
             Resources.log(errMsg);
             //xxx destroys backtrace, should use Exception.next member
             throw new ResourceException(id, errMsg);
@@ -99,11 +111,22 @@ class ResourceItem : ResourceObject {
     //  dummy replacement, such as an error graphic for bitmaps)
     void loadError(char[] fmt, ...) {
         Resources.log.error("Loading resource '{}' specified in {} failed: {}",
-            id, mConfig.locationString(),
+            id, location(),
             myformat_fx(fmt, _arguments, _argptr));
     }
     void loadError(CustomException e) {
         loadError("{}", e);
+    }
+}
+
+class PseudoResource : ResourceItem {
+    this(ResourceFile context, char[] id, Object obj) {
+        super(context, id, null);
+        mContents = obj;
+    }
+
+    //lol.
+    override void load() {
     }
 }
 
@@ -166,6 +189,12 @@ class ResourceFile {
     private this(char[] id, char[] path) {
         resource_id = id;
         filepath = path;
+    }
+
+    //add an already loaded object as resource and work around the usual
+    //  loading mechanism
+    void addPseudoResource(char[] name, Object obj) {
+        resources ~= new PseudoResource(this, name, obj);
     }
 
     //correct loading of relative files
@@ -333,6 +362,27 @@ public class Resources {
 
         auto res = new ResourceFile(id, path);
         mLoadedResourceFiles[res.resource_id] = res;
+
+        foreach (ConfigNode sub; config.getSubNode("load_hacks")) {
+            auto cb = sub.name in gResLoadHacks;
+            if (!cb) {
+                throwError("error loading resource file '{}', can't load via"
+                    " '{}'", id, sub.name);
+            }
+            try {
+                (*cb)(sub, res);
+            } catch (CustomException e) {
+                e.msg = myformat("when loading '{}' via '{}': {}", id, sub.name,
+                    e.msg);
+                throw e;
+            }
+        }
+
+        try {
+            processIncludes(config, path);
+        } catch (CustomException e) {
+            log.trace("error loading includes for resource file '{}'", id);
+        }
 
         try {
 
@@ -523,5 +573,17 @@ public class Resources {
     ///actually duplicate it
     void unloadAll() {
         mLoadedResourceFiles = null; //blergh
+    }
+}
+
+//process include directives of the form "include { "file1" "file2" }"
+//the files are loaded from gFS, relative to the passed path
+//the config nodes from the include files are merged into node itself
+//for more half-assedness, includes aren't processed recursively
+void processIncludes(ConfigNode node, char[] path) {
+    char[][] files = node.getValue!(char[][])("include");
+    foreach (f; files) {
+        ConfigNode inc = loadConfig(path ~ "/" ~ f);
+        node.mixinNode(inc);
     }
 }

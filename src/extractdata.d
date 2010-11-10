@@ -54,7 +54,9 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     auto outFolder = new FileFolder(gfxOutputDir);
 
     ConfigNode loadWImportConfig(char[] file) {
-        return (new ConfigFile(Stream.OpenFile(importDir ~ file),
+        //xxx really bad hack to get to the right dir
+        //extractdata doesn't init gFS, so we can't use loadConfig()
+        return (new ConfigFile(Stream.OpenFile(importDir ~ "../data/" ~ file),
             file)).rootnode;
     }
     void writeConfig(ConfigNode node, char[] dest) {
@@ -93,7 +95,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         "icons.conf",iconnames);
 
     //****** Sounds ******
-    ConfigNode sndConf = loadWImportConfig("sounds.txt");
+    ConfigNode sndConf = loadWImportConfig("import_wwp_sounds.conf");
     foreach (ConfigNode sub; sndConf.getSubNode("sounds")) {
         Stdout.format("Copying sounds '{}'", sub.name()).newline;
         auto newres = new ConfigNode();
@@ -114,7 +116,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     //****** Convert mainspr.bnk / water.bnk using animconv ******
     Stream mainspr = gfxdir.open("mainspr.bnk");
 
-    ConfigNode animConf = loadWImportConfig("animations.txt");
+    ConfigNode animConf = loadWImportConfig("import_wwp_animations.conf");
 
     //run animconv
     do_extractbnk("mainspr", mainspr, animConf.getSubNode("mainspr"),

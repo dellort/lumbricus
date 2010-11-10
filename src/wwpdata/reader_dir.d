@@ -3,6 +3,7 @@ module wwpdata.reader_dir;
 import str = utils.string;
 import tango.stdc.stringz : fromStringz;
 import utils.stream;
+import utils.misc;
 import wwpdata.common;
 import wwpdata.reader;
 import wwptools.unworms;
@@ -76,7 +77,7 @@ class Dir {
                 return e.open(mStream);
             }
         }
-        throw new Exception("file within .dir not found: " ~ filename);
+        throwError("file within .dir not found: " ~ filename);
     }
 
     void close() {
