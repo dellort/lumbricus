@@ -87,7 +87,7 @@ AnimList readBnkFile(Stream st) {
     delete animHdr;
     delete frameHdr;
     delete chunkHdr;
-    Stdout.newline;
+    //Stdout.newline;
     return alist;
 }
 
