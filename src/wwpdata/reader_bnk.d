@@ -25,7 +25,7 @@ struct WWPBnkChunkHdr {
     uint unk;
 }
 
-AnimList readBnkFile(Stream st) {
+Animation[] readBnkFile(Stream st) {
     char[4] hdr;
     st.readExact(hdr.ptr, 4);
     assert(hdr == "BNK\x1A");
@@ -54,7 +54,7 @@ AnimList readBnkFile(Stream st) {
 
     int curChunkIdx = -1;
     ubyte[] chunkDecomp;
-    auto alist = new AnimList;
+    Animation[] alist;
     foreach (int ianim, WWPBnkAnimHdr hanim; animHdr) {
         //Stdout.format("Animation {}/{}   \r", ianim+1, animCount);
         //Stdout.flush();
@@ -80,8 +80,9 @@ AnimList readBnkFile(Stream st) {
             int fheight = hframe.y2-hframe.y1;
             RGBAColor[] rgbaData = pal.toRGBA(chunkDecomp[hframe.startPixel..hframe.startPixel+fwidth*fheight]);
             anim.addFrame(hframe.x1, hframe.y1, fwidth, fheight, rgbaData);
+            delete rgbaData;
         }
-        alist.animations ~= anim;
+        alist ~= anim;
     }
     delete chunkDecomp;
     delete animHdr;
@@ -95,7 +96,7 @@ void readBnk(Stream st, char[] outputDir, char[] fnBase) {
     scope alist = readBnkFile(st);
     Stdout.newline();
     Stdout("Saving\r");
-    alist.save(outputDir, fnBase);
+    saveAnimations(alist, outputDir, fnBase);
     Stdout.newline();
 }
 

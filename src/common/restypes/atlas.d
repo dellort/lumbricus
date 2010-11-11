@@ -15,7 +15,6 @@ import utils.vector2;
 class Atlas {
     private {
         Surface[] mPages;
-        FileAtlasTexture[] mTextures;
         SubSurface[] mTextureRefs;
         bool mErrorFlag;
 
@@ -23,23 +22,19 @@ class Atlas {
         static SubSurface mErrorImage;
     }
 
-    this() {
+    //take ownership of images, but not of blocks
+    this(FileAtlasTexture[] blocks, Surface[] images) {
         if (!mErrorImage) {
             mErrorImage = loadImage("error.png").fullSubSurface();
         }
-    }
-
-    this(FileAtlasTexture[] blocks, Surface[] images) {
-        this();
         mPages = images;
-        mTextures = blocks;
-        load();
+        load(blocks);
     }
 
     //create the SubSurfaces corresponding to the atlas parts
-    private void load() {
+    private void load(FileAtlasTexture[] textures) {
         assert(mTextureRefs.length == 0);
-        foreach (t; mTextures) {
+        foreach (t; textures) {
             Surface s = mPages[t.page];
             mTextureRefs ~= s.createSubSurface(Rect2i.Span(t.x, t.y, t.w, t.h));
         }
@@ -59,7 +54,7 @@ class Atlas {
     }
 
     int count() {
-        return mTextures.length;
+        return mTextureRefs.length;
     }
 }
 
@@ -73,7 +68,7 @@ class AtlasResource : ResourceItem {
             doLoad();
         } catch (CustomException e) {
             loadError(e);
-            auto dummy = new Atlas();
+            auto dummy = new Atlas(null, null);
             dummy.mErrorFlag = true;
             mContents = dummy;
         }
@@ -81,12 +76,13 @@ class AtlasResource : ResourceItem {
 
     private void doLoad() {
         auto node = mConfig;
-        auto atlas = new Atlas();
+
+        Surface[] images;
 
         foreach (char[] key, char[] value; node.getSubNode("pages")) {
             auto img = loadImage(mContext.fixPath(value));
             gFramework.preloadResource(img);
-            atlas.mPages ~= img;
+            images ~= img;
         }
 
         FileAtlasTexture[] textures;
@@ -99,11 +95,10 @@ class AtlasResource : ResourceItem {
         f.readExact(cast(ubyte[])(&header)[0..1]);
         textures.length = header.textureCount;
         f.readExact(cast(ubyte[])textures);
-        atlas.mTextures = textures;
 
-        atlas.load();
+        mContents = new Atlas(textures, images);
 
-        mContents = atlas;
+        delete textures;
     }
 
     static this() {

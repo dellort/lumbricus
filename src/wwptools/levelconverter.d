@@ -79,20 +79,20 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
 
     //big background image
     auto whatever = ldir.open("back.spr");
-    scope AnimList backAl = readSprFile(whatever);
+    scope Animation backAl = readSprFile(whatever);
     scope(exit) whatever.close();
     //WWP backgrounds are animation files, although there's only one frame (?)
     //spr file -> one animation with (at least) one frame, so this is ok
-    backAl.animations[0].frames[0].save(destPath~"backdrop.png");
+    backAl.frames[0].save(destPath~"backdrop.png");
     envBitmaps ~= BmpDef("sky_backdrop","backdrop.png");
 
     //debris with metadata
     scope debrisAnif = new AniFile();
     auto debrisSpr = ldir.open("debris.spr");
     scope(exit) debrisSpr.close();
-    scope AnimList debrisAl = readSprFile(debrisSpr);
+    scope Animation debrisAl = readSprFile(debrisSpr);
     auto debrisAni = new AniEntry(debrisAnif, "debris");
-    debrisAni.addFrames(debrisAl.animations);
+    debrisAni.addFrames([debrisAl]);
     debrisAni.flags = FileAnimationFlags.Repeat;
     debrisAnif.write(destPath, "debris", false);
 

@@ -142,8 +142,8 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
                 animConf.getSubNode("water_anims"), waterout);
 
             auto spr = waterdir.open("layer.spr");
-            AnimList water = readSprFile(spr);
-            do_write_anims(water, animConf.getSubNode("water_waves"), "waves",
+            Animation water = readSprFile(spr);
+            do_write_anims([water], animConf.getSubNode("water_waves"), "waves",
                 waterout);
             water.free();
 

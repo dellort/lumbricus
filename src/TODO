@@ -199,6 +199,7 @@ vllt: http://tekui.teklib.org/index.html
 - könnte helfen für game engine-zeug http://cowboyprogramming.com/2007/01/05/evolve-your-heirachy/
   Game Programming Gems 6, Kapitel 4.6
 + editor/debug modus: spielzeit läuft nicht ab, untersuchung/platzierung von game objekten
+- wenn man in FileSystem etwas unter einem noch nicht existierendem Unterverzeichnis mounted, wird das gemountete Verzeichnis nicht mit FileSystem.listdir() angezeigt (Testfall: /WWP-import/ von wwptools/load.d + "dir /" Befehl)
 
 == Wechsel der Programmiersprache ==
 

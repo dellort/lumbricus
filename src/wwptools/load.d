@@ -6,11 +6,15 @@ import common.resources;
 import common.restypes.animation;
 import common.restypes.atlas;
 import common.restypes.frames;
+import common.restypes.sound;
 import framework.config;
+import framework.filesystem;
 import framework.globalsettings;
+import framework.sound;
 import framework.surface;
 import utils.configfile;
 import utils.misc;
+import utils.path;
 import wwptools.animconv;
 import wwptools.atlaspacker;
 import wwpdata.animation;
@@ -34,6 +38,15 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
     //xxx maybe multiple / are a problem on windows?
     path = path ~ "/";
 
+    //mount the WWP data dir; when I wrote this only the sounds needed that
+    //xxx this is somewhat inconvenient if the user e.g. changes the path and
+    //  then retries; and in general, global state like this isn't good (better
+    //  solution? maybe per-game FileSystem instance?)
+    char[] vfspath = "/WWP-import/";
+    if (!gFS.pathExists(vfspath)) {
+        gFS.mount(MountPath.absolute, path, vfspath, false);
+    }
+
     ConfigNode importconf = loadConfig(node["import_ani"]);
     ConfigNode importsound = loadConfig(node["import_sound"]);
 
@@ -56,22 +69,24 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
     Dir wdir = new Dir(path ~ water["dir"]);
     scope(exit) wdir.close();
     auto spr = readSprFile(wdir.open(water["spr"]));
-    doImportAnis(resfile, spr, importconf.getSubNode(water["name"]));
+    doImportAnis(resfile, [spr], importconf.getSubNode(water["name"]));
 
     //sounds
-    /+
     auto sndinfo = importsound.getSubNode("sounds").getSubNode("normal");
-    char[] sndpath = sndinfo["source_path"] ~ "/";
+    char[] sndpath = vfspath ~ "data/" ~ sndinfo["source_path"] ~ "/";
     foreach (char[] name, char[] value; sndinfo.getSubNode("files")) {
-        xxx can't add resources, because SoundManager wants a filename and
-            always goes through gFS (but we want to use real filesystem paths)
+        auto fn = sndpath ~ value;
+        auto res = new SampleResource(resfile, name, SoundType.sfx, fn);
+        resfile.addResource(res);
     }
-    +/
 
     log("done importing WWP stuff");
 }
 
-void doImportAnis(ResourceFile dest, AnimList rawanis, ConfigNode importconf) {
+//NOTE: destroys rawanis
+void doImportAnis(ResourceFile dest, wwpdata.animation.Animation[] rawanis,
+    ConfigNode importconf)
+{
     auto anims = new AniFile();
     auto ctx = new AniLoadContext(rawanis);
     importAnimations(anims, ctx, importconf);
@@ -85,6 +100,8 @@ void doImportAnis(ResourceFile dest, AnimList rawanis, ConfigNode importconf) {
     foreach (char[] name, Surface bmp; anims.bitmaps) {
         dest.addPseudoResource(name, bmp);
     }
+    freeAnimations(rawanis);
+    anims.atlas.freeMetaData();
 }
 
 //fucking stupid...

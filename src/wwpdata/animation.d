@@ -16,37 +16,35 @@ import tango.io.Stdout;
 import tango.io.model.IFile : FileConst;
 const pathsep = FileConst.PathSeparatorChar;
 
-class AnimList {
-    Animation[] animations;
-
-    void save(char[] outPath, char[] fnBase, bool tosubdir = true) {
-        //scope stMeta = new File(outPath ~ pathsep ~ fnBase ~ ".meta",
-          //  FileMode.OutNew);
-        foreach (int i, Animation a; animations) {
-            char[] afn, apath;
-            if (tosubdir) {
-                //ah, how I love those "intuitive" formatting parameters...
-                afn = myformat("anim_{0:d3}", i);
-                apath = outPath ~ pathsep ~ fnBase;
-                trymkdir(apath);
-            } else {
-                afn = fnBase;
-                apath = outPath;
-            }
-            a.save(apath, afn);
-            Stdout.format("Saving {}/{}   \r",i+1 , animations.length);
-            Stdout.flush();
+void saveAnimations(Animation[] animations, char[] outPath, char[] fnBase,
+    bool tosubdir = true)
+{
+    //scope stMeta = new File(outPath ~ pathsep ~ fnBase ~ ".meta",
+        //  FileMode.OutNew);
+    foreach (int i, Animation a; animations) {
+        char[] afn, apath;
+        if (tosubdir) {
+            //ah, how I love those "intuitive" formatting parameters...
+            afn = myformat("anim_{0:d3}", i);
+            apath = outPath ~ pathsep ~ fnBase;
+            trymkdir(apath);
+        } else {
+            afn = fnBase;
+            apath = outPath;
         }
-        Stdout.newline; //??
+        a.save(apath, afn);
+        Stdout.format("Saving {}/{}   \r",i+1 , animations.length);
+        Stdout.flush();
     }
+    Stdout.newline; //??
+}
 
-    //free the data violently (with delete)
-    void free() {
-        foreach (a; animations) {
-            a.free();
-        }
-        delete animations;
+//free the data violently (with delete)
+void freeAnimations(ref Animation[] animations) {
+    foreach (a; animations) {
+        a.free();
     }
+    delete animations;
 }
 
 class Animation {

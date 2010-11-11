@@ -476,6 +476,14 @@ final class BigArray(T) {
         T[] slice = opSlice();
         slice[] = v;
     }
+    void opCatAssign(T value) {
+        setLengthNoInit(length + 1);
+        mData[length - 1] = value;
+    }
+    void opCatAssign(T[] value) {
+        setLengthNoInit(length + value.length);
+        mData[length - value.length .. $] = value;
+    }
     T* ptr() {
         return mData.ptr;
     }

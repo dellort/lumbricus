@@ -127,4 +127,10 @@ class AtlasPacker {
         delete mPageImages;
         delete mBlocks;
     }
+
+    //don't free images
+    void freeMetaData() {
+        delete mPacker;
+        delete mBlocks;
+    }
 }

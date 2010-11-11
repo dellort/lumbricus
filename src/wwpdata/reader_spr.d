@@ -11,7 +11,7 @@ struct WWPSprFrameHdr {
     ushort x1, y1, x2, y2;
 }
 
-AnimList readSprFile(Stream st) {
+Animation readSprFile(Stream st) {
     char[4] hdr;
     st.readExact(hdr.ptr, 4);
     assert(hdr == "SPR\x1A");
@@ -45,15 +45,17 @@ AnimList readSprFile(Stream st) {
 
         RGBAColor[] rgbaData = pal.toRGBA(data);
         anim.addFrame(fr.x1, fr.y1, w, h, rgbaData);
+        delete rgbaData;
     }
-    auto alist = new AnimList;
-    alist.animations ~= anim;
-    return alist;
+
+    delete frameHdr;
+
+    return anim;
 }
 
 void readSpr(Stream st, char[] outputDir, char[] fnBase) {
     scope alist = readSprFile(st);
-    alist.save(outputDir, fnBase);
+    saveAnimations([alist], outputDir, fnBase);
 }
 
 static this() {

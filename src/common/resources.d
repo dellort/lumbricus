@@ -197,6 +197,10 @@ class ResourceFile {
         resources ~= new PseudoResource(this, name, obj);
     }
 
+    void addResource(ResourceItem res) {
+        resources ~= res;
+    }
+
     //correct loading of relative files
     public char[] fixPath(char[] orgVal) {
         if (orgVal.length == 0)
@@ -346,6 +350,12 @@ public class Resources {
 
         log.trace("loading resource file '{}'", id);
 
+        try {
+            processIncludes(config, path);
+        } catch (CustomException e) {
+            log.trace("error loading includes for resource file '{}'", id);
+        }
+
         if (auto file = id in mLoadedResourceFiles) {
             if (file.loading) {
                 //don't know which file caused this; still try to be of help
@@ -376,12 +386,6 @@ public class Resources {
                     e.msg);
                 throw e;
             }
-        }
-
-        try {
-            processIncludes(config, path);
-        } catch (CustomException e) {
-            log.trace("error loading includes for resource file '{}'", id);
         }
 
         try {

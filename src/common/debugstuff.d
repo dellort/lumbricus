@@ -9,6 +9,7 @@ import common.task;
 import framework.commandline;
 import framework.config;
 import framework.event;
+import framework.filesystem;
 import framework.keybindings;
 import framework.main;
 import framework.sound;
@@ -168,6 +169,7 @@ class Stuff {
         cmds.registerCommand("gctrace", &cmdGCTrace, "", ["text", "int?=1"]);
         cmds.registerCommand("gcarrtrace", &cmdGCArrayTrace, "",
             ["text"]);
+        cmds.registerCommand("gcsweeps", &cmdGCSweeps, "");
 
         gCatchInput ~= &nameit;
         cmds.registerCommand("nameit", &cmdNameit, "");
@@ -175,9 +177,14 @@ class Stuff {
         cmds.registerCommand("res_load", &cmdResLoad, "", ["text"]);
         cmds.registerCommand("res_unload", &cmdResUnload, "", []);
 
+        cmds.registerCommand("dir", &cmdDir, "", ["text"]);
+
         static if (GCStatsHack) {
             gLog.notice("precise GC: {}", memory.GC.getDebug()
                 .precise_scanning());
+            //warning: assumes 'this' is always referenced by the rootset
+            //  (same issue as with GC.monitor())
+            memory.GC.getDebug.setcollectcb(&collectcb);
         }
 
         gFramework.onFrameEnd = &onFrameEnd;
@@ -294,6 +301,10 @@ class Stuff {
             //pure evil
             doarraytrace(cast(void*)cstdlib.strtoul((args[0].unbox!(char[])~'\0').ptr, null, 16));
     }
+    private void cmdGCSweeps(MyBox[] args, Output write) {
+        static if (GCStatsHack)
+            showsweepstats();
+    }
 
     private void cmdNameit(MyBox[] args, Output write) {
         mKeyNameIt = true;
@@ -325,10 +336,21 @@ class Stuff {
 
     private void cmdResLoad(MyBox[] args, Output write) {
         char[] s = args[0].unbox!(char[])();
-        try {
-            gResources.loadResources(s);
-        } catch (CustomException e) {
-            write.writefln("failed: {}", e);
+        gResources.loadResources(s);
+    }
+
+    private void cmdDir(MyBox[] args, Output write) {
+        char[] s = args[0].unbox!(char[])();
+        write.writefln("list '{}':", s);
+        gFS.listdir(s, "*", true, (char[] d) {
+            write.writefln("  {}", d);
+            return true;
+        });
+    }
+
+    private void collectcb(void* ptr, size_t size, Object tag) {
+        static if (GCStatsHack) {
+            docollect(ptr, size, tag);
         }
     }
 }
@@ -710,6 +732,48 @@ void doarraytrace(void* p) {
             void* d = *((cast(void**)blk.ptr) + n);
             Trace.formatln("    [{}] = {}", n, d);
         }
+    }
+}
+
+struct TagRecord {
+    Object tag;
+    size_t count;
+    size_t memory;
+}
+
+//BigArray is used because it uses malloc()
+BigArray!(TagRecord) gTags;
+
+static this() {
+    gTags = new typeof(gTags)();
+}
+
+void docollect(void* ptr, size_t size, Object tag) {
+    TagRecord[] arr = gTags[];
+    foreach (ref r; arr) {
+        if (r.tag is tag) {
+            r.count++;
+            r.memory += size;
+            return;
+        }
+    }
+    gTags ~= TagRecord(tag, 1, size);
+}
+
+//show stats what has been collected
+void showsweepstats() {
+    scope copy = new BigArray!(TagRecord)();
+    synchronized (memory.GC.getDebug.gclock()) {
+        copy ~= gTags[];
+        //reset stats
+        gTags.length = 0;
+    }
+    sort(copy[], (TagRecord a, TagRecord b) {
+        return a.memory < b.memory;
+    });
+    foreach (TagRecord r; copy[]) {
+        Trace.formatln("{} {} ({})", r.count, r.tag ? r.tag.toString() : "?",
+            str.sizeToHuman(r.memory));
     }
 }
 

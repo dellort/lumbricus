@@ -40,15 +40,16 @@ static this() {
     gAnimationLoadHandlers["bitmaps"] = &loadBitmapFrames;
 }
 
-//as pointless as the AnimList class
 //specific to the task of loading a WWP animation list from a .bnk file (e.g.
 //  animations are not named)
+//this class could be just an Animation[], but there's also some crap to be
+//  able to report unused animations
 class AniLoadContext {
     Animation[] animations;
     bool[] used; //used entries from animations
 
-    this(AnimList anis) {
-        animations = anis.animations;
+    this(Animation[] anis) {
+        animations = anis;
         used = new bool[animations.length];
     }
 
@@ -416,7 +417,7 @@ void do_extractbnk(char[] bnkname, Stream bnkfile, ConfigNode bnkNode,
     Stdout.formatln("Working on {}", bnkname);
     auto anis = readBnkFile(bnkfile);
     do_write_anims(anis, bnkNode, bnkname, workPath);
-    anis.free();
+    freeAnimations(anis);
 }
 
 void importAnimations(AniFile dest, AniLoadContext ctx, ConfigNode config) {
@@ -430,7 +431,7 @@ void importAnimations(AniFile dest, AniLoadContext ctx, ConfigNode config) {
     }
 }
 
-void do_write_anims(AnimList ani_list, ConfigNode config, char[] name,
+void do_write_anims(Animation[] ani_list, ConfigNode config, char[] name,
     char[] workPath)
 {
     auto anims = new AniFile();
