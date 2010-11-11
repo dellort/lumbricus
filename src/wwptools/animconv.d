@@ -349,7 +349,7 @@ class AniFile {
         anifile.setStringValue("datafile", anifile_name);
 
         first.comment = "//automatically created by animconv\n"
-                        "//change animations.txt instead of this file";
+                        "//change import_wwp/animations.conf instead of this file";
 
         auto output_anims = output_res.getSubNode("animations");
 

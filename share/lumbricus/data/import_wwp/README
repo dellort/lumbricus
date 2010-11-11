@@ -1,5 +1,5 @@
 some extra data files needed by extractdata to convert the WWP data files
-there's also data/import_wwp_*.conf
+lumbricus can use them to load WWP data directly too
 
 copyright notes:
 - iconmask.png was handmade by d0c

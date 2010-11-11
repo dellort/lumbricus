@@ -15,6 +15,32 @@ import tango.io.vfs.model.Vfs;
 import tango.io.model.IFile : FileConst;
 const pathsep = FileConst.PathSeparatorChar;
 
+char[][] readNamefile(Stream f) {
+    return str.splitlines(cast(char[])f.readAll());
+}
+
+Surface[] untileImages(Surface img) {
+    Surface[] res;
+    if (img.size.y > img.size.x) {
+        int tilesize = img.size.x;
+        for (int i = 0; i < img.size.y/tilesize; i ++) {
+            auto s = Vector2i(tilesize);
+            auto imgout = new Surface(s);
+            imgout.copyFrom(img, Vector2i(0), Vector2i(0, tilesize*i), s);
+            res ~= imgout;
+        }
+    } else {
+        int tilesize = img.size.y;
+        for (int i = 0; i < img.size.x/tilesize; i ++) {
+            auto s = Vector2i(tilesize);
+            auto imgout = new Surface(s);
+            imgout.copyFrom(img, Vector2i(0), Vector2i(tilesize*i, 0), s);
+            res ~= imgout;
+        }
+    }
+    return res;
+}
+
 ///Params:
 ///  filename = full path to input image
 ///  destPath = output directory with trailing separator (has to exist)
@@ -38,12 +64,10 @@ void do_untile(char[] filename, VfsFolder destFolder, char[] imgPath,
 void do_untile(Surface img, char[] filename, VfsFolder destFolder, char[] imgPath,
     char[] nameHead, char[] nameTail, char[] confName, Stream namefile)
 {
-    //hey there; scope doesn't work on arrays
-    scope buffer = new void[2*1024*1024];
     char[] fnbase = FilePath(filename).name;
     //path.getBaseName(path.getName(filename));
 
-    char[][] names = str.splitlines(cast(char[])namefile.readAll());
+    char[][] names = readNamefile(namefile);
 
     ConfigNode conffile, bmps;
     if (confName.length) {
@@ -66,7 +90,7 @@ void do_untile(Surface img, char[] filename, VfsFolder destFolder, char[] imgPat
         }
     }
 
-    void saveImg(Surface imgToSave) {
+    foreach (imgToSave; untileImages(img)) {
         char[] baseName = getNextName();
         auto f = imgFolder.file(baseName ~ ".png").create.output;
         scope(exit) f.close();
@@ -74,24 +98,6 @@ void do_untile(Surface img, char[] filename, VfsFolder destFolder, char[] imgPat
         saveImage(imgToSave, new ConduitStream(f));
         if (conffile) {
             bmps.setStringValue(baseName, imgPath ~ "/" ~ baseName ~ ".png");
-        }
-    }
-
-    if (img.size.y > img.size.x) {
-        int tilesize = img.size.x;
-        for (int i = 0; i < img.size.y/tilesize; i ++) {
-            auto s = Vector2i(tilesize);
-            auto imgout = new Surface(s);
-            imgout.copyFrom(img, Vector2i(0), Vector2i(0, tilesize*i), s);
-            saveImg(imgout);
-        }
-    } else {
-        int tilesize = img.size.y;
-        for (int i = 0; i < img.size.x/tilesize; i ++) {
-            auto s = Vector2i(tilesize);
-            auto imgout = new Surface(s);
-            imgout.copyFrom(img, Vector2i(0), Vector2i(tilesize*i, 0), s);
-            saveImg(imgout);
         }
     }
 

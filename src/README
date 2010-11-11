@@ -81,10 +81,15 @@ Using the WWP data converter:
   The WWP datafiles just contain lists of compressed images/animations, which
   are obviously (?) only addressed by their index-number. So we had to create
   our own description file, which maps the animation index to a name. This is
-  trunk/bin/tools/animations.txt. If your WWP datafiles are somehow different,
-  the animation numbers in animations.txt may need to be changed.
+  trunk/share/lumbricus/data/import_wwp/animations.conf. If your WWP datafiles
+  are different, the animation numbers in animations.conf may need to be
+  changed.
 
   To inspect the WWP datafiles, you can unpack them with unworms (using
   extractdata is impractical, because it only converts the animations in
-  animations.txt). Compile unworms with "dsss build ../bin/tools/unworms". You
+  animations.conf). Compile unworms with "dsss build ../bin/tools/unworms". You
   can call it on .dir, .bnk, .img and .spr files.
+
+  It appears Worms Armageddon puts each animation into a named .spr file.
+  Supporting Worms Armageddon data files would require us to map the .spr file-
+  names to the actual animations.

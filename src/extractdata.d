@@ -56,7 +56,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     ConfigNode loadWImportConfig(char[] file) {
         //xxx really bad hack to get to the right dir
         //extractdata doesn't init gFS, so we can't use loadConfig()
-        return (new ConfigFile(Stream.OpenFile(importDir ~ "../data/" ~ file),
+        return (new ConfigFile(Stream.OpenFile(importDir ~ file),
             file)).rootnode;
     }
     void writeConfig(ConfigNode node, char[] dest) {
@@ -95,7 +95,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
         "icons.conf",iconnames);
 
     //****** Sounds ******
-    ConfigNode sndConf = loadWImportConfig("import_wwp_sounds.conf");
+    ConfigNode sndConf = loadWImportConfig("sounds.conf");
     foreach (ConfigNode sub; sndConf.getSubNode("sounds")) {
         Stdout.format("Copying sounds '{}'", sub.name()).newline;
         auto newres = new ConfigNode();
@@ -116,7 +116,7 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
     //****** Convert mainspr.bnk / water.bnk using animconv ******
     Stream mainspr = gfxdir.open("mainspr.bnk");
 
-    ConfigNode animConf = loadWImportConfig("import_wwp_animations.conf");
+    ConfigNode animConf = loadWImportConfig("animations.conf");
 
     //run animconv
     do_extractbnk("mainspr", mainspr, animConf.getSubNode("mainspr"),
@@ -252,7 +252,7 @@ Options:
         outputDir = appPath ~ "../share/lumbricus/data2";
     trymkdir(outputDir);
     //try {
-        do_extractdata(appPath ~ "../share/lumbricus/wimport", args[1],
+        do_extractdata(appPath ~ "../share/lumbricus/data/import_wwp", args[1],
             outputDir, nolevelthemes);
     //} catch (Exception e) {
     //    writefln("Error: %s",e.msg);

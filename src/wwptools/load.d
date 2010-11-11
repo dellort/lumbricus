@@ -10,15 +10,20 @@ import common.restypes.sound;
 import framework.config;
 import framework.filesystem;
 import framework.globalsettings;
+import framework.imgread;
 import framework.sound;
 import framework.surface;
 import utils.configfile;
 import utils.misc;
 import utils.path;
+import utils.stream;
 import wwptools.animconv;
 import wwptools.atlaspacker;
+import wwptools.image;
+import wwptools.untile;
 import wwpdata.animation;
 import wwpdata.reader_bnk;
+import wwpdata.reader_img;
 import wwpdata.reader_dir;
 import wwpdata.reader_spr;
 
@@ -78,6 +83,21 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
         auto fn = sndpath ~ value;
         auto res = new SampleResource(resfile, name, SoundType.sfx, fn);
         resfile.addResource(res);
+    }
+
+    auto icons = node.getSubNode("icons");
+    Dir idir = new Dir(path ~ icons["dir"]);
+    scope(exit) idir.close();
+    Surface iconlo = readImgFile(idir.open(icons["img"]));
+    Surface icMask = loadImage(icons["mask"]);
+    applyAlphaMask(iconlo, icMask);
+    Stream names = gFS.open(icons["names"]);
+    scope(exit) names.close();
+    char[][] inames = readNamefile(names);
+    Surface[] imgs = untileImages(iconlo);
+    foreach (int idx, img; imgs) {
+        softAssert(indexValid(inames, idx), "error in namefile");
+        resfile.addPseudoResource("icon_" ~ inames[idx], img);
     }
 
     log("done importing WWP stuff");
