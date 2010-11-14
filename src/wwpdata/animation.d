@@ -121,7 +121,6 @@ class Animation {
 
     Surface toBitmap() {
         auto img = new Surface(Vector2i(boxWidth*frames.length, boxHeight));
-        clearImage(img);
         foreach (int i, FrameInfo fi; frames) {
             fi.blitOn(img, i*boxWidth+fi.x, fi.y);
         }

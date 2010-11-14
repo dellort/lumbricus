@@ -373,6 +373,14 @@ public class Resources {
         auto res = new ResourceFile(id, path);
         mLoadedResourceFiles[res.resource_id] = res;
 
+        //xxx I would prefer to filter this on CustomException, not Exception
+        scope(failure) {
+            //roll back; delete the file
+            //because there are no circular references, recursively loaded files
+            //are either loaded OK, or will be removed recursively
+            mLoadedResourceFiles.remove(res.resource_id);
+        }
+
         foreach (ConfigNode sub; config.getSubNode("load_hacks")) {
             auto cb = sub.name in gResLoadHacks;
             if (!cb) {
@@ -409,10 +417,6 @@ public class Resources {
 
         } catch (CustomException e) {
             log.trace("error loading resource file '{}'", id);
-            //roll back; delete the file
-            //because there are no circular references, recursively loaded files
-            //are either loaded OK, or will be removed recursively
-            mLoadedResourceFiles.remove(res.resource_id);
             throw e;
         }
 

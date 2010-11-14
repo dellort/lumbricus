@@ -8,9 +8,6 @@ $ sollte behoben sein / works for me (muss getestet werden)
 
 
 == Sonstiges/Minor ==
-$ animation für kranke würmer benutzen
-  ^ es gibt schon eine lowhp_animation, die auch ihren Sinn in WWP hat; mir ist nicht ganz klar wann genau die Animation für kranke Würmer stattdessen angezeigt werden soll (nur wenn der Wurm vergifted wurde? das hab ich implementiert)
-  ^^ In WWP ist es so: if (vergiftet) krankAni; else if (<30 hp) lowhpAni; else normalAni
 - parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
 - Bohrer/Lötlampe stoßen Würmer weg: verbessern (mehr impuls, weniger schaden?)
 - entscheiden, ob Lua Full-Userdata verwendet werden soll, und dann die Entscheidung konsequent durchsetzen (z.B. keine globalen Class_method Funktionen mehr)
@@ -30,6 +27,18 @@ $ animation für kranke würmer benutzen
     ^^ und warum geht es da?
     wasweisichhabichdasdingprogrammiert? Die Wurmfüße sind halt dann falsch aber das fällt fast nicht auf
     ^^^ hört sich aber besser an, zumindest ist der krumme Tunnel den wir bauen ein bisschen komisch
+- Möglichkeit untersuchen, WWP-Daten ohne Installation zu benutzen (von CD oder so)
+- Möglichkeit untersuchen, Worms Armageddon-Daten zu benutzen (WA scheint beliebter zu sein, aber verwendet keine .bnk-Dateien)
+  nicht zu verwechseln mit "Worms 2: Armageddon"
+- konvertieren/laden von Graphiken via extractdata/wwp_conv entfernen? j/n
+  Pro:
+  - vereinfacht den Code erheblich, weniger Fehlerquellen
+  - weniger verwirrend da ein Graphikset wegfällt
+  Kontra:
+  - laden per wwp_direct ist ein paar Millisekunden langsamer
+  - Ladebalken des Spiels wird noch nutzloser als er war
+  - wwp_direct ist auf eine Wasserfarbe hardkodiert (könnte man ändern)
+  extractdata selbst würde man beibehalten für Levelthemes.
 
 == bekannte, lösbare Bugs ==
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
@@ -83,7 +92,6 @@ $ animation für kranke würmer benutzen
   vor jedem testschritt würde das level zurückgesetzt werden (vllt. neue engine starten)
   manche tests könnten ganz gut automatisch verifiziert werden
   in den anderen fällen könnte zumindest visuell überprüfen, ob ein testschritt erfolgreich war (immer noch besser als garnichts)
-- utils/stream.d wirft IOException, und wwpdata/* benutzt das direkt => wenn lumbricus direkt WWP daten lädt und wwp_data_path stimmt nicht stürzt es ab
 
 == Performance Bugs, "Dinge die nicht so weiter gehen können", etc. ==
 - GUI zeichnet hintergrund bild selbst wenn komplett verdeckt (z.b. während des spiels) (ähnliches problem gibt es mit löschung des hintergrund: z.b. fensterhintergrund sollte nicht gelöscht werden, wenn das spiel das eh tut, vor allem im vollbildmodus; dazu gibt es zur zeit ekligen spezialcode)

@@ -31,7 +31,7 @@ Setting gWwpDataPath;
 
 static this() {
     gResLoadHacks["wwp"] = toDelegate(&loadWwp);
-    gWwpDataPath = addSetting!(char[])("wwp_data_path");
+    gWwpDataPath = addSetting!(char[])("game.wwp_data_path");
 }
 
 void loadWwp(ConfigNode node, ResourceFile resfile) {
@@ -40,8 +40,6 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
     char[] path = gWwpDataPath.value;
     if (!path.length)
         throwError("{} not set, can't load data", gWwpDataPath.name);
-    //xxx maybe multiple / are a problem on windows?
-    path = path ~ "/";
 
     //mount the WWP data dir; when I wrote this only the sounds needed that
     //xxx this is somewhat inconvenient if the user e.g. changes the path and
@@ -49,21 +47,26 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
     //  solution? maybe per-game FileSystem instance?)
     char[] vfspath = "/WWP-import/";
     if (!gFS.pathExists(vfspath)) {
+        log("using WWP data path: {}", path);
         gFS.mount(MountPath.absolute, path, vfspath, false);
+    }
+
+    Dir openDir(char[] dpath) {
+        return new Dir(gFS.open(vfspath ~ dpath));
     }
 
     ConfigNode importconf = loadConfig(node["import_ani"]);
     ConfigNode importsound = loadConfig(node["import_sound"]);
 
     foreach (ConfigNode sub; node.getSubNode("bnks")) {
-        char[] dirpath = path ~ sub["dir"];
+        char[] dirpath = sub["dir"];
         char[] bnk = sub["bnk"];
 
         log("importing bnk: {}/{}", dirpath, bnk);
 
         //load/convert the data
         //no progress bar for you, it's all done here
-        Dir dir = new Dir(dirpath);
+        Dir dir = openDir(dirpath);
         scope(exit) dir.close();
         auto bnkfile = dir.open(bnk);
         auto rawanis = readBnkFile(bnkfile);
@@ -71,7 +74,7 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
     }
 
     auto water = node.getSubNode("water_spr");
-    Dir wdir = new Dir(path ~ water["dir"]);
+    Dir wdir = openDir(water["dir"]);
     scope(exit) wdir.close();
     auto spr = readSprFile(wdir.open(water["spr"]));
     doImportAnis(resfile, [spr], importconf.getSubNode(water["name"]));
@@ -86,7 +89,7 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
     }
 
     auto icons = node.getSubNode("icons");
-    Dir idir = new Dir(path ~ icons["dir"]);
+    Dir idir = openDir(icons["dir"]);
     scope(exit) idir.close();
     Surface iconlo = readImgFile(idir.open(icons["img"]));
     Surface icMask = loadImage(icons["mask"]);

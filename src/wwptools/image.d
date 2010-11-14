@@ -28,14 +28,6 @@ Surface loadImageFromFile(char[] path) {
     return loadImage(f);
 }
 
-void clearImage(Surface img) {
-    img.fill(img.rect, Color.Transparent);
-}
-
-void clearImage(Surface img, ubyte r, ubyte g, ubyte b, ubyte a) {
-    img.fill(img.rect, Color.fromBytes(r, g, b, a));
-}
-
 void blitRGBData(Surface img, RGBAColor[] data, int aw, int ah) {
     Color.RGBA32* pixels;
     uint pitch;

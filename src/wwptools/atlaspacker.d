@@ -56,9 +56,7 @@ class AtlasPacker {
 
         while (newBlock.page >= mPageImages.length) {
             //a new page has been started, create a new image
-            auto img = new Surface(mPacker.pageSize);
-            clearImage(img);
-            mPageImages ~= img;
+            mPageImages ~= new Surface(mPacker.pageSize);
         }
 
         FileAtlasTexture fat;

@@ -771,10 +771,14 @@ void showsweepstats() {
     sort(copy[], (TagRecord a, TagRecord b) {
         return a.memory < b.memory;
     });
+    size_t all_count, all_memory;
     foreach (TagRecord r; copy[]) {
         Trace.formatln("{} {} ({})", r.count, r.tag ? r.tag.toString() : "?",
             str.sizeToHuman(r.memory));
+        all_memory += r.memory;
+        all_count += r.count;
     }
+    Trace.formatln("sum=#{} / {}", all_count, str.sizeToHuman(all_memory));
 }
 
 }

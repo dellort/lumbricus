@@ -1,95 +1,134 @@
 This is Lumbricus Terrestris. There's also a little info on our project page:
     https://gna.org/projects/lumbricus
 
-Status:
+----  Status ----
 
-    Sorry, it's at a very early alpha/beta state, it is not really ready yet.
+Sorry, it's at a very late alpha/beta state, it is not really ready yet.
 
-    Working:
-    - it's playable
-    - can use original WWP graphics using a converter
+Working:
+- it's playable
+- can use original WWP (Worms World Party) graphics
 
-    Missing:
-    - free graphics (there are only "stub" graphics)
-    - and free sounds
-    - nicer and more complete user interface
-    - network mode that actually works (or just forget about it)
-      (the current one relies on FP determinism, which is not always given; also
-       it may have too large lag when playing over internet. and in general, the
-       determinism requirement makes it fragile as hell.)
-    - simple way to compile/install
+Missing:
+- free graphics (there are only "stub" graphics)
+- and free sounds
+- nicer and more complete user interface
+- network mode that actually works (or just forget about it)
+    (the current one relies on FP determinism, which is not always given; also
+    it may have too large lag when playing over internet. and in general, the
+    determinism requirement makes it fragile as hell.)
+- simple way to compile/install
 
-    The code is written in the D Programming Language version 1.x, see:
-    http://www.digitalmars.com/d/1.0/
-    Because of this the code is very hard to compile.
+The code is written in the D Programming Language version 1.x, see:
+http://www.digitalmars.com/d/1.0/
+Because of this the code is very hard to compile.
 
-Version status for tools and libraries:
-    D compiler:
-        You need one of those...
-        dmd: 1.057 and following should work
-             1.061 doesn't work (dmd bug 4210)
-        ldc: newest version may work, though there are often regressions
-        gdc: forget it (maybe one day...)
-    Tango (alternative D standard library):
-        svn r5396: works
-        release 0.99.9: works
-    Derelict (D bindings for various C libs):
-        http://svn.dsource.org/projects/derelict/trunk/
-        svn r481: works
-            for DerelictUtil, DerelictFT, DerelictGL, DerelictGLU, DerelictSDL, DerelictSDLImage, DerelictAL
 
-Building it:
+---- Version status for tools and libraries ----
 
-    This is can be very hard (depending how much D experience you have).
-    Your options:
-    - Forget it, give up.
-    - Ask us on the lonely plains in irc.freenode.net #lumbricus
-    - Send us spam by e-mail. (Addresses are somewhere on
-      https://gna.org/projects/lumbricus/)
-    - Try building the debian package (execute dpkg-buildpackage in the trunk/
-      directory) - may be randomly broken, though.
+D compiler:
+    You need one of those...
+    dmd: 1.057 and following should work
+         1.061 doesn't work (dmd bug 4210)
+         1.063 works
+    ldc: newest version may work, though there are often regressions
+    gdc: forget it (maybe one day...)
+         actually gdc got revived recently
+Tango (alternative D standard library):
+    svn r5396: works
+    release 0.99.9: works
+Derelict (D bindings for various C libs):
+    http://svn.dsource.org/projects/derelict/trunk/
+    svn r481: works
+    needed: DerelictUtil, DerelictFT, DerelictGL, DerelictGLU, DerelictSDL, DerelictSDLImage, DerelictAL
 
-Required libraries:
-- Dynamic linked (.dll/.so):
-  - SDL
-  - SDL_image
-  - Freetype
-  - Zlib
-  - OpenGL
-  - Lua 5.1
-  Optional:
-  - ENet (enet.bespin.org)
-  - FMod
-  - OpenAL + SDL_sound (icculus.org/SDL_sound)
-  For Win32, all required .dll files can be found in <svn_root>/downloads/win32_dlls
-- Static linked D libraries:
-  - Derelict for the 2 SDL libraries
-  - Tango (comes not with DMD)
 
-Using the WWP data converter:
-  extractdata expects the Worms(TM) directory and an output
-  dir as arguments, and converts the file to images/conf-files Lumbricus can
-  understand. Call it like this:
+---- Building it ----
 
-   extractdata pathtowwp
+This is can be very hard (depending how much D experience you have).
+Your options:
+- Forget it, give up.
+- Ask us on the lonely plains in irc.freenode.net #lumbricus
+- Send us spam by e-mail. (Addresses are somewhere on
+    https://gna.org/projects/lumbricus/)
+- Try building the debian package (execute dpkg-buildpackage in the trunk/
+    directory) - may be randomly broken, though.
+    The LDC/Tango packages are outdated, all you will get is a world of pain.
 
-  Note that this needs some additional data files from
-    trunk/share/lumbricus/wimport
-  The files are searched in <path_to_extractdata_binary>/../share/lumbricus/wimport,
-  so if you leave your executable in the default output path you should be fine.
+
+---- Required libraries ----
+
+Dynamic linked (.dll/.so):
+    - SDL
+    - SDL_image
+    - Freetype
+    - Zlib
+    - OpenGL
+    - Lua 5.1
+    Optional:
+    - ENet (enet.bespin.org)
+    - FMod
+    - OpenAL + SDL_sound (icculus.org/SDL_sound)
+    For Win32, all required .dll files can be found in <svn_root>/downloads/win32_dlls
+Static linked D libraries:
+    - Derelict for the 2 SDL libraries
+    - Tango (comes not with DMD)
+
+
+---- Using the WWP data files ----
+
+General stuff about the WWP data files:
+  Lumbricus can use the original WWP (Worms World Party) data files, either by
+  loading them directly, or using a converter. Direct loading doesn't make use
+  of level themes and so on.
+
+  Both direct loading and conversion require a WWP installation.
 
   The WWP datafiles just contain lists of compressed images/animations, which
   are obviously (?) only addressed by their index-number. So we had to create
   our own description file, which maps the animation index to a name. This is
   trunk/share/lumbricus/data/import_wwp/animations.conf. If your WWP datafiles
-  are different, the animation numbers in animations.conf may need to be
-  changed.
-
-  To inspect the WWP datafiles, you can unpack them with unworms (using
-  extractdata is impractical, because it only converts the animations in
-  animations.conf). Compile unworms with "dsss build ../bin/tools/unworms". You
-  can call it on .dir, .bnk, .img and .spr files.
+  are different, using them may fail randomly. The animation numbers in
+  animations.conf may need to be changed.
 
   It appears Worms Armageddon puts each animation into a named .spr file.
   Supporting Worms Armageddon data files would require us to map the .spr file-
-  names to the actual animations.
+  names to the actual animations. No clue about later 2D Worms games.
+
+Using the WWP data directly:
+  Start lumbricus with these options:
+
+    --game.wwp_data_path=/path/to/WWP --game.graphicset=wwp_direct
+
+  (Or hope we will add a more user-friendly way to do it.)
+
+  The /path/to/WWP should point to the directory that contains the wwp.exe.
+  Lumbricus actually only reads some of the files (mostly .dir and .wav).
+
+  Unless the game crashes before saving the WWP path to the user's config
+  directory, you don't need to pass the options later on.
+
+Using the WWP data converter:
+  extractdata expects the Worms(TM) directory as arguments, and converts the
+  file to images/conf-files Lumbricus can understand. Call it like this:
+
+   extractdata /path/to/WWP
+
+  Note that this needs some additional data files from
+    trunk/share/lumbricus/data/import_wwp
+  The files are searched in
+    <path_to_extractdata_binary>/../share/lumbricus/data/import_wwp
+  so if you leave your executable in the default output path you should be fine.
+
+  The converted files will be written to
+    <path_to_extractdata_binary>/../share/lumbricus/data2/
+  Make sure that is writeable by extractdata.
+
+  Also you may need to set the game.graphicset option to wwp_conv (although that
+  is default).
+
+  To inspect the WWP datafiles, you can unpack them with unworms (using
+  extractdata is impractical, because it only converts the animations in
+  animations.conf). Compile unworms with "dsss build ../bin/unworms". You can
+  call it on .dir, .bnk, .img and .spr files.
+
