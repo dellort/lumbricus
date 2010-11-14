@@ -34,6 +34,8 @@ static this() {
     gWwpDataPath = addSetting!(char[])("game.wwp_data_path");
 }
 
+MountId gLastWWpMount;
+
 void loadWwp(ConfigNode node, ResourceFile resfile) {
     auto log = &Resources.log.minor;
 
@@ -41,15 +43,20 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
     if (!path.length)
         throwError("{} not set, can't load data", gWwpDataPath.name);
 
-    //mount the WWP data dir; when I wrote this only the sounds needed that
-    //xxx this is somewhat inconvenient if the user e.g. changes the path and
-    //  then retries; and in general, global state like this isn't good (better
-    //  solution? maybe per-game FileSystem instance?)
-    char[] vfspath = "/WWP-import/";
-    if (!gFS.pathExists(vfspath)) {
-        log("using WWP data path: {}", path);
-        gFS.mount(MountPath.absolute, path, vfspath, false);
+    //mount the WWP data dir; when I wrote this only the sounds needed that (the
+    //  sound drivers get a VFS path to the sound file => VFS must remain
+    //  mounted as long as they are possibly used)
+    //xxx always remount => possibly take over changes to WWP data path (better
+    //  solution? maybe a per-game FileSystem instance?)
+    if (gLastWWpMount != MountId.init) {
+        gFS.unmount(gLastWWpMount);
+        gLastWWpMount = MountId.init;
     }
+
+    char[] vfspath = "/WWP-import/";
+
+    log("using WWP data path: {}", path);
+    gLastWWpMount = gFS.mount(MountPath.absolute, path, vfspath, false);
 
     Dir openDir(char[] dpath) {
         return new Dir(gFS.open(vfspath ~ dpath));

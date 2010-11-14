@@ -482,6 +482,7 @@ private class HandlerLink : HandlerInstance {
     }
 }
 
+//MountId.init is guaranteed to be never used
 typedef uint MountId;
 
 class FileSystem {
@@ -510,7 +511,7 @@ class FileSystem {
                 ret.precedence = precedence;
                 ret.handler = handler;
                 ret.mWritable = writable;
-                ret.mountId = mNextMountId++;
+                ret.mountId = ++mNextMountId;
                 return ret;
             }
 
