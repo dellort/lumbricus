@@ -28,18 +28,16 @@ Because of this the code is very hard to compile.
 
 D compiler:
     You need one of those...
-    dmd: 1.057 and following should work
-         1.061 doesn't work (dmd bug 4210)
-         1.063 works
+    dmd: 1.065 works
     ldc: newest version may work, though there are often regressions
     gdc: forget it (maybe one day...)
          actually gdc got revived recently
 Tango (alternative D standard library):
-    svn r5396: works
-    release 0.99.9: works
+    svn r5599: works
+    release 0.99.9: should work
 Derelict (D bindings for various C libs):
     http://svn.dsource.org/projects/derelict/trunk/
-    svn r481: works
+    svn r515: works
     needed: DerelictUtil, DerelictFT, DerelictGL, DerelictGLU, DerelictSDL, DerelictSDLImage, DerelictAL
 
 

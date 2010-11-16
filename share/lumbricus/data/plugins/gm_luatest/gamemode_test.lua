@@ -4,7 +4,7 @@
 printf("{}", config)
 
 addGlobalEventHandler("game_start", function(sender)
-    Team_set_active(Control_teams()[1], true)
+    Team.set_active(Control:teams()[1], true)
 
     -- for testing
     local status = TimeStatus_ctor()
@@ -18,10 +18,10 @@ addGlobalEventHandler("team_set_active", function(sender, active)
     if not active then
         -- check until a member can be activated
         addPeriodicTimer(timeSecs(0.2), function(timer)
-            for idx, t in ipairs(Control_teams()) do
+            for idx, t in ipairs(Control:teams()) do
                 -- don't activate members that are moving
-                if Team_alive(t) and Team_nextWasIdle(t, timeMsecs(500)) then
-                    Team_set_active(t, true)
+                if Team.alive(t) and Team.nextWasIdle(t, timeMsecs(500)) then
+                    Team.set_active(t, true)
                     timer:cancel()
                     return
                 end
@@ -33,9 +33,9 @@ end)
 -- update health every 5s
 addPeriodicTimer(timeSecs(5), function()
     addPeriodicTimer(Time.Null, function(timer)
-        if not Control_checkDyingWorms() then
+        if not Control:checkDyingWorms() then
             timer:cancel()
         end
     end)
-    Control_updateHealth()
+    Control:updateHealth()
 end)

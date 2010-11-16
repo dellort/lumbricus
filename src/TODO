@@ -10,8 +10,6 @@ $ sollte behoben sein / works for me (muss getestet werden)
 == Sonstiges/Minor ==
 - parameter handling von ComplicatedAnimation mit dem von AnimEffect vereinen? ja/nein
 - Bohrer/Lötlampe stoßen Würmer weg: verbessern (mehr impuls, weniger schaden?)
-- entscheiden, ob Lua Full-Userdata verwendet werden soll, und dann die Entscheidung konsequent durchsetzen (z.B. keine globalen Class_method Funktionen mehr)
-  im Moment geht noch beides; vielleicht sollte man erst Performance-Tests durchführen? (bloss welche...)
 - settings sollten nicht bei jedem window resize gespeichert werden, sondern in einem settings dialog?
   wenn man wollte, könnte man settings2.conf auch nach _irgendeiner_ änderung speichern
   ^ Ich finde speichern nach jeder Änderung (oder automatisch bei Programmende) wäre ok; nur 

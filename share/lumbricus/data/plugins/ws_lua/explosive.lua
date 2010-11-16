@@ -88,20 +88,20 @@ do
     local seq_to_drown = {}
     for i, v in ipairs(seqs) do
         local seq = lookupResource(v)
-        local state = SequenceType_findState(seq, "normal")
+        local state = SequenceType.findState(seq, "normal")
         seq_states[i] = state
-        seq_to_drown[state] = SequenceType_findState(seq, "drown")
+        seq_to_drown[state] = SequenceType.findState(seq, "drown")
     end
     addSpriteClassEvent(shard, "sprite_activate", function(sender, normal)
-        Sequence_setState(Sprite_graphic(sender),
-            seq_states[Random_rangei(1, #seq_states)])
+        Sequence.setState(Sprite.graphic(sender),
+            seq_states[Random:rangei(1, #seq_states)])
     end)
     addSpriteClassEvent(shard, "sprite_waterstate", function(sender)
-        local gr = Sprite_graphic(sender)
-        if Sprite_isUnderWater(sender) and gr then
-            local n = seq_to_drown[Sequence_currentState(gr)]
+        local gr = Sprite.graphic(sender)
+        if Sprite.isUnderWater(sender) and gr then
+            local n = seq_to_drown[Sequence.currentState(gr)]
             if n then
-                Sequence_setState(gr, n)
+                Sequence.setState(gr, n)
             end
         end
     end)
@@ -124,7 +124,7 @@ end
 
 do
     local name = "mine"
-    local cNeutralDelay = utils.range(ConfigNode_get(config, "neutral_mine_delay", "1"))
+    local cNeutralDelay = utils.range(ConfigNode.get(config, "neutral_mine_delay", "1"))
     -- no "local", this is used in other weapons
     mine_class = createSpriteClass {
         -- newgame.conf/levelobjects references this name!
@@ -143,9 +143,9 @@ do
     }
     export_table().mine_class = mine_class
 
-    local seq = SpriteClass_sequenceType(mine_class)
+    local seq = SpriteClass.sequenceType(mine_class)
     assert(seq)
-    local flash_graphic = SequenceType_findState(seq, "flashing")
+    local flash_graphic = SequenceType.findState(seq, "flashing")
     local flash_particle = lookupResource("p_mine_flash")
     -- timer for initial delay
     enableSpriteTimer(mine_class, {
@@ -156,32 +156,32 @@ do
             addCircleTrigger(sender, 45, "wormsensor", function(trig, obj)
                 -- always 2 seconds for player-placed mines
                 local delay = time(2)
-                local member = Control_memberFromGameObject(sender)
+                local member = Control:memberFromGameObject(sender)
                 if not member then
                     -- configured delay for neutral (placed at start) mines
                     delay = utils.range_sample_i(cNeutralDelay)
                 end
-                Sprite_setParticle(sender, flash_particle)
+                Sprite.setParticle(sender, flash_particle)
                 -- worm stepped on
-                Sequence_setState(Sprite_graphic(sender), flash_graphic)
+                Sequence.setState(Sprite.graphic(sender), flash_graphic)
                 -- flashing mine has activity
-                Sprite_set_noActivityWhenGlued(sender, false)
+                Sprite.set_noActivityWhenGlued(sender, false)
                 -- blow up after 1s
                 addSpriteTimer(sender, "explodeT", delay, false,
                     function(sender)
                         spriteExplode(sender, 50)
                     end)
-                Phys_kill(trig)
+                Phys.kill(trig)
             end)
             -- if it doesn't blow immediately, it is inactive
-            Sprite_set_noActivityWhenGlued(sender, true)
+            Sprite.set_noActivityWhenGlued(sender, true)
         end
     })
     -- hack: if the mine has no owner member (i.e. it was placed on game start),
     --   reduce initial delay to 0.5s (prevent game start delay)
     -- also handles crate-spawned mines, I think this is ok
     addSpriteClassEvent(mine_class, "sprite_activate", function(sender)
-        local member = Control_memberFromGameObject(sender)
+        local member = Control:memberFromGameObject(sender)
         if not member then
             local ctx = get_context(sender)
             ctx[1337]:setDuration(timeSecs(0.5))

@@ -7,7 +7,7 @@ do
         function(shooter, fireinfo)
             -- from: spawnFromFireInfo, castFireRay, flamethrower.conf
             local spread = 7
-            local a = Random_rangef(-spread/2, spread/2)
+            local a = Random:rangef(-spread/2, spread/2)
             dir = fireinfo.dir:rotated(a*math.pi/180)
             -- the problem in correctly placing is, that the napalm is centered
             --  in the middle of its position; plus we don't even know which
@@ -95,11 +95,11 @@ do
     }
     local bmp = lookupResource("penguin_bmp")
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
-        Sprite_kill(sender)
-        local at = Phys_pos(Sprite_physics(sender))
-        at = at - Surface_size(bmp) / 2
-        Game_insertIntoLandscape(at, bmp, Lexel_soft)
-        Game_addEarthQuake(500, time(1))
+        Sprite.kill(sender)
+        local at = Phys.pos(Sprite.physics(sender))
+        at = at - Surface.size(bmp) / 2
+        Game:insertIntoLandscape(at, bmp, Lexel_soft)
+        Game:addEarthQuake(500, time(1))
     end)
 
     local w = createWeapon {
@@ -166,13 +166,13 @@ do
     enableSpriteTimer(sprite_class, {
         defTimer = timeSecs(20),
         callback = function(sender)
-            Sprite_kill(sender)
+            Sprite.kill(sender)
         end
     })
     addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
-        local trig = StuckTrigger_ctor(sender, time(0.25), 2, true);
-        StuckTrigger_set_onTrigger(trig, function(sender, sprite)
-            Sprite_kill(sender)
+        local trig = StuckTrigger.ctor(sender, time(0.25), 2, true);
+        StuckTrigger.set_onTrigger(trig, function(sender, sprite)
+            Sprite.kill(sender)
         end)
     end)
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
@@ -227,20 +227,20 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
     enableSpriteTimer(nuke, {
         showDisplay = true,
         callback = function(sender)
-            spawnSprite(sender, blackhole, Phys_pos(Sprite_physics(sender)),
+            spawnSprite(sender, blackhole, Phys.pos(Sprite.physics(sender)),
                 Vector2(0, 0))
-            Sprite_kill(sender)
+            Sprite.kill(sender)
         end
     })
 
     addSpriteClassEvent(blackhole, "sprite_activate", function(sender)
-        local grav = GravityCenter_ctor(Sprite_physics(sender), 5000, 300)
-        World_add(grav)
+        local grav = GravityCenter.ctor(Sprite.physics(sender), 5000, 300)
+        World:add(grav)
         set_context_var(sender, "gravcenter", grav)
     end)
     addSpriteClassEvent(blackhole, "sprite_die", function(sender)
         local grav = get_context_var(sender, "gravcenter")
-        Phys_kill(grav)
+        Phys.kill(grav)
     end)
     enableSpriteTimer(blackhole, {
         defTimer = timeSecs(1.3),
@@ -287,10 +287,10 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = function(shooter, fireinfo)
-            Shooter_reduceAmmo(shooter)
+            Shooter.reduceAmmo(shooter)
             -- xxx can the shooter continue running (for activity) stuff, or
             --  would that somehow block the worm?
-            Shooter_finished(shooter)
+            Shooter.finished(shooter)
             -- timer to spawn meteors
             local spawn_time = timeRange("100ms", "200ms")
             -- xxx original params from amrageddon.conf; somehow looks very off
@@ -301,13 +301,13 @@ do
                 -- emulate spawnsprite's InitVelocity.randomAir
                 -- maybe this should go into D code (memory thrashing)
                 local damage = utils.range_sample_f(spawn_strength)
-                local bounds = Level_landBounds()
+                local bounds = Level:landBounds()
                 local pos = Vector2()
-                pos.x = Random_rangef(bounds.p1.x, bounds.p2.x)
+                pos.x = Random:rangef(bounds.p1.x, bounds.p2.x)
                 pos.y = 0 -- really, 0?
                 -- strange calculation, but I'd rather not change this code
                 --  could be shortened to use fromPolar(angle, strength)
-                local vel = Vector2(Random_rangef(-1, 1)*0.7, 1):normal()
+                local vel = Vector2(Random:rangef(-1, 1)*0.7, 1):normal()
                 local strength = utils.range_sample_f(spawn_strength)
                 spawnSprite(shooter, sprite_class, pos, vel*strength)
                 -- for next meteor
@@ -334,7 +334,7 @@ local function poisonAllWorms(amount)
     foreachWorm(function(team, member, worm)
         -- the amount is added to the existing amount
         -- not sure if that is a bug or a feature (or what WWP does)
-        Worm_set_poisoned(worm, Worm_poisoned(worm) + amount)
+        Worm.set_poisoned(worm, Worm.poisoned(worm) + amount)
     end)
 end
 
@@ -346,15 +346,15 @@ createWeapon {
     icon = "icon_indiannuke",
     animation = "weapon_atomtest",
     onFire = function(shooter, fireinfo)
-        Shooter_reduceAmmo(shooter)
-        Shooter_finished(shooter)
-        Game_raiseWater(60)
-        Game_addEarthQuake(500, time(4))
-        Game_nukeSplatEffect()
+        Shooter.reduceAmmo(shooter)
+        Shooter.finished(shooter)
+        Game:raiseWater(60)
+        Game:addEarthQuake(500, time(4))
+        Game:nukeSplatEffect()
         poisonAllWorms()
     end,
     onBlowup = function(weapon)
-        Game_addEarthQuake(150, time(4))
+        Game:addEarthQuake(150, time(4))
     end,
 }
 
@@ -366,11 +366,11 @@ createWeapon {
     icon = "icon_earthquake",
     animation = "weapon_atomtest",
     onFire = function(shooter, fireinfo)
-        Shooter_reduceAmmo(shooter)
-        Shooter_finished(shooter)
-        Game_addEarthQuake(500, time(5), true, true)
+        Shooter.reduceAmmo(shooter)
+        Shooter.finished(shooter)
+        Game:addEarthQuake(500, time(5), true, true)
     end,
     onBlowup = function(weapon)
-        Game_addEarthQuake(150, time(5))
+        Game:addEarthQuake(150, time(5))
     end,
 }

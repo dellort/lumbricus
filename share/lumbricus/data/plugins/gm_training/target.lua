@@ -60,7 +60,7 @@ function initthread()
     -- start target practice
     if scenario.timelimit then
         timer_limit = addTimer(scenario.timelimit, lost)
-        hud_status = HudGameTimer_ctor(Game)
+        hud_status = HudGameTimer.ctor(Game)
         hud_status:set_showGameTime(true)
         -- meh - must update display manually
         addWorkTimer(time("1s"), function()

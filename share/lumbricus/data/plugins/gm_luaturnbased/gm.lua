@@ -1,6 +1,6 @@
 local hud_status
 local hud_prepare
-local teams -- return of Control_teams()
+local teams -- return of Control:teams()
 local pteams -- like teams, but teamperm applied
 local teamperm -- integer array for team permutation
 
@@ -32,7 +32,7 @@ end
 local function aliveTeams()
     local cnt, alive = 0, nil
     for i, t in ipairs(teams) do
-        if Team_alive(t) then
+        if Team.alive(t) then
             cnt = cnt + 1
             alive = t
         end
@@ -42,26 +42,26 @@ end
 
 local function setCurrent(team)
     if currentTeam then
-        Team_set_active(currentTeam, false)
+        Team.set_active(currentTeam, false)
         lastTeam = currentTeam
     end
     currentTeam = nil
     if team then
         currentTeam = team
-        Team_set_active(currentTeam, true)
+        Team.set_active(currentTeam, true)
     end
 end
 
 local function findNextTeam(team)
     if not team then
         -- game has just started, select first team (round-robin)
-        return pteams[((Control_currentRound() - 1) % #pteams) + 1]
+        return pteams[((Control:currentRound() - 1) % #pteams) + 1]
     end
     -- select next team/worm
     local from = array.indexof(pteams, team)
     local arr = array.rotated(pteams, from + 1)
     for _, v in ipairs(arr) do
-        if Team_alive(v) then
+        if Team.alive(v) then
             return v
         end
     end
@@ -212,16 +212,16 @@ states.waitForSilence = state {
     enter = function(s)
         -- no control while blowing up worms
         if currentTeam then
-            local current = Team_current(currentTeam)
+            local current = Team.current(currentTeam)
             if current then
-                WormControl_forceAbort(Member_control(current))
+                WormControl.forceAbort(Member.control(current))
             end
-            Team_setOnHold(currentTeam, true)
+            Team.setOnHold(currentTeam, true)
             setCurrent(nil)
         end
     end,
     ptimer(time("400ms"), function(s)
-        if not Game_checkForActivity() then
+        if not Game:checkForActivity() then
             return states.cleaningUp
         end
     end),
@@ -229,18 +229,18 @@ states.waitForSilence = state {
 
 states.cleaningUp = state {
     enter = function(s)
-        Control_updateHealth()
+        Control:updateHealth()
     end,
     ptimer(time("750ms"), function(s)
         -- if there are more to blow up, go back to waiting
-        if Control_checkDyingWorms() then
+        if Control:checkDyingWorms() then
             return states.waitForSilence
         end
         -- check if at least two teams are alive (=> round can go on)
         local nalive, team = aliveTeams()
         if nalive < 2 then
             if nalive > 0 then
-                Team_youWinNow(team)
+                Team.youWinNow(team)
                 return states.winning
             else
                 return states.roundEnd --was end
@@ -256,10 +256,10 @@ states.cleaningUp = state {
 states.nextOnHold = state {
     enter = function(s)
         currentTeam = nil
-        Game_randomizeWind()
+        Game:randomizeWind()
     end,
     ptimer(time("100ms"), function(s)
-        if Control_isIdle() then
+        if Control:isIdle() then
             return states.prepare
         end
     end),
@@ -286,7 +286,7 @@ states.playing = state {
     enter = function(s)
         turnCounter = turnCounter + 1
         turnTime:start(time(30))
-        Team_setOnHold(currentTeam, false)
+        Team.setOnHold(currentTeam, false)
     end,
     leave = function(s)
         turnTime:cancel()
@@ -314,23 +314,23 @@ states.winning = state {
 states.roundEnd = state {
     enter = function(s)
         setCurrent(nil)
-        Control_endGame()
+        Control:endGame()
     end,
 }
 
 local function doinit()
-    if CratePlugin_addCrateTool then
-        CratePlugin_addCrateTool("doubletime")
+    if CratePlugin:addCrateTool then
+        CratePlugin:addCrateTool("doubletime")
     end
 
-    teams = Control_teams()
+    teams = Control:teams()
 
     -- we want teams to be activated in a random order that stays the same
     --  over all rounds
     -- Note that the teamperm indices are 0-based
     -- xxx error handling (but I think it's ok when the plugin "crashes")
-    local pers = Game_persistentState()
-    teamperm = array.map(ConfigNode_getArray(pers, "team_order"), tonumber)
+    local pers = Game:persistentState()
+    teamperm = array.map(ConfigNode.getArray(pers, "team_order"), tonumber)
     if #teamperm ~= #teams then
         -- either the game just started, or a player left -> new random order
         teamperm = {}
@@ -338,7 +338,7 @@ local function doinit()
             teamperm[i] = i - 1
         end
         array.randomize_inplace(teamperm)
-        ConfigNode_setArray(pers, "team_order", array.map(teamperm, tostring))
+        ConfigNode.setArray(pers, "team_order", array.map(teamperm, tostring))
     end
     pteams = {}
     for k, i in ipairs(teamperm) do

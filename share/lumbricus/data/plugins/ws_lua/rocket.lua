@@ -139,7 +139,7 @@ do -- xxx missing: deathzone_immune for active missile
             setSpriteState(sender, activeState)
             local ctx = get_context(sender)
             local sh = gameObjectFindShooter(sender)
-            local fi = Shooter_fireinfo(sh)
+            local fi = Shooter.fireinfo(sh)
             local homing = setSpriteHoming(sender, fi.pointto, 15000, 15000)
             -- xxx slightly wrong because the sound is not attached to the sprite
             emitSpriteParticle("p_homing_activate", sender)
@@ -153,14 +153,14 @@ do -- xxx missing: deathzone_immune for active missile
         removeUnderwater = false,
         callback = function(sender)
             local ctx = get_context(sender)
-            if Sprite_isUnderWater(sender) then
+            if Sprite.isUnderWater(sender) then
                 doDrown(sender)
             else
                 setSpriteState(sender, inactiveState)
             end
             ctx.active = false
             assert(ctx.force)
-            Phys_kill(ctx.force)
+            Phys.kill(ctx.force)
             ctx.force = nil
         end
     })
@@ -170,7 +170,7 @@ do -- xxx missing: deathzone_immune for active missile
     addSpriteClassEvent(sprite_class, "sprite_waterstate", function(sender)
         local act = get_context_var(sender, "active", false)
         if act then
-            if Sprite_isUnderWater(sender) then
+            if Sprite.isUnderWater(sender) then
                 setSpriteState(sender, activeWaterState)
             else
                 setSpriteState(sender, activeState)
@@ -183,7 +183,7 @@ do -- xxx missing: deathzone_immune for active missile
     addSpriteClassEvent(sprite_class, "sprite_die", function(sender)
         local ctx = get_context(sender)
         if ctx.force then
-            Phys_kill(ctx.force)
+            Phys.kill(ctx.force)
             ctx.force = nil
         end
     end)
@@ -250,27 +250,27 @@ do
         end
         -- no idea why other is null sometimes (actually, when colliding with
         --  worms), must be the hit_noimpulse stuff?
-        if other and Phys_isStatic(other) then
+        if other and Phys.isStatic(other) then
             -- put it as bitmap!
-            local ph = Sprite_physics(sender)
-            local rot = Phys_lookey(ph) + math.pi/2
-            local at = Phys_pos(ph)
+            local ph = Sprite.physics(sender)
+            local rot = Phys.lookey(ph) + math.pi/2
+            local at = Phys.pos(ph)
             -- creates a new surface on each impact; could cache it
-            local bmp = Surface_rotated(arrow_bmp, rot, true)
-            at = at - Surface_size(bmp) / 2
-            Game_insertIntoLandscape(at, bmp, Lexel_soft)
+            local bmp = Surface.rotated(arrow_bmp, rot, true)
+            at = at - Surface.size(bmp) / 2
+            Game:insertIntoLandscape(at, bmp, Lexel_soft)
         elseif other then
             -- xxx I tested using real physics to pass the impulse, but it was
             --     way to random (sometimes no move, sometimes the whole screen)
-            local ph = Sprite_physics(sender)
-            local vel = Phys_velocity(ph)
+            local ph = Sprite.physics(sender)
+            local vel = Phys.velocity(ph)
             applyMeleeImpulse(other, sender, 2, 30, vel)
         else
             -- can happen when it hits via "hit_noimpulse"
             log.warn("arrow impacted on unknown object")
             spriteExplode(sender, 10)
         end
-        Sprite_kill(sender)
+        Sprite.kill(sender)
     end)
 
     local w = createWeapon {

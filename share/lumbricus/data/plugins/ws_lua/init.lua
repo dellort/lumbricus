@@ -7,19 +7,19 @@
 -- damage = ...
 -- dir = direction of impulse (normalized)
 function applyMeleeImpulse(victim, sender, strength, damage, dir)
-    local spr = Phys_backlink(victim)
+    local spr = Phys.backlink(victim)
     if damage > 0 then
         -- serious wtf: the 3rd param is DamageCause, and the code here used to
         --  pass the value 3. but there's no enum member for DamageCause that
         --  maps to 3. replaced by "special", which is 2
-        Phys_applyDamage(victim, damage, "special", sender)
+        Phys.applyDamage(victim, damage, "special", sender)
     end
     -- hm, why only worms? could be funny to baseball away mines
     -- but that's how it was before
     -- xxx this allocates memory, isn't elegant, etc.
     --  better way: use physic collision type for filtering
     if className(spr) == "WormSprite" then
-        Phys_addImpulse(victim, dir * strength)
+        Phys.addImpulse(victim, dir * strength)
     end
 end
 
@@ -40,14 +40,14 @@ end
 function getGunOnFire(nrounds, interval, damage, effect, spread)
     return getMultipleOnFire(nrounds, interval, false,
         function(shooter, fireinfo)
-            local hitpoint, normal = castFireRay(Shooter_owner(shooter),
+            local hitpoint, normal = castFireRay(Shooter.owner(shooter),
                 fireinfo.dir, spread)
             if effect then
                 effect(fireinfo.pos, hitpoint)
             end
             if normal then
                 -- hit something
-                Game_explosionAt(hitpoint, damage, shooter)
+                Game:explosionAt(hitpoint, damage, shooter)
             end
         end)
 end
@@ -59,7 +59,7 @@ function getLaserEffect(t)
     local line_time = t or time("2s")
 
     return function(from, to)
-        RenderLaser_ctor(Game, from, to, line_time, line_colors)
+        RenderLaser.ctor(Game, from, to, line_time, line_colors)
     end
 end
 

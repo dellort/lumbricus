@@ -159,8 +159,6 @@ class GameTask : IKillable {
     //(to use it from the factory)
     //use the other constructor and pass it a useful GameConfig
     this(char[] args = "") {
-        createWindow();
-
         //hack, what else
         //there should be a proper command line parser (for lumbricus.d too)
         //actually, normally the newgame.conf would contain all this stuff, and
@@ -186,12 +184,11 @@ class GameTask : IKillable {
                 continue;
             }
 
-            //error
-            kill(); //remove that window
             throwError("unknown argument for game spawning: '{}'", arg);
         }
 
         if (start_demo.length) {
+            createWindow();
             doInit({
                 mGameLoader = GameLoader.CreateFromDemo(start_demo);
             });
@@ -209,6 +206,7 @@ class GameTask : IKillable {
         if (graphics.length)
             node.getSubNode("gfx")["config"] = graphics ~ ".conf";
 
+        createWindow();
         doInit({
             mGameLoader = GameLoader.CreateNewGame(loadGameConfig(node));
         });

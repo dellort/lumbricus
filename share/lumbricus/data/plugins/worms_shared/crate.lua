@@ -54,7 +54,7 @@ local seq = {
 
 local s_class = createSpriteClass {
     name = "x_crate",
-    ctor = "CrateSpriteClass_ctor",
+    ctor = CrateSpriteClass.ctor,
     initNoActivityWhenGlued = true,
     initialHp = 2,
     -- radius in which stuff is collected
@@ -70,7 +70,7 @@ for crate_type, seq_name in pairs(seq) do
     local state_map = {}
     for state_name, state in pairs(states) do
         local cur = {
-            seqState = SequenceType_findState(seq, state.animation),
+            seqState = SequenceType.findState(seq, state.animation),
             posp = state.physics and createPOSP(state.physics),
             particle = state.particle and lookupResource(state.particle),
         }
@@ -82,7 +82,7 @@ end
 
 -- get the state_map for the current crate type
 local function getStates(crate_sprite)
-    local t = CrateSprite_crateType(crate_sprite)
+    local t = CrateSprite.crateType(crate_sprite)
     local s = crate_states[t]
     if s == nil then
         s = crate_states.default
@@ -99,14 +99,14 @@ local function crate_unparachute(crate_sprite)
     if spriteIsGone(crate_sprite) then
         return
     end
-    Sprite_set_exceedVelocity(crate_sprite, 1/0) -- infinity
+    Sprite.set_exceedVelocity(crate_sprite, 1/0) -- infinity
     setState(crate_sprite, "normal")
 end
 
 addSpriteClassEvent(s_class, "sprite_activate", function(sprite)
-    Sprite_set_notifyAnimationEnd(sprite, true)
+    Sprite.set_notifyAnimationEnd(sprite, true)
     setState(sprite, "creation")
-    Sprite_set_exceedVelocity(sprite, enter_parachute_speed)
+    Sprite.set_exceedVelocity(sprite, enter_parachute_speed)
 
     -- hack
     set_context_var(sprite, "crate_skip", crate_unparachute)
@@ -118,12 +118,12 @@ addSpriteClassEvent(s_class, "sprite_animation_end", function(sprite)
 end)
 
 addSpriteClassEvent(s_class, "sprite_glue_changed", function(sprite)
-    if Phys_isGlued(Sprite_physics(sprite)) then
+    if Phys.isGlued(Sprite.physics(sprite)) then
         -- normally is already in this state
         setState(sprite, "normal")
-    elseif not Sprite_isUnderWater(sprite) then
+    elseif not Sprite.isUnderWater(sprite) then
         setState(sprite, "normal")
-        Sprite_set_exceedVelocity(sprite, enter_parachute_speed)
+        Sprite.set_exceedVelocity(sprite, enter_parachute_speed)
     end
 end)
 
@@ -136,13 +136,13 @@ addSpriteClassEvent(s_class, "sprite_zerohp", function(sprite)
         return
     end
     spriteExplode(sprite, 50)
-    Sprite_kill(sprite)
+    Sprite.kill(sprite)
     spawnCluster(M.standard_napalm, sprite, 40, 0, 0, 60)
-    CrateSprite_blowStuffies(sprite)
+    CrateSprite.blowStuffies(sprite)
 end)
 
 addSpriteClassEvent(s_class, "sprite_waterstate", function(sprite)
-    if Sprite_isUnderWater(sprite) then
+    if Sprite.isUnderWater(sprite) then
         -- sets only the graphic, rest is done by the standard drown code
         setState(sprite, "drown")
     end
@@ -153,12 +153,12 @@ end)
 --  before), but wanted to avoid that because of the stupid memory managment
 --  issues
 addGlobalEventHandler("game_crate_skip", function()
-    local cur = Game_gameObjectFirst()
+    local cur = Game:gameObjectFirst()
     while cur do
         local ctx = get_context(cur, true)
         if ctx and ctx.crate_skip then
             ctx.crate_skip(cur)
         end
-        cur = Game_gameObjectNext(cur)
+        cur = Game:gameObjectNext(cur)
     end
 end)

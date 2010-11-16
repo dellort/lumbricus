@@ -186,20 +186,20 @@ void main(char[][] args) {
 
     loadexec(`
         print("Hello world")
-        print(Foo_test(1, -4.2, "Foobar"))
-        print(Foo_test(1, -4.2))
-        print(Foo_test(1))
-        print(Foo_test2())
-        print(Foo_test2("x"))
-        Foo_set_bla("durf")
-        print(Foo_bla())
-        printf("enum = {}", Foo_muh())
-        Foo_set_muh(2)
-        printf("enum = {}", Foo_muh())
-        Foo_set_muh("c") -- automatic string -> enum conversion
-        printf("enum = {}", Foo_muh())
-        b = Foo_createBar()
-        Bar_test(b, "hurf")
+        print(Foo:test(1, -4.2, "Foobar"))
+        print(Foo:test(1, -4.2))
+        print(Foo:test(1))
+        print(Foo:test2())
+        print(Foo:test2("x"))
+        Foo:set_bla("durf")
+        print(Foo:bla())
+        printf("enum = {}", Foo:muh())
+        Foo:set_muh(2)
+        printf("enum = {}", Foo:muh())
+        Foo:set_muh("c") -- automatic string -> enum conversion
+        printf("enum = {}", Foo:muh())
+        b = Foo:createBar()
+        Bar.test(b, "hurf")
 
         x = Vector2(1,2)
         rectable = {"bla"}
@@ -218,16 +218,16 @@ void main(char[][] args) {
             return "blabla"
         end
 
-        Foo_passBar(b)
+        Foo:passBar(b)
 
-        v1 = Foo_makeVector(2, 3)
+        v1 = Foo:makeVector(2, 3)
         v2 = Vector2(5)
         vv = v1 + v2
         vv:print()
-        Foo_vector({4, 5})
-        Foo_vector(Foo_makeVector(23, 42))
+        Foo:vector({4, 5})
+        Foo:vector(Foo:makeVector(23, 42))
 
-        --t = Foo_makeTime(500)
+        --t = Foo:makeTime(500)
         --t:print()
         --timeMins(30):print()
 
@@ -238,14 +238,14 @@ void main(char[][] args) {
         printf("Size: {} Center: {}", r2:size(), r2:center())
 
 
-        Foo_array({1, 2, 3, 4})
-        Foo_aarray({x = 10, y = 20})
-        ar = Foo_makeArray("a", "b", "c")
+        Foo:array({1, 2, 3, 4})
+        Foo:aarray({x = 10, y = 20})
+        ar = Foo:makeArray("a", "b", "c")
         for k,v in ipairs(ar) do
             print(string.format("  %s -> %s", k, v))
         end
         funcBlub("asdfx");
-        Foo_callCb(function()
+        Foo:callCb(function()
             print("Got callback!")
         end)
 
@@ -253,18 +253,18 @@ void main(char[][] args) {
         stuff["circle"] = stuff
 
         -- accessors
-        assert(Bar_blu(b) == 666)
-        Bar_set_blu(b, 123)
-        assert(Bar_blu(b) == 123)
-        Bar_set_blo(b, 456)
-        assert(Bar_blo(b) == 456)
-        printf("blo={}", Bar_blo(b))
+        assert(Bar.blu(b) == 666)
+        Bar.set_blu(b, 123)
+        assert(Bar.blu(b) == 123)
+        Bar.set_blo(b, 456)
+        assert(Bar.blo(b) == 456)
+        printf("blo={}", Bar.blo(b))
         -- fields
-        assert(Bar_something(b) == 456)
-        Bar_set_something(b, 789)
-        printf("something={}", Bar_something(b))
+        assert(Bar.something(b) == 456)
+        Bar.set_something(b, 789)
+        printf("something={}", Bar.something(b))
 
-        Foo_vectors({Vector2(1,0), Vector2(5,7)})
+        Foo:vectors({Vector2(1,0), Vector2(5,7)})
 
         -- the table x is constructed so, that iteration with pairs()/lua_next
         --  returns the (key,value) pair (2,2) first
@@ -277,7 +277,7 @@ void main(char[][] args) {
         x[400] = nil
         -- this failed with the old marshaller code, because it assumed lua_next
         --  would iterate the indices in a sorted way
-        assert(array.equal(Foo_array(x), {1, 2}))
+        assert(array.equal(Foo:array(x), {1, 2}))
 
         printf("12 == {}", funcRef(12))
     `);
@@ -350,11 +350,9 @@ void main(char[][] args) {
             18,19)
     `, &test3.test);
 
-    static if (cLuaFullUD) {
-        //trivial userdata metatable test
-        //Foo is a variable of type Foo because it was added as singleton
-        loadexec(`print(Foo:test2("huhuh"))`);
-    }
+    //trivial userdata metatable test
+    //Foo is a variable of type Foo because it was added as singleton
+    loadexec(`print(Foo:test2("huhuh"))`);
 
     //GC test - don't try this without version Lua_In_D_Memory
 
@@ -366,7 +364,7 @@ void main(char[][] args) {
     }
 
     loadexec(`
-        print(Bar_blurgh(b))
+        print(Bar.blurgh(b))
     `);
 
     //end GC test
@@ -387,39 +385,39 @@ void main(char[][] args) {
     //the utf-8 one because (I guess) Lua outputs only one byte of two
     fail(`ä`);
     //too many args
-    fail(`Bar_test(b, "a", "b")`);
-    fail(`Foo_test(1, 2, "Bla", "Too much")`);
+    fail(`Bar.test(b, "a", "b")`);
+    fail(`Foo:test(1, 2, "Bla", "Too much")`);
     //too few args
-    fail(`Bar_test()`);
-    fail(`Foo_test()`);
+    fail(`Bar.test()`);
+    fail(`Foo:test()`);
     //wrong type
-    fail(`Foo_passBar(Foo_createEvul())`);
-    fail(`Foo_passBar("err")`);
-    fail(`Foo_test("wrong", 1.3, "bla")`);
-    fail(`Foo_test(1, 1.3, nil)`);
+    fail(`Foo:passBar(Foo:createEvul())`);
+    fail(`Foo:passBar("err")`);
+    fail(`Foo:test("wrong", 1.3, "bla")`);
+    fail(`Foo:test(1, 1.3, nil)`);
     fail(`local a
         local b
-        Bar_test("a")`);
-    fail(`Bar_test(Foo_createEvul(), "a")`);
+        Bar.test("a")`);
+    fail(`Bar.test(Foo:createEvul(), "a")`);
     //script errors
     fail(`invalid code`);
     fail(`error("Thrown from Lua")`);
     fail(`math.cos("Hello")`);
     //lolwut fail(`math.cos("1")`);
     //invalid index, because Vector2 has only 2 items
-    fail(`Foo_vector({4, 5, 6})`);
+    fail(`Foo:vector({4, 5, 6})`);
     //mixed by-name/by-index access
-    fail(`Foo_vector({4, y=5})`);
-    fail(`Foo_vector({x=4, 5})`);
+    fail(`Foo:vector({4, y=5})`);
+    fail(`Foo:vector({x=4, 5})`);
     //'z' doesn't exist
-    fail(`Foo_vector({x=1, z=4})`);
+    fail(`Foo:vector({x=1, z=4})`);
     //using non-integer as index
-    fail(`Foo_vector({[1]=1, [2.4]=4})`);
+    fail(`Foo:vector({[1]=1, [2.4]=4})`);
     //this shouldn't work either (it's stupid)
-    fail(`Foo_vector({[1]=1, ["2"]=4})`);
-    fail(`Foo_arg(false)`);
+    fail(`Foo:vector({[1]=1, ["2"]=4})`);
+    fail(`Foo:arg(false)`);
     fail("assert(false)");
-    //loadexec(`Foo_vector({[1]=1, ["2"]=4})`);
+    //loadexec(`Foo:vector({[1]=1, ["2"]=4})`);
     //demarshalling s into struct TehEvil would result in an infinite sized data
     //  structure (demarshaller treats arrays as values, not references)
     //the Lua stack size is limited and it will be catched quickly by checkstack

@@ -35,18 +35,18 @@ local function do_addEventHandler(events, event_name, handler)
         -- the type of the register function depends on event_name
         -- to get around the static type system, the actual function is created
         -- and Lua-registered somewhere in a D template
-        local s = Events_scriptGetMarshallers(events, event_name)
+        local s = Events.scriptGetMarshallers(events, event_name)
         d_event_marshallers[s].register(events, event_name, dispatcher)
     end
     ghandlers[#ghandlers + 1] = handler
 end
 
 function addGlobalEventHandler(event_name, handler)
-    do_addEventHandler(Game_events(), event_name, handler)
+    do_addEventHandler(Game:events(), event_name, handler)
 end
 
 function addClassEventHandler(class_name, event_name, handler)
-    local events = Events_perClassEvents(Game_events(), class_name)
+    local events = Events.perClassEvents(Game:events(), class_name)
     do_addEventHandler(events, event_name, handler)
 end
 
@@ -63,7 +63,7 @@ function addInstanceEventHandler(object, event_name, handler)
     -- this handler uses get_context() to get locally registered event handlers
 
     -- register the per-class handler
-    local ns = EventTarget_eventTargetType(object)
+    local ns = EventTarget.eventTargetType(object)
     local cls = _perInstanceDispatchers[ns]
     if not cls then
         cls = {}
@@ -128,7 +128,7 @@ local raise_fns = {}
 function raiseEvent(target, event_name, ...)
     local fn = raise_fns[event_name]
     if not fn then
-        local s = Events_scriptGetMarshallers(Game_events(), event_name)
+        local s = Events.scriptGetMarshallers(Game:events(), event_name)
         fn = d_event_marshallers[s].raise
         assert(fn)
         raise_fns[event_name] = fn
@@ -137,7 +137,7 @@ function raiseEvent(target, event_name, ...)
 end
 
 function raiseGlobalEvent(event_name, ...)
-    raiseEvent(Events_globalDummy(Game_events()), event_name, ...)
+    raiseEvent(Events.globalDummy(Game:events()), event_name, ...)
 end
 
 testCounter = 0
@@ -154,7 +154,7 @@ function eventtest()
         local ctx = get_context(sender)
         ctx.meep = testCounter
         printf("bazooka {} got fired at {}!", ctx.meep,
-            Phys_pos(Sprite_physics(sender)))
+            Phys.pos(Sprite.physics(sender)))
         local c = testCounter
         local function test(sender)
             printf("die event from {}", c)
@@ -164,7 +164,7 @@ function eventtest()
     local function on_bazooka_die(sender)
         local ctx = get_context(sender)
         printf("bazooka {} died at {}!", ctx.meep,
-            Phys_pos(Sprite_physics(sender)))
+            Phys.pos(Sprite.physics(sender)))
     end
     addGlobalEventHandler("game_message", on_message)
     addGlobalEventHandler("game_message", on_message2)

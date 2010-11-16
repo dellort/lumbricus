@@ -120,8 +120,8 @@ function utils._format_value(value, fmt, done)
     local ptype = type(value)
     if ptype == "userdata" then
         -- these functions need to be regged by D code
-        if d_isobject and d_isobject(value) and Object_toString then
-            return Object_toString(value)
+        if d_isobject and d_isobject(value) and Object.toString then
+            return Object.toString(value)
         end
     elseif ptype == "table" then
         return utils.table2string(value, done)
@@ -255,6 +255,13 @@ assert(utils.is_range(utils.range(5)))
 -- further, since Lua doesn't distinguish ints and floats, there are different
 --  versions for each of them
 
+local function Random_rangei(...)
+    return Random:rangei(...)
+end
+local function Random_rangef(...)
+    return Random:rangef(...)
+end
+
 -- integers
 function utils.range_sample_i(...)
     return utils.range_sample_g(Random_rangei, ...)
@@ -267,7 +274,7 @@ end
 -- any type that supports __add, __sub and __mul
 -- separate to not allocate a closure on each call
 local function _range_any_random(a, b)
-    return a + (b-a)*Random_rangef(0, 1)
+    return a + (b-a)*Random:rangef(0, 1)
 end
 function utils.range_sample(...)
     return utils.range_sample_g(_range_any_random, ...)
@@ -497,7 +504,7 @@ end
 function array.randomize_inplace(arr)
     local len = #arr
     for i = 1, len do
-        local ri = Random_rangei(i, len)
+        local ri = Random:rangei(i, len)
         arr[i], arr[ri] = arr[ri], arr[i]
     end
 end

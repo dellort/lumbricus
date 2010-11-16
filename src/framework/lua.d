@@ -85,19 +85,6 @@ XXX2: there's still some trouble when Lua scripts raise errors in strange
 //Warning: leaving this enabled has security implications
 debug version = DEBUG_UNSAFE;
 
-//if this is enabled, the Lua wrapper uses the "correct" way to pass D objects
-//  to Lua: for each object reference there's a Lua full userdata as wrapper
-//  (created on demand), and we will have to do several table lookups to pass
-//  a D object reference between Lua and D
-version = USE_FULL_UD;
-
-//sigh, version symbols are module-local or so
-version (USE_FULL_UD) {
-    const bool cLuaFullUD = true;
-} else {
-    const bool cLuaFullUD = false;
-}
-
 //counters incremented on each function call
 //doesn't include Lua builtin/stdlib calls or manually registered calls
 debug int gLuaToDCalls, gDToLuaCalls;
@@ -147,40 +134,11 @@ private {
 //--- Lua "Registry" stuff end
 
 
-version (USE_FULL_UD) {
-
 private struct UD_Object {
     Object o;
     int pinID; //hack to make pinning code simpler
 }
 
-} else {
-
-private extern (C) void *my_lua_alloc(void *ud, void *ptr, size_t osize,
-    size_t nsize)
-{
-    //make Lua use the D heap
-    //note that this will go horribly wrong if...
-    //- Lua would create a new OS thread (but it doesn't)
-    //- Lua uses malloc() for some stuff (probably doesn't; lua_Alloc would
-    //  be pointless)
-    //- Lua stores state in global variables (I think it doesn't)
-    //  (assuming D GC doesn't scan the C datasegment; probably wrong)
-    //also, we'll assume that Lua always aligns our userdata correctly (if not,
-    //  the D GC won't see it, and heisenbugs will occur)
-    //all this is to make passing D objects as userdata simpler
-    void[] odata = ptr[0..osize];
-    if (nsize == 0) {
-        delete odata;
-        return null;
-    } else {
-        //this is slow (probably slower than C realloc)
-        odata.length = nsize;
-        return odata.ptr;
-    }
-}
-
-}
 
 //panic function: called on unprotected lua error (message is on the stack)
 //if all code is correct, it will never be called, except on:
@@ -1096,13 +1054,9 @@ private int callFromLua(T)(T del, lua_State* state, int skipCount,
     assert(false, "unreachable");
 }
 
-version (USE_FULL_UD) {
-
 extern (C) private int ud_gc_handler(lua_State* state) {
     LuaState.luaDestroyDObject(state, 1);
     return 0;
-}
-
 }
 
 class LuaRegistry {
@@ -1518,14 +1472,12 @@ class LuaState {
         LuaRegistry.Method[] mMethods;
         char[][ClassInfo] mClassNames;
         Object[ClassInfo] mSingletons;
-        bool[ClassInfo] mClassUpdate;
+        bool[ClassInfo] mClassUpdate; //xxx really needs to be global?
         ObjectList!(RealLuaRef, "mNode") mRefList; //D->Lua references
         int mRefListWatermark; //pseudo-GC
         bool mDestroyed;
-        version (USE_FULL_UD) {
-            //Lua->D references
-            PointerPinTable mPtrList;
-        }
+        //Lua->D references
+        PointerPinTable mPtrList;
     }
 
     //called when an error outside the "normal call path" occurs
@@ -1552,14 +1504,11 @@ class LuaState {
             gLibLuaLoaded = true;
         }
 
-        version (USE_FULL_UD) {
-            mLua = luaL_newstate();
-            mPtrList = new PointerPinTable();
-            //needed in theory, pointless in practise (at least currently)
-            mPtrList.pinPointer(cast(void*)this);
-        } else {
-            mLua = lua_newstate(&my_lua_alloc, null);
-        }
+        mLua = luaL_newstate();
+        mPtrList = new PointerPinTable();
+        //needed in theory, pointless in practise (at least currently)
+        mPtrList.pinPointer(cast(void*)this);
+
         lua_atpanic(mLua, &my_lua_panic);
 
         //set "this" reference
@@ -1575,32 +1524,30 @@ class LuaState {
         lua_pushcfunction(mLua, &pcall_err_handler);
         lua_rawset(mLua, LUA_REGISTRYINDEX);
 
-        version (USE_FULL_UD) {
-            //object reference table; map D references to userdata
-            //the userdata is used to know the lifetime of references, so we
-            //  need to make the table weak
-            lua_newtable(mLua);
-            //metatable to make values weak
-            lua_newtable(mLua);
-            lua_pushliteral(mLua, "v"); //weak values
-            lua_setfield(mLua, -2, "__mode");
-            lua_setmetatable(mLua, -2);
-            //store the table in its place
-            lua_pushlightuserdata(mLua, &cRefCacheKey);
-            lua_insert(mLua, -2); //swap
-            lua_rawset(mLua, LUA_REGISTRYINDEX);
+        //object reference table; map D references to userdata
+        //the userdata is used to know the lifetime of references, so we
+        //  need to make the table weak
+        lua_newtable(mLua);
+        //metatable to make values weak
+        lua_newtable(mLua);
+        lua_pushliteral(mLua, "v"); //weak values
+        lua_setfield(mLua, -2, "__mode");
+        lua_setmetatable(mLua, -2);
+        //store the table in its place
+        lua_pushlightuserdata(mLua, &cRefCacheKey);
+        lua_insert(mLua, -2); //swap
+        lua_rawset(mLua, LUA_REGISTRYINDEX);
 
-            //the __gc method used in D wrapper metatables
-            lua_pushliteral(mLua, cGCHandler);
-            lua_pushcfunction(mLua, &ud_gc_handler);
-            lua_rawset(mLua, LUA_REGISTRYINDEX);
+        //the __gc method used in D wrapper metatables
+        lua_pushliteral(mLua, cGCHandler);
+        lua_pushcfunction(mLua, &ud_gc_handler);
+        lua_rawset(mLua, LUA_REGISTRYINDEX);
 
-            //the only purpose of this table is to enable fast identification of
-            //  userdata that wraps objects (for marshaller type safety)
-            lua_pushlightuserdata(mLua, &cDObjectUDKey);
-            lua_newtable(mLua);
-            lua_rawset(mLua, LUA_REGISTRYINDEX);
-        }
+        //the only purpose of this table is to enable fast identification of
+        //  userdata that wraps objects (for marshaller type safety)
+        lua_pushlightuserdata(mLua, &cDObjectUDKey);
+        lua_newtable(mLua);
+        lua_rawset(mLua, LUA_REGISTRYINDEX);
 
         //table for environments
         lua_newtable(mLua);
@@ -1658,9 +1605,7 @@ class LuaState {
         super.dispose();
         lua_close(mLua);
         mLua = null;
-        version (USE_FULL_UD) {
-            delete mPtrList;
-        }
+        delete mPtrList;
         foreach (r; mRefList) {
             delete r;
         }
@@ -1709,8 +1654,6 @@ class LuaState {
             luaExpected(state, stackIdx, "object reference");
         return luaUncheckedToDObject(state, stackIdx);
     }
-
-version (USE_FULL_UD) {
 
     //note: this goes horribly wrong for non-object userdata (it's unchecked)
     private static Object luaUncheckedToDObject(lua_State* state, int stackIdx)
@@ -1869,42 +1812,6 @@ version (USE_FULL_UD) {
         luaCreateDObject(state, wrapper);
     }
 
-} else { //USE_FULL_UD
-
-    //like luaToDObject, but omit some checks (use only if you are sure that
-    //  the stack value is guaranteed to be a D object)
-    //neutral error domain
-    private static Object luaUncheckedToDObject(lua_State* state, int stackIdx)
-    {
-        assert(luaIsDObject(state, stackIdx));
-        return cast(Object)lua_touserdata(state, stackIdx);
-    }
-
-    //neutral error domain
-    private static bool luaIsDObject(lua_State* state, int stackIdx) {
-        //allow light userdata and nil, nothing else
-        auto t = lua_type(state, stackIdx);
-        return t == LUA_TLIGHTUSERDATA || t == LUA_TNIL;
-    }
-
-    private static void luaPushDObject(lua_State* state, Object value) {
-        if (value is null) {
-            lua_pushnil(state);
-        } else {
-            lua_pushlightuserdata(state, cast(void*)value);
-        }
-    }
-
-    private static void* luaToDPtr(lua_State* state, int stackIdx) {
-        return lua_touserdata(state, stackIdx);
-    }
-
-    private static void luaPushDPtr(lua_State* state, void* ptr) {
-        lua_pushlightuserdata(state, ptr);
-    }
-
-} //!USE_FULL_UD
-
     //like luaPushMetatable, but don't create MT if it doesn't exist
     //returns true: metatable has been pushed on Lua stack
     //returns false: no metatable returned, Lua stack is untouched
@@ -1944,13 +1851,11 @@ version (USE_FULL_UD) {
 
         //create a new metatable, it didn't exist yet
         lua_newtable(state); //mt
-        //__gc method only for full userdata
-        version (USE_FULL_UD) {
-            lua_pushliteral(state, "__gc"); //mt "__gc"
-            lua_pushliteral(state, cGCHandler); //mt "__gc" handlerkey
-            lua_rawget(state, LUA_REGISTRYINDEX); //mt "__gc" gchandler
-            lua_rawset(state, -3); //mt
-        }
+        //add __gc method
+        lua_pushliteral(state, "__gc"); //mt "__gc"
+        lua_pushliteral(state, cGCHandler); //mt "__gc" handlerkey
+        lua_rawget(state, LUA_REGISTRYINDEX); //mt "__gc" gchandler
+        lua_rawset(state, -3); //mt
         //method-table, that contains a list of all methods
         lua_newtable(state); //mt mth
         //
@@ -2034,7 +1939,6 @@ version (USE_FULL_UD) {
         return count;
     }
 
-version (USE_FULL_UD) {
     //number of unique D references in the Lua heap
     final int objtableSize() {
         int count = 0;
@@ -2050,12 +1954,6 @@ version (USE_FULL_UD) {
         lua_pop(mLua, 1);
         return count;
     }
-} else {
-    final int objtableSize() {
-        //unknown unless you implement your own garbage collector
-        return 0;
-    }
-}
 
     void loadStdLibs(int stdlibFlags) {
         foreach (lib; luaLibs) {
@@ -2080,21 +1978,24 @@ version (USE_FULL_UD) {
         luaProtected(mLua, {
             foreach (m; stuff.mMethods) {
 
-                lua_pushliteral(mLua, m.fname);
-                lua_gettable(mLua, LUA_GLOBALSINDEX);
-                bool nil = lua_isnil(mLua, -1);
-                lua_pop(mLua, 1);
+                if (m.type == LuaRegistry.MethodType.FreeFunction) {
 
-                if (nil) {
                     lua_pushliteral(mLua, m.fname);
-                    lua_pushcclosure(mLua, m.demarshal, 0);
-                    lua_settable(mLua, LUA_GLOBALSINDEX);
-                } else {
-                    //this caused some error which took me 30 minutes of
-                    //  debugging; most likely multiple bind calls for a method
-                    error = new CustomException("attempting to overwrite "
-                        "existing name in _G when adding D method: "~m.fname);
-                    return;
+                    lua_gettable(mLua, LUA_GLOBALSINDEX);
+                    bool nil = lua_isnil(mLua, -1);
+                    lua_pop(mLua, 1);
+
+                    if (nil) {
+                        lua_pushliteral(mLua, m.fname);
+                        lua_pushcclosure(mLua, m.demarshal, 0);
+                        lua_settable(mLua, LUA_GLOBALSINDEX);
+                    } else {
+                        //most likely cause: multiple bind calls for a method
+                        error = new CustomException("attempting to overwrite "
+                            "existing name in _G when adding D method: "
+                            ~m.fname);
+                        return;
+                    }
                 }
 
                 if (m.classinfo) {
@@ -2131,12 +2032,38 @@ version (USE_FULL_UD) {
                     continue;
                 update = false;
                 luaUpdateMetatable(cls);
+
+                //create a global variable, but only if it doesn't exist (e.g.
+                //  consider what addSingleton() wants)
+                char[] clsname = mClassNames[cls];
+                lua_pushliteral(mLua, clsname); //name
+                lua_rawget(mLua, LUA_GLOBALSINDEX); //_G[name]
+                bool doset = lua_isnil(mLua, -1);
+                lua_pop(mLua, 1); //-
+                if (doset) {
+                    lua_pushliteral(mLua, clsname); //name
+                    luaPushMethodTable(mLua, cls); //name mth
+                    lua_rawset(mLua, LUA_GLOBALSINDEX); //-
+                }
             }
         });
 
         //must not throw it in Lua error domain code, so do it here
         if (error)
             throw error;
+    }
+
+    //pushes the method table for cls on the stack
+    private void luaPushMethodTable(lua_State* state, ClassInfo cls) {
+        luaPushMetatable(state, cls); //mt
+        luaDoGetMethodTable(state); //mth
+    }
+
+    //exchanges metatable on stack top with method table
+    private void luaDoGetMethodTable(lua_State* state) {
+        lua_pushliteral(mLua, "__index"); //mt __index
+        lua_rawget(mLua, -2); //mt mth
+        lua_replace(mLua, -2); //mth
     }
 
     //update the Lua metatable for cls with new methods from cls and bases
@@ -2150,10 +2077,7 @@ version (USE_FULL_UD) {
         if (!luaPushCachedMetatable(mLua, cls))
             return;
 
-        //get to method-table
-        lua_pushliteral(mLua, "__index"); //mt __index
-        lua_rawget(mLua, -2); //mt mth
-        lua_replace(mLua, -2); //mth
+        luaDoGetMethodTable(mLua);
 
         //xxx sorting the methods by class might be advantageous
         foreach (LuaRegistry.Method m; mMethods) {
@@ -2186,11 +2110,11 @@ version (USE_FULL_UD) {
     }
 
     struct MetaData {
-        char[] type;        //stringified LuaRegistry.MethodType
-        char[] dclass;      //name/prefix of the D class for the method
-        char[] name;        //name of the method
-        char[] lua_g_name;  //name of the Lua bind function in _G
-        bool inherited;     //automatically added inherited method
+        char[] type;    //stringified LuaRegistry.MethodType
+        char[] dclass;  //name/prefix of the D class for the method
+        char[] name;    //name of the method
+        char[] xname;   //method name with decoration, e.g. "get_" ~ name
+        bool inherited; //automatically added inherited method
     }
     //return MetaData for all known bound D functions for the passed class
     //if from is null, an empty array is returned
@@ -2217,7 +2141,7 @@ version (USE_FULL_UD) {
         }
         d.dclass = m.prefix;
         d.name = m.name;
-        d.lua_g_name = m.fname;
+        d.xname = m.xname;
         d.inherited = m.inherited;
         return d;
     }
@@ -2281,26 +2205,6 @@ version (USE_FULL_UD) {
         assert(!!ci);
         assert(!(ci in mSingletons));
         mSingletons[ci] = instance;
-
-        //just rewrite the already registered methods
-        //if methods are added after this call, the user is out of luck
-        foreach (m; mMethods) {
-            if (m.classinfo !is ci)
-                continue;
-            if (m.type == LuaRegistry.MethodType.StaticMethod) //is_static)
-                continue;
-            //the method name is the same, just that the singleton is now
-            //  automagically added on a call (not sure if that's a good idea)
-            scriptExec(`
-                local fname, singleton = ...
-                local orgfunction = _G[fname]
-                local function dispatch(...)
-                    -- yay closures
-                    return orgfunction(singleton, ...)
-                end
-                _G[fname] = dispatch
-            `, m.fname, instance);
-        }
 
         //add a global variable for the singleton (script can use it)
         if (auto pname = ci in mClassNames) {
@@ -2495,8 +2399,6 @@ version (USE_FULL_UD) {
     }
 }
 
-version (USE_FULL_UD) {
-
 //this class is used to pin an arbitrary number of D pointers
 //pinning means two things:
 //- don't collect the object (if the only ptrs are on the Lua/C heap)
@@ -2559,5 +2461,3 @@ private class PointerPinTable {
     ~this() {
     }
 }
-
-} //USE_FULL_UD

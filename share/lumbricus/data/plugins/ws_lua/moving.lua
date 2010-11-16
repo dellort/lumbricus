@@ -9,13 +9,13 @@ local function enableSheepJumping(sprite_class)
         periodic = true,
         --timerId = "jump",
         callback = function(sender)
-            local phys = Sprite_physics(sender)
-            if not Phys_isGlued(phys) then
+            local phys = Sprite.physics(sender)
+            if not Phys.isGlued(phys) then
                 return
             end
-            if Random_rangei(1, 5) == 1 then
+            if Random:rangei(1, 5) == 1 then
                 local look = lookSide(phys)
-                Phys_addImpulse(phys, Vector2(look * 2500, -2500))
+                Phys.addImpulse(phys, Vector2(look * 2500, -2500))
                 emitSpriteParticle("p_sheep", sender)
             end
         end
@@ -30,13 +30,13 @@ local function enableBasicRefire(sprite_class, failsafeTime, blowFunc)
     failsafeTime = failsafeTime or time(8)
     assert(blowFunc)
 
-    -- call Shooter_finished when the main sprite dies (if applicable)
+    -- call Shooter.finished when the main sprite dies (if applicable)
     local function cleanup(sprite)
         local shooter = gameObjectFindShooter(sprite)
-        if not GameObject_objectAlive(shooter) then
+        if not GameObject.objectAlive(shooter) then
             return
         end
-        Shooter_finished(shooter)
+        Shooter.finished(shooter)
     end
 
     -- die after failsafeTime (the games must go on)
@@ -49,7 +49,7 @@ local function enableBasicRefire(sprite_class, failsafeTime, blowFunc)
     -- cleanup
     addSpriteClassEvent(sprite_class, "sprite_die", function(sender)
         -- don't cleanup twice
-        if not Sprite_isUnderWater(sender) then
+        if not Sprite.isUnderWater(sender) then
             cleanup(sender)
         end
     end)
@@ -58,7 +58,7 @@ local function enableBasicRefire(sprite_class, failsafeTime, blowFunc)
     end)
 
     local function doFire(shooter, fireinfo)
-        Shooter_reduceAmmo(shooter)
+        Shooter.reduceAmmo(shooter)
         local spr = spawnFromFireInfo(sprite_class, shooter, fireinfo)
         set_context_var(shooter, "sprite", spr)
     end
@@ -96,7 +96,7 @@ do
 
     -- take off helmet on impact
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
-        Sequence_setState(Sprite_graphic(sender), seqNormal)
+        Sequence.setState(Sprite.graphic(sender), seqNormal)
     end)
 
     enableSheepJumping(sprite_class)
@@ -133,7 +133,7 @@ do
         name = "w_" .. name,
         onFire = function(shooter, info)
             doFire(shooter, info)
-            Sequence_setState(Sprite_graphic(get_context_var(shooter, "sprite")), seqHelmet)
+            Sequence.setState(Sprite.graphic(get_context_var(shooter, "sprite")), seqHelmet)
             emitShooterParticle("p_rocket_fire", shooter)
         end,
         onRefire = doRefire,
@@ -390,10 +390,10 @@ local function createSuperSheep(name, is_aqua)
         end
         -- remove control e.g. when it starts drowning
         if ctx.control then
-            ControlRotate_kill(ctx.control)
+            ControlRotate.kill(ctx.control)
             ctx.control = nil
         end
-        Shooter_finished(shooter)
+        Shooter.finished(shooter)
         -- if control was taken, wait some time and then blow it up
         if ctx.sprite then
             addTimer(utils.range_sample(cleanup_time), function()
@@ -411,12 +411,12 @@ local function createSuperSheep(name, is_aqua)
                 -- make it fly
                 -- creating a new sprite is really the simplest; no reason to
                 --  try to do anything more "sophisticated"
-                Sprite_kill(ctx.sprite)
+                Sprite.kill(ctx.sprite)
                 ctx.sprite = spawnSprite(shooter, flying,
-                    Phys_pos(Sprite_physics(ctx.sprite)), Vector2(0, -1))
+                    Phys.pos(Sprite.physics(ctx.sprite)), Vector2(0, -1))
                 ctx.phase1 = false
                 -- and this makes the sheep controllable; hardcoded in D
-                ctx.control = ControlRotate_ctor(ctx.sprite, 5, 10000)
+                ctx.control = ControlRotate.ctor(ctx.sprite, 5, 10000)
                 emitSpriteParticle("p_supersheep_launch", ctx.sprite)
             else
                 explode(ctx)
@@ -426,7 +426,7 @@ local function createSuperSheep(name, is_aqua)
     end
 
     addSpriteClassEvent(flying, "sprite_waterstate", function(sender)
-        local inwater = Sprite_isUnderWater(sender)
+        local inwater = Sprite.isUnderWater(sender)
         if not is_aqua then
             if inwater then
                 cleanup(sender)
@@ -448,7 +448,7 @@ local function createSuperSheep(name, is_aqua)
     })
 
     addSpriteClassEvent(jumping, "sprite_waterstate", function(sender)
-        if Sprite_isUnderWater(sender) then
+        if Sprite.isUnderWater(sender) then
             cleanup(sender)
         end
     end)
@@ -467,7 +467,7 @@ local function createSuperSheep(name, is_aqua)
     local w = createWeapon {
         name = "w_" .. name,
         onFire = function(shooter, info)
-            Shooter_reduceAmmo(shooter)
+            Shooter.reduceAmmo(shooter)
             local s = spawnFromFireInfo(jumping, shooter, info)
             local ctx = get_context(shooter)
             ctx.phase1 = true

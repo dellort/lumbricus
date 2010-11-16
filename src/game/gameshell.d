@@ -85,10 +85,7 @@ class GameLoader {
         //ConfigNode mDemoFile;
         PipeOut mDemoOutput;
         //null = no demo reading
-        //OH GOD FUCK IT
-        //^ compiler bug is still in dmd v1.055
-        //GameShell.InputLog* mDemoInput;
-        void* mDemoInput;
+        GameShell.InputLog* mDemoInput;
     }
 
     private struct TimeSettings {
@@ -272,8 +269,7 @@ class GameLoader {
 
         if (mDemoInput) {
             //changed because replays were ditched (and it looks nicer)
-            auto lg = cast(GameShell.InputLog*)mDemoInput;
-            mShell.playbackDemo(*lg);
+            mShell.playbackDemo(*mDemoInput);
         }
 
         //all resources have been loaded, and that took a while => skip time

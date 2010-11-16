@@ -14,7 +14,7 @@ local function phys(glue, radius)
 end
 
 local napalm_common = {
-    ctor = "NapalmSpriteClass_ctor",
+    ctor = NapalmSpriteClass.ctor,
     damage = utils.range(6, 9),
     initialDelay = timeRange("0ms", "500ms"),
     repeatDelay = timeRange("400ms", "600ms"),

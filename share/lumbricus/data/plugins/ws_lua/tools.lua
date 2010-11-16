@@ -3,16 +3,16 @@
 createWeapon {
     name = "w_girder",
     onCreateSelector = function(sprite)
-        return GirderControl_ctor(sprite)
+        return GirderControl.ctor(sprite)
     end,
     onFire = function(shooter, fireinfo)
-        local sel = Shooter_selector(shooter)
+        local sel = Shooter.selector(shooter)
         if not sel then return end
-        if GirderControl_fireCheck(sel, fireinfo, true) then
-            Shooter_reduceAmmo(shooter)
+        if GirderControl.fireCheck(sel, fireinfo, true) then
+            Shooter.reduceAmmo(shooter)
             emitParticle("p_girder_place", fireinfo.pointto.pos)
         end
-        Shooter_finished(shooter)
+        Shooter.finished(shooter)
     end,
     value = 10,
     category = "worker",
@@ -39,15 +39,15 @@ createWeapon {
     onFire = function(shooter, fireinfo)
         -- can't use fireParticle as Shooter dies immediately
         emitShooterParticle("p_beam", shooter)
-        Shooter_reduceAmmo(shooter)
-        Shooter_finished(shooter) -- probably called by BeamHandler on the end?
-        Worm_beamTo(Shooter_owner(shooter), fireinfo.pointto.pos)
+        Shooter.reduceAmmo(shooter)
+        Shooter.finished(shooter) -- probably called by BeamHandler on the end?
+        Worm.beamTo(Shooter.owner(shooter), fireinfo.pointto.pos)
     end
 }
 
 createWeapon {
     name = "w_drill",
-    ctor = "DrillClass_ctor",
+    ctor = DrillClass.ctor,
     value = 10,
     category = "worker",
     icon = "icon_drill",
@@ -61,7 +61,7 @@ createWeapon {
 
 createWeapon {
     name = "w_blowtorch",
-    ctor = "DrillClass_ctor",
+    ctor = DrillClass.ctor,
     value = 10,
     category = "worker",
     icon = "icon_blowtorch",
@@ -84,10 +84,10 @@ local function teamActionOnFire(action, particle)
         end
         local team, member = currentTeamFromShooter(shooter)
         if team and member then
-            Shooter_reduceAmmo(shooter)
+            Shooter.reduceAmmo(shooter)
             action(team, member)
         end
-        Shooter_finished(shooter)
+        Shooter.finished(shooter)
     end
 end
 
@@ -98,7 +98,7 @@ createWeapon {
     icon = "icon_surrender",
     animation = "weapon_surrender",
     onFire = teamActionOnFire(function(team)
-        Team_surrenderTeam(team)
+        Team.surrenderTeam(team)
     end),
 }
 
@@ -109,7 +109,7 @@ createWeapon {
     icon = "icon_skipgo",
     animation = "weapon_skipturn",
     onFire = teamActionOnFire(function(team)
-        Team_skipTurn(team)
+        Team.skipTurn(team)
     end),
 }
 
@@ -125,9 +125,9 @@ createWeapon {
         --     called from doFire, which will set mMember.mWormAction = true
         --     afterwards and would make the resetActivity() call void
         addOnNextFrame(function()
-            Team_set_allowSelect(team, true)
+            Team.set_allowSelect(team, true)
             -- allowSelect is removed on activity
-            WormControl_resetActivity(Member_control(member))
+            WormControl.resetActivity(Member.control(member))
         end)
     end),
 }
@@ -139,11 +139,11 @@ createWeapon {
     icon = "icon_scales",
     onFire = teamActionOnFire(function(myteam)
         -- xxx is this really so complicated?
-        local teams = Control_teams()
+        local teams = Control:teams()
         local sum = 0
         local count = 0
         for i, t in ipairs(teams) do
-            local h = Team_totalHealth(t)
+            local h = Team.totalHealth(t)
             if h > 0 then
                 sum = sum + h
                 count = count + 1
@@ -158,16 +158,16 @@ createWeapon {
         for i, t in ipairs(teams) do
             -- distribute team health change over (alive) members
             local alive_worms = {}
-            for i2, m in ipairs(Team_members(t)) do
-                if Member_health(m) > 0 then
+            for i2, m in ipairs(Team.members(t)) do
+                if Member.health(m) > 0 then
                     alive_worms[#alive_worms + 1] = m
                 end
             end
             local perworm = avg / #alive_worms
             for i2, m in ipairs(alive_worms) do
-                local h = Member_health(m)
-                Member_addHealth(m, perworm - h)
-                h = Member_health(m) - h
+                local h = Member.health(m)
+                Member.addHealth(m, perworm - h)
+                h = Member.health(m) - h
                 changed = changed - h
             end
         end
@@ -183,7 +183,7 @@ createWeapon {
 
 createWeapon {
     name ="w_parachute",
-    ctor = "ParachuteClass_ctor",
+    ctor = ParachuteClass.ctor,
     value = 10,
     category = "tools",
     icon = "icon_parachute",
@@ -194,7 +194,7 @@ createWeapon {
 
 createWeapon {
     name = "w_jetpack",
-    ctor = "JetpackClass_ctor",
+    ctor = JetpackClass.ctor,
     value = 10,
     category = "tools",
     icon = "icon_jetpack",
@@ -210,7 +210,7 @@ createWeapon {
 
 createWeapon {
     name = "w_superrope",
-    ctor = "RopeClass_ctor",
+    ctor = RopeClass.ctor,
     value = 10,
     category = "tools",
     icon = "icon_rope",
@@ -239,11 +239,11 @@ createWeapon {
 }
 
 local function freezeTeam(team, freeze)
-    for i, m in ipairs(Team_members(team)) do
-        local worm = Member_sprite(m)
+    for i, m in ipairs(Team.members(team)) do
+        local worm = Member.sprite(m)
         if not spriteIsGone(worm) then
             -- xxx worm dependency
-            Worm_freeze(worm, freeze)
+            Worm.freeze(worm, freeze)
         end
     end
 end
@@ -257,7 +257,7 @@ createWeapon {
     onFire = teamActionOnFire(function(team, member)
         freezeTeam(team, true)
         -- end round
-        Team_set_active(team, false)
+        Team.set_active(team, false)
         -- add callback to unfreeze
         local function unfreeze(t, active)
             assert(t == team)
@@ -279,14 +279,14 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = function(shooter, fireinfo)
-            Shooter_finished(shooter)
-            local sprite = Shooter_owner(shooter)
+            Shooter.finished(shooter)
+            local sprite = Shooter.owner(shooter)
             local hitpoint, normal = castFireRay(sprite, fireinfo.dir)
             -- xxx laser is inside the poor worm
             addlaser(fireinfo.pos, hitpoint)
             if normal then
-                Shooter_reduceAmmo(shooter)
-                Worm_beamTo(sprite, hitpoint)
+                Shooter.reduceAmmo(shooter)
+                Worm.beamTo(sprite, hitpoint)
             end
         end,
         category = "tools",

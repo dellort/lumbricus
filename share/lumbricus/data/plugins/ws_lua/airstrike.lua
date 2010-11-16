@@ -19,7 +19,7 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class),
-        onCreateSelector = AirstrikeControl_ctor,
+        onCreateSelector = AirstrikeControl.ctor,
         value = 10000,
         category = "air",
         isAirstrike = true,
@@ -40,7 +40,7 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = getAirstrikeOnFire(mine_class, 10, 25),
-        onCreateSelector = AirstrikeControl_ctor,
+        onCreateSelector = AirstrikeControl.ctor,
         value = 10000,
         category = "air",
         isAirstrike = true,
@@ -75,7 +75,7 @@ do
         showDisplay = false,
         callback = function(sender)
             -- use the sender's velocity (direction and magnitude)
-            local vel = Phys_velocity(Sprite_physics(sender))
+            local vel = Phys.velocity(Sprite.physics(sender))
             spawnCluster(worms_shared.standard_napalm, sender, 15, 1, 1, 60,
                 vel)
             spriteExplode(sender, 25)
@@ -85,7 +85,7 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class, 8, 45),
-        onCreateSelector = AirstrikeControl_ctor,
+        onCreateSelector = AirstrikeControl.ctor,
         value = 10000,
         category = "air",
         isAirstrike = true,
@@ -123,7 +123,7 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class, 6, 45),
-        onCreateSelector = AirstrikeControl_ctor,
+        onCreateSelector = AirstrikeControl.ctor,
         value = 10000,
         category = "air",
         isAirstrike = true,
@@ -161,7 +161,7 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class, 6, 45),
-        onCreateSelector = AirstrikeControl_ctor,
+        onCreateSelector = AirstrikeControl.ctor,
         value = 10000,
         category = "air",
         isAirstrike = true,
@@ -197,7 +197,7 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = getAirstrikeOnFire(sprite_class),
-        onCreateSelector = AirstrikeControl_ctor,
+        onCreateSelector = AirstrikeControl.ctor,
         value = 10000,
         category = "air",
         isAirstrike = true,

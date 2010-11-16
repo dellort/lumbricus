@@ -1,4 +1,4 @@
-local sprite_class = WormSpriteClass_ctor(Game, "x_worm")
+local sprite_class = WormSpriteClass.ctor(Game, "x_worm")
 
 -- selects SequenceObject, which again is provided in wwp.conf
 local sequence_object = lookupResource("s_worm")
@@ -296,31 +296,31 @@ end
 -- all states are instantiated in D code, and we just look them up here
 -- (this also makes forward refs for onAnimationEnd simpler)
 for name, state in pairs(states) do
-    local dstate = WormSpriteClass_findState(sprite_class, name)
+    local dstate = WormSpriteClass.findState(sprite_class, name)
     state.physic = physics[state.physic]
     if not state.physic then
         state.physic = physics[name]
     end
     assert(state.physic)
     if state.animation then
-        state.animation = SequenceType_findState(sequence_object,
+        state.animation = SequenceType.findState(sequence_object,
             state.animation)
     end
     if state.particle then
         state.particle = lookupResource(state.particle)
     end
     if state.onAnimationEnd then
-        state.onAnimationEnd = WormSpriteClass_findState(sprite_class,
+        state.onAnimationEnd = WormSpriteClass.findState(sprite_class,
             state.onAnimationEnd)
     end
     setProperties(dstate, state)
 end
 
-WormSpriteClass_finishLoading(sprite_class)
-registerResource(sprite_class, SpriteClass_name(sprite_class))
+WormSpriteClass.finishLoading(sprite_class)
+registerResource(sprite_class, SpriteClass.name(sprite_class))
 
 -- play bleep on misfire (xxx not sure if this is the right place to put this)
 addGlobalEventHandler("weapon_misfire", function(weapon, wcontrol, reason)
-    local s = WormControl_sprite(wcontrol)
+    local s = WormControl.sprite(wcontrol)
     emitSpriteParticle("p_warning", s)
 end)

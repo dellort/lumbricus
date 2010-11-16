@@ -112,13 +112,13 @@ do
     end
 
     addSpriteClassEvent(main, "sprite_waterstate", function(sender)
-        if Sprite_isUnderWater(sender) then
+        if Sprite.isUnderWater(sender) then
             local shooter = gameObjectFindShooter(sender)
             -- no need for a finished call then
-            if not GameObject_objectAlive(shooter) then
+            if not GameObject.objectAlive(shooter) then
                 return
             end
-            Shooter_finished(shooter)
+            Shooter.finished(shooter)
         end
     end)
 
@@ -126,14 +126,14 @@ do
         local shooter = gameObjectFindShooter(sprite)
         assert(shooter)
         -- no need for a finished call then
-        if not GameObject_objectAlive(shooter) then
+        if not GameObject.objectAlive(shooter) then
             return
         end
         local sprites = get_context(shooter).sprites
         sprites[sprite] = status
         -- reconsider refire status; no sprites left => no refire
         if (not status) and table_empty(sprites) then
-            Shooter_finished(shooter)
+            Shooter.finished(shooter)
         end
     end
     addSpriteClassEvent(shard, "sprite_activate", function(sender, normal)
@@ -155,12 +155,12 @@ do
         -- if unterwater, event below has been called before; don't call again
         -- (else there may be weird corner cases where the calls from 2
         --  subsequent fires overlap and cause mayhem)
-        if not Sprite_isUnderWater(sender) then
+        if not Sprite.isUnderWater(sender) then
             subsprite_status(sender, nil)
         end
     end)
     addSpriteClassEvent(shard, "sprite_waterstate", function(sender)
-        if Sprite_isUnderWater(sender) then
+        if Sprite.isUnderWater(sender) then
             subsprite_status(sender, nil)
         end
     end)
@@ -168,8 +168,8 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = function(shooter, info)
-            Shooter_reduceAmmo(shooter)
-            --Shooter_finished(shooter)
+            Shooter.reduceAmmo(shooter)
+            --Shooter.finished(shooter)
             local ctx = get_context(shooter)
             ctx.sprites = {}
             ctx.main = spawnFromFireInfo(main, shooter, info)
@@ -351,24 +351,24 @@ do
         showDisplay = true,
         callback = function(sprite)
             local tmain = addPeriodicTimer(time(0.25), function(tmain)
-                if Sprite_isUnderWater(sprite) then
+                if Sprite.isUnderWater(sprite) then
                     tmain:cancel()
                     return
                 end
                 tmain.count = tmain.count - 1
                 spriteExplode(sprite, 10, false)
-                local spos = Phys_pos(Sprite_physics(sprite))
+                local spos = Phys.pos(Sprite.physics(sprite))
                 if tmain.count > 0 then
                     -- downwards push
                     spos.y = spos.y + 10
-                    Game_explosionAt(spos, down_damage, sprite)
+                    Game:explosionAt(spos, down_damage, sprite)
                 else
                     -- main explosion, then to the side
                     spriteExplode(sprite, main_damage)
                     local function tunnel(timer2)
                         -- add to x every call and explode
                         timer2.pos.x = timer2.pos.x + timer2.addx
-                        Game_explosionAt(timer2.pos, side_damage, sprite)
+                        Game:explosionAt(timer2.pos, side_damage, sprite)
                         timer2.count = timer2.count - 1
                         if timer2.count <= 0 then
                             timer2:cancel()

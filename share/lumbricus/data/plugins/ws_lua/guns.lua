@@ -80,23 +80,23 @@ do
         local ctx = get_context(shooter)
         ctx.shots = ctx.shots - 1
         -- (gives readjusted fireinfo after 1st shot)
-        local fireinfo = Shooter_fireinfo(shooter)
+        local fireinfo = Shooter.fireinfo(shooter)
         -- copy & pasted from elsewhere
-        local hitpoint, normal = castFireRay(Shooter_owner(shooter),
+        local hitpoint, normal = castFireRay(Shooter.owner(shooter),
             fireinfo.dir)
         if normal then
-            Game_explosionAt(hitpoint, 25, shooter)
+            Game:explosionAt(hitpoint, 25, shooter)
         end
         if ctx.shots <= 0 then
-            Shooter_finished(shooter)
+            Shooter.finished(shooter)
         end
     end
 
     local w = createWeapon {
         name = name,
         onFire = function(shooter, fireinfo)
-            LuaShooter_set_fixed(shooter, true)
-            Shooter_reduceAmmo(shooter)
+            LuaShooter.set_fixed(shooter, true)
+            Shooter.reduceAmmo(shooter)
             set_context_var(shooter, "shots", 2)
             doshot(shooter)
         end,
@@ -105,7 +105,7 @@ do
             return true -- apparently I needed this
         end,
         onInterrupt = function(shooter)
-            Shooter_finished(shooter)
+            Shooter.finished(shooter)
         end,
         category = "shoot",
         value = 10,

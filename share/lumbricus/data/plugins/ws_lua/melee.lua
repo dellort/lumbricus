@@ -27,18 +27,18 @@ createWeapon {
 createWeapon {
     name = "w_axe",
     onFire = getMeleeOnFire(10, 15, function(shooter, info, self, obj)
-        local spr = Phys_backlink(obj)
+        local spr = Phys.backlink(obj)
         -- xxx see init.lua comments for a similar thing
         if className(spr) == "WormSprite" then
             -- half lifepower, but don't reduce to less than 1 hp
-            local hp = Phys_lifepower(obj)
+            local hp = Phys.lifepower(obj)
             local dmg = math.min(hp * 0.5, hp - 1)
             dmg = math.max(dmg, 0)
-            Phys_applyDamage(obj, dmg, 3, self)
-            Phys_addImpulse(obj, Vector2(0, 1))
+            Phys.applyDamage(obj, dmg, 3, self)
+            Phys.addImpulse(obj, Vector2(0, 1))
         else
             -- destroy barrels
-            Phys_applyDamage(obj, 50, 3, self)
+            Phys.applyDamage(obj, 50, 3, self)
         end
     end),
     category = "punch",
@@ -70,7 +70,7 @@ do
     enableSpriteTimer(sprite_class, {
         defTimer = time(0.8),
         callback = function(sender)
-            Sprite_kill(sender)
+            Sprite.kill(sender)
         end
     })
 
@@ -92,13 +92,13 @@ end
 createWeapon {
     name = "w_kamikazebomber",
     onFire = function(shooter, info)
-        Shooter_reduceAmmo(shooter)
-        Shooter_finished(shooter)
+        Shooter.reduceAmmo(shooter)
+        Shooter.finished(shooter)
         
-        local worm = Shooter_owner(shooter)
+        local worm = Shooter.owner(shooter)
         -- spawn 1 class with 50% probability (or always count, if specified)
         local function spawn(class, count)
-            count = count or Random_rangei(0, 1)
+            count = count or Random:rangei(0, 1)
             spawnCluster(class, worm, count, 250, 450, 60)
         end
         
@@ -115,7 +115,7 @@ createWeapon {
         spawn(dynamite_class)
         spawn(mine_class)
         -- I couldn't stop myself xD
-        spawn(esel_class, math.floor(Random_rangei(0, 9)/9))
+        spawn(esel_class, math.floor(Random:rangei(0, 9)/9))
     end,
     category = "punch",
     value = 12,
