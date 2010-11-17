@@ -10,8 +10,8 @@ _dgo_contexts = {}
 function get_context(d_game_object, dont_init)
     local res = _dgo_contexts[d_game_object]
     if not res and not dont_init then
-        assert(d_game_object)
-        assert(GameObject.objectAlive(d_game_object))
+        T(GameObject, d_game_object)
+        assert(d_game_object:objectAlive())
         res = {}
         _dgo_contexts[d_game_object] = res
     end
@@ -42,11 +42,11 @@ end
 
 function lookupResource(name, canfail)
     canfail = ifnil(canfail, false)
-    return ResourceSet.getDynamic(Game:resources(), name, canfail)
+    return Game:resources():getDynamic(name, canfail)
 end
 
 function registerResource(object, name)
-    ResourceSet.addResource(Game:resources(), object, name)
+    Game:resources():addResource(object, name)
 end
 
 -- random helper functions
@@ -55,8 +55,8 @@ end
 -- incidentally, this just calls spawnFromFireInfo()
 function getStandardOnFire(sprite_class, particle_type)
     return function(shooter, info)
-        Shooter.reduceAmmo(shooter)
-        Shooter.finished(shooter)
+        shooter:reduceAmmo()
+        shooter:finished()
         spawnFromFireInfo(sprite_class, shooter, info)
         if particle_type then
             emitShooterParticle(particle_type, shooter)
@@ -66,10 +66,9 @@ end
 
 function getAirstrikeOnFire(sprite_class, count, distance)
     return function(shooter, info)
-        Shooter.reduceAmmo(shooter)
-        Shooter.finished(shooter)
-        spawnAirstrike(sprite_class, count or 6, shooter, info,
-            distance or 40)
+        shooter:reduceAmmo()
+        shooter:finished()
+        spawnAirstrike(sprite_class, count or 6, shooter, info, distance or 40)
     end
 end
 
@@ -78,18 +77,18 @@ end
 function getMeleeOnFire(distance, radius, callback)
     return function(shooter, info)
         local hit = info.pos + info.dir * distance;
-        local self = Shooter.owner(shooter)
+        local self = shooter:owner()
         -- find all objects at hit inside radius
         World:objectsAt(hit, radius, function(obj)
-            local spr = Phys.backlink(obj)
+            local spr = obj:backlink()
             -- don't hit the shooter
             if spr ~= self then
                 callback(shooter, info, self, obj)
             end
             return true
         end)
-        Shooter.reduceAmmo(shooter)
-        Shooter.finished(shooter)
+        Shooter:reduceAmmo()
+        Shooter:finished()
     end
 end
 
@@ -105,32 +104,32 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
     local function doFire(shooter, fireinfo)
         if not per_shot_ammo then
             -- this may call onInterrupt if the last piece of ammo is fired
-            Shooter.reduceAmmo(shooter)
+            shooter:reduceAmmo()
         end
-        LuaShooter.set_fixed(shooter, true)
-        LuaShooter.set_delayed(shooter, true)
+        shooter:set_fixed(true)
+        shooter:set_delayed(true)
         local remains = nsprites
         if remains == -1 then
             remains = fireinfo.param
         end
         local timer = Timer.New()
         local ctx = get_context(shooter)
-        local sprite_phys = Sprite.physics(Shooter.owner(shooter))
+        local sprite_phys = T(Phys, shooter:owner():physics())
         ctx.firetimer = timer
         ctx.fireinfo = fireinfo
         local function doSpawn()
             if per_shot_ammo then
-                if not Shooter.reduceAmmo(shooter) then
+                if not shooter:reduceAmmo() then
                     remains = 1
                 end
             end
-            ctx.fireinfo.pos = Phys.pos(sprite_phys)
+            ctx.fireinfo.pos = sprite_phys:pos()
             -- only one sprite per timer tick...
             callback(shooter, ctx.fireinfo, remains)
             remains = remains - 1
             if remains <= 0 then
                 timer:cancel()
-                Shooter.finished(shooter)
+                shooter:finished()
             end
         end
         timer:setCallback(doSpawn)
@@ -141,7 +140,7 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
         local timer = get_context_var(shooter, "firetimer")
         if timer then
             timer:cancel()
-            Shooter.finished(shooter)
+            shooter:finished()
         end
     end
     local function doReadjust(shooter, dir)
@@ -165,8 +164,8 @@ end
 
 -- simple shortcut
 function addSpriteClassEvent(sprite_class, event_name, handler)
-    local sprite_class_name = SpriteClass.name(sprite_class)
-    addClassEventHandler(sprite_class_name, event_name, handler)
+    T(SpriteClass, sprite_class)
+    addClassEventHandler(sprite_class:name(), event_name, handler)
 end
 
 -- if a sprite "impacts" (whatever this means), explode and die
@@ -187,9 +186,9 @@ end
 -- (changing the sprite class sounds way better than the retarded state stuff)
 function getDrownFunc(sprite_class, drown_phys)
     local drown_graphic
-    local seq = SpriteClass.getInitSequenceType(sprite_class)
+    local seq = sprite_class:getInitSequenceType()
     if seq then
-        drown_graphic = SequenceType.findState(seq, "drown", true)
+        drown_graphic = seq:findState("drown", true)
     end
     if not drown_graphic then
         log.minor("no drown graphic for sprite {}", sprite_class)
@@ -197,19 +196,20 @@ function getDrownFunc(sprite_class, drown_phys)
     local particle = lookupResource("p_projectiledrown")
     if not drown_phys then
         -- this is just like projectile.d does it
-        drown_phys = POSP.copy(SpriteClass.initPhysic(sprite_class))
-        POSP.set_radius(drown_phys, 1)
-        POSP.set_collisionID(drown_phys, CollisionMap:find("waterobj"))
-        POSP.set_directionConstraint(drown_phys, Vector2(0, 1))
+        drown_phys = sprite_class:initPhysic():copy()
+        drown_phys:set_radius(1)
+        drown_phys:set_collisionID(CollisionMap:find("waterobj"))
+        drown_phys:set_directionConstraint(Vector2(0, 1))
     end
     return function(sender)
-        if not (Sprite.isUnderWater(sender) and Sprite.visible(sender)) then
+        T(Sprite, sender)
+        if not (sender:isUnderWater() and sender:visible()) then
             return
         end
-        Phys.set_posp(Sprite.physics(sender), drown_phys)
-        Sprite.setParticle(sender, particle)
+        sender:physics():set_posp(drown_phys)
+        sender:setParticle(particle)
         if drown_graphic then
-            Sequence.setState(Sprite.graphic(sender), drown_graphic)
+            sender:graphic():setState(drown_graphic)
         end
     end
 end
@@ -225,14 +225,15 @@ function enableSpriteCrateBlowup(weapon_class, sprite_class, count)
     function blowup(weapon, crate_sprite)
         spawnCluster(sprite_class, crate_sprite, count, 350, 550, 90)
     end
-    addClassEventHandler(EventTarget.eventTargetType(weapon_class),
+    T(EventTarget, weapon_class)
+    addClassEventHandler(weapon_class:eventTargetType(),
         "weapon_crate_blowup", blowup)
 end
 
 -- call fn(sprite) everytime it has been glued for the given time
 function enableOnTimedGlue(sprite_class, time, fn)
     addSpriteClassEvent(sprite_class, "sprite_glue_changed", function(sender)
-        local state = Phys.isGlued(Sprite.physics(sender))
+        local state = sender:physics():isGlued()
         local ctx = get_context(sender)
         local timer = ctx.glue_timer
         if not timer then
@@ -270,7 +271,7 @@ function enableWalking(sprite_class, onStuck)
     addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
         walkForward(sender)
         local trig = StuckTrigger.ctor(sender, time(0.2), 2.5, true);
-        StuckTrigger.set_onTrigger(trig, function(trigger, sprite)
+        trig:set_onTrigger(function(trigger, sprite)
             if onStuck then
                 onStuck(sprite)
             else
@@ -327,7 +328,7 @@ function enableSpriteTimer(sprite_class, args)
             -- actually, it should always find a shooter
             local sh = gameObjectFindShooter(sender)
             if sh then
-                t = Shooter.fireinfo(sh).param * timeSecs(1)
+                t = sh:fireinfo().param * timeSecs(1)
             end
         end
         ctx[timerId] = addTimer(t, function()
@@ -366,15 +367,15 @@ end
 --   collision = string collision id
 function createZoneTrigger(zone, collision, onTrigger)
     local trig = ZoneTrigger.ctor(zone)
-    Phys.set_collision(trig, CollisionMap:find(collision))
-    PhysicTrigger.set_onTrigger(trig, onTrigger)
+    trig:set_collision(CollisionMap:find(collision))
+    trig:set_onTrigger(onTrigger)
     World:add(trig)
     return trig
 end
 
 -- helper, creates PhysicZoneCircle attached to sprite and calls createZoneTrigger
 function addCircleTrigger(sprite, radius, collision, onTrigger)
-    local zone = PhysicZoneCircle.ctor(Sprite.physics(sprite), radius)
+    local zone = PhysicZoneCircle.ctor(sprite:physics(), radius)
     return createZoneTrigger(zone, collision, onTrigger)
 end
 
@@ -383,80 +384,37 @@ end
 -- this is just a helper
 function findSequenceState(fstr)
     local pre, post = utils.split2(fstr, ":", true)
-    local seq = lookupResource(pre)
-    return SequenceType.findState(seq, post)
+    local seq = T(SequenceType, lookupResource(pre))
+    return seq:findState(post)
 end
 
--- maps function names to a table that maps type names to a conversion function
+-- maps property names to a table that maps type names to a conversion function
 autoProperties = {
-    [WeaponClass.set_icon] = {
+    icon = {
         string = lookupResource,
     },
-    [WeaponClass.set_prepareParticle] = {
+    prepareParticle = {
         string = lookupResource,
     },
-    [WeaponClass.set_fireParticle] = {
+    fireParticle = {
         string = lookupResource,
     },
-    [SpriteClass.set_sequenceType] = {
+    sequenceType = {
         string = lookupResource,
     },
-    [SpriteClass.set_sequenceState] = {
+    sequenceState = {
         string = findSequenceState,
     },
-    [SpriteClass.set_initParticle] = {
+    initParticle = {
         string = lookupResource,
     },
-    [POSP.set_collisionID] = {
+    collisionID = {
         string = function(x) return CollisionMap:find(x) end,
     },
-    [POSP.set_walkingCollisionID] = {
+    walkingCollisionID = {
         string = function(x) return CollisionMap:find(x) end,
     },
 }
-
--- cache for listProperties/setProperties
--- xxx: should be cleared if new D class bindings are added while Lua is running
-_d_metadata_cache = {}
--- make weak
-setmetatable(_d_metadata_cache, { __mode = "v" })
-
-function listProperties(d_class)
-    local res = _d_metadata_cache[d_class]
-    if res then
-        return res
-    end
-    res = {}
-    _d_metadata_cache[d_class] = res
-    local list = d_get_class_metadata(d_class)
-    for i, v in ipairs(list) do
-        local is_r = v.type == "Property_R"
-        local is_w = v.type == "Property_W"
-        if (is_r or is_w) and not v.inherited then
-            local entry
-            if not res[v.name] then
-                res[v.name] = { name = v.name }
-            end
-            entry = assert(res[v.name])
-            local t = _G
-            assert(v.dclass)
-            if v.dclass ~= "" then
-                t = t[v.dclass]
-                if type(t) ~= "table" then
-                    error(utils.format("not found: {}.{}", v.dclass, v.name))
-                end
-            end
-            local fn = t[v.xname]
-            assert(type(fn) == "function")
-            if is_r then
-                entry.read = fn
-            else
-                entry.write = fn
-            end
-        end
-    end
-    return res
-end
 
 -- this is magic
 -- d_object = a D object, that was bound with framework.lua
@@ -471,24 +429,26 @@ end
 -- xxx 2: setting references to null by using nil obviously isn't going to
 --  work; we should add some placeholder value to allow this...
 function setProperties(d_object, data)
-    local list = listProperties(d_get_class(d_object))
+    local mt = getmetatable(d_object).__index
+    assert(type(mt) == "table")
     local failed
     for name, value in pairs(data) do
-        local entry = list[name] or {}
+        local read = mt[name] -- read method
+        local write = mt["set_" .. name] -- write method
         local is_relay = getmetatable(value) == _RelayMetaTable
-        if entry.write and not is_relay then
+        if write and not is_relay then
             -- set that value; possibly convert according to autoProperties
-            local autoprop = autoProperties[entry.write]
+            local autoprop = autoProperties[name]
             if autoprop then
                 local converter = autoprop[type(value)]
                 if converter then
                     value = converter(value)
                 end
             end
-            entry.write(d_object, value)
-        elseif entry.read and is_relay then
+            write(d_object, value)
+        elseif read and is_relay then
             -- special case: redirect
-            local relayed = entry.read(d_object)
+            local relayed = read(d_object)
             setProperties(relayed, value)
         else
             if not failed then
@@ -528,6 +488,7 @@ end
 -- unit = sets the "quantum" per displayed unit; if nil, defaults to Time.Second
 function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
     assert(sprite)
+    T(Sprite, sprite)
     local unit = unit or Time.Second
     local txt = WormLabels.textCreate()
     local last_visible = false
@@ -535,10 +496,10 @@ function addCountdownDisplay(sprite, timer, time_visible, time_red, unit)
         if visible == last_visible then
             return
         end
-        local gr = Sprite.graphic(sprite)
+        local gr = sprite:graphic()
         -- gr can be null if the sprite died or so, no idea *shrug*
         if not gr then return end
-        Sequence.set_attachText(gr, iif(visible, txt, nil))
+        gr:set_attachText(iif(visible, txt, nil))
         last_visible = visible
     end
     -- the Timer updater is invoked every second to change the time display
@@ -592,13 +553,14 @@ end
 -- kill = if sprite should die; default is true
 -- damage = number or range of damage value (Cf. utils.range())
 function spriteExplode(sprite, damage, kill)
+    T(Sprite, sprite)
     -- don't explode if not visible (this is almost always what you want)
-    if not Sprite.visible(sprite) then
+    if not sprite:visible() then
         return
     end
-    local spos = Phys.pos(Sprite.physics(sprite))
+    local spos = sprite:physics():pos()
     if ifnil(kill, true) then
-        Sprite.kill(sprite)
+        sprite:kill()
     end
     Game:explosionAt(spos, utils.range_sample_f(damage), sprite)
 end
@@ -619,7 +581,7 @@ function createWeapon(props)
     local w = ctor(Game, name)
     setProperties(w, props)
     if onblowup then
-        addClassEventHandler(EventTarget.eventTargetType(w),
+        addClassEventHandler(w:eventTargetType(),
             "weapon_crate_blowup", onblowup)
     end
     registerResource(w, name)
@@ -647,10 +609,10 @@ end
 
 -- return the currently active (team, member) from a D Shooter
 function currentTeamFromShooter(shooter)
-    local member = Control:memberFromGameObject(Shooter.owner(shooter), false)
+    local member = Control:memberFromGameObject(shooter:owner(), false)
     local team = nil
     if member then
-        team = Member.team(member)
+        team = member:team()
     end
     return team, member
 end
@@ -659,7 +621,7 @@ end
 -- xxx: you have to check the sprite state all the time; there should be some
 --  automatic way to deal with this instead
 function spriteIsGone(sprite)
-    return not Sprite.visible(sprite) or Sprite.isUnderWater(sprite)
+    return not sprite:visible() or sprite:isUnderWater()
 end
 
 Lexel_free = 0
@@ -668,7 +630,8 @@ Lexel_hard = 2
 
 -- return PhysicObject looking vector
 function lookVector(obj)
-    return Vector2.FromPolar(1.0, Phys.lookey(obj))
+    T(Phys, obj)
+    return Vector2.FromPolar(1.0, obj:lookey())
 end
 
 -- -1 if looking left, 1 if looking right
@@ -679,20 +642,21 @@ end
 
 -- make a sprite walk into looking direction (will walk forever)
 function walkForward(sprite, inverse)
+    T(Sprite, sprite)
     inverse = ifnil(inverse, false)
-    local phys = Sprite.physics(sprite)
+    local phys = sprite:physics()
     local look = lookVector(phys)
     local dir = 1
     if (look.x < 0) ~= inverse then
         dir = -1
     end
-    Phys.setWalking(phys, Vector2(dir, 0))
+    phys:setWalking(Vector2(dir, 0))
 end
 
 function createPOSP(props)
     local ret = POSP.ctor()
     -- some default value that can't be set in D
-    POSP.set_collisionID(ret, CollisionMap:find("none"))
+    ret:set_collisionID(CollisionMap:find("none"))
     setProperties(ret, props)
     return ret
 end
@@ -701,20 +665,19 @@ end
 --   targetStruct = WeaponTarget structure (from FireInfo)
 --   forceA, forceT = acceleration / turn force
 function setSpriteHoming(sprite, targetStruct, forceA, forceT)
-    local homing = HomingForce.ctor(Sprite.physics(sprite), forceA or 15000,
+    local homing = HomingForce.ctor(sprite:physics(), forceA or 15000,
         forceT or 15000)
     if targetStruct.sprite then
-        HomingForce.set_targetObj(homing, Sprite.physics(targetStruct.sprite))
+        homing:set_targetObj(targetStruct.sprite:physics())
     else
-        HomingForce.set_targetPos(homing, targetStruct.pos)
+        homing:set_targetPos(targetStruct.pos)
     end
     World:add(homing)
     return homing
 end
 
 function findSpriteSeqType(sprite_class, animation)
-    return SequenceType.findState(SpriteClass.sequenceType(sprite_class),
-        animation)
+    return sprite_class:sequenceType():findState(animation)
 end
 
 -- the following state functions are mostly a hack for complex weapons
@@ -726,11 +689,12 @@ end
 -- if any param is nil, it will not be modified (except particle, which will be
 --    cleared then)
 function initSpriteState(sprite_class, animation, physics, particle)
-    local seq = SpriteClass.sequenceType(sprite_class)
+    T(SpriteClass, sprite_class)
+    local seq = sprite_class:sequenceType()
     local ret = {}
     if animation then
-        local seq = SpriteClass.getInitSequenceType(sprite_class)
-        ret.seqState = SequenceType.findState(seq, animation)
+        local seq = sprite_class:getInitSequenceType()
+        ret.seqState = seq:findState(animation)
     end
     if physics then
         if type(physics) == "userdata" then
@@ -750,25 +714,26 @@ end
 -- (allocates memory)
 function createNormalSpriteState(sprite_class)
     return {
-        seqState = SpriteClass.getInitSequenceState(sprite_class),
-        posp = SpriteClass.initPhysic(sprite_class),
-        particle = SpriteClass.initParticle(sprite_class),
+        seqState = sprite_class:getInitSequenceState(),
+        posp = sprite_class:initPhysic(),
+        particle = sprite_class:initParticle(),
     }
 end
 
 -- sets the sprite to a state created with initSpriteState
 function setSpriteState(sprite, state)
+    T(Sprite, sprite)
     -- xxx there's no way to tell whether a table entry is unset, or if an
     --  entry is a null object reference
     -- idea: use the value false if an entry is considered null?
     if state.posp then
-        Phys.set_posp(Sprite.physics(sprite), state.posp)
+        sprite:physics():set_posp(state.posp)
     end
     if state.seqState then
-        Sequence.setState(Sprite.graphic(sprite), state.seqState)
+        sprite:graphic():setState(state.seqState)
     end
     if state.particle then
-        Sprite.setParticle(sprite, state.particle)
+        sprite:setParticle(state.particle)
     end
 end
 
@@ -779,13 +744,14 @@ end
 -- dir = Vector2 for direction (should be normalized)
 -- spread = optional, angle in degrees for random spread
 function castFireRay(sprite, dir, spread)
-    local owner = Sprite.physics(sprite)
-    local dist = POSP.radius(Phys.posp(owner)) + 2
+    T(Sprite, sprite)
+    local owner = sprite:physics()
+    local dist = owner:posp():radius() + 2
     if spread then
         local a = Random:rangef(-spread/2, spread/2)
         dir = dir:rotated(a*math.pi/180)
     end
-    local pos = Phys.pos(owner) + dir * dist;
+    local pos = owner:pos() + dir * dist;
     return World:shootRay(pos, dir, 1000)
 end
 
@@ -798,14 +764,13 @@ end
 
 -- Emit at sprite location/speed (not attached)
 function emitSpriteParticle(particle_type, parent)
-    local phys = Sprite.physics(parent)
-    local pos = Phys.pos(phys)
-    local vel = Phys.velocity(phys)
-    emitParticle(particle_type, pos, vel)
+    T(Sprite, parent)
+    local phys = parent:physics()
+    emitParticle(particle_type, phys:pos(), phys:velocity())
 end
 
 function emitShooterParticle(particle_type, shooter)
-    emitSpriteParticle(particle_type, Shooter.owner(shooter))
+    emitSpriteParticle(particle_type, shooter:owner())
 end
 
 -- sender = object whose type is one of TeamTheme, Team, TeamMember
@@ -821,10 +786,10 @@ function gameMessage(sender, id, args, displayTime)
         return
     end
     if d_is_class(sender, d_find_class("Member")) then
-        sender = Member.team(sender)
+        sender = sender:team(sender)
     end
     if d_is_class(sender, d_find_class("Team")) then
-        sender = Team.theme(sender)
+        sender = sender:theme()
     end
     local msg = {
         lm = { id = id, args = args },
@@ -838,7 +803,7 @@ end
 -- calls cb(team, member) for each TeamMember in the game
 function foreachMember(cb)
     for i, team in ipairs(Control:teams()) do
-        for n, member in ipairs(Team.members(team)) do
+        for n, member in ipairs(team:members()) do
             cb(team, member)
         end
     end
@@ -851,7 +816,7 @@ end
 function foreachWorm(cb)
     local wormclass = d_find_class("Worm")
     foreachMember(function(team, member)
-        local sprite = Member.sprite(member)
+        local sprite = member:sprite()
         if sprite and d_is_class(sprite, wormclass) then
             cb(team, member, sprite)
         end

@@ -121,14 +121,14 @@ const char[] cMetatableCache = "D_metatables";
 //  the registry; doing this for speed and safety (no string hashing/allocation)
 private {
     //reference to LuaState
-    const byte cLuaStateKey;
+    int cLuaStateKey;
     //the table with all cached objects (must be separate because weak values)
-    const byte cRefCacheKey;
+    int cRefCacheKey;
     //"ID" table for userdata wrapping D objects
-    const byte cDObjectUDKey;
+    int cDObjectUDKey;
     //the error handler c closures
-    const byte cPInvokeHandlerKey;
-    const byte cErrorHandlerKey;
+    int cPInvokeHandlerKey;
+    int cErrorHandlerKey;
 }
 
 //--- Lua "Registry" stuff end
@@ -1059,6 +1059,21 @@ extern (C) private int ud_gc_handler(lua_State* state) {
     return 0;
 }
 
+//special support for T() typechecking method provided to Lua
+extern (C) private int typecheck_d_object(lua_State* state) {
+    if (lua_gettop(state) != 1)
+        luaErrorf(state, "T() expects exactly one argument");
+    ClassInfo cls = cast(ClassInfo)lua_touserdata(state, lua_upvalueindex(1));
+    Object obj = LuaState.luaToDObject(state, -1);
+    if (!obj)
+        luaErrorf(state, "nil passed to T()");
+    if (!canCast(obj.classinfo, cls))
+        luaErrorf(state, "T(): {} expected, but got {}", cls.name,
+            obj.classinfo.name);
+    //return argument on success
+    return 1;
+}
+
 class LuaRegistry {
     private {
         Method[] mMethods;
@@ -1083,7 +1098,6 @@ class LuaRegistry {
         char[] fname;   //= prefix ~ '_' ~ xname (if there's a prefix)
         lua_CFunction demarshal;
         MethodType type;
-        bool inherited;
     }
 
     this() {
@@ -1096,7 +1110,7 @@ class LuaRegistry {
     }
 
     private void registerDMethod(ClassInfo ci, char[] method,
-        lua_CFunction demarshal, MethodType type, bool inherited = false)
+        lua_CFunction demarshal, MethodType type)
     {
         assert(!mSealed);
         Method m;
@@ -1128,7 +1142,6 @@ class LuaRegistry {
         }
         m.demarshal = demarshal;
         m.type = type;
-        m.inherited = inherited;
         mMethods ~= m;
     }
 
@@ -1390,46 +1403,7 @@ class LuaRegistry {
     }
 
     void seal() {
-        if (mSealed) {
-            return;
-        }
-        fixupInheritance();
         mSealed = true;
-    }
-
-    //for every registered method/property, this function checks if there
-    //are derived classes registered (which also have this method), and
-    //makes the baseclass methods available under the name of the derived class
-    //e.g.: GameObject_kill() is made available as Sprite_kill()
-    //xxx this could be done on-the-fly while registering (would avoid sealing)
-    private void fixupInheritance() {
-        //scan all methods...
-        foreach (ref baseMethod; mMethods) {
-            //methods and properties only
-            if (!(baseMethod.type == MethodType.Method
-                || baseMethod.type == MethodType.Property_R
-                || baseMethod.type == MethodType.Property_W))
-            {
-                continue;
-            }
-            //... and see if there is a derived class registered (that,
-            //  according to inheritance, also has to provide that method)
-            foreach (derivedClass, prefix; mPrefixes) {
-                //conditions: implicitly castable, not the same,
-                //  base not registered with same prefix
-                if (rtraits.isImplicitly(derivedClass, baseMethod.classinfo)
-                    && derivedClass !is baseMethod.classinfo
-                    && baseMethod.prefix != prefix)
-                {
-                    //a class was found that can be implicitly casted to the
-                    //  class of baseMethod (i.e. derivedClass is derived from
-                    //  baseMethod.classinfo)
-                    //-> Register baseMethod for derivedClass
-                    registerDMethod(derivedClass, baseMethod.name,
-                        baseMethod.demarshal, baseMethod.type, true);
-                }
-            }
-        }
     }
 }
 
@@ -1858,6 +1832,11 @@ class LuaState {
         lua_rawset(state, -3); //mt
         //method-table, that contains a list of all methods
         lua_newtable(state); //mt mth
+        //add the T method to the method-table
+        lua_pushliteral(state, "T"); //mt mth "T"
+        lua_pushlightuserdata(state, cast(void*)cls); //mt mth "T" cls
+        lua_pushcclosure(state, &typecheck_d_object, 1); //mt mth "T" T()
+        lua_rawset(state, -3); //mt mth
         //
         lua_pushvalue(state, -2); //mt mth mt
         setupmt(); //mt mth mt
@@ -2081,9 +2060,6 @@ class LuaState {
 
         //xxx sorting the methods by class might be advantageous
         foreach (LuaRegistry.Method m; mMethods) {
-            //redundant entry
-            if (m.inherited)
-                continue;
             if (!m.classinfo)
                 continue;
             //only if cls is derived from m.classinfo
@@ -2114,7 +2090,6 @@ class LuaState {
         char[] dclass;  //name/prefix of the D class for the method
         char[] name;    //name of the method
         char[] xname;   //method name with decoration, e.g. "get_" ~ name
-        bool inherited; //automatically added inherited method
     }
     //return MetaData for all known bound D functions for the passed class
     //if from is null, an empty array is returned
@@ -2142,7 +2117,6 @@ class LuaState {
         d.dclass = m.prefix;
         d.name = m.name;
         d.xname = m.xname;
-        d.inherited = m.inherited;
         return d;
     }
 

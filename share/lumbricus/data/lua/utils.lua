@@ -424,6 +424,39 @@ function ifnil(c, a)
     end
 end
 
+-- assert that a value is of a specific type
+-- further value must not be nil
+-- the function always returns value (similar to assert())
+function T(a_type, value)
+    -- xxx could be improved (e.g. better error messages)
+    --     also maybe disable checks in release mode
+    if type(a_type) == "table" then
+        -- make sure it works for both D and Lua "classes"
+        if type(value) == "table" then
+            -- Lua "classes"
+            assert(getmetatable(value) == a_type)
+        elseif type(value) == "userdata" then
+            -- wrapped D object
+            -- T() is magically provided by lua.d and handles inheritance etc.
+            a_type.T(value)
+        else
+            assert(false)
+        end
+    else
+        -- whatever, maybe accept stuff like T("string", "blabla")
+        assert(type(value) == a_type)
+    end
+    return value
+end
+
+-- like T(), but accept if value is nil
+function Tn(a_type, value)
+    if rawequal(value, nil) then
+        return value
+    end
+    return T(a_type, value)
+end
+
 -- xxx the following functions really should be in their own table?
 
 -- duplicate the table (but not its values)
