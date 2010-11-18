@@ -43,7 +43,7 @@ createWeapon {
         shooter:reduceAmmo()
         shooter:finished() -- probably called by BeamHandler on the end?
         local worm = shooter:owner()
-        T(Worm, worm)
+        T(WormSprite, worm)
         worm:beamTo(fireinfo.pointto.pos)
     end
 }
@@ -246,7 +246,7 @@ local function freezeTeam(team, freeze)
         local worm = m:sprite()
         if not spriteIsGone(worm) then
             -- xxx worm dependency
-            T(Worm, worm)
+            T(WormSprite, worm)
             worm:freeze(freeze)
         end
     end
@@ -290,7 +290,7 @@ do
             addlaser(fireinfo.pos, hitpoint)
             if normal then
                 shooter:reduceAmmo()
-                T(Worm, sprite)
+                T(WormSprite, sprite)
                 sprite:beamTo(hitpoint)
             end
         end,

@@ -20,7 +20,6 @@ static this() {
         "memberFromGameObject", "weaponFromGameObject", "controlFromGameObject",
         "startSuddenDeath", "endGame");
 
-    gScripting.setClassPrefix!(TeamMember)("Member");
     gScripting.methods!(TeamMember, "updateHealth", "lifeLost", "addHealth");
     gScripting.property_ro!(TeamMember, "active");
     gScripting.properties_ro!(TeamMember, "control", "name", "team", "alive",
@@ -39,7 +38,6 @@ static this() {
         "lastActivity", "actionPerformed", "forceAbort", "pushControllable",
         "releaseControllable", "engaged", "setEngaged", "selectWeapon");
 
-    gScripting.setClassPrefix!(WormSprite)("Worm");
     gScripting.methods!(WormSprite, "beamTo", "freeze");
     gScripting.properties!(WormSprite, "poisoned");
 

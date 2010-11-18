@@ -41,7 +41,6 @@ static this() {
     //I'm not gonna rewrite that
     gScripting.func!(timeParse);
 
-    gScripting.setClassPrefix!(TimeSourcePublic)("Time");
     gScripting.methods!(TimeSourcePublic, "current", "difference");
     gScripting.methods!(Random, "rangei", "rangef");
 

@@ -18,7 +18,6 @@ static this() {
     gScripting.method!(PhysicWorld, "thickRayScript")("thickRay");
     gScripting.method!(PhysicWorld, "freePointScript")("freePoint");
 
-    gScripting.setClassPrefix!(PhysicObject)("Phys");
     gScripting.methods!(PhysicObject,
         "setInitialVelocity", "addForce", "addImpulse", "onSurface",
         "setPos", "move", "forceLook", "resetLook", "applyDamage",
@@ -27,7 +26,6 @@ static this() {
         "isStatic");
     gScripting.properties_ro!(PhysicObject, "surface_normal", "lifepower",
         "lookey", "isGlued", "pos", "velocity");
-    gScripting.setClassPrefix!(PhysicBase)("Phys");
     gScripting.property_ro!(PhysicBase, "backlink");
     gScripting.property!(PhysicBase, "collision");
     gScripting.method!(PhysicBase, "kill");

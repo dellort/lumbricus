@@ -156,8 +156,7 @@ function eventtest()
         testCounter = testCounter + 1
         local ctx = get_context(sender)
         ctx.meep = testCounter
-        printf("bazooka {} got fired at {}!", ctx.meep,
-            Phys.pos(Sprite.physics(sender)))
+        printf("bazooka {} got fired at {}!", ctx.meep, sender:physics():pos())
         local c = testCounter
         local function test(sender)
             printf("die event from {}", c)
@@ -166,8 +165,7 @@ function eventtest()
     end
     local function on_bazooka_die(sender)
         local ctx = get_context(sender)
-        printf("bazooka {} died at {}!", ctx.meep,
-            Phys.pos(Sprite.physics(sender)))
+        printf("bazooka {} died at {}!", ctx.meep, sender:physics():pos())
     end
     --addGlobalEventHandler("game_message", on_message)
     --addGlobalEventHandler("game_message", on_message2)

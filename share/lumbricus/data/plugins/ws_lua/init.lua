@@ -7,7 +7,7 @@
 -- damage = ...
 -- dir = direction of impulse (normalized)
 function applyMeleeImpulse(victim, sender, strength, damage, dir)
-    T(Phys, victim)
+    T(PhysicObject, victim)
     local spr = victim:backlink()
     if damage > 0 then
         -- serious wtf: the 3rd param is DamageCause, and the code here used to

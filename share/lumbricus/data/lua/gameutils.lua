@@ -114,7 +114,7 @@ function getMultipleOnFire(nsprites, interval, per_shot_ammo, callback)
         end
         local timer = Timer.New()
         local ctx = get_context(shooter)
-        local sprite_phys = T(Phys, shooter:owner():physics())
+        local sprite_phys = T(PhysicObject, shooter:owner():physics())
         ctx.firetimer = timer
         ctx.fireinfo = fireinfo
         local function doSpawn()
@@ -631,7 +631,7 @@ Lexel_hard = 2
 
 -- return PhysicObject looking vector
 function lookVector(obj)
-    T(Phys, obj)
+    T(PhysicObject, obj)
     return Vector2.FromPolar(1.0, obj:lookey())
 end
 
@@ -786,7 +786,7 @@ function gameMessage(sender, id, args, displayTime)
         -- plugin not loaded
         return
     end
-    if d_is_class(sender, d_find_class("Member")) then
+    if d_is_class(sender, d_find_class("MemberMember")) then
         sender = sender:team(sender)
     end
     if d_is_class(sender, d_find_class("Team")) then
@@ -815,7 +815,7 @@ end
 -- if we ever should allow members that are not WormSprite, revisit all code
 --  that uses it (or if it's agnostic, use foreachMember and then member:sprite)
 function foreachWorm(cb)
-    local wormclass = d_find_class("Worm")
+    local wormclass = d_find_class("WormSprite")
     foreachMember(function(team, member)
         local sprite = member:sprite()
         if sprite and d_is_class(sprite, wormclass) then
