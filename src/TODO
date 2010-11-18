@@ -25,6 +25,7 @@ $ sollte behoben sein / works for me (muss getestet werden)
     ^^ und warum geht es da?
     wasweisichhabichdasdingprogrammiert? Die Wurmfüße sind halt dann falsch aber das fällt fast nicht auf
     ^^^ hört sich aber besser an, zumindest ist der krumme Tunnel den wir bauen ein bisschen komisch
+    ausserdem ist es jetzt völlig kaputt (k.a.)
 - Möglichkeit untersuchen, WWP-Daten ohne Installation zu benutzen (von CD oder so)
 - Möglichkeit untersuchen, Worms Armageddon-Daten zu benutzen (WA scheint beliebter zu sein, aber verwendet keine .bnk-Dateien)
   nicht zu verwechseln mit "Worms 2: Armageddon"
@@ -37,6 +38,8 @@ $ sollte behoben sein / works for me (muss getestet werden)
   - Ladebalken des Spiels wird noch nutzloser als er war
   - wwp_direct ist auf eine Wasserfarbe hardkodiert (könnte man ändern)
   extractdata selbst würde man beibehalten für Levelthemes.
++ die Mausposition nur dann setzen, wenn die Maus innerhalb des Fensters ist => User weniger auf die Nerven gehen
+  (SDL 1.3 hätte SDL_GetMouseFocusWindow oder SDL_WINDOWEVENT_ENTER/LEAVE dafür)
 
 == bekannte, lösbare Bugs ==
 - Napalm verursacht zuviel Schaden (durch neuen Explosionscode; wenn man einfach den
@@ -65,6 +68,7 @@ $ sollte behoben sein / works for me (muss getestet werden)
 - wurm, der im napalm kocht, zeigt manchmal animation für unkontrollierten/schnellen fall an (sollte sein: rutsch animation)
   oder auch diese "zuck" animation
   worm rotation wird zu schnell geändert => sollte sich nicht sofort in der animation widerspiegeln?
+  ^ besonders sichtbar beim Erdbeben
 - net server sollte nicht 100% CPU benutzen
     zur zeit wird alles gepollt: enet, broadcast sockets (announce zeug), timeouts...
     schwierigkeit: man muss alles gleichzeitig im blockierenden modus irgendwie gut zusammenarbeiten lassen

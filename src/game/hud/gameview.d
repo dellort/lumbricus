@@ -929,12 +929,16 @@ class GameView : Widget {
         mGameDrawTime.stop();
 
         //mouse stuff at last?
-        //if (mouseOverState)
+        bool old_cursor_visible = mCursorVisible;
         if (activeWorm)
             mCursorVisible =
                 activeWorm.member.control.renderOnMouse(c, mousePos);
         else
             mCursorVisible = true;
+        //camera gets active again (e.g. after clicking to fire airstrike)
+        //  => don't jump back immediately
+        if (!old_cursor_visible && mCursorVisible)
+            mCamera.reset();
 
         mGame.engine.debug_draw(c);
 
@@ -985,6 +989,12 @@ class GameView : Widget {
         if (member) {
             cur = member.control.controlledSprite.graphic;
         }
+
+        //hack to disable camera when the user has control over the mouse, e.g.
+        //  clicking for airstrike target (if this "heuristic" fails, we might
+        //  need to add an explicit option to Controllable for camera control)
+        if (!mCursorVisible)
+            cur = null;
 
         if (cur) {
             Vector2f velocity = cur.velocity;

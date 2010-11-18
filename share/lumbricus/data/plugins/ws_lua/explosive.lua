@@ -87,21 +87,21 @@ do
     local seq_states = {}
     local seq_to_drown = {}
     for i, v in ipairs(seqs) do
-        local seq = lookupResource(v)
-        local state = SequenceType.findState(seq, "normal")
+        local seq = T(SequenceType, lookupResource(v))
+        local state = seq:findState("normal")
         seq_states[i] = state
-        seq_to_drown[state] = SequenceType.findState(seq, "drown")
+        seq_to_drown[state] = seq:findState("drown")
     end
     addSpriteClassEvent(shard, "sprite_activate", function(sender, normal)
-        Sequence.setState(Sprite.graphic(sender),
+        Sequence.setState(sender:graphic(),
             seq_states[Random:rangei(1, #seq_states)])
     end)
     addSpriteClassEvent(shard, "sprite_waterstate", function(sender)
-        local gr = Sprite.graphic(sender)
-        if Sprite.isUnderWater(sender) and gr then
-            local n = seq_to_drown[Sequence.currentState(gr)]
+        local gr = sender:graphic()
+        if sender:isUnderWater() and gr then
+            local n = seq_to_drown[gr:currentState()]
             if n then
-                Sequence.setState(gr, n)
+                gr:setState(n)
             end
         end
     end)
@@ -124,7 +124,7 @@ end
 
 do
     local name = "mine"
-    local cNeutralDelay = utils.range(ConfigNode.get(config, "neutral_mine_delay", "1"))
+    local cNeutralDelay = utils.range(config:get("neutral_mine_delay", "1"))
     -- no "local", this is used in other weapons
     mine_class = createSpriteClass {
         -- newgame.conf/levelobjects references this name!
@@ -143,14 +143,14 @@ do
     }
     export_table().mine_class = mine_class
 
-    local seq = SpriteClass.sequenceType(mine_class)
+    local seq = mine_class:sequenceType()
     assert(seq)
-    local flash_graphic = SequenceType.findState(seq, "flashing")
+    local flash_graphic = seq:findState("flashing")
     local flash_particle = lookupResource("p_mine_flash")
     -- timer for initial delay
     enableSpriteTimer(mine_class, {
         defTimer = timeSecs(3),
-        timerId = 1337,
+        timerId = 1337, -- wut?
         callback = function(sender)
             -- mine becomes active
             addCircleTrigger(sender, 45, "wormsensor", function(trig, obj)
@@ -161,20 +161,20 @@ do
                     -- configured delay for neutral (placed at start) mines
                     delay = utils.range_sample_i(cNeutralDelay)
                 end
-                Sprite.setParticle(sender, flash_particle)
+                sender:setParticle(flash_particle)
                 -- worm stepped on
-                Sequence.setState(Sprite.graphic(sender), flash_graphic)
+                sender:graphic():setState(flash_graphic)
                 -- flashing mine has activity
-                Sprite.set_noActivityWhenGlued(sender, false)
+                sender:set_noActivityWhenGlued(false)
                 -- blow up after 1s
                 addSpriteTimer(sender, "explodeT", delay, false,
                     function(sender)
                         spriteExplode(sender, 50)
                     end)
-                Phys.kill(trig)
+                trig:kill()
             end)
             -- if it doesn't blow immediately, it is inactive
-            Sprite.set_noActivityWhenGlued(sender, true)
+            sender:set_noActivityWhenGlued(true)
         end
     })
     -- hack: if the mine has no owner member (i.e. it was placed on game start),

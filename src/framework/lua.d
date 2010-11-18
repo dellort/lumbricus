@@ -1095,7 +1095,6 @@ class LuaRegistry {
         char[] name;    //raw (actual) name
         char[] xname;   //not so raw (property writes are prefixed with set_)
         char[] prefix;  //basically the class name or ""
-        char[] fname;   //= prefix ~ '_' ~ xname (if there's a prefix)
         lua_CFunction demarshal;
         MethodType type;
     }
@@ -1115,10 +1114,9 @@ class LuaRegistry {
         assert(!mSealed);
         Method m;
         m.name = method;
-        m.fname = method;
         m.xname = method;
         if (type == MethodType.Property_W) {
-            m.xname = "set_" ~ m.fname;
+            m.xname = "set_" ~ m.xname;
         }
         if (ci) {
             //BlaClass.somemethod becomes BlaClass_somemethod in Lua
@@ -1136,7 +1134,6 @@ class LuaRegistry {
             }
             m.classinfo = ci;
             m.prefix = clsname;
-            m.fname = clsname ~ "_" ~ m.xname;
         } else {
             assert(type == MethodType.FreeFunction);
         }
@@ -1959,20 +1956,20 @@ class LuaState {
 
                 if (m.type == LuaRegistry.MethodType.FreeFunction) {
 
-                    lua_pushliteral(mLua, m.fname);
+                    lua_pushliteral(mLua, m.xname);
                     lua_gettable(mLua, LUA_GLOBALSINDEX);
                     bool nil = lua_isnil(mLua, -1);
                     lua_pop(mLua, 1);
 
                     if (nil) {
-                        lua_pushliteral(mLua, m.fname);
+                        lua_pushliteral(mLua, m.xname);
                         lua_pushcclosure(mLua, m.demarshal, 0);
                         lua_settable(mLua, LUA_GLOBALSINDEX);
                     } else {
                         //most likely cause: multiple bind calls for a method
                         error = new CustomException("attempting to overwrite "
                             "existing name in _G when adding D method: "
-                            ~m.fname);
+                            ~m.xname);
                         return;
                     }
                 }

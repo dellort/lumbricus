@@ -6,7 +6,7 @@ function E.activeGameObjects()
     local cur = Game:gameObjectFirst()
     local list = {}
     while cur do
-        if GameObject.activity(cur) then
+        if cur:activity() then
             list[#list + 1] = cur
         end
         cur = Game:gameObjectNext(cur)
@@ -28,7 +28,7 @@ function E.activityFix()
     --  all of this above is a bit bogus
     for i, g in ipairs(activeGameObjects()) do
         printf("killing {}", g)
-        GameObject.kill(g)
+        g:kill()
     end
 end
 
@@ -36,9 +36,9 @@ end
 -- will not work in network mode
 function E.takeControl()
     for i, t in ipairs(Control:teams()) do
-        Team.set_active(t, true)
+        t:set_active(true)
         -- will be false if no worm available
-        if Team.active(t) then
+        if t:active() then
             break
         end
     end
@@ -51,13 +51,13 @@ function E.ownedTeam()
 end
 
 function E.giveWeapon(name, amount)
-    Team.addWeapon(ownedTeam(), lookupResource(name), amount or 1)
+    ownedTeam():addWeapon(lookupResource(name), amount or 1)
 end
 
 function weaponList()
     local cls = d_find_class("WeaponClass")
     assert(cls)
-    return ResourceSet.findAllDynamic(Game:resources(), cls)
+    return Game:resources():findAllDynamic(cls)
 end
 
 -- drop a crate with a weapon in it; p is a string for the weapon
@@ -66,11 +66,16 @@ function E.dropCrate(p, spy)
         printf("Crate plugin not loaded")
         return
     end
+    function ctool(id)
+        return function()
+            return CollectableTool.ctor(id)
+        end
+    end
     local stuff = {
-        doubledamage = CollectableToolDoubleDamage_ctor,
-        doubletime = CollectableToolDoubleTime_ctor,
+        doubledamage = ctool("doubledamage"),
+        doubletime = ctool("doubletime"),
         bomb = CollectableBomb.ctor,
-        spy = CollectableToolCrateSpy_ctor,
+        spy = ctool("cratespy"),
         medkit = CollectableMedkit.ctor,
     }
     if type(p) ~= "string" then
@@ -89,7 +94,7 @@ function E.dropCrate(p, spy)
     else
         local w = lookupResource(p, true)
         if w then
-            fill = {CollectableWeapon.ctor(w, WeaponClass.crateAmount(w))}
+            fill = {CollectableWeapon.ctor(w, w:crateAmount())}
         end
     end
     if not fill then
@@ -105,7 +110,7 @@ end
 -- give all teams a crate spy
 function E.crateSpy()
     for k,t in ipairs(Control:teams()) do
-        Team.set_crateSpy(t, 1)
+        t:set_crateSpy(1)
     end
 end
 
@@ -114,11 +119,11 @@ function E.allYourBaseAreBelongToUs(slow)
     for k, t in ipairs(Control:teams()) do
         if (t ~= ownedTeam()) then
             if slow then
-                for k2, m in ipairs(Team.members(t)) do
-                    Member.addHealth(m, -9999)
+                for k2, m in ipairs(t:members()) do
+                    m:addHealth(-9999)
                 end
             else
-                Team.surrenderTeam(t)
+                t:surrenderTeam()
             end
         end
     end
@@ -127,13 +132,13 @@ end
 -- +500 hp for caller, 1 hp for others
 function E.whosYourDaddy()
     for k,t in ipairs(Control:teams()) do
-        for k,m in ipairs(Team.members(t)) do
+        for k,m in ipairs(t:members()) do
             if (t == ownedTeam()) then
-                Member.addHealth(m, 500)
+                m:addHealth(500)
             else
                 -- xxx team labels update only at end of round
-                p = Sprite.physics(Member.sprite(m))
-                Phys.applyDamage(p, Phys.lifepower(p) - 1, 2)
+                p = m:sprite():physics()
+                p:applyDamage(p:lifepower() - 1, 2)
             end
         end
     end
@@ -142,14 +147,14 @@ end
 -- amount (or 10 if omitted) of all weapons
 function E.greedIsGood(amount)
     for k,w in ipairs(weaponList()) do
-        Team.addWeapon(ownedTeam(), w, amount or 10)
+        ownedTeam():addWeapon(w, amount or 10)
     end
 end
 
 function E.katastrophe()
     local lb = Level:landBounds()
     World:objectsAt(Level:worldCenter(), 2000, function(obj)
-        if className(Phys.backlink(obj)) ~= "WormSprite" then
+        if className(obj:backlink()) ~= "WormSprite" then
             return true
         end
         local dest
@@ -158,7 +163,7 @@ function E.katastrophe()
                 Random:rangef(lb.p1.y, lb.p2.y))
             dest = World:freePoint(dest, 6)
         end
-        Worm.beamTo(Phys.backlink(obj), dest)
+        obj:backlink():beamTo(dest)
         return true
     end)
 end
@@ -187,8 +192,8 @@ function E.snowflake(depth, interpolate)
     local fill = lookupResource("border_segment") -- just some random bitmap for now
     local border = lookupResource("rope_segment")
     local gls = Game:gameLandscapes()[1]
-    local ls = GameLandscape.landscape(gls)
-    local s = LandscapeBitmap.size(ls)
+    local ls = gls:landscape()
+    local s = ls:size()
     local len = min(s.x, s.y)/3
     local c = s/2
     -- I don't know where the center of a koch snowflake is *shrug*
@@ -198,19 +203,17 @@ function E.snowflake(depth, interpolate)
     local arr = array.concat(koch(p1, p2), koch(p2, p3), koch(p3, p1))
 
     -- first clear the landscape before rendering the snowflake
-    LandscapeBitmap.addPolygon(ls,
-        {Vector2(0,0), Vector2(s.x,0), s, Vector2(0,s.y)}, Vector2(0,0), nil,
-        Lexel_free)
+    ls:addPolygon({Vector2(0,0), Vector2(s.x,0), s, Vector2(0,s.y)},
+        Vector2(0,0), nil, Lexel_free)
 
-    LandscapeBitmap.addPolygon(ls, arr, Vector2(0,0), fill, Lexel_soft,
-        interpolate)
-    LandscapeBitmap.drawBorder(ls, Lexel_soft, Lexel_free, border, border)
+    ls:addPolygon(arr, Vector2(0,0), fill, Lexel_soft, interpolate)
+    ls:drawBorder(Lexel_soft, Lexel_free, border, border)
 end
 
 function E.maze()
     local gls = Game:gameLandscapes()[1]
-    local ls = GameLandscape.landscape(gls)
-    local s = LandscapeBitmap.size(ls)
+    local ls = gls:landscape()
+    local s = ls:size()
     local CH = 50 -- w/h of a cell
     local WH = 30 -- w/h of a wall
     local H = CH + WH
@@ -274,15 +277,14 @@ function E.maze()
     local fill = lookupResource("border_segment")
     local border = lookupResource("rope_segment")
 
-    LandscapeBitmap.addPolygon(ls,
-        {Vector2(0,0), Vector2(s.x,0), s, Vector2(0,s.y)}, Vector2(0,0),
-        fill, Lexel_soft)
+    ls:addPolygon({Vector2(0,0), Vector2(s.x,0), s, Vector2(0,s.y)},
+        Vector2(0,0), fill, Lexel_soft)
 
     for y = 1, cy do
         for x = 1, cx do
             local cell = cells[y][x]
             -- all cells are clear
-            LandscapeBitmap.drawRect(ls, nil, Lexel_free, {cell.p1, cell.p2})
+            ls:drawRect(nil, Lexel_free, {cell.p1, cell.p2})
             -- clear the walls
             for i, other in ipairs(cell.ways) do
                 -- rect that covers the wall = rect between the cells
@@ -302,13 +304,12 @@ function E.maze()
                         x1, x2 = cell.p2.x, other.p1.x
                     end
                 end
-                LandscapeBitmap.drawRect(ls, nil, Lexel_free,
-                    {{x1, y1}, {x2, y2}})
+                ls:drawRect(nil, Lexel_free, {{x1, y1}, {x2, y2}})
             end
         end
     end
 
-    LandscapeBitmap.drawBorder(ls, Lexel_soft, Lexel_free, border, border)
+    ls:drawBorder(Lexel_soft, Lexel_free, border, border)
 end
 
 function E.horror(gridToggle)
@@ -331,8 +332,8 @@ function E.horror(gridToggle)
 
     local function makeRod(obj1, obj2)
         local c = PhysicObjectsRod.ctor(obj1, obj2)
-        PhysicObjectsRod.set_springConstant(c, 20000)
-        PhysicObjectsRod.set_dampingCoeff(c, 10)
+        c:set_springConstant(20000)
+        c:set_dampingCoeff(10)
         World:add(c)
     end
 
@@ -342,19 +343,19 @@ function E.horror(gridToggle)
         local X = {}
         local R = 100
         local S = Vector2(3000, 1000)
-        local center = SpriteClass.createSprite(bouncy_class)
+        local center = bouncy_class:createSprite()
         Sprite.activate(center, S)
         for n = 1, N do
-            local o = SpriteClass.createSprite(bouncy_class)
+            local o = bouncy_class:createSprite()
             local dir = Vector2.FromPolar(1, math.pi*2/N * (n-1))
-            Sprite.activate(o, S + dir * R)
+            o:activate(S + dir * R)
             X[n] = o
         end
         for n = 1, N do
             local o1 = X[n]
             local o2 = X[(n % #X) + 1]
-            makeRod(Sprite.physics(o1), Sprite.physics(o2))
-            makeRod(Sprite.physics(o1), Sprite.physics(center))
+            makeRod(o1:physics(), o2:physics())
+            makeRod(o1:physics(), center:physics())
         end
     else
         -- grid
@@ -365,27 +366,27 @@ function E.horror(gridToggle)
         for y = 1, H do
             X[y] = {}
             for x = 1, H do
-                local o = SpriteClass.createSprite(bouncy_class)
-                Sprite.activate(o, S + Vector2(x-1, y-1)*D)
+                local o = bouncy_class:createSprite()
+                o:activate(S + Vector2(x-1, y-1)*D)
                 X[y][x] = o
             end
         end
         -- connect each object with the bottom and right neighbour
         for y = 1, H do
             for x = 1, H do
-                local o = Sprite.physics(X[y][x])
+                local o = (X[y][x]):physics()
                 if x < H then
-                    local r = Sprite.physics(X[y][x+1])
+                    local r = (X[y][x+1]):physics()
                     makeRod(o, r)
                 end
                 if y < H then
-                    local b = Sprite.physics(X[y+1][x])
+                    local b = (X[y+1][x]):physics()
                     makeRod(o, b)
                 end
                 ----[[
                 -- actually adds more stability...
                 if x < H and y < H then
-                    local n = Sprite.physics(X[y+1][x+1])
+                    local n = (X[y+1][x+1]):physics()
                     makeRod(o, n)
                 end
                 --]]
@@ -413,13 +414,13 @@ function E.springTest(count)
     end
 
     local function makeAt(pos)
-        local o = SpriteClass.createSprite(springobj_class)
-        Sprite.activate(o, pos + Vector2(0, 200))
+        local o springobj_class:createSprite()
+        o:activate(pos + Vector2(0, 200))
 
-        local c = PhysicObjectsRod.ctor2(Sprite.physics(o), pos)
-        PhysicObjectsRod.set_springConstant(c, 100)
-        PhysicObjectsRod.set_dampingCoeff(c, 5)
-        PhysicObjectsRod.set_length(c, PhysicObjectsRod.length(c))
+        local c = PhysicObjectsRod.ctor2(o:physics(), pos)
+        c:set_springConstant(100)
+        c:set_dampingCoeff(5)
+        c:set_length(c:length()) --?
         World:add(c)
     end
 
@@ -456,10 +457,9 @@ local function initWormHoleClass()
             if not companion then
                 return -- incorrectly initialized?
             end
-            obj = Phys.backlink(obj)
-            assert(obj)
+            obj = assert(obj:backlink())
             -- maybe add a timer and some sort of blending effect?
-            Sprite.setPos(obj, Phys.pos(Sprite.physics(companion)))
+            obj:setPos(companion:physics():pos())
         end)
     end)
 end
@@ -470,14 +470,14 @@ function E.wormHole(src, dst)
         initWormHoleClass()
     end
 
-    local entry = SpriteClass.createSprite(wormhole_class)
-    local exit = SpriteClass.createSprite(wormhole_exit_class)
+    local entry = wormhole_class:createSprite()
+    local exit = wormhole_exit_class:createSprite()
 
     set_context_var(entry, "companion", exit)
     set_context_var(exit, "companion", entry)
 
-    Sprite.activate(entry, src)
-    Sprite.activate(exit, dst)
+    entry:activate(src)
+    exit:activate(dst)
 end
 
 -- like wormHole(), but use the GUI to receive two mouse clicks (src and dst)
@@ -489,7 +489,7 @@ end
 -- useful for showing D objects
 function E.dumpObject(obj, outf)
     outf = outf or printf
-    if type(obj) == "userdata" then
+    if d_isobject(obj) then
         outf("D object:")
         local md = d_get_obj_metadata(obj)
         -- find classes and sort them by inheritance
@@ -504,12 +504,10 @@ function E.dumpObject(obj, outf)
         -- find readable properties
         local props_r, props_w = {}, {}
         for i, v in ipairs(md) do
-            if not v.inherited then
-                if v.type == "Property_R" then
-                    props_r[v.name] = v
-                elseif v.type == "Property_W" then
-                    props_w[v.name] = v
-                end
+            if v.type == "Property_R" then
+                props_r[v.name] = v
+            elseif v.type == "Property_W" then
+                props_w[v.name] = v
             end
         end
         -- output properties and their values, sorted by class
@@ -517,7 +515,7 @@ function E.dumpObject(obj, outf)
         for i, cls in ipairs(sclasses) do
             for name, v in pairs(props_r) do
                 if cls == v.dclass then
-                    local value = _G[v.lua_g_name](obj)
+                    local value = obj[v.xname](obj)
                     local t = "ro"
                     if props_w[name] then
                         t = "rw"
@@ -535,8 +533,8 @@ function E.pickObjectAt(pos)
     local obj = Game:gameObjectFirst()
     local best, best_pos
     while obj do
-        if d_is_class(obj, cls) and Sprite.visible(obj) then
-            local opos = Phys.pos(Sprite.physics(obj))
+        if d_is_class(obj, cls) and obj:visible() then
+            local opos = obj:physics():pos()
             if (not best) or
                 ((pos - opos):length() < (pos - best_pos):length())
             then
@@ -568,8 +566,7 @@ function E.pickObject(dowhat)
         end,
         OnDraw = function(canvas)
             if obj then
-                Canvas.drawCircle(canvas, Phys.pos(Sprite.physics(obj)), 10,
-                    Color(1,0,0))
+                Canvas.drawCircle(canvas, obj:physics():pos(), 10, Color(1,0,0))
             end
         end,
     })
@@ -609,16 +606,23 @@ function E.pickMakeActive()
             printf("nope.")
             return
         end
-        local team = Member.team(member)
+        local team = member:team()
         Control:deactivateAll()
-        Team.set_active(team, true)
-        Team.set_current(team, member)
+        team:set_active(true)
+        team:set_current(member)
+    end)
+end
+
+function E.pickKill()
+    pickObject(function(obj)
+        printf("Killing: {}", obj)
+        obj:kill()
     end)
 end
 
 function E.pickShowCollide()
     pickObject(function(obj)
-        printf(Phys.collision(Sprite.physics(obj)))
+        printf(obj:physics():collision())
     end)
 end
 
@@ -646,7 +650,7 @@ function E.freePoint(dowhat, r)
                 local r = r or 10
                 p = World:freePoint(pos, r)
                 if p then
-                    Canvas.drawCircle(canvas, p, r, Color(1,0,0))
+                    canvas:drawCircle(p, r, Color(1,0,0))
                 end
             end
         end,
@@ -660,7 +664,7 @@ function E.guiPickObject(obj)
     local function show()
         local w = Gui.ctor()
         local txtrender = SceneDrawText.ctor()
-        local txt = SceneDrawText.text(txtrender)
+        local txt = txtrender:text()
         Gui.set_render(w, txtrender)
         local updater
         local function update()
@@ -673,7 +677,7 @@ function E.guiPickObject(obj)
                 t = t .. utils.format(...) .. "\n"
             end
             dumpObject(obj, appendf)
-            FormattedText.setText(txt, false, t)
+            txt:setText(false, t)
         end
         updater = addPeriodicTimer(time("1s"), update)
         --[[
@@ -744,12 +748,12 @@ function E.blurb()
         if not gls then
             return
         end
-        local offset = GameLandscape.rect(gls).p1
+        local offset = gls:rect().p1
         p1 = p1 - offset
         p2 = p2 - offset
-        local ls = GameLandscape.landscape(gls)
+        local ls = gls:landscape()
         local whatever = lookupResource("rope_segment")
-        LandscapeBitmap.drawSegment(ls, whatever, Lexel_soft, p1, p2, 20)
+        ls:drawSegment(whatever, Lexel_soft, p1, p2, 20)
     end)
 end
 
@@ -758,7 +762,7 @@ function E.makePlane()
     pickTwoPos(function(p1, p2)
         local x = PhysicZonePlane.ctor(p1, p2)
         local z = ZoneTrigger.ctor(x)
-        Phys.set_collision(z, CollisionMap:find("wormsensor"))
+        z:set_collision(CollisionMap:find("wormsensor"))
         World:add(z)
     end)
 end
@@ -775,14 +779,14 @@ function E.dragObject()
                 if info.isDown and obj and not link then
                     -- create the constraint
                     local phys = Sprite.physics(obj)
-                    link = PhysicObjectsRod.ctor2(phys, Phys.pos(phys))
-                    PhysicObjectsRod.set_springConstant(link, 100)
-                    --PhysicObjectsRod.set_dampingCoeff(link, 5)
-                    PhysicObjectsRod.setDampingRatio(link, 0.2)
+                    link = PhysicObjectsRod.ctor2(phys, phys:pos())
+                    link:set_springConstant(100)
+                    --link:set_dampingCoeff(5)
+                    link:setDampingRatio(0.2)
                     World:add(link)
                 else
                     if link then
-                        Phys.kill(link)
+                        link:kill()
                     end
                     GameFrame:removeHudWidget(w)
                 end
@@ -791,7 +795,7 @@ function E.dragObject()
         end,
         OnHandleMouseInput = function(info)
             if link then
-                PhysicObjectsRod.set_anchor(link, info.pos)
+                link:set_anchor(info.pos)
             else
                 obj = pickObjectAt(info.pos)
             end
@@ -800,8 +804,7 @@ function E.dragObject()
         OnDraw = function(canvas)
             if obj and not link then
                 -- quite some lua heap activity (creating Vector2 and Color)
-                Canvas.drawCircle(canvas, Phys.pos(Sprite.physics(obj)), 10,
-                    Color(1,0,0))
+                canvas:drawCircle(obj:physics():pos(), 10, Color(1,0,0))
             end
         end,
     })
@@ -857,7 +860,7 @@ do
 end
 function E.marbles()
     for i,t in ipairs(Control:teams()) do
-        Team.addWeapon(t, lookupResource("w_marble"), 100)
+        t:addWeapon(lookupResource("w_marble"), 100)
     end
 end
 
@@ -880,14 +883,14 @@ function benchSprite(sprite_class)
             },
         }
     end
-    local spawner = SpriteClass.createSprite(spawner_class)
-    Sprite.activate(spawner, Vector2(3000, 1700))
+    local spawner = spawner_class:createSprite()
+    spawner:activate(Vector2(3000, 1700))
     local maxtime = currentTime() + time("5s")
     local up = Vector2(0, -1)
     Game:benchStart(time("20s"))
     addPeriodicTimer(time("100ms"), function(timer)
         if currentTime() >= maxtime then
-            Sprite.kill(spawner)
+            spawner:kill()
             timer:cancel()
             return
         end

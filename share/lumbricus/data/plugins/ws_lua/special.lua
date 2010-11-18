@@ -95,9 +95,9 @@ do
     }
     local bmp = lookupResource("penguin_bmp")
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
-        Sprite.kill(sender)
-        local at = Phys.pos(Sprite.physics(sender))
-        at = at - Surface.size(bmp) / 2
+        sender:kill()
+        local at = sender:physics():pos()
+        at = at - bmp:size() / 2
         Game:insertIntoLandscape(at, bmp, Lexel_soft)
         Game:addEarthQuake(500, time(1))
     end)
@@ -166,13 +166,13 @@ do
     enableSpriteTimer(sprite_class, {
         defTimer = timeSecs(20),
         callback = function(sender)
-            Sprite.kill(sender)
+            sender:kill()
         end
     })
     addSpriteClassEvent(sprite_class, "sprite_activate", function(sender)
         local trig = StuckTrigger.ctor(sender, time(0.25), 2, true);
-        StuckTrigger.set_onTrigger(trig, function(sender, sprite)
-            Sprite.kill(sender)
+        trig:set_onTrigger(function(sender, sprite)
+            sender:kill()
         end)
     end)
     addSpriteClassEvent(sprite_class, "sprite_impact", function(sender)
@@ -227,20 +227,20 @@ do -- requires s_antimatter_nuke and s_blackhole_active (+graphics) defined in o
     enableSpriteTimer(nuke, {
         showDisplay = true,
         callback = function(sender)
-            spawnSprite(sender, blackhole, Phys.pos(Sprite.physics(sender)),
-                Vector2(0, 0))
+            spawnSprite(sender, blackhole, sender:physics():pos(), Vector2(0))
             Sprite.kill(sender)
         end
     })
 
     addSpriteClassEvent(blackhole, "sprite_activate", function(sender)
-        local grav = GravityCenter.ctor(Sprite.physics(sender), 5000, 300)
+        local grav = GravityCenter.ctor(sender:physics(), 5000, 300)
         World:add(grav)
         set_context_var(sender, "gravcenter", grav)
     end)
     addSpriteClassEvent(blackhole, "sprite_die", function(sender)
         local grav = get_context_var(sender, "gravcenter")
-        Phys.kill(grav)
+        T(GravityCenter, grav)
+        grav:kill()
     end)
     enableSpriteTimer(blackhole, {
         defTimer = timeSecs(1.3),
@@ -287,10 +287,10 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = function(shooter, fireinfo)
-            Shooter.reduceAmmo(shooter)
+            shooter:reduceAmmo()
             -- xxx can the shooter continue running (for activity) stuff, or
             --  would that somehow block the worm?
-            Shooter.finished(shooter)
+            shooter:finished()
             -- timer to spawn meteors
             local spawn_time = timeRange("100ms", "200ms")
             -- xxx original params from amrageddon.conf; somehow looks very off
@@ -334,7 +334,7 @@ local function poisonAllWorms(amount)
     foreachWorm(function(team, member, worm)
         -- the amount is added to the existing amount
         -- not sure if that is a bug or a feature (or what WWP does)
-        Worm.set_poisoned(worm, Worm.poisoned(worm) + amount)
+        worm:set_poisoned(worm:poisoned() + amount)
     end)
 end
 
@@ -346,8 +346,8 @@ createWeapon {
     icon = "icon_indiannuke",
     animation = "weapon_atomtest",
     onFire = function(shooter, fireinfo)
-        Shooter.reduceAmmo(shooter)
-        Shooter.finished(shooter)
+        shooter:reduceAmmo()
+        shooter:finished()
         Game:raiseWater(60)
         Game:addEarthQuake(500, time(4))
         Game:nukeSplatEffect()
@@ -366,8 +366,8 @@ createWeapon {
     icon = "icon_earthquake",
     animation = "weapon_atomtest",
     onFire = function(shooter, fireinfo)
-        Shooter.reduceAmmo(shooter)
-        Shooter.finished(shooter)
+        shooter:reduceAmmo()
+        shooter:finished()
         Game:addEarthQuake(500, time(5), true, true)
     end,
     onBlowup = function(weapon)

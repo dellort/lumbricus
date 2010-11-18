@@ -87,8 +87,8 @@ function getMeleeOnFire(distance, radius, callback)
             end
             return true
         end)
-        Shooter:reduceAmmo()
-        Shooter:finished()
+        shooter:reduceAmmo()
+        shooter:finished()
     end
 end
 
@@ -388,6 +388,7 @@ function findSequenceState(fstr)
     return seq:findState(post)
 end
 
+-- for setProperties()
 -- maps property names to a table that maps type names to a conversion function
 autoProperties = {
     icon = {

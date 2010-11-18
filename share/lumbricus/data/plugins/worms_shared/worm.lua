@@ -296,31 +296,30 @@ end
 -- all states are instantiated in D code, and we just look them up here
 -- (this also makes forward refs for onAnimationEnd simpler)
 for name, state in pairs(states) do
-    local dstate = WormSpriteClass.findState(sprite_class, name)
+    local dstate = sprite_class:findState(name)
     state.physic = physics[state.physic]
     if not state.physic then
         state.physic = physics[name]
     end
     assert(state.physic)
     if state.animation then
-        state.animation = SequenceType.findState(sequence_object,
-            state.animation)
+        state.animation = sequence_object:findState(state.animation)
     end
     if state.particle then
         state.particle = lookupResource(state.particle)
     end
     if state.onAnimationEnd then
-        state.onAnimationEnd = WormSpriteClass.findState(sprite_class,
-            state.onAnimationEnd)
+        state.onAnimationEnd = sprite_class:findState(state.onAnimationEnd)
     end
     setProperties(dstate, state)
 end
 
 WormSpriteClass.finishLoading(sprite_class)
-registerResource(sprite_class, SpriteClass.name(sprite_class))
+registerResource(sprite_class, sprite_class:name())
 
 -- play bleep on misfire (xxx not sure if this is the right place to put this)
 addGlobalEventHandler("weapon_misfire", function(weapon, wcontrol, reason)
-    local s = WormControl.sprite(wcontrol)
+    T(WormControl, wcontrol)
+    local s = wcontrol:sprite()
     emitSpriteParticle("p_warning", s)
 end)

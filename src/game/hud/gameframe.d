@@ -7,8 +7,10 @@ import common.task;
 import common.toplevel;
 import framework.drawing;
 import framework.event;
+import framework.globalsettings;
 import framework.i18n;
 import framework.lua;
+import framework.main;
 import framework.sound;
 import gui.container;
 import gui.label;
@@ -50,6 +52,11 @@ import game.gui.levelpaint;
 
 import tango.math.Math;
 
+SettingVar!(bool) gPauseOnNofocus;
+
+static this() {
+    gPauseOnNofocus = SettingVar!(bool).Add("game.pause_on_no_focus", false);
+}
 
 //like LuaInterpreter, but sends commands via GameInfo.control.executeCommand()
 //also, will not output the version message
@@ -214,11 +221,13 @@ class GameFrame : SimpleContainer {
         mWeaponDisplay.setAddToPos(
             Vector2i(cast(int)((1.0f-mWeaponInterp.value)*wdis_edge), 0));
 
-        /+ disabled for now; should work flawlessly
-        //unpaused if any child has focus (normally GameView)
-        game.shell.pauseBlock(!subFocused(), this);
-        game.shell.pauseBlock(!gFramework.appFocused, gFramework);
-        +/
+        if (gPauseOnNofocus.get()) {
+            //unpaused if any child has focus (normally GameView)
+            game.shell.pauseBlock(!(subFocused() && gFramework.appFocused),
+                this);
+        } else {
+            game.shell.pauseBlock(false, this);
+        }
 
         bool paused = game.shell.paused;
 

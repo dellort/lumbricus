@@ -75,7 +75,7 @@ do
         showDisplay = false,
         callback = function(sender)
             -- use the sender's velocity (direction and magnitude)
-            local vel = Phys.velocity(Sprite.physics(sender))
+            local vel = sender:physics():velocity()
             spawnCluster(worms_shared.standard_napalm, sender, 15, 1, 1, 60,
                 vel)
             spriteExplode(sender, 25)

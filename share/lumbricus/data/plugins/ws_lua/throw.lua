@@ -115,10 +115,10 @@ do
         if Sprite.isUnderWater(sender) then
             local shooter = gameObjectFindShooter(sender)
             -- no need for a finished call then
-            if not GameObject.objectAlive(shooter) then
+            if not shooter:objectAlive() then
                 return
             end
-            Shooter.finished(shooter)
+            shooter.finished()
         end
     end)
 
@@ -126,14 +126,14 @@ do
         local shooter = gameObjectFindShooter(sprite)
         assert(shooter)
         -- no need for a finished call then
-        if not GameObject.objectAlive(shooter) then
+        if not shooter:objectAlive() then
             return
         end
         local sprites = get_context(shooter).sprites
         sprites[sprite] = status
         -- reconsider refire status; no sprites left => no refire
         if (not status) and table_empty(sprites) then
-            Shooter.finished(shooter)
+            shooter:finished()
         end
     end
     addSpriteClassEvent(shard, "sprite_activate", function(sender, normal)
@@ -155,12 +155,12 @@ do
         -- if unterwater, event below has been called before; don't call again
         -- (else there may be weird corner cases where the calls from 2
         --  subsequent fires overlap and cause mayhem)
-        if not Sprite.isUnderWater(sender) then
+        if not sender:isUnderWater() then
             subsprite_status(sender, nil)
         end
     end)
     addSpriteClassEvent(shard, "sprite_waterstate", function(sender)
-        if Sprite.isUnderWater(sender) then
+        if sender:isUnderWater() then
             subsprite_status(sender, nil)
         end
     end)
@@ -168,7 +168,7 @@ do
     local w = createWeapon {
         name = "w_" .. name,
         onFire = function(shooter, info)
-            Shooter.reduceAmmo(shooter)
+            shooter:reduceAmmo()
             --Shooter.finished(shooter)
             local ctx = get_context(shooter)
             ctx.sprites = {}
@@ -351,13 +351,13 @@ do
         showDisplay = true,
         callback = function(sprite)
             local tmain = addPeriodicTimer(time(0.25), function(tmain)
-                if Sprite.isUnderWater(sprite) then
+                if sprite:isUnderWater() then
                     tmain:cancel()
                     return
                 end
                 tmain.count = tmain.count - 1
                 spriteExplode(sprite, 10, false)
-                local spos = Phys.pos(Sprite.physics(sprite))
+                local spos = sprite:physics():pos()
                 if tmain.count > 0 then
                     -- downwards push
                     spos.y = spos.y + 10

@@ -7,19 +7,20 @@
 -- damage = ...
 -- dir = direction of impulse (normalized)
 function applyMeleeImpulse(victim, sender, strength, damage, dir)
-    local spr = Phys.backlink(victim)
+    T(Phys, victim)
+    local spr = victim:backlink()
     if damage > 0 then
         -- serious wtf: the 3rd param is DamageCause, and the code here used to
         --  pass the value 3. but there's no enum member for DamageCause that
         --  maps to 3. replaced by "special", which is 2
-        Phys.applyDamage(victim, damage, "special", sender)
+        victim:applyDamage(damage, "special", sender)
     end
     -- hm, why only worms? could be funny to baseball away mines
     -- but that's how it was before
     -- xxx this allocates memory, isn't elegant, etc.
     --  better way: use physic collision type for filtering
     if className(spr) == "WormSprite" then
-        Phys.addImpulse(victim, dir * strength)
+        victim:addImpulse(dir * strength)
     end
 end
 
@@ -40,7 +41,7 @@ end
 function getGunOnFire(nrounds, interval, damage, effect, spread)
     return getMultipleOnFire(nrounds, interval, false,
         function(shooter, fireinfo)
-            local hitpoint, normal = castFireRay(Shooter.owner(shooter),
+            local hitpoint, normal = castFireRay(shooter:owner(),
                 fireinfo.dir, spread)
             if effect then
                 effect(fireinfo.pos, hitpoint)

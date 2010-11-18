@@ -27,18 +27,18 @@ createWeapon {
 createWeapon {
     name = "w_axe",
     onFire = getMeleeOnFire(10, 15, function(shooter, info, self, obj)
-        local spr = Phys.backlink(obj)
+        local spr = obj:backlink()
         -- xxx see init.lua comments for a similar thing
         if className(spr) == "WormSprite" then
             -- half lifepower, but don't reduce to less than 1 hp
-            local hp = Phys.lifepower(obj)
+            local hp = obj:lifepower()
             local dmg = math.min(hp * 0.5, hp - 1)
             dmg = math.max(dmg, 0)
-            Phys.applyDamage(obj, dmg, 3, self)
-            Phys.addImpulse(obj, Vector2(0, 1))
+            obj:applyDamage(dmg, 3, self)
+            obj:addImpulse(Vector2(0, 1))
         else
             -- destroy barrels
-            Phys.applyDamage(obj, 50, 3, self)
+            obj:applyDamage(50, 3, self)
         end
     end),
     category = "punch",
@@ -70,7 +70,7 @@ do
     enableSpriteTimer(sprite_class, {
         defTimer = time(0.8),
         callback = function(sender)
-            Sprite.kill(sender)
+            sender:kill()
         end
     })
 
@@ -92,20 +92,21 @@ end
 createWeapon {
     name = "w_kamikazebomber",
     onFire = function(shooter, info)
-        Shooter.reduceAmmo(shooter)
-        Shooter.finished(shooter)
-        
-        local worm = Shooter.owner(shooter)
+        shooter:reduceAmmo()
+        shooter:finished()
+
+        local worm = shooter:owner()
         -- spawn 1 class with 50% probability (or always count, if specified)
         local function spawn(class, count)
             count = count or Random:rangei(0, 1)
             spawnCluster(class, worm, count, 250, 450, 60)
         end
-        
+
         -- kill
         spriteExplode(worm, 50)
 
         -- random fun (when you think of it: what could possibly be inside a worm? hehe)
+        -- NOTE: could pick random weapons from the worm's weaponset instead
         spawn(bananashard_class)
         spawn(grenade_class)
         spawn(clusterbomb_class)
