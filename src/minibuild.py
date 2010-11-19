@@ -34,6 +34,7 @@ COMPILERS = {
         "def": "-version=",
         "debug_args": ["-gc", "-unittest", "-debug"],
         "release_args": ["-inline", "-release", "-O"],
+        "profile_args": ["-inline", "-release", "-O", "-gc"],
         "lib": "-L-l",
     },
     "ldc": {
@@ -43,6 +44,7 @@ COMPILERS = {
         "def": "-d-version",
         "debug_args": ["-gc", "-unittest", "-d-debug"],
         "release_args": ["-enable-inlining", "-release", "-O5"],
+        "profile_args": ["-enable-inlining", "-release", "-O5", "-gc"],
         "lib": "-L-l",
     }
 }
@@ -78,6 +80,9 @@ parser.add_option("-f",
 parser.add_option("-r",
     action="store_true", dest="release", default=False,
     help="release mode (no debug, optimizations enabled)")
+parser.add_option("-p",
+    action="store_true", dest="profile", default=False,
+    help="profile mode (debug infos + optimizations enabled)")
 parser.add_option("-I",
     action="append", dest="include", default=[],
     help="additional include paths")
@@ -148,6 +153,8 @@ def calldmd(what, pargs, **more):
     nargs.extend(compiler["std_args"])
     if options.release:
         nargs.extend(compiler["release_args"])
+    elif options.profile:
+        nargs.extend(compiler["profile_args"])
     else:
         nargs.extend(compiler["debug_args"])
     for ver in options.version:

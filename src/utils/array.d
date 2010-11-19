@@ -257,6 +257,25 @@ unittest {
     assert(arrayMajority([3,1,1,2,4,4]) == 1);
 }
 
+//reallocate, and free old array if the GC actually reallocated it
+//also (matters in D2) always keep capacity, even if the array is shrinked
+void arrayRealloc(T)(ref T[] array, size_t nlength) {
+    if (array.length == nlength)
+        return;
+    T[] oldarray = array;
+    array.length = nlength;
+    if (oldarray.ptr !is array.ptr)
+        delete oldarray;
+}
+
+//like arrayRealloc, but is allowed to
+//  1. throw away the array data when reallocating
+//  2. not initialize newly allocated data with T.init
+void arrayReallocTrash(T)(ref T[] array, size_t nlength) {
+    //lol too lazy (D array semantics make this hard)
+    arrayRealloc(array, nlength);
+}
+
 //for array appending - because using builtin functionality is slow (the main
 //  reason being that you have to lock the global GC mutex and look up the GC
 //  memory block on _every_ single append operation)

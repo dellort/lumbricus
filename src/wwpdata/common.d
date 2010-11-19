@@ -1,18 +1,25 @@
 module wwpdata.common;
 
+import utils.color;
 import utils.stream;
 import wwpdata.decompression;
 import wwptools.image : RGBAColor;
 
+import utils.misc;
+
 struct WWPPalette {
-    RGBAColor[] palEntries;
+    //the unused part of the palette is padded with transparent entries
+    //this way toRGBA() doesn't have to do extra bounds checking
+    RGBAColor[256] palEntries;
 
     static WWPPalette read(Stream st) {
         WWPPalette ret;
         ushort palSize;
         st.readExact(cast(ubyte[])(&palSize)[0..1]);
-        ret.palEntries.length = palSize;
-        foreach (inout pe; ret.palEntries) {
+        softAssert(palSize <= 255, "palette too big");
+        //entry 0 is hard-wired
+        ret.palEntries[0] = Color.Transparent.toRGBA32();
+        foreach (inout pe; ret.palEntries[1..1 + palSize]) {
             struct RGBColor {
                 ubyte r, g, b;
             }
@@ -23,26 +30,23 @@ struct WWPPalette {
             pe.b = c.b;
             pe.a = 0xff;
         }
+        //fill the unused rest
+        ret.palEntries[1 + palSize .. $] = ret.palEntries[0];
+
         return ret;
     }
 
-    RGBAColor[] toRGBA(ubyte[] palData) {
-        RGBAColor[] ret = new RGBAColor[palData.length];
+    void convertRGBA(ubyte[] palData, RGBAColor[] destData) {
+        assert(palData.length <= destData.length);
         foreach (int i, ubyte b; palData) {
-            if (b > 0 && b <= palEntries.length) {
-                ret[i] = palEntries[b-1];
-            } else {
-                ret[i].a = 0;
-            }
+            destData[i] = palEntries[b];
         }
-        return ret;
     }
 }
 
 const WWP_ANIMFLAG_REPEAT = 0x1;
 const WWP_ANIMFLAG_BACKWARDS = 0x2;
 
-ubyte[] wormsDecompress(ubyte[] data, int len) {
-    //std.stdio.writefln(len);
-    return decompress_wlz77(data, len);
+ubyte[] wormsDecompress(ubyte[] data, ubyte[] buffer) {
+    return decompress_wlz77(data, buffer);
 }

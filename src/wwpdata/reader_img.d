@@ -2,6 +2,8 @@ module wwpdata.reader_img;
 
 import framework.surface;
 import wwptools.image;
+import utils.array;
+import utils.misc;
 import utils.stream;
 import utils.vector2;
 import wwpdata.common;
@@ -40,11 +42,13 @@ Surface readImgFile(Stream st) {
     ubyte[] imgData, decomp;
 
     if (flags & IMG_FLAG_COMPRESSED) {
-        decomp = imgData = wormsDecompress(data, w*h);
+        decomp = imgData = new ubyte[w*h];
+        wormsDecompress(data, imgData);
     } else {
         imgData = data[0..w*h];
     }
-    RGBAColor[] rgbaData = pal.toRGBA(imgData);
+    RGBAColor[] rgbaData = new RGBAColor[w*h];
+    pal.convertRGBA(imgData, rgbaData);
 
     auto img = new Surface(Vector2i(w, h));
     blitRGBData(img, rgbaData, w, h);

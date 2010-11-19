@@ -1,6 +1,8 @@
 module wwpdata.reader_bnk;
 
 import wwptools.image;
+import utils.array;
+import utils.misc;
 import utils.stream;
 import wwpdata.common;
 import wwpdata.reader;
@@ -23,6 +25,11 @@ struct WWPBnkFrameHdr {
 struct WWPBnkChunkHdr {
     uint startOffset, decompSize;
     uint unk;
+}
+
+//make buffer at least this big; possibly destroy existing array data
+private void minbuffer(T)(ref T[] buffer, size_t length) {
+    arrayReallocTrash(buffer, max(buffer.length, length));
 }
 
 Animation[] readBnkFile(Stream st) {
@@ -54,6 +61,8 @@ Animation[] readBnkFile(Stream st) {
 
     int curChunkIdx = -1;
     ubyte[] chunkDecomp;
+    ubyte[] readBuffer;
+    RGBAColor[] rgbaBuffer;
     Animation[] alist;
     foreach (int ianim, WWPBnkAnimHdr hanim; animHdr) {
         //Stdout.format("Animation {}/{}   \r", ianim+1, animCount);
@@ -70,24 +79,27 @@ Animation[] readBnkFile(Stream st) {
                 } else {
                     len = chunkHdr[curChunkIdx+1].startOffset - chunkHdr[curChunkIdx].startOffset;
                 }
-                ubyte[] buf = new ubyte[len];
-                st.readExact(buf.ptr, len);
-                delete chunkDecomp;
-                chunkDecomp = wormsDecompress(buf, chunkHdr[curChunkIdx].decompSize);
-                delete buf;
+                minbuffer(readBuffer, len);
+                st.readExact(readBuffer.ptr, len);
+                size_t decsize = chunkHdr[curChunkIdx].decompSize;
+                minbuffer(chunkDecomp, decsize);
+                wormsDecompress(readBuffer[0..len], chunkDecomp);
             }
             int fwidth = hframe.x2-hframe.x1;
             int fheight = hframe.y2-hframe.y1;
-            RGBAColor[] rgbaData = pal.toRGBA(chunkDecomp[hframe.startPixel..hframe.startPixel+fwidth*fheight]);
-            anim.addFrame(hframe.x1, hframe.y1, fwidth, fheight, rgbaData);
-            delete rgbaData;
+            ubyte[] fd = chunkDecomp[hframe.startPixel..hframe.startPixel+fwidth*fheight];
+            minbuffer(rgbaBuffer, fd.length);
+            pal.convertRGBA(fd, rgbaBuffer);
+            anim.addFrame(hframe.x1, hframe.y1, fwidth, fheight, rgbaBuffer);
         }
         alist ~= anim;
     }
     delete chunkDecomp;
+    delete readBuffer;
     delete animHdr;
     delete frameHdr;
     delete chunkHdr;
+    delete rgbaBuffer;
     //Stdout.newline;
     return alist;
 }

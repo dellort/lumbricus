@@ -3,15 +3,18 @@
 
 module wwpdata.decompression;
 
-//decompressed_length must be >= length of the stream in data
-ubyte[] decompress_wlz77(ubyte[] data, size_t decompressed_length) {
+import utils.misc;
+
+//buffer.length must be >= length of the stream in data
+//returns buffer[0..actuallydecompressed]
+//xxx missing bounds checking in release mode (buffer overflows with bad data)
+ubyte[] decompress_wlz77(ubyte[] data, ubyte[] buffer) {
     size_t cur, dest = 0;
-    ubyte[] res = new ubyte[decompressed_length];
     while (cur < data.length) {
         ubyte b = data[cur++];
         if (!(b & 0b1000_0000)) {
             //uncompressed
-            res[dest++] = b;
+            buffer[dest++] = b;
         } else {
             uint count, offset;
             offset = b & 0b111;
@@ -30,10 +33,10 @@ ubyte[] decompress_wlz77(ubyte[] data, size_t decompressed_length) {
             //insert from stream... no block copy possible because this is
             //an LZ77 algorithm
             while (count--) {
-                res[dest] = res[dest-offset];
+                buffer[dest] = buffer[dest-offset];
                 dest++;
             }
         }
     }
-    return res[0 .. dest];
+    return buffer[0 .. dest];
 }
