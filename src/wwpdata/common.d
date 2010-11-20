@@ -7,18 +7,18 @@ import wwptools.image : RGBAColor;
 
 import utils.misc;
 
-struct WWPPalette {
+class WWPPalette {
     //the unused part of the palette is padded with transparent entries
     //this way toRGBA() doesn't have to do extra bounds checking
     RGBAColor[256] palEntries;
 
     static WWPPalette read(Stream st) {
-        WWPPalette ret;
+        auto ret = new WWPPalette;
         ushort palSize;
-        st.readExact(cast(ubyte[])(&palSize)[0..1]);
+        st.readExact(cast(ubyte[])((&palSize)[0..1]));
         softAssert(palSize <= 255, "palette too big");
-        //entry 0 is hard-wired
-        ret.palEntries[0] = Color.Transparent.toRGBA32();
+        //entry 0 is hard-wired to transparent; also clear the unused rest
+        ret.palEntries[] = Color.Transparent.toRGBA32();
         foreach (inout pe; ret.palEntries[1..1 + palSize]) {
             struct RGBColor {
                 ubyte r, g, b;
@@ -30,8 +30,6 @@ struct WWPPalette {
             pe.b = c.b;
             pe.a = 0xff;
         }
-        //fill the unused rest
-        ret.palEntries[1 + palSize .. $] = ret.palEntries[0];
 
         return ret;
     }

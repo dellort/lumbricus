@@ -25,7 +25,6 @@ class AtlasPacker {
         FileAtlasTexture[] mBlocks;
     }
 
-    //fnBase = the name of the atlas resource
     this(Vector2i ps = Vector2i(0)) {
         mPacker = new BoxPacker;
         mPacker.pageSize = ps.quad_length == 0 ? Surface.cStdSize : ps;

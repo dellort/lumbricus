@@ -4,6 +4,7 @@ import framework.surface;
 import wwptools.image;
 import utils.array;
 import utils.misc;
+import utils.rect2;
 import utils.stream;
 import utils.vector2;
 import wwpdata.common;
@@ -47,13 +48,10 @@ Surface readImgFile(Stream st) {
     } else {
         imgData = data[0..w*h];
     }
-    RGBAColor[] rgbaData = new RGBAColor[w*h];
-    pal.convertRGBA(imgData, rgbaData);
 
     auto img = new Surface(Vector2i(w, h));
-    blitRGBData(img, rgbaData, w, h);
+    blitPALData(img, pal, imgData, Rect2i(0, 0, w, h));
 
-    delete rgbaData;
     delete decomp;
     delete data;
 

@@ -122,12 +122,12 @@ class AniEntry {
             box = box.max(bb);
             a.savePacked(mOwner.atlas);
             FileAnimationFrame[] cframes;
-            foreach (frame; a.frames) {
+            foreach (int idx, frame; a.frames) {
                 FileAnimationFrame cur;
-                cur.bitmapIndex = frame.blockIndex;
+                cur.bitmapIndex = a.blockOffset + idx;
                 //frame.x/y is the offset of the bitmap within boxWidth/Height
-                cur.centerX = frame.x - a.boxWidth/2;
-                cur.centerY = frame.y - a.boxHeight/2;
+                cur.centerX = frame.at.x - a.boxWidth/2;
+                cur.centerY = frame.at.y - a.boxHeight/2;
                 cframes ~= cur;
             }
             if (append_A) {
@@ -728,6 +728,6 @@ private void loadBitmapFrames(AniFile anims, AniLoadContext ctx,
         if (!indexValid(ani.frames, f[1]))
             throwError("unknown frame: {}", frame);
         auto fr = ani.frames[f[1]];
-        anims.addBitmap(name, fr.frameImg.clone);
+        anims.addBitmap(name, ani.frameToBitmap(fr));
     }
 }

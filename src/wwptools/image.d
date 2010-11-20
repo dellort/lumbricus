@@ -4,13 +4,13 @@ module wwptools.image;
 import framework.surface;
 import framework.imgread;
 import framework.imgwrite;
-import tango.stdc.stringz : toStringz, fromStringz;
 import utils.configfile;
 import utils.misc;
 import utils.color;
 import utils.stream;
 import utils.vector2;
 import utils.rect2;
+import wwpdata.common;
 
 alias Color.RGBA32 RGBAColor;
 
@@ -28,14 +28,19 @@ Surface loadImageFromFile(char[] path) {
     return loadImage(f);
 }
 
-void blitRGBData(Surface img, RGBAColor[] data, int aw, int ah) {
+//copy the 8 bit palette encoded data on img, using the given palette
+//rc is the destination rect on img
+//data is expected to be packed, with image dimensions rc.size
+void blitPALData(Surface img, WWPPalette pal, ubyte[] data, Rect2i rc) {
+    softAssert(img.rect.contains(rc), "out of bounds");
     Color.RGBA32* pixels;
     uint pitch;
     img.lockPixelsRGBA32(pixels, pitch);
-    int w = max(min(aw, img.size.x), 0);
-    for (int y = 0; y < min(ah, img.size.y); y++) {
-        pixels[0..w] = data[aw*y .. aw*(y+1)];
-        pixels += pitch;
+    uint w = rc.size.x;
+    for (int y = rc.p1.y; y < rc.p2.y; y++) {
+        auto p2 = pixels + pitch*y + rc.p1.x;
+        pal.convertRGBA(data[0..w], p2[0..w]);
+        data = data[w..$];
     }
     img.unlockPixels(img.rect);
 }

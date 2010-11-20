@@ -62,12 +62,11 @@ Animation[] readBnkFile(Stream st) {
     int curChunkIdx = -1;
     ubyte[] chunkDecomp;
     ubyte[] readBuffer;
-    RGBAColor[] rgbaBuffer;
     Animation[] alist;
     foreach (int ianim, WWPBnkAnimHdr hanim; animHdr) {
         //Stdout.format("Animation {}/{}   \r", ianim+1, animCount);
         //Stdout.flush();
-        auto anim = new Animation(hanim.x, hanim.y,
+        auto anim = new Animation(pal, hanim.x, hanim.y,
             (hanim.flags & WWP_ANIMFLAG_REPEAT) > 0,
             (hanim.flags & WWP_ANIMFLAG_BACKWARDS) > 0, hanim.frameTimeMS);
         foreach (hframe; frameHdr[hanim.startFrameNr..hanim.startFrameNr+hanim.frameCount]) {
@@ -88,9 +87,7 @@ Animation[] readBnkFile(Stream st) {
             int fwidth = hframe.x2-hframe.x1;
             int fheight = hframe.y2-hframe.y1;
             ubyte[] fd = chunkDecomp[hframe.startPixel..hframe.startPixel+fwidth*fheight];
-            minbuffer(rgbaBuffer, fd.length);
-            pal.convertRGBA(fd, rgbaBuffer);
-            anim.addFrame(hframe.x1, hframe.y1, fwidth, fheight, rgbaBuffer);
+            anim.addFrame(hframe.x1, hframe.y1, fwidth, fheight, fd.dup);
         }
         alist ~= anim;
     }
@@ -99,7 +96,6 @@ Animation[] readBnkFile(Stream st) {
     delete animHdr;
     delete frameHdr;
     delete chunkHdr;
-    delete rgbaBuffer;
     //Stdout.newline;
     return alist;
 }

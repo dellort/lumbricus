@@ -12,6 +12,7 @@ import wwpdata.reader_dir;
 import wwpdata.reader_spr;
 import wwptools.animconv;
 import wwptools.convert;
+import wwptools.image;
 import wwptools.unworms;
 import tango.io.FilePath;
 import tangofile = tango.io.device.File;
@@ -83,7 +84,8 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     scope(exit) whatever.close();
     //WWP backgrounds are animation files, although there's only one frame (?)
     //spr file -> one animation with (at least) one frame, so this is ok
-    backAl.frames[0].save(destPath~"backdrop.png");
+    saveImageToFile(backAl.frameToBitmap(backAl.frames[0]),
+        destPath~"backdrop.png");
     envBitmaps ~= BmpDef("sky_backdrop","backdrop.png");
 
     //debris with metadata

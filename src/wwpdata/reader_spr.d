@@ -3,6 +3,7 @@ module wwpdata.reader_spr;
 import wwptools.image;
 import utils.array;
 import utils.misc;
+import utils.rect2;
 import utils.stream;
 import wwpdata.common;
 import wwpdata.reader;
@@ -36,21 +37,17 @@ Animation readSprFile(Stream st) {
     WWPSprFrameHdr[] frameHdr = new WWPSprFrameHdr[frameCount];
     st.readExact(frameHdr.ptr, frameCount*WWPSprFrameHdr.sizeof);
 
-    auto anim = new Animation(boxW, boxH, (animFlags & WWP_ANIMFLAG_REPEAT) > 0,
+    auto anim = new Animation(pal, boxW, boxH,
+        (animFlags & WWP_ANIMFLAG_REPEAT) > 0,
         (animFlags & WWP_ANIMFLAG_BACKWARDS) > 0);
 
-    RGBAColor[] rgbaData;
     foreach (fr; frameHdr) {
         int w = fr.x2 - fr.x1;
         int h = fr.y2 - fr.y1;
         ubyte[] data = new ubyte[w*h];
-        st.readExact(data.ptr, w*h);
-
-        arrayRealloc(rgbaData, max(rgbaData.length, data.length));
-        pal.convertRGBA(data, rgbaData);
-        anim.addFrame(fr.x1, fr.y1, w, h, rgbaData);
+        st.readExact(data);
+        anim.addFrame(fr.x1, fr.y1, w, h, data);
     }
-    delete rgbaData;
 
     delete frameHdr;
 

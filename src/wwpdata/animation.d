@@ -7,6 +7,7 @@ import wwptools.image;
 import utils.stream;
 import wwpdata.common;
 import utils.boxpacker;
+import utils.rect2;
 import utils.vector2;
 import utils.filetools;
 import utils.misc;
@@ -48,58 +49,34 @@ void freeAnimations(ref Animation[] animations) {
 }
 
 class Animation {
+    WWPPalette palette;
     int boxWidth, boxHeight;
     bool repeat, backwards;
     int frameTimeMS;
 
-    //if bitmaps already were written out
-    bool wasDumped;
+    //offset of the frame images into atlas_packer (after savePacked())
+    // < 0 if savePacked() wasn't called yet
+    int blockOffset = -1;
+    AtlasPacker atlas_packer;
 
     struct FrameInfo {
-        //w,h == frameImg.size
-        int x, y, w, h;
-        int atlasIndex; //page in the atlas it was packaged into (never needed??)
-        int blockIndex; //index of the texture in the atlas
-        Surface frameImg;
-
-        static FrameInfo opCall(int x, int y, Surface frameData) {
-            FrameInfo ret;
-            ret.x = x;
-            ret.y = y;
-            ret.w = frameData.size.x;
-            ret.h = frameData.size.y;
-            ret.frameImg = frameData;
-            return ret;
-        }
-
-        static FrameInfo opCall(int x, int y, int w, int h,
-            RGBAColor[] frameData)
-        {
-            auto img = new Surface(Vector2i(w, h));
-            blitRGBData(img, frameData, w, h);
-            return opCall(x, y, img);
-        }
-
-        void blitOn(Surface dest, int x, int y) {
-            dest.copyFrom(frameImg, Vector2i(x, y), Vector2i(0), frameImg.size);
-        }
-
-        void save(char[] filename) {
-            saveImageToFile(frameImg, filename);
-        }
+        Vector2i at;    //position of the frame image inside animation
+        Vector2i size;  //size of the frame image (see data)
+        ubyte[] data;   //image (uses palette)
 
         FrameInfo dup() {
             FrameInfo n = *this;
-            n.frameImg = frameImg.clone;
+            n.data = data.dup;
             return n;
         }
     }
 
     FrameInfo[] frames;
 
-    this(int boxWidth, int boxHeight, bool repeat, bool backwards,
-        int frameTimeMS = 0)
+    this(WWPPalette palette, int boxWidth, int boxHeight, bool repeat,
+        bool backwards, int frameTimeMS = 0)
     {
+        this.palette = palette;
         this.boxWidth = boxWidth;
         this.boxHeight = boxHeight;
         this.repeat = repeat;
@@ -107,48 +84,51 @@ class Animation {
         this.frameTimeMS = frameTimeMS;
     }
 
-    void addFrame(int x, int y, int w, int h, RGBAColor[] frameData) {
-        frames ~= FrameInfo(x, y, w, h, frameData);
-    }
-
-    void addFrame(int x, int y, Surface frameImg) {
-        frames ~= FrameInfo(x, y, frameImg);
+    void addFrame(int x, int y, int w, int h, ubyte[] frameData) {
+        assert(frameData.length == w*h);
+        frames ~= FrameInfo(Vector2i(x, y), Vector2i(w, h), frameData);
     }
 
     void save(char[] outPath, char[] fnBase) {
         saveImageToFile(toBitmap(), outPath ~ pathsep ~ fnBase ~ ".png");
     }
 
+    Surface frameToBitmap(FrameInfo frame) {
+        auto res = new Surface(frame.size);
+        blitPALData(res, palette, frame.data, Rect2i(frame.size));
+        return res;
+    }
+
     Surface toBitmap() {
         auto img = new Surface(Vector2i(boxWidth*frames.length, boxHeight));
         foreach (int i, FrameInfo fi; frames) {
-            fi.blitOn(img, i*boxWidth+fi.x, fi.y);
+            blitPALData(img, palette, fi.data, Rect2i.Span(
+                Vector2i(i*boxWidth+fi.at.x, fi.at.y), fi.size));
         }
         return img;
     }
 
     //store all animation bitmaps into the given texture atlas
-    //simply updates the atlasIndex field for each frame (of all animations)
+    //simply updates the blockIndex field for each frame (of all animations)
     void savePacked(AtlasPacker packer) {
-        if (wasDumped)
+        //already dumped=
+        if (blockOffset >= 0)
             return;
+        atlas_packer = packer;
         //NOTE: packer guarantees to number the blocks continuously
-        int blockoffset = packer.blockCount();
+        blockOffset = packer.blockCount();
         foreach (int iframe, inout FrameInfo fi; frames) {
             //request page and offset for frame from packer
-            Block block = packer.alloc(Vector2i(fi.w, fi.h));
-            fi.atlasIndex = block.page;
-            fi.blockIndex = blockoffset + iframe;
+            Block block = packer.alloc(fi.size);
             //blit frame data from animation onto page image
-            fi.blitOn(packer.page(fi.atlasIndex), block.origin.x,
-                block.origin.y);
+            blitPALData(packer.page(block.page), palette, fi.data,
+                Rect2i.Span(block.origin, fi.size));
         }
-        wasDumped = true;
     }
 
     void free() {
         foreach (ref f; frames) {
-            delete f.frameImg;
+            delete f.data;
         }
         delete frames;
     }
