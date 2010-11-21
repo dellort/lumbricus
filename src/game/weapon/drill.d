@@ -93,8 +93,8 @@ class Drill : Shooter {
     }
 
     private bool checkApply(PhysicObject other) {
-        //force applies to all objects, except the own worm
-        return other !is mWorm.physics;
+        //force applies to all objects, except the own worm or landscape
+        return other !is mWorm.physics && !other.isStatic;
     }
 
     private void makeTunnel() {

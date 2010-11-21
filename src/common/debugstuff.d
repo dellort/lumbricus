@@ -54,6 +54,8 @@ static if (is(typeof(&memory.GC.getDebug))) {
     const GCStatsHack = false;
 }
 
+//version = ENABLE_GC_TRACE;
+
 //gc_stats() API, which Tango doesn't expose to the user for very retarded
 //  reasons, and there have been various attempts to expose such functionality
 //  to the user, which all failed - see Tango #1702
@@ -165,11 +167,6 @@ class Stuff {
         auto cmds = gCommands;
         cmds.registerCommand("gc", &testGC, "", ["bool?=true"]);
         cmds.registerCommand("gcmin", &cmdGCmin, "");
-        cmds.registerCommand("gciter", &cmdGCIter, "");
-        cmds.registerCommand("gctrace", &cmdGCTrace, "", ["text", "int?=1"]);
-        cmds.registerCommand("gcarrtrace", &cmdGCArrayTrace, "",
-            ["text"]);
-        cmds.registerCommand("gcsweeps", &cmdGCSweeps, "");
 
         gCatchInput ~= &nameit;
         cmds.registerCommand("nameit", &cmdNameit, "");
@@ -185,6 +182,16 @@ class Stuff {
             //warning: assumes 'this' is always referenced by the rootset
             //  (same issue as with GC.monitor())
             memory.GC.getDebug.setcollectcb(&collectcb);
+            version (ENABLE_GC_TRACE) {
+                memory.GC.getDebug.setalloccb(&alloccb);
+            }
+
+            cmds.registerCommand("gciter", &cmdGCIter, "");
+            cmds.registerCommand("gctrace", &cmdGCTrace, "", ["text", "int?=1"]);
+            cmds.registerCommand("gcarrtrace", &cmdGCArrayTrace, "",
+                ["text"]);
+            cmds.registerCommand("gcsweeps", &cmdGCSweeps, "");
+            cmds.registerCommand("gcsweeps_alloc", &cmdGCSweepsAlloc, "");
         }
 
         gFramework.onFrameEnd = &onFrameEnd;
@@ -305,6 +312,10 @@ class Stuff {
         static if (GCStatsHack)
             showsweepstats();
     }
+    private void cmdGCSweepsAlloc(MyBox[] args, Output write) {
+        static if (GCStatsHack)
+            showallocatorstats();
+    }
 
     private void cmdNameit(MyBox[] args, Output write) {
         mKeyNameIt = true;
@@ -348,9 +359,15 @@ class Stuff {
         });
     }
 
-    private void collectcb(void* ptr, size_t size, Object tag) {
+    private void collectcb(memory.BlockInfo b) {
         static if (GCStatsHack) {
-            docollect(ptr, size, tag);
+            docollect(b.ptr, b.blksize, b.tag, b.trace);
+        }
+    }
+
+    private void* alloccb(memory.BlockInfo b) {
+        static if (GCStatsHack) {
+            return doalloc(b);
         }
     }
 }
@@ -542,6 +559,8 @@ static this() {
 static if (GCStatsHack) {
 
 import tango.core.Array;
+import tango.core.tools.StackTrace;
+import tango.core.tools.Demangler;
 
 class Unknown {
     char[] toString() { return "<?> unknown type"; }
@@ -744,11 +763,25 @@ struct TagRecord {
 //BigArray is used because it uses malloc()
 BigArray!(TagRecord) gTags;
 
-static this() {
-    gTags = new typeof(gTags)();
+struct AllocatorRecord {
+    void* allocator;
+    size_t count;
+    size_t memory;
 }
 
-void docollect(void* ptr, size_t size, Object tag) {
+BigArray!(AllocatorRecord) gAllocs;
+
+static this() {
+    gTags = new typeof(gTags)();
+    gAllocs = new typeof(gAllocs)();
+}
+
+void docollect(void* ptr, size_t size, Object tag, void* allocator) {
+    collect_tag(size, tag);
+    collect_allocator(size, allocator);
+}
+
+void collect_tag(size_t size, Object tag) {
     TagRecord[] arr = gTags[];
     foreach (ref r; arr) {
         if (r.tag is tag) {
@@ -758,6 +791,18 @@ void docollect(void* ptr, size_t size, Object tag) {
         }
     }
     gTags ~= TagRecord(tag, 1, size);
+}
+
+void collect_allocator(size_t size, void* allocator) {
+    AllocatorRecord[] arr = gAllocs[];
+    foreach (ref r; arr) {
+        if (r.allocator is allocator) {
+            r.count++;
+            r.memory += size;
+            return;
+        }
+    }
+    gAllocs ~= AllocatorRecord(allocator, 1, size);
 }
 
 //show stats what has been collected
@@ -779,6 +824,107 @@ void showsweepstats() {
         all_count += r.count;
     }
     Trace.formatln("sum=#{} / {}", all_count, str.sizeToHuman(all_memory));
+}
+
+void showallocatorstats() {
+    scope copy = new BigArray!(AllocatorRecord)();
+    synchronized (memory.GC.getDebug.gclock()) {
+        copy ~= gAllocs[];
+        //reset stats
+        gAllocs.length = 0;
+    }
+    sort(copy[], (AllocatorRecord a, AllocatorRecord b) {
+        return a.memory < b.memory;
+    });
+
+    char[] format_caller(void* caller) {
+        if (!caller)
+            return "???";
+
+        //more or less stolen from StackTrace.d
+        Exception.FrameInfo fInfo;
+        fInfo.address = cast(size_t)caller;
+        rt_symbolizeFrameInfo(fInfo, null, null);
+        fInfo.func = demangler.demangle(fInfo.func);
+
+        return myformat("{}:{} => {}", fInfo.file, fInfo.line, fInfo.func);
+    }
+
+    foreach (AllocatorRecord r; copy[]) {
+        Trace.formatln("{} => #={} sum={}", format_caller(r.allocator),
+            r.count, str.sizeToHuman(r.memory));
+    }
+}
+
+//all these runtime functions are entrypoints to gc_malloc()
+//the functions are compiler specific - this is for dmd
+//any other compiler: unsupported, though easy to support (have to extract
+//  list of runtime functions from rt/lifetime.d)
+const char[][] cRTFns = ["_d_newclass", "_d_newarrayT", "_d_newarrayiT",
+    "_d_newarraymT", "_d_newarraymiT",
+    "_d_arraysetlengthT", "_d_arraysetlengthiT", "_d_arrayappendT",
+    "_d_arrayappendcT", "_d_arrayappendcd", "_d_arrayappendwd",
+    "_d_arraycatT", "_d_arraycatnT", "_d_arrayliteralT", "_adDupT",
+    //"new" AA ABI - assumes patched compiler
+    //xxx many of these functions call other runtime functions => inexact
+    "_d_aaGet", "_d_aaValues", "_d_aaKeys", "_d_aaRehash", "_d_aaLiteral"];
+
+struct FunctionEntry {
+    void* start, end;
+    //debugging
+    char[] entry;
+    char[] toString() { return myformat("{:x}-{:x} {}", start, end, entry); }
+}
+
+FunctionEntry[] g_rt_fns;
+
+//need to fill g_rt_fns
+//what we actually need is to find out if a specific address points inside of
+//  a runtime function (i.e. if the caller is a runtime function; the address
+//  will point to/after a call instruction in the function)
+version (linux) {
+    //for some reason, this module exposes all its internal stuff
+    import tango.core.tools.LinuxStackTrace;
+    static this() {
+        //adapted from elfSymbolizeFrameInfo() from StackTrace.d
+        foreach(symName,symAddr,symEnd,pub;StaticSectionInfo) {
+            if (arraySearch(cRTFns, symName) >= 0) {
+                g_rt_fns ~= FunctionEntry(cast(void*)symAddr,
+                    cast(void*)symEnd, symName);
+            }
+        }
+        //Trace.formatln("{}", g_rt_fns);
+    }
+}
+
+void* find_alloc_caller() {
+    const cDepth = 20; //must be deep enough to hit the runtime function
+    size_t size = cDepth*size_t.sizeof;
+    void*[] pbt = cast(void*[])(cstdlib.alloca(size)[0..size]);
+    //both TraceContext params are probably unneeded and can be null (?)
+    int flags; //but this appartently can't be a null-ptr?
+    size_t cnt = rt_addrBacktrace(null, null, cast(size_t*)pbt.ptr, pbt.length,
+        &flags);
+    //find first RT function
+    int cur = cnt - 1;
+    while (cur >= 0) {
+        void* addr = pbt[cur];
+        foreach (ref e; g_rt_fns) {
+            if (addr >= e.start && addr < e.end) {
+                //return the function that calls the RT function
+                if (cur + 1 < pbt.length) {
+                    return pbt[cur + 1];
+                }
+            }
+        }
+        cur--;
+    }
+    //unknown
+    return null;
+}
+
+void* doalloc(memory.BlockInfo b) {
+    return find_alloc_caller();
 }
 
 }
