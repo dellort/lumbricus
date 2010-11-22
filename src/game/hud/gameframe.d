@@ -210,6 +210,8 @@ class GameFrame : SimpleContainer {
                     mScroller.stopMouseFollow();
                 }
         }
+        //if the mouse is not locked
+        gameView.canUseMouse = mode != 1;
 
         int wsel_edge = mWeaponSel.findParentBorderDistance(1, 0, false);
         mWeaponSel.setAddToPos(

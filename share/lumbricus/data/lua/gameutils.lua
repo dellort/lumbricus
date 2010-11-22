@@ -786,8 +786,8 @@ function gameMessage(sender, id, args, displayTime)
         -- plugin not loaded
         return
     end
-    if d_is_class(sender, d_find_class("MemberMember")) then
-        sender = sender:team(sender)
+    if d_is_class(sender, d_find_class("TeamMember")) then
+        sender = sender:team()
     end
     if d_is_class(sender, d_find_class("Team")) then
         sender = sender:theme()

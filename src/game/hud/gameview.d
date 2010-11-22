@@ -447,6 +447,7 @@ class GameView : Widget {
     void delegate() onToggleWeaponWindow, onToggleScroll;
     void delegate() onToggleChat, onToggleScript;
     void delegate(char[] category) onSelectCategory;
+    bool canUseMouse;
 
     //what a stupid type name
     struct GUITeamMemberSettings {
@@ -501,6 +502,7 @@ class GameView : Widget {
         ViewMember lastActiveWorm;
 
         bool mCursorVisible = true;
+        bool mOldCanUseMouse;
 
         GameWater mGameWater;
         GameSky mGameSky;
@@ -935,10 +937,6 @@ class GameView : Widget {
                 activeWorm.member.control.renderOnMouse(c, mousePos);
         else
             mCursorVisible = true;
-        //camera gets active again (e.g. after clicking to fire airstrike)
-        //  => don't jump back immediately
-        if (!old_cursor_visible && mCursorVisible)
-            mCamera.reset();
 
         mGame.engine.debug_draw(c);
 
@@ -970,17 +968,6 @@ class GameView : Widget {
         return !mGameSky.enableSkyTex;
     }
 
-    //camera priority of objects, from high to low:
-    //  5 moving active worm (or super sheep, but not bazooka etc.)
-    //  4 something fired by the active worm's weapon (including offspring)
-    //  3 weapon offspring fired by other worms
-    //  -- not anymore -- 2 other worms
-    //  1 other objects (like crates)
-    //  0 (not moving) active worm
-    //(active means we control the worm)
-    //for objects with same priority, the camera tries to focus on the object
-    //that moved last
-    //xxx: camera should use game objects instead of graphic stuff
     void sim_camera() {
         Time now = mCamera.ts.current;
 
@@ -993,8 +980,14 @@ class GameView : Widget {
         //hack to disable camera when the user has control over the mouse, e.g.
         //  clicking for airstrike target (if this "heuristic" fails, we might
         //  need to add an explicit option to Controllable for camera control)
-        if (!mCursorVisible)
+        if (canUseMouse)
             cur = null;
+
+        //camera gets active again (e.g. after clicking to fire airstrike)
+        //  => don't jump back immediately
+        if (mOldCanUseMouse && !canUseMouse)
+            mCamera.reset();
+        mOldCanUseMouse = canUseMouse;
 
         if (cur) {
             Vector2f velocity = cur.velocity;
