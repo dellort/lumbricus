@@ -1,6 +1,5 @@
 module wwptools.levelconverter;
 
-import wwptools.atlaspacker;
 import str = utils.string;
 import utils.stream;
 import utils.filetools;
@@ -87,7 +86,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
 
     //big background image
     auto whatever = ldir.open("back.spr");
-    scope Animation backAl = readSprFile(whatever);
+    scope RawAnimation backAl = readSprFile(whatever);
     scope(exit) whatever.close();
     //WWP backgrounds are animation files, although there's only one frame (?)
     //spr file -> one animation with (at least) one frame, so this is ok
@@ -101,7 +100,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     scope debrisAnif = new AniFile();
     auto debrisSpr = ldir.open("debris.spr");
     scope(exit) debrisSpr.close();
-    scope Animation debrisAl = readSprFile(debrisSpr);
+    scope RawAnimation debrisAl = readSprFile(debrisSpr);
     saveImageToFile(debrisAl.toBitmapCompact(), destPath ~ "debris.png");
     stuff["debris_w"] = itoa(debrisAl.boxWidth);
     stuff["debris_h"] = itoa(debrisAl.boxHeight);
