@@ -32,7 +32,7 @@ private void minbuffer(T)(ref T[] buffer, size_t length) {
     arrayReallocTrash(buffer, max(buffer.length, length));
 }
 
-Animation[] readBnkFile(Stream st) {
+RawAnimation[] readBnkFile(Stream st) {
     char[4] hdr;
     st.readExact(hdr.ptr, 4);
     assert(hdr == "BNK\x1A");
@@ -62,11 +62,11 @@ Animation[] readBnkFile(Stream st) {
     int curChunkIdx = -1;
     ubyte[] chunkDecomp;
     ubyte[] readBuffer;
-    Animation[] alist;
+    RawAnimation[] alist;
     foreach (int ianim, WWPBnkAnimHdr hanim; animHdr) {
         //Stdout.format("Animation {}/{}   \r", ianim+1, animCount);
         //Stdout.flush();
-        auto anim = new Animation(pal, hanim.x, hanim.y,
+        auto anim = new RawAnimation(pal, hanim.x, hanim.y,
             (hanim.flags & WWP_ANIMFLAG_REPEAT) > 0,
             (hanim.flags & WWP_ANIMFLAG_BACKWARDS) > 0, hanim.frameTimeMS);
         foreach (hframe; frameHdr[hanim.startFrameNr..hanim.startFrameNr+hanim.frameCount]) {

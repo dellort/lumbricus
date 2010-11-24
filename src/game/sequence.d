@@ -412,7 +412,7 @@ final class Sequence : SceneObject {
                     a = cast(int)(dir.toAngle()*180.0f/math.PI);
                 AnimationParams aparams;
                 //arrow animation seems rotated by 180° <- no it's not!!1
-                aparams.p1 = (a+180)%360;
+                aparams.p[0] = (a+180)%360;
                 //arrows used to have zorder GameZOrder.RangeArrow
                 //now they have the zorder of the object; I think it's ok
                 arrow.draw(c, apos, aparams, itime);
@@ -498,9 +498,9 @@ class AniStateDisplay : StateDisplay {
     }
 
     final void std_anim_params() {
-        ani_params.p1 = cast(int)(owner.rotation_angle/math.PI*180f);
+        ani_params.p[0] = cast(int)(owner.rotation_angle/math.PI*180f);
         //this is quite WWP specific
-        ani_params.p3 = owner.team ? owner.team.colorIndex + 1 : 0;
+        ani_params.p[2] = owner.team ? owner.team.colorIndex + 1 : 0;
     }
 
     final Animation animation() {
@@ -586,7 +586,7 @@ class SimpleAnimationDisplay : AniStateDisplay {
         std_anim_params();
         //not always done, because one could imagine alternative "wirings"
         if (myclass.wire_p2_to_damage) {
-            ani_params.p2 = cast(int)((1.0f-owner.lifePercent)*100);
+            ani_params.p[1] = cast(int)((1.0f-owner.lifePercent)*100);
         }
     }
 }
@@ -641,12 +641,12 @@ class WwpNapalmDisplay : AniStateDisplay {
         if (speed < cTresholdVelocity) {
             //slow napalm
             new_animation = myclass.animFall;
-            ani_params.p2 = cast(int)owner.lifePercent; //0-100
+            ani_params.p[1] = cast(int)owner.lifePercent; //0-100
         } else {
             //fast napalm
             new_animation = myclass.animFly;
-            ani_params.p1 = cast(int)(owner.rotation_angle*180.0f/math.PI);
-            ani_params.p2 = cast(int)(100
+            ani_params.p[0] = cast(int)(owner.rotation_angle*180.0f/math.PI);
+            ani_params.p[1] = cast(int)(100
                 * (speed-cTresholdVelocity) / cVelDelta);
         }
         if (animation() !is new_animation) {
@@ -1257,7 +1257,7 @@ class WwpWeaponDisplay : AniStateDisplay {
         }
 
         std_anim_params();
-        ani_params.p2 = cast(int)(wangle/math.PI*180);
+        ani_params.p[1] = cast(int)(wangle/math.PI*180);
     }
 
     override void leave() {

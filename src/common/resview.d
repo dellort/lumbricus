@@ -255,72 +255,25 @@ class SampleHandler : ResViewHandler!(Sample) {
     }
 }
 
-class AtlasHandler : ResViewHandler!(Atlas) {
-    private {
-        Widget mViewer;
-        ScrollBar mSel;
-        SubSurface mCur;
-    }
-
-    this(Object r) {
-        super(r);
-
-        auto box = new BoxContainer(false);
-        mSel = new ScrollBar(true);
-        mSel.onValueChange = &sel;
-        mSel.maxValue = resource.count-1;
-        mSel.setLayout(WidgetLayout.Expand(true));
-        box.add(mSel);
-        mCur = resource.texture(0);
-        mViewer = new Viewer();
-        box.add(mViewer);
-        setGUI(box);
-    }
-
-    private void sel(ScrollBar sender) {
-        mCur = resource.texture(sender.curValue);
-        mViewer.needRelayout();
-    }
-
-    class Viewer : Widget {
-        override void onDraw(Canvas c) {
-            Vector2i d = size/2 - mCur.surface.size/2;
-            c.draw(mCur.surface, d);
-            c.drawRect(Rect2i(d+mCur.origin-Vector2i(1),
-                d+mCur.origin+mCur.size+Vector2i(1)),Color(0, 0, 0));
-        }
-
-        Vector2i layoutSizeRequest() {
-            return mCur.surface.size()+Vector2i(2);
-        }
-    }
-
-    static this() {
-        registerHandler!(typeof(this));
-    }
-}
-
 import common.resfileformats;
 
 class ViewAniFrames : Container {
     private {
+        DebugAniFrames frames;
     }
 
     this(Animation ani) {
-        //there's also AnimationStrip and some transformed animations
-        auto cani = cast(ComplicatedAnimation)ani;
-        if (!cani)
+        frames = cast(DebugAniFrames)ani;
+        if (!frames)
             return;
-        Frames frames = cani.frames();
 
         auto gui = new BoxContainer(false);
 
         char[] inf;
 
         inf ~= "Param mappings:\n";
-        foreach (int i, Frames.ParamData p; frames.params) {
-            inf ~= myformat("  {} <- {} ({} frames)\n", i,
-                cFileAnimationParamTypeStr[p.map], p.count);
+        foreach (i; frames.paramInfos()) {
+            inf ~= i ~ "\n";
         }
 
         Label inftxt = new Label();
@@ -328,7 +281,9 @@ class ViewAniFrames : Container {
         inftxt.setLayout(WidgetLayout.Aligned(-1,-1));
         gui.add(inftxt);
 
-        for (int idx_c = 0; idx_c < frames.params[2].count; idx_c++) {
+        int[] pcounts = frames.paramCounts();
+
+        for (int idx_c = 0; idx_c < pcounts[2]; idx_c++) {
             if (idx_c > 0) {
                 auto spacer = new Spacer();
                 spacer.minSize = Vector2i(2,3);
@@ -339,13 +294,12 @@ class ViewAniFrames : Container {
                 gui.add(spacer);
             }
 
-            auto table = new TableContainer(frames.params[0].count,
-                frames.params[1].count, Vector2i(2,2), [true, true]);
-            Rect2i bb = frames.boundingBox();
+            auto table = new TableContainer(pcounts[0], pcounts[1],
+                Vector2i(2,2), [true, true]);
+            Rect2i bb = frames.frameBoundingBox();
             for (int x = 0 ; x < table.width; x++) {
                 for (int y = 0; y < table.height; y++) {
                     auto bmp = new ViewBitmap();
-                    bmp.frames = frames;
                     bmp.p1 = x;
                     bmp.p2 = y;
                     bmp.p3 = idx_c;
@@ -363,7 +317,6 @@ class ViewAniFrames : Container {
     }
 
     class ViewBitmap : Widget {
-        Frames frames;
         int p1, p2, p3;
         Vector2i offs, size;
 
@@ -471,9 +424,9 @@ class AnimationHandler : ResViewHandler!(Animation) {
 
     private void onScrollbar(ScrollBar sender) {
         AnimationParams p;
-        p.p1 = mParams[0].curValue;
-        p.p2 = mParams[1].curValue;
-        p.p3 = mParams[2].curValue;
+        p.p[0] = mParams[0].curValue;
+        p.p[1] = mParams[1].curValue;
+        p.p[2] = mParams[2].curValue;
         mAnim.params = p;
         foreach (int idx, Label l; mParLbl)
             l.text = myformat("Param {}: {}", idx, mParams[idx].curValue);

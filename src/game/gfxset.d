@@ -125,18 +125,9 @@ class GfxSet {
             resfile = addGfxSet(config);
         }
 
-        char[] waterpath = config.getStringValue("water_path");
-        if (waterpath.length > 0) {
-            char[] watername = gfx.getStringValue("waterset", "blue");
-            //resfile.fixPath for making the water dir relative to the other
-            //  resources
-            waterpath = resfile.fixPath(waterpath);
-            auto waterfile = gResources.loadConfigForRes(waterpath ~ "/" ~
-                watername ~ "/water.conf");
-            load_resources ~= gResources.loadResources(waterfile);
-
-            waterColor = waterfile.getValue("color", waterColor);
-        }
+        //xxx water
+        char[] watername = gfx.getStringValue("waterset", "blue");
+        //waterColor = ...
 
         //xxx if you want, add code to load crosshair here
         //...

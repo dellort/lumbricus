@@ -76,9 +76,9 @@ Static linked D libraries:
 ---- Using the WWP data files ----
 
 General stuff about the WWP data files:
-  Lumbricus can use the original WWP (Worms World Party) data files, either by
-  loading them directly, or using a converter. Direct loading doesn't make use
-  of level themes and so on.
+  Lumbricus can use the original WWP (Worms World Party) data files, by loading
+  them directly. For some optional stuff like WWP level themes, there's a
+  converter, extractdata.
 
   Both direct loading and conversion require a WWP installation.
 
@@ -93,10 +93,10 @@ General stuff about the WWP data files:
   Supporting Worms Armageddon data files would require us to map the .spr file-
   names to the actual animations. No clue about later 2D Worms games.
 
-Using the WWP data directly:
+Using the WWP data:
   Start lumbricus with these options:
 
-    --game.wwp_data_path=/path/to/WWP --game.graphicset=wwp_direct
+    bin/lumbricus[.exe] --game.wwp_data_path=/path/to/WWP
 
   (Or hope we will add a more user-friendly way to do it.)
 
@@ -104,9 +104,9 @@ Using the WWP data directly:
   Lumbricus actually only reads some of the files (mostly .dir and .wav).
 
   Unless the game crashes before saving the WWP path to the user's config
-  directory, you don't need to pass the options later on.
+  directory, you don't need to pass the option anymore later on.
 
-Using the WWP data converter:
+Converting level themes with extractdata:
   extractdata expects the Worms(TM) directory as arguments, and converts the
   file to images/conf-files Lumbricus can understand. Call it like this:
 
@@ -122,11 +122,7 @@ Using the WWP data converter:
     <path_to_extractdata_binary>/../share/lumbricus/data2/
   Make sure that is writeable by extractdata.
 
-  Also you may need to set the game.graphicset option to wwp_conv (although that
-  is default).
-
-  To inspect the WWP datafiles, you can unpack them with unworms (using
-  extractdata is impractical, because it only converts the animations in
-  animations.conf). Compile unworms with "dsss build ../bin/unworms". You can
-  call it on .dir, .bnk, .img and .spr files.
-
+Inspecting the WWP data:
+  To inspect the WWP datafiles, you can unpack them with unworms. Compile
+  unworms with "dsss build ../bin/unworms". You can call it on .dir, .bnk, .img
+  and .spr files.

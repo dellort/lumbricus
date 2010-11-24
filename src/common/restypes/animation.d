@@ -1,9 +1,9 @@
 module common.restypes.animation;
 
+import common.animation;
 import common.resfileformats;
 import common.resources;
 import common.resset;
-import common.restypes.frames;
 import framework.drawing;
 import framework.filesystem;
 import framework.surface;
@@ -21,193 +21,6 @@ import str = utils.string;
 import math = tango.math.Math;
 import mymath = utils.math;
 
-
-//xxx the following two types should be in common.animation
-
-//used in the game (typically, not fixed):
-//  p1 = thing/worm angle
-//  p2 = weapon angle
-//  p3 = team color index + 1, or 0 when neutral
-struct AnimationParams {
-    int p1, p2, p3;
-}
-
-//for some derived classes see below
-abstract class Animation {
-    public /+private+/ {
-        const int cDefFrameTimeMS = 50;
-        int mFrameTimeMS;
-        int mFrameCount;
-        int mLengthMS;
-        Rect2i mBounds;
-        ReversedAnimation mReversed;
-        bool mDidInit;
-    }
-
-    //read-only lol
-    bool repeat = true;//animation is repeated (starting again after last frame)
-
-    abstract void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
-        Time t);
-
-    private void postInit() {
-        mLengthMS = mFrameTimeMS * mFrameCount;
-    }
-
-    //must call this
-    protected void doInit(int aframeCount, Rect2i abounds,
-        int aframeTimeMS = cDefFrameTimeMS)
-    {
-        assert(!mDidInit);
-
-        //0 as frame time is indeed valid (makes only sense with framecount=1)
-        argcheck(aframeTimeMS >= 0);
-        argcheck(aframeCount > 0);
-
-        mFrameCount = aframeCount;
-        mBounds = abounds;
-        mFrameTimeMS = aframeTimeMS;
-
-        postInit();
-
-        mDidInit = true;
-    }
-
-    //copy all animation attributes (except frame count) from other
-    protected void copyAttributes(Animation other) {
-        repeat = other.repeat;
-        mBounds = other.mBounds;
-        mFrameTimeMS = other.mFrameTimeMS;
-        postInit();
-    }
-
-    //deliver the bounds, centered around the center
-    final Rect2i bounds() { return mBounds; }
-    //time to play it (ignores repeat)
-    final Time duration() { return timeMsecs(mLengthMS); }
-    final int lengthMS() { return mLengthMS; }
-    final int frameCount() { return mFrameCount; }
-    final int frameTimeMS() { return mFrameTimeMS; }
-    final Time frameTime() { return timeMsecs(mFrameTimeMS); }
-
-    static int relFrameTimeMs(Time t, int length_ms, bool repeat) {
-        if (length_ms <= 0)
-            return 0;
-
-        int ms = t.msecs;
-        if (ms < 0) {
-            //negative time needed for reversed animations
-            //maybe also needed to set an animation start offset
-            if (!repeat)
-                return 0;
-            ms = realmod(ms, length_ms);
-        }
-        if (ms >= length_ms) {
-            //if this has happened, we either need to show a new frame,
-            //disappear or just stop it
-            if (!repeat) {
-                return length_ms;
-            }
-            return ms % length_ms;
-        }
-        return ms;
-    }
-
-    int getFrameIdx(Time t) {
-        assert(mDidInit);
-
-        int ft = relFrameTimeMs(t, mLengthMS, repeat);
-        assert(ft <= mLengthMS);
-        if (ft == mLengthMS) {
-            if (mFrameCount == 0 || mLengthMS == 0)
-                return 0;
-            assert(!repeat);
-            //always show last frame - gets rid of animation transition "gaps"
-            //if you really want the animation to disappear after done, add an
-            //  empty frame to the animation (using animconv), or just stop
-            //  calling draw()
-            return mFrameCount - 1;
-        }
-        int frame = ft / mFrameTimeMS;
-        assert(frame >= 0 && frame < mFrameCount);
-        return frame;
-    }
-
-    //??
-    alias drawFrame draw;
-
-    bool finished(Time t) {
-        return t.msecs >= mLengthMS;
-    }
-
-    //default: create a proxy
-    //of course a derived class could override this and create a normal
-    //animation with a reversed frame list
-    Animation reversed() {
-        if (!mReversed)
-            mReversed = new ReversedAnimation(this);
-        return mReversed;
-    }
-}
-
-class ReversedAnimation : Animation {
-    private {
-        Animation mBase;
-    }
-
-    this(Animation base) {
-        mBase = base;
-        copyAttributes(mBase);
-        doInit(mBase.frameCount, mBase.bounds, mBase.frameTimeMS());
-    }
-
-    void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p, Time t) {
-        mBase.drawFrame(c, pos, p, duration() - t);
-    }
-
-    //hurhur
-    Animation reversed() {
-        return mBase;
-    }
-}
-
-class SubAnimation : Animation {
-    private {
-        Animation mBase;
-        Time mFrameStart;
-    }
-
-    //subrange (frame_end is exclusive)
-    this(Animation base, int frame_start, int frame_end) {
-        mBase = base;
-        argcheck(frame_start >= 0);
-        argcheck(frame_end <= mBase.frameCount);
-        argcheck(frame_start < frame_end); //also must be at least 1 frame
-        copyAttributes(mBase);
-        doInit(frame_end - frame_start, mBase.bounds, mBase.frameTimeMS());
-        mFrameStart = frame_start * frameTime();
-    }
-
-    //fixed display of one frame of the base animation
-    //the difference to this(base, frame, frame+1) is, that the duration is 0s
-    //the animation literally will be finished before it has started
-    this(Animation base, int frame) {
-        mBase = base;
-        argcheck(frame >= 0);
-        argcheck(frame < mBase.frameCount);
-        copyAttributes(mBase);
-        doInit(1, mBase.bounds, 0);
-        mFrameStart = frame * mBase.frameTime();
-    }
-
-    override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
-        Time t)
-    {
-        mBase.drawFrame(c, pos, p, mFrameStart + t);
-    }
-}
-
-//--- simple old animations
 
 //placeholder animation when loading failed; just displays error.png
 class ErrorAnimation : Animation {
@@ -324,6 +137,7 @@ class AnimationStrip : AnimationSimple {
 
         int frameWidth = config.getIntValue("frame_width", -1);
         int frameHeight = config.getIntValue("frame_height", -1);
+        int frameCount = config.getIntValue("frame_count", -1);
         auto surface = loadImage(filename);
         if (frameWidth < 0 && frameHeight < 0) {
             //square frames
@@ -336,8 +150,10 @@ class AnimationStrip : AnimationSimple {
         auto frame_size = Vector2i(frameWidth, frameHeight);
 
         SubSurface[] frames;
-        for (int y = 0; y < surface.size.y; y += frameHeight) {
+        outer: for (int y = 0; y < surface.size.y; y += frameHeight) {
             for (int x = 0; x < surface.size.x; x += frameWidth) {
+                if (frameCount >= 0 && frames.length >= frameCount)
+                    break outer;
                 frames ~= surface.createSubSurface(Rect2i.Span(
                     Vector2i(x, y), frame_size));
             }
@@ -393,106 +209,6 @@ class AnimationList : AnimationSimple {
     }
 }
 
-//handlers to convert a parameter to an actual frame
-//  p = the source parameter
-//  count = number of frames available
-//  returns sth. useful between [0, count)
-//wonderful type name!
-alias int function(int p, int count) AnimationParamConvertDelegate;
-AnimationParamConvertDelegate[char[]] gAnimationParamConverters;
-
-//complicated version which supports parameters and loading from atlas/animation
-//  files (e.g. the frames are stored in a binary stream) - mostly used for
-//  auto-converted wwp data files
-class ComplicatedAnimation : Animation {
-    private {
-        //animation data
-        Frames mFrames;
-        //the indices mean: [0] for p1, [1] for p2, ...
-        AnimationParamConvertDelegate[3] mParamConvert;
-    }
-
-    this(ConfigNode node, AniFrames frames) {
-        int index = node.getIntValue("index", -1);
-        Frames fr = frames.frames(index);
-        if (!fr)
-            throwError("frame index invalid: {}", index);
-        this(fr);
-    }
-
-    this(Frames a_frames) {
-        argcheck(a_frames);
-        mFrames = a_frames;
-
-        Rect2i bb = mFrames.box; // = mFrames.boundingBox();
-
-        for (int index = 0; index < 3; index++) {
-            char[] val = mFrames.params[index].conv;
-            if (!val.length)
-                val = "none";
-            if (!(val in gAnimationParamConverters)) {
-                throwError("unknown param converter {} => '{}'", index, val);
-            }
-            mParamConvert[index] = gAnimationParamConverters[val];
-        }
-
-        //find out how long this is - needs reverse lookup
-        //default value 1 in case time isn't used for a param (not animated)
-        int framelen = 1;
-        foreach (ref par; mFrames.params) {
-            if (par.map == FileAnimationParamType.Time) {
-                framelen = par.count;
-                break;
-            }
-        }
-
-        doInit(framelen, bb, mFrames.frameTimeMS);
-
-        repeat = !!(mFrames.flags & FileAnimationFlags.Repeat);
-    }
-
-    override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
-        Time t)
-    {
-        int frameIdx = getFrameIdx(t);
-        if (frameIdx < 0)
-            return;
-        assert(frameIdx < frameCount);
-
-        static int doParam(int function(int a, int b) dg, int v, int count) {
-            v = dg(v, count);
-            if (v < 0 || v >= count) {
-                debug gLog.minor("WARNING: parameter out of bounds");
-                v = 0;
-            }
-            return v;
-        }
-
-        int selectParam(int index) {
-            int cnt = mFrames.params[index].count; //only used with params
-            switch (mFrames.params[index].map) {
-                case FileAnimationParamType.Time:
-                    return frameIdx;
-                case FileAnimationParamType.P1:
-                    return doParam(mParamConvert[0], p.p1, cnt);
-                case FileAnimationParamType.P2:
-                    return doParam(mParamConvert[1], p.p2, cnt);
-                case FileAnimationParamType.P3:
-                    return doParam(mParamConvert[2], p.p3, cnt);
-                default:
-                    return 0;
-            }
-        }
-
-        mFrames.drawFrame(c, pos, selectParam(0), selectParam(1),
-            selectParam(2));
-    }
-
-    Frames frames() {
-        return mFrames;
-    }
-}
-
 //resource for animation frames
 //will load the anim file on get()
 //config item   type = "xxx"   chooses Animation implementation
@@ -520,11 +236,6 @@ class AnimationResource : ResourceItem {
                     mContents = new AnimationList(node, pat);
                     break;
                 }
-                case "complicated":
-                    auto frames = mContext.findAndGetT!(AniFrames)(
-                        node["aniframes"]);
-                    mContents = new ComplicatedAnimation(node, frames);
-                    break;
                 default:
                     throw new CustomException("invalid AnimationResource type");
             }

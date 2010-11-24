@@ -28,14 +28,29 @@ class TexturePack {
     ///Surface s on it. the function returns the surface it was on and its
     ///position.
     SubSurface add(Surface s) {
-        auto size = s.size;
+        return do_add(s, s.size);
+    }
+
+    ///reserve a region with a specific size
+    ///image data covered by SubSurface may be uninitialized
+    SubSurface add(Vector2i s) {
+        return do_add(null, s);
+    }
+
+    //surf can be null (to avoid useless copies in some cases)
+    private SubSurface do_add(Surface surf, Vector2i size) {
         Block* b = mPacker.getBlock(size);
         if (!b) {
             //too big, make an exception
             //adhere to copy semantics even here, although it seems extra
             //work (but the caller might free s after adding it)
-            auto surface = s.clone();
-            mSurfaces ~= s;
+            Surface surface;
+            if (surf) {
+                surface = surf.clone();
+                mSurfaces ~= surf;
+            } else {
+                surface = new Surface(size);
+            }
             return surface.createSubSurface(Rect2i(size));
         }
         //check if the BoxPacker added a page and possibly create it
@@ -47,7 +62,9 @@ class TexturePack {
             mPages ~= surface;
         }
         auto dest = mPages[b.page];
-        dest.copyFrom(s, b.origin, Vector2i(0), size);
+        if (surf) {
+            dest.copyFrom(surf, b.origin, Vector2i(0), size);
+        }
         return dest.createSubSurface(Rect2i.Span(b.origin, size));
     }
 

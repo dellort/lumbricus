@@ -39,132 +39,20 @@ import wwpdata.reader_img;
 import wwpdata.reader_dir;
 import wwpdata.reader_spr;
 import wwptools.levelconverter;
-import wwptools.untile;
 import wwptools.unworms;
-import wwptools.animconv;
 import wwptools.image;
 
-void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
-    bool nolevelthemes)
-{
-    char[] gfxOutputDir = outputDir ~ "/wwp/";
-    trymkdir(gfxOutputDir);
+void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir) {
     auto wormsDataDir = wormsDir ~ "/data/";
     importDir = importDir ~ "/";
-    auto outFolder = new FileFolder(gfxOutputDir);
 
-    ConfigNode loadWImportConfig(char[] file) {
-        //xxx really bad hack to get to the right dir
-        //extractdata doesn't init gFS, so we can't use loadConfig()
-        return (new ConfigFile(Stream.OpenFile(importDir ~ file),
-            file)).rootnode;
-    }
-    void writeConfig(ConfigNode node, char[] dest) {
-        scope confst = outFolder.file(dest).create.output;
-        auto stream = new ConduitStream(confst);
-        node.writeFile(stream.pipeOut);
-    }
-
+    //check if it's really the WWP dir, I guess
     char[] gfxdirp = wormsDataDir ~ "Gfx/Gfx.dir";
     if (!FilePath(gfxdirp).exists()) {
         throw new Exception("Invalid directory! Gfx.dir not found.");
     }
-    scope iconnames = Stream.OpenFile(importDir ~ "iconnames.txt");
-    scope(exit) iconnames.close();
-
-    //****** Extract WWP .dir files ******
-    //extract Gfx.dir to current directory (creating a new dir "Gfx")
-    Dir gfxdir = new Dir(gfxdirp);
-    scope(exit) gfxdir.close();
-
-    //****** Weapon icons ******
-    //xxx box packing?
-    //convert iconlo.img to png (creates "iconlo.png" in tmp dir)
-    Surface iconlo = readImgFile(gfxdir.open("iconlo.img"));
-    //apply icons mask
-    Surface icMask = loadImageFromFile(importDir ~ "iconmask.png");
-    applyAlphaMask(iconlo, icMask);
-    /+
-    //prepare directory "weapons"
-    scope wbasef = outFolder.folder("weapons").create;
-    scope wepFolder = outFolder.folder("weapons/default").create;
-    +/
-    //extract weapon icons
-    //(NOTE: using namefile, so no filename for basename)
-    do_untile(iconlo, "", outFolder, "icons", "icon_", "",
-        "icons.conf",iconnames);
-
-    //****** Sounds ******
-    ConfigNode sndConf = loadWImportConfig("sounds.conf");
-    foreach (ConfigNode sub; sndConf.getSubNode("sounds")) {
-        Stdout.format("Copying sounds '{}'", sub.name()).newline;
-        auto newres = new ConfigNode();
-        auto reslist = newres.getPath("resources.samples", true);
-        char[] destp = sub["dest_path"];
-        scope destFolder = outFolder.folder(destp).create;
-        scope sourceFolder = new FileFolder(wormsDataDir ~ sub["source_path"]);
-        foreach (char[] name, char[] value; sub.getSubNode("files")) {
-            //doesn't really work if value contains a path
-            auto ext = str.tolower(FilePath(value).ext());
-            auto outfname = name~"."~ext;
-            destFolder.file(outfname).copy(sourceFolder.file(value));
-            reslist.setStringValue(name, destp~"/"~outfname);
-        }
-        writeConfig(newres, sub["conffile"]);
-    }
-
-    //****** Convert mainspr.bnk / water.bnk using animconv ******
-    Stream mainspr = gfxdir.open("mainspr.bnk");
-
-    ConfigNode animConf = loadWImportConfig("animations.conf");
-
-    //run animconv
-    do_extractbnk("mainspr", mainspr, animConf.getSubNode("mainspr"),
-        gfxOutputDir~"/");
-
-    //extract water sets (uses animconv too)
-    //xxx: like level set, enum subdirectories (code duplication?)
-    char[] waterpath = wormsDataDir ~ "Water";
-    char[] all_waterout = gfxOutputDir~"/water";
-    trymkdir(all_waterout);
-    foreach (fi; FilePath(waterpath)) {
-        char[] wdir = fi.name;
-        char[] wpath = waterpath~"/"~wdir;
-        char[] id = str.tolower(wdir);
-        char[] waterout = gfxOutputDir~"/water/"~id~"/";
-        trymkdir(waterout);
-        //lame check if it's a water dir
-        FilePath wpath2 = FilePath(wpath);
-        if (wpath2.isFolder() && FilePath(wpath~"/Water.dir").exists()) {
-            Stdout.formatln("Converting water set '{}'", id);
-            Dir waterdir = new Dir(wpath~"/Water.dir");
-            do_extractbnk("water_anims", waterdir.open("water.bnk"),
-                animConf.getSubNode("water_anims"), waterout);
-
-            auto spr = waterdir.open("layer.spr");
-            Animation water = readSprFile(spr);
-            do_write_anims([water], animConf.getSubNode("water_waves"), "waves",
-                waterout);
-            water.free();
-
-            //colour.txt contains the water background color as RGB
-            //  ex.: 47 55 123 for a blue color
-            scope colourtxt = new TextInput(
-                new File(wpath~"/colour.txt", File.ReadExisting));
-            char[] colLine;
-            bool ok = colourtxt.readln(colLine);
-            assert(ok);
-            ubyte[] colRGB = to!(ubyte[])(str.split(colLine));
-            assert(colRGB.length == 3);
-            auto col = Color.fromBytes(colRGB[0], colRGB[1], colRGB[2]);
-            auto conf = WATER_P1 ~ col.toString() ~ WATER_P2;
-            File.set(waterout~"water.conf", conf);
-        }
-    }
 
     //****** Level sets ******
-    if (nolevelthemes)
-        return;
     char[] levelspath = wormsDataDir~"Level";
     //prepare output dir
     char[] levelDir = outputDir~"/level";
@@ -214,16 +102,13 @@ void do_extractdata(char[] importDir, char[] wormsDir, char[] outputDir,
 int main(char[][] args)
 {
     bool usageerror;
-    bool nolevelthemes;
     int archive_fmt;  //0: don't pack; 1: zip; 2: tar
     while (args.length > 1) {
         auto opt = args[1];
         if (opt.length == 0 || opt[0] != '-')
             break;
         args = args[0] ~ args[2..$];
-        if (opt == "-T") {
-            nolevelthemes = true;
-        } else if (opt == "-z") {
+        if (opt == "-z") {
             archive_fmt = 2;
         } else if (opt == "--") {
             //stop argument parsing, standard on Linux
@@ -240,7 +125,6 @@ int main(char[][] args)
     <outputDir>: where to write stuff to (defaults to
                  prefix/share/lumbricus/data2 )
 Options:
-    -T  don't extract/convert/write level themes and images
     -z  pack everything into a zip archive`).newline;
         return 1;
     }
@@ -253,7 +137,7 @@ Options:
     trymkdir(outputDir);
     //try {
         do_extractdata(appPath ~ "../share/lumbricus/data/import_wwp", args[1],
-            outputDir, nolevelthemes);
+            outputDir);
     //} catch (Exception e) {
     //    writefln("Error: %s",e.msg);
     //}
@@ -280,16 +164,6 @@ Options:
     }
     return 0;
 }
-
-//water.conf; parts before and after the water color
-char[] WATER_P1 = `//automatically created by extractdata
-require_resources {
-    "water_anims.conf"
-    "waves.conf"
-}
-color = "`;
-char[] WATER_P2 = `"
-`;
 
 //why does tango not have this??? recurse through fld and return
 //  relative filenames

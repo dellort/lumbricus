@@ -54,7 +54,7 @@ class AirstrikeControl : WeaponSelector, Controllable {
 
     bool mouseRender(Canvas c, Vector2i mousepos) {
         AnimationParams ap;
-        ap.p1 = cast(int)mIP.value();
+        ap.p[0] = cast(int)mIP.value();
         mControl.color.cursor.draw(c, mousepos, ap, Time.Null);
         return false;
     }

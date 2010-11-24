@@ -14,7 +14,7 @@ struct WWPSprFrameHdr {
     ushort x1, y1, x2, y2;
 }
 
-Animation readSprFile(Stream st) {
+RawAnimation readSprFile(Stream st) {
     char[4] hdr;
     st.readExact(hdr.ptr, 4);
     assert(hdr == "SPR\x1A");
@@ -37,7 +37,7 @@ Animation readSprFile(Stream st) {
     WWPSprFrameHdr[] frameHdr = new WWPSprFrameHdr[frameCount];
     st.readExact(frameHdr.ptr, frameCount*WWPSprFrameHdr.sizeof);
 
-    auto anim = new Animation(pal, boxW, boxH,
+    auto anim = new RawAnimation(pal, boxW, boxH,
         (animFlags & WWP_ANIMFLAG_REPEAT) > 0,
         (animFlags & WWP_ANIMFLAG_BACKWARDS) > 0);
 

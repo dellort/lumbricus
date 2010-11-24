@@ -58,6 +58,13 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     BmpDef[] definedBitmaps;
     ObjDef[] definedObjects;
 
+    //parameters for LEVEL_CONF template
+    char[][char[]] stuff;
+
+    char[] itoa(int x) {
+        return myformat("{}", x);
+    }
+
     Dir ldir = new Dir(sourcePath~"Level.dir");
     scope(exit) ldir.close();
     //Soil back texture
@@ -88,15 +95,18 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
         destPath~"backdrop.png");
     envBitmaps ~= BmpDef("sky_backdrop","backdrop.png");
 
-    //debris with metadata
+    //debris
+    //we could just copy the .spr file and implement loader support for it, but
+    //  for now this is simpler
     scope debrisAnif = new AniFile();
     auto debrisSpr = ldir.open("debris.spr");
     scope(exit) debrisSpr.close();
     scope Animation debrisAl = readSprFile(debrisSpr);
-    auto debrisAni = new AniEntry(debrisAnif, "debris");
-    debrisAni.addFrames([debrisAl]);
-    debrisAni.flags = FileAnimationFlags.Repeat;
-    debrisAnif.write(destPath, "debris", false);
+    saveImageToFile(debrisAl.toBitmapCompact(), destPath ~ "debris.png");
+    stuff["debris_w"] = itoa(debrisAl.boxWidth);
+    stuff["debris_h"] = itoa(debrisAl.boxHeight);
+    //stuff["debris_ft"] = itoa(debrisAl.frameTimeMS);
+    stuff["debris_fc"] = itoa(debrisAl.frames.length);
 
     //bridges
     trymkdir(destPath~"bridge");
@@ -131,8 +141,6 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
         definedBitmaps ~= BmpDef("obj_"~objname,"objects/"~objname~".png");
         definedObjects ~= ObjDef("obj_"~objname, side);
     }
-
-    char[][char[]] stuff;
 
     char[] makeBmps(BmpDef[] bitmaps) {
         char[] res;
@@ -213,22 +221,15 @@ char[] fillTemplate(char[] template_str, char[][char[]] stuff) {
 //level.conf template (yeah, backticked string literals!)
 const char[] LEVEL_CONF = `//automatically created by extractdata
 environment {
-  require_resources {
-    "debris_atlas.conf"
-  }
-
   resources {
-    aniframes {
-      debris_aniframes {
-        atlas = "debris_atlas"
-        datafile = "debris.meta"
-      }
-    }
     animations {
       debris {
-        index = "0"
-        aniframes = "debris_aniframes"
-        type = "complicated"
+        type = "strip"
+        file = "debris.png"
+        frame_width = "%debris_w%"
+        frame_height = "%debris_h%"
+        //frametime = "%debris_ft%"
+        frame_count = "%debris_fc%"
       }
     }
     bitmaps {

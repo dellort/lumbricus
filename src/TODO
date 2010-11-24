@@ -28,15 +28,8 @@ $ sollte behoben sein / works for me (muss getestet werden)
 - Möglichkeit untersuchen, WWP-Daten ohne Installation zu benutzen (von CD oder so)
 - Möglichkeit untersuchen, Worms Armageddon-Daten zu benutzen (WA scheint beliebter zu sein, aber verwendet keine .bnk-Dateien)
   nicht zu verwechseln mit "Worms 2: Armageddon"
-- konvertieren/laden von Graphiken via extractdata/wwp_conv entfernen? j/n
-  Pro:
-  - vereinfacht den Code erheblich, weniger Fehlerquellen
-  - weniger verwirrend da ein Graphikset wegfällt
-  Kontra:
-  - laden per wwp_direct ist ein paar Millisekunden langsamer
-  - Ladebalken des Spiels wird noch nutzloser als er war
-  - wwp_direct ist auf eine Wasserfarbe hardkodiert (könnte man ändern)
-  extractdata selbst würde man beibehalten für Levelthemes.
+- direktes Laden von WWP Levelthemes und extractdata einschrotten
+- laden von auswählbaren WWP Wassergraphiken reparieren
 + die Mausposition nur dann setzen, wenn die Maus innerhalb des Fensters ist => User weniger auf die Nerven gehen
   (SDL 1.3 hätte SDL_GetMouseFocusWindow oder SDL_WINDOWEVENT_ENTER/LEAVE dafür)
 

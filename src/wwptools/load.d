@@ -3,9 +3,6 @@
 module wwptools.load;
 
 import common.resources;
-import common.restypes.animation;
-import common.restypes.atlas;
-import common.restypes.frames;
 import common.restypes.sound;
 import framework.config;
 import framework.filesystem;
@@ -13,12 +10,12 @@ import framework.globalsettings;
 import framework.imgread;
 import framework.sound;
 import framework.surface;
+//import framework.texturepack;
 import utils.configfile;
 import utils.misc;
 import utils.path;
 import utils.stream;
 import wwptools.animconv;
-import wwptools.atlaspacker;
 import wwptools.image;
 import wwptools.untile;
 import wwpdata.animation;
@@ -86,6 +83,20 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
     auto spr = readSprFile(wdir.open(water["spr"]));
     doImportAnis(resfile, [spr], importconf.getSubNode(water["name"]));
 
+    //code for reading colors
+    /+
+    //colour.txt contains the water background color as RGB
+    //  ex.: 47 55 123 for a blue color
+    scope colourtxt = new TextInput(
+        new File(wpath~"/colour.txt", File.ReadExisting));
+    char[] colLine;
+    bool ok = colourtxt.readln(colLine);
+    assert(ok);
+    ubyte[] colRGB = to!(ubyte[])(str.split(colLine));
+    assert(colRGB.length == 3);
+    auto col = Color.fromBytes(colRGB[0], colRGB[1], colRGB[2]);
+    +/
+
     //sounds
     auto sndinfo = importsound.getSubNode("sounds").getSubNode("normal");
     char[] sndpath = vfspath ~ "data/" ~ sndinfo["source_path"] ~ "/";
@@ -114,27 +125,25 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
 }
 
 //NOTE: destroys rawanis
-void doImportAnis(ResourceFile dest, wwpdata.animation.Animation[] rawanis,
+void doImportAnis(ResourceFile dest, RawAnimation[] rawanis,
     ConfigNode importconf)
 {
     auto anims = new AniFile();
-    auto ctx = new AniLoadContext(rawanis);
-    importAnimations(anims, ctx, importconf);
+    importAnimations(anims, rawanis, importconf);
     //add the converted animations as resources
-    auto atlas = atlas2atlas(anims.atlas);
     foreach (AniEntry e; anims.entries) {
-        Frames f = new AtlasFrames(atlas, e.createAnimationData());
-        auto a = new ComplicatedAnimation(f);
+        auto a = new WWPAnimation(e);
         dest.addPseudoResource(e.name, a);
     }
     foreach (char[] name, Surface bmp; anims.bitmaps) {
         dest.addPseudoResource(name, bmp);
     }
+    int[] unused;
+    foreach (idx, a; rawanis) {
+        if (!a.seen)
+            unused ~= idx;
+    }
+    if (unused.length)
+        Resources.log.trace("unused animation indices: {}", unused);
     freeAnimations(rawanis);
-    anims.atlas.freeMetaData();
-}
-
-//fucking stupid...
-Atlas atlas2atlas(AtlasPacker src) {
-    return new Atlas(src.blocks, src.images);
 }

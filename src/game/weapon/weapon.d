@@ -915,7 +915,7 @@ class RenderCrosshair : SceneObject {
         Vector2i target_pos = pos + toVector2i(dir * (tcs.targetDist
             - target_offset*mIP.interp.value));
         AnimationParams ap;
-        ap.p1 = cast(int)((angle + 2*PI*mIP.interp.value)*180/PI);
+        ap.p[0] = cast(int)((angle + 2*PI*mIP.interp.value)*180/PI);
         Animation cs = mAttach.team.aim;
         //(if really an animation should be supported, it's probably better to
         // use Sequence or so - and no more interpolation)

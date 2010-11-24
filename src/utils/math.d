@@ -71,6 +71,23 @@ Vector2f dirFromSideAngle(float rotation, float side_angle) {
         fullAngleFromSideAngle(rotation, side_angle));
 }
 
+//return the index of the angle in "angles" which is closest to "angle"
+//all units in degrees, return values is always an index into angles
+uint pickNearestAngle(int[] angles, int iangle) {
+    //pick best angle (what's nearer)
+    uint closest;
+    float angle = iangle/180.0f*math.PI;
+    float cur = float.max;
+    foreach (int i, int x; angles) {
+        auto d = angleDistance(angle,x/180.0f*math.PI);
+        if (d < cur) {
+            cur = d;
+            closest = i;
+        }
+    }
+    return closest;
+}
+
 ///place nrc relative to prc (trivial, but has to be somewhere)
 ///  nrc = rectangle of the object to be placed
 ///  g = the direction and distance (exactly one component of this should be 0)

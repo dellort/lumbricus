@@ -461,7 +461,7 @@ class Rope : Shooter, Controllable {
         }
 
         AnimationParams ap;
-        ap.p1 = cast(int)(mAnchorAngle/math.PI*180);
+        ap.p[0] = cast(int)(mAnchorAngle/math.PI*180);
         myclass.anchorAnim.draw(c, toVector2i(anchorPos), ap,
             mShootStart);
     }

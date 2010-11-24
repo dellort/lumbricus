@@ -1,34 +1,39 @@
 module wwptools.animconv;
 
+import common.animation;
+import framework.drawing;
 import framework.imgwrite;
 import framework.surface;
-import wwptools.atlaspacker;
+import framework.texturepack;
 import wwptools.image;
 import utils.stream;
 import str = utils.string;
 import utils.configfile;
 import conv = tango.util.Convert;
+import utils.log;
+import utils.math;
 import utils.misc;
-import utils.vector2;
+import utils.rect2;
 import utils.strparser;
+import utils.time;
+import utils.vector2;
 import wwpdata.animation;
 import wwpdata.reader_bnk;
 
-public import common.resfileformats;
-
-import tango.io.Stdout;
-import tango.io.model.IFile : FileConst;
-const pathsep = FileConst.PathSeparatorChar;
-
-alias FileAnimationParamType Param;
-
+//handlers to convert a parameter to an actual frame
+//  p = the source parameter
+//  count = number of frames available
+//  returns sth. useful between [0, count)
+//wonderful type name!
+alias int function(int p, int count) ParamConvert;
+ParamConvert[char[]] gParamConverters;
 
 //handlers to load specialized animation descriptions
 //(because the generic one is too barfed)
 //AniFile = where the final named & processed animations are added to
 //AniLoadContext = animation source list
 //ConfigNode = import description file (e.g. map animation number to name)
-private alias void function(AniFile, AniLoadContext, ConfigNode)
+private alias void function(AniFile, RawAnimation[], ConfigNode)
     AnimationLoadHandler;
 private AnimationLoadHandler[char[]] gAnimationLoadHandlers;
 
@@ -40,58 +45,61 @@ static this() {
     gAnimationLoadHandlers["bitmaps"] = &loadBitmapFrames;
 }
 
-//specific to the task of loading a WWP animation list from a .bnk file (e.g.
-//  animations are not named)
-//this class could be just an Animation[], but there's also some crap to be
-//  able to report unused animations
-class AniLoadContext {
-    Animation[] animations;
-    bool[] used; //used entries from animations
+struct AnimationFrame {
+    SubSurface bitmap;
+    bool mirrorY;
+    Vector2i center;
+}
 
-    this(Animation[] anis) {
-        animations = anis;
-        used = new bool[animations.length];
-    }
+enum ParamType {
+    Null,
+    Time,
+    P1,
+    P2,
+    P3,
+}
 
-    Animation get(int index) {
-        if (!indexValid(animations, index))
-            throwError("invalid animation index: {}", index);
-        assert(used.length == animations.length);
-        used[index] = true;
-        return animations[index];
-    }
+const char[][] cParamTypeStr = [
+    "Null",
+    "Time",
+    "P1",
+    "P2",
+    "P3"
+];
 
-    //just for reporting this to the developers
-    int[] unused() {
-        int[] res;
-        foreach (size_t idx, bool used; used) {
-            if (!used)
-                res ~= idx;
-        }
-        return res;
+struct ParamInfo {
+    ParamType map;      //which parameter maps to this axis
+    ParamConvert conv;  //map input parameter value to frame number
+}
+
+void defaultParamInfo(ParamInfo[3] p) {
+    p[0].map = ParamType.Time;
+    p[1].map = ParamType.P1;
+    p[2].map = ParamType.Null;
+    foreach (ref xp; p) {
+        xp.conv = &paramConvertNone;
     }
 }
 
 class AniEntry {
-    //map a param to the two axis, params = [axis-A, axis-B, axis-C]
-    Param[3] params = [Param.Time, Param.P1, Param.Null];
-    char[][] param_conv;
-    FileAnimationFlags flags = cast(FileAnimationFlags)0;
+    //map a param to the three axis, params = [axis-A, axis-B, axis-C]
+    ParamInfo[3] params;
+
+    bool repeat;
     int frameTimeMS = 50;
+
     Vector2i box; //user defined "bounding" box
-    Vector2i offset; //offset correction, needed for crateN_fly
 
     private {
         char[] mName;
-        FileAnimationFrame[][][] mFrames; //indexed [c][b][a] (lol even more)
-        AniFile mOwner;
+        AnimationFrame[][][] mFrames; //indexed [c][b][a] (lol even more)
+        TexturePack mPacker;
     }
 
-    this(AniFile a_owner, char[] a_name) {
+    this(char[] a_name, TexturePack a_packer) {
+        defaultParamInfo(params);
         mName = a_name;
-        mOwner = a_owner;
-        //xxx this is not nice
-        mOwner.mEntries ~= this;
+        mPacker = a_packer;
     }
 
     char[] name() {
@@ -105,8 +113,8 @@ class AniEntry {
     //append_A: all animations from src are appended to axis A
     //  e.g. if src=[a1, a2], it's like src=[a3], where a3 is a1 and a2 played
     //  sequentially (like a2 is played after a1 has ended)
-    void addFrames(Animation[] src, int c_idx = 0, bool append_A = false) {
-        void addAnimation(Animation a, int b_idx) {
+    void addFrames(RawAnimation[] src, int c_idx = 0, bool append_A = false) {
+        void addAnimation(RawAnimation a, int b_idx) {
             int len_a = a.frames.length;
             //xxx: using append_A could lead to deformed "non-square"
             //  rectangular array, if used incorrectly (maybe)
@@ -118,16 +126,15 @@ class AniEntry {
             //is that the right thing?
             if (ft != 0)
                 frameTimeMS = ft;
-            auto bb = Vector2i(a.boxWidth, a.boxHeight);
+            Vector2i bb = a.box;
             box = box.max(bb);
-            a.savePacked(mOwner.atlas);
-            FileAnimationFrame[] cframes;
+            a.savePacked(mPacker);
+            AnimationFrame[] cframes;
             foreach (int idx, frame; a.frames) {
-                FileAnimationFrame cur;
-                cur.bitmapIndex = a.blockOffset + idx;
-                //frame.x/y is the offset of the bitmap within boxWidth/Height
-                cur.centerX = frame.at.x - a.boxWidth/2;
-                cur.centerY = frame.at.y - a.boxHeight/2;
+                AnimationFrame cur;
+                cur.bitmap = frame.image;
+                //frame.at is the offset of the bitmap within a.box
+                cur.center = frame.at - a.box/2;
                 cframes ~= cur;
             }
             if (append_A) {
@@ -154,7 +161,7 @@ class AniEntry {
                     //append in reverse order (the only case where we use Y_A
                     //needs it in this way)
                     auto cur = fl[count-i-1];
-                    cur.drawEffects ^= FileDrawEffects.MirrorY;
+                    cur.mirrorY = !cur.mirrorY;
                     fl ~= cur;
                 }
             }
@@ -168,7 +175,7 @@ class AniEntry {
             for (int i = 0; i < count; i++) {
                 auto cur = cframes[i].dup;
                 foreach (inout f; cur) {
-                    f.drawEffects ^= FileDrawEffects.MirrorY;
+                    f.mirrorY = !f.mirrorY;
                 }
                 cframes ~= cur;
             }
@@ -204,7 +211,7 @@ class AniEntry {
                 //mirror them
                 auto list = fl.dup;
                 foreach (inout a; list) {
-                    a.drawEffects ^= FileDrawEffects.MirrorY;
+                    a.mirrorY = !a.mirrorY;
                 }
                 cframes ~= list;
             }
@@ -218,7 +225,18 @@ class AniEntry {
         foreach (inout cframes; mFrames) {
             foreach (inout fl; cframes) {
                 for (int i = 0; i < fl.length; i++) {
-                    fl[i].centerX += (i*10)/15;
+                    fl[i].center.x += (i*10)/15;
+                }
+            }
+        }
+    }
+
+    //offset correction, needed for crateN_fly
+    void moveFrames(Vector2i offset) {
+        foreach (fl; mFrames) {
+            foreach (f2; fl) {
+                foreach (ref AnimationFrame f; f2) {
+                    f.center += offset;
                 }
             }
         }
@@ -247,50 +265,144 @@ class AniEntry {
         return mFrames.length;
     }
 
-    AnimationData createAnimationData() {
-        FileAnimation ani;
-        FileAnimationFrame[] frames;
+    int length(int dim) {
+        switch (dim) {
+            case 0: return length_a();
+            case 1: return length_b();
+            case 2: return length_c();
+        }
+    }
 
-        ani.mapParam[] = cast(int[])params;
-        ani.size[0] = box.x;
-        ani.size[1] = box.y;
-        ani.frameCount[0] = length_a();
-        ani.frameCount[1] = length_b();
-        ani.frameCount[2] = length_c();
-        ani.flags = flags;
-        ani.frametime_ms = frameTimeMS;
+    ///user defined animation bounding box
+    Rect2i boundingBox() {
+        Rect2i bbox;
+        bbox.p1 = -box/2; //(center around (0,0))
+        bbox.p2 = box + bbox.p1;
+        return bbox;
+    }
 
-        //dump as rectangular array
-        frames.length = ani.frameCount[0] * ani.frameCount[1]
-            * ani.frameCount[2];
-        int index = 0;
+    ///"correct" bounding box, calculated over all frames
+    ///The animation center is at (0, 0) of this box
+    Rect2i frameBoundingBox() {
+        Rect2i bnds = Rect2i.Abnormal();
         foreach (fl; mFrames) {
             foreach (f2; fl) {
-                foreach (FileAnimationFrame f; f2) {
-                    //offset correction
-                    f.centerX += offset.x;
-                    f.centerY += offset.y;
-                    //just btw.: fixup mirrored animation offsets
-                    //(must be mirrored as well)
-                    if (f.drawEffects & FileDrawEffects.MirrorY) {
-                        int w = mOwner.atlas.block(f.bitmapIndex).w;
-                        f.centerX = -f.centerX - w;
-                    }
-                    frames[index++] = f;
+                foreach (ref AnimationFrame f; f2) {
+                    bnds.extend(f.center);
+                    bnds.extend(f.center + f.bitmap.size);
                 }
             }
         }
+        return bnds;
+    }
 
-        AnimationData res;
-        res.info = ani;
-        res.frames = frames;
-        assert(param_conv.length <= 3);
-        foreach (int idx, char[] p; param_conv) {
-            res.param_conv[idx] = p;
+    ///draw a frame of this animation, selected by parameters
+    ///the center of the animation will be at pos
+    void drawFrame(Canvas c, Vector2i pos, int a1, int a2, int a3) {
+        AnimationFrame* frame = &mFrames[a3][a2][a1];
+
+        auto bitmap = frame.bitmap;
+
+        BitmapEffect eff;
+        eff.mirrorY = frame.mirrorY;
+
+        auto center = frame.center;
+        //fixup mirrored animation offsets (must be mirrored as well)
+        //xxx would be better to have this directly in the preprocessing steps
+        if (frame.mirrorY) {
+            center.x = -center.x - bitmap.size.x;
         }
-        return res;
+
+        c.drawSprite(bitmap, pos + center, &eff);
+    }
+
+    void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p, int time) {
+
+        int selectParam(int index) {
+            auto map = params[index].map;
+
+            if (map == ParamType.Time)
+                return time;
+
+            if (map >= ParamType.P1 && map <= ParamType.P3) {
+                int pidx = map - ParamType.P1;
+                int count = length(index);
+                int r = params[index].conv(p.p[pidx], count);
+                if (r < 0 || r >= count) {
+                    debug gLog.minor("WARNING: parameter out of bounds");
+                    r = 0;
+                }
+                return r;
+            }
+
+            return 0;
+        }
+
+        drawFrame(c, pos, selectParam(0), selectParam(1), selectParam(2));
     }
 }
+
+//don't know why I wanted this separate from AniEntry, maybe because Animation
+//  contains lots of fields and functions
+class WWPAnimation : Animation, DebugAniFrames {
+    private {
+        AniEntry mData;
+    }
+
+    this(AniEntry a_data) {
+        argcheck(a_data);
+        mData = a_data;
+
+        //find out how long this is - needs reverse lookup
+        //default value 1 in case time isn't used for a param (not animated)
+        int framelen = 1;
+        foreach (int idx, ref par; mData.params) {
+            if (par.map == ParamType.Time) {
+                framelen = mData.length(idx);
+                break;
+            }
+        }
+
+        doInit(framelen, mData.boundingBox, mData.frameTimeMS);
+
+        repeat = mData.repeat;
+    }
+
+    override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,
+        Time t)
+    {
+        int frameIdx = getFrameIdx(t);
+        if (frameIdx < 0)
+            return;
+        assert(frameIdx < frameCount);
+        mData.drawFrame(c, pos, p, frameIdx);
+    }
+
+    //DebugAniFrames
+    char[][] paramInfos() {
+        char[][] inf;
+        foreach (int i, ParamInfo p; mData.params) {
+            char[] pconv = "?";
+            foreach (name, fn; gParamConverters) {
+                if (fn is p.conv)
+                    pconv = name;
+            }
+            inf ~= myformat("  {} <- {} '{}' ({} frames)", i,
+                cParamTypeStr[p.map], pconv, mData.length(i));
+        }
+        return inf;
+    }
+    int[] paramCounts() {
+        return [mData.length_a(), mData.length_b(), mData.length_c()];
+    }
+    Rect2i frameBoundingBox() {
+        return mData.frameBoundingBox();
+    }
+    void drawFrame(Canvas c, Vector2i pos, int p1, int p2, int p3) {
+        mData.drawFrame(c, pos, p1, p2, p3);
+    }
+}
+
 
 //list of imported animations
 class AniFile {
@@ -299,14 +411,16 @@ class AniFile {
         Surface[char[]] mBitmaps;
     }
 
-    AtlasPacker atlas;
+    TexturePack packer;
 
     this() {
-        atlas = new AtlasPacker();
+        packer = new TexturePack();
     }
 
-    static char[] atlasName(char[] fnBase) {
-        return fnBase ~ "_atlas";
+    AniEntry addEntry(char[] name) {
+        auto res = new AniEntry(name, packer);
+        mEntries ~= res;
+        return res;
     }
 
     void addBitmap(char[] name, Surface bmp) {
@@ -324,130 +438,32 @@ class AniFile {
         return mBitmaps;
     }
 
-    AnimationData[] createAnimationData() {
-        AnimationData[] res;
-        res.length = mEntries.length;
-
-        foreach (int idx, e; mEntries) {
-            res[idx] = e.createAnimationData();
-        }
-
-        return res;
-    }
-
-    ConfigNode createConfig(char[] fnBase) {
-        auto anifile_name = fnBase ~ ".meta";
-        auto aniframes_name = fnBase ~ "_aniframes";
-
-        auto output_conf = new ConfigNode();
-        auto first = output_conf.getSubNode("require_resources");
-        first.add("", atlasName(fnBase) ~ ".conf");
-        auto output_res = output_conf.getSubNode("resources");
-        auto anifile = output_res.getSubNode("aniframes")
-            .getSubNode(aniframes_name);
-        anifile.setStringValue("atlas", atlasName(fnBase));
-        anifile.setStringValue("datafile", anifile_name);
-
-        first.comment = "//automatically created by animconv\n"
-                        "//change import_wwp/animations.conf instead of this file";
-
-        auto output_anims = output_res.getSubNode("animations");
-
-        foreach (int idx, e; mEntries) {
-            auto node = output_anims.getSubNode(e.name);
-            if (node["index"] != "")
-                throwError("double entry?: {}", e.name);
-            node.setIntValue("index", idx);
-            node.setStringValue("aniframes", aniframes_name);
-            node.setStringValue("type", "complicated");
-        }
-
-        auto output_bmps = output_res.getSubNode("bitmaps");
-
-        foreach (char[] name, Surface bmp; mBitmaps) {
-            //xxx assuming png
-            output_bmps[name] = name ~ ".png";
-        }
-
-        return output_conf;
-    }
-
-    void write(char[] outPath, char[] fnBase, bool writeConf = true) {
-        writeBitmaps(outPath, fnBase);
-
-        auto base = outPath ~ fnBase;
-
-        scope dataout = Stream.OpenFile(base ~ ".meta", File.WriteCreate);
-        scope(exit) dataout.close();
-        writeAnimations(dataout, createAnimationData());
-
-        if (writeConf) {
-            auto output_conf = createConfig(fnBase);
-            scope confst = Stream.OpenFile(base ~ ".conf", File.WriteCreate);
-            output_conf.writeFile(confst.pipeOut());
-            confst.close();
-        }
-    }
-
-    private void writeBitmaps(char[] outPath, char[] fnBase) {
-        //normal animation frames
-        atlas.write(outPath, atlasName(fnBase));
-
-        //hack for free standing bitmaps
-        foreach (char[] name, Surface bmp; mBitmaps) {
-            //xxx assuming png
-            saveImageToFile(bmp, outPath ~ name ~ ".png");
-        }
-    }
-
     void free() {
-        atlas.free();
-        atlas = null;
+        packer.free();
+        packer = null;
         //rest isn't probably worth to delete?
     }
 }
 
-void do_extractbnk(char[] bnkname, Stream bnkfile, ConfigNode bnkNode,
-    char[] workPath)
+void importAnimations(AniFile dest, RawAnimation[] animations,
+    ConfigNode config)
 {
-    if (workPath.length == 0) {
-        workPath = "."~pathsep;
-    }
-
-    Stdout.formatln("Working on {}", bnkname);
-    auto anis = readBnkFile(bnkfile);
-    do_write_anims(anis, bnkNode, bnkname, workPath);
-    freeAnimations(anis);
-}
-
-void importAnimations(AniFile dest, AniLoadContext ctx, ConfigNode config) {
     foreach (ConfigNode item; config) {
         if (!item.hasSubNodes())
             continue;
         if (!(item.name in gAnimationLoadHandlers))
             throwError("no handler found for: {}", item.name);
         auto handler = gAnimationLoadHandlers[item.name];
-        handler(dest, ctx, item);
+        handler(dest, animations, item);
     }
 }
 
-void do_write_anims(Animation[] ani_list, ConfigNode config, char[] name,
-    char[] workPath)
-{
-    auto anims = new AniFile();
-    auto ctx = new AniLoadContext(ani_list);
-
-    Stdout.formatln("...writing {}...", name);
-
-    importAnimations(anims, ctx, config);
-
-    anims.write(workPath, name);
-
-    auto unused = ctx.unused();
-    if (unused.length)
-        Stdout.formatln("Unused animations (indices): {}", unused);
-
-    anims.free();
+RawAnimation getAnimation(RawAnimation[] animations, int index) {
+    if (!indexValid(animations, index))
+        throwError("invalid animation index: {}", index);
+    auto res = animations[index];
+    res.seen = true;
+    return res;
 }
 
 //val must contain exactly n entries separated by whitespace
@@ -456,15 +472,15 @@ void do_write_anims(Animation[] ani_list, ConfigNode config, char[] name,
 //so getSimple("x1 x2",2,3) returns [x1+1, x1+2, x1+3, x2+1, ...]
 //actual number of returned animations is n*x
 //when n is -1, n is set to the number of components found in the string
-Animation[] getSimple(AniLoadContext ctx, char[] val, int n, int x) {
+RawAnimation[] getSimple(RawAnimation[] animations, char[] val, int n, int x) {
     char[][] strs = str.split(val);
     if (n < 0)
         n = strs.length;
-    Animation[] res;
+    RawAnimation[] res;
     foreach (s; strs) {
         auto z = conv.to!(int)(s);
         for (int i = 0; i < x; i++)
-            res ~= ctx.get(z+i);
+            res ~= getAnimation(animations, z + i);
     }
     if (res.length != n*x) {
         throw new Exception(myformat("unexpected blahblah {}/{}: {}",
@@ -473,22 +489,22 @@ Animation[] getSimple(AniLoadContext ctx, char[] val, int n, int x) {
     return res;
 }
 
-private void loadWormWeaponAnimation(AniFile anims, AniLoadContext ctx,
+private void loadWormWeaponAnimation(AniFile anims, RawAnimation[] animations,
     ConfigNode basenode)
 {
     foreach (ConfigNode node; basenode) {
-        auto anis = getSimple(ctx, node.value, 2, 3);
+        auto anis = getSimple(animations, node.value, 2, 3);
 
-        auto get = new AniEntry(anims, node.name ~ "_get");
+        auto get = anims.addEntry(node.name ~ "_get");
         get.addFrames(anis[0..3]);
-        get.params[] = [Param.Time, Param.P1, Param.Null];
-        get.param_conv = ["step3"];
+        get.params[0] = ParamInfo(ParamType.Time);
+        get.params[1] = ParamInfo(ParamType.P1, &paramConvertStep3);
         get.appendMirrorY_B();
 
-        auto hold = new AniEntry(anims, node.name ~ "_hold");
+        auto hold = anims.addEntry(node.name ~ "_hold");
         hold.addFrames(anis[3..6]);
-        hold.params[] = [Param.P2, Param.P1, Param.Null];
-        hold.param_conv = ["step3", "rot180"];
+        hold.params[0] = ParamInfo(ParamType.P2, &paramConvertFreeRot180);
+        hold.params[1] = ParamInfo(ParamType.P1, &paramConvertStep3);
         hold.appendMirrorY_B();
     }
 }
@@ -513,53 +529,48 @@ char[][] parseFlags(inout char[] s, bool flagnode) {
 const cFlagItem = "_flags";
 const cParamItem = "_params";
 
-struct AniParams {
-    Param[3] p = [Param.Time, Param.Null, Param.Null];
-    char[][] conv;
+ParamType paramTypeFromStr(char[] s) {
+    foreach (int idx, char[] ts; cParamTypeStr) {
+        if (str.icmp(ts, s) == 0)
+            return cast(ParamType)idx;
+    }
+    throwError("unknown param type: '{}'", s);
 }
 
 //s has the format x ::= <param>[ "/" <string>] , s ::= s (s ",")*
 //param is one of map (below) and returned in p
-void parseParams(char[] s, out AniParams p) {
-    Param[char[]] map;
-    map["null"] = Param.Null;
-    map["p1"] = Param.P1;
-    map["p2"] = Param.P2;
-    map["p3"] = Param.P3;
-    map["time"] = Param.Time;
+//warning: p is passed by-ref (in D1; but not in D2, there you must add ref)
+void parseParams(char[] s, ParamInfo[3] p) {
     auto stuff = str.split(s, ",");
-    softAssert(stuff.length <= 3, "only 3 params or less");
-    char[][3] conv = ["","",""];
+    softAssert(stuff.length <= 3, "only 3 param mappings or less allowed");
     for (int n = 0; n < stuff.length; n++) {
         auto sub = str.split(stuff[n], "/");
-        softAssert(sub.length == 1 || sub.length == 2, "only 1 or 2 stuffies");
-        auto param = map[sub[0]];
-        p.p[n] = param;
-        int intp;
-        if (sub.length < 2)
+        softAssert(sub.length <= 2, "too many '/'");
+        char[] pname = sub[0];
+        ParamType param = paramTypeFromStr(pname);
+        p[n].map = param;
+        bool is_real_param = param >= ParamType.P1 && param <= ParamType.P3;
+        if (sub.length < 2) {
+            softAssert(!is_real_param, "{} requires param mapping", pname);
             continue;
-        switch (param) {
-            case Param.P1: intp = 0; break;
-            case Param.P2: intp = 1; break;
-            case Param.P3: intp = 2; break;
-            default: intp = -1;
         }
-        if (intp >= 0) {
-            conv[intp] = sub[1];
-        } else {
-            throwError("param ignored");
-        }
+        softAssert(is_real_param, "{} can't have a param mapping", pname);
+        char[] pmap = sub[1];
+        auto pconv = pmap in gParamConverters;
+        if (!pconv)
+            throwError("param conv. '{}' not found", pmap);
+        p[n].conv = *pconv;
     }
-    p.conv = conv.dup;
 }
 
-private void loadGeneralW(AniFile anims, AniLoadContext ctx, ConfigNode node) {
-    void loadAnim(char[][] flags, AniParams params, char[] name, char[] value) {
+private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
+    void loadAnim(char[][] flags, ParamInfo[3] params, char[] name,
+        char[] value)
+    {
         //actually load an animation
-        auto ani = new AniEntry(anims, name);
+        auto ani = anims.addEntry(name);
 
-        ani.params[] = params.p;
-        ani.param_conv = params.conv;
+        ani.params[] = params;
 
         bool[char[]] boolFlags;
         int[char[]] intFlags;
@@ -600,7 +611,7 @@ private void loadGeneralW(AniFile anims, AniLoadContext ctx, ConfigNode node) {
         char[][] vals = str.split(value, "|");
         foreach (int c_idx, v; vals) {
             int x = intFlag("x", 1);
-            auto anims = getSimple(ctx, str.strip(v), intFlag("n", -1), x);
+            auto anims = getSimple(anis, str.strip(v), intFlag("n", -1), x);
             int n = anims.length / x;
             assert(anims.length==n*x); //should be guaranteed by getSimple()
             if (boolFlag("fill_length")) {
@@ -632,7 +643,7 @@ private void loadGeneralW(AniFile anims, AniLoadContext ctx, ConfigNode node) {
 
             //add the original flags from the .bnk file (or-wise)
             if (boolFlag("use_bnk_flags") && anims.length > 0) {
-                ani.flags |= (anims[0].repeat ? FileAnimationFlags.Repeat : 0);
+                ani.repeat |= anims[0].repeat;
                 bnk_backwards = anims[0].backwards;
             }
         }
@@ -645,7 +656,7 @@ private void loadGeneralW(AniFile anims, AniLoadContext ctx, ConfigNode node) {
             ani.fixWwpWalkAni();
 
         if (boolFlag("repeat"))
-            ani.flags |= FileAnimationFlags.Repeat;
+            ani.repeat = true;
 
         if (boolFlag("backwards_a") | bnk_backwards)
             ani.reverseA();
@@ -666,8 +677,7 @@ private void loadGeneralW(AniFile anims, AniLoadContext ctx, ConfigNode node) {
         if (boolFlag("backwards2_a"))
             ani.reverseA();
 
-        ani.offset.x = intFlag("offset_x");
-        ani.offset.y = intFlag("offset_y");
+        ani.moveFrames(Vector2i(intFlag("offset_x"), intFlag("offset_y")));
 
         //check for unused flags
         foreach (used; usedFlags) {
@@ -682,7 +692,9 @@ private void loadGeneralW(AniFile anims, AniLoadContext ctx, ConfigNode node) {
         }
     }
 
-    void loadRec(char[][] flags, AniParams params, ConfigNode node) {
+    void loadRec(char[][] flags, ParamInfo[3] params, ConfigNode node) {
+        ParamInfo[3] nparams;
+        nparams[] = params; //copy, as params is passed by-ref
         if (node.value.length == 0) {
             char[] flagstr = node.getStringValue(cFlagItem);
             char[] paramstr = node.getStringValue(cParamItem);
@@ -691,10 +703,10 @@ private void loadGeneralW(AniFile anims, AniLoadContext ctx, ConfigNode node) {
             if (flagstr.length > 0)
                 throwError("unparsed flag values: {}", flagstr);
             if (paramstr.length > 0) {
-                parseParams(paramstr, params);
+                parseParams(paramstr, nparams);
             }
             foreach (ConfigNode s; node) {
-                loadRec(subflags, params, s);
+                loadRec(subflags, nparams, s);
             }
         } else {
             if (node.name == cFlagItem || node.name == cParamItem)
@@ -702,15 +714,16 @@ private void loadGeneralW(AniFile anims, AniLoadContext ctx, ConfigNode node) {
             auto val = node.value;
             auto subflags = flags.dup;
             subflags ~= parseFlags(val, false);
-            loadAnim(subflags, params, node.name, val);
+            loadAnim(subflags, nparams, node.name, val);
         }
     }
 
-    AniParams params;
+    ParamInfo[3] params;
+    defaultParamInfo(params);
     loadRec([], params, node);
 }
 
-private void loadBitmapFrames(AniFile anims, AniLoadContext ctx,
+private void loadBitmapFrames(AniFile anims, RawAnimation[] anis,
     ConfigNode node)
 {
     foreach (ConfigNode sub; node) {
@@ -724,10 +737,118 @@ private void loadBitmapFrames(AniFile anims, AniLoadContext ctx,
         for (int i = 0; i < 2; i++) {
             f[i] = fromStr!(int)(x[i]);
         }
-        auto ani = ctx.get(f[0]);
+        auto ani = getAnimation(anis, f[0]);
         if (!indexValid(ani.frames, f[1]))
             throwError("unknown frame: {}", frame);
         auto fr = ani.frames[f[1]];
         anims.addBitmap(name, ani.frameToBitmap(fr));
     }
 }
+
+//------------- param converters
+
+static this() {
+    gParamConverters = [
+        // []: dmd's type inference is shit, turns char[6] into char[]
+        "direct"[]: &paramConvertDirect,
+        "step3": &paramConvertStep3,
+        "twosided": &paramConvertTwosided,
+        "twosided_inv": &paramConvertTwosidedInv,
+        "rot360": &paramConvertFreeRot,
+        "rot360_2": &paramConvertFreeRot_2,
+        "rot360inv": &paramConvertFreeRotInv,
+        "rot360_90": &paramConvertFreeRotPlus90,
+        "rot180": &paramConvertFreeRot180,
+        "rot180_2": &paramConvertFreeRot180_2,
+        "rot90": &paramConvertFreeRot90,
+        "rot60": &paramConvertFreeRot60,
+        "linear100": &paramConvertLinear100,
+        "none": &paramConvertNone
+    ];
+}
+
+//map with wrap-around
+private int map(float val, float rFrom, int rTo) {
+    return cast(int)(realmod(val + 0.5f*rFrom/rTo,rFrom)/rFrom * rTo);
+}
+
+//map without wrap-around, assuming val will not exceed rFrom
+private int map2(float val, float rFrom, int rTo) {
+    return cast(int)((val + 0.5f*rFrom/rTo)/rFrom * (rTo-1));
+}
+
+//and finally the DWIM (Do What I Mean) version of map: anything can wrap around
+private int map3(float val, float rFrom, int rTo) {
+    return cast(int)(realmod(val + 0.5f*rFrom/rTo + rFrom,rFrom)/rFrom * rTo);
+}
+
+//default
+private int paramConvertNone(int angle, int count) {
+    return 0;
+}
+//no change
+private int paramConvertDirect(int angle, int count) {
+    return clampRangeO(angle, 0, count);
+}
+//expects count to be 6 (for the 6 angles)
+private int paramConvertStep3(int angle, int count) {
+    static int[] angles = [180,180+45,180-45,0,0-45,0+45];
+    return pickNearestAngle(angles, angle);
+}
+//expects count to be 2 (two sides)
+private int paramConvertTwosided(int angle, int count) {
+    return angleLeftRight(cast(float)(angle/180.0f*math.PI), 0, 1);
+}
+private int paramConvertTwosidedInv(int angle, int count) {
+    return angleLeftRight(cast(float)(angle/180.0f*math.PI), 1, 0);
+}
+//360 degrees freedom
+private int paramConvertFreeRot(int angle, int count) {
+    return map(-angle+270, 360.0f, count);
+}
+//360 degrees, different angle alignment in animation
+//(mostly for animations with discrete angles)
+private int paramConvertFreeRot_2(int angle, int count) {
+    return cast(int)(realmod(-angle + 270.0f, 360.0f)/360.0f * count);
+}
+//360 degrees freedom, inverted spinning direction
+private int paramConvertFreeRotInv(int angle, int count) {
+    return map(-(-angle+270), 360.0f, count);
+}
+
+private int paramConvertFreeRotPlus90(int angle, int count) {
+    return map(angle, 360.0f, count);
+}
+
+//180 degrees, -90 (down) to +90 (up)
+//(overflows, used for weapons, it's hardcoded that it can use 180 degrees only)
+private int paramConvertFreeRot180(int angle, int count) {
+    //assert(angle <= 90);
+    //assert(angle >= -90);
+    return map2(angle+90.0f,180.0f,count);
+}
+
+//for the aim not-animation
+private int paramConvertFreeRot180_2(int angle, int count) {
+    return map3(angle+180,180.0f,count);
+}
+
+//90 degrees, -45 (down) to +45 (up)
+private int paramConvertFreeRot90(int angle, int count) {
+    angle = clampRangeC(angle, -45, 45);
+    return map2(angle+45.0f,90.0f,count);
+}
+
+//60 degrees, -30 (down) to +30 (up)
+private int paramConvertFreeRot60(int angle, int count) {
+    angle = clampRangeC(angle, -30, 30);
+    return map2(angle+30.0f,60.0f,count);
+}
+
+//0-100 mapped directly to animation frames with clipping
+//(the do-it-yourself converter)
+private int paramConvertLinear100(int value, int count) {
+    value = clampRangeC(value, 0, 100);
+    return cast(int)(cast(float)value/101.0f * count);
+}
+
