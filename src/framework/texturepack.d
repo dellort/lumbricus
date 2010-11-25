@@ -43,14 +43,14 @@ class TexturePack {
         if (!b) {
             //too big, make an exception
             //adhere to copy semantics even here, although it seems extra
-            //work (but the caller might free s after adding it)
+            //work (but the caller might free surf after adding it)
             Surface surface;
             if (surf) {
                 surface = surf.clone();
-                mSurfaces ~= surf;
             } else {
                 surface = new Surface(size);
             }
+            mSurfaces ~= surface;
             return surface.createSubSurface(Rect2i(size));
         }
         //check if the BoxPacker added a page and possibly create it
@@ -70,18 +70,31 @@ class TexturePack {
 
     //remove and explicitly free (!) all surfaces returned by add()
     void free() {
-        mPacker = null;
+        delete mPacker;
         foreach (s; mSurfaces) {
             s.free();
         }
-        mSurfaces = null;
+        delete mSurfaces;
     }
 
     override void dispose() {
         free();
     }
 
-    int pages() {
-        return mSurfaces.length;
+    //all surfaces that have been returned by add()
+    //this includes "exceptions" (oversized images)
+    Surface[] surfaces() {
+        return mSurfaces;
+    }
+
+    //enable caches for all surfaces; normally caching (= optimize surface for
+    //  read-only access and display rendering) is disabled, because it is
+    //  assumed that add() is often called. add() triggers write accesses to
+    //  pages, so it's better to have caching disabled.
+    //xxx maybe that caching stuff should work automatically (in surface.d)
+    void enableCaching() {
+        foreach (s; mSurfaces) {
+            s.enableCaching = true;
+        }
     }
 }

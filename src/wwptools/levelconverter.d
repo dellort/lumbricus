@@ -102,8 +102,8 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     scope(exit) debrisSpr.close();
     scope RawAnimation debrisAl = readSprFile(debrisSpr);
     saveImageToFile(debrisAl.toBitmapCompact(), destPath ~ "debris.png");
-    stuff["debris_w"] = itoa(debrisAl.boxWidth);
-    stuff["debris_h"] = itoa(debrisAl.boxHeight);
+    stuff["debris_w"] = itoa(debrisAl.box.x);
+    stuff["debris_h"] = itoa(debrisAl.box.y);
     //stuff["debris_ft"] = itoa(debrisAl.frameTimeMS);
     stuff["debris_fc"] = itoa(debrisAl.frames.length);
 

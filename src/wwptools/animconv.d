@@ -344,7 +344,7 @@ class AniEntry {
 
 //don't know why I wanted this separate from AniEntry, maybe because Animation
 //  contains lots of fields and functions
-class WWPAnimation : Animation, DebugAniFrames {
+class ImportedWWPAnimation : Animation, DebugAniFrames {
     private {
         AniEntry mData;
     }
@@ -433,15 +433,9 @@ class AniFile {
         return mEntries;
     }
 
-    //the returned AA and data is strictly read-only
+    //the returned AA and data are strictly read-only
     Surface[char[]] bitmaps() {
         return mBitmaps;
-    }
-
-    void free() {
-        packer.free();
-        packer = null;
-        //rest isn't probably worth to delete?
     }
 }
 
@@ -509,7 +503,7 @@ private void loadWormWeaponAnimation(AniFile anims, RawAnimation[] animations,
     }
 }
 
-//parse flags which are seperated by a ",", flags end with the first ";"
+//parse flags which are separated by a ",", flags end with the first ";"
 //"s" is modified to contain the original string without the flags
 char[][] parseFlags(inout char[] s, bool flagnode) {
     char[] f;
@@ -698,8 +692,7 @@ private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
         if (node.value.length == 0) {
             char[] flagstr = node.getStringValue(cFlagItem);
             char[] paramstr = node.getStringValue(cParamItem);
-            auto subflags = flags.dup;
-            subflags ~= parseFlags(flagstr, true);
+            auto subflags = flags ~ parseFlags(flagstr, true);
             if (flagstr.length > 0)
                 throwError("unparsed flag values: {}", flagstr);
             if (paramstr.length > 0) {

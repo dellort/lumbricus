@@ -7,7 +7,7 @@ import framework.surface;
 import framework.sdl.rwops;
 import framework.sdl.sdl;
 import utils.stream;
-import utils.string : tolower;
+import str = utils.string;
 import utils.misc;
 import utils.path;
 
@@ -36,7 +36,8 @@ Surface loadImage(Stream source, char[] extension = null) {
     ensure_init();
     SDL_RWops* ops = rwopsFromStream(source);
     SDL_Surface* surf;
-    if (tolower(extension) == ".tga")
+    extension = str.tolower(extension);
+    if (extension == ".tga")
         surf = IMG_LoadTGA_RW(ops);
     else
         surf = IMG_Load_RW(ops, 0);

@@ -255,8 +255,6 @@ class SampleHandler : ResViewHandler!(Sample) {
     }
 }
 
-import common.resfileformats;
-
 class ViewAniFrames : Container {
     private {
         DebugAniFrames frames;

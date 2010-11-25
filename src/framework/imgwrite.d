@@ -1,11 +1,14 @@
 module framework.imgwrite;
 
+import framework.filesystem;
 import framework.surface;
 import utils.color;
 import utils.gzip : GZWriter, ZLibCrc32;
 import utils.misc;
+import utils.path;
 import utils.rect2;
 import utils.stream;
+import str = utils.string;
 import net.marshal : Marshaller;
 
 //import tango.io.digest.Crc32 : Crc32;
@@ -14,12 +17,20 @@ import net.marshal : Marshaller;
 //NOTE: stream must be seekable (used to back-patch the length), but the
 //      functions still start writing at the preset seek position, and end
 //      writing at the end of the written image
-void saveImage(Surface img, Stream stream, char[] fmt = "png") {
-    if (fmt == "png") {
+void saveImage(Surface img, Stream stream, char[] extension = ".png") {
+    extension = str.tolower(extension);
+    if (extension == ".png") {
         writePNG(img, stream);
     } else {
-        throwError("Writing image format not supported: {}", fmt);
+        throwError("Writing image format not supported: {}", extension);
     }
+}
+
+void saveImage(Surface img, char[] path) {
+    auto p = VFSPath(path);
+    scope stream = gFS.open(p, File.WriteCreate);
+    scope(exit) stream.close();
+    saveImage(img, stream, p.extension);
 }
 
 //libpng sucks, all is done manually

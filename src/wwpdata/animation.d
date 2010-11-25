@@ -52,7 +52,7 @@ void freeAnimations(ref RawAnimation[] animations) {
 
 class RawAnimation {
     WWPPalette palette;
-    int boxWidth, boxHeight;
+    Vector2i box;
     bool repeat, backwards;
     int frameTimeMS;
 
@@ -82,15 +82,10 @@ class RawAnimation {
         bool backwards, int frameTimeMS = 0)
     {
         this.palette = palette;
-        this.boxWidth = boxWidth;
-        this.boxHeight = boxHeight;
+        this.box = Vector2i(boxWidth, boxHeight);
         this.repeat = repeat;
         this.backwards = backwards;
         this.frameTimeMS = frameTimeMS;
-    }
-
-    Vector2i box() {
-        return Vector2i(boxWidth, boxHeight);
     }
 
     void addFrame(int x, int y, int w, int h, ubyte[] frameData) {
@@ -106,10 +101,10 @@ class RawAnimation {
 
     //store as strip (only useful for inspecting animations with unworms)
     Surface toBitmap() {
-        auto img = new Surface(Vector2i(boxWidth*frames.length, boxHeight));
+        auto img = new Surface(Vector2i(box.x*frames.length, box.y));
         foreach (int i, FrameInfo fi; frames) {
             blitPALData(img, palette, fi.data, Rect2i.Span(
-                Vector2i(i*boxWidth+fi.at.x, fi.at.y), fi.size));
+                Vector2i(i*box.x+fi.at.x, fi.at.y), fi.size));
         }
         return img;
     }
@@ -117,17 +112,16 @@ class RawAnimation {
     //like toBitmap(), but tile in both directions in order to avoid extreme
     //  bitmap widths that would cause trouble with some OpenGL drivers
     Surface toBitmapCompact() {
-        assert(boxWidth > 0 && boxHeight > 0);
-        auto fs = Vector2i(boxWidth, boxHeight);
+        assert(box.x > 0 && box.y > 0);
         //approximate LOL-estimate for min width/height
-        auto len = cast(int)sqrt(frames.length*fs.x*fs.y*1.0);
-        while ((len/fs.x) * (len/fs.y) < frames.length)
+        auto len = cast(int)sqrt(frames.length*box.x*box.y*1.0);
+        while ((len/box.x) * (len/box.y) < frames.length)
             len++;
-        auto img = new Surface(Vector2i(len, len));
+        auto img = new Surface(Vector2i(len));
         //and tile the frames
         int cur = 0;
-        for (int y = 0; y < img.size.y; y += fs.y) {
-            for (int x = 0; x < img.size.x; x += fs.x) {
+        for (int y = 0; y < img.size.y; y += box.y) {
+            for (int x = 0; x < img.size.x; x += box.x) {
                 if (cur < frames.length) {
                     auto fi = frames[cur];
                     blitPALData(img, palette, fi.data,

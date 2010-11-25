@@ -333,9 +333,9 @@ private:
             Rect2i r = topWnd.containedBounds;
             auto subsurf = surf.subrect(r);
             scope(exit) subsurf.free();
-            saveImage(subsurf, ssFile, "png");
+            saveImage(subsurf, ssFile, ".png");
         } else
-            saveImage(surf, ssFile, "png");
+            saveImage(surf, ssFile, ".png");
     }
 
     private void showConsole(MyBox[], Output) {

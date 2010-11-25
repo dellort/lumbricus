@@ -8,10 +8,13 @@ import framework.config;
 import framework.filesystem;
 import framework.globalsettings;
 import framework.imgread;
+import framework.imgwrite;
 import framework.sound;
 import framework.surface;
 //import framework.texturepack;
+import utils.color;
 import utils.configfile;
+import utils.log;
 import utils.misc;
 import utils.path;
 import utils.stream;
@@ -24,18 +27,27 @@ import wwpdata.reader_img;
 import wwpdata.reader_dir;
 import wwpdata.reader_spr;
 
+import str = utils.string;
+import conv = tango.util.Convert;
+
+//bad dependency? it really just registers a delegate
+import game.gfxset : LoadedWater, gWaterLoadHack;
+
 Setting gWwpDataPath;
 
 static this() {
     gResLoadHacks["wwp"] = toDelegate(&loadWwp);
+    gWaterLoadHack["wwp"] = toDelegate(&loadWwpWater);
     gWwpDataPath = addSetting!(char[])("game.wwp_data_path");
 }
 
 MountId gLastWWpMount;
 
-void loadWwp(ConfigNode node, ResourceFile resfile) {
-    auto log = &Resources.log.minor;
+const char[] cWwpVfsPath = "/WWP-import/";
 
+private LogStruct!("wwp_loader") gLog;
+
+private void mountWwp() {
     char[] path = gWwpDataPath.value;
     if (!path.length)
         throwError("{} not set, can't load data", gWwpDataPath.name);
@@ -50,69 +62,42 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
         gLastWWpMount = MountId.init;
     }
 
-    char[] vfspath = "/WWP-import/";
+    gLog.minor("using WWP data path: {}", path);
+    gLastWWpMount = gFS.mount(MountPath.absolute, path, cWwpVfsPath, false);
+}
 
-    log("using WWP data path: {}", path);
-    gLastWWpMount = gFS.mount(MountPath.absolute, path, vfspath, false);
+private Dir openDir(char[] dpath) {
+    return new Dir(gFS.open(dpath));
+}
 
-    Dir openDir(char[] dpath) {
-        return new Dir(gFS.open(vfspath ~ dpath));
-    }
+void loadWwp(ConfigNode node, ResourceFile resfile) {
+    mountWwp();
 
-    ConfigNode importconf = loadConfig(node["import_ani"]);
-    ConfigNode importsound = loadConfig(node["import_sound"]);
+    ConfigNode importconf = loadConfig("import_wwp/animations.conf");
+    ConfigNode importsound = loadConfig("import_wwp/sounds.conf");
 
-    foreach (ConfigNode sub; node.getSubNode("bnks")) {
-        char[] dirpath = sub["dir"];
-        char[] bnk = sub["bnk"];
+    Dir gfxdir = openDir(cWwpVfsPath ~ "data/Gfx/Gfx.dir");
+    scope(exit) gfxdir.close();
 
-        log("importing bnk: {}/{}", dirpath, bnk);
+    gLog.minor("importing bnk: main sprites");
+    doImportAnis(resfile, readBnkFile(gfxdir.open("mainspr.bnk")),
+        importconf.getSubNode("mainspr"));
 
-        //load/convert the data
-        //no progress bar for you, it's all done here
-        Dir dir = openDir(dirpath);
-        scope(exit) dir.close();
-        auto bnkfile = dir.open(bnk);
-        auto rawanis = readBnkFile(bnkfile);
-        doImportAnis(resfile, rawanis, importconf.getSubNode(sub["name"]));
-    }
-
-    auto water = node.getSubNode("water_spr");
-    Dir wdir = openDir(water["dir"]);
-    scope(exit) wdir.close();
-    auto spr = readSprFile(wdir.open(water["spr"]));
-    doImportAnis(resfile, [spr], importconf.getSubNode(water["name"]));
-
-    //code for reading colors
-    /+
-    //colour.txt contains the water background color as RGB
-    //  ex.: 47 55 123 for a blue color
-    scope colourtxt = new TextInput(
-        new File(wpath~"/colour.txt", File.ReadExisting));
-    char[] colLine;
-    bool ok = colourtxt.readln(colLine);
-    assert(ok);
-    ubyte[] colRGB = to!(ubyte[])(str.split(colLine));
-    assert(colRGB.length == 3);
-    auto col = Color.fromBytes(colRGB[0], colRGB[1], colRGB[2]);
-    +/
+    gLog.minor("importing rest");
 
     //sounds
     auto sndinfo = importsound.getSubNode("sounds").getSubNode("normal");
-    char[] sndpath = vfspath ~ "data/" ~ sndinfo["source_path"] ~ "/";
+    char[] sndpath = cWwpVfsPath ~ "data/" ~ sndinfo["source_path"] ~ "/";
     foreach (char[] name, char[] value; sndinfo.getSubNode("files")) {
         auto fn = sndpath ~ value;
         auto res = new SampleResource(resfile, name, SoundType.sfx, fn);
         resfile.addResource(res);
     }
 
-    auto icons = node.getSubNode("icons");
-    Dir idir = openDir(icons["dir"]);
-    scope(exit) idir.close();
-    Surface iconlo = readImgFile(idir.open(icons["img"]));
-    Surface icMask = loadImage(icons["mask"]);
+    Surface iconlo = readImgFile(gfxdir.open("iconlo.img"));
+    Surface icMask = loadImage("import_wwp/iconmask.png");
     applyAlphaMask(iconlo, icMask);
-    Stream names = gFS.open(icons["names"]);
+    Stream names = gFS.open("import_wwp/iconnames.txt");
     scope(exit) names.close();
     char[][] inames = readNamefile(names);
     Surface[] imgs = untileImages(iconlo);
@@ -121,7 +106,84 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
         resfile.addPseudoResource("icon_" ~ inames[idx], img);
     }
 
-    log("done importing WWP stuff");
+    gLog.minor("done importing WWP stuff");
+}
+
+//code for reading colors from wwp colours.txt
+private Color readWaterFile(char[] vpath) {
+    auto file = gFS.open(vpath);
+    scope(exit) file.close();
+    //xxx missing invalid-utf-8 sanity check
+    auto contents = cast(char[])file.readAll();
+
+    //colour.txt contains the water background color as RGB
+    //  ex.: 47 55 123 for a blue color
+    auto lines = str.splitlines(contents);
+    softAssert(lines.length > 0, "empty colour.txt?");
+    auto cols = str.split(lines[0]);
+    softAssert(cols.length == 3, "colour.txt doesn't contain 3 colors?");
+    //xxx ignoring "fatal" conversion exception
+    auto colRGB = conv.to!(ubyte[])(cols);
+    return Color.fromBytes(colRGB[0], colRGB[1], colRGB[2]);
+}
+
+private void importWater(ResourceFile resfile, char[] vpath) {
+    ConfigNode importconf = loadConfig("import_wwp/animations.conf");
+
+    Dir waterdir = openDir(vpath ~ "Water.dir");
+    scope(exit) waterdir.close();
+
+    gLog.minor("importing bnk: water");
+    doImportAnis(resfile, readBnkFile(waterdir.open("water.bnk")),
+        importconf.getSubNode("water_anims"));
+
+    auto spr = readSprFile(waterdir.open("layer.spr"));
+    doImportAnis(resfile, [spr], importconf.getSubNode("water_waves"));
+}
+
+LoadedWater loadWwpWater(ConfigNode info) {
+    mountWwp();
+
+    char[] color = info.value;
+
+    //attempt to find the waterset directory with the correct case
+    //e.g. if color=="blue2", find the directory "Blue2"
+    //maybe gFS should have an case-insensitive mode for WWP mounted data (as
+    //  WWP is a Windows game, where paths are always case-insensitive, damn you
+    //  Microsoft); but sorry, I'd rather not hack filesystem.d
+    char[] pathprefix = cWwpVfsPath ~ "data/Water/";
+    gFS.listdir(pathprefix, "*", true, (char[] fn) {
+        str.eatEnd(fn, "/");  //for some reason, directories have trailing '/'
+        if (str.icmp(fn, color) == 0) {
+            color = fn;
+            return false;
+        }
+        return true;
+    });
+    char[] vpath = pathprefix ~ color ~ "/";
+
+    //awful hack; just wanted it to get done (we really should rewrite
+    //  resource.d instead of attempting to make this code here "cleaner")
+
+    auto resnode = new ConfigNode();
+    //make resources code think this was loaded from a color-specific res-file
+    resnode[Resources.cResourcePathName] = "wwp_water/" ~ color;
+    ResourceFile resfile = gResources.loadResources(resnode, true);
+
+    //was the file already loaded? (the whole point of ResourceFile is caching)
+    try {
+        resfile.find("water_waves"); //typically part of waterset
+    } catch (CustomException e) {
+        //most likely not, so actually load stuff
+        gLog.minor("loading waterset '{}'", color);
+        importWater(resfile, vpath);
+        gLog.minor("done loading");
+    }
+
+    //colour.txt is opened and parsed on every game round... but who cares
+    Color realcolor = readWaterFile(vpath ~ "colour.txt");
+
+    return LoadedWater(realcolor, resfile);
 }
 
 //NOTE: destroys rawanis
@@ -132,7 +194,7 @@ void doImportAnis(ResourceFile dest, RawAnimation[] rawanis,
     importAnimations(anims, rawanis, importconf);
     //add the converted animations as resources
     foreach (AniEntry e; anims.entries) {
-        auto a = new WWPAnimation(e);
+        auto a = new ImportedWWPAnimation(e);
         dest.addPseudoResource(e.name, a);
     }
     foreach (char[] name, Surface bmp; anims.bitmaps) {
@@ -144,6 +206,13 @@ void doImportAnis(ResourceFile dest, RawAnimation[] rawanis,
             unused ~= idx;
     }
     if (unused.length)
-        Resources.log.trace("unused animation indices: {}", unused);
+        gLog.trace("unused animation indices: {}", unused);
     freeAnimations(rawanis);
+    anims.packer.enableCaching();
+    //for debugging: write atlas pages to disk
+    version (none) {
+        foreach (idx, s; anims.packer.surfaces) {
+            saveImage(s, myformat("dump_{}_{}.png", importconf.name, idx));
+        }
+    }
 }

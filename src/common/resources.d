@@ -310,7 +310,7 @@ public class Resources {
     ///     are loaded with loadResources(); using the "fixed" path
     ///the function returns an object with has the getAll() method to get all
     ///resources which were found in that file (including dependencies).
-    public ResourceFile loadResources(ConfigNode config) {
+    public ResourceFile loadResources(ConfigNode config, bool virtual = false) {
         assert(!!config);
 
         //find the path value
@@ -330,7 +330,7 @@ public class Resources {
         auto filepath = VFSPath(parent[cResourcePathName]);
         auto path = filepath.path();
 
-        if (!gFS.pathExists(path)) {
+        if (!virtual && !gFS.pathExists(path)) {
             throwError("resource file {} contains invalid path: {}",
                 config.locationString(), path);
         }

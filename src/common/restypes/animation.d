@@ -1,7 +1,6 @@
 module common.restypes.animation;
 
 import common.animation;
-import common.resfileformats;
 import common.resources;
 import common.resset;
 import framework.drawing;
@@ -78,13 +77,14 @@ abstract class AnimationSimple : Animation {
     private {
         SubSurface[] mFrames;
         AnimEffect[] mEffects;  //list of drawing effects
+        int mLoadFrameTime;
     }
 
     this(ConfigNode node) {
         //mFrames and mCenterOffset are loaded by subclasses
         //load generic parameters here (not related to the frame storage method)
         repeat = node.getBoolValue("repeat", repeat);
-        mFrameTimeMS = node.getIntValue("frametime", cDefFrameTimeMS);
+        mLoadFrameTime = node.getIntValue("frametime", cDefFrameTimeMS);
         foreach (ConfigNode sub; node) {
             if (sub.name == "effect") {
                 mEffects ~= AnimEffectFactory.instantiate(sub.value, this,
@@ -102,7 +102,7 @@ abstract class AnimationSimple : Animation {
             frame_size = frame_size.max(f.size);
         }
         doInit(mFrames.length, Rect2i(frame_size) - frame_size / 2,
-            frameTimeMS);
+            mLoadFrameTime);
     }
 
     override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p,

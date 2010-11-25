@@ -8,6 +8,8 @@ import utils.rect2;
 import utils.time;
 import utils.vector2;
 
+const int cDefFrameTimeMS = 50;
+
 //--- animation display
 
 class Animator : SceneObjectCentered {
@@ -131,8 +133,7 @@ struct StaticArray(T, int N) {
 
 //for some derived classes see below
 abstract class Animation {
-    public /+private+/ {
-        const int cDefFrameTimeMS = 50;
+    private {
         int mFrameTimeMS;
         int mFrameCount;
         int mLengthMS;

@@ -23,6 +23,12 @@ import game.events;
 import game.sequence;
 import game.setup;
 
+struct LoadedWater {
+    Color color;
+    ResourceFile res;
+}
+alias LoadedWater delegate(ConfigNode) WaterLoadDg;
+WaterLoadDg[char[]] gWaterLoadHack;
 
 //references all graphic/sound (no sounds yet) resources etc.
 //after r866: extended to carry sprites & sequences
@@ -59,8 +65,7 @@ class GfxSet {
     //keyed by the theme name (TeamTheme.name)
     TeamTheme[char[]] teamThemes;
 
-    //default color, for now needed as hack for direct WWP data loading
-    Color waterColor = Color.fromBytes(47, 55, 123);
+    Color waterColor;
 
     //what the crosshair looks like
     CrosshairSettings crosshair;
@@ -125,9 +130,18 @@ class GfxSet {
             resfile = addGfxSet(config);
         }
 
-        //xxx water
-        char[] watername = gfx.getStringValue("waterset", "blue");
-        //waterColor = ...
+        //optional, water loader may override this
+        waterColor = config.getValue!(Color)("watercolor", Color.Black);
+
+        auto waterloader = config["waterloader"];
+        if (waterloader != "") {
+            auto pload = waterloader in gWaterLoadHack;
+            if (!pload)
+                throwError("water loader not found: {}", waterloader);
+            auto res = (*pload)(gfx.getSubNode("waterset"));
+            load_resources ~= res.res;
+            waterColor = res.color;
+        }
 
         //xxx if you want, add code to load crosshair here
         //...
