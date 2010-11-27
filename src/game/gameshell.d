@@ -20,7 +20,6 @@ import game.levelgen.renderer;
 import game.setup;
 import game.temp;
 import game.weapon.weapon;
-import net.marshal;
 
 import utils.archive;
 import utils.configfile;
@@ -125,51 +124,47 @@ class GameLoader {
 
     //filename_prefix is e.g. "last_demo", and the code will try to read the
     //  files last_demo.conf and last_demo.dat
-    static GameLoader CreateFromDemo(char[] filename_prefix) {
+    static GameLoader CreateFromDemo(char[] filename) {
+        try {
+            return doCreateFromDemo(filename);
+        } catch (CustomException e) {
+            e.msg = myformat("when trying to load demo file '{}': {}", filename,
+                e.msg);
+            throw e;
+        }
+    }
+
+    private static GameLoader doCreateFromDemo(char[] filename) {
         auto r = new GameLoader();
         auto lg = new GameShell.InputLog;
         r.mDemoInput = lg;
-        auto demoFile = loadConfig(filename_prefix ~ ".conf");
+
+        auto f = gFS.open(filename);
+        char[] data = cast(char[])f.readAll();
+        scope(exit) f.close();
+
+        //xxx should catch & convert utf-8 exception (dammit)
+        str.validate(data);
+
+        auto demo = parseDemoFile(data);
+
         auto cfg = new GameConfig();
         r.mGameConfig = cfg;
-        cfg.load(demoFile.getSubNode("game_config"));
+        cfg.load(demo.config.getSubNode("game_config"));
         //xxx move elsewhere or whatever
         if (!cfg.level) {
             auto gen = new GenerateFromSaved(new LevelGeneratorShared(),
                 cfg.saved_level);
             cfg.level = gen.render();
         }
-        //parse the .dat
-        ulong max_ts;
-        auto f = gFS.open(filename_prefix ~ ".dat");
-        ulong fsize = f.size();
-        ulong readsize = 0;
-        //xxx throws exception on unmarshalling error
-        //(as intended, but needs better error reporting)
-        typeof(GameShell.LogEntry.timestamp) previous_ts = 0;
-        while (!f.eof()) {
-            size_t readfunc(ubyte[] data) {
-                f.readExact(data);
-                //return how much data is left (Unmarshaller uses this to
-                //  avoid allocating arrays of unplausible sizes)
-                readsize += data.length;
-                return fsize - readsize;
-            }
-            auto e = Unmarshaller(&readfunc).read!(GameShell.LogEntry)();
-            if (e.timestamp < previous_ts) {
-                //invalid file contents
-                throw new CustomException("demo file contains unsorted or negative "
-                    "timestamps");
-            }
-            previous_ts = e.timestamp;
-            max_ts = max(max_ts, e.timestamp);
-            lg.entries ~= e;
-        }
-        f.close();
+
+        lg.entries = demo.log;
         //NOTE: the last written command should be the DEMO_END pseudo-command,
         //  but no need to specially catch this; the following code does the
         //  same anyway
-        lg.end_ts = max_ts;
+        if (lg.entries.length > 0)
+            lg.end_ts = lg.entries[$-1].timestamp;
+
         r.doInit();
         return r;
     }
@@ -178,39 +173,35 @@ class GameLoader {
         //save last played level functionality
         //xxx should this really be here
         if (mGameConfig.level.saved) {
-            //try {
-                saveConfig(mGameConfig.level.saved, "lastlevel.conf");
-            //} catch (IOException e) {
-            //    //happens when testing network with 2 clients on 1 machine
-            //    log.warn("Failed to write lastlevel.conf: {}", e.msg);
-            //}
+            saveConfig(mGameConfig.level.saved, "lastlevel.conf");
         }
 
         //this doesn't really make sense, but is a helpful hack for now
         mEnableDemoRecording = mGameConfig.management
-            .getValue!(bool)("enable_demo_recording", true);
+            .getValue!(bool)("enable_demo_recording", false);
 
         //never record a demo when playing back a demo
         if (!!mDemoInput)
             mEnableDemoRecording = false;
 
         if (mEnableDemoRecording) {
-            auto demoFile = new ConfigNode();
-            demoFile.addNode("game_config", mGameConfig.save());
-            char[] filename = "last_demo.";
-            log.notice("Demo recording enabled!");
-            //why two files? because I want to output stuff in realtime, and
-            //  the output should survive even a crash
+            auto demoConf = new ConfigNode();
+            demoConf.addNode("game_config", mGameConfig.save());
+
             try {
-                auto outstr = gFS.open(filename ~ "dat", File.WriteCreate);
+                auto outstr = gFS.open("last_demo.demo", File.WriteCreate);
                 auto threadstr = new ThreadedWriter(outstr);
                 mDemoOutput = threadstr.pipeOut();
-                saveConfig(demoFile, filename ~ "conf");
+                startDemoFile(mDemoOutput, demoConf);
             } catch (CustomException e) {
+                mDemoOutput = mDemoOutput.init;
                 log.warn("Failed to create demo file ({}). Demo"
                     " writing disabled.", e.msg);
             }
         }
+
+        if (!mDemoOutput.isNull())
+            log.notice("Demo recording enabled!");
 
         mShell = new GameShell();
         mShell.mGameConfig = mGameConfig;
@@ -768,7 +759,7 @@ class GameShell {
 
     private void writeDemoEntry(LogEntry e) {
         if (!mDemoOutput.isNull()) {
-            Marshaller(&mDemoOutput.write).write(e);
+            .writeDemoEntry(mDemoOutput, e);
         }
     }
 
@@ -932,4 +923,64 @@ abstract:
     bool waitingForServer();
 
     void sendChat(char[] msg);
+}
+
+const char[] cDemoFileSignature = "=== lumbricus demo file ===\n";
+const char[] cDemoFileStartLog = "\n=== start log entries ===\n";
+
+//oh how I wish D had real tuples
+struct ParseDemoFileResult {
+    ConfigNode config;
+    GameShell.LogEntry[] log;
+}
+//this thing is supposed to throw a CustomException on any failure
+ParseDemoFileResult parseDemoFile(char[] data) {
+    if (!str.eatStart(data, cDemoFileSignature))
+        throwError("no header");
+    //hurrr.... but it works
+    int logpos = str.find(data, cDemoFileStartLog);
+    if (logpos < 0)
+        throwError("no log entries");
+    char[] s_conf = data[0..logpos];
+    char[] s_log = data[logpos + cDemoFileStartLog.length .. $];
+    auto config = new ConfigFile(s_conf, "game config embedded in demo file");
+    //parse the logs
+    GameShell.LogEntry[] log;
+    foreach (char[] s_entry; str.splitlines(s_log)) {
+        if (s_entry.length == 0)
+            continue;
+        //every entry is <timestamp>:<hash>:<accesstag>:<command>
+        char[][] cols = str.split(s_entry, ":");
+        if (cols.length != 4)
+            throwError("error in log entry");
+        GameShell.LogEntry entry;
+        //xxx not catching ConversionException
+        entry.timestamp = convert.to!(long)(cols[0]);
+        entry.hash.hash = convert.to!(typeof(entry.hash.hash))(cols[1]);
+        entry.access_tag = str.simpleUnescape(cols[2]);
+        entry.cmd = str.simpleUnescape(cols[3]);
+        //for some reason non-unique timestamps are allowed, so it's > not >=
+        if (log.length && log[$-1].timestamp > entry.timestamp)
+            throwError("unsorted or negative timestamps");
+        log ~= entry;
+    }
+    return ParseDemoFileResult(config.rootnode, log);
+}
+
+void startDemoFile(PipeOut dest, ConfigNode config) {
+    dest.write(cast(ubyte[])cDemoFileSignature);
+    config.writeFile(dest);
+    dest.write(cast(ubyte[])cDemoFileStartLog);
+}
+
+void writeDemoEntry(PipeOut dest, GameShell.LogEntry e) {
+    void dump(char[] s) {
+        dest.write(cast(ubyte[])s);
+    }
+    char[] demoesc(char[] s) {
+        //escape anything that would make the log part unparseable
+        return str.simpleEscape(s, "\n\r:");
+    }
+    myformat_cb(&dump, "{}:{}:{}:{}\n", e.timestamp, e.hash.hash,
+        demoesc(e.access_tag), demoesc(e.cmd));
 }

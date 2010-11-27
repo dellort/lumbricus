@@ -32,7 +32,7 @@ Surface loadImageFromFile(char[] path) {
 //rc is the destination rect on img
 //data is expected to be packed, with image dimensions rc.size
 void blitPALData(Surface img, WWPPalette pal, ubyte[] data, Rect2i rc) {
-    softAssert(img.rect.contains(rc), "out of bounds");
+    argcheck(img.rect.contains(rc));
     Color.RGBA32* pixels;
     uint pitch;
     img.lockPixelsRGBA32(pixels, pitch);

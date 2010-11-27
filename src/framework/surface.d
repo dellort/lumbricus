@@ -83,8 +83,6 @@ final class Surface : ResourceT!(DriverSurface) {
 
         //indexed by SubSurface.index()
         SubSurface[] mSubsurfaces;
-
-        SubSurface mFullSubSurface;
     }
 
     ///"best" size for a large texture
@@ -101,11 +99,12 @@ final class Surface : ResourceT!(DriverSurface) {
 
         _pixelsAlloc();
 
-        mFullSubSurface = createSubSurface(rect);
+        auto fs = createSubSurface(rect);
+        assert(fs is mSubsurfaces[0]);
     }
 
     //trivial accessors
-    final SubSurface fullSubSurface() { return mFullSubSurface; }
+    final SubSurface fullSubSurface() { return mSubsurfaces[0]; }
     final Vector2i size() { return mSize; }
     final Rect2i rect() { return Rect2i(mSize); }
 
@@ -154,8 +153,6 @@ final class Surface : ResourceT!(DriverSurface) {
         if (mAllocator)
             mAllocator.length = 0;
         delete mAllocator;
-        delete mSubsurfaces;
-        mFullSubSurface = null;
     }
 
     alias dispose free;

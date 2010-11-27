@@ -16,7 +16,7 @@ class WWPPalette {
         auto ret = new WWPPalette;
         ushort palSize;
         st.readExact(cast(ubyte[])((&palSize)[0..1]));
-        softAssert(palSize <= 255, "palette too big");
+        require(palSize <= 255, "palette too big");
         //entry 0 is hard-wired to transparent; also clear the unused rest
         ret.palEntries[] = Color.Transparent.toRGBA32();
         foreach (inout pe; ret.palEntries[1..1 + palSize]) {

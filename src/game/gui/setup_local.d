@@ -242,6 +242,12 @@ class LocalGameSetupTask {
         StringListWidget mAllTeamsList, mActiveTeamsList;
         LevelWidget mLevelSelector;
 
+        DropDownList mGraphicSet;
+        DropDownList mGameMode;
+        DropDownList mWaterSet;
+        DropDownList mWeaponSet;
+        CheckBox mRecordDemo;
+
         const cMaxPower = 200;
 
         //holds team info specific to current game (not saved in teams.conf)
@@ -289,6 +295,12 @@ class LocalGameSetupTask {
         mActiveTeamsList = loader.lookup!(StringListWidget)("list_activeteams");
         mActiveTeamsList.onSelect = &activeteamsSelect;
 
+        getW(loader, mGraphicSet, "opt_graphicset");
+        getW(loader, mGameMode, "opt_gamemode");
+        getW(loader, mWaterSet, "opt_waterset");
+        getW(loader, mWeaponSet, "opt_weaponset");
+        getW(loader, mRecordDemo, "opt_demo");
+
         mSetup = loader.lookup("gamesetup_root");
         mWaiting = loader.lookup("waiting_root");
         mWindow = gWindowFrame.createWindow(mSetup,
@@ -297,6 +309,11 @@ class LocalGameSetupTask {
         loadTeams();
 
         addTask(&onFrame);
+    }
+
+    //fuck it...
+    private void getW(T)(LoadGui loader, ref T widget, char[] name) {
+        widget = loader.lookup!(T)(name);
     }
 
     private void levelBusy(bool busy) {
@@ -414,13 +431,31 @@ class LocalGameSetupTask {
 
         assert(!mGame); //hm, no idea
         //create default GameConfig with custom level
-        auto gc = loadGameConfig(loadConfig("newgame.conf"), level, true,
-            mGamePersist);
+        auto config = loadConfig("newgame.conf");
+        applySettings(config);
+        auto gc = loadGameConfig(config, level, true, mGamePersist);
         gc.teams = buildGameTeams();
         gc.randomSeed = to!(char[])(generateRandomSeed());
         //xxx: do some task-death-notification or so... (currently: polling)
         //currently, the game can't really return anyway...
         mGame = new GameTask(gc);
+    }
+
+    //load some settings from GUI into config
+    //config = newgame.conf loaded
+    //xxx there's also GameConfig (loaded later) which would probably better
+    //  for manipulating settings, but for my primitive purposes, this seemed
+    //  easier for now (weaponsets etc.)
+    private void applySettings(ConfigNode config) {
+        char[] s = mGraphicSet.selection();
+        //I'm sorry for this bullshit
+        if (s != "(default)")
+            config.getSubNode("gfx")["config"] = s;
+        config["gamemode"] = mGameMode.selection();
+        config.getSubNode("gfx")["waterset"] = mWaterSet.selection();
+        config.getSubNode("weapons")["default"] = mWeaponSet.selection();
+        config.getSubNode("management").setValue("enable_demo_recording",
+            mRecordDemo.checked);
     }
 
     private bool onFrame() {

@@ -87,13 +87,14 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
 
     //sounds
     auto sndinfo = importsound.getSubNode("sounds").getSubNode("normal");
-    char[] sndpath = cWwpVfsPath ~ "data/" ~ sndinfo["source_path"] ~ "/";
+    char[] sndpath = cWwpVfsPath ~ sndinfo["source_path"] ~ "/";
     foreach (char[] name, char[] value; sndinfo.getSubNode("files")) {
         auto fn = sndpath ~ value;
         auto res = new SampleResource(resfile, name, SoundType.sfx, fn);
         resfile.addResource(res);
     }
 
+    //weapon icons
     Surface iconlo = readImgFile(gfxdir.open("iconlo.img"));
     Surface icMask = loadImage("import_wwp/iconmask.png");
     applyAlphaMask(iconlo, icMask);
@@ -102,7 +103,7 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
     char[][] inames = readNamefile(names);
     Surface[] imgs = untileImages(iconlo);
     foreach (int idx, img; imgs) {
-        softAssert(indexValid(inames, idx), "error in namefile");
+        require(indexValid(inames, idx), "error in namefile");
         resfile.addPseudoResource("icon_" ~ inames[idx], img);
     }
 
@@ -119,9 +120,9 @@ private Color readWaterFile(char[] vpath) {
     //colour.txt contains the water background color as RGB
     //  ex.: 47 55 123 for a blue color
     auto lines = str.splitlines(contents);
-    softAssert(lines.length > 0, "empty colour.txt?");
+    require(lines.length > 0, "empty colour.txt?");
     auto cols = str.split(lines[0]);
-    softAssert(cols.length == 3, "colour.txt doesn't contain 3 colors?");
+    require(cols.length == 3, "colour.txt doesn't contain 3 colors?");
     //xxx ignoring "fatal" conversion exception
     auto colRGB = conv.to!(ubyte[])(cols);
     return Color.fromBytes(colRGB[0], colRGB[1], colRGB[2]);

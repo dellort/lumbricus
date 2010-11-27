@@ -474,6 +474,7 @@ unittest {
 ///all code should throw this instead of 'Exception'
 ///  (to discern from system errors)
 ///if you expect a system error, wrap it with this (or a derived class)
+///also see require()
 class CustomException : Exception {
     this(char[] msg, Exception n = null) {
         super(msg, n);
@@ -486,26 +487,23 @@ void throwError(char[] fmt, ...) {
 }
 
 //like assert(), but throw a recoverable CustomException on failure
-//similar to Andrei Alexandrescu's enforce()
-void softAssert(bool cond, char[] msg, ...) {
+//similar to D2's enforce() or Scala's require()
+//  use require() when: there's something wrong, but it's not fatal; operation
+//      can be resumed after catching the exception thrown by this function, and
+//      the operation can possibly be retried by the caller.
+//  use assert() when: there's something wrong, but you can't restore your state
+//      to how it was before, and/or there's no way to safely proceed. catching
+//      the exception won't remove the inconsistent/bugged state.
+//  argcheck(): same as require(), but hint to the user that something is wrong
+//      with the parameters passed to the function.
+//  throwError()/CustomException: really the same as require().
+void require(bool cond, char[] msg = "Something went wrong.", ...) {
     if (cond)
         return;
     throw new CustomException(myformat_fx(msg, _arguments, _argptr));
 }
 
 //exception thrown by argcheck
-//
-//this was once derived from Exception, and it said:
-//--for parameter checks in "public" api (instead of Assertion)
-//--special class because it is fatal for D code, but non-fatal for scripts
-//changed that, because if didn't make too much sense: if Lua code calls D code,
-//  and then D code calls some other D code, and this exception is thrown, the
-//  Lua code was blamed, and the exception was non-fatal anyway
-//=> it's better to make this always non-fatal, and just fix the offending D
-//  call
-//if you wanted to do this properly, you had to do it at the marshaller level
-//  (like how it checks that methods can't be called on null references), or
-//  by adding script-only wrapper functions; both are "too hard"
 class ParameterException : CustomException {
     this(char[] msg) {
         super(msg);

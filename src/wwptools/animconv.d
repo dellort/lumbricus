@@ -298,8 +298,8 @@ class AniEntry {
 
     ///draw a frame of this animation, selected by parameters
     ///the center of the animation will be at pos
-    void drawFrame(Canvas c, Vector2i pos, int a1, int a2, int a3) {
-        AnimationFrame* frame = &mFrames[a3][a2][a1];
+    void drawFrame(Canvas canvas, Vector2i pos, int a, int b, int c) {
+        AnimationFrame* frame = &mFrames[c][b][a];
 
         auto bitmap = frame.bitmap;
 
@@ -313,7 +313,7 @@ class AniEntry {
             center.x = -center.x - bitmap.size.x;
         }
 
-        c.drawSprite(bitmap, pos + center, &eff);
+        canvas.drawSprite(bitmap, pos + center, &eff);
     }
 
     void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p, int time) {
@@ -536,19 +536,19 @@ ParamType paramTypeFromStr(char[] s) {
 //warning: p is passed by-ref (in D1; but not in D2, there you must add ref)
 void parseParams(char[] s, ParamInfo[3] p) {
     auto stuff = str.split(s, ",");
-    softAssert(stuff.length <= 3, "only 3 param mappings or less allowed");
+    require(stuff.length <= 3, "only 3 param mappings or less allowed");
     for (int n = 0; n < stuff.length; n++) {
         auto sub = str.split(stuff[n], "/");
-        softAssert(sub.length <= 2, "too many '/'");
+        require(sub.length <= 2, "too many '/'");
         char[] pname = sub[0];
         ParamType param = paramTypeFromStr(pname);
         p[n].map = param;
         bool is_real_param = param >= ParamType.P1 && param <= ParamType.P3;
         if (sub.length < 2) {
-            softAssert(!is_real_param, "{} requires param mapping", pname);
+            require(!is_real_param, "{} requires param mapping", pname);
             continue;
         }
-        softAssert(is_real_param, "{} can't have a param mapping", pname);
+        require(is_real_param, "{} can't have a param mapping", pname);
         char[] pmap = sub[1];
         auto pconv = pmap in gParamConverters;
         if (!pconv)

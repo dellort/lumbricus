@@ -78,6 +78,13 @@ char[][] split(char[] text, char[] spliton) {
     return res;
 }
 
+unittest {
+    assert(split("a,b", ",") == ["a"[], "b"]);
+    assert(split("a,", ",") == ["a"[], ""]);
+    assert(split("a", ",") == ["a"[]]);
+    assert(split("", ",") == null);
+}
+
 char[] join(char[][] text, char[] joiner) {
     return textu.join(text, joiner);
 }
@@ -469,6 +476,78 @@ bool isIdentifier(char[] name) {
         }
     }
     return true;
+}
+
+//simple escaping (the one in configfile.d sucks)
+//care is taken not to allocate memory if nothing is [un]escaped
+//characters in exclude are escaped (they all must be ASCII)
+//NOTE: Tango has unescape() somewhere, but no escape()
+char[] simpleEscape(char[] s, char[] exclude = "\\") {
+    char[] res;
+    //thanks to utf-8, we can treat this as ASCII if we work on ASCII only
+    outer: foreach (size_t index, char d; s) {
+        foreach (char e; exclude) {
+            assert(e < 128, "only ASCII allowed in exclude");
+            if (d is e) {
+                if (res.length == 0)
+                    res = s[0..index].dup;
+                //escape this
+                res ~= myformat("\\x{:x}{:x}", d >> 4, d & 15);
+                continue outer;
+            }
+        }
+        //not escaped
+        if (res.length)
+            res ~= d;
+    }
+    return res.length ? res : s;
+}
+
+char[] simpleUnescape(char[] s) {
+    if (find(s, "\\") < 0)
+        return s;
+
+    void check(bool c) {
+        if (!c)
+            throwError("unescaping error");
+    }
+
+    ubyte getN(char c) {
+        if (c >= '0' && c <= '9')
+            return c - '0';
+        if (c >= 'A' && c <= 'F')
+            return c - 'A' + 10;
+        if (c >= 'a' && c <= 'f')
+            return c - 'a' + 10;
+        check(false);
+    }
+
+    char[] res;
+    for (size_t n = 0; n < s.length; n++) {
+        if (s[n] == '\\') {
+            //unescape, expects \xNN, N=0-9/A-F
+            auto old_n = n;
+            n++;
+            check(s[n] == 'x' || s[n] == 'X');
+            n++;
+            check(n + 2 <= s.length);
+            char c = (getN(s[n]) << 4) | getN(s[n+1]);
+            n += 2;
+            res ~= c;
+            n -= 1;  //compensate for n++
+        } else {
+            res ~= s[n];
+        }
+    }
+    return res;
+}
+
+unittest {
+    assert(simpleEscape("aöiäu:z", "iu:") == r"aö\x69ä\x75\x3az");
+    assert(simpleUnescape(r"aö\x69ä\x75\x3az") == "aöiäu:z");
+    char[] bla = "bla";
+    assert(simpleEscape(bla).ptr is bla.ptr);
+    assert(simpleUnescape(bla).ptr is bla.ptr);
 }
 
 //Tango has tango.text.Text, but didn't immediately provide what I wanted
