@@ -22,13 +22,17 @@ RELEASE = False
 # -lrt is just for utils/perf.d version UseFishyStuff (can be disabled)
 LIBS = ["z", "dl", "rt"]
 
-COMPILER = "dmd_patched"
+COMPILER = "dmd2"
 
 COMPILERS = {
     # uses hack to do without -oq (probably fails on windows)
     # dmd_patched later sets oq to true
-    "dmd": {
-        "exe": "dmd",
+    "dmd2": {
+        # On my system, dmd is called "dmd2". That's because I have installed
+        #   both dmd 1 and 2 (for D1 and D2). You can't install them side by
+        #   side by default, unless you put them into different directories and
+        #   give them different names. You can thank Walter for that.
+        "exe": "dmd2",
         "oq": False,
         "std_args": [],
         "def": "-version=",
@@ -36,23 +40,8 @@ COMPILERS = {
         "release_args": ["-inline", "-release", "-O"],
         "profile_args": ["-inline", "-release", "-O", "-gc"],
         "lib": "-L-l",
-    },
-    "ldc": {
-        "exe": "ldc",
-        "oq": True,
-        "std_args": ["-singleobj"],
-        "def": "-d-version",
-        "debug_args": ["-gc", "-unittest", "-d-debug"],
-        "release_args": ["-enable-inlining", "-release", "-O5"],
-        "profile_args": ["-enable-inlining", "-release", "-O5", "-gc"],
-        "lib": "-L-l",
     }
 }
-
-# requires patch for -oq
-patched_dmd = COMPILERS["dmd"].copy()
-patched_dmd["oq"] = True
-COMPILERS["dmd_patched"] = patched_dmd
 
 # use response files to pass compiler arguments
 USE_RSP = True
