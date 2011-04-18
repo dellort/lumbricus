@@ -29,9 +29,9 @@ class PluginBase {
     private {
         GameCore mEngine;
         GfxSet mGfx;
-        bool[char[]] mLoadedPlugins;
-        bool[char[]] mErrorPlugins; //like mLoadedPlugins, but error-flagged
-        bool[char[]] mLoading;  //like mLoadedPlugins, but load-in-progress
+        bool[string] mLoadedPlugins;
+        bool[string] mErrorPlugins; //like mLoadedPlugins, but error-flagged
+        bool[string] mLoading;  //like mLoadedPlugins, but load-in-progress
         //list of active plugins, in load order
         Plugin[] mPlugins;
     }
@@ -42,7 +42,7 @@ class PluginBase {
 
         foreach (ConfigNode sub; cfg.plugins) {
             //either an unnamed value, or a subnode with config items
-            char[] pid = sub.value.length ? sub.value : sub.name;
+            string pid = sub.value.length ? sub.value : sub.name;
             try {
                 loadPlugin(pid, sub, cfg.plugins);
             } catch (CustomException e) {
@@ -55,7 +55,7 @@ class PluginBase {
         OnGameInit.handler(mGfx.events, &initplugins);
     }
 
-    void loadPlugin(char[] pluginId, ConfigNode cfg, ConfigNode allPlugins) {
+    void loadPlugin(string pluginId, ConfigNode cfg, ConfigNode allPlugins) {
         if (pluginId in mLoadedPlugins) {
             return;
         }
@@ -91,7 +91,7 @@ class PluginBase {
         mLoadedPlugins[pluginId] = true;
     }
 
-    private Plugin doLoadPlugin(char[] pluginId, ConfigNode cfg,
+    private Plugin doLoadPlugin(string pluginId, ConfigNode cfg,
         ConfigNode allPlugins)
     {
         assert(!!allPlugins);
@@ -103,7 +103,7 @@ class PluginBase {
             conf["internal_plugin"] = pluginId;
         } else {
             //normal case: plugin with plugin.conf
-            char[] confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
+            string confFile = "plugins/" ~ pluginId ~ "/plugin.conf";
             //load plugin.conf as gfx set (resources and sequences)
             //may fail; but the resuting error msg will be already good enough
             conf = gResources.loadConfigForRes(confFile);
@@ -149,20 +149,20 @@ class PluginBase {
 //the "load-time" part of a plugin (static; loaded when GfxSet is created)
 //always contains: dependencies, collisions, resources, sequences, locales
 class Plugin {
-    char[] name;            //unique plugin id
-    char[][] dependencies;  //all plugins in this list will be loaded, too
+    string name;            //unique plugin id
+    string[] dependencies;  //all plugins in this list will be loaded, too
 
     private {
         ConfigNode mConfig, mCollisions;
         ConfigNode mConfigWhateverTheFuckThisIs;
         ResourceFile mResources;
         GfxSet mGfx;
-        char[][] mModules;
+        string[] mModules;
     }
 
     //called in resource-loading phase; currently name comes from plugin path
     //  conf = static plugin configuration
-    this(char[] a_name, GfxSet gfx, ConfigNode conf) {
+    this(string a_name, GfxSet gfx, ConfigNode conf) {
         name = a_name;
         log.minor("loading '{}'", name);
         if (!isIdentifier(name)) {
@@ -184,7 +184,7 @@ class Plugin {
                 throw e;
             }
             //load collisions
-            char[] colFile = mConfig.getStringValue("collisions", "");
+            string colFile = mConfig.getStringValue("collisions", "");
             if (colFile.length) {
                 auto c = loadConfig(mResources.fixPath(colFile));
                 mCollisions = c.getSubNode("collisions");
@@ -194,8 +194,8 @@ class Plugin {
             //  name is the namespace under which the locales are loaded
             //  path is a relative path within the plugin's directory
             //xxx: the locales remain globally available, even if the game ends?
-            auto locales = mConfig.getValue!(char[][char[]])("locales");
-            foreach (char[] name, char[] path; locales) {
+            auto locales = mConfig.getValue!(string[string])("locales");
+            foreach (string name, string path; locales) {
                 addLocaleDir(name, mResources.fixPath(path));
             }
         }
@@ -222,7 +222,7 @@ class Plugin {
         }
 
         //handling of internal plugins (special cased D-only plugin hack)
-        char[] internal_plugin = mConfig["internal_plugin"];
+        string internal_plugin = mConfig["internal_plugin"];
         if (internal_plugin.length) {
             GamePluginFactory.instantiate(internal_plugin, eng,
                 mConfigWhateverTheFuckThisIs);
@@ -230,7 +230,7 @@ class Plugin {
 
         //pass configuration as global "config"
         eng.scripting().setGlobal("config", mConfigWhateverTheFuckThisIs, name);
-        bool[char[]] loadedModules;
+        bool[string] loadedModules;
         //each modules entry can be a file, or a pattern with wildcards
         foreach (modf; mModules) {
             //no fixup for illegal chars, allow wildcards
@@ -239,9 +239,9 @@ class Plugin {
             bool loaded = false;
 
             //xxx should separate loading from parsing, maybe?
-            gFS.listdir(mpath.parent, mpath.filename, false, (char[] relFn) {
+            gFS.listdir(mpath.parent, mpath.filename, false, (string relFn) {
                 //why does listdir return relative filenames? I don't know
-                char[] filename = mpath.parent.get(true, true) ~ relFn;
+                string filename = mpath.parent.get(true, true) ~ relFn;
                 //only load once
                 if (filename in loadedModules) {
                     return true;

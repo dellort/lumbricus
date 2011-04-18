@@ -109,12 +109,12 @@ class MessagePlugin : GameObject {
             if (auto weapon = cast(CollectableWeapon)item) {
                 //weapon
                 messageAdd("collect_item", [member.name(),
-                    "_." ~ item.id(), to!(char[])(weapon.quantity)],
+                    "_." ~ item.id(), to!(string)(weapon.quantity)],
                     member.team, true);
             } else if (auto medkit = cast(CollectableMedkit)item) {
                 //medkit
                 messageAdd("collect_medkit", [member.name(),
-                    to!(char[])(medkit.amount)], member.team, true);
+                    to!(string)(medkit.amount)], member.team, true);
             } else if (auto tool = cast(CollectableTool)item) {
                 //tool
                 messageAdd("collect_tool", [member.name(),
@@ -155,7 +155,7 @@ class MessagePlugin : GameObject {
         //messageAdd("msggameend");
     }
 
-    private void messageAdd(char[] msg, char[][] args = null, Team actor = null,
+    private void messageAdd(string msg, string[] args = null, Team actor = null,
         bool is_private = false, Time displayTime = GameMessage.cMessageTime)
     {
         GameMessage gameMsg;

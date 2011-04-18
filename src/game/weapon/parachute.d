@@ -18,7 +18,7 @@ import tango.math.Math : abs;
 class ParachuteClass : WeaponClass {
     float sideForce = 0f;
 
-    this(GameCore engine, char[] name) {
+    this(GameCore engine, string name) {
         super(engine, name);
     }
 

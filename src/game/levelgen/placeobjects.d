@@ -42,11 +42,11 @@ class LandscapeObjects {
     PlaceItem[] items;
 
     struct PlaceItem {
-        char[] id;
+        string id;
         PlaceCommand params;
     }
 
-    void place(char[] id, PlaceCommand p) {
+    void place(string id, PlaceCommand p) {
         PlaceItem n;
         n.id = id;
         n.params = p;
@@ -81,7 +81,7 @@ public enum Side {
 
 public class PlaceableObject {
     //readonly (xxx make private, add accessors)
-    char[] id;
+    string id;
     Surface bitmap;
     bool tryPlace;
     Side side;
@@ -93,7 +93,7 @@ public class PlaceableObject {
         return bitmap.size;
     }
 
-    package this(char[] aid, Surface abitmap, bool tryplace) {
+    package this(string aid, Surface abitmap, bool tryplace) {
         id = aid;
         bitmap = abitmap;
         tryPlace = tryplace;

@@ -30,7 +30,7 @@ enum ClientState {
 }
 
 //playerId corresponds to CmdNetClient.myId() and NetTeamInfo.Team.playerId
-char[] makeAccessTag(uint playerId) {
+string makeAccessTag(uint playerId) {
     return myformat("net_id::{}", playerId);
 }
 
@@ -49,7 +49,7 @@ class CmdNetClient : SimpleNetConnection {
         NetHost mHost;
         NetPeer mServerCon;
         MarshalBuffer mMarshal; //for keeping temporary memory
-        char[] mPlayerName;
+        string mPlayerName;
         uint mId;
         ClientState mState;
         Time mStateEnter;
@@ -60,11 +60,11 @@ class CmdNetClient : SimpleNetConnection {
         //most likely it would be fine to call makeAccessTag directly, but apart
         //  from the additional memory allocation, maybe there's additional
         //  logic I don't understand, or so
-        char[][uint] mSrvControl;
+        string[uint] mSrvControl;
         CmdNetControl mClControl;
         bool mHadDisconnect;
         //name<->id conversion
-        uint[char[]] mNameToId;
+        uint[string] mNameToId;
         ConfigNode mPersistentState;
 
         CommandBucket mCmds;
@@ -81,8 +81,8 @@ class CmdNetClient : SimpleNetConnection {
 
     void delegate(CmdNetClient sender) onConnect;
     void delegate(CmdNetClient sender, DiscReason code) onDisconnect;
-    void delegate(CmdNetClient sender, char[] msg, char[][] args) onError;
-    void delegate(CmdNetClient sender, char[][] text) onMessage;
+    void delegate(CmdNetClient sender, string msg, string[] args) onError;
+    void delegate(CmdNetClient sender, string[] text) onMessage;
     //you are allowed to host a game
     void delegate(CmdNetClient sender, uint playerId,
         SPGrantCreateGame.State state) onHostGrant;
@@ -151,7 +151,7 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     //returns immediately
-    void connect(NetAddress addr, char[] playerName) {
+    void connect(NetAddress addr, string playerName) {
         if (mState != ClientState.idle)
             return;
         if (mServerCon) {
@@ -208,7 +208,7 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     //may have been modified by server
-    char[] playerName() {
+    string playerName() {
         return mPlayerName;
     }
 
@@ -221,7 +221,7 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     //server console command
-    void lobbyCmd(char[] cmd) {
+    void lobbyCmd(string cmd) {
         if (!connected)
             return;
         CPLobbyCmd p;
@@ -259,7 +259,7 @@ class CmdNetClient : SimpleNetConnection {
         sendEmpty(ClientPacket.loadDone);
     }
 
-    bool playerNameToId(char[] name, ref uint id) {
+    bool playerNameToId(string name, ref uint id) {
         if (name in mNameToId) {
             id = mNameToId[name];
             return true;
@@ -267,7 +267,7 @@ class CmdNetClient : SimpleNetConnection {
         return false;
     }
 
-    bool idToPlayerName(uint id, ref char[] name) {
+    bool idToPlayerName(uint id, ref string name) {
         if (isIdValid(id)) {
             name = mPlayerInfo[id].info.name;
             return true;
@@ -367,7 +367,7 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     //transmit local game control command (called from CmdNetControl)
-    private void sendCommand(char[] cmd) {
+    private void sendCommand(string cmd) {
         CPGameCommand p;
         p.cmd = cmd;
         send(ClientPacket.gameCommand, p);
@@ -435,7 +435,7 @@ class CmdNetClient : SimpleNetConnection {
                 //result from a command ran by lobbyCmd()
                 auto p = unmarshal.read!(SPCmdResult)();
                 if (p.success) {
-                    char[][] lines = str.splitlines(p.msg);
+                    string[] lines = str.splitlines(p.msg);
                     if (onMessage)
                         onMessage(this, lines);
                 } else {
@@ -566,7 +566,7 @@ class CmdNetClient : SimpleNetConnection {
 
     private void receiveClientBroadcast(UnmarshalBuffer unmarshal) {
         auto pkt = unmarshal.read!(SPClientBroadcast)();
-        char[] name;
+        string name;
         if (!idToPlayerName(pkt.senderPlayerId, name)) {
             //can this happen? at least the server could be evil and send crap
             name = "(unknown)";
@@ -578,7 +578,7 @@ class CmdNetClient : SimpleNetConnection {
             case Client2ClientPacket.chatMessage:
                 auto p = unmarshal.read!(CCChatMessage)();
                 if (onMessage) {
-                    char[] text = myformat("<{}> {}", name, p.witty_comment);
+                    string text = myformat("<{}> {}", name, p.witty_comment);
                     onMessage(this, [text]);
                 }
                 if (onChat) {
@@ -628,10 +628,10 @@ class CmdNetClient : SimpleNetConnection {
     }
 
     private void cmdSay(MyBox[] args, Output write) {
-        sendChat(args[0].unboxMaybe!(char[])());
+        sendChat(args[0].unboxMaybe!(string)());
     }
 
-    void sendChat(char[] msg) {
+    void sendChat(string msg) {
         CCChatMessage m;
         m.witty_comment = msg;
         if (m.witty_comment.length > 0)
@@ -660,7 +660,7 @@ class CmdNetControl : ClientControl {
         mConnection = con;
     }
 
-    override void sendCommand(char[] cmd) {
+    override void sendCommand(string cmd) {
         mConnection.sendCommand(cmd);
     }
 }

@@ -41,7 +41,7 @@ static this() {
     gScripting.methods!(WormSprite, "beamTo", "freeze");
     gScripting.properties!(WormSprite, "poisoned");
 
-    gScripting.ctor!(WormSpriteClass, GameCore, char[])();
+    gScripting.ctor!(WormSpriteClass, GameCore, string)();
     gScripting.methods!(WormSpriteClass, "finishLoading", "findState")();
     gScripting.properties!(WormSpriteClass, "jumpStrengthScript",
         "rollVelocity", "heavyVelocity", "suicideDamage", "hitParticleDamage",

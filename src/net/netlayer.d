@@ -9,12 +9,12 @@ import tango.net.device.Berkeley;
 import utils.misc;
 
 struct NetAddress {
-    char[] hostName;
+    string hostName;
     ushort port;
     bool broadcast = false;
 
     ///create standard address (connection to peer)
-    static NetAddress opCall(char[] hostName, ushort port) {
+    static NetAddress opCall(string hostName, ushort port) {
         NetAddress ret;
         ret.hostName = hostName;
         ret.port = port;
@@ -26,7 +26,7 @@ struct NetAddress {
     ///format: <host> ":" <port>
     ///sets port to 0 if missing or not a number
     ///the hostname "broadcast" is hardwired to set the broadcast flag!
-    static NetAddress opCall(char[] name) {
+    static NetAddress opCall(string name) {
         auto index = str.rfind(name, ":");
         auto host = index > 0 ? name[0..index] : name;
         ushort p = 0;
@@ -50,7 +50,7 @@ struct NetAddress {
         return ret;
     }
 
-    char[] toString() {
+    string toString() {
         return myformat("['{}', {}{}]", hostName, port,
             broadcast ? " (broadcast)" : "");
     }
@@ -321,7 +321,7 @@ class NetPeer {
         mHost = parent;
         mPeer = peer;
         mAddress.port = mPeer.address.port;
-        char[] addrBuf = new char[16];
+        string addrBuf = new char[16];
         enet_address_get_host_ip(&mPeer.address, addrBuf.ptr, 16);
         mAddress.hostName = fromStringz(addrBuf.ptr);
     }
@@ -398,7 +398,7 @@ class NetPeer {
 }
 
 class NetException : CustomException {
-    this(char[] msg) {
+    this(string msg) {
         super(msg);
     }
 }

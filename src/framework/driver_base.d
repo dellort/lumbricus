@@ -25,22 +25,22 @@ enum CacheRelease {
 int delegate(CacheRelease)[] gCacheReleasers;
 
 private {
-    Setting[char[]] gDrivers;
-    Object function()[char[]] gDriverFactory;
+    Setting[string] gDrivers;
+    Object function()[string] gDriverFactory;
 }
 
 //add a driver type; def is the default driver for that type
 //e.g. driver_kind="draw", def="opengl"
-void addDriverType(char[] driver_kind, char[] def) {
-    gDrivers[driver_kind] = addSetting!(char[])("driver." ~ driver_kind, def,
+void addDriverType(string driver_kind, string def) {
+    gDrivers[driver_kind] = addSetting!(string)("driver." ~ driver_kind, def,
         SettingType.Choice);
 }
 
 //the driver name is expected to be in the form "driverkind_name"
 //e.g. base sdl driver is "base_sdl" and base sdl draw driver is "draw_sdl"
-void registerFrameworkDriver(T)(char[] name) {
-    char[] orgname = name;
-    foreach (char[] kind, Setting st; gDrivers) {
+void registerFrameworkDriver(T)(string name) {
+    string orgname = name;
+    foreach (string kind, Setting st; gDrivers) {
         if (str.eatStart(name, kind ~ "_")) {
             assert(!(orgname in gDriverFactory), "double entry? "~orgname);
             gDriverFactory[orgname] = function Object() { return new T(); };
@@ -63,14 +63,14 @@ static this() {
 //return what's get
 //(what?)
 //driver name for a driver kind, e.g. type=="draw" => return "draw_opengl"
-char[] getSelectedDriver(char[] type) {
+string getSelectedDriver(string type) {
     Setting st = gDrivers[type];
     //reassemble what was parsed in registerFrameworkDriver()
     return type ~ "_" ~ st.value;
 }
 
 //name is the full name for the framework driver, e.g. "draw_opengl"
-T createDriver(T)(char[] name) {
+T createDriver(T)(string name) {
     auto pctor = name in gDriverFactory;
     if (!pctor)
         throwError("framework driver not found: {}", name);
@@ -270,11 +270,11 @@ abstract class ResDriver : Driver {
 class ResourceManager {
     int releaseCaches(CacheRelease cr) { return 0; }
     abstract void unloadDriver();
-    abstract void loadDriver(char[] driver_name);
+    abstract void loadDriver(string driver_name);
     void tick() {}
     int usedObjects() { return 0; }
     //name passed to registerDriverType()
-    abstract char[] getDriverType();
+    abstract string getDriverType();
 }
 
 //resource manager for a specific driver type
@@ -285,16 +285,16 @@ abstract class ResourceManagerT(DriverT) : ResourceManager {
     private {
         DriverT mDriver;
         typeof(this) gSingleton;
-        char[] mDriverType;
+        string mDriverType;
     }
 
-    this(char[] driver_type_name) {
+    this(string driver_type_name) {
         mDriverType = driver_type_name;
         assert(!gSingleton);
         gSingleton = this;
     }
 
-    override char[] getDriverType() {
+    override string getDriverType() {
         return mDriverType;
     }
 
@@ -302,7 +302,7 @@ abstract class ResourceManagerT(DriverT) : ResourceManager {
         return mDriver;
     }
 
-    override void loadDriver(char[] name) {
+    override void loadDriver(string name) {
         if (mDriver)
             assert(false, "driver already loaded");
         mDriver = createDriver!(DriverT)(name);

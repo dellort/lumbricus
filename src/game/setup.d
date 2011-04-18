@@ -17,7 +17,7 @@ import utils.misc;
 Setting gGraphicSet;
 
 static this() {
-    const char[][] cSets = ["wwp", "freegraphics"];
+    const string[] cSets = ["wwp", "freegraphics"];
     gGraphicSet = addSetting("game.graphicset", cSets[0], SettingType.Choice);
     gGraphicSet.choices = cSets;
 }
@@ -39,7 +39,7 @@ class GameConfig {
     // - waterset: string with the name of the waterset (like "blue")
     //probably should be changed etc., so don't blame me
     ConfigNode gfx;
-    char[] randomSeed;
+    string randomSeed;
     //contains subnode "access_map", which maps tag-names to team-ids
     //the tag-name is passed as first arg to GameEngine.executeCmd(), see there
     ConfigNode management;
@@ -146,7 +146,7 @@ GameConfig doLoadGameConfig(ConfigNode mConfig, Level level = null,
     //gamemode.conf contains all defined weapon sets, but we only
     //  want the ones used in the current game
     auto avWeaponSets = gamemodecfg.getSubNode("weapon_sets");
-    char[][char[]] wCache;
+    string[string] wCache;
     cfg.weapons = new ConfigNode();
     foreach (ConfigNode item; mConfig.getSubNode("weapons")) {
         if (item.value in wCache)
@@ -184,7 +184,7 @@ GameConfig doLoadGameConfig(ConfigNode mConfig, Level level = null,
         modeNode = mode;
     }
 
-    char[] modeplugin = modeNode["plugin"];
+    string modeplugin = modeNode["plugin"];
     if (!modeplugin.length)
         throwError("game mode plugin missing in {}", modeNode.locationString());
 

@@ -19,7 +19,7 @@ class DrillClass : WeaponClass {
     RandomValue!(Time) interval = {timeMsecs(150), timeMsecs(250)};
     bool blowtorch = false;
 
-    this(GameCore engine, char[] name) {
+    this(GameCore engine, string name) {
         super(engine, name);
     }
 

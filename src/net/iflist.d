@@ -45,7 +45,7 @@ version (Win32) {
 
     //Returns: an array of available broadcast addresses for the system's net
     //  interfaces, e.g. 192.168.0.255
-    public char[][] getBroadcastInterfaces() {
+    public string[] getBroadcastInterfaces() {
         //Note: tango.net.device.Berkeley does the WSAStartup() call
         //WSAIoctl needs a socket handle
         Berkeley bs;
@@ -64,7 +64,7 @@ version (Win32) {
             return ["255.255.255.255"];
         }
 
-        char[][] res;
+        string[] res;
         scope addr = new IPv4Address(12345);
         int nNumInterfaces = nBytes / INTERFACE_INFO.sizeof;
         for (int i = 0; i < nNumInterfaces; i++) {
@@ -123,14 +123,14 @@ version (linux) {
         IFF_MULTICAST = 0x1000,     /* Supports multicast.  */
     }
 
-    public char[][] getBroadcastInterfaces() {
+    public string[] getBroadcastInterfaces() {
         ifaddrs* first;
         if (getifaddrs(&first) < 0) {
             //error, use global broadcast address
             return ["255.255.255.255"];
         }
 
-        char[][] res;
+        string[] res;
         scope addr = new IPv4Address(12345);
         ifaddrs* cur = first;
         while (cur) {

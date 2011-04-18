@@ -128,12 +128,12 @@ class GameSky {
         Scene scene = mEngine.scene;
 
         ConfigNode cloudNode = skyNode.getSubNode("clouds");
-        foreach (char[] name, char[] value; cloudNode) {
+        foreach (string name, string value; cloudNode) {
             mCloudAnims ~= mEngine.resources.get!(Animation)(value);
         }
 
         ConfigNode starNode = skyNode.getSubNode("stars");
-        foreach (char[] name, char[] value; starNode) {
+        foreach (string name, string value; starNode) {
             mStarAnims ~= mEngine.resources.get!(Animation)(value);
         }
 

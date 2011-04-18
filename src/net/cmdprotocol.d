@@ -28,10 +28,10 @@ const cQueryIdent = "LQ";
 //contents of this may depend on server version
 //so check version before reading response data
 struct QueryResponse {
-    char[] serverName;
+    string serverName;
     ushort curPlayers;
     ushort maxPlayers;
-    char[][] players;
+    string[] players;
 }
 
 
@@ -95,7 +95,7 @@ enum DiscReason : uint {
     serverFull,
 }
 
-const char[][DiscReason.max+1] reasonToString = [
+const string[DiscReason.max+1] reasonToString = [
     "none",
     "internal_error",
     "protocol_error",
@@ -111,18 +111,18 @@ const char[][DiscReason.max+1] reasonToString = [
 //-------------------- Server-to-client protocol --------------------
 
 struct SPError {
-    char[] errMsg;
-    char[][] args;
+    string errMsg;
+    string[] args;
 }
 
 struct SPConAccept {
     uint id;
-    char[] playerName;
+    string playerName;
 }
 
 struct SPCmdResult {
     bool success;
-    char[] msg;
+    string msg;
 }
 
 //list of players and their ids, updated on connect/disconnect/nickchange
@@ -132,8 +132,8 @@ struct SPPlayerList {
 
     struct Player {
         uint id;
-        char[] name;
-        char[] teamName;
+        string name;
+        string teamName;
     }
 }
 
@@ -170,7 +170,7 @@ struct SPGameStart {
 
 struct GameCommandEntry {
     uint playerId;
-    char[] cmd;
+    string cmd;
 }
 
 struct SPGameCommands {
@@ -208,7 +208,7 @@ struct SPAcceptCreateGame {
 
     struct Team {
         uint playerId;
-        char[] teamName;
+        string teamName;
         ubyte[] teamConf;
     }
 }
@@ -223,16 +223,16 @@ struct SPGameAsync {
 //--------------------- Client-to-server protocol ------------------
 
 struct CPError {
-    char[] errMsg;
+    string errMsg;
 }
 
 struct CPHello {
     ushort protocolVersion = cProtocolVersion;
-    char[] playerName;
+    string playerName;
 }
 
 struct CPLobbyCmd {
-    char[] cmd;
+    string cmd;
 }
 
 struct CPRequestCreateGame {
@@ -248,12 +248,12 @@ struct CPCreateGame {
 }
 
 struct CPDeployTeam {
-    char[] teamName;
+    string teamName;
     ubyte[] teamConf;
 }
 
 struct CPGameCommand {
-    char[] cmd;
+    string cmd;
 }
 
 struct CPPong {
@@ -269,5 +269,5 @@ struct CPAck {
 //-------- Client-to-client
 
 struct CCChatMessage {
-    char[] witty_comment;
+    string witty_comment;
 }

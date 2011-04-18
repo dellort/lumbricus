@@ -13,7 +13,7 @@ class LoadGui {
     private {
         const cTemplate = "template";
 
-        Widget[char[]] mWidgets;
+        Widget[string] mWidgets;
         Widget mRoot;
         Factory!(Widget) mFactory;
         ConfigNode mTemplates;
@@ -40,7 +40,7 @@ class LoadGui {
         }
     }
 
-    private Widget createWidget(char[] classname) {
+    private Widget createWidget(string classname) {
         if (mFactory.exists(classname))
             return mFactory.instantiate(classname);
         if (WidgetFactory.exists(classname))
@@ -103,7 +103,7 @@ class LoadGui {
     ///enter a Widget, to support the "reference" field (also used internally)
     ///i.e. before loading, add a Widget here, and then reference it in the
     ///config file, using said field
-    void addNamedWidget(Widget w, char[] name) {
+    void addNamedWidget(Widget w, string name) {
         if ((name in mWidgets) && (mWidgets[name] !is w)) {
             throw new CustomException("double name: '"~name~"'");
         }
@@ -113,7 +113,7 @@ class LoadGui {
 
     ///register a custom Widget under a name; overrides the global Widget
     ///factory (to avoid poluting the global namespace with special Widgets)
-    void registerWidget(T : Widget)(char[] classname) {
+    void registerWidget(T : Widget)(string classname) {
         mFactory.register!(T)(classname);
     }
 
@@ -123,7 +123,7 @@ class LoadGui {
     }
 
     ///get a named Widget (as set by "name"-field in the config file)
-    T lookup(T : Widget = Widget)(char[] name, bool canfail = false) {
+    T lookup(T : Widget = Widget)(string name, bool canfail = false) {
         auto p = name in mWidgets;
         T res;
         if (p)
@@ -147,7 +147,7 @@ class LoadGui {
     void load() {
         if (mRoot)
             return;
-        char[] loc = mConfig["locale"];
+        string loc = mConfig["locale"];
         //returns copy of localeRoot if loc == ""
         mLocale = localeRoot.bindNamespace(loc);
         //if no locale is set, avoid destroying names with dots

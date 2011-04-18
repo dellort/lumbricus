@@ -38,7 +38,7 @@ class CmdNetServer {
 
         ushort mPort;
         int mMaxPlayers, mPlayerCount;
-        char[] mServerName;
+        string mServerName;
         uint mMaxLag;
         public ObjectList!(CmdNetClientConnection, "client_node") mClients;
         CmdServerState mState;
@@ -49,7 +49,7 @@ class CmdNetServer {
 
         struct PendingCommand {
             CmdNetClientConnection client;
-            char[] cmd;
+            string cmd;
         }
         PendingCommand[] mPendingCommands;
         TimeSource mMasterTime;
@@ -176,13 +176,13 @@ class CmdNetServer {
     }
 
     //validate (and possibly change) the nickname of a connecting player
-    private bool checkNewNick(ref char[] nick, bool allowChange = true) {
+    private bool checkNewNick(ref string nick, bool allowChange = true) {
         //no empty nicks, minimum length 3
         if (nick.length < 3)
             return false;
         //xxx check for invalid chars (e.g. space)
         //check for names already in use
-        char[] curNick = nick;
+        string curNick = nick;
         int idx = 2;
         while (true) {
             foreach (cl; mClients) {
@@ -191,7 +191,7 @@ class CmdNetServer {
                 {
                     if (allowChange) {
                         //name is in use, append "_x" with incr. number to it
-                        curNick = nick ~ "_" ~ to!(char[])(idx);
+                        curNick = nick ~ "_" ~ to!(string)(idx);
                         idx++;
                         continue;
                     } else {
@@ -427,7 +427,7 @@ class CmdNetServer {
     }
 
     //incoming game command from a client
-    private void gameCommand(CmdNetClientConnection client, char[] cmd) {
+    private void gameCommand(CmdNetClientConnection client, string cmd) {
         //Trace.formatln("Gamecommand({}): {}",client.playerName, cmd);
         assert(mState == CmdServerState.playing);
         //add to queue, for sending with next server frame
@@ -557,7 +557,7 @@ class CmdNetServer {
 }
 
 private class CCError : CustomException {
-    this(char[] msg) { super(msg); }
+    this(string msg) { super(msg); }
 }
 
 //peer connection state for CmdNetClientConnection
@@ -580,12 +580,12 @@ class CmdNetClientConnection {
         MarshalBuffer mMarshal;
         ClientConState mState;
         Time mStateEnter, mLastPing;
-        char[] mPlayerName;
+        string mPlayerName;
         CommandBucket mCmds;
         CommandLine mCmd;
         StringOutput mCmdOutBuffer;
         ubyte[] mTeamData;
-        char[] mTeamName;
+        string mTeamName;
         bool loadDone;
         uint mId;  //immutable during lifetime
 
@@ -635,7 +635,7 @@ class CmdNetClientConnection {
     }
 
     private void cmdName(MyBox[] args, Output write) {
-        char[] newName = args[0].unbox!(char[]);
+        string newName = args[0].unbox!(string);
         if (newName == mPlayerName) {
             throw new CCError("Your nickname already is " ~ mPlayerName ~ ".");
         }
@@ -655,14 +655,14 @@ class CmdNetClientConnection {
         return mId;
     }
 
-    void close(char[] desc, DiscReason why = DiscReason.none) {
+    void close(string desc, DiscReason why = DiscReason.none) {
         log.notice("disconnect peer {}, code={}, reason: {}", id(), why, desc);
         mPeer.disconnect(why);
         state(ClientConState.closed);
     }
 
     //transmit a non-fatal error message
-    private void sendError(char[] errorCode, char[][] args = null) {
+    private void sendError(string errorCode, string[] args = null) {
         SPError p;
         p.errMsg = errorCode;
         p.args = args;
@@ -685,7 +685,7 @@ class CmdNetClientConnection {
         return mState;
     }
 
-    char[] playerName() {
+    string playerName() {
         return mPlayerName;
     }
 
@@ -1047,7 +1047,7 @@ version(Windows) {
         return 1;
     }
 
-    void setupConsole(char[] title) {
+    void setupConsole(string title) {
         //looks nicer
         SetConsoleTitleA(toStringz(title));
         //handle Ctrl-C for graceful termination
@@ -1060,13 +1060,13 @@ version(Windows) {
         gTerminate = true;
     }
 
-    void setupConsole(char[] title) {
+    void setupConsole(string title) {
         xout.Stdout.formatln("\033]0;{}\007", title);
         signal(SIGINT, &sighandler);
         signal(SIGTERM, &sighandler);
     }
 } else {
-    void setupConsole(char[] title) {
+    void setupConsole(string title) {
     }
 }
 

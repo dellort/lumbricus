@@ -24,7 +24,7 @@ struct ObjListNode(T) {
 //e.g. class X { ObjListNode!(typeof(this)) m; }
 //     alias ObjectList!(X, "m") ListOfX;
 //Note: the member name is checked at compile-time
-final class ObjectList(T, char[] member) {
+final class ObjectList(T, string member) {
     static assert(is(T == class) || is(typeof(*T) == struct));
 
     alias ObjListNode!(T) Node;

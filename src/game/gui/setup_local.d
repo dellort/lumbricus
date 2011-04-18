@@ -94,9 +94,9 @@ class LevelWidget : SimpleContainer {
     }
 
     private void readSavedLevels() {
-        char[][] storedlevels;
+        string[] storedlevels;
         storedlevels ~= translate("gamesetup.lastplayed");
-        gFS.listdir(cSavedLevelsPath, "*.conf", false, (char[] fn) {
+        gFS.listdir(cSavedLevelsPath, "*.conf", false, (string fn) {
             storedlevels ~= fn[0..$-5];
             return true;
         });
@@ -167,7 +167,7 @@ class LevelWidget : SimpleContainer {
     private void saveLevelClick(Button sender) {
         if (!mSavedLevels.allowEdit)
             return;
-        char[] lname = mSavedLevels.edit.text;
+        string lname = mSavedLevels.edit.text;
         auto tmpLevel = mCurrentLevel.render(true);
         //remove illegal chars
         auto p = VFSPath(cSavedLevelsPath ~ lname ~ ".conf", true);
@@ -263,7 +263,7 @@ class LocalGameSetupTask {
         ConfigNode mTeams;       //as loaded from teams.conf
         //list of team ids for the game
         //note that it might contain invalid (deleted) teams
-        TeamDef[char[]] mActiveTeams;
+        TeamDef[string] mActiveTeams;
 
         GameTask mGame;
         ConfigNode mGamePersist;
@@ -312,7 +312,7 @@ class LocalGameSetupTask {
     }
 
     //fuck it...
-    private void getW(T)(LoadGui loader, ref T widget, char[] name) {
+    private void getW(T)(LoadGui loader, ref T widget, string name) {
         widget = loader.lookup!(T)(name);
     }
 
@@ -336,10 +336,10 @@ class LocalGameSetupTask {
 
     //refresh team display in the dialog without reloading
     private void updateTeams() {
-        char[][] teams, actteams;
+        string[] teams, actteams;
         foreach (ConfigNode t; mTeams) {
             if (t["id"] in mActiveTeams) {
-                char[] tname = t.name;
+                string tname = t.name;
                 if (mGamePersist) {
                     //xxx just for debugging, until game summary dialog is done
                     auto n = mGamePersist.getSubNode("teams").getSubNode(
@@ -381,7 +381,7 @@ class LocalGameSetupTask {
 
     //mark a team as (in)active, i.e. (not) participating on the game
     //teams are remembered by id, because the name might change
-    private void activateTeam(char[] teamId, bool active) {
+    private void activateTeam(string teamId, bool active) {
         if (active) {
             if (!(teamId in mActiveTeams)) {
                 mActiveTeams[teamId] = TeamDef();
@@ -435,7 +435,7 @@ class LocalGameSetupTask {
         applySettings(config);
         auto gc = loadGameConfig(config, level, true, mGamePersist);
         gc.teams = buildGameTeams();
-        gc.randomSeed = to!(char[])(generateRandomSeed());
+        gc.randomSeed = to!(string)(generateRandomSeed());
         //xxx: do some task-death-notification or so... (currently: polling)
         //currently, the game can't really return anyway...
         mGame = new GameTask(gc);
@@ -447,7 +447,7 @@ class LocalGameSetupTask {
     //  for manipulating settings, but for my primitive purposes, this seemed
     //  easier for now (weaponsets etc.)
     private void applySettings(ConfigNode config) {
-        char[] s = mGraphicSet.selection();
+        string s = mGraphicSet.selection();
         //I'm sorry for this bullshit
         if (s != "(default)")
             config.getSubNode("gfx")["config"] = s;

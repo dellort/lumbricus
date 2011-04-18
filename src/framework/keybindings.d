@@ -26,9 +26,9 @@ struct BindKey {
     //parse a whitespace separated list of strings into sth. that can be passed
     //  to KeyBindings.addBinding()
     //return success (members are only changed if successful)
-    bool parse(char[] bindstr) {
+    bool parse(string bindstr) {
         BindKey out_bind;
-        foreach (char[] s; str.split(bindstr)) {
+        foreach (string s; str.split(bindstr)) {
             Modifier mod;
             if (stringToModifier(s, mod)) {
                 out_bind.mods |= (1<<mod);
@@ -47,8 +47,8 @@ struct BindKey {
     }
 
     //undo parse(), return bindstr
-    char[] unparse() {
-        char[][] stuff;
+    string unparse() {
+        string[] stuff;
         stuff = [translateKeycodeToKeyID(code)];
         for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
             if (modifierIsSet(mods, mod))
@@ -57,7 +57,7 @@ struct BindKey {
         return str.join(stuff, " ");
     }
 
-    char[] toString() {
+    string toString() {
         return "[KeyBind "~unparse()~"]";
     }
 
@@ -66,7 +66,7 @@ struct BindKey {
 /// Map key combinations to IDs (strings).
 public class KeyBindings {
     private struct Entry {
-        char[] bind_to;
+        string bind_to;
         BindKey key;
     }
 
@@ -77,7 +77,7 @@ public class KeyBindings {
         return findBinding(key).length > 0;
     }
 
-    char[] findBinding(BindKey key) {
+    string findBinding(BindKey key) {
         foreach (ref e; mBindings) {
             if (e.key == key)
                 return e.bind_to;
@@ -85,18 +85,18 @@ public class KeyBindings {
         return null;
     }
 
-    char[] findBinding(KeyInfo info) {
+    string findBinding(KeyInfo info) {
         return findBinding(BindKey.FromKeyInfo(info));
     }
 
     /// Add a binding.
-    bool addBinding(char[] bind_to, BindKey k) {
+    bool addBinding(string bind_to, BindKey k) {
         mBindings ~= Entry(bind_to, k);
         return true;
     }
 
     /// Add a binding (by string).
-    bool addBinding(char[] bind_to, char[] bindstr) {
+    bool addBinding(string bind_to, string bindstr) {
         BindKey k;
         if (!k.parse(bindstr))
             return false;
@@ -104,12 +104,12 @@ public class KeyBindings {
     }
 
     //wrapper can't deal with overloaded functions (D's fault)
-    bool scriptAddBinding(char[] bind_to, char[] bindstr) {
+    bool scriptAddBinding(string bind_to, string bindstr) {
         return addBinding(bind_to, bindstr);
     }
 
     /// Remove all key combinations that map to the binding bind_to.
-    void removeBinding(char[] bind_to) {
+    void removeBinding(string bind_to) {
     again:
         foreach (int i, Entry e; mBindings) {
             if (e.bind_to == bind_to) {
@@ -121,7 +121,7 @@ public class KeyBindings {
 
     /// Return the arguments for the addBinding() call which created bind_to.
     /// Return value is false if not found.
-    bool readBinding(char[] bind_to, out BindKey key) {
+    bool readBinding(string bind_to, out BindKey key) {
         foreach (e; mBindings) {
             if (e.bind_to == bind_to) {
                 key = e.key;
@@ -137,7 +137,7 @@ public class KeyBindings {
 
     void loadFrom(config.ConfigNode node) {
         foreach (config.ConfigNode v; node) {
-            char[] cmd, key;
+            string cmd, key;
             if (v.hasNode("cmd")) {
                 //xxx with the changes in configfile, this is redundant now
                 cmd = v["cmd"];
@@ -155,7 +155,7 @@ public class KeyBindings {
 
     /// Enum all defined bindings.
     /// Caller must not add or remove bindings while enumerating.
-    void enumBindings(void delegate(char[] bind, BindKey k) callback) {
+    void enumBindings(void delegate(string bind, BindKey k) callback) {
         if (!callback)
             return;
 
@@ -175,9 +175,9 @@ Translator localizedKeynames() {
 }
 
 //translate into translated user-readable string
-char[] translateKeyshortcut(BindKey key) {
+string translateKeyshortcut(BindKey key) {
     auto tl = localizedKeynames();
-    char[] res = tl(translateKeycodeToKeyID(key.code), "?");
+    string res = tl(translateKeycodeToKeyID(key.code), "?");
     foreachSetModifier(key.mods,
         (Modifier mod) {
             res = tl(modifierToString(mod), "?") ~ "+" ~ res;
@@ -187,7 +187,7 @@ char[] translateKeyshortcut(BindKey key) {
 }
 
 //xxx maybe move to framework
-char[] translateBind(KeyBindings b, char[] bind) {
+string translateBind(KeyBindings b, string bind) {
     BindKey k;
     if (!b.readBinding(bind, k)) {
         return "-";

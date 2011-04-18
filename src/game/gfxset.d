@@ -28,7 +28,7 @@ struct LoadedWater {
     ResourceFile res;
 }
 alias LoadedWater delegate(ConfigNode) WaterLoadDg;
-WaterLoadDg[char[]] gWaterLoadHack;
+WaterLoadDg[string] gWaterLoadHack;
 
 //references all graphic/sound (no sounds yet) resources etc.
 //after r866: extended to carry sprites & sequences
@@ -63,7 +63,7 @@ class GfxSet {
     ResourceFile[] load_resources;
 
     //keyed by the theme name (TeamTheme.name)
-    TeamTheme[char[]] teamThemes;
+    TeamTheme[string] teamThemes;
 
     Color waterColor;
 
@@ -104,12 +104,12 @@ class GfxSet {
 
         ConfigNode gfx = cfg.gfx;
 
-        const char[] cPreferredGraphics = "wwp.conf";
-        const char[] cFailsafeGraphics = "freegraphics.conf";
+        const string cPreferredGraphics = "wwp.conf";
+        const string cFailsafeGraphics = "freegraphics.conf";
 
         ResourceFile resfile;
 
-        char[] gfxconf = gfx.getStringValue("config", cPreferredGraphics);
+        string gfxconf = gfx.getStringValue("config", cPreferredGraphics);
         try {
             config = gResources.loadConfigForRes(gfxconf);
             resfile = addGfxSet(config);
@@ -234,29 +234,29 @@ struct ExplosionSettings {
     int[] sizeTreshold = [25, 100, 150, 200];
 
     void load(ConfigNode conf, ResourceSet res) {
-        ParticleType getp(char[] name) {
+        ParticleType getp(string name) {
             Animation ani = res.get!(Animation)(name);
             auto p = new ParticleType;
             p.animation ~= ani;
             return p;
         }
 
-        char[][] sw1 = conf.getValue!(char[][])("shockwave1");
+        string[] sw1 = conf.getValue!(string[])("shockwave1");
         foreach (int i, resid; sw1) {
             shockwave1[i] = getp(resid);
         }
 
-        char[][] sw2 = conf.getValue!(char[][])("shockwave2");
+        string[] sw2 = conf.getValue!(string[])("shockwave2");
         foreach (int i, resid; sw2) {
             shockwave2[i] = getp(resid);
         }
 
-        char[][] txt = conf.getValue!(char[][])("comictext");
+        string[] txt = conf.getValue!(string[])("comictext");
         foreach (int i, resid; txt) {
             comicText[i] = getp(resid);
         }
 
-        char[][] smo = conf.getValue!(char[][])("smoke");
+        string[] smo = conf.getValue!(string[])("smoke");
         foreach (int i, resid; smo) {
             smoke[i] = getp(resid);
             smoke[i].gravity.min = -50f;

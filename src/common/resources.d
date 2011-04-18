@@ -15,7 +15,7 @@ import common.resset;
 //ConfigNode = the node under load_hacks
 //ResourceFile = file operating in
 alias void delegate(ConfigNode, ResourceFile) ResLoadHackDg;
-ResLoadHackDg[char[]] gResLoadHacks;
+ResLoadHackDg[string] gResLoadHacks;
 
 ///manages a single resource
 class ResourceObject {
@@ -28,10 +28,10 @@ class ResourceObject {
 ///file
 class ResourceItem : ResourceObject {
     ///unique id of resource
-    char[] id;
+    string id;
 
     //error reporting?
-    char[] fallbackLocation = "?";
+    string fallbackLocation = "?";
 
     protected {
         Object mContents;
@@ -43,7 +43,7 @@ class ResourceItem : ResourceObject {
         return !!mContents;
     }
 
-    char[] location() {
+    string location() {
         return mConfig ? mConfig.locationString() : fallbackLocation;
     }
 
@@ -52,7 +52,7 @@ class ResourceItem : ResourceObject {
         return mConfig;
     }
 
-    package this(ResourceFile context, char[] id, ConfigNode item)
+    package this(ResourceFile context, string id, ConfigNode item)
     {
         mContext = context;
         this.id = id;
@@ -80,7 +80,7 @@ class ResourceItem : ResourceObject {
             //save a little bit of memory
             mConfig = null;
         } catch (CustomException e) {
-            char[] errMsg = "Resource " ~ id ~ " (" ~ toString()
+            string errMsg = "Resource " ~ id ~ " (" ~ toString()
                 ~ ") failed to load: "~e.toString~"  - location: "
                 ~ location();
             Resources.log(errMsg);
@@ -103,13 +103,13 @@ class ResourceItem : ResourceObject {
         mContents = null; //let the GC do the work
     }
 
-    char[] fullname() {
+    string fullname() {
         return mContext.resource_id ~ "::" ~ id;
     }
 
     //display non-fatal load error (non-fatal as in, we can continue with a
     //  dummy replacement, such as an error graphic for bitmaps)
-    void loadError(char[] fmt, ...) {
+    void loadError(string fmt, ...) {
         Resources.log.error("Loading resource '{}' specified in {} failed: {}",
             id, location(),
             myformat_fx(fmt, _arguments, _argptr));
@@ -120,7 +120,7 @@ class ResourceItem : ResourceObject {
 }
 
 class PseudoResource : ResourceItem {
-    this(ResourceFile context, char[] id, Object obj) {
+    this(ResourceFile context, string id, Object obj) {
         super(context, id, null);
         mContents = obj;
     }
@@ -136,11 +136,11 @@ class PseudoResource : ResourceItem {
 //  aliases are resolved when the resources are added to the ResourceSet in
 //  addToResourceSet
 private class AliasResource : ResourceItem {
-    char[] alias_name;
+    string alias_name;
 
-    this(ResourceFile context, char[] id, ConfigNode item) {
+    this(ResourceFile context, string id, ConfigNode item) {
         super(context, id, item);
-        alias_name = item.getCurValue!(char[])();
+        alias_name = item.getCurValue!(string)();
     }
 
     protected void load() {
@@ -155,7 +155,7 @@ private class AliasResource : ResourceItem {
 
 void addToResourceSet(ResourceSet rs, ResourceItem[] items) {
     struct Entry {
-        char[] res, new_name;
+        string res, new_name;
     }
 
     Entry[] aliases;
@@ -180,20 +180,20 @@ alias void delegate(int cur, int total) ResourceLoadProgress;
 class ResourceFile {
     private {
         bool loading = true;
-        char[] resource_id; //mostly the filename, but see loadResources()
-        char[] filepath; //path where the resource files are
+        string resource_id; //mostly the filename, but see loadResources()
+        string filepath; //path where the resource files are
         ResourceFile[] requires;
         ResourceItem[] resources;
     }
 
-    private this(char[] id, char[] path) {
+    private this(string id, string path) {
         resource_id = id;
         filepath = path;
     }
 
     //add an already loaded object as resource and work around the usual
     //  loading mechanism
-    void addPseudoResource(char[] name, Object obj) {
+    void addPseudoResource(string name, Object obj) {
         resources ~= new PseudoResource(this, name, obj);
     }
 
@@ -202,7 +202,7 @@ class ResourceFile {
     }
 
     //correct loading of relative files
-    public char[] fixPath(char[] orgVal) {
+    public string fixPath(string orgVal) {
         if (orgVal.length == 0)
             return orgVal;
         if (orgVal[0] == '/')
@@ -213,7 +213,7 @@ class ResourceFile {
     //this is for resources which are refered by other resources
     //obviously only works within a resource file, from now on
     //NOTE: infinitely slow; if needed rewrite it
-    ResourceItem find(char[] id) {
+    ResourceItem find(string id) {
         foreach (i; getAll()) {
             if (i.id == id) {
                 return i;
@@ -224,7 +224,7 @@ class ResourceFile {
 
     //like cast(T)(find(id).get())
     //throws an exception if the result has the wrong type
-    T findAndGetT(T)(char[] id) {
+    T findAndGetT(T)(string id) {
         T res = cast(T)(find(id).get());
         if (!res)
             throw new ResourceException(id, "resource has wrong type");
@@ -254,10 +254,10 @@ static this() {
 ///ResourceSet from module common.resset
 public class Resources {
     static Log log;
-    private ResourceFile[char[]] mLoadedResourceFiles;
+    private ResourceFile[string] mLoadedResourceFiles;
 
     private alias StaticFactory!("Ressoures", ResourceItem, ResourceFile,
-        char[], ConfigNode) ResFactory;
+        string, ConfigNode) ResFactory;
 
     this() {
         log = registerLog("resources");
@@ -266,14 +266,14 @@ public class Resources {
     ///register a class derived from Resource for the internal factory under
     ///the given name
     ///the class T to register must have this constructor:
-    ///     this(Resources parent, char[] name, ConfigNode from)
+    ///     this(Resources parent, string name, ConfigNode from)
     ///else compilation will fail somewhere in factory.d
-    static void registerResourceType(T : ResourceItem)(char[] name) {
+    static void registerResourceType(T : ResourceItem)(string name) {
         ResFactory.register!(T)(name);
     }
 
     //"fullname" is the resource ID, prefixed by the filename
-    void enumResources(void delegate(char[] fullname, ResourceItem res) cb) {
+    void enumResources(void delegate(string fullname, ResourceItem res) cb) {
         foreach (file; mLoadedResourceFiles) {
             foreach (ResourceItem res; file.resources) {
                 cb(res.fullname, res);
@@ -286,7 +286,7 @@ public class Resources {
     //This is an internal method and should only used from this class
     //and from Resource implementations
     //*** Internal: Use loadResources() instead ***
-    private ResourceItem createResource(ResourceFile context, char[] type,
+    private ResourceItem createResource(ResourceFile context, string type,
         ConfigNode it)
     {
         try {
@@ -337,7 +337,7 @@ public class Resources {
 
         //create a ConfigNode path to have a unique ID for this resource section
         //(when several resource sections are in one file)
-        char[] config_path = "/";
+        string config_path = "/";
         auto cur = config;
         while (cur !is parent) {
             assert(!!cur);
@@ -359,8 +359,8 @@ public class Resources {
         if (auto file = id in mLoadedResourceFiles) {
             if (file.loading) {
                 //don't know which file caused this; still try to be of help
-                char[][] offenders;
-                foreach (char[] o_id, o_file; mLoadedResourceFiles) {
+                string[] offenders;
+                foreach (string o_id, o_file; mLoadedResourceFiles) {
                     if (o_file.loading && o_id != id)
                         offenders ~= o_id;
                 }
@@ -439,12 +439,12 @@ public class Resources {
     }
 
     ///provided for simplicity
-    public ResourceFile loadResources(char[] conffile) {
+    public ResourceFile loadResources(string conffile) {
         return loadResources(loadConfigForRes(conffile));
     }
 
     ///also just for simplicity
-    public static ConfigNode loadConfigForRes(char[] path) {
+    public static ConfigNode loadConfigForRes(string path) {
         ConfigNode config = loadConfig(path);
         config[cResourcePathName] = path;
         return config;
@@ -461,7 +461,7 @@ public class Resources {
     }
 
     //meh
-    public ResourceSet loadResSet(char[] file) {
+    public ResourceSet loadResSet(string file) {
         return loadResSet(loadConfigForRes(file));
     }
 
@@ -588,8 +588,8 @@ public class Resources {
 //the files are loaded from gFS, relative to the passed path
 //the config nodes from the include files are merged into node itself
 //for more half-assedness, includes aren't processed recursively
-void processIncludes(ConfigNode node, char[] path) {
-    char[][] files = node.getValue!(char[][])("include");
+void processIncludes(ConfigNode node, string path) {
+    string[] files = node.getValue!(string[])("include");
     foreach (f; files) {
         ConfigNode inc = loadConfig(path ~ "/" ~ f);
         node.mixinNode(inc);

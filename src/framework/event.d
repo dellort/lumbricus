@@ -15,7 +15,7 @@ public enum Modifier {
     //Numlock,
 }
 
-char[] modifierToString(Modifier mod) {
+string modifierToString(Modifier mod) {
     switch (mod) {
         case Modifier.Alt: return "mod_alt";
         case Modifier.Control: return "mod_ctrl";
@@ -23,7 +23,7 @@ char[] modifierToString(Modifier mod) {
     }
 }
 
-bool stringToModifier(char[] str, out Modifier mod) {
+bool stringToModifier(string str, out Modifier mod) {
     switch (str) {
         case "mod_alt": mod = Modifier.Alt; return true;
         case "mod_ctrl": mod = Modifier.Control; return true;
@@ -35,7 +35,7 @@ bool stringToModifier(char[] str, out Modifier mod) {
 
 /// translate a Keycode to a OS independent key ID string
 /// return null for Keycode.KEY_INVALID
-char[] translateKeycodeToKeyID(Keycode code) {
+string translateKeycodeToKeyID(Keycode code) {
     foreach (KeycodeToName item; g_keycode_to_name) {
         if (item.code == code) {
             return item.name;
@@ -45,7 +45,7 @@ char[] translateKeycodeToKeyID(Keycode code) {
 }
 
 /// reverse operation of translateKeycodeToKeyID()
-Keycode translateKeyIDToKeycode(char[] keyid) {
+Keycode translateKeyIDToKeycode(string keyid) {
     foreach (KeycodeToName item; g_keycode_to_name) {
         if (item.name == keyid) {
             return item.code;
@@ -88,7 +88,7 @@ public struct KeyInfo {
     bool isDown;
     /// Fully translated according to system keymap and modifiers
     /// length 0 if no text representation
-    char[] unicode;
+    string unicode;
     /// set of active modifiers when event was fired
     ModifierSet mods;
     /// whether this event is an artifical one coming from autorepeat
@@ -113,8 +113,8 @@ public struct KeyInfo {
         return !isDown;
     }
 
-    char[] toString() {
-        char[] modstr = "[";
+    string toString() {
+        string modstr = "[";
         //append all modifiers
         for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
             if ((1<<mod) & mods) {
@@ -134,7 +134,7 @@ public struct MouseInfo {
     Vector2i pos;
     Vector2i rel;
 
-    char[] toString() {
+    string toString() {
         return myformat("[MouseInfo: pos={} rel={}]", pos, rel);
     }
 }
@@ -155,8 +155,8 @@ struct InputEvent {
         return isMouseEvent || (isKeyEvent && keyEvent.isMouseButton);
     }
 
-    char[] toString() {
-        char[] s;
+    string toString() {
+        string s;
         if (isKeyEvent)
             s = keyEvent.toString();
         else if (isMouseEvent)

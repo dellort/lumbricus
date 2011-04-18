@@ -162,7 +162,7 @@ class DropDownList : Container {
         EditLine mEdit;
         StringListWidget mList;
         //"official" selection
-        char[] mSelection;
+        string mSelection;
         bool mAllowEdit, mEditing;
     }
 
@@ -192,10 +192,10 @@ class DropDownList : Container {
     }
 
     ///get/set selection - setting selection doesn't trigger onSelect
-    char[] selection() {
+    string selection() {
         return mSelection;
     }
-    void selection(char[] v) {
+    void selection(string v) {
         mSelection = v;
         mClient.text = v;
     }
@@ -277,7 +277,7 @@ class DropDownList : Container {
     void loadFrom(GuiLoader loader) {
         auto node = loader.node;
         mAllowEdit = node.getValue("allow_edit", mAllowEdit);
-        mList.setContents(node.getValue!(char[][])("contents"));
+        mList.setContents(node.getValue!(string[])("contents"));
         //select first if any
         if (mList.contents.length > 0)
             selection = mList.contents[0];

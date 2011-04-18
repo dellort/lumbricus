@@ -11,18 +11,18 @@ import traits = tango.core.Traits;
 
 class EventTarget {
     private {
-        char[] mEventTargetType;
+        string mEventTargetType;
         //ID mEventTargetTypeID;
         Events mEvents, mPerClass, mPerInstance;
     }
 
-    this(char[] type, Events global_events) {
+    this(string type, Events global_events) {
         assert(!!global_events);
         mEvents = global_events;
         resetEventType(type);
     }
 
-    void resetEventType(char[] n) {
+    void resetEventType(string n) {
         mEventTargetType = n;
         //mEventTargetTypeID = 0;
         mPerClass = mEvents.perClassEvents(mEventTargetType);
@@ -48,11 +48,11 @@ class EventTarget {
         return mPerInstance;
     }
 
-    final char[] eventTargetType() {
+    final string eventTargetType() {
         return mEventTargetType;
     }
 
-    final void raiseEvent(char[] name, EventPtr args) {
+    final void raiseEvent(string name, EventPtr args) {
         raiseEvent(Atoms.get(name), args);
     }
     //backend function
@@ -101,7 +101,7 @@ private struct EventEntry {
 }
 
 private class EventType {
-    char[] name;
+    string name;
     TypeInfo paramtype;
     EventEntry[] handlers;
     EventEntry[] unreg_list;
@@ -116,12 +116,12 @@ private class EventType {
 }
 
 //create marshaller for D <-> Lua event transport
-private alias char[] function(LuaState lua) RegisterMarshaller;
+private alias string function(LuaState lua) RegisterMarshaller;
 
 //indexed by event name (it "should" be indexed by event type [i.e. the type of
 //  the parameters, for marshalling], but Lua can't know the event argument
 //  types)
-RegisterMarshaller[char[]] gEventMarshallers;
+RegisterMarshaller[string] gEventMarshallers;
 
 /+
 //have to register the marshallers as the scripting state is created
@@ -144,8 +144,8 @@ final class Events {
         LuaState mScripting;
 
         //hack
-        Events[char[]] mPerClassEvents;
-        char[] mTargetType;
+        Events[string] mPerClassEvents;
+        string mTargetType;
         Events mParent;
 
         //also a hack, referenced by DeclareGlobalEvent
@@ -161,7 +161,7 @@ final class Events {
     }
 
     //for Events that are for per-class handlers
-    this(char[] target_type, Events parent = null) {
+    this(string target_type, Events parent = null) {
         mParent = parent;
         mTargetType = target_type;
     }
@@ -177,7 +177,7 @@ final class Events {
     //this is a hack insofar, that only the global Events instance should have
     //  this method, and it doesn't really make sense for per-class Events
     //  instances
-    final Events perClassEvents(char[] target_type) {
+    final Events perClassEvents(string target_type) {
         auto pevents = target_type in mPerClassEvents;
         if (pevents)
             return *pevents;
@@ -202,7 +202,7 @@ final class Events {
         }
     }
 
-    char[] scriptGetMarshallers(char[] event_name) {
+    string scriptGetMarshallers(string event_name) {
         if (!mScripting)
             throw new CustomException("script trying to access unscripted "
                 "Events instance");
@@ -215,7 +215,7 @@ final class Events {
         return mGlobalEvents;
     }
 
-    private EventType get_event(char[] name) {
+    private EventType get_event(string name) {
         ID id = Atoms.get(name);
         if (id >= mEvents.length)
             mEvents.length = id + 1;
@@ -227,7 +227,7 @@ final class Events {
         return e;
     }
 
-    private void do_reg_handler(char[] event, TypeInfo paramtype,
+    private void do_reg_handler(string event, TypeInfo paramtype,
         EventEntry a_handler)
     {
         EventType e = get_event(event);
@@ -237,7 +237,7 @@ final class Events {
         e.handlers ~= a_handler;
     }
 
-    private void do_unreg_handler(char[] event, EventEntry a_handler) {
+    private void do_unreg_handler(string event, EventEntry a_handler) {
         EventType e = get_event(event);
         if (mLazyRemove) {
             //unreg called from raise(), remove later
@@ -256,7 +256,7 @@ final class Events {
 
     //event = event name (e.g. "ondamage")
     //paramtype is needed for script->D events (what type to demarshal)
-    void handler(char[] event, TypeInfo paramtype, EventHandler a_handler) {
+    void handler(string event, TypeInfo paramtype, EventHandler a_handler) {
         EventEntry e;
         e.data.box!(EventHandler)(a_handler);
         e.handler = &handler_generic;
@@ -264,7 +264,7 @@ final class Events {
     }
 
     //one should prefer EventTarget.raiseEvent()
-    void raise(char[] event, EventTarget sender, EventPtr params) {
+    void raise(string event, EventTarget sender, EventPtr params) {
         raise(Atoms.get(event), sender, params);
     }
     //backend function
@@ -296,7 +296,7 @@ private template GetArgs(T) {
 }
 
 //D <-> script marshallers
-void paramType(ParamType)(char[] event_name) {
+void paramType(ParamType)(string event_name) {
     alias GetArgs!(ParamType) Args;
     alias void delegate(EventTarget, Args) Handler;
 
@@ -311,7 +311,7 @@ void paramType(ParamType)(char[] event_name) {
         h(sender, args.tupleof);
     }
 
-    static void register(Events base, char[] name, Handler a_handler) {
+    static void register(Events base, string name, Handler a_handler) {
         EventEntry e;
         e.data.box!(Handler)(a_handler);
         e.handler = &handler_templated;
@@ -321,7 +321,7 @@ void paramType(ParamType)(char[] event_name) {
     //script -> D
     //xxx code duplication from DeclareEvent.raise
 
-    static void raise(EventTarget target, char[] name, Args args) {
+    static void raise(EventTarget target, string name, Args args) {
         argcheck(target);
         ParamType args2 = ParamType(args);
         auto argsptr = EventPtr.Ptr(args2);
@@ -331,9 +331,9 @@ void paramType(ParamType)(char[] event_name) {
     //register both
 
     //mangleof is the simplest way to get an unique name
-    const char[] c_name = ParamType.mangleof;
+    const string c_name = ParamType.mangleof;
 
-    static char[] register_marshallers(LuaState lua) {
+    static string register_marshallers(LuaState lua) {
         lua.scriptExec(`
                 local name, register, raise = ...
                 if not d_event_marshallers then
@@ -356,7 +356,7 @@ void paramType(ParamType)(char[] event_name) {
 //this checks event parameter types at compile time
 //xxx would be nice as struct too, but I get forward reference errors
 //xxx 2 the name will add major symbol name bloat, argh.
-class DeclareEvent(char[] name, SenderBase, Args...) {
+class DeclareEvent(string name, SenderBase, Args...) {
 //fuck, this crap doesn't work at all anymore!
 //dmd bugzilla 4033 (but why did it work before?)
 //    static assert(is(SenderBase : EventTarget));
@@ -416,7 +416,7 @@ class DeclareEvent(char[] name, SenderBase, Args...) {
 //  function for scripting (that handler can be a normal D function, that takes
 //  an event handler delegate as parameter) - I want to simplify it once I
 //  manage to make up my mind
-class DeclareGlobalEvent(char[] name, Args...) {
+class DeclareGlobalEvent(string name, Args...) {
     alias void delegate(EventTarget, Args) Handler;
     alias void delegate(Args) Handler2;
     alias DeclareEvent!(name, EventTarget, Args) Event;
@@ -455,13 +455,13 @@ unittest {
 alias size_t ID; //always >0 (0 means invalid)
 class Atoms {
     private static {
-        ID[char[]] mAtoms;
+        ID[string] mAtoms;
         ID mIDAlloc;
     }
 
     //return an unique, small integer for string s
     //never return 0
-    static ID get(char[] s) {
+    static ID get(string s) {
         if (auto p = s in mAtoms) {
             return *p;
         }
@@ -471,7 +471,7 @@ class Atoms {
     }
 
     /+
-    static char[] lookup(ID id) {
+    static string lookup(ID id) {
         loop? use reverse lookup table?
         return mAtoms[id];
     }

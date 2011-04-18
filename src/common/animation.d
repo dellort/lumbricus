@@ -112,8 +112,8 @@ struct AnimationParams {
 //so, instead, this shitcrap will have to do... enjoy
 import str = utils.string;
 struct StaticArray(T, int N) {
-    private static char[] entries() {
-        char[] code;
+    private static string entries() {
+        string code;
         for (int i = 0; i < N; i++) {
             code ~= "T _" ~ str.ctfe_itoa(i) ~ ";";
         }
@@ -311,7 +311,7 @@ class SubAnimation : Animation {
 
 //can be implemented by an Animation descendant, used by resview.d
 interface DebugAniFrames {
-    char[][] paramInfos();
+    string[] paramInfos();
     int[] paramCounts();
     Rect2i frameBoundingBox();
     void drawFrame(Canvas c, Vector2i pos, int p1, int p2, int p3);

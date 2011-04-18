@@ -143,12 +143,12 @@ public class FormattedText {
             bool nowrap; //hack for wrap arrow
             bool startline; //hack for indexFromPosFuzzy()
             //validity depends from PartType
-            char[] text;
+            string text;
             int text_start = -1; //if >=0, start index into mText
             Surface image;
         }
         //NOTE: the memory for mText is always owned by us
-        char[] mText;
+        string mText;
         bool mTextIsFormatted; //mText; false: setLiteral(), true: setMarkup()
         Translator mTranslator;
         ResourceSet mResources;
@@ -168,9 +168,9 @@ public class FormattedText {
         Style[] mStyleStack; //[$-1] contains current style, assert(length > 0)
 
         //text used to break overlong text (with shrink option)
-        const char[] cDotDot = "...";
+        const string cDotDot = "...";
         //inserted at the beginning of a wrapped line (right arrow with hook)
-        const char[] cWrapSymbol = "\u21aa ";
+        const string cWrapSymbol = "\u21aa ";
     }
 
     //put a part of a text under a specific style, for addStyleRange()
@@ -360,10 +360,10 @@ public class FormattedText {
     //utf-8 and line breaks
     //the start_index is the offset of txt into mText, use -1 for invalid
     //  (only pass a valid index if txt has not been modified etc.)
-    private void parseLiteral(char[] txt, int start_index) {
+    private void parseLiteral(string txt, int start_index) {
         //assumes that t is a slice of txt, and that nothing of txt is skipped
         Part* add(PartType type, int stop) {
-            char[] t = txt[0..stop];
+            string t = txt[0..stop];
             if (t.length == 0)
                 return null;
             Part* p = addpart(type);
@@ -394,7 +394,7 @@ public class FormattedText {
         }
     }
 
-    private void adderror(char[] msg) {
+    private void adderror(string msg) {
         //note that only this part has error style (following parts won't)
         Part* pmsg = addpart(PartType.Text);
         Style s;
@@ -403,7 +403,7 @@ public class FormattedText {
         pmsg.text = "[" ~ msg ~ "]";
     }
 
-    private bool tryparse(T)(char[] t, ref T res, char[] error = "") {
+    private bool tryparse(T)(string t, ref T res, string error = "") {
         try {
             res = strparser.fromStr!(T)(str.strip(t));
             return true;
@@ -414,26 +414,26 @@ public class FormattedText {
     }
 
     //parse a command (without the \), and return all text following it
-    private char[] parseCmd(char[] txt) {
+    private string parseCmd(string txt) {
         //--- parser helpers
 
-        void error(char[] msg) {
+        void error(string msg) {
             adderror(msg);
         }
 
-        bool tryeat(char[] t) {
+        bool tryeat(string t) {
             return str.eatStart(txt, t);
         }
 
         //like tryeat, but output error if unsuccessful
-        bool eat(char[] t) {
+        bool eat(string t) {
             bool res = tryeat(t);
             if (!res)
                 error("'" ~ t ~ "' expected");
             return res;
         }
 
-        bool readdelim(ref char[] res, char delim) {
+        bool readdelim(ref string res, char delim) {
             auto stuff = str.split2(txt, delim);
             if (!stuff[1].length) {
                 error("'" ~ delim ~ "' not found");
@@ -444,7 +444,7 @@ public class FormattedText {
             return true;
         }
 
-        bool readbracket(ref char[] res) {
+        bool readbracket(ref string res) {
             if (!tryeat("(")) {
                 error("'(' expected");
                 return false;
@@ -454,7 +454,7 @@ public class FormattedText {
 
         //color argument, "(color-spec)"
         bool readcolor(ref Color c) {
-            char[] t;
+            string t;
             if (!readbracket(t))
                 return false;
             try {
@@ -468,7 +468,7 @@ public class FormattedText {
 
         //read pure int
         bool readint(ref int value) {
-            char[] t;
+            string t;
             if (!readbracket(t))
                 return false;
             return tryparse(t, value);
@@ -477,7 +477,7 @@ public class FormattedText {
         //size argument, '(' <int> ['%'] ')'
         //if the value is relative (with %), value is used to get the new value
         bool readrelint(ref int value) {
-            char[] t;
+            string t;
             if (!readbracket(t))
                 return false;
             t = str.strip(t);
@@ -524,11 +524,11 @@ public class FormattedText {
         } else if (tryeat("tab")) { //\t is already the translate command
             parseLiteral("\t", -1);
         } else if (tryeat("litx")) {
-            char[] t;
+            string t;
             uint len;
             if (eat("(") && readdelim(t, ',') && tryparse(t, len)) {
                 if (len < txt.length) {
-                    char[] lit = txt[0..len];
+                    string lit = txt[0..len];
                     txt = txt[len..$];
                     parseLiteral(lit, -1);
                     eat(")");
@@ -542,7 +542,7 @@ public class FormattedText {
             } else {
                 char delim = txt[0];
                 txt = txt[1..$];
-                char[] x;
+                string x;
                 if (readdelim(x, delim))
                     parseLiteral(x, -1);
             }
@@ -599,7 +599,7 @@ public class FormattedText {
                 }
             }
         } else if (tryeat("imgres")) {
-            char[] t;
+            string t;
             if (readbracket(t)) {
                 Surface s = resources.get!(Surface)(t, true);
                 if (s) {
@@ -635,7 +635,7 @@ public class FormattedText {
             if (readrelint(f.size))
                 setfont(f);
         } else if (tryeat("t")) {
-            char[] t;
+            string t;
             if (readbracket(t))
                 parseLiteral(mTranslator(t), -1);
         } else {
@@ -651,7 +651,7 @@ public class FormattedText {
         if (!mTextIsFormatted) {
             parseLiteral(mText, 0);
         } else {
-            char[] txt = mText;
+            string txt = mText;
             int idx = 0;
             while (txt.length > 0) {
                 auto stuff = str.split2(txt, '\\');
@@ -660,7 +660,7 @@ public class FormattedText {
                 idx += stuff[0].length;
                 if (stuff[1].length) {
                     idx += 1;
-                    char[] next = stuff[1][1..$];
+                    string next = stuff[1][1..$];
                     txt = parseCmd(next);
                     //find out how much text was eaten
                     idx += next.length - txt.length;
@@ -715,17 +715,17 @@ public class FormattedText {
     }
 
     //set text, that can contain commands as described in the class doc
-    bool setMarkup(char[] txt) {
+    bool setMarkup(string txt) {
         return setText(true, txt);
     }
 
     //normal text rendering, no parsing at all (just utf8 and raw line breaks)
-    bool setLiteral(char[] txt) {
+    bool setLiteral(string txt) {
         return setText(false, txt);
     }
 
     //return if text was actually changed (or if it was the same)
-    bool setText(bool as_markup, char[] txt) {
+    bool setText(bool as_markup, string txt) {
         if (mTextIsFormatted == as_markup && mText == txt)
             return false;
         mTextIsFormatted = as_markup;
@@ -746,7 +746,7 @@ public class FormattedText {
     //the actual reason for providing this separate function is:
     //- you somehow need to pass a hint to the Lua demarshaller/binding code,
     //  that it doesn't need to copy the Lua string => use a marker type
-    //- D doesn't allow implicitly converting char[] -> TempString, so setText
+    //- D doesn't allow implicitly converting string -> TempString, so setText
     //  has to stay, even though it does exactly the same
     bool setTextCopy(bool as_markup, TempString txt) {
         return setText(as_markup, txt.raw);
@@ -757,17 +757,17 @@ public class FormattedText {
     //  work is done (and if the string is small and the format string doesn't
     //  trigger any toString()s, no memory is allocated)
     //returns if the text was changed (if not, the text was the same)
-    bool setTextFmt(bool as_markup, char[] fmt, ...) {
+    bool setTextFmt(bool as_markup, string fmt, ...) {
         return setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
     }
 
-    bool setTextFmt_fx(bool as_markup, char[] fmt,
+    bool setTextFmt_fx(bool as_markup, string fmt,
         TypeInfo[] arguments, va_list argptr)
     {
         //tries not to change anything if the text to be set is the same
 
         char[80] buffer = void;
-        char[] res = myformat_s_fx(buffer, fmt, arguments, argptr);
+        string res = myformat_s_fx(buffer, fmt, arguments, argptr);
         bool r = setTextCopy(as_markup, TempString(res));
         //formatfx_s allocates on the heap if buffer isn't big enough
         //delete the buffer if it was heap-allocated
@@ -776,7 +776,7 @@ public class FormattedText {
         return r;
     }
 
-    void getText(out bool as_markup, out char[] data) {
+    void getText(out bool as_markup, out string data) {
         as_markup = mTextIsFormatted;
         //text is copied because mText may change on next set-text
         data = mText.dup;
@@ -784,7 +784,7 @@ public class FormattedText {
 
     //return pointer to internal text string
     //this string may change arbitrarily as setText* is called
-    char[] volatileText() {
+    string volatileText() {
         return mText;
     }
 
@@ -817,7 +817,7 @@ public class FormattedText {
     //find the position of the first char after the last whitespace
     //e.g. find_after_ws_pos("a  b cd") == 5
     //return -1 if no white space found
-    private static int find_after_ws_pos(char[] s) {
+    private static int find_after_ws_pos(string s) {
         int at = -1;
         foreach (uint idx, dchar c; s) {
             if (str.iswhite(c)) {

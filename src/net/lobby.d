@@ -37,7 +37,7 @@ import utils.vector2;
 
 import tango.util.Convert : to;
 
-char[] translateError(DiscReason code) {
+string translateError(DiscReason code) {
     return translate("neterror." ~ reasonToString[code]);
 }
 
@@ -70,7 +70,7 @@ class CmdNetClientTask {
         }
     }
 
-    this(char[] args = "") {
+    this(string args = "") {
         mLastTime = timeCurrentTime();
 
         mClient = new CmdNetClient();
@@ -91,7 +91,7 @@ class CmdNetClientTask {
             as.servers.onChange = &serverListChange;
             as.marker = loader.lookup(sub["ctl_marker"]);
             as.list = loader.lookup!(StringListWidget)(sub["ctl_list"]);
-            char[] refreshBtn = sub["ctl_refresh"];
+            string refreshBtn = sub["ctl_refresh"];
             if (refreshBtn.length > 0) {
                 loader.lookup!(Button)(sub["ctl_refresh"]).onClick =
                     &refreshClick;
@@ -153,14 +153,14 @@ class CmdNetClientTask {
             reasonToString[code]);
     }
 
-    private void onError(CmdNetClient sender, char[] msg, char[][] args) {
+    private void onError(CmdNetClient sender, string msg, string[] args) {
         //connection error
         mLblError.text = translate("connect.error", msg);
         log.error("Error from {}: {}", sender.serverAddress, msg);
     }
 
     private void connectClick(Button sender) {
-        char[] addr = mConnectTo.text;
+        string addr = mConnectTo.text;
         if (mMode >= 0) {
             int sel = mAnnounce[mMode].list.selectedIndex;
             if (sel < 0 || sel >= mCurServers.length)
@@ -231,7 +231,7 @@ class CmdNetClientTask {
 
     private void serverListChange(ServerList sender) {
         if (sender is mAnnounce[mMode].servers) {
-            char[][] contents;
+            string[] contents;
             mCurServers = null;
             foreach (s; sender.list) {
                 contents ~= s.toString();
@@ -267,7 +267,7 @@ class CmdNetClientTask {
 
     static this() {
         registerTaskClass!(typeof(this))("cmdclient");
-        mNickSetting = addSetting!(char[])("net.nickname", "Player",
+        mNickSetting = addSetting!(string)("net.nickname", "Player",
             SettingType.String);
     }
 }
@@ -337,7 +337,7 @@ class CreateNetworkGame : SimpleContainer {
             ConfigNode ct = ti.teamConf;
             if (ct) {
                 //fixed number of team members
-                char[][] wormNames;
+                string[] wormNames;
                 auto memberNode = ct.getSubNode("member_names");
                 foreach (ConfigNode sub; memberNode) {
                     wormNames ~= sub.value;
@@ -370,7 +370,7 @@ class CreateNetworkGame : SimpleContainer {
             s.add("", ti.teamConf["id"]);
         }
 
-        conf.randomSeed = to!(char[])(generateRandomSeed());
+        conf.randomSeed = to!(string)(generateRandomSeed());
 
         onStart(conf);
     }
@@ -422,7 +422,7 @@ class CmdNetLobbyTask {
 
         mTeams = loader.lookup!(DropDownList)("dd_teams");
         mTeamNode = loadConfig("teams.conf").getSubNode("teams");
-        char[][] contents;
+        string[] contents;
         foreach (ConfigNode subn; mTeamNode) {
             contents ~= subn.name;
         }
@@ -459,7 +459,7 @@ class CmdNetLobbyTask {
         addTask(&onFrame);
     }
 
-    private void cmdlineFalbackExecute(CommandLine sender, char[] line) {
+    private void cmdlineFalbackExecute(CommandLine sender, string line) {
         mClient.lobbyCmd(line);
     }
 
@@ -512,7 +512,7 @@ class CmdNetLobbyTask {
             if (mCreateWnd)
                 mCreateWnd.remove();
             //show a message that someone else is creating a game
-            char[] name;
+            string name;
             mClient.idToPlayerName(playerId, name);
             switch (state) {
                 case SPGrantCreateGame.State.granted:
@@ -564,7 +564,7 @@ class CmdNetLobbyTask {
 
     //<-- CreateNetworkGame end
 
-    private void executeCommand(char[] cmd) {
+    private void executeCommand(string cmd) {
         mClient.lobbyCmd(cmd);
     }
 
@@ -594,7 +594,7 @@ class CmdNetLobbyTask {
 
     private void onUpdatePlayers(SimpleNetConnection sender)
     {
-        char[][] contents;
+        string[] contents;
         contents.length = mClient.playerCount;
         int idx = 0;
         foreach (ref NetPlayerInfo pinfo; mClient) {
@@ -605,12 +605,12 @@ class CmdNetLobbyTask {
         mPlayers.setContents(contents);
     }
 
-    private void onError(CmdNetClient sender, char[] msg, char[][] args) {
+    private void onError(CmdNetClient sender, string msg, string[] args) {
         //lobby error
         mConsole.writefln(translate("lobby.c_serror", msg));
     }
 
-    private void onMessage(CmdNetClient sender, char[][] text) {
+    private void onMessage(CmdNetClient sender, string[] text) {
         if (!mLobbyWnd.wasClosed) {
             foreach (l; text) {
                 mConsole.writefln(l);

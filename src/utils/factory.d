@@ -3,13 +3,13 @@ module utils.factory;
 import utils.misc;
 
 class ClassNotFoundException : CustomException {
-    this(char[] msg) {
+    this(string msg) {
         super(msg);
     }
 }
 
 class WrapNotFoundException : CustomException {
-    this(Exception e, char[] msg) {
+    this(Exception e, string msg) {
         super("wrapped exception, this was thrown when trying to instantiate " ~
             msg ~ ": " ~ e.toString());
         next = e;
@@ -20,12 +20,12 @@ class WrapNotFoundException : CustomException {
 //ConstructorArgs is a tuple which is passed as constructor arguments
 class Factory(T, ConstructorArgs...) {
     alias T delegate(ConstructorArgs) constructorCallback;
-    private constructorCallback[char[]] mConstructors;
-    private char[][TypeInfo] mInverseLookup;
+    private constructorCallback[string] mConstructors;
+    private string[TypeInfo] mInverseLookup;
     private TypeInfo[ClassInfo] mCiToTi;
 
     //can't be named register(), because... hm? DMD is just borken.
-    void registerByDelegate(char[] name, constructorCallback create) {
+    void registerByDelegate(string name, constructorCallback create) {
         if (auto pc = name in mConstructors) {
             //if the same, ignore it
             //(not sure if this is a good idea, but it can't really harm)
@@ -38,7 +38,7 @@ class Factory(T, ConstructorArgs...) {
 
     //register by type
     //call it like: Factory!(YourInterface).register!(YourClass)("name")
-    void register(X)(char[] name) {
+    void register(X)(string name) {
         static assert( is (X : T));
 
         //argh, using a function literal here crashes DMD *g*
@@ -57,7 +57,7 @@ class Factory(T, ConstructorArgs...) {
         register!(X)(X.stringof);
     }
 
-    T instantiate(char[] name, ConstructorArgs args) {
+    T instantiate(string name, ConstructorArgs args) {
         auto del = name in mConstructors;
         if (!del) {
             throw new ClassNotFoundException("class '"~name~"' not found.");
@@ -75,26 +75,26 @@ class Factory(T, ConstructorArgs...) {
     }
 
     //return true if a class is registered under this name
-    bool exists(char[] name) {
+    bool exists(string name) {
         return !!(name in mConstructors);
     }
 
-    char[][] classes() {
+    string[] classes() {
         return mConstructors.keys;
     }
 
-    char[] lookup(X : T)() {
+    string lookup(X : T)() {
         return lookupDynamic(typeid(X));
     }
 
-    char[] lookupDynamic(TypeInfo t) {
+    string lookupDynamic(TypeInfo t) {
         auto pname = t in mInverseLookup;
         return pname ? *pname : "";
     }
 
     //why thank you D for this extra hashmap needed in this case
     //(no way for ClassInfo -> TypeInfo?)
-    char[] lookupDynamic(ClassInfo ci) {
+    string lookupDynamic(ClassInfo ci) {
         auto pt = ci in mCiToTi;
         return pt ? lookupDynamic(*pt) : null;
     }
@@ -102,7 +102,7 @@ class Factory(T, ConstructorArgs...) {
 
 ///Unique = string literal that makes the instantiated type unique
 ///see unittest how to use this
-final class StaticFactory(char[] Unique, T, ConstructorArgs...) {
+final class StaticFactory(string Unique, T, ConstructorArgs...) {
     alias T delegate(ConstructorArgs) constructorCallback;
     private alias Factory!(T, ConstructorArgs) DFactory;
 
@@ -116,11 +116,11 @@ final class StaticFactory(char[] Unique, T, ConstructorArgs...) {
         return f;
     }
 
-    static void registerByDelegate(char[] name, constructorCallback create) {
+    static void registerByDelegate(string name, constructorCallback create) {
         factory().registerByDelegate(name, create);
     }
 
-    static void register(X)(char[] name) {
+    static void register(X)(string name) {
         factory().register!(X)(name);
     }
 
@@ -128,27 +128,27 @@ final class StaticFactory(char[] Unique, T, ConstructorArgs...) {
         factory().registerX!(X)();
     }
 
-    static T instantiate(char[] name, ConstructorArgs args) {
+    static T instantiate(string name, ConstructorArgs args) {
         return factory().instantiate(name, args);
     }
 
-    static bool exists(char[] name) {
+    static bool exists(string name) {
         return factory().exists(name);
     }
 
-    static char[][] classes() {
+    static string[] classes() {
         return factory().classes();
     }
 
-    static char[] lookup(X : T)() {
+    static string lookup(X : T)() {
         return factory().lookup!(X)();
     }
 
-    static char[] lookupDynamic(TypeInfo t) {
+    static string lookupDynamic(TypeInfo t) {
         return factory().lookupDynamic(t);
     }
 
-    static char[] lookupDynamic(ClassInfo ci) {
+    static string lookupDynamic(ClassInfo ci) {
         return factory().lookupDynamic(ci);
     }
 }

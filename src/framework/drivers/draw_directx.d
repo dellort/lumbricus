@@ -38,7 +38,7 @@ D3DCOLOR D3DCOLOR_FLOAT(Color c) {
     return D3DCOLOR_COLORVALUE(c.tupleof);
 }
 
-void checkDX(HRESULT res, char[] msg) {
+void checkDX(HRESULT res, string msg) {
     if (FAILED(res)) {
         throwError("D3D: {} failed (hr = {:x8#}).", msg, res);
     }

@@ -25,14 +25,14 @@ import strparser = utils.strparser;
 abstract class StylesLookup {
     private {
         //classes for the represented object
-        char[][] mSortedClasses;
+        string[] mSortedClasses;
         //states for the represented object
-        bool[char[]] mStates;
+        bool[string] mStates;
         //enabled and sorted states (where mStates is true)
-        char[][] mSortedEnabledStates;
+        string[] mSortedEnabledStates;
     }
 
-    protected MyBox[char[]] mStyleOverrides;
+    protected MyBox[string] mStyleOverrides;
 
     //user can set a callback; the callback will then be called everytime the
     //  value returned by get/getBox possibly has changed
@@ -55,27 +55,27 @@ abstract class StylesLookup {
         void checkChanges();
 
         //backend function for getBox()
-        protected MyBox doGetBox(char[] name);
+        protected MyBox doGetBox(string name);
 
         //called if the set of classes changed
         //must call triggerChange on its own (if needed)
         protected void changed_classes();
 
         //must call triggerChange on its own (if needed)
-        protected void updateState(char[] name, bool val);
+        protected void updateState(string name, bool val);
 
         //style override change (value is in mStyleOverrides)
-        protected void changed_style_override(char[] name);
+        protected void changed_style_override(string name);
     }
 
     //treat return value as const etc.
-    final char[][] sorted_classes() { return mSortedClasses; }
-    final char[][] sorted_enabled_states() { return mSortedEnabledStates; }
+    final string[] sorted_classes() { return mSortedClasses; }
+    final string[] sorted_enabled_states() { return mSortedEnabledStates; }
 
     //a StylesLookup can be an instance of multiple styles classes
     //(actually, we don't need that; multiple classes are only used to simulate
     //  single inheritance, sigh.)
-    final void addClass(char[] name) {
+    final void addClass(string name) {
         //no duplicates
         if (find(mSortedClasses, name) < mSortedClasses.length)
             return;
@@ -84,7 +84,7 @@ abstract class StylesLookup {
         changed_classes();
     }
 
-    final void removeClass(char[] name) {
+    final void removeClass(string name) {
         int idx = find(mSortedClasses, name);
         if (idx == mSortedClasses.length)
             return;
@@ -92,8 +92,8 @@ abstract class StylesLookup {
         changed_classes();
     }
 
-    final void addClasses(char[][] cls) {
-        foreach (char[] n; cls) {
+    final void addClasses(string[] cls) {
+        foreach (string n; cls) {
             addClass(n);
         }
     }
@@ -101,13 +101,13 @@ abstract class StylesLookup {
     //enable/disable a state; default value for states is false
     //a state isn't declared or so; it just may or may not have influence on
     //  style property values
-    final void setState(char[] name, bool val) {
+    final void setState(string name, bool val) {
         auto pstate = name in mStates;
         if (pstate && *pstate == val)
             return;
         mStates[name] = val;
         mSortedEnabledStates.length = 0;
-        foreach (char[] name, bool value; mStates) {
+        foreach (string name, bool value; mStates) {
             if (value)
                 mSortedEnabledStates ~= name;
         }
@@ -118,12 +118,12 @@ abstract class StylesLookup {
     //value for a style property with the given name
     //the style value depends from the theme config file, the enabled/disabled
     //  states, the set of added classes
-    final MyBox getBox(char[] name) {
+    final MyBox getBox(string name) {
         return doGetBox(name);
     }
 
     //return the actual value for a property with the current state
-    final T get(T)(char[] name) {
+    final T get(T)(string name) {
         return getBox(name).unbox!(T)();
     }
 
@@ -131,7 +131,7 @@ abstract class StylesLookup {
     //box must have the correct type
     //exception: an empty box resets the style override
     //unknown/mistyped names will be silently ignored
-    final void setStyleOverride(char[] name, MyBox value) {
+    final void setStyleOverride(string name, MyBox value) {
         if (value.empty) {
             mStyleOverrides.remove(name);
         } else {
@@ -142,10 +142,10 @@ abstract class StylesLookup {
     }
 
     //helper
-    final void setStyleOverrideT(T)(char[] name, T val) {
+    final void setStyleOverrideT(T)(string name, T val) {
         setStyleOverride(name, MyBox.Box(val));
     }
-    final void clearStyleOverride(char[] name) {
+    final void clearStyleOverride(string name) {
         setStyleOverride(name, MyBox());
     }
 }
@@ -163,13 +163,13 @@ private {
     //the parser function turns the string into the value of the actual type and
     //  returns it; the previous value is passed as a box and can be used to do
     //  "relative" values (empty box is passed for top-level ones)
-    alias MyBox function(char[], MyBox) ParserFn;
-    ParserFn[char[]] gParserFns;
+    alias MyBox function(string, MyBox) ParserFn;
+    ParserFn[string] gParserFns;
 
-    alias MyBox function(char[], MyBox delegate(char[])) SummarizerFn;
+    alias MyBox function(string, MyBox delegate(string)) SummarizerFn;
     //not using an AA, because the order may (possibly) be important
     struct Summarizer {
-        char[] name;
+        string name;
         SummarizerFn fn;
     }
     Summarizer[] gSummarizers;
@@ -191,13 +191,13 @@ class StylesPseudoCSS : StylesBase {
     }
 
     private class Rule {
-        char[] name;
+        string name;
         Selector selector;
         //source of the contents, reparsed every time the rule is
         //reevaluated
         ConfigNode contents;
 
-        char[] toString() {
+        string toString() {
             assert(contents.name == name);
             return myformat("{}: '{}' '{}'", name, selector.toString(),
                 contents.value/+writeAsString()+/);
@@ -209,11 +209,11 @@ class StylesPseudoCSS : StylesBase {
     //contents), e.g. "a, b" <node> => "a" <node> "b" <node>, so this isn't
     //here.
     private class Selector {
-        char[][] sorted_classes;
-        char[][] sorted_states;
+        string[] sorted_classes;
+        string[] sorted_states;
         int declaration; //sequential declaration number
 
-        this(char[] src, int decl) {
+        this(string src, int decl) {
             declaration = decl;
             //a selector is just a sequence of prefixed strings concatenated
             //prefixed are:
@@ -224,7 +224,7 @@ class StylesPseudoCSS : StylesBase {
             src = str.strip(src);
             if (src == "*")
                 return;
-            char[][] segments = str.splitPrefixDelimiters(src,
+            string[] segments = str.splitPrefixDelimiters(src,
                 ["/", ":"]);
             foreach (s; segments) {
                 s = str.strip(s);
@@ -253,9 +253,9 @@ class StylesPseudoCSS : StylesBase {
             return (a << 8*4) | (b << 8*3) | c;
         }
 
-        char[] toString() {
-            char[] res;
-            void addstuff(char[] pref, char[][] arr) {
+        string toString() {
+            string res;
+            void addstuff(string pref, string[] arr) {
                 foreach (x; arr) {
                     res ~= pref ~ x;
                 }
@@ -294,7 +294,7 @@ class StylesPseudoCSS : StylesBase {
         reload();
     }
 
-    private Selector[] parse_selector(char[] selector) {
+    private Selector[] parse_selector(string selector) {
         Selector[] selectors;
         foreach (s; str.split(selector, ",")) {
             selectors ~= new Selector(s, mRuleDeclarationCounter++);
@@ -315,8 +315,8 @@ class StylesPseudoCSS : StylesBase {
     }
 
     //for debugging
-    char[] rulesString() {
-        char[] res;
+    string rulesString() {
+        string res;
         foreach(r; mSortedRules) {
             res ~= r.toString() ~ "\n";
         }
@@ -326,7 +326,7 @@ class StylesPseudoCSS : StylesBase {
     //used by StylesLookupImpl
     //creates a block of property value for a specific widget class (defined by
     //  the list of classes that a widget is part of)
-    private PropertiesSet loadSet(char[][] sorted_classes) {
+    private PropertiesSet loadSet(string[] sorted_classes) {
         foreach (p; mLoadedProps) {
             if (p.mSortedClasses == sorted_classes)
                 return p;
@@ -362,7 +362,7 @@ class StylesPseudoCSS : StylesBase {
                 }
             }
             //write rule value to all states that match
-            char[] s = r.contents.getCurValue!(char[])();
+            string s = r.contents.getCurValue!(string)();
             MyBox empty;
             if (!(r.name in gParserFns)) {
                 assert(false, "unregged style: "~r.name);
@@ -384,7 +384,7 @@ class StylesPseudoCSS : StylesBase {
         //create summaries (values purely based on other values)
         foreach (cur; res.mSortedProperties) {
             foreach (s; gSummarizers) {
-                MyBox get(char[] name) {
+                MyBox get(string name) {
                     return cur.mProperties[name];
                 }
                 cur.mProperties[s.name] = s.fn(s.name, &get);
@@ -397,7 +397,7 @@ class StylesPseudoCSS : StylesBase {
         Trace.formatln("all states: {}", res.mAllStates.keys);
         foreach (s; res.mSortedProperties) {
             Trace.formatln("- for states: {}", s.mSortedStates);
-            foreach (char[] k, MyBox v; s.mProperties) {
+            foreach (string k, MyBox v; s.mProperties) {
                 if (strparser.hasBoxParser(v.type)) {
                     Trace.formatln("  {} = '{}'", k, strparser.boxToString(v));
                 } else {
@@ -416,17 +416,17 @@ class StylesPseudoCSS : StylesBase {
 //properties for a specific set of classes
 //contains all properties for all possible states per class
 private class PropertiesSet {
-    char[][] mSortedClasses;
+    string[] mSortedClasses;
     List[] mSortedProperties;
     //all states referenced by mProperties
     //this can be used to check if a state change possibly requires a re-lookup
-    bool[char[]] mAllStates;
+    bool[string] mAllStates;
 
     //different property lists for each state set
     static class List {
-        char[][] mSortedStates;
+        string[] mSortedStates;
         //contains all properties that were globally registered
-        MyBox[char[]] mProperties;
+        MyBox[string] mProperties;
     }
 }
 
@@ -441,7 +441,7 @@ final class StylesLookupImpl : StylesLookup {
         //if the states get changed, must (possibly) looked up again
         PropertiesSet.List mCurrentList;
         bool mSummaryHack;
-        MyBox[char[]] mLocalSummaries;
+        MyBox[string] mLocalSummaries;
     }
 
     override void parent(StylesBase p) {
@@ -464,7 +464,7 @@ final class StylesLookupImpl : StylesLookup {
         triggerChange();
     }
 
-    override MyBox doGetBox(char[] name) {
+    override MyBox doGetBox(string name) {
         checkChanges();
         if (!mParent)
             assert(false, "lookup in unlinked StylesLookupImpl");
@@ -485,7 +485,7 @@ final class StylesLookupImpl : StylesLookup {
             if (mSummaryHack) {
                 //recreate summaries locally
                 foreach (Summarizer s; gSummarizers) {
-                    MyBox get(char[] xname) {
+                    MyBox get(string xname) {
                         if (auto pb = xname in mStyleOverrides)
                             return *pb;
                         return mCurrentList.mProperties[xname];
@@ -511,7 +511,7 @@ final class StylesLookupImpl : StylesLookup {
         checkChanges();
     }
 
-    override void updateState(char[] name, bool val) {
+    override void updateState(string name, bool val) {
         checkChanges();
         if (mCurrentSet && !(name in mCurrentSet.mAllStates))
             return;
@@ -519,7 +519,7 @@ final class StylesLookupImpl : StylesLookup {
         triggerChange();
     }
 
-    override void changed_style_override(char[] name) {
+    override void changed_style_override(string name) {
         //problem: if a property is overridden, that is read by a "summarizer"
         //  (e.g. "border-color" and "border"), the precomputed summarizer-
         //  values will be invalid
@@ -539,15 +539,15 @@ final class StylesLookupImpl : StylesLookup {
     }
 }
 
-MyBox parseString(char[] s, MyBox prev) {
+MyBox parseString(string s, MyBox prev) {
     return MyBox.Box(s);
 }
 
-MyBox parseFromStr(T)(char[] s, MyBox prev) {
+MyBox parseFromStr(T)(string s, MyBox prev) {
     return MyBox.Box!(T)(strparser.fromStr!(T)(s));
 }
 
-MyBox parseColor(char[] s, MyBox prev) {
+MyBox parseColor(string s, MyBox prev) {
     Color prevcolor;
     if (!prev.empty())
         prevcolor = prev.unbox!(Color)();
@@ -562,7 +562,7 @@ MyBox parseColor(char[] s, MyBox prev) {
 //is used with opMul to scale the parent value
 //second operand for mul is float, for add it's T
 //xxx this sort of stuff would be better handled by a scripting language
-MyBox parseFromStrScalar(T)(char[] src, MyBox prev) {
+MyBox parseFromStrScalar(T)(string src, MyBox prev) {
     T prevval;
     if (!prev.empty())
         prevval = prev.unbox!(T)();
@@ -595,7 +595,7 @@ MyBox parseFromStrScalar(T)(char[] src, MyBox prev) {
 }
 
 /+
-MyBox parseFont(char[] src, MyBox prev) {
+MyBox parseFont(string src, MyBox prev) {
     FontProperties props;
     if (!prev.empty())
         props = prev.unbox!(FontProperties)();
@@ -604,7 +604,7 @@ MyBox parseFont(char[] src, MyBox prev) {
 }
 +/
 
-MyBox parseStrparser(T)(char[] src, MyBox prev) {
+MyBox parseStrparser(T)(string src, MyBox prev) {
     MyBox v = strparser.stringToBox!(T)(src);
     if (v.empty())
         throw new CustomException("can't parse as "~T.stringof~" :"~src);
@@ -613,11 +613,11 @@ MyBox parseStrparser(T)(char[] src, MyBox prev) {
 
 //only here because dmd is too dumb to put templates inside of functions
 //only reason for this function is that I was too lazy to rearrange stuff
-private T getprop(T)(MyBox delegate(char[]) props, char[] base, char[] name) {
+private T getprop(T)(MyBox delegate(string) props, string base, string name) {
     return props(base~name).unbox!(T)();
 }
 
-MyBox summarizeBorder(char[] base, MyBox delegate(char[]) props) {
+MyBox summarizeBorder(string base, MyBox delegate(string) props) {
     BoxProperties p;
     p.border = getprop!(Color)(props, base, "-color");
     p.back = getprop!(Color)(props, base, "-back-color");
@@ -629,9 +629,9 @@ MyBox summarizeBorder(char[] base, MyBox delegate(char[]) props) {
     return MyBox.Box!(BoxProperties)(p);
 }
 
-MyBox summarizeFont(char[] base, MyBox delegate(char[]) props) {
+MyBox summarizeFont(string base, MyBox delegate(string) props) {
     FontProperties p;
-    p.face = getprop!(char[])(props, base, "-face");
+    p.face = getprop!(string)(props, base, "-face");
     p.back_color = getprop!(Color)(props, base, "-back-color");
     p.fore_color = getprop!(Color)(props, base, "-fore-color");
     p.border_color = getprop!(Color)(props, base, "-border-color");
@@ -650,39 +650,39 @@ MyBox summarizeFont(char[] base, MyBox delegate(char[]) props) {
 
 //register a style property with the given name and parser function
 //see ParserFn for what it does
-void styleRegisterValue(char[] name, ParserFn parser) {
+void styleRegisterValue(string name, ParserFn parser) {
     gParserFns[name] = parser;
 }
 
-void styleRegisterSummarizer(char[] name, SummarizerFn summ) {
+void styleRegisterSummarizer(string name, SummarizerFn summ) {
     gSummarizers ~= Summarizer(name, summ);
 }
 
 //convencience functions blergh (oh god why)
-void styleRegisterInt(char[] name) {
+void styleRegisterInt(string name) {
     styleRegisterValue(name, &parseFromStrScalar!(int));
 }
-void styleRegisterFloat(char[] name) {
+void styleRegisterFloat(string name) {
     styleRegisterValue(name, &parseFromStrScalar!(float));
 }
-void styleRegisterString(char[] name) {
+void styleRegisterString(string name) {
     styleRegisterValue(name, &parseString);
 }
-void styleRegisterColor(char[] name) {
+void styleRegisterColor(string name) {
     styleRegisterValue(name, &parseColor);
 }
-void styleRegisterBool(char[] name) {
+void styleRegisterBool(string name) {
     styleRegisterValue(name, &parseFromStr!(bool));
 }
-void styleRegisterTime(char[] name) {
+void styleRegisterTime(string name) {
     styleRegisterValue(name, &parseFromStrScalar!(Time));
 }
 
-void styleRegisterStrParser(T)(char[] name) {
+void styleRegisterStrParser(T)(string name) {
     styleRegisterValue(name, &parseStrparser!(T));
 }
 
-void styleRegisterBorder(char[] basename) {
+void styleRegisterBorder(string basename) {
     styleRegisterColor(basename~"-color");
     styleRegisterColor(basename~"-back-color");
     styleRegisterColor(basename~"-bevel-color");
@@ -694,7 +694,7 @@ void styleRegisterBorder(char[] basename) {
     styleRegisterSummarizer(basename, &summarizeBorder);
 }
 
-void styleRegisterFont(char[] basename) {
+void styleRegisterFont(string basename) {
     styleRegisterString(basename~"-face");
     styleRegisterColor(basename~"-back-color");
     styleRegisterColor(basename~"-fore-color");

@@ -43,7 +43,7 @@ void sdlQuit() {
 
 //additional utility functions
 
-char[] pixelFormatToString(SDL_PixelFormat* fmt) {
+string pixelFormatToString(SDL_PixelFormat* fmt) {
     return myformat("bits={} R/G/B/A={:x8}/{:x8}/{:x8}/{:x8}",
         fmt.BitsPerPixel, fmt.Rmask, fmt.Gmask, fmt.Bmask, fmt.Amask);
 }

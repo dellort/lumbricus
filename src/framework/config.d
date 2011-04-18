@@ -19,7 +19,7 @@ private LogStruct!("configfile") logConf;
 ///  allowFail = if the passed file could not be loaded, a value of
 ///       false -> will throw an exception (default)
 ///       true  -> will return null
-ConfigNode loadConfig(char[] filename, bool allowFail = false)
+ConfigNode loadConfig(string filename, bool allowFail = false)
 {
     VFSPath file = VFSPath(filename);
     VFSPath fileGz = VFSPath(filename~".gz");
@@ -30,12 +30,12 @@ ConfigNode loadConfig(char[] filename, bool allowFail = false)
         gzipped = true;
     }
     logConf("load config: {}", file);
-    char[] data;
+    string data;
     try {
         Stream stream = gFS.open(file);
         scope (exit) { if (stream) stream.close(); }
         assert (!!stream);
-        data = cast(char[])stream.readAll();
+        data = cast(string)stream.readAll();
     } catch (FilesystemException e) {
         if (!allowFail)
             throw e;
@@ -43,7 +43,7 @@ ConfigNode loadConfig(char[] filename, bool allowFail = false)
     }
     if (gzipped) {
         try {
-            data = cast(char[])gunzipData(cast(ubyte[])data);
+            data = cast(string)gunzipData(cast(ubyte[])data);
         } catch (ZlibException e) {
             if (!allowFail)
                 throw new CustomException("Decompression failed: "~e.msg);
@@ -63,14 +63,14 @@ error:
 
 ///Same as above, but will return an empty ConfigNode on error
 ///Never returns null or throws
-ConfigNode loadConfigDef(char[] filename) {
+ConfigNode loadConfigDef(string filename) {
     ConfigNode res = loadConfig(filename, true);
     if (!res)
         res = new ConfigNode();
     return res;
 }
 
-private bool doSaveConfig(ConfigNode node, char[] filename, bool compress,
+private bool doSaveConfig(ConfigNode node, string filename, bool compress,
     bool logerror = true)
 {
     try {
@@ -94,7 +94,7 @@ private bool doSaveConfig(ConfigNode node, char[] filename, bool compress,
 
 //arrgh
 //compress = true: do gzip compression, adds .gz to filename
-bool saveConfig(ConfigNode node, char[] filename, bool compress = false) {
+bool saveConfig(ConfigNode node, string filename, bool compress = false) {
     return compress
         ? doSaveConfig(node, filename~".gz", true)
         : doSaveConfig(node, filename, false);
@@ -102,7 +102,7 @@ bool saveConfig(ConfigNode node, char[] filename, bool compress = false) {
 
 //same as above, always gzipped
 //will not modify file extension
-bool saveConfigGz(ConfigNode node, char[] filename) {
+bool saveConfigGz(ConfigNode node, string filename) {
     return doSaveConfig(node, filename, true);
 }
 
@@ -115,7 +115,7 @@ ubyte[] saveConfigGzBuf(ConfigNode node) {
 }
 
 ConfigNode loadConfigGzBuf(ubyte[] buf) {
-    auto data = cast(char[])gunzipData(buf);
+    auto data = cast(string)gunzipData(buf);
     auto f = new ConfigFile(data, "MemoryBuffer");
     if (!f.rootnode)
         throw new CustomException("?");

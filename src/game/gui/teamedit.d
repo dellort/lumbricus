@@ -68,7 +68,7 @@ class TeamEditorTask {
     //update list of teams in dropdown, and choose the first if none selected
     //if listonly = true, doesn't select a team
     private void updateTeams(bool listonly = false) {
-        char[][] teams;
+        string[] teams;
         foreach (ConfigNode t; mTeams) {
             teams ~= t.name;
         }
@@ -103,7 +103,7 @@ class TeamEditorTask {
     }
 
     //set color button to passed team color
-    private void showColor(char[] teamCol) {
+    private void showColor(string teamCol) {
         mColorButton.styles.setStyleOverrideT!(Color)("border-back-color",
             Color.fromString("team_"~teamCol));
     }
@@ -117,14 +117,14 @@ class TeamEditorTask {
             doSelectTeam(l.selection);
     }
 
-    private void doSelectTeam(char[] name, bool createNew = false) {
+    private void doSelectTeam(string name, bool createNew = false) {
         clearDialog(true);
         if (createNew) {
             //create new team
             //find a unique name first
             int i = 0;
-            char[] unnamed = translate("teameditor.defaultteam");
-            char[] newName = unnamed;
+            string unnamed = translate("teameditor.defaultteam");
+            string newName = unnamed;
             if (name.length > 0)
                 newName = name;
             while (mTeams.hasNode(newName)) {
@@ -157,7 +157,7 @@ class TeamEditorTask {
 
             mTeamEdit.text = mEditedTeam.name;
             int idx = 0;
-            foreach (char[] name, char[] val; mEditedTeam.getSubNode("member_names")) {
+            foreach (string name, string val; mEditedTeam.getSubNode("member_names")) {
                 if (idx < 8)
                     mWormEdit[idx].text = val;
                 idx++;
@@ -217,12 +217,12 @@ class TeamEditorTask {
     //cycles color to the next in TeamTheme.cTeamColors
     private void colorClick(Button sender) {
         //function in utils.array only works for object arrays
-        char[] arrayFindNextStr(char[][] arr, char[] w) {
+        string arrayFindNextStr(string[] arr, string w) {
             if (arr.length == 0)
                 return "";
 
             int found = -1;
-            foreach (int i, char[] c; arr) {
+            foreach (int i, string c; arr) {
                 if (w == c) {
                     found = i;
                     break;
@@ -233,7 +233,7 @@ class TeamEditorTask {
         }
 
         if (mEditedTeam) {
-            char[] cur = mEditedTeam["color"];
+            string cur = mEditedTeam["color"];
             mEditedTeam["color"] = arrayFindNextStr(TeamTheme.cTeamColors, cur);
             showColor(mEditedTeam["color"]);
         }

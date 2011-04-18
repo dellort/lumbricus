@@ -50,7 +50,7 @@ alias DeclareEvent!("team_victory", Team) OnVictory;
 
 
 class Team : GameObject2 {
-    char[] mName = "unnamed team";
+    string mName = "unnamed team";
     TeamTheme teamColor;
     int gravestone;
     WeaponSet weapons;
@@ -69,7 +69,7 @@ class Team : GameObject2 {
 
         bool mAlternateControl;
         bool mAllowSelect;   //can next worm be selected by user (tab)
-        char[] mTeamId, mTeamNetId;
+        string mTeamId, mTeamNetId;
 
         int mGlobalWins;
         //incremented for each crate; xxx take over to next round
@@ -83,12 +83,12 @@ class Team : GameObject2 {
         super(parent.engine, "team");
         this.parent = parent;
         mName = node.name;
-        char[] colorId = parent.checkTeamColor(node.getSubNode("color"));
+        string colorId = parent.checkTeamColor(node.getSubNode("color"));
         teamColor = engine.singleton!(GfxSet)().teamThemes[colorId];
         initialPoints = node.getIntValue("power", 100);
         //graveStone = node.getIntValue("grave", 0);
         //the worms currently aren't loaded by theirselves...
-        foreach (char[] name, char[] value; node.getSubNode("member_names")) {
+        foreach (string name, string value; node.getSubNode("member_names")) {
             auto worm = new TeamMember(value, this);
             mMembers ~= worm;
         }
@@ -111,12 +111,12 @@ class Team : GameObject2 {
     }
 
     //human readable team name (specified by user)
-    char[] name() {
+    string name() {
         return mName;
     }
 
     //unique ID; this also may correspond to the client_id in network mode
-    char[] id() {
+    string id() {
         return mTeamId;
     }
 
@@ -189,13 +189,13 @@ class Team : GameObject2 {
     }
 
     //not sure what this is; probably for the net GUI
-    char[] netId() {
+    string netId() {
         return mTeamNetId;
     }
 
     //returns an id that is a) unique over all teams in the game, and
     //  b) will remain the same over all played rounds
-    char[] uniqueId() {
+    string uniqueId() {
         return mTeamNetId ~ "." ~ mTeamId;
     }
 
@@ -344,7 +344,7 @@ class Team : GameObject2 {
         return true;
     }
 
-    char[] toString() {
+    string toString() {
         return "[team '" ~ name ~ "']";
     }
 
@@ -475,7 +475,7 @@ class Team : GameObject2 {
 class TeamMember : Actor {
     private {
         Team mTeam;
-        char[] mName = "unnamed worm";
+        string mName = "unnamed worm";
         bool mActive;
         //Sprite mWorm;
         WormControl mWormControl;
@@ -487,7 +487,7 @@ class TeamMember : Actor {
         bool mLostNotified;
     }
 
-    this(char[] a_name, Team a_team) {
+    this(string a_name, Team a_team) {
         super(a_team.engine, "team_member");
         mName = a_name;
         mTeam = a_team;
@@ -514,7 +514,7 @@ class TeamMember : Actor {
         return r;
     }
 
-    char[] name() {
+    string name() {
         return mName;
     }
 
@@ -627,7 +627,7 @@ class TeamMember : Actor {
         return mWormControl.sprite;
     }
 
-    char[] toString() {
+    string toString() {
         return "[tworm " ~ (mTeam ? mTeam.toString() : null) ~ ":'" ~ name ~ "']";
     }
 
@@ -705,7 +705,7 @@ class GameController : GameObject2 {
         Team[] mTeams;
 
         //for instantiating new weapon sets
-        ConfigNode[char[]] mWeaponSets;
+        ConfigNode[string] mWeaponSets;
 
         bool mIsAnythingGoingOn; // (= hack)
 
@@ -719,7 +719,7 @@ class GameController : GameObject2 {
         //each array item is a pair of strings:
         // [client_id, team_id]
         //it means that that client is allowed to control that team
-        char[][2][] mAccessMap;
+        string[2][] mAccessMap;
     }
 
     this(GameCore a_engine) {
@@ -773,20 +773,20 @@ class GameController : GameObject2 {
     private void loadAccessMap(ConfigNode node) {
         foreach (ConfigNode sub; node) {
             //sub is "tag_name { "teamid1" "teamid2" ... }"
-            foreach (char[] key, char[] value; sub) {
+            foreach (string key, string value; sub) {
                 mAccessMap ~= [sub.name, value];
             }
         }
 
         auto p = &log.trace;
         p("access map:");
-        foreach (char[][2] a; mAccessMap) {
+        foreach (string[2] a; mAccessMap) {
             p("  '{}' -> '{}'", a[0], a[1]);
         }
         p("access map end.");
     }
 
-    bool checkAccess(char[] client_id, Team team) {
+    bool checkAccess(string client_id, Team team) {
         //single player, no network
         if (client_id == "local")
             return true;
@@ -798,7 +798,7 @@ class GameController : GameObject2 {
         return false;
     }
 
-    private Team getInputTeam(char[] client_id) {
+    private Team getInputTeam(string client_id) {
         foreach (Team t; teams) {
             if (t.active) {
                 if (checkAccess(client_id, t))
@@ -812,14 +812,14 @@ class GameController : GameObject2 {
     //in network & realtime mode, multiple teams can be active, and the
     //  client_id helps delivering a client's input to the right team
     //this is also needed for cheat-prevention (client_id is verified)
-    private Input getTeamInput(char[] client_id) {
+    private Input getTeamInput(string client_id) {
         //hurrr
         if (auto team = getInputTeam(client_id))
             return team.mInput;
         return null;
     }
 
-    private bool inpExec(char[] client_id, char[] cmd) {
+    private bool inpExec(string client_id, string cmd) {
         //security? security is for idiots!
         //(all scripts are already supposed to be sandboxed; still this enables
         //  anyone who is connected to do anything to the game)
@@ -837,7 +837,7 @@ class GameController : GameObject2 {
     //there's remove_control somewhere in cmdclient.d, and apparently this is
     //  called when a client disconnects; the teams owned by that client
     //  surrender
-    private bool inpRemoveControl(char[] client_id, char[] cmd) {
+    private bool inpRemoveControl(string client_id, string cmd) {
         //quite ugly: the team doesn't have to be active when the player leaves
         foreach (Team t; teams) {
             if (checkAccess(client_id, t)) {
@@ -984,10 +984,10 @@ class GameController : GameObject2 {
         mTeams ~= team;
     }
 
-    private char[] checkTeamColor(ConfigNode colvalue) {
-        char[] col = colvalue.value;
+    private string checkTeamColor(ConfigNode colvalue) {
+        string col = colvalue.value;
         int colId = -1;
-        foreach (int idx, char[] tc; TeamTheme.cTeamColors) {
+        foreach (int idx, string tc; TeamTheme.cTeamColors) {
             if (col == tc) {
                 colId = idx;
                 break;
@@ -1011,7 +1011,7 @@ class GameController : GameObject2 {
         return TeamTheme.cTeamColors[colId];
     }
 
-    WeaponSet initWeaponSet(char[] id, bool forCrate = false,
+    WeaponSet initWeaponSet(string id, bool forCrate = false,
         bool noError = false)
     {
         ConfigNode ws;

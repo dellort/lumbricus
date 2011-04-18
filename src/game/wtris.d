@@ -62,7 +62,7 @@ public class WTris {
 
         int lines, speed, points;
 
-        alias void delegate(char[]) SetText;
+        alias void delegate(string) SetText;
         SetText set_lines, set_points, set_speed;
 
         Label msg;
@@ -71,7 +71,7 @@ public class WTris {
 
     private void create_game() {
         //syntax: "stone 1 row 1|stone 1 row 2/stone 2..."
-        static char[][] muh = [
+        static string[] muh = [
             ".x|.xx|.x/.x|xxx/.x|xx|.x/|xxx|.x",
             "|xxxx/.x|.x|.x|.x",
             "|.xx|.xx",
@@ -479,7 +479,7 @@ public class WTris {
 
         loader.load();
 
-        SetText getbla(char[] name) {
+        SetText getbla(string name) {
             return &loader.lookup!(Label)(name).text;
         }
 
@@ -516,7 +516,7 @@ public class WTris {
          }
     }
 
-    this(char[] args = "") {
+    this(string args = "") {
 
         thetime = new TimeSource("wtris");
 

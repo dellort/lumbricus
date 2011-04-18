@@ -22,7 +22,7 @@ enum ContactHandling : ubyte {
 }
 
 //for loading from ConfigNode
-private const char[][ContactHandling.max+1] cChNames =
+private const string[ContactHandling.max+1] cChNames =
     ["", "hit", "hit_noimpulse", "hit_pushback", "hit_weirdhacks"];
 
 //the physics stuff uses an ID to test if collision between objects is wanted
@@ -33,7 +33,7 @@ final class CollisionType {
         //index into the collision-matrix
         int mIndex;
 
-        char[] mName;
+        string mName;
 
         //needed because of forward referencing etc.
         CollisionType mSuperClass;
@@ -43,9 +43,9 @@ final class CollisionType {
     this() {
     }
 
-    char[] name() { return mName; }
+    string name() { return mName; }
 
-    char[] toString() {
+    string toString() {
         return "[CollisionType "~name~"]";
     }
 }
@@ -58,7 +58,7 @@ const CollisionType CollisionType_Invalid = null;
 //(has nothing to do with the actual collision functions etc.)
 final class CollisionMap {
     private {
-        CollisionType[char[]] mCollisionNames;
+        CollisionType[string] mCollisionNames;
         CollisionType[] mCollisions; //indexed by CollisionType.index
         //pairs of things which collide with each other
         CollisionType[2][][ContactHandling.max+1] mHits;
@@ -87,7 +87,7 @@ final class CollisionMap {
     CollisionType always() { return mCTAlways; }
     CollisionType none() { return mCTNone; }
 
-    CollisionType newCollisionType(char[] name, CollisionType ct_super) {
+    CollisionType newCollisionType(string name, CollisionType ct_super) {
         if (mCTRoot)
             argcheck(!!ct_super);
         assert(!mSealed);
@@ -119,7 +119,7 @@ final class CollisionMap {
     }
 
     //find a collision ID by name
-    public CollisionType find(char[] name) {
+    public CollisionType find(string name) {
         if (auto pres = name in mCollisionNames)
             return *pres;
 
@@ -201,12 +201,12 @@ final class CollisionMap {
         for (ContactHandling ch = ContactHandling.normal;
             ch <= ContactHandling.max; ch++)
         {
-            char[] nname = cChNames[ch];
+            string nname = cChNames[ch];
             foreach (sub; node.getSubNode(nname)) {
                 //each value is an array of collision ids which
                 // collide with "name"
                 try {
-                    auto hits = arrayMap(str.split(sub.value), (char[] id) {
+                    auto hits = arrayMap(str.split(sub.value), (string id) {
                         return findCollisionID(id);
                     });
                     auto ct = findCollisionID(sub.name);

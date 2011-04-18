@@ -41,7 +41,7 @@ private bool my_isid(dchar c) {
     return r;
 }
 
-private bool is_config_id(char[] name) {
+private bool is_config_id(string name) {
     //xxx: doesn't parse the utf-8, that's ok depending what my_isid() does
     for (int n = 0; n < name.length; n++) {
         if (!my_isid(name[n]))
@@ -52,7 +52,7 @@ private bool is_config_id(char[] name) {
 
 //all default values (== .init) represent unknown values
 struct FilePosition {
-    char[] filename = "unknown";
+    string filename = "unknown";
     int line = -1;
     int column = -1;
 
@@ -61,7 +61,7 @@ struct FilePosition {
         return line >= 0;
     }
 
-    char[] toString() {
+    string toString() {
         return myformat("'{}':{}:{}", filename, line >= 0 ? toStr(line) : "?",
             column >= 0 ? toStr(column) : "?");
     }
@@ -70,18 +70,18 @@ struct FilePosition {
 /// a subtree in a ConfigFile, can contain named and unnamed values and nodes
 public class ConfigNode {
     private {
-        char[] mName;
+        string mName;
         ConfigNode mParent;
         ConfigNode[] mItems; //xxx replace by linked list
     }
 
     //value can contain anything (as long as it is valid UTF-8)
-    public char[] value;
+    public string value;
 
     //comment before theline, which defined this node
-    public char[] comment;
+    public string comment;
     //comment after last item in the node (only useful if there are subnodes)
-    public char[] endComment;
+    public string endComment;
 
     //file position from parser - note that the node might have been added later
     //(like with getSubNode()), and filePosition might not contain any useful
@@ -104,11 +104,11 @@ public class ConfigNode {
     }
 
     //return file/ConfigNode position
-    char[] locationString() {
-        char[] getPath(ConfigNode s) {
+    string locationString() {
+        string getPath(ConfigNode s) {
             return (s.parent ? getPath(s.parent) : "") ~ "/" ~ s.name;
         }
-        char[] path = getPath(this);
+        string path = getPath(this);
         FilePosition pos = originFilePosition();
         return (pos.useful() ? pos.toString() ~ " " : "") ~ "[" ~ path ~ "]";
     }
@@ -123,7 +123,7 @@ public class ConfigNode {
         return mParent;
     }
 
-    public char[] name() {
+    public string name() {
         return mName;
     }
 
@@ -131,7 +131,7 @@ public class ConfigNode {
         return !!mItems.length;
     }
 
-    public void rename(char[] new_name) {
+    public void rename(string new_name) {
         mName = new_name;
     }
 
@@ -143,7 +143,7 @@ public class ConfigNode {
         mItems ~= item;
     }
 
-    void addNode(char[] name, ConfigNode item) {
+    void addNode(string name, ConfigNode item) {
         addNode(item);
         item.rename(name);
     }
@@ -164,7 +164,7 @@ public class ConfigNode {
         }
     }
 
-    bool remove(char[] name) {
+    bool remove(string name) {
         auto node = find(name);
         if (!node)
             return false;
@@ -182,7 +182,7 @@ public class ConfigNode {
 
     /// find an entry, return null if not found
     /// if there are several items with the same name, return the first one
-    ConfigNode find(char[] name) {
+    ConfigNode find(string name) {
         //unnamed items don't count?
         if (name.length == 0)
             return null;
@@ -196,14 +196,14 @@ public class ConfigNode {
         return null;
     }
 
-    bool exists(char[] name) {
+    bool exists(string name) {
         return !!find(name);
     }
 
     alias exists hasNode;
     alias exists hasValue;
 
-    ConfigNode add(char[] name = "", char[] value = "") {
+    ConfigNode add(string name = "", string value = "") {
         auto node = new ConfigNode();
         node.value = value;
         addNode(name, node);
@@ -212,7 +212,7 @@ public class ConfigNode {
 
     /// Find a subnode by following a path.
     /// Path component separator is "."
-    public ConfigNode getPath(char[] path, bool create = false) {
+    public ConfigNode getPath(string path, bool create = false) {
         //needed for recursion temrination :)
         if (path.length == 0) {
             return this;
@@ -233,23 +233,23 @@ public class ConfigNode {
 
     ///parse path into the config node location (create on demand) and the name
     ///of the value
-    public void parsePath(char[] path, out ConfigNode node, out char[] val) {
+    public void parsePath(string path, out ConfigNode node, out string val) {
         auto val_start = str.rfind(path, '.');
         auto pathname = path[0..(val_start >= 0 ? val_start : 0)];
         val = path[val_start+1..$];
         node = getPath(pathname, true);
     }
 
-    public void setStringValueByPath(char[] path, char[] value) {
+    public void setStringValueByPath(string path, string value) {
         ConfigNode node;
-        char[] valname;
+        string valname;
         parsePath(path, node, valname);
         node.setStringValue(valname, value);
     }
 
-    public char[] getStringValueByPath(char[] path) {
+    public string getStringValueByPath(string path) {
         ConfigNode node;
-        char[] valname;
+        string valname;
         parsePath(path, node, valname);
         return node.getStringValue(valname);
     }
@@ -257,7 +257,7 @@ public class ConfigNode {
     /// like find(), but return null if item has the wrong type
     /// for create==true, create a new / overwrite existing values/nodes
     /// instead of returning null
-    public ConfigNode findNode(char[] name, bool create = false) {
+    public ConfigNode findNode(string name, bool create = false) {
         ConfigNode sub = find(name);
         if (sub !is null || !create)
             return sub;
@@ -269,7 +269,7 @@ public class ConfigNode {
     }
 
     //difference to findNode: different default value for 2nd parameter :-)
-    public ConfigNode getSubNode(char[] name, bool createIfNotExist = true) {
+    public ConfigNode getSubNode(string name, bool createIfNotExist = true) {
         return findNode(name, createIfNotExist);
     }
 
@@ -286,7 +286,7 @@ public class ConfigNode {
     }
 
     /// Access a value by name, return 'default' if it doesn't exist.
-    public char[] getStringValue(char[] name, char[] def = "") {
+    public string getStringValue(string name, string def = "") {
         auto value = findNode(name);
         if (value is null) {
             return def;
@@ -296,37 +296,37 @@ public class ConfigNode {
     }
 
     /// Create/overwrite a string value ('name = "value"')
-    public void setStringValue(char[] name, char[] value) {
+    public void setStringValue(string name, string value) {
         auto val = findNode(name, true);
         val.value = value;
     }
 
     //alias to getStringValue/setStringValue
-    public char[] opIndex(char[] name) {
+    public string opIndex(string name) {
         return getStringValue(name);
     }
-    public void opIndexAssign(char[] value, char[] name) {
+    public void opIndexAssign(string value, string name) {
         setStringValue(name, value);
     }
 
-    private void doWrite(void delegate(char[]) sink, uint level) {
-        char[] newline = "\n";
+    private void doWrite(void delegate(string) sink, uint level) {
+        string newline = "\n";
         const int indent = 4;
         //xxx this could produce major garbage collection thrashing when writing
         //    big files
-        char[] indent_str = str.repeat(" ", indent*level);
+        string indent_str = str.repeat(" ", indent*level);
 
-        void writeLine(char[] stuff) {
+        void writeLine(string stuff) {
             sink(indent_str);
             sink(stuff);
             sink(newline);
         }
 
-        void writeComment(char[] comment) {
+        void writeComment(string comment) {
             //this strip is used to cut off unneeded starting/trailing new lines
-            char[][] comments = str.splitlines(str.strip(comment));
+            string[] comments = str.splitlines(str.strip(comment));
 
-            foreach(char[] lines; comments) {
+            foreach(string lines; comments) {
                 //don't write whitespace since we reformat the file
                 auto line = str.strip(lines);
                 if (line == "")
@@ -335,7 +335,7 @@ public class ConfigNode {
             }
         }
 
-        void writeValue(char[] v) {
+        void writeValue(string v) {
             sink("\"");
             sink(ConfigFile.doEscape(v));
             sink("\"");
@@ -414,10 +414,10 @@ public class ConfigNode {
         return 0;
     }
 
-    //foreach(char[], char[]; ConfigNode) enumerate (name, value) pairs
-    public int opApply(int delegate(inout char[], inout char[]) del) {
+    //foreach(string, string; ConfigNode) enumerate (name, value) pairs
+    public int opApply(int delegate(inout string, inout string) del) {
         foreach (ConfigNode v; mItems) {
-            char[] tmp = v.name;
+            string tmp = v.name;
             int res = del(tmp, v.value);
             if (res)
                 return res;
@@ -436,8 +436,8 @@ public class ConfigNode {
 
     //for use by getCurValue()
     //putting them outside of the template reduces the exe size
-    private void invalid(Exception e = null, char[] txt = "") {
-        char[] msg = "error at " ~ locationString();
+    private void invalid(Exception e = null, string txt = "") {
+        string msg = "error at " ~ locationString();
         if (txt.length) {
             msg ~= " " ~ txt;
         }
@@ -458,7 +458,7 @@ public class ConfigNode {
     ///Get the value of the current node, parsed as type T
     ///If the value cannot be converted to T (parsing failed), throw ConfigError
     //currently supports:
-    //  char[]
+    //  string
     //  byte[], ubyte[] (as base64)
     //  all types supported by toStr() / fromStr() in utils.strparser
     //  bool[], int[], float[] (as space-separated string)
@@ -466,7 +466,7 @@ public class ConfigNode {
     //  AAs with a basic (-> Tango's to) key type and a supported value type
     //  other structs (as name-value pairs)
     public T getCurValue(T)() {
-        static if (is(T : char[])) {
+        static if (is(T : string)) {
             nosubnodes();
             return value;
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
@@ -534,7 +534,7 @@ public class ConfigNode {
     ///      only safe way to read it is using getCurValue!(T)()
     //for a list of types, see getCurValue
     public void setCurValue(T)(T value) {
-        static if (is(T : char[])) {
+        static if (is(T : string)) {
             clear();
             this.value = value;
         } else static if (is(T : byte[]) || is(T : ubyte[])) {
@@ -578,7 +578,7 @@ public class ConfigNode {
 
     ///Read the value of a named subnode of the current node
     ///return def if the value was not found; throw ConfigError on parse error
-    public T getValue(T)(char[] name, T def = T.init) {
+    public T getValue(T)(string name, T def = T.init) {
         auto v = findNode(name);
         if (!v)
             return def;
@@ -587,42 +587,42 @@ public class ConfigNode {
 
     ///Set the value of a named subnode of the current node to value
     ///see also setCurValue
-    public void setValue(T)(char[] name, T value) {
+    public void setValue(T)(string name, T value) {
         auto val = findNode(name, true);
         val.setCurValue!(T)(value);
     }
 
     ///Legacy accessor functions follow
     // -->
-    public int getIntValue(char[] name, int def = 0) {
+    public int getIntValue(string name, int def = 0) {
         return getValue(name, def);
     }
-    public void setIntValue(char[] name, int value) {
+    public void setIntValue(string name, int value) {
         setValue(name, value);
     }
-    public bool getBoolValue(char[] name, bool def = false) {
+    public bool getBoolValue(string name, bool def = false) {
         return getValue(name, def);
     }
-    public void setBoolValue(char[] name, bool value) {
+    public void setBoolValue(string name, bool value) {
         setValue(name, value);
     }
-    public float getFloatValue(char[] name, float def = float.nan) {
+    public float getFloatValue(string name, float def = float.nan) {
         return getValue(name, def);
     }
-    public void setFloatValue(char[] name, float value) {
+    public void setFloatValue(string name, float value) {
         setValue(name, value);
     }
     //<-- end legacy accessor functions
 
     //just for scripting
-    char[][] getStringArray(char[] name) {
-        return getValue!(char[][])(name);
+    string[] getStringArray(string name) {
+        return getValue!(string[])(name);
     }
-    void setStringArray(char[] name, char[][] value) {
+    void setStringArray(string name, string[] value) {
         setValue(name, value);
     }
 
-    static char[] encodeByteArray(ubyte[] data) {
+    static string encodeByteArray(ubyte[] data) {
         if (!data.length)
             return "[]";
 
@@ -632,7 +632,7 @@ public class ConfigNode {
         return base64.encode(data);
     }
 
-    static ubyte[] decodeByteArray(char[] input) {
+    static ubyte[] decodeByteArray(string input) {
         if (input == "[]")
             return null;
         ubyte[] buf;
@@ -687,7 +687,7 @@ public class ConfigNode {
     /// if it finds "key", look for another subnode of "this" with that value
     /// then remove the "key" and mixin that other subnode
     /// do that recursively
-    public void templatetifyNodes(char[] key) {
+    public void templatetifyNodes(string key) {
         void resolveTemplate(ConfigNode node) {
             if (node.hasValue(key)) {
                 auto mixinnode = findNode(node.getStringValue(key));
@@ -708,19 +708,19 @@ public class ConfigNode {
         }
     }
 
-    void write(void delegate(char[]) sink) {
+    void write(void delegate(string) sink) {
         doWrite(sink, 0);
     }
 
     public void writeFile(PipeOut writer) {
         //just for the damn cast that does nothing
-        void sink(char[] s) {
+        void sink(string s) {
             writer.write(cast(ubyte[])s);
         }
         write(&sink);
     }
 
-    public char[] writeAsString() {
+    public string writeAsString() {
         marray.AppenderVolatile!(char) outs;
         //is this kosher? anyway, I don't care
         write(&outs.opCatAssign);
@@ -739,8 +739,8 @@ private class ConfigFatalError : CustomException {
 
 /// Used to manage config files. See docs/*.grm for the used format.
 public class ConfigFile {
-    private char[] mFilename;
-    private char[] mData;
+    private string mFilename;
+    private string mData;
     private Position mPos;          //current pos in data
     private Position mNextPos;      //position of following char
     private dchar mCurChar;         //char at mPos
@@ -753,31 +753,31 @@ public class ConfigFile {
 
     /// Read the config file from 'source' and output any errors to 'errors'
     /// 'filename' is used only for error messages
-    public this(char[] source, char[] filename) {
+    public this(string source, string filename) {
         loadFrom(source, filename);
     }
 
-    public this(Stream source, char[] filename) {
+    public this(Stream source, string filename) {
         loadFrom(source, filename);
     }
 
-    static ConfigNode Parse(char[] source, char[] filename) {
+    static ConfigNode Parse(string source, string filename) {
         auto cf = new ConfigFile(source, filename);
         return cf.rootnode;
     }
 
     /// do the same like the constructor
     /// use hasErrors() to check if there were any errors
-    public void loadFrom(char[] source, char[] filename) {
+    public void loadFrom(string source, string filename) {
         mData = source;
         mFilename = filename;
         doParse();
     }
 
     /// do the same like the constructor
-    public void loadFrom(Stream source, char[] filename) {
+    public void loadFrom(Stream source, string filename) {
         source.position = 0;
-        mData = cast(char[])source.readAll();
+        mData = cast(string)source.readAll();
         mFilename = filename;
         doParse();
     }
@@ -789,7 +789,7 @@ public class ConfigFile {
         //if there's one, skip the unicode BOM
         //NOTE: tried to use tango.text.convert.UnicodeBom, but that thing sucks
         //also fuck Microsoft for introducing useless crap
-        const char[] cUtf8Bom = [0xEF, 0xBB, 0xBF];
+        const string cUtf8Bom = [0xEF, 0xBB, 0xBF];
         str.eatStart(mData, cUtf8Bom);
 
         //read first char, inits mPos and mCurChar
@@ -816,7 +816,7 @@ public class ConfigFile {
 
     //fatal==false: continue parsing allthough config file is invalid
     //fatal==true: parsing won't be continued (abort by throwing an exception)
-    private void reportError(bool fatal, char[] fmt, ...) {
+    private void reportError(bool fatal, string fmt, ...) {
         mErrorCount++;
 
         auto log = registerLog("configparse");
@@ -885,7 +885,7 @@ public class ConfigFile {
         next();
     }
 
-    private char[] copyOut(Position p1, Position p2) {
+    private string copyOut(Position p1, Position p2) {
         return mData[p1.bytePos .. p2.bytePos];
     }
 
@@ -902,7 +902,7 @@ public class ConfigFile {
 
     //str contains an identifier/value for Token.ID/Token.VALUE (else "")
     //comm contains the skipped whitespace between the previous and this token
-    private bool nextToken(out Token token, out char[] str, out char[] comm) {
+    private bool nextToken(out Token token, out string str, out string comm) {
         Position start = curpos;
         Position nwstart; //position of first char after whitespace
 
@@ -1009,11 +1009,11 @@ public class ConfigFile {
         //if not a value: any chars that come now must form ID tokens
         //(the error handling relies on it)
 
-        char[] curstr = "";
+        string curstr = "";
         Position strstart = curpos;
 
         void val_copy(Position until) {
-            char[] stuff = copyOut(strstart, until);
+            string stuff = copyOut(strstart, until);
             curstr ~= stuff;
             strstart = curpos;
         }
@@ -1170,8 +1170,8 @@ public class ConfigFile {
 
     //return an escaped string
     //xxx: definitely needs more work, it's S.L.O.W.
-    public static char[] doEscape(char[] s) {
-        char[] output;
+    public static string doEscape(string s) {
+        string output;
 
         //preallocate data; in the best case (no characters to escape), no
         //further allocations are necessary
@@ -1194,7 +1194,7 @@ public class ConfigFile {
                 output ~= '\\';
 
                 //encode it as hex; ugly but... ugly
-                char[] fmt = "x{:x2}";
+                string fmt = "x{:x2}";
                 if (c > 0xff) {
                     fmt = "u{:x4}";
                 } else if (c > 0xffff) {
@@ -1215,10 +1215,10 @@ public class ConfigFile {
 
     private void parseNode(ConfigNode node, bool toplevel) {
         Token token;
-        char[] str;
-        char[] comm;
-        char[] waste, waste2;
-        char[] id;
+        string str;
+        string comm;
+        string waste, waste2;
+        string id;
 
         for (;;) {
             nextToken(token, str, comm);
@@ -1345,7 +1345,7 @@ public class ConfigFile {
 
         try {
             init_parser();
-            char[] waste, morewaste;
+            string waste, morewaste;
 
             mRootnode.filePosition = filePos(curpos());
 
@@ -1371,13 +1371,13 @@ debug:
 
 private bool test_error;
 
-ConfigNode debugParseFile(char[] f) {
+ConfigNode debugParseFile(string f) {
     auto p = new ConfigFile(f, "test");
     test_error = p.hasErrors();
     return p.rootnode();
 }
 
-char[] t1 =
+string t1 =
 `//hr
 foo = "123"
 //hu
@@ -1389,23 +1389,23 @@ moo {
 //fa
 `;
 
-char[] t2 =
+string t2 =
 `+ "foo hu" = "456"
 `;
 
-char[] t3 =
+string t3 =
 `+ "foo hu" "456" {
     goo = "5676"
 }
 `;
 
-char[] t4 =
+string t4 =
 `+ "foo hu" {
     + "goo g" = "5676"
 }
 `;
 
-char[] t5 =
+string t5 =
 `styles {
     + "*" {
         + "highlight-alpha" = "0"
@@ -1416,13 +1416,13 @@ char[] t5 =
 }`;
 
 //just check the <?: ... ?> string literal
-char[] t6_1 =
+string t6_1 =
 `moo = "hello" //a
  foo = <Ä: brrr grrr
     hrrr drrr "a" 'b' <a: kdfg a> Ä>
  goo = "123"
 `;
-char[] t6_2 =
+string t6_2 =
 `moo = "hello"
 //a
 foo = " brrr grrr\n    hrrr drrr \"a\" \'b\' <a: kdfg a> "

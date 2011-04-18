@@ -19,11 +19,11 @@ class LocaleSwitch {
         Widget mDialog;
         WindowWidget mWindow;
         DropDownList mLocaleList;
-        char[][] mLocaleIds;
-        char[] mOldLanguage, mSelLanguage;
+        string[] mLocaleIds;
+        string mOldLanguage, mSelLanguage;
     }
 
-    this(char[] args) {
+    this(string args) {
         //if "check" is passed, exit if a language is already set
         if (args == "check" && gCurrentLanguage.value.length > 0) {
             return;
@@ -40,14 +40,14 @@ class LocaleSwitch {
         mLocaleList = loader.lookup!(DropDownList)("dd_locales");
         mLocaleList.onSelect = &localeSelect;
 
-        char[][] locList;
+        string[] locList;
         mLocaleIds = null;
         //get the currently displayed locale, to set initial selection
-        char[] curId = gCurrentLanguage.value;
+        string curId = gCurrentLanguage.value;
         if (curId.length == 0)
             curId = gFallbackLanguage;
         //list locale directory and add all files to the dropdownlist
-        scanLocales((char[] id, char[] name_en, char[] name) {
+        scanLocales((string id, string name_en, string name) {
             //e.g. German (Deutsch)
             locList ~= name_en ~ " (" ~ name ~ ")";
             if (id == curId) {
@@ -66,12 +66,12 @@ class LocaleSwitch {
 
     private void cancelClick(Button sender) {
         //locale may have been changed on selection, reset it
-        gCurrentLanguage.set!(char[])(mOldLanguage);
+        gCurrentLanguage.set!(string)(mOldLanguage);
         mWindow.remove();
     }
 
     private void okClick(Button sender) {
-        gCurrentLanguage.set!(char[])(mSelLanguage);
+        gCurrentLanguage.set!(string)(mSelLanguage);
         saveSettings();
         //locale should already be active
         mWindow.remove();
@@ -82,7 +82,7 @@ class LocaleSwitch {
         if (idx >= 0) {
             //a locale was selected, activate it for preview
             mSelLanguage = mLocaleIds[idx];
-            gCurrentLanguage.set!(char[])(mSelLanguage);
+            gCurrentLanguage.set!(string)(mSelLanguage);
         }
     }
 

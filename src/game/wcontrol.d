@@ -125,7 +125,7 @@ class WormControl : WeaponController {
     }
 
     //return null on failure
-    private WeaponClass findWeapon(char[] name) {
+    private WeaponClass findWeapon(string name) {
         return engine.resources.get!(WeaponClass)(name, true);
     }
 
@@ -134,14 +134,14 @@ class WormControl : WeaponController {
         return true;
     }
 
-    private bool inpMove(char[] cmd) {
+    private bool inpMove(string cmd) {
         mInputMoveState.handleCommand(cmd);
         engine.log.trace("move state for {:x}: {}", toHash, mInputMoveState);
         move(toVector2f(mInputMoveState.direction));
         return true;
     }
 
-    private bool inpWeapon(char[] weapon) {
+    private bool inpWeapon(string weapon) {
         WeaponClass wc;
         if (weapon != "-")
             wc = findWeapon(weapon);
@@ -162,13 +162,13 @@ class WormControl : WeaponController {
         return true;
     }
 
-    private bool inpSelRefire(char[] m, bool down) {
+    private bool inpSelRefire(string m, bool down) {
         WeaponClass wc = findWeapon(m);
         selectFireRefire(wc, down, false);
         return true;
     }
 
-    private bool inpSelFire(char[] m, bool down) {
+    private bool inpSelFire(string m, bool down) {
         WeaponClass wc = findWeapon(m);
         selectFireRefire(wc, down, true);
         return true;

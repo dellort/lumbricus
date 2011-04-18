@@ -25,7 +25,7 @@ import str = utils.string;
 //use GET method and encode args as arguments for the method
 //return true or false on success or failure
 //result contains the response data or an error message
-private bool http_get(char[] url, out char[] result, char[][char[]] args) {
+private bool http_get(string url, out string result, string[string] args) {
     //http_log("HTTP GET: url={} args={}", url, args);
 
     try {
@@ -35,16 +35,16 @@ private bool http_get(char[] url, out char[] result, char[][char[]] args) {
         client.setTimeout(5.0f);
         scope(exit) client.close();
 
-        foreach (char[] k, char[] v; args) {
+        foreach (string k, string v; args) {
             client.getRequestParams().add(k, v);
         }
 
-        char[] res;
+        string res;
 
         void getstuff(void[] d) {
             //xxx: content encoding?
             //     we always must have utf-8, or at least sanitized to utf-8
-            res ~= cast(char[])d;
+            res ~= cast(string)d;
         }
 
         client.open();
@@ -67,17 +67,17 @@ private bool http_get(char[] url, out char[] result, char[][char[]] args) {
 
 private class HttpGetter : Thread {
     private {
-        alias void delegate(bool success, char[] result) ResultDg;
+        alias void delegate(bool success, string result) ResultDg;
 
         bool mTerminated;
-        char[] mUrl;
-        char[][char[]] mArgs;
-        char[] mResult;
+        string mUrl;
+        string[string] mArgs;
+        string mResult;
         bool mSuccess;
         ResultDg onFinish;
     }
 
-    this(char[] url, char[][char[]] args, ResultDg finish) {
+    this(string url, string[string] args, ResultDg finish) {
         super(&run);
         mUrl = url.dup;
         mArgs = args;
@@ -108,7 +108,7 @@ private LogStruct!("php_announce") log;
 
 class PhpAnnouncer : NetAnnouncer {
     private {
-        char[] mUrl;
+        string mUrl;
         Time mLastUpdate;
         AnnounceInfo mInfo;
         bool mActive;
@@ -133,7 +133,7 @@ class PhpAnnouncer : NetAnnouncer {
     //actually trigger a PHP request to add/update/keep-alive the announcement
     private void do_update() {
         log("announcing");
-        char[][char[]] hdrs;
+        string[string] hdrs;
         hdrs["action"] = "add";
         hdrs["port"] = myformat("{}", mInfo.port);
         //run and forget, we don't need the result
@@ -144,7 +144,7 @@ class PhpAnnouncer : NetAnnouncer {
 
     private void do_remove() {
         log("removing");
-        char[][char[]] hdrs;
+        string[string] hdrs;
         hdrs["action"] = "remove";
         hdrs["port"] = myformat("{}", mInfo.port);
         mLastGetter = new HttpGetter(mUrl, hdrs, null);
@@ -184,7 +184,7 @@ class PhpAnnouncer : NetAnnouncer {
 
 class PhpAnnounceClient : NetAnnounceClient {
     private {
-        char[] mUrl;
+        string mUrl;
         Time mLastUpdateTime;
         ServerAddress[] mServers;
         bool mActive;
@@ -196,7 +196,7 @@ class PhpAnnounceClient : NetAnnounceClient {
 
     this(ConfigNode cfg) {
         mUrl = cfg.getStringValue("script_url");
-        char[][char[]] hdrs;
+        string[string] hdrs;
         hdrs["action"] = "blist";
         mGetter = new HttpGetter(mUrl, hdrs, &requestFinish);
     }
@@ -216,7 +216,7 @@ class PhpAnnounceClient : NetAnnounceClient {
         mLastUpdateTime = timeCurrentTime();
     }
 
-    private void requestFinish(bool success, char[] result) {
+    private void requestFinish(bool success, string result) {
         mServers.length = 0;
         if (success) {
             log("requestFinish OK (length = {})", result.length);

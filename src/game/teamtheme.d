@@ -19,7 +19,7 @@ class TeamTheme {
 
     //wwp hardcodes these colors (there are separate bitmaps for each)
     //the indices are also hardcoded to wwp (0 must be red etc.)
-    static const char[][] cTeamColors = [
+    static const string[] cTeamColors = [
         "red",
         "blue",
         "green",
@@ -32,10 +32,10 @@ class TeamTheme {
 
     this(ResourceSet resources, int index) {
         colorIndex = index;
-        char[] colorname = cTeamColors[colorIndex];
+        string colorname = cTeamColors[colorIndex];
         color = Color.fromString("team_" ~ colorname); //if it fails, it is messed up
 
-        Animation loadanim(char[] node) {
+        Animation loadanim(string node) {
             Animation ani = resources.get!(Animation)(node ~ "_" ~ name(), true);
             if (!ani)
                 ani = resources.get!(Animation)(node);
@@ -60,7 +60,7 @@ class TeamTheme {
 
     //the name used to identify the theme
     //does not anymore equal to color string, see colors.conf
-    char[] name() {
+    string name() {
         return cTeamColors[colorIndex];
     }
 

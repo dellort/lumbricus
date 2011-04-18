@@ -14,7 +14,7 @@ import tango.util.Convert;
 //    args to strings, I converted it to compile-time varargs (it's called
 //    tuples). So all many functions are templated!
 //    The old version is still in revision 71.
-//xxx after r341, I changed most functions to use a char[][] instead of a tuple
+//xxx after r341, I changed most functions to use a string[] instead of a tuple
 //    this could make per-param-formatting less easy (i.e. number formatting)
 
 //translator for root locale file (read-only, use accessor method below)
@@ -22,7 +22,7 @@ import tango.util.Convert;
 //two-character locale id
 Setting gCurrentLanguage;
 //fallback locale, in case the main locale file is not found
-char[] gFallbackLanguage;
+string gFallbackLanguage;
 
 //called when the language is changed
 //xxx GUI could install a property handler, but still need this because the
@@ -34,13 +34,13 @@ private {
     Log log;
     bool gInitOnce = false;
     MountId gLocaleMount = MountId.max;
-    char[] gActiveLanguage;
+    string gActiveLanguage;
     Translator gLocaleRoot;
     ConfigNode gRootNode;
 
     struct LocaleDir {
-        char[] targetId;
-        char[] localePath;
+        string targetId;
+        string localePath;
     }
     LocaleDir[] gAdditionalDirs;
 }
@@ -58,11 +58,11 @@ static this() {
     gFallbackLanguage = cDefLang;
     //init value is "", so the GUI can now if the language was not chosen yet
     //the GUI then will annoy the user with a selection dialog
-    gCurrentLanguage = addSetting!(char[])("locale", "", SettingType.Choice);
+    gCurrentLanguage = addSetting!(string)("locale", "", SettingType.Choice);
     //NOTE: a settings change handler is installed in initI18N()
     gOnRelistSettings ~= {
         gCurrentLanguage.choices = null;
-        scanLocales((char[] id, char[] name1, char[] name2) {
+        scanLocales((string id, string name1, string name2) {
             gCurrentLanguage.choices ~= id;
         });
     };
@@ -77,18 +77,18 @@ public Translator localeRoot() {
 ///this could become more complex, e.g. think about "collect_item" in crate.d,
 ///where I currently translate the weapon name on server side
 struct LocalizedMessage {
-    char[] id;      ///translation ID
-    char[][] args;  ///arguments for translation string
+    string id;      ///translation ID
+    string[] args;  ///arguments for translation string
     uint rnd;       ///value for randomized selection of translations
 }
 
-private ConfigNode findNamespaceNode(ConfigNode rel, char[] idpath) {
+private ConfigNode findNamespaceNode(ConfigNode rel, string idpath) {
     return rel.getPath(idpath, true);
 }
 
-private ConfigNode loadLocaleNodeFromPath(char[] localePath) {
-    char[] localeFile = localePath ~ '/' ~ gActiveLanguage ~ ".conf";
-    char[] fallbackFile = localePath ~ '/' ~ gFallbackLanguage ~ ".conf";
+private ConfigNode loadLocaleNodeFromPath(string localePath) {
+    string localeFile = localePath ~ '/' ~ gActiveLanguage ~ ".conf";
+    string fallbackFile = localePath ~ '/' ~ gFallbackLanguage ~ ".conf";
     ConfigNode node = loadConfig(localeFile, true);
     if (!node)
         //try fallback
@@ -103,7 +103,7 @@ private ConfigNode loadLocaleNodeFromPath(char[] localePath) {
     return node;
 }
 
-void addLocaleDir(char[] targetId, char[] localePath) {
+void addLocaleDir(string targetId, string localePath) {
     foreach (ref d; gAdditionalDirs) {
         if (d.localePath == localePath) {
             //already added
@@ -134,7 +134,7 @@ public class Translator {
     private {
         bool mErrorString = true;
         bool mFullIdOnError = false;
-        char[] mSubNs;
+        string mSubNs;
     }
 
     private this() {
@@ -144,9 +144,9 @@ public class Translator {
     ///note that the node may be null, in which case only error strings
     ///will be returned
     ///bindNamespace() is a shortcut for this
-    private this(char[] namespace, Translator parent) {
+    private this(string namespace, Translator parent) {
         if (parent) {
-            char[] pns = parent.fullNamespace();
+            string pns = parent.fullNamespace();
             //don't ask me why the length check is needed
             if (pns.length)
                 namespace = pns ~ "." ~ namespace;
@@ -156,11 +156,11 @@ public class Translator {
 
     ///create a new Translator bound to the specified sub-namespace (relative
     ///to own namespace)
-    Translator bindNamespace(char[] namespace) {
+    Translator bindNamespace(string namespace) {
         return new Translator(namespace, this);
     }
 
-    char[] fullNamespace() {
+    string fullNamespace() {
         return mSubNs;
     }
 
@@ -176,12 +176,12 @@ public class Translator {
     }
 
     ///hack
-    char[][] names() {
-        char[][] res;
+    string[] names() {
+        string[] res;
         auto subnode = node();
         if (!subnode)
             return null;
-        foreach (char[] name, char[] value; subnode) {
+        foreach (string name, string value; subnode) {
             res ~= name;
         }
         return res;
@@ -207,18 +207,18 @@ public class Translator {
 
     ///Translate a text, similar to the translate() function.
     ///Warning: doesn't do namespace resolution.
-    char[] opCall(char[] id, ...) {
+    string opCall(string id, ...) {
         return translatefx(id, _arguments, _argptr);
     }
 
-    private char[] lastId(char[] id) {
+    private string lastId(string id) {
         int pos = str.rfind(id, '.');
         if (pos < 0)
             assert(pos == -1);
         return id[pos+1 .. $];
     }
 
-    private char[] errorId(char[] id) {
+    private string errorId(string id) {
         return mFullIdOnError?id:lastId(id);
     }
 
@@ -236,32 +236,32 @@ public class Translator {
         }
     }
 
-    /** Pass arguments as char[][] instead of vararg
+    /** Pass arguments as string[] instead of vararg
      * msg.rnd = random value for multiple choice values, like:
      *  id {
      *     "Option 1"
      *     "Option 2"
      * }
      */
-    char[] translateLocalizedMessage(LocalizedMessage msg) {
+    string translateLocalizedMessage(LocalizedMessage msg) {
         //basically, this generates 10 function calls to tovararg()
         //it copies all elements from the array into p, and then expands p as
         // arguments for tovararg()
         //at runtime, the function with the correct number of params is called
         const cMaxParam = 10;
-        alias GenTuple!(char[], cMaxParam) Params;
+        alias GenTuple!(string, cMaxParam) Params;
         Params p;
         if (msg.args.length > p.length) {
             assert(false, "increase cMaxParam in i18n.d");
         }
-        char[] tovararg(...) {
+        string tovararg(...) {
             return translatefx(msg.id, _arguments, _argptr, msg.rnd);
         }
         foreach (int i, x; p) {
             if (i == msg.args.length) {
                 return tovararg(p[0..i]);
             }
-            char[] s = msg.args[i];
+            string s = msg.args[i];
             //prefix arguments with _ to translate them too (e.g. _messageid)
             if (s.length > 1 && s[0] == '_') {
                 s = opCall(s[1..$]);
@@ -272,13 +272,13 @@ public class Translator {
     }
 
     ///returns true if the passed id is available
-    bool hasId(char[] id) {
+    bool hasId(string id) {
         auto subnode = node();
         return subnode && subnode.getPath(id, false);
     }
 
     //like formatfx, only the format string is loaded by id
-    private char[] translatefx(char[] id, TypeInfo[] arguments,
+    private string translatefx(string id, TypeInfo[] arguments,
         va_list argptr, uint rnd = 0)
     {
         if (id.length > 0 && id[0] == '.') {
@@ -307,10 +307,10 @@ public class Translator {
         return DoTranslate(subnode, errorId(id), arguments, argptr);
     }
 
-    private char[] DoTranslate(ConfigNode data, char[] id,
+    private string DoTranslate(ConfigNode data, string id,
         TypeInfo[] arguments, va_list argptr)
     {
-        char[] text;
+        string text;
         if (data)
             text = data.value;
         if (text.length == 0) {
@@ -328,16 +328,16 @@ public class Translator {
 
 //search locale directory for translation files (<lang>.conf)
 //  e.g. cb("de", "German", "Deutsch")
-void scanLocales(void delegate(char[] id, char[] name_en, char[] name_loc) cb) {
-    gFS.listdir("/locale/", "*.conf", false, (char[] filename) {
+void scanLocales(void delegate(string id, string name_en, string name_loc) cb) {
+    gFS.listdir("/locale/", "*.conf", false, (string filename) {
         const trail = ".conf";
         if (!str.endsWith(filename, trail))
             return true;
         auto node = loadConfig(cLocalePath ~ '/' ~ filename, true);
         if (node) {
-            char[] name_en = node["langname_en"];
-            char[] name_loc = node["langname_local"];
-            char[] id = filename[0..$-trail.length];
+            string name_en = node["langname_en"];
+            string name_loc = node["langname_local"];
+            string id = filename[0..$-trail.length];
             cb(id, name_en, name_loc);
         }
         return true;
@@ -362,7 +362,7 @@ public void initI18N() {
         gCurrentLanguage.onChange ~= delegate(Setting g) { initI18N(); };
     }
 
-    char[] lang = gCurrentLanguage.value;
+    string lang = gCurrentLanguage.value;
 
     gActiveLanguage = lang;
 
@@ -398,6 +398,6 @@ public void initI18N() {
 
 ///Translate an ID into text in the selected language.
 ///Unlike GNU Gettext, this only takes an ID, not an english text.
-public char[] translate(char[] id, ...) {
+public string translate(string id, ...) {
     return gLocaleRoot.translatefx(id, _arguments, _argptr);
 }

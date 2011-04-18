@@ -309,7 +309,7 @@ public struct Rect2(T) {
         doalign(p2.y, tilesize.y, true);
     }
 
-    char[] toString() {
+    string toString() {
         return myformat("[{} - {}]", p1, p2);
     }
 }

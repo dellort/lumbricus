@@ -33,7 +33,7 @@ class WeaponSelWindow : Container {
         GameCore mEngine;
 
         //from the config file
-        char[][] mCategories;
+        string[] mCategories;
 
         //weapon or placeholder for a weapon
         class Cell : Button {
@@ -115,7 +115,7 @@ class WeaponSelWindow : Container {
             }
         }
 
-        Cell[][char[]] mRows;
+        Cell[][string] mRows;
         Cell[] mAll;
         TableContainer mGrid;
         SimpleContainer mGridContainer;
@@ -126,7 +126,7 @@ class WeaponSelWindow : Container {
         WeaponClass mWeaponInfoline;
 
         Translator mWeaponTranslate, mWeaponFooTranslate;
-        char[][] mWeaponPostfixes;
+        string[] mWeaponPostfixes;
         int mFooCode;
     }
 
@@ -137,7 +137,7 @@ class WeaponSelWindow : Container {
     //also hack-liek
     //checks if "key" is a shortcut, and if so, cycle the weapon
     //c is the currently selected weapon
-    bool checkNextWeaponInCategoryShortcut(char[] category, WeaponClass c) {
+    bool checkNextWeaponInCategoryShortcut(string category, WeaponClass c) {
         auto parr = category in mRows;
         if (!parr)
             return false;
@@ -173,7 +173,7 @@ class WeaponSelWindow : Container {
         updateWeaponInfoline();
     }
 
-    private char[] translateWeapon(char[] id) {
+    private string translateWeapon(string id) {
         auto tr = mWeaponTranslate(id);
         auto count = mWeaponPostfixes.length;
         if (count == 0)
@@ -317,7 +317,7 @@ class WeaponSelWindow : Container {
 
         //meh how stupid
         auto conf = loadConfig("wsel.conf").getSubNode("categories");
-        foreach (char[] name, char[] value; conf) {
+        foreach (string name, string value; conf) {
             mCategories ~= value;
         }
 

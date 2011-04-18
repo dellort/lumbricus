@@ -142,8 +142,8 @@ static this() {
 
 class Stuff {
     Time[PerfTimer] mLastTimerValues;
-    long[char[]] mLastCounterValues;
-    size_t[char[]] mLastSizeStatValues;
+    long[string] mLastCounterValues;
+    size_t[string] mLastSizeStatValues;
 
     const cTimerStatsUpdateTimeMs = 1000;
 
@@ -232,11 +232,11 @@ class Stuff {
                 mLastTimerValues[cnt] = t / div;
                 cnt.reset();
             }
-            foreach (char[] name, ref long cnt; gCounters) {
+            foreach (string name, ref long cnt; gCounters) {
                 mLastCounterValues[name] = cnt;
                 cnt = 0;
             }
-            foreach (char[] name, ref size_t sz; gSizeStats) {
+            foreach (string name, ref size_t sz; gSizeStats) {
                 mLastSizeStatValues[name] = sz;
                 sz = 0;
             }
@@ -246,8 +246,8 @@ class Stuff {
         mFrameTime.start();
     }
 
-    void listTimers(void delegate(char[] name, Time value) cb) {
-        foreach (char[] name, PerfTimer cnt; gTimers) {
+    void listTimers(void delegate(string name, Time value) cb) {
+        foreach (string name, PerfTimer cnt; gTimers) {
             Time* pt = cnt in mLastTimerValues;
             Time t = Time.Never;
             if (pt)
@@ -255,8 +255,8 @@ class Stuff {
             cb(name, t);
         }
     }
-    void listCounters(void delegate(char[] name, long value) cb) {
-        foreach (char[] name, long cnt; gCounters) {
+    void listCounters(void delegate(string name, long value) cb) {
+        foreach (string name, long cnt; gCounters) {
             long* pt = name in mLastCounterValues;
             long t = 0;
             if (pt)
@@ -264,8 +264,8 @@ class Stuff {
             cb(name, t);
         }
     }
-    void listSizeStats(void delegate(char[] name, size_t sz) cb) {
-        foreach (char[] name, size_t sz; gSizeStats) {
+    void listSizeStats(void delegate(string name, size_t sz) cb) {
+        foreach (string name, size_t sz; gSizeStats) {
             size_t* ps = name in mLastSizeStatValues;
             size_t s = 0;
             if (ps)
@@ -301,12 +301,12 @@ class Stuff {
     }
     private void cmdGCTrace(MyBox[] args, Output write) {
         static if (GCStatsHack)
-            dotrace(args[0].unbox!(char[]), args[1].unbox!(int));
+            dotrace(args[0].unbox!(string), args[1].unbox!(int));
     }
     private void cmdGCArrayTrace(MyBox[] args, Output write) {
         static if (GCStatsHack)
             //pure evil
-            doarraytrace(cast(void*)cstdlib.strtoul((args[0].unbox!(char[])~'\0').ptr, null, 16));
+            doarraytrace(cast(void*)cstdlib.strtoul((args[0].unbox!(string)~'\0').ptr, null, 16));
     }
     private void cmdGCSweeps(MyBox[] args, Output write) {
         static if (GCStatsHack)
@@ -346,14 +346,14 @@ class Stuff {
     }
 
     private void cmdResLoad(MyBox[] args, Output write) {
-        char[] s = args[0].unbox!(char[])();
+        string s = args[0].unbox!(string)();
         gResources.loadResources(s);
     }
 
     private void cmdDir(MyBox[] args, Output write) {
-        char[] s = args[0].unbox!(char[])();
+        string s = args[0].unbox!(string)();
         write.writefln("list '{}':", s);
-        gFS.listdir(s, "*", true, (char[] d) {
+        gFS.listdir(s, "*", true, (string d) {
             write.writefln("  {}", d);
             return true;
         });
@@ -403,13 +403,13 @@ class StatsWindow {
 
             int line = 0;
 
-            char[] lineBuffer() {
+            string lineBuffer() {
                 if (buffers.length <= line)
                     buffers.length = line+1;
                 return buffers[line];
             }
 
-            void addLine(char[] a, char[] b) {
+            void addLine(string a, string b) {
                 Label la, lb;
                 if (line >= table.height) {
                     table.setSize(table.width, line+1);
@@ -429,13 +429,13 @@ class StatsWindow {
                 line++;
             }
 
-            void number(char[] name, long n) {
+            void number(string name, long n) {
                 addLine(name, myformat_s(lineBuffer(), "{}", n));
             }
-            void size(char[] name, size_t s) {
+            void size(string name, size_t s) {
                 addLine(name, str.sizeToHuman(s, lineBuffer()));
             }
-            void time(char[] name, Time t) {
+            void time(string name, Time t) {
                 addLine(name, t.toString_s(lineBuffer()));
             }
 
@@ -478,7 +478,7 @@ class StatsWindow {
 
 //GUI to disable or enable log targets
 class LogConfig {
-    CheckBox[char[]] mLogButtons;
+    CheckBox[string] mLogButtons;
     BoxContainer mLogList;
     WindowWidget mWindow;
 
@@ -499,7 +499,7 @@ class LogConfig {
     }
 
     void onToggle(CheckBox sender) {
-        foreach (char[] name, CheckBox b; mLogButtons) {
+        foreach (string name, CheckBox b; mLogButtons) {
             if (sender is b) {
                 registerLog(name).minPriority =
                     sender.checked ? LogPriority.Trace : LogPriority.Minor;
@@ -509,18 +509,18 @@ class LogConfig {
     }
 
     void onSave(Button sender) {
-        char[] fname = "logconfig.conf";
+        string fname = "logconfig.conf";
         ConfigNode config = loadConfig(fname, true);
         config = config ? config : new ConfigNode();
         auto logs = config.getSubNode("logs");
-        foreach (char[] name, Log log; gAllLogs) {
+        foreach (string name, Log log; gAllLogs) {
             logs.setValue!(bool)(name, log.minPriority <= LogPriority.Trace);
         }
         saveConfig(config, fname);
     }
 
     void addLogs() {
-        foreach (char[] name, Log log; gAllLogs) {
+        foreach (string name, Log log; gAllLogs) {
             auto pbutton = name in mLogButtons;
             CheckBox button = pbutton ? *pbutton : null;
             if (!button) {
@@ -549,7 +549,7 @@ class LogConfig {
 }
 
 static this() {
-    registerTask("console", (char[] args) {
+    registerTask("console", (string args) {
         gWindowFrame.createWindowFullscreen(new GuiConsole(getCommandLine()),
             "Console");
         return Object.init;
@@ -563,7 +563,7 @@ import tango.core.tools.StackTrace;
 import tango.core.tools.Demangler;
 
 class Unknown {
-    char[] toString() { return "<?> unknown type"; }
+    string toString() { return "<?> unknown type"; }
 }
 
 void doiter() {
@@ -616,7 +616,7 @@ void doiter() {
 
 //look for objects whose class name contains x
 //trace the nth found object
-void dotrace(char[] x, int nth) {
+void dotrace(string x, int nth) {
     scope bits_st = new BigArray!(ubyte);
     //spanning all of the 4GB address room, in 16 byte units (8 bit => 16*8 per byte)
     bits_st.length = 33554432;
@@ -837,7 +837,7 @@ void showallocatorstats() {
         return a.memory < b.memory;
     });
 
-    char[] format_caller(void* caller) {
+    string format_caller(void* caller) {
         if (!caller)
             return "???";
 
@@ -860,7 +860,7 @@ void showallocatorstats() {
 //the functions are compiler specific - this is for dmd
 //any other compiler: unsupported, though easy to support (have to extract
 //  list of runtime functions from rt/lifetime.d)
-const char[][] cRTFns = ["_d_newclass", "_d_newarrayT", "_d_newarrayiT",
+const string[] cRTFns = ["_d_newclass", "_d_newarrayT", "_d_newarrayiT",
     "_d_newarraymT", "_d_newarraymiT",
     "_d_arraysetlengthT", "_d_arraysetlengthiT", "_d_arrayappendT",
     "_d_arrayappendcT", "_d_arrayappendcd", "_d_arrayappendwd",
@@ -872,8 +872,8 @@ const char[][] cRTFns = ["_d_newclass", "_d_newarrayT", "_d_newarrayiT",
 struct FunctionEntry {
     void* start, end;
     //debugging
-    char[] entry;
-    char[] toString() { return myformat("{:x}-{:x} {}", start, end, entry); }
+    string entry;
+    string toString() { return myformat("{:x}-{:x} {}", start, end, entry); }
 }
 
 FunctionEntry[] g_rt_fns;

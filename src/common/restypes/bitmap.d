@@ -9,7 +9,7 @@ import utils.misc;
 
 ///Resource class for bitmaps
 protected class BitmapResource : ResourceItem {
-    this(ResourceFile context, char[] id, ConfigNode item) {
+    this(ResourceFile context, string id, ConfigNode item) {
         super(context, id, item);
     }
 

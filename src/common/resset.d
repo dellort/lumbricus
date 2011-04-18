@@ -17,13 +17,13 @@ import rtraits = tango.core.RuntimeTraits;
 ///values which are only valid per-game (like assigning a network-ID to .id)
 class ResourceSet {
     private {
-        Entry[char[]] mResByName;
+        Entry[string] mResByName;
         bool mSealed; //more for debugging, see seal()
     }
 
     static class Entry {
         private {
-            char[] mName;
+            string mName;
             Object mResource;
             bool mIsAlias;
         }
@@ -32,7 +32,7 @@ class ResourceSet {
         }
 
         ///name as managed by the resource system
-        char[] name() {
+        string name() {
             return mName;
         }
 
@@ -52,23 +52,23 @@ class ResourceSet {
     }
 
     override void dispose() {
-        foreach (char[] n, ref Entry e; mResByName) {
+        foreach (string n, ref Entry e; mResByName) {
             e = null;
         }
     }
 
     ///add a resource with that name
-    void addResource(Object res, char[] name) {
+    void addResource(Object res, string name) {
         doAddResource(res, name, false);
     }
 
     ///add an alias new_name to res
-    void addAlias(char[] res, char[] new_name) {
+    void addAlias(string res, string new_name) {
         Entry r = resourceByName(res);
         doAddResource(r.mResource, new_name, true);
     }
 
-    private void doAddResource(Object res, char[] name, bool is_alias) {
+    private void doAddResource(Object res, string name, bool is_alias) {
         if (mSealed) {
             assert(false, "seal() was already called");
         }
@@ -92,7 +92,7 @@ class ResourceSet {
         return mResByName.values;
     }
 
-    Entry resourceByName(char[] name, bool canfail = false) {
+    Entry resourceByName(string name, bool canfail = false) {
         auto pres = name in mResByName;
         if (!pres) {
             if (!canfail) {
@@ -105,7 +105,7 @@ class ResourceSet {
     }
 
     ///get a resource by name...
-    T get(T)(char[] name, bool canfail = false) {
+    T get(T)(string name, bool canfail = false) {
         auto res = resourceByName(name, canfail);
         if (canfail && !res) {
             return null;
@@ -118,7 +118,7 @@ class ResourceSet {
         return ret;
     }
 
-    Object getDynamic(char[] name, bool canfail = false) {
+    Object getDynamic(string name, bool canfail = false) {
         return get!(Object)(name, canfail);
     }
 
@@ -158,13 +158,13 @@ class ResourceSet {
 
 ///use this for recoverable loading errors
 class LoadException : CustomException {
-    this(char[] name, char[] why) {
+    this(string name, string why) {
         super("Failed to load '" ~ name ~ "': " ~ why ~ ".");
     }
 }
 
 class ResourceException : LoadException {
-    this(char[] a, char[] b) {
+    this(string a, string b) {
         super(a, b);
     }
 }

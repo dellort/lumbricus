@@ -48,23 +48,23 @@ static this() {
 
     gScripting.ctor!(AirstrikeControl, Sprite);
 
-    gScripting.ctor!(DrillClass, GameCore, char[]);
+    gScripting.ctor!(DrillClass, GameCore, string);
     gScripting.properties!(DrillClass, "duration", "tunnelRadius", "interval",
         "blowtorch");
 
-    gScripting.ctor!(ParachuteClass, GameCore, char[]);
+    gScripting.ctor!(ParachuteClass, GameCore, string);
     gScripting.properties!(ParachuteClass, "sideForce");
 
-    gScripting.ctor!(JetpackClass, GameCore, char[]);
+    gScripting.ctor!(JetpackClass, GameCore, string);
     gScripting.properties!(JetpackClass, "maxTime", "jetpackThrust",
         "stopOnDisable");
 
-    gScripting.ctor!(RopeClass, GameCore, char[]);
+    gScripting.ctor!(RopeClass, GameCore, string);
     gScripting.properties!(RopeClass, "shootSpeed", "maxLength", "moveSpeed",
         "swingForce", "swingForceUp", "hitImpulse", "ropeColor", "ropeSegment",
         "anchorAnim", "impactParticle");
 
-    gScripting.ctor!(NapalmSpriteClass, GameCore, char[]);
+    gScripting.ctor!(NapalmSpriteClass, GameCore, string);
     gScripting.properties!(NapalmSpriteClass, "damage", "initialDelay",
         "repeatDelay", "decayTime", "physMedium", "physSmall",
         "lightupVelocity", "emitOnWater", "sticky", "decaySteps");
@@ -81,7 +81,7 @@ static this() {
 
     //-----
 
-    gScripting.ctor!(LuaWeaponClass, GameCore, char[])();
+    gScripting.ctor!(LuaWeaponClass, GameCore, string)();
     gScripting.properties!(LuaWeaponClass, "onFire",
         "onCreateSelector", "onInterrupt", "onRefire", "onReadjust");
     gScripting.properties!(LuaShooter, "fixed", "delayed");

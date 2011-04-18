@@ -160,7 +160,7 @@ class FTGlyphCache {
         //xxx 2: should probably be more forgiving about errors (e.g. display
         //  nothing or an error texture instead of crashing)
         //(also, I check allocating functions only)
-        void ftcheck(char[] name) {
+        void ftcheck(string name) {
             if (ftres)
                 throw new Exception(
                     myformat("fontft.d failed: err={} in {}", ftres, name));
@@ -353,7 +353,7 @@ class FTFont : DriverFont {
         c.drawSprite(glyph.tex, pos+glyph.offset);
     }
 
-    Vector2i draw(Canvas canvas, Vector2i pos, char[] text) {
+    Vector2i draw(Canvas canvas, Vector2i pos, string text) {
         int orgx = pos.x;
         foreach (dchar c; text) {
             auto glyph = mCache.getGlyph(c);
@@ -381,7 +381,7 @@ class FTFont : DriverFont {
         return pos;
     }
 
-    Vector2i textSize(char[] text, bool forceHeight) {
+    Vector2i textSize(string text, bool forceHeight) {
         Vector2i res = Vector2i(0, 0);
         foreach (dchar c; text) {
             auto glyph = mCache.getGlyph(c);
@@ -476,7 +476,7 @@ class FTFontDriver : FontDriver {
     }
 }
 
-private bool missingProcCb(char[] libName, char[] procName)
+private bool missingProcCb(string libName, string procName)
 {
     if (procName == "FT_Library_SetLcdFilter")
         return true;

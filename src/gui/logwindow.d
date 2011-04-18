@@ -26,7 +26,7 @@ public class LogWindow : Widget, Output {
 
         //backlog buffer
         struct BufferEntry {
-            char[] text;
+            string text;
             FormattedText fmtText;
             Time timestamp;
         }
@@ -120,7 +120,7 @@ public class LogWindow : Widget, Output {
                 //  break from top to bottom)
                 //the first part is the symbol "Rightwards Arrow With Hook"
                 const cBreaker = "\u21aa ";
-                void bla(char[] txt, int frame) {
+                void bla(string txt, int frame) {
                     if (frame > 0 && (txt.length == 0 || cur.y < 0))
                         return;
                     int w = renderWidth;
@@ -152,13 +152,13 @@ public class LogWindow : Widget, Output {
         mBackLog.setOffset(0);
     }
 
-    override void writef(char[] fmt, ...) {
+    override void writef(string fmt, ...) {
         writef_ind(false, fmt, _arguments, _argptr);
     }
-    override void writefln(char[] fmt, ...) {
+    override void writefln(string fmt, ...) {
         writef_ind(true, fmt, _arguments, _argptr);
     }
-    override void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+    override void writef_ind(bool newline, string fmt, TypeInfo[] arguments,
         va_list argptr)
     {
         writeString(myformat_fx(fmt, arguments, argptr));
@@ -170,7 +170,7 @@ public class LogWindow : Widget, Output {
 
     //NOTE: parses '\n's
     //xxx might be inefficient; at least it's correct, unlike the last version
-    void writeString(char[] s) {
+    void writeString(string s) {
         foreach (char c; s) {
             if (c == '\n') {
                 println();

@@ -35,7 +35,7 @@ end
 
 -- parse str as boolean
 function utils.toBool(str)
-    return type(str) == "string" and (string.lower(str) == "true" 
+    return type(str) == "string" and (string.lower(str) == "true"
         or string.lower(str) == "yes" or str == "1")
 end
 
@@ -778,7 +778,7 @@ ConsoleUtils = {}
 
 -- execute a line of Lua code (either statement or expression)
 -- print out result
--- msgSink: void delegate(char[])
+-- msgSink: void delegate(string)
 function ConsoleUtils.exec(line, msgSink)
     local errSink = log.error
     local noticeSink = log.notice
@@ -856,7 +856,7 @@ end
 --        //e.g. "abc.def<tab>" => match_start, match_end = 5, 8
 --        int match_start, match_end;
 --        //possible matches (only those which match the prefix)
---        char[][] matches;
+--        string[] matches;
 --        //more than the fixed maximum number of matches available
 --        bool more;
 --    }

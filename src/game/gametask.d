@@ -158,15 +158,15 @@ class GameTask : IKillable {
     //this _really_ should be considered to be a debugging features
     //(to use it from the factory)
     //use the other constructor and pass it a useful GameConfig
-    this(char[] args = "") {
+    this(string args = "") {
         //hack, what else
         //there should be a proper command line parser (for lumbricus.d too)
         //actually, normally the newgame.conf would contain all this stuff, and
         //  we need a proper way to create sucha a .conf to start a new game
-        char[][] argv = str.split(args);
-        char[] start_config;
-        char[] start_demo;
-        char[] graphics;
+        string[] argv = str.split(args);
+        string start_config;
+        string start_demo;
+        string graphics;
 
         foreach (arg; argv) {
             if (str.eatStart(arg, "demo:")) {
@@ -256,7 +256,7 @@ class GameTask : IKillable {
     //  code = code to be executed; exceptions will be catched and treated as
     //      load errors
     //  returns if code was executed successfully
-    private bool tryLoad(char[] phase, void delegate() code) {
+    private bool tryLoad(string phase, void delegate() code) {
         try {
             code();
             return true;
@@ -267,7 +267,7 @@ class GameTask : IKillable {
     }
 
     //if tryLoad is far too silly
-    private void loadFailed(char[] phase, Exception e) {
+    private void loadFailed(string phase, Exception e) {
         gGameLog.error("error when {}: {}", phase, e);
         traceException(gGameLog.get, e);
         loadingFailed();
@@ -297,9 +297,9 @@ class GameTask : IKillable {
         mWindow.add(mLoadScreen);
 
         auto load_txt = localeRoot.bindNamespace("loading.game");
-        char[][] chunks;
+        string[] chunks;
 
-        void addChunk(LoadChunkDg cb, char[] txt_id) {
+        void addChunk(LoadChunkDg cb, string txt_id) {
             chunks ~= load_txt(txt_id);
             mGUIGameLoader.registerChunk(cb);
         }
@@ -661,7 +661,7 @@ class GameTask : IKillable {
         if (!mControl)
             return;
         //send command to the server
-        char[] srvCmd = args[0].unbox!(char[]);
+        string srvCmd = args[0].unbox!(string);
         mControl.execCommand(srvCmd);
     }
 
@@ -685,7 +685,7 @@ class LuaConsole : LuaInterpreter {
         Output mOut;
     }
 
-    this(char[] args = "") {
+    this(string args = "") {
         this(cast(LuaState)null);
     }
 
@@ -702,12 +702,12 @@ class LuaConsole : LuaInterpreter {
         gWindowFrame.createWindow(w, "Lua Console", Vector2i(450, 300));
     }
 
-    private void printOutput(char[] s) {
+    private void printOutput(string s) {
         mOut.writef("{}", s);
     }
 
     private void cmdExec(MyBox[] args, Output output) {
-        exec(args[0].unbox!(char[])());
+        exec(args[0].unbox!(string)());
     }
 
     static this() {

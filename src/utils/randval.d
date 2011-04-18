@@ -50,16 +50,16 @@ struct RandomValue(T) {
         min = max = val;
     }
 
-    char[] toString() {
+    string toString() {
         if (min == max)
-            return to!(char[])(min);
+            return to!(string)(min);
         else
-            return to!(char[])(min) ~ cRandValSeparator ~ to!(char[])(max);
+            return to!(string)(min) ~ cRandValSeparator ~ to!(string)(max);
     }
 
     ///initialize from string like "<min><cRandValSeparator><max>"
     //may throw ConversionException
-    static RandomValue fromString(char[] s) {
+    static RandomValue fromString(string s) {
         uint i = str.locate(s, cRandValSeparator);
         //not found -> fallback
         if (i == s.length)
@@ -75,7 +75,7 @@ struct RandomValue(T) {
         return opCall(min,max);
     }
 
-    char[] fromStringRev() {
+    string fromStringRev() {
         return toString();
     }
 }

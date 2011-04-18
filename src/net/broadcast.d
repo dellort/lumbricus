@@ -28,7 +28,7 @@ class NetBroadcast {
         mPort = port;
         //setup broadcast addresses for all network interfaces
         //see comment in sendBC() for explanation
-        char[][] interfaces = getBroadcastInterfaces();
+        string[] interfaces = getBroadcastInterfaces();
         foreach (addr; interfaces) {
             mAddresses ~= new IPv4Address(addr, mPort);
         }

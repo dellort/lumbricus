@@ -18,7 +18,7 @@ import utils.configfile;
 import utils.path;
 import utils.log;
 
-private void checkALError(char[] msg) {
+private void checkALError(string msg) {
     int code = alGetError();
     if (code != AL_NO_ERROR) {
         throw new Exception("call of "~msg~" failed: "~fromStringz(
@@ -535,7 +535,7 @@ class ALSoundDriver : SoundDriver {
     }
 }
 
-private bool missingProcSDLsound(char[] libName, char[] procName) {
+private bool missingProcSDLsound(string libName, string procName) {
     if (procName == "Sound_GetDuration")
         return true;
     return false;

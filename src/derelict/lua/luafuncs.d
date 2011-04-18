@@ -180,7 +180,7 @@ bool lua_isboolean(lua_State *L, int n)       { return (lua_type(L,n) == LUA_TBO
 bool lua_isnone(lua_State *L, int n)          { return (lua_type(L,n) == LUA_TNONE); }
 bool lua_isnoneornil(lua_State *L, int n)     { return (lua_type(L,n) <= 0); }
 
-void lua_pushliteral(lua_State *L, char[] s)
+void lua_pushliteral(lua_State *L, string s)
 {
   lua_pushlstring(L, s.ptr, s.length);
 }

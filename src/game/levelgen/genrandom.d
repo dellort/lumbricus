@@ -48,7 +48,7 @@ public class LandscapeGeometry {
     void loadFrom(ConfigNode node) {
         size = node.getValue("size", Vector2i(1200,700));
 
-        char[] markerId = node.getStringValue("fill_marker", "free");
+        string markerId = node.getStringValue("fill_marker", "free");
         fill = parseMarker(markerId);
 
         ConfigNode polys = node.getSubNode("polygons");

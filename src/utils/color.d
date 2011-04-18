@@ -11,7 +11,7 @@ import tango.text.convert.Integer : convert;
 
 //predefined colors - used by the parser
 //global for fun and profit
-Color[char[]] gColors;
+Color[string] gColors;
 
 public struct Color {
     //values between 0.0 and 1.0, 1.0 means full intensity
@@ -212,12 +212,12 @@ public struct Color {
      + Previous member values of Color are used, if the color spec is
      + incomplete, e.g. "a=0.5" will simply do this.a = 0.5f;
      +/
-    static Color fromString(char[] s, Color previous = Color.init) {
+    static Color fromString(string s, Color previous = Color.init) {
         Color newc = previous;
 
         //old parsing
 
-        char[][] values = str.split(s);
+        string[] values = str.split(s);
         if (values.length == 3 || values.length == 4) {
             try {
                 newc.r = strparser.fromStr!(float)(values[0]);
@@ -239,13 +239,13 @@ public struct Color {
 
         //new parsing
 
-        char[][] stuff = str.split(s, ",");
+        string[] stuff = str.split(s, ",");
 
         if (stuff.length == 0)
             throw strparser.newConversionException!(Color)(s, "empty string");
 
         foreach (x; stuff) {
-            char[][] sub = str.split(x, "=");
+            string[] sub = str.split(x, "=");
             if (sub.length == 1) {
                 auto pcolor = str.tolower(str.strip(sub[0])) in gColors;
                 if (!pcolor)
@@ -281,7 +281,7 @@ public struct Color {
     //try parsing a hexadecimal color value at the start of s (no prefix)
     //Example: 00ff00
     //Garbage may follow the color code; returns number of chars eaten
-    private int parseHex(char[] s) {
+    private int parseHex(string s) {
         if (s.length > 5) {
             //try reading r/g/b
             uint cnt, tmp;
@@ -307,12 +307,12 @@ public struct Color {
         return 0;
     }
 
-    char[] fromStringRev() {
+    string fromStringRev() {
         return toString();
     }
 
     //produce string parseable by parse()
-    char[] toString() {
+    string toString() {
         if (hasAlpha)
             return myformat("r={}, g={}, b={}, a={}", r, g, b, a);
         else
@@ -320,7 +320,7 @@ public struct Color {
     }
 
     //produce hex string (no prefix, parseable by parse())
-    char[] toStringHex() {
+    string toStringHex() {
         auto rgba = toRGBA32();
         if (hasAlpha)
             return myformat("{:x2}{:x2}{:x2}{:x2}", rgba.r, rgba.g, rgba.b,
@@ -332,7 +332,7 @@ public struct Color {
 
 //a unittest never hurts
 unittest {
-    Color p(char[] s) {
+    Color p(string s) {
         try {
             return Color.fromString(s);
         } catch (strparser.ConversionException e) {
@@ -352,7 +352,7 @@ unittest {
 
 //(try to) load each item from node as color
 void loadColors(ConfigNode node) {
-    foreach (char[] key, char[] value; node) {
+    foreach (string key, string value; node) {
         //try {
             //(not a single expression, because AA key creation)
             auto c = Color.fromString(value);

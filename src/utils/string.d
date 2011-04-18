@@ -38,36 +38,36 @@ alias textu.splitLines splitlines;
 alias textu.substitute replace;
 
 //T[] repeat(T, U = uint)(T[] src, U count, T[] dst = null)
-//in practise: char[] repeat(char[] src, int count)
+//in practise: string repeat(string src, int count)
 alias textu.repeat repeat;
 
 //return: -1 if not found, or the first n with text[n] == tofind
-int find(char[] text, char tofind) {
+int find(string text, char tofind) {
     size_t res = textu.locate(text, tofind);
     return res == text.length ? -1 : res;
 }
 
 //return: -1 if not found, or first n with text[n..n+tofind.length] == tofind
-int find(char[] text, char[] tofind) {
+int find(string text, string tofind) {
     size_t res = textu.locatePattern(text, tofind);
     return res == text.length ? -1 : res;
 }
 
 //return: -1 if not found, or the last n with text[n] == tofind
-int rfind(char[] text, char tofind) {
+int rfind(string text, char tofind) {
     size_t res = textu.locatePrior(text, tofind);
     return res == text.length ? -1 : res;
 }
 
 //return: -1 if not found, or first n with text[n..n+tofind.length] == tofind
-int rfind(char[] text, char[] tofind) {
+int rfind(string text, string tofind) {
     size_t res = textu.locatePatternPrior(text, tofind);
     return res == text.length ? -1 : res;
 }
 
 //on every spliton in text, create a new array item, and return that array
-char[][] split(char[] text, char[] spliton) {
-    char[][] res = textu.split(text, spliton);
+string[] split(string text, string spliton) {
+    string[] res = textu.split(text, spliton);
     //behaviour different Phobos <-> Tango:
     //split("", ",") returns
     // in Tango: [""]
@@ -85,7 +85,7 @@ unittest {
     assert(split("", ",") == null);
 }
 
-char[] join(char[][] text, char[] joiner) {
+string join(string[] text, string joiner) {
     return textu.join(text, joiner);
 }
 
@@ -96,18 +96,18 @@ alias utf.isValid isValidDchar;
 public import tango.core.Exception : UnicodeException;
 
 //append c to txt (encoded as utf-8)
-void encode(ref char[] txt, dchar c) {
+void encode(ref string txt, dchar c) {
     //apparently, the string passed as first arg is only used as a buffer
     //Tango does _not_ append to it (oh Tango, you suck so much!)
     char[8] buffer; //something long enough for a dchar
-    char[] data = utf.encode(buffer, c);
+    string data = utf.encode(buffer, c);
     txt ~= data;
 }
 
 //decode one character of the utf-8 string txt, starting at txt[idx]
 //return decoded character, and write index of following character to idx
 //if decoding fails, throw UnicodeException and don't change idx
-dchar decode(char[] txt, ref size_t idx) {
+dchar decode(string txt, ref size_t idx) {
     /+ maybe this code would be faster; but it's also a bit buggy
        as of Tango r5245, this didn't throw errors on some invalid utf-8
        the Tango dev who wrote Utf.d must be an idiot
@@ -135,7 +135,7 @@ dchar decode(char[] txt, ref size_t idx) {
 }
 
 //throw UnicodeException, if txt is not valid unicode
-void validate(char[] txt) {
+void validate(string txt) {
     size_t idx;
     while (idx < txt.length) {
         decode(txt, idx);
@@ -144,7 +144,7 @@ void validate(char[] txt) {
 }
 
 //exception-less version of validate
-bool isValid(char[] txt) {
+bool isValid(string txt) {
     try {
         validate(txt);
     } catch (UnicodeException e) {
@@ -155,10 +155,10 @@ bool isValid(char[] txt) {
 
 //return a string that has been fixed to valid utf-8 (as in validate() succeeds)
 //the input string can anything
-char[] sanitize(char[] txt) {
+string sanitize(string txt) {
     if (isValid(txt))
         return txt;
-    char[] nstr;
+    string nstr;
     size_t idx = 0;
     while (idx < txt.length) {
         dchar cur = '?';
@@ -174,32 +174,32 @@ char[] sanitize(char[] txt) {
 }
 
 unittest {
-    char[] foo;
+    string foo;
     foo ~= "huhu";
     foo ~= 0xa4;
     foo ~= 0xc3;
     assert(!isValid(foo));
-    char[] v = sanitize(foo);
+    string v = sanitize(foo);
     assert(isValid(v));
     assert(startsWith(v, "huh")); //the last 'u' gets eaten, who knows why
 }
 
 //return length of the unicode character at txt[idx] (in bytes)
-size_t stride(char[] txt, size_t idx) {
+size_t stride(string txt, size_t idx) {
     size_t idx2 = idx;
     decode(txt, idx2);
     return idx2 - idx;
 }
 
 //decode one char; if txt.length==0, return dchar.init
-dchar decode_first(char[] txt) {
+dchar decode_first(string txt) {
     if (txt.length == 0)
         return dchar.init;
     size_t idx = 0;
     return decode(txt, idx);
 }
 //probably badly named; make it better
-char[] utf8_get_first(char[] txt) {
+string utf8_get_first(string txt) {
     return txt.length ? txt[0..stride(txt, 0)] : "";
 }
 
@@ -207,7 +207,7 @@ unittest {
     size_t x = 2;
     dchar x2 = decode("äöü", x);
     assert(x == 4 && x2 == 'ö');
-    char[] x3;
+    string x3;
     encode(x3, 'ä');
     encode(x3, 'ö');
     assert(x3 == "äö");
@@ -227,12 +227,12 @@ unittest {
 //--- my own functions
 
 //split on iswhite() (see unittest)
-char[][] split(char[] text) {
+string[] split(string text) {
     //split(text, " ") doesn't work with multiple spaces as seperator, and it
     // obviously doesn't use iswhite()
     //note that, unlike in split(), continuous ranges of whitespaces are ignored
-    char[][] ps;
-    char[] cur;
+    string[] ps;
+    string cur;
     void commit() {
         if (!cur.length)
             return;
@@ -259,47 +259,47 @@ unittest {
     assert(split("    ") == null);
 }
 
-bool startsWith(char[] str, char[] prefix) {
+bool startsWith(string str, string prefix) {
     if (str.length < prefix.length)
         return false;
     return str[0..prefix.length] == prefix;
 }
 
-bool endsWith(char[] str, char[] suffix) {
+bool endsWith(string str, string suffix) {
     if (str.length < suffix.length)
         return false;
     return str[$-suffix.length..$] == suffix;
 }
 
-bool eatStart(ref char[] str, char[] prefix) {
+bool eatStart(ref string str, string prefix) {
     if (!startsWith(str, prefix))
         return false;
     str = str[prefix.length .. $];
     return true;
 }
 
-bool eatEnd(ref char[] str, char[] suffix) {
+bool eatEnd(ref string str, string suffix) {
     if (!endsWith(str, suffix))
         return false;
     str = str[0 .. $ - suffix.length];
     return true;
 }
 
-//return an array of length 2 (actual return type should be char[][2])
+//return an array of length 2 (actual return type should be string[2])
 //result[1] contains everything in txt after (and including) find
 //result[0] contains the rest (especially if nothing found)
 //  split2("abcd", 'c') == ["ab", "cd"]
 //  split2("abcd", 'x') == ["abcd", ""]
 struct Split2Result {
-    char[][2] res;
-    char[] opIndex(uint i) {
+    string[2] res;
+    string opIndex(uint i) {
         return res[i];
     }
 }
-Split2Result split2(char[] txt, char tofind) {
+Split2Result split2(string txt, char tofind) {
     int idx = find(txt, tofind);
-    char[] before = txt[0 .. idx >= 0 ? idx : $];
-    char[] after = txt[before.length .. $];
+    string before = txt[0 .. idx >= 0 ? idx : $];
+    string after = txt[before.length .. $];
     Split2Result r;
     r.res[0] = before;
     r.res[1] = after;
@@ -307,7 +307,7 @@ Split2Result split2(char[] txt, char tofind) {
 }
 //hm I guess I'm a little bit tired
 //like split2(), but excludes tofind
-Split2Result split2_b(char[] txt, char tofind) {
+Split2Result split2_b(string txt, char tofind) {
     auto res = split2(txt, tofind);
     if (res[1].length) {
         assert(res[1][0] == tofind);
@@ -327,8 +327,8 @@ import utils.misc;
 
 /// number of bytes to a string like "number XX", where XX is "B", "KB" etc.
 /// buffer = if long enough, use this instead of allocating memory
-char[] sizeToHuman(long bytes, char[] buffer = null) {
-    const char[][] cSizes = ["B", "KB", "MB", "GB"];
+string sizeToHuman(long bytes, string buffer = null) {
+    const string[] cSizes = ["B", "KB", "MB", "GB"];
     int n;
     long x;
     x = 1;
@@ -337,7 +337,7 @@ char[] sizeToHuman(long bytes, char[] buffer = null) {
         n++;
     }
     char[80] buffer2 = void;
-    char[] s = myformat_s(buffer2, "{:f3}", 1.0*bytes/x);
+    string s = myformat_s(buffer2, "{:f3}", 1.0*bytes/x);
     //strip ugly trailing zeros (replace with a better way if you know one)
     if (find(s, '.') >= 0) {
         while (s[$-1] == '0')
@@ -356,8 +356,8 @@ unittest {
 }
 
 //must be possible to run at compile time
-char[][] ctfe_split(char[] s, char sep) {
-    char[][] ps;
+string[] ctfe_split(string s, char sep) {
+    string[] ps;
     bool cont = true;
     while (cont) {
         cont = false;
@@ -377,8 +377,8 @@ char[][] ctfe_split(char[] s, char sep) {
     return ps;
 }
 
-char[] ctfe_itoa(int i) {
-    char[] res;
+string ctfe_itoa(int i) {
+    string res;
     bool neg = i < 0;
     i = neg ? -i : i;
     do {
@@ -388,7 +388,7 @@ char[] ctfe_itoa(int i) {
     return (neg ? "-" : "") ~ res;
 }
 
-char[] ctfe_firstupper(char[] s) {
+string ctfe_firstupper(string s) {
     if (s.length == 0)
         return null;
     if (s[0] >= 'a' && s[0] <= 'z')
@@ -399,14 +399,14 @@ char[] ctfe_firstupper(char[] s) {
 
 
 /// Return the index of the character following the character at "index"
-int charNext(char[] s, int index) {
+int charNext(string s, int index) {
     assert(index >= 0 && index <= s.length);
     if (index == s.length)
         return s.length;
     return index + stride(s, index);
 }
 /// Return the index of the character prepending the character at "index"
-int charPrev(char[] s, int index) {
+int charPrev(string s, int index) {
     assert(index >= 0 && index <= s.length);
     debug if (index < s.length) {
         //assert valid UTF-8 character (stride will throw an exception)
@@ -423,8 +423,8 @@ int charPrev(char[] s, int index) {
 //split after delimiters and keep the delimiters as prefixes
 //never adds empty strings to the result
 //rest of documentation see unittest lol
-char[][] splitPrefixDelimiters(char[] s, char[][] delimiters) {
-    char[][] res;
+string[] splitPrefixDelimiters(string s, string[] delimiters) {
+    string[] res;
     int last_delim = 0;
     for (;;) {
         int next = -1;
@@ -462,7 +462,7 @@ unittest {
 //check if name is a valid identifier
 //  (defined as "[A-Za-z_][A-Za-z0-9_]*")
 //this is stricter than D's identifier rules, but should work with all languages
-bool isIdentifier(char[] name) {
+bool isIdentifier(string name) {
     bool isid(char c, bool first = false) {
         return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
             || (!first && c >= '0' && c <= '9') || (c == '_');
@@ -482,8 +482,8 @@ bool isIdentifier(char[] name) {
 //care is taken not to allocate memory if nothing is [un]escaped
 //characters in exclude are escaped (they all must be ASCII)
 //NOTE: Tango has unescape() somewhere, but no escape()
-char[] simpleEscape(char[] s, char[] exclude = "\\") {
-    char[] res;
+string simpleEscape(string s, string exclude = "\\") {
+    string res;
     //thanks to utf-8, we can treat this as ASCII if we work on ASCII only
     outer: foreach (size_t index, char d; s) {
         foreach (char e; exclude) {
@@ -503,7 +503,7 @@ char[] simpleEscape(char[] s, char[] exclude = "\\") {
     return res.length ? res : s;
 }
 
-char[] simpleUnescape(char[] s) {
+string simpleUnescape(string s) {
     if (find(s, "\\") < 0)
         return s;
 
@@ -522,7 +522,7 @@ char[] simpleUnescape(char[] s) {
         check(false);
     }
 
-    char[] res;
+    string res;
     for (size_t n = 0; n < s.length; n++) {
         if (s[n] == '\\') {
             //unescape, expects \xNN, N=0-9/A-F
@@ -545,7 +545,7 @@ char[] simpleUnescape(char[] s) {
 unittest {
     assert(simpleEscape("aöiäu:z", "iu:") == r"aö\x69ä\x75\x3az");
     assert(simpleUnescape(r"aö\x69ä\x75\x3az") == "aöiäu:z");
-    char[] bla = "bla";
+    string bla = "bla";
     assert(simpleEscape(bla).ptr is bla.ptr);
     assert(simpleUnescape(bla).ptr is bla.ptr);
 }
@@ -557,18 +557,18 @@ unittest {
 //  if the (implied) free buffer space in buf is large enough
 
 //replace "search" string in buf by myformat(fmt, ...)
-void buffer_replace_fmt(ref StrBuffer buf, char[] search, char[] fmt, ...) {
+void buffer_replace_fmt(ref StrBuffer buf, string search, string fmt, ...) {
     if (find(buf.get, search) < 0)
         return;
     char[40] buffer2 = void;
-    char[] repl = myformat_s_fx(buffer2, fmt, _arguments, _argptr);
+    string repl = myformat_s_fx(buffer2, fmt, _arguments, _argptr);
     buffer_replace(buf, search, repl);
 }
 
 import tsearch = tango.text.Search;
 
 //replace "search" by "replace" in buf
-void buffer_replace(ref StrBuffer buf, char[] search, char[] replace) {
+void buffer_replace(ref StrBuffer buf, string search, string replace) {
     if (find(buf.get, search) < 0)
         return;
     char[40] buffer2 = void;

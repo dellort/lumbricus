@@ -28,7 +28,7 @@ debug {
 LuaRegistry gScripting;
 
 //sigh..
-private Time timeParse(char[] s) {
+private Time timeParse(string s) {
     try {
         return Time.fromString(s);
     } catch (ConversionException e) {

@@ -54,7 +54,7 @@ struct SoundSourceInfo {
 ///only code which reads/seeks the Stream
 ///probably a smarter way would be to store the filename instead of the stream]
 struct DriverSoundData {
-    char[] filename;
+    string filename;
     bool streamed;  //streamed audio can only have one instance playing;
                     //no other restrictions
 }
@@ -136,7 +136,7 @@ class SoundManager : ResourceManagerT!(SoundDriver) {
         super("sound");
         mSources = new typeof(mSources);
 
-        SettingVar!(float) addsndval(char[] name) {
+        SettingVar!(float) addsndval(string name) {
             auto res = SettingVar!(float).Add("sound." ~ name, 1.0f);
             res.setting.type = SettingType.Percent;
             res.setting.onChange ~= &change_volume;
@@ -150,7 +150,7 @@ class SoundManager : ResourceManagerT!(SoundDriver) {
         }
     }
 
-    override void loadDriver(char[] name) {
+    override void loadDriver(string name) {
         try {
             super.loadDriver(name);
         } catch (CustomException e) {
@@ -201,7 +201,7 @@ class SoundManager : ResourceManagerT!(SoundDriver) {
     ///yes, it is silly, and I don't even know when st will definitely be closed
     ///xxx: ok, changed to a filename; class FileSystem is used to open it
     /// this shouldn't have any disadvantages
-    public Sample createSample(char[] filename, SoundType type = SoundType.init)
+    public Sample createSample(string filename, SoundType type = SoundType.init)
     {
         return new Sample(filename, type);
     }
@@ -244,7 +244,7 @@ class Sample : ResourceT!(DriverSound) {
     }
 
     ///type: only for setting type-specific volume; you can use any value
-    this(char[] filename, SoundType type) {
+    this(string filename, SoundType type) {
         //note that the file is only actually loaded by the driver, and may fail
         //  there; Source.play() will catch the CustomException thrown by load
         //  failure in this case, and display the user an error message
@@ -255,7 +255,7 @@ class Sample : ResourceT!(DriverSound) {
         mType = type;
     }
 
-    char[] name() {
+    string name() {
         return mSource.filename;
     }
 

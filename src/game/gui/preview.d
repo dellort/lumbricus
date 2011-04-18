@@ -28,7 +28,7 @@ class LevelSelector : SimpleContainer {
         int rowCount;
         ImageButton[] mShowBitmap;
         LevelInfo[] mLevel;
-        char[] mGfx;
+        string mGfx;
 
         LevelGeneratorShared mGenerator;
         Label mLblInfo;
@@ -70,7 +70,7 @@ class LevelSelector : SimpleContainer {
 
         mDdGfx = loader.lookup!(DropDownList)("dd_gfx");
         mDdGfx.onSelect = &gfxSelect;
-        char[][] themes = ([translate("levelselect.randomgfx")]
+        string[] themes = ([translate("levelselect.randomgfx")]
             ~ mGenerator.themes.names());
         themes.sort;
         mDdGfx.list.setContents(themes);

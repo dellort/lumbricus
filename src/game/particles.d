@@ -105,7 +105,7 @@ class ParticleType {
         if (node.value.length) {
             list = [res.get!(T)(node.value)];
         } else if (node.count) {
-            char[][] items = node.getCurValue!(char[][]);
+            string[] items = node.getCurValue!(string[]);
             foreach (id; items) {
                 list ~= res.get!(T)(id);
             }
@@ -145,7 +145,7 @@ class ParticleType {
         animation = get_res_list!(Animation)(res, node.getSubNode("animation"));
         sound = get_res_list!(Sample)(res, node.getSubNode("sound"));
 
-        void read_sub(char[] name, ref ParticleEmit[] t) {
+        void read_sub(string name, ref ParticleEmit[] t) {
             auto sub = node.getSubNode(name);
 
             if (!sub.hasSubNodes() && sub.value.length > 0) {
@@ -789,7 +789,7 @@ class TestTask : Task {
         }
     }
 
-    this(TaskManager tm, char[] args = "") {
+    this(TaskManager tm, string args = "") {
         super(tm);
 
         mTS = new TimeSource("particles");

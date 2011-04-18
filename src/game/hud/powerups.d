@@ -26,7 +26,7 @@ class PowerupDisplay : BoxContainer {
         mLblDouble = createLabel("icon_doubledamage");
     }
 
-    protected ImageLabel createLabel(char[] iconRes) {
+    protected ImageLabel createLabel(string iconRes) {
         auto ret = new ImageLabel();
         ret.styles.addClass("powerup-icon");
         ret.image = mGame.engine.resources.get!(Surface)(iconRes);

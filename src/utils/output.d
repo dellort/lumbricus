@@ -7,11 +7,11 @@ import utils.misc;
 //xxx maybe replace this interface by a handy class, so the number of interface
 //functions could be kept to a minimum (i.e. only writeString())
 public interface Output {
-    void writef(char[] fmt, ...);
-    void writefln(char[] fmt, ...);
-    void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+    void writef(string fmt, ...);
+    void writefln(string fmt, ...);
+    void writef_ind(bool newline, string fmt, TypeInfo[] arguments,
         va_list argptr);
-    void writeString(char[] str);
+    void writeString(string str);
 }
 
 /// A helper for implementers only, users shall use interface Output instead.
@@ -19,27 +19,27 @@ public interface Output {
 public class OutputHelper : Output {
     char[200] buffer;
 
-    void writef(char[] fmt, ...) {
+    void writef(string fmt, ...) {
         writef_ind(false, fmt, _arguments, _argptr);
     }
-    void writefln(char[] fmt, ...) {
+    void writefln(string fmt, ...) {
         writef_ind(true, fmt, _arguments, _argptr);
     }
-    void writef_ind(bool newline, char[] fmt, TypeInfo[] arguments,
+    void writef_ind(bool newline, string fmt, TypeInfo[] arguments,
         va_list argptr)
     {
         writeString(myformat_s_fx(buffer, fmt, arguments, argptr));
         if (newline)
             writeString("\n");
     }
-    abstract void writeString(char[] str);
+    abstract void writeString(string str);
 }
 
 /// Implements the Output interface and writes all text into a string variable.
 public class StringOutput : OutputHelper {
     /// All text written to the Output interface is appended to this
-    public char[] text;
-    void writeString(char[] str) {
+    public string text;
+    void writeString(string str) {
         text ~= str;
     }
 }

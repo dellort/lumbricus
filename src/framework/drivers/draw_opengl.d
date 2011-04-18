@@ -40,16 +40,16 @@ private struct Options {
     bool non_power_of_two = false;
 }
 
-char[] glErrorToString(GLenum errCode) {
-    char[] res = fromStringz(cast(char*)gluErrorString(errCode));
+string glErrorToString(GLenum errCode) {
+    string res = fromStringz(cast(char*)gluErrorString(errCode));
     //hur, the man page said, "The string is in ISO Latin 1 format." (!=ASCII?)
     //so check it, not that invalid utf-8 strings leak into the GUI or so
     str.validate(res);
     return res;
 }
 
-private bool checkGLError(lazy char[] operation, bool crash = false) {
-    char[][] errors;
+private bool checkGLError(lazy string operation, bool crash = false) {
+    string[] errors;
     //an OpenGL driver can have multiple error flags, so you to call glGetError
     //  multiple times to reset them all
     for (;;) {
@@ -60,7 +60,7 @@ private bool checkGLError(lazy char[] operation, bool crash = false) {
     }
     if (!errors.length)
         return false;
-    char[] msg = operation;
+    string msg = operation;
     debug mLog.warn("GL error at '{}': {}", msg, errors);
     if (crash)
         throw new Exception(myformat("OpenGL error: '{}': {}", msg, errors));

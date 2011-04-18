@@ -29,8 +29,8 @@ alias StaticFactory!("SequenceStates", SequenceState, SequenceType, ConfigNode)
 final class SequenceType {
     private {
         GameCore mEngine;
-        SequenceState[char[]] mStates;
-        char[] mName;
+        SequenceState[string] mStates;
+        string mName;
     }
 
     //source = one sequence entry, e.g. wwwp.conf/sequences/s_worm
@@ -40,11 +40,11 @@ final class SequenceType {
         mName = source.name;
         //substates
         foreach (ConfigNode sub; source) {
-            char[] sname = sub.name;
+            string sname = sub.name;
             loadcheck(!(sname in mStates), "double state name: "~sname);
-            char[] type = "simple_animation";
+            string type = "simple_animation";
             if (sub.hasSubNodes())
-                type = sub.getValue!(char[])("type");
+                type = sub.getValue!(string)("type");
             loadcheck(type != "", "no 'type' field set: {}", sub.filePosition);
             try {
                 mStates[sname] = SequenceStateFactory.instantiate(type, this,
@@ -59,11 +59,11 @@ final class SequenceType {
         }
     }
 
-    final char[] name() { return mName; }
+    final string name() { return mName; }
     final GameCore engine() { return mEngine; }
 
     //if cond is false, throw load-error as CustomException
-    void loadcheck(bool cond, char[] fmt, ...) {
+    void loadcheck(bool cond, string fmt, ...) {
         if (!cond)
             throw new CustomException(myformat_fx(fmt, _arguments, _argptr));
     }
@@ -76,7 +76,7 @@ final class SequenceType {
 
     ///return a state by name; return null if not found, if !allow_notfound,
     ///then raise an error instead of returning null
-    final SequenceState findState(char[] sname, bool allow_notfound = false) {
+    final SequenceState findState(string sname, bool allow_notfound = false) {
         auto pstate = sname in mStates;
         if (pstate) {
             assert(!!*pstate);
@@ -137,7 +137,7 @@ class SequenceState {
     final GameCore engine() { return mOwner.engine; }
 
     //same as owner.loadcheck
-    void loadcheck(bool cond, char[] fmt, ...) {
+    void loadcheck(bool cond, string fmt, ...) {
         if (cond)
             return;
         //meh, varargs not chainable
@@ -148,10 +148,10 @@ class SequenceState {
 
     //convenience function
     //load a named animation from node
-    Animation loadanim(ConfigNode node, char[] name, bool optional = false) {
+    Animation loadanim(ConfigNode node, string name, bool optional = false) {
         try {
             return engine.resources.get!(Animation)(
-                node.getValue!(char[])(name), optional);
+                node.getValue!(string)(name), optional);
         } catch (CustomException e) {
             //same "trick" as in SequenceType ctor
             e.msg = myformat("While loading animation from {} / '{}': {}",
@@ -161,12 +161,12 @@ class SequenceState {
     }
 
     //load Animation "name" as resource
-    Animation loadanim(char[] name, bool optional = false) {
+    Animation loadanim(string name, bool optional = false) {
         return engine.resources.get!(Animation)(name, optional);
     }
 
-    char[] toString() {
-        foreach (char[] name, SequenceState val; owner.mStates) {
+    string toString() {
+        foreach (string name, SequenceState val; owner.mStates) {
             if (val is this)
                 return "[SequenceState:"~name~"]";
         }
@@ -600,7 +600,7 @@ class SimpleAnimationState : SequenceState {
 
     this(SequenceType a_owner, ConfigNode node) {
         super(a_owner, node);
-        char[] ani;
+        string ani;
         if (!node.hasSubNodes()) {
             ani = node.value;
         } else {
@@ -850,7 +850,7 @@ class EnterLeaveState : SequenceState {
         ConfigNode idlenode = node.findNode("idle_animations");
         if (idlenode) {
             idle_wait = node.getValue!(typeof(idle_wait))("idle_wait");
-            foreach (char[] k, char[] value; idlenode) {
+            foreach (string k, string value; idlenode) {
                 idle_animations ~= loadanim(value);
             }
         }
@@ -958,7 +958,7 @@ class WwpWeaponDisplay : AniStateDisplay {
         return mAngle;
     }
 
-    private WwpWeaponState.Weapon findWeapon(char[] name) {
+    private WwpWeaponState.Weapon findWeapon(string name) {
         if (name.length == 0)
             return null;
         if (auto p = name in myclass.weapons)
@@ -967,7 +967,7 @@ class WwpWeaponDisplay : AniStateDisplay {
     }
 
     //empty string means no weapon selected
-    void weapon(char[] weapon) {
+    void weapon(string weapon) {
         auto w = findWeapon(weapon);
         if (mCurrent is w) {
             //reset the weapon state if needed (at the very least stop
@@ -1281,7 +1281,7 @@ class WwpWeaponState : SequenceState {
     Animation lowhp; //stand state, "not feeling well"
     Animation poisoned; //stand state, poisoned by skunk or other weapons
     //indexed by the name, which is referred to by WeaponClass.animation
-    Weapon[char[]] weapons;
+    Weapon[string] weapons;
     Weapon weapon_unknown;
     //idle animations (xxx: maybe should moved into a more generic class?)
     RandomValue!(Time) idle_wait;
@@ -1289,7 +1289,7 @@ class WwpWeaponState : SequenceState {
     Animation[] idle_animations_poisoned; //hacky
 
     class Weapon {
-        char[] name;    //of the weapon
+        string name;    //of the weapon
         //all of these are never null (may be 1-frame dummy animations, though)
         Animation get, hold, unget, prepare, fire, fire_end;
         //fire_end leads to weapon release, and the deselection animation is
@@ -1308,7 +1308,7 @@ class WwpWeaponState : SequenceState {
         lowhp = loadanim(node, "lowhp_animation", true);
         poisoned = loadanim(node, "poisoned_animation", true);
 
-        foreach (char[] key, char[] value; node.getSubNode("weapons")) {
+        foreach (string key, string value; node.getSubNode("weapons")) {
             //this '+' thing is just to remind the user that value is a prefix
             if (!str.endsWith(value, "+"))
                 loadcheck(false, "weapon entry doesn't end with '+': {}",value);
@@ -1340,7 +1340,7 @@ class WwpWeaponState : SequenceState {
             weapons[key] = w;
         }
 
-        const char[] cUnknown = "#unknown";
+        const string cUnknown = "#unknown";
 
         loadcheck(!!(cUnknown in weapons), "no "~cUnknown~" field.");
         weapon_unknown = weapons[cUnknown];
@@ -1377,9 +1377,9 @@ class WwpWeaponState : SequenceState {
 
         idle_wait = node.getValue!(typeof(idle_wait))("idle_wait");
 
-        Animation[] load_idle(char[] subnode) {
+        Animation[] load_idle(string subnode) {
             Animation[] res;
-            foreach (char[] k, char[] value; node.getSubNode(subnode)) {
+            foreach (string k, string value; node.getSubNode(subnode)) {
                 res ~= loadanim(value);
             }
             return res;

@@ -47,7 +47,7 @@ class Tabs : Container {
 
     void delegate(Tabs sender) onActiveChange;
 
-    TabPage addTab(Widget client, char[] caption) {
+    TabPage addTab(Widget client, string caption) {
         assert (!!client);
         assert (!client.parent);
         auto page = new TabPage(client);

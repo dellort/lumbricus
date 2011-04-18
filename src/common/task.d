@@ -2,11 +2,11 @@ module common.task;
 
 import utils.misc;
 
-alias Object delegate(char[]) CreateTaskDg;
+alias Object delegate(string) CreateTaskDg;
 alias bool delegate() OnFrameFn;
 
 private {
-    CreateTaskDg[char[]] gTaskFactory;
+    CreateTaskDg[string] gTaskFactory;
     OnFrameFn[] gActiveTasks;
 }
 
@@ -17,7 +17,7 @@ interface IKillable {
     void kill();
 }
 
-void registerTask(char[] name, CreateTaskDg create_dg) {
+void registerTask(string name, CreateTaskDg create_dg) {
     assert(!(name in gTaskFactory), "already registered: "~name);
     gTaskFactory[name] = create_dg;
 }
@@ -25,26 +25,26 @@ void registerTask(char[] name, CreateTaskDg create_dg) {
 //mainly for compatibility with old stuff
 //when spawnTask() is called, T is instantiated as new T() or new T(args)
 //you have to add your onFrame function manually, though (eith addTask())
-void registerTaskClass(T)(char[] name) {
+void registerTaskClass(T)(string name) {
     //first try with args, then without
     CreateTaskDg fn;
-    char[] s;
+    string s;
     static if (is(typeof({ new T(s); }))) {
-        fn = delegate(char[] args) { Object o = new T(args); return o; };
+        fn = delegate(string args) { Object o = new T(args); return o; };
     } else {
-        fn = delegate(char[] args) { Object o = new T(); return o; };
+        fn = delegate(string args) { Object o = new T(); return o; };
     }
     registerTask(name, fn);
 }
 
 //spawnable tasks (for auto-completion)
-char[][] taskList() {
+string[] taskList() {
     return gTaskFactory.keys;
 }
 
 //raises exception on failure
 //return handle to new task (can be null)
-Object spawnTask(char[] name, char[] args = "") {
+Object spawnTask(string name, string args = "") {
     auto spawner = name in gTaskFactory;
     if (!spawner)
         throwError("unknown task: '{}'", name);

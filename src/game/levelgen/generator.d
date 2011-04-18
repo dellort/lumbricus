@@ -120,7 +120,7 @@ class GenerateFromTemplate : LevelGenerator {
         //bawww, I made it too complicated again
         static class Land {
             LevelLandscape land; //last generated one
-            char[] prerender_id;
+            string prerender_id;
             LandscapeTemplate geo_template;
             LandscapeGeometry geo_generated;
             LandscapeBitmap geo_pregenerated;
@@ -129,12 +129,12 @@ class GenerateFromTemplate : LevelGenerator {
         }
 
         //indexed by LevelLandscape.name
-        Land[char[]] mLand;
+        Land[string] mLand;
     }
 
     //prerender_id -> landscape
-    LandscapeBitmap[char[]] prerendered;
-    LandscapeTheme[char[]] prerendered_theme; //parallel array
+    LandscapeBitmap[string] prerendered;
+    LandscapeTheme[string] prerendered_theme; //parallel array
 
     void selectTheme(LevelTheme theme) {
         mCurTheme = theme;
@@ -154,7 +154,7 @@ class GenerateFromTemplate : LevelGenerator {
         if (mLand.length == 1) {
             geo = mLand.values[0].geo_generated;
             lex = mLand.values[0].geo_pregenerated;
-            char[] pre_id = mLand.values[0].prerender_id;
+            string pre_id = mLand.values[0].prerender_id;
             if (!lex && pre_id.length > 0 && pre_id in prerendered) {
                 lex = prerendered[pre_id];
             }
@@ -173,7 +173,7 @@ class GenerateFromTemplate : LevelGenerator {
         if (mLand.length == 1) {
             geo = mLand.values[0].geo_generated;
             lex = mLand.values[0].geo_pregenerated;
-            char[] pre_id = mLand.values[0].prerender_id;
+            string pre_id = mLand.values[0].prerender_id;
             if (!lex && pre_id.length > 0 && pre_id in prerendered) {
                 lex = prerendered[pre_id];
             }
@@ -190,7 +190,7 @@ class GenerateFromTemplate : LevelGenerator {
         if (mLand.length == 1) {
             if (mLand.values[0].geo_pregenerated)
                 return mLand.values[0].geo_pregenerated;
-            char[] pre_id = mLand.values[0].prerender_id;
+            string pre_id = mLand.values[0].prerender_id;
             if (pre_id.length > 0 && pre_id in prerendered) {
                 return prerendered[pre_id];
             }
@@ -248,7 +248,7 @@ class GenerateFromTemplate : LevelGenerator {
                 Land rland = mLand[land.name];
                 LandscapeBitmap rendered;
                 LandscapeTheme rendered_theme;
-                char[] type;
+                string type;
                 if (rland.geo_generated || rland.geo_pregenerated) {
                     if (rland.geo_generated)
                         land.size = rland.geo_generated.size;
@@ -402,7 +402,7 @@ class GenerateFromTemplate : LevelGenerator {
         ConfigNode node = mTemplate.data.copy();
 
         //mixin a template, easy way to make level templates simpler
-        char[] tval = node.getStringValue(cLoadTemplateName);
+        string tval = node.getStringValue(cLoadTemplateName);
         if (tval.length > 0) {
             auto tnode = mShared.defaults.findNode(tval);
             if (!tnode)
@@ -431,7 +431,7 @@ class GenerateFromTemplate : LevelGenerator {
         mUnrendered.skyTopY = node.getIntValue("sky_top_y");
 
         //theme doesn't need to be there (like in templates)
-        char[] th = node.getStringValue("theme");
+        string th = node.getStringValue("theme");
         if (th != "") {
             mCurTheme = mShared.themes.find(th);
         }
@@ -517,7 +517,7 @@ class GenerateFromBitmap : LevelGenerator {
         bool mIsCave, mPlaceObjects;
         LevelTheme mTheme;
         Surface mBitmap;
-        char[] mFilename;
+        string mFilename;
         LandscapeBitmap mLandscape;
         LandscapeTheme mLandscapeTheme;
     }
@@ -582,7 +582,7 @@ class GenerateFromBitmap : LevelGenerator {
     //(the saved config file will contain the filename)
     //XXX: probably take only the filename directly, then this class also could
     //handle things like fixing up the transparency of the bitmap etc.
-    void bitmap(Surface s, char[] filename = "") {
+    void bitmap(Surface s, string filename = "") {
         mBitmap = s;
         mFilename = filename.dup;
         mGenerate = null;
@@ -642,7 +642,7 @@ class GenerateFromBitmap : LevelGenerator {
         mIsCave = from.getBoolValue("is_cave");
         mPlaceObjects = from.getBoolValue("place_objects");
         mFilename = from.getStringValue("filename");
-        char[] theme = from.getStringValue("theme");
+        string theme = from.getStringValue("theme");
 
         mTheme = mShared.themes.find(theme);
 
@@ -711,10 +711,10 @@ Level loadSavedLevel(LevelGeneratorShared shared, ConfigNode from,
 /// template to be used for GenerateFromTemplate
 class LevelTemplate {
     //hurrrr isn't it lame? this also sucks a lot, must do better
-    char[] name, description;
+    string name, description;
     ConfigNode data;
 
-    this(char[] path, char[] a_name) {
+    this(string path, string a_name) {
         auto f = loadConfig(path);
         name = a_name;
         data = f;
@@ -724,7 +724,7 @@ class LevelTemplate {
         }
     }
 
-    this(ConfigNode f, char[] a_name) {
+    this(ConfigNode f, string a_name) {
         name = a_name;
         data = f;
         description = data["description"];
@@ -772,7 +772,7 @@ public class LandscapeTemplate {
 //placing additional static bitmap objects)
 //corresponds to a level.conf "landscapegen" node
 class LandscapeGenTheme {
-    PlaceableObject[char[]] objects;
+    PlaceableObject[string] objects;
     PlaceableObject[3] bridge;
     Surface[Lexel] markerTex;
     Border[] borders;
@@ -783,7 +783,7 @@ class LandscapeGenTheme {
         Surface[2] textures;
     }
 
-    public PlaceableObject findObject(char[] name) {
+    public PlaceableObject findObject(string name) {
         return objects[name];
     }
 
@@ -792,7 +792,7 @@ class LandscapeGenTheme {
 
         Surface loadBorderTex(ConfigNode texNode) {
             Surface tex;
-            char[] tex_name = texNode.getStringValue("texture");
+            string tex_name = texNode.getStringValue("texture");
             if (tex_name.length > 0) {
                 tex = resources.get!(Surface)(texNode["texture"]);
             } else {
@@ -805,9 +805,9 @@ class LandscapeGenTheme {
             return tex;
         }
 
-        Surface readMarkerTex(ConfigNode texNode, char[] markerId) {
+        Surface readMarkerTex(ConfigNode texNode, string markerId) {
             Surface res;
-            char[] texFile = texNode.getStringValue(markerId);
+            string texFile = texNode.getStringValue(markerId);
             if (texFile == "-" || texFile == "") {
             } else {
                 res = resources.get!(Surface)(texNode[markerId]);
@@ -852,7 +852,7 @@ class LandscapeGenTheme {
         }
 
         //xxx fix this (objects should have more than just a bitmap)
-        PlaceableObject createObject(char[] bitmap, bool try_place) {
+        PlaceableObject createObject(string bitmap, bool try_place) {
             auto bmp = resources.get!(Surface)(bitmap);
             //use ressource name as id
             auto po = new PlaceableObject(bitmap, bmp, try_place);
@@ -878,7 +878,7 @@ class LandscapeGenTheme {
 }
 
 public class LevelTheme {
-    char[] name;
+    string name;
 
     private {
         //might all be null, loaded on demand from the confignodes
@@ -914,7 +914,7 @@ public class LevelTheme {
         return mGenTheme;
     }
 
-    this(char[] path, char[] a_name) {
+    this(string path, string a_name) {
         //use this function because we want to load resources from it later
         auto conf = gResources.loadConfigForRes(path);
 
@@ -975,7 +975,7 @@ template BlaList(T : Object) {
         T[] mItems;
     }
 
-    T find(char[] name, bool canfail = false) {
+    T find(string name, bool canfail = false) {
         foreach (T t; mItems) {
             if (t.name == name) {
                 return t;
@@ -986,7 +986,7 @@ template BlaList(T : Object) {
         return null;
     }
 
-    T findRandom(char[] name = "") {
+    T findRandom(string name = "") {
         T res = find(name, true);
 
         if (res)
@@ -1012,7 +1012,7 @@ template BlaList(T : Object) {
         return mItems.dup;
     }
 
-    char[][] names() {
+    string[] names() {
         return arrayMap(mItems, (T t) {return t.name;});
     }
 }
@@ -1028,7 +1028,7 @@ class LevelThemes {
     void update() {
         mItems = null;
         gFS.listdir(cLevelsPath, "*", true,
-            (char[] path) {          //path is relative to "level" dir
+            (string path) {          //path is relative to "level" dir
                 LevelTheme theme;
                 auto filename = cLevelsPath ~ "/" ~ path ~ "level.conf";
 
@@ -1071,7 +1071,7 @@ class LevelTemplates {
     void update() {
         mItems = null;
         gFS.listdir(cTemplatesPath, "*.conf", false,
-            (char[] path) {
+            (string path) {
                 auto npath = cTemplatesPath ~ "/" ~ path; //uh, relative path
                 LevelTemplate templ;
                 //xxx error handling is duplicated code from above

@@ -101,22 +101,22 @@ public struct Time {
     }
 
     ///return string representation of value
-    public char[] toString() {
+    public string toString() {
         char[80] buffer = void;
         return toString_s(buffer).dup;
     }
 
     //I needed this hack I'm sorry I'm sorry I'm sorry
-    public char[] toString_s(char[] buffer) {
+    public string toString_s(string buffer) {
         if (*this == Never)
             return "<unknown>";
 
-        const char[][] cTimeName = ["ns", "us", "ms", "s", "min", "h"];
+        const string[] cTimeName = ["ns", "us", "ms", "s", "min", "h"];
         //divisior to get from one time unit to the next
         const int[] cTimeDiv =       [1, 1000, 1000, 1000, 60,    60, 0];
         //precission which should be used to display the time
-        const char[][] cPrec =["{:f0}","{:f1}","{:f3}","{:f2}","{:f2}","{:f2}"];
-        char[] sign;
+        const string[] cPrec =["{:f0}","{:f1}","{:f3}","{:f2}","{:f2}","{:f2}"];
+        string sign;
         long time = nsecs;
         long timeDiv = 1;
         if (time < 0) {
@@ -141,7 +141,7 @@ public struct Time {
     //also, there's this nasty detail that for "ms" must be before "s"
     //  (ambiguous for fromString())
     //for fromStringRev, the list must be sorted by time value (ascending)
-    const char[][] cTimeUnitNames = ["ns", "us", "ms", "s", "min", "h"];
+    const string[] cTimeUnitNames = ["ns", "us", "ms", "s", "min", "h"];
     const Time[] cTimeUnits = [timeNsecs(1), timeMusecs(1), timeMsecs(1),
         timeSecs(1), timeMins(1), timeHours(1)];
 
@@ -153,7 +153,7 @@ public struct Time {
     //special values: "never" (=> Time.Never) and "0" (=> Time.Null)
     //example: "1s,30 ms"
     //if the resolution of Time is worse than ns, some are possibly ignored
-    public static Time fromString(char[] s) {
+    public static Time fromString(string s) {
         s = str.strip(s);
         bool neg = false;
         if (str.startsWith(s, "-")) {
@@ -168,7 +168,7 @@ public struct Time {
             return Time.Null;
 
         //normal parsing
-        char[][] stuff = str.split(s, ",");
+        string[] stuff = str.split(s, ",");
         if (stuff.length == 0)
             throw strparser.newConversionException!(Time)(s, "empty string");
         Time value;
@@ -185,7 +185,7 @@ public struct Time {
                 throw strparser.newConversionException!(Time)(s,
                     "unknown time unit");
             Time unit = cTimeUnits[unit_idx];
-            char[] unit_name = cTimeUnitNames[unit_idx];
+            string unit_name = cTimeUnitNames[unit_idx];
             sub = str.strip(sub[0..$-unit_name.length]);
             Time cur;
             //try int first, for unrounded results
@@ -209,9 +209,9 @@ public struct Time {
     //NOTE: unlike toString(), the result of this function
     //  1. is an unrounded, exact representation of the time ("lossless")
     //  2. is actually parseable by fromString()
-    public char[] fromStringRev() {
+    public string fromStringRev() {
         Time cur = *this;
-        char[] res;
+        string res;
         bool neg = false;
         if (cur.timeVal < 0) {
             cur.timeVal = -cur.timeVal;
@@ -248,7 +248,7 @@ public struct Time {
     }
 
     unittest {
-        Time p(char[] s) {
+        Time p(string s) {
             return Time.fromString(s);
         }
         assert(p("1ns") == timeNsecs(1));

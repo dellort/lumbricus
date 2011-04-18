@@ -41,7 +41,7 @@ class ServerList {
 
         //xxx considered debug code; it would be much better to display the
         //    servers in some multicolumn-list control, but we don't have that
-        char[] toString() {
+        string toString() {
             if (lastSeen > Time.Null) {
                 if (unsupportedVersion()) {
                     return myformat("{} (version mismatch) [{} ms]",

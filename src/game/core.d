@@ -59,7 +59,7 @@ abstract class GameObject : EventTarget {
     //  basically should give the type of the game object as a string
     //xxx: should do something against the fact that if construction fails (in
     //  a sub-class constructor), the object will still be in the global list
-    this(GameCore a_engine, char[] event_target_type) {
+    this(GameCore a_engine, string event_target_type) {
         assert(a_engine !is null);
         super(event_target_type, a_engine.events);
         mEngine = a_engine;
@@ -153,7 +153,7 @@ abstract class GameObject : EventTarget {
 //- get double damage on explosions
 //if there are better ways to do any of these things, feel free to change them
 abstract class Actor : GameObject {
-    this(GameCore a, char[] b) { super(a, b); }
+    this(GameCore a, string b) { super(a, b); }
 
     TeamTheme team_theme;
     float damage_multiplier = 1.0f;
@@ -393,7 +393,7 @@ abstract class GameCore {
         scriptingError("in delegate call", e);
     }
 
-    private void scriptingError(char[] where, ScriptingException e) {
+    private void scriptingError(string where, ScriptingException e) {
         log.error("Scripting error ({}): {}", where, e.msg);
         traceException(log, e, "for scripting error");
     }
@@ -544,7 +544,7 @@ abstract class GameCore {
     //- for very transient labels, this probably performs better than allocating
     //  a FormattedText and keeping it around
     //- no need to be deterministic
-    final void drawTextFmt(Canvas c, Vector2i pos, char[] fmt, ...) {
+    final void drawTextFmt(Canvas c, Vector2i pos, string fmt, ...) {
         auto txt = getTempLabel();
         txt.setTextFmt_fx(true, fmt, _arguments, _argptr);
         txt.draw(c, pos);

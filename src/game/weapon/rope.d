@@ -39,7 +39,7 @@ class RopeClass : WeaponClass {
 
     Animation anchorAnim;
 
-    this(GameCore core, char[] name) {
+    this(GameCore core, string name) {
         super(core, name);
     }
 

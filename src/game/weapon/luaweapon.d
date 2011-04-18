@@ -15,7 +15,7 @@ class LuaWeaponClass : WeaponClass {
     bool delegate(Shooter) onRefire;
     void delegate(Shooter, Vector2f) onReadjust;
 
-    this(GameCore a_engine, char[] a_name) {
+    this(GameCore a_engine, string a_name) {
         super(a_engine, a_name);
     }
 

@@ -22,7 +22,7 @@ import strparser = utils.strparser;
 import tango.io.Stdout;
 
 //Currently, this is just used in FileSystem to determine data/user paths
-const char[] APP_ID = "lumbricus";
+const string APP_ID = "lumbricus";
 
 private LogStruct!("init") gLogInit;
 
@@ -39,15 +39,15 @@ void exit() {
 }
 
 //handle exception logging (windows users haet stdout/stderr) and ExitApp
-//use it like:  int main(char[][] args) { return wrapMain(args, &realmain); }
-int wrapMain(char[][] args, void function(char[][]) realmain) {
+//use it like:  int main(string[] args) { return wrapMain(args, &realmain); }
+int wrapMain(string[] args, void function(string[]) realmain) {
     try {
         realmain(args);
     } catch (ExitApp e) {
     } catch (Exception e) {
         version(LogExceptions) {
             //catch all exceptions, write them to logfile/console and exit
-            e.writeOut((char[] s) {
+            e.writeOut((string s) {
                 //logfile output
                 if (gLogFileSink)
                     gLogFileSink(s);
@@ -82,13 +82,13 @@ private {
     SettingVar!(bool) gLogToConsole;
 
     LogBackend gLogBackendFile;
-    char[] gLogFileTmp;
+    string gLogFileTmp;
 }
 
 //write bytes into the logfile (null if no logfile open)
 //at initialization time, may be temporarily set to logToFileTmp
 //if logfile writing is disabled, this is null
-void delegate(char[]) gLogFileSink;
+void delegate(string) gLogFileSink;
 
 static this() {
     gLogBackendFile = new LogBackend("logfile/console", LogPriority.Trace,
@@ -107,12 +107,12 @@ private void changeLogOpt(Setting s) {
     gLogBackendFile.enabled = gLogToFile.get() || gLogToConsole.get();
 }
 
-private void logToFileTmp(char[] s) {
+private void logToFileTmp(string s) {
     gLogFileTmp ~= s;
 }
 
 private void logToConsoleAndFile(LogEntry e) {
-    void sink(char[] s) {
+    void sink(string s) {
         if (gLogFileSink && gLogToFile.get())
             gLogFileSink(s);
         //Trace uses stderr
@@ -126,7 +126,7 @@ private void logToConsoleAndFile(LogEntry e) {
 ///this does GUI unrelated initializations, and the caller (lumbricus.d) does
 ///GUI initialization after this, because you don't want to pull in all of the
 /// GUI for server.d
-void init(char[][] args) {
+void init(string[] args) {
     gLogFileSink = toDelegate(&logToFileTmp); //buffer log until file is opened
     gLogBackendFile.sink = toDelegate(&logToConsoleAndFile);
 
@@ -156,7 +156,7 @@ void init(char[][] args) {
         //open logfile in user dir
         //xxx why should it be in the user dir? nobody will look for logiles
         //    _there_; rather they'd expect it in the working dir or so?
-        char[] logpath = "/logall.txt";
+        string logpath = "/logall.txt";
         gLogInit.minor("opening logfile: {}", logpath);
         //NOTE: on Linux, will just overwrite a logfile (even if it's open by
         //  another process)
@@ -164,10 +164,10 @@ void init(char[][] args) {
             {File.Access.Write, File.Open.Create, File.Share.Read};
         try {
             auto logf = gFS.open(logpath, WriteCreateShared);
-            //Closure just for converting write(ubyte[]) to sink(char[])...
+            //Closure just for converting write(ubyte[]) to sink(string)...
             struct Closure {
                 stream.PipeOut writer;
-                void sink(char[] s) {
+                void sink(string s) {
                     writer.write(cast(ubyte[])s);
                 }
             }
@@ -201,8 +201,8 @@ void init(char[][] args) {
     loadColors(loadConfig("colors.conf"));
 }
 
-void cmdlineEnableLogs(ref char[][] args) {
-    char[] logname;
+void cmdlineEnableLogs(ref string[] args) {
+    string logname;
     while (getarg(args, "enable-log", logname)) {
         Log log = registerLog(logname);
         log.minPriority = LogPriority.Trace;
@@ -212,8 +212,8 @@ void cmdlineEnableLogs(ref char[][] args) {
 //load settings from cmd line
 //make sure everything in args has been used
 //use exit() on errors or help requests
-void cmdlineLoadSettings(ref char[][] args) {
-    char[] sname;
+void cmdlineLoadSettings(ref string[] args) {
+    string sname;
     if (getarg(args, "setting-help", sname)) {
         Setting s = findSetting(sname);
         if (!s) {
@@ -227,19 +227,19 @@ void cmdlineLoadSettings(ref char[][] args) {
     }
 
     foreach (s; gSettings) {
-        char[] value;
+        string value;
         if (getarg(args, s.name, value)) {
-            s.set!(char[])(value);
+            s.set!(string)(value);
         }
     }
 }
 
 //looks if help is requested; if yes, print and exit()
-void cmdlineCheckHelp(ref char[][] args) {
+void cmdlineCheckHelp(ref string[] args) {
     if (!getarg(args, "help"))
         return;
 
-    void line(char[] s) { Stdout(s).newline; }
+    void line(string s) { Stdout(s).newline; }
 
     line("Commandline options:");
     line("  --help                  Show this.");
@@ -260,7 +260,7 @@ void cmdlineCheckHelp(ref char[][] args) {
 }
 
 //make sure no args are left over; otherwise print error and exit()
-void cmdlineTerminate(ref char[][] args) {
+void cmdlineTerminate(ref string[] args) {
     if (args.length) {
         Stdout.formatln("Unknown command line arguments: {}", args);
         Stdout.formatln("Try --help instead.");
@@ -270,7 +270,7 @@ void cmdlineTerminate(ref char[][] args) {
 }
 
 struct ExeAttachment {
-    char[] fmt;
+    string fmt;
     stream.Stream data;
 }
 
@@ -305,8 +305,8 @@ private ExeAttachment* readFatExe() {
 
 private void readMountConf(ConfigNode mconfig) {
     foreach (ConfigNode node; mconfig) {
-        char[] physPath = node["path"];
-        char[] mp = node["mountpoint"];
+        string physPath = node["path"];
+        string mp = node["mountpoint"];
         MountPath type;
         switch (node["type"]) {
             case "data": type = MountPath.data; break;
@@ -379,20 +379,20 @@ void initFSMounts() {
 //they use exit() in case of parse errors
 
 //find switch "name" and remove it from args (or return false if not found)
-bool getarg(ref char[][] args, char[] name) {
+bool getarg(ref string[] args, string name) {
     return findarg(args, name, null);
 }
 
 //like getarg(), but with a single parameter
-bool getarg(ref char[][] args, char[] name, out char[] p) {
+bool getarg(ref string[] args, string name, out string p) {
     return findarg(args, name, (&p)[0..1]);
 }
 
-bool findarg(ref char[][] args, char[] name, char[][] getargs) {
+bool findarg(ref string[] args, string name, string[] getargs) {
     auto nargs = getargs.length;
     assert(nargs == 0 || nargs == 1);
 
-    void error(char[] fmt, ...) {
+    void error(string fmt, ...) {
         Stdout.formatln("{}", myformat_fx(fmt, _arguments, _argptr));
         exit();
     }

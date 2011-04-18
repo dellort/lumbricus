@@ -109,13 +109,13 @@ In general:
 +/
 
 //table that maps chunk_name->environment_table
-const char[] cEnvTable = "D_chunk_environment";
+const string cEnvTable = "D_chunk_environment";
 
 //c closure used as __gc metatable function - frees D object wrappers
-const char[] cGCHandler = "D_gc_handler";
+const string cGCHandler = "D_gc_handler";
 
 //map ClassInfos (wrapped as light userdata) to the userdata metatables
-const char[] cMetatableCache = "D_metatables";
+const string cMetatableCache = "D_metatables";
 
 //the _addresses_ of these are wrapped as lightuserdata, and then used as key in
 //  the registry; doing this for speed and safety (no string hashing/allocation)
@@ -153,16 +153,16 @@ private extern(C) int my_lua_panic(lua_State *L) {
 //this is an optimization; if unsure, use lua_todstring()
 //if geterr is set, assign it the error message, instead of raising an error
 //error handling: Lua domain
-private char[] lua_todstring_unsafe(lua_State* L, int i, char[]* geterr = null)
+private string lua_todstring_unsafe(lua_State* L, int i, string* geterr = null)
 {
     size_t len;
     char* s = lua_tolstring(L, i, &len);
-    char[] error;
+    string error;
     if (!s) {
         error = "lua_todstring: string expected";
         goto Lerror;
     }
-    char[] res = s[0..len];
+    string res = s[0..len];
     //as long as the D program is rather fragile about utf-8 errors (anything
     //  parsing utf-8 will throw UnicodeException on invalid utf-8 => basically
     //  that exception may be thrown from random parts of the program), always
@@ -187,14 +187,14 @@ Lerror:
 }
 
 //always allocates memory (except if string has len 0)
-private char[] lua_todstring(lua_State* L, int i) {
+private string lua_todstring(lua_State* L, int i) {
     return lua_todstring_unsafe(L, i).dup;
 }
 
 //like lua_todstring, but returns error messages in the string
 //xxx: may still lua_error is certain cases, see lua_tolstring
-private char[] lua_todstring_protected(lua_State* L, int i) {
-    char[] err;
+private string lua_todstring_protected(lua_State* L, int i) {
+    string err;
     auto res = lua_todstring_unsafe(L, i, &err).dup;
     if (err.length)
         return "<error: " ~ err ~ ">";
@@ -217,7 +217,7 @@ private int luaRelToAbsIndex(lua_State* state, int index) {
 
 //version of luaL_where() that returns the result directly (no Lua stack)
 //code taken from http://www.lua.org/source/5.1/lauxlib.c.html#luaL_where (MIT)
-private char[] luaWhere(lua_State* L, int level) {
+private string luaWhere(lua_State* L, int level) {
     lua_Debug ar;
     if (lua_getstack(L, level, &ar)) {  /* check function at level */
         lua_getinfo(L, "Sl", &ar);  /* get info about it */
@@ -233,11 +233,11 @@ private char[] luaWhere(lua_State* L, int level) {
 //Source: http://www.lua.org/source/5.1/ldblib.c.html#db_errorfb
 //License: MIT
 //looks like Lua 5.2 will have luaL_traceback(), making this unneeded
-private char[] luaStackTrace(lua_State* state, int level = 1) {
+private string luaStackTrace(lua_State* state, int level = 1) {
     const LEVELS1 = 12;      /* size of the first part of the stack */
     const LEVELS2 = 10;      /* size of the second part of the stack */
 
-    char[] ret;
+    string ret;
     int firstpart = 1;  /* still before eventual `...' */
     lua_Debug ar;
     while (lua_getstack(state, level++, &ar)) {
@@ -285,21 +285,21 @@ class LuaException : CustomException {
     //the wrapper code doesn't handle the case when there are multiple lua
     //  states, so there's only one lua_traceback (even if the Lua code jumps
     //  between nested Lua and D code multiple times)
-    char[] lua_message;
-    char[] lua_traceback;
+    string lua_message;
+    string lua_traceback;
 
     //state, level are passed to stackTrace
     //Important: the ONLY place where this constructor should be used is
     //  from lua_pcall's error function; the stack trace is generated here
     //  and nowhere else
-    this(lua_State* state, int level, char[] msg, Exception next) {
+    this(lua_State* state, int level, string msg, Exception next) {
         auto nmsg = msg;
         //Note: pure lua errors will already contain filename/linenumber
         //  (unless the user is stupid enough to call error() with a non-string)
         if (next) {
             //"level" is the D function that caused the exception,
             //  so the lua pos is at level + 1
-            char[] codePos = luaWhere(state, level + 1);
+            string codePos = luaWhere(state, level + 1);
             nmsg = codePos ~ "D " ~ className(next) ~ " [" ~ next.msg ~ "]";
         }
         //also append the trace like it used to be
@@ -334,22 +334,22 @@ private void luaDError(lua_State* state, CustomException e) {
 //similar to luaL_error(), but with Tango formatter instead of C sprintf
 //allocates memory
 //xxx: maybe in the future, we may want to add D backtrace info??
-private void luaErrorf(lua_State* state, char[] fmt, ...) {
-    char[] error = myformat_fx(fmt, _arguments, _argptr);
+private void luaErrorf(lua_State* state, string fmt, ...) {
+    string error = myformat_fx(fmt, _arguments, _argptr);
     //old implementation: luaDError(state, new LuaError(error));
     lua_pushlstring(state, error.ptr, error.length);
     lua_error(state);
 }
 
-private char[] className(Object o) {
+private string className(Object o) {
     if (!o) {
         return "null";
     }
-    char[] ret = o.classinfo.name;
+    string ret = o.classinfo.name;
     return ret[str.rfind(ret, '.')+1..$];
 }
 
-private char[] fullClassName(Object o) {
+private string fullClassName(Object o) {
     if (!o) {
         return "null";
     }
@@ -360,20 +360,20 @@ private bool canCast(ClassInfo from, ClassInfo to) {
     return rtraits.isImplicitly(from, to);
 }
 
-private void luaExpected(lua_State* state, int stackIdx, char[] expected) {
+private void luaExpected(lua_State* state, int stackIdx, string expected) {
     char* s = luaL_typename(state, stackIdx);
     luaExpected(state, expected, czstr.fromStringz(s));
 }
-private void luaExpected(lua_State* state, char[] expected, char[] got) {
+private void luaExpected(lua_State* state, string expected, string got) {
     luaErrorf(state, "{} expected, got {}", expected, got);
 }
 
 //if this returns a TempString, you can use it only until you pop the
 //  corresponding Lua value from the stack (because after this, Lua may garbage
-//  collect it); char[] values are .dup'ed on the D heap
+//  collect it); string values are .dup'ed on the D heap
 //Lua error domain
 private T luaStackValue(T)(lua_State *state, int stackIdx) {
-    void expected(char[] t) { luaExpected(state, stackIdx, t); }
+    void expected(string t) { luaExpected(state, stackIdx, t); }
     //xxx no check if stackIdx is valid (is checked in demarshal() anyway)
     static if (isIntegerType!(T) || isFloatingPointType!(T)) {
         lua_Number ret = lua_tonumber(state, stackIdx);
@@ -404,7 +404,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
             expected("boolean");
         //accepts everything, true for anything except 'false' and 'nil'
         return !!lua_toboolean(state, stackIdx);
-    } else static if (is(T : char[])) {
+    } else static if (is(T : string)) {
         //TempString just means that the string may be deallocated later
         //Lua will keep the string as long as it is on the Lua script's stack
         return luaStackValue!(TempString)(state, stackIdx).raw.dup;
@@ -438,7 +438,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
             expected("struct table");
         T ret;
         int tablepos = luaRelToAbsIndex(state, stackIdx);
-        const char[][] membernames = structMemberNames!(T)();
+        const string[] membernames = structMemberNames!(T)();
         version (none) {
         //the code below works well, but it can't detect table entries that
         //  are not part of the struct (changing this would make it very
@@ -498,7 +498,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
                     if (mode != 0 && mode != 1)
                         luaExpected(state, -2, "integer index");
                     mode = 1;
-                    char[] name = lua_todstring_unsafe(state, -2);
+                    string name = lua_todstring_unsafe(state, -2);
                     bool ok = false;
                     foreach (int sidx, x; ret.tupleof) {
                         if (membernames[sidx] == name) {
@@ -580,7 +580,7 @@ private int luaPush(T)(lua_State *state, T value) {
         lua_pushnumber(state, value);
     } else static if (is(T : bool)) {
         lua_pushboolean(state, cast(int)value);
-    } else static if (is(T : char[])) {
+    } else static if (is(T : string)) {
         lua_pushlstring(state, value.ptr, value.length);
     } else static if (is(T == LuaReference)) {
         if (value.valid()) {
@@ -893,7 +893,7 @@ extern (C) private int pcall_err_handler(lua_State* state) {
     //1. Lua code raised this error and may have passed any value
     //2. any Exception was passed through by other error handling code
     Exception stackEx = null;
-    char[] msg;
+    string msg;
     if (LuaState.luaIsDObject(state, 1)) {
         //note that a Lua script could have used a random D object
         //in that case stackEx would remain null
@@ -1000,7 +1000,7 @@ private RetType luaCall(RetType, T...)(lua_State* state, T args) {
 //T must be something callable (delegate or function ptr)
 //error handling: Lua domain
 private int callFromLua(T)(T del, lua_State* state, int skipCount,
-    char[] funcName)
+    string funcName)
 {
     debug gLuaToDCalls++;
 
@@ -1077,7 +1077,7 @@ extern (C) private int typecheck_d_object(lua_State* state) {
 class LuaRegistry {
     private {
         Method[] mMethods;
-        char[][ClassInfo] mPrefixes;
+        string[ClassInfo] mPrefixes;
         bool mSealed;
     }
 
@@ -1092,9 +1092,9 @@ class LuaRegistry {
 
     struct Method {
         ClassInfo classinfo;
-        char[] name;    //raw (actual) name
-        char[] xname;   //not so raw (property writes are prefixed with set_)
-        char[] prefix;  //basically the class name or ""
+        string name;    //raw (actual) name
+        string xname;   //not so raw (property writes are prefixed with set_)
+        string prefix;  //basically the class name or ""
         lua_CFunction demarshal;
         MethodType type;
     }
@@ -1104,11 +1104,11 @@ class LuaRegistry {
 
     //e.g. setClassPrefix!(GameEngine)("Game"), to keep scripting names short
     //call before any method() calls
-    void setClassPrefix(Class)(char[] name) {
+    void setClassPrefix(Class)(string name) {
         mPrefixes[Class.classinfo] = name;
     }
 
-    private void registerDMethod(ClassInfo ci, char[] method,
+    private void registerDMethod(ClassInfo ci, string method,
         lua_CFunction demarshal, MethodType type)
     {
         assert(!mSealed);
@@ -1120,7 +1120,7 @@ class LuaRegistry {
         }
         if (ci) {
             //BlaClass.somemethod becomes BlaClass_somemethod in Lua
-            char[] clsname;
+            string clsname;
             if (auto cn = ci in mPrefixes) {
                 clsname = *cn;
             } else {
@@ -1143,7 +1143,7 @@ class LuaRegistry {
     }
 
     //Lua error domain
-    private static void methodThisError(lua_State* state, char[] name,
+    private static void methodThisError(lua_State* state, string name,
         ClassInfo expected, Object got)
     {
         luaErrorf(state, "method call to '{}' requires non-null "
@@ -1152,7 +1152,7 @@ class LuaRegistry {
     }
 
     //Register a class method
-    void method(Class, char[] name)(char[] rename = null) {
+    void method(Class, string name)(string rename = null) {
         extern(C) static int demarshal(lua_State* state) {
             const methodName = Class.stringof ~ '.' ~ name;
 
@@ -1210,7 +1210,7 @@ class LuaRegistry {
     //not strictly necessary (redundant to func()), but here for more uniformity
     //  in the scripting and binding code (especially in combination with the
     //  singleton crap)
-    void static_method(Class, char[] name)(char[] rename = null) {
+    void static_method(Class, string name)(string rename = null) {
         extern(C) static int demarshal(lua_State* state) {
             const methodName = Class.stringof ~ '.' ~ name;
             alias Class C;
@@ -1253,7 +1253,7 @@ class LuaRegistry {
     //a constructor for a given class
     //there can be multiple ctors and they can't be named => PITA
     //you have to explicitly pass the argument types and a name
-    void ctor(Class, Args...)(char[] name = "ctor") {
+    void ctor(Class, Args...)(string name = "ctor") {
         extern(C) static int demarshal(lua_State* state) {
             const cDebugName = "constructor " ~ Class.stringof;
             static Class construct(Args args) {
@@ -1269,7 +1269,7 @@ class LuaRegistry {
 
     //read/write accessor (if rw==false, it's read-only)
     // Class.'name' can be either a setter/getter, or a field
-    void property(Class, char[] name, bool rw = true)() {
+    void property(Class, string name, bool rw = true)() {
         //works by introducing "renaming" functions, which just call the
         //  setters/getters; that's because &Class.name would return only the
         //  first declared function of that name, and generating the actual
@@ -1325,19 +1325,19 @@ class LuaRegistry {
     //read-only property
     //note that unlike method(), this also works for fields, and works better if
     //  there's also a property setter (which you want to hide from scripts)
-    void property_ro(Class, char[] name)() {
+    void property_ro(Class, string name)() {
         property!(Class, name, false)();
     }
 
     //shortcut for registering multiple methods of a class
-    //each item of Names is expected to be a char[] (a method name of Class)
+    //each item of Names is expected to be a string (a method name of Class)
     void methods(Class, Names...)() {
         foreach (int idx, _; Names) {
             method!(Class, Names[idx])();
         }
     }
 
-    //also a shortcut; each Names item is a char[]
+    //also a shortcut; each Names item is a string
     void properties(Class, Names...)() {
         foreach (int idx, _; Names) {
             property!(Class, Names[idx])();
@@ -1352,11 +1352,11 @@ class LuaRegistry {
     }
 
     //Register a function
-    void func(alias Fn)(char[] rename = null) {
+    void func(alias Fn)(string rename = null) {
         //stringof returns "& functionName", strip that
         //xxx this is crap, who knows what random strings .stringof will return
         //  in future compiler versions?
-        const char[] funcName_raw = (&Fn).stringof;
+        const string funcName_raw = (&Fn).stringof;
         //DMD: "& funcname"
         //LDC: "&funcname"
         //if the string changes again (for any compiler vendor/version), this
@@ -1422,7 +1422,7 @@ enum LuaLib {
 private {
     struct LuaLibReg {
         int flag;
-        char[] name;
+        string name;
         lua_CFunction* func;
     }
     //cf. linit.c from lua source
@@ -1441,7 +1441,7 @@ class LuaState {
     private {
         lua_State* mLua;
         LuaRegistry.Method[] mMethods;
-        char[][ClassInfo] mClassNames;
+        string[ClassInfo] mClassNames;
         Object[ClassInfo] mSingletons;
         bool[ClassInfo] mClassUpdate; //xxx really needs to be global?
         ObjectList!(RealLuaRef, "mNode") mRefList; //D->Lua references
@@ -1468,7 +1468,7 @@ class LuaState {
         mRefList = new typeof(mRefList)();
 
         if (!gLibLuaLoaded) {
-            char[] libname = env.Environment.get("LUALIB");
+            string libname = env.Environment.get("LUALIB");
             if (!libname.length)
                 libname = null; //derelict uses "libname is null"
             DerelictLua.load(libname);
@@ -1555,7 +1555,7 @@ class LuaState {
         lua_pushcfunction(mLua, &d_isobject);
         lua_setglobal(mLua, "d_isobject".ptr);
 
-        void kill(char[] global) {
+        void kill(string global) {
             lua_pushnil(mLua);
             lua_setglobal(mLua, czstr.toStringz(global));
         }
@@ -1936,7 +1936,7 @@ class LuaState {
             if (stdlibFlags & lib.flag) {
                 luaProtected(mLua, {
                     lua_pushcfunction(mLua, *lib.func);
-                    luaCall!(void, char[])(mLua, lib.name);
+                    luaCall!(void, string)(mLua, lib.name);
                 });
             }
         }
@@ -1947,7 +1947,7 @@ class LuaState {
 
         CustomException error;
 
-        foreach (ClassInfo key, char[] value; stuff.mPrefixes) {
+        foreach (ClassInfo key, string value; stuff.mPrefixes) {
             mClassNames[key] = value;
         }
 
@@ -2011,7 +2011,7 @@ class LuaState {
 
                 //create a global variable, but only if it doesn't exist (e.g.
                 //  consider what addSingleton() wants)
-                char[] clsname = mClassNames[cls];
+                string clsname = mClassNames[cls];
                 lua_pushliteral(mLua, clsname); //name
                 lua_rawget(mLua, LUA_GLOBALSINDEX); //_G[name]
                 bool doset = lua_isnil(mLua, -1);
@@ -2083,10 +2083,10 @@ class LuaState {
     }
 
     struct MetaData {
-        char[] type;    //stringified LuaRegistry.MethodType
-        char[] dclass;  //name/prefix of the D class for the method
-        char[] name;    //name of the method
-        char[] xname;   //method name with decoration, e.g. "get_" ~ name
+        string type;    //stringified LuaRegistry.MethodType
+        string dclass;  //name/prefix of the D class for the method
+        string name;    //name of the method
+        string xname;   //method name with decoration, e.g. "get_" ~ name
     }
     //return MetaData for all known bound D functions for the passed class
     //if from is null, an empty array is returned
@@ -2125,7 +2125,7 @@ class LuaState {
         return from ? from.classinfo : null;
     }
 
-    private ClassInfo script_find_class(char[] name) {
+    private ClassInfo script_find_class(string name) {
         //yes, the class prefix is not unique; one prefix can refer to several
         //  D classes, and this is by design (apparently this was d0c's idea;
         //  maybe he could be convinced otherwise)
@@ -2179,7 +2179,7 @@ class LuaState {
 
         //add a global variable for the singleton (script can use it)
         if (auto pname = ci in mClassNames) {
-            char[] name = *pname;
+            string name = *pname;
             scriptExec(`local name, inst = ...; _G[name] = inst`,
                 name, instance);
         }
@@ -2189,14 +2189,14 @@ class LuaState {
     //all of them are in the lua error domain (= shoot yourself into the foot)
 
     //lua error domain
-    private void luaLoadChecked(char[] chunkname, char[] data) {
+    private void luaLoadChecked(string chunkname, string data) {
         //'=' means use the name as-is (else "string " is added)
         int res = luaL_loadbuffer(mLua, data.ptr, data.length,
             czstr.toStringz('='~chunkname));
         if (res != 0) {
             //xxx if this fails to get the message (e.g. utf8 error), there
             //    will be no line number
-            char[] err = lua_todstring_protected(mLua, -1);
+            string err = lua_todstring_protected(mLua, -1);
             lua_pop(mLua, 1);  //remove error message
             luaErrorf(mLua, "Parse error: {}", err);
         }
@@ -2206,7 +2206,7 @@ class LuaState {
     //load script in "code", using "name" for error messages
     //there's also scriptExec() if you need to pass parameters
     //environmentId = set to create/reuse a named execution environment
-    void loadScript(char[] name, char[] code, char[] environmentId = null) {
+    void loadScript(string name, string code, string environmentId = null) {
         luaProtected(mLua, {
             luaLoadChecked(name, code);
             if (environmentId.length) {
@@ -2222,7 +2222,7 @@ class LuaState {
     //a metatable is set to forward lookups to the globals table
     //(see http://lua-users.org/lists/lua-l/2006-05/msg00121.html )
     //lua error domain
-    private void luaGetEnvironment(char[] environmentId) {
+    private void luaGetEnvironment(string environmentId) {
         assert(environmentId.length);
         //table that maps all environments by names to table values
         lua_getfield(mLua, LUA_REGISTRYINDEX, cEnvTable.ptr);
@@ -2261,7 +2261,7 @@ class LuaState {
     }
 
     //Call a function defined in lua
-    void call(T...)(char[] funcName, T args) {
+    void call(T...)(string funcName, T args) {
         luaProtected(mLua, {
             luaPush(mLua, funcName);
             lua_gettable(mLua, LUA_GLOBALSINDEX);
@@ -2274,7 +2274,7 @@ class LuaState {
     //this tripple nesting (thx to h3) allows us to use type inference:
     //  state.callR!(int)("func", 123, "abc", 5.4);
     template callR(RetType) {
-        RetType callR(T...)(char[] funcName, T args) {
+        RetType callR(T...)(string funcName, T args) {
             RetType res;
             luaProtected(mLua, {
                 luaPush(mLua, funcName);
@@ -2287,7 +2287,7 @@ class LuaState {
 
     //execute a script snippet (should only be used for slow stuff like command
     //  line interpreters, or initialization code)
-    void scriptExec(Args...)(char[] code, Args a) {
+    void scriptExec(Args...)(string code, Args a) {
         luaProtected(mLua, {
             luaLoadChecked("scriptExec", code);
             luaCall!(void, Args)(mLua, a);
@@ -2295,7 +2295,7 @@ class LuaState {
     }
 
     template scriptExecR(RetType) {
-        RetType scriptExecR(Args...)(char[] code, Args a) {
+        RetType scriptExecR(Args...)(string code, Args a) {
             RetType res;
             luaProtected(mLua, {
                 luaLoadChecked("scriptExec", code);
@@ -2306,7 +2306,7 @@ class LuaState {
     }
 
     //store a value as global Lua variable
-    void setGlobal(T)(char[] name, T value, char[] environmentId = null) {
+    void setGlobal(T)(string name, T value, string environmentId = null) {
         luaProtected(mLua, {
             int stackIdx = LUA_GLOBALSINDEX;
             if (environmentId.length) {
@@ -2321,7 +2321,7 @@ class LuaState {
             }
         });
     }
-    T getGlobal(T)(char[] name, char[] environmentId = null) {
+    T getGlobal(T)(string name, string environmentId = null) {
         T res;
         luaProtected(mLua, {
             int stackIdx = LUA_GLOBALSINDEX;
@@ -2339,7 +2339,7 @@ class LuaState {
 
     //this redirects the print() function from stdio to cb(); the string passed
     //  to cb() should be output literally (the string will contain newlines)
-    void setPrintOutput(void delegate(char[]) cb) {
+    void setPrintOutput(void delegate(string) cb) {
         assert(cb !is null);
         //xxx: actually, it completely replaces the print() function, and it
         //  might behave a little bit differently; feel free to fix it
@@ -2359,7 +2359,7 @@ class LuaState {
     }
 
     //assign a lua-defined metatable tableName to a D struct type
-    void addScriptType(T)(char[] tableName) {
+    void addScriptType(T)(string tableName) {
         luaProtected(mLua, {
             //get the metatable from the global scope and write it into the
             //  registry; see luaPush()

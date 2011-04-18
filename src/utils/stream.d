@@ -283,7 +283,7 @@ abstract class Stream {
         return res;
     }
 
-    void ioerror(char[] msg) {
+    void ioerror(string msg) {
         throw new IOException(msg);
     }
 
@@ -295,7 +295,7 @@ abstract class Stream {
     }
 
     //meh
-    static ConduitStream OpenFile(char[] path,
+    static ConduitStream OpenFile(string path,
         File.Style mode = File.ReadShared)
     {
         return new ConduitStream(castStrict!(Conduit)(new File(path, mode)));

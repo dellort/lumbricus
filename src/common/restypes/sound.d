@@ -9,9 +9,9 @@ import utils.stream;
 
 class SampleResource : ResourceItem {
     SoundType type;
-    char[] path;
+    string path;
 
-    this(ResourceFile context, char[] id, ConfigNode item) {
+    this(ResourceFile context, string id, ConfigNode item) {
         super(context, id, item);
 
         //xxx lol etc.
@@ -25,7 +25,7 @@ class SampleResource : ResourceItem {
         path = mContext.fixPath(mConfig.value);
     }
 
-    this(ResourceFile context, char[] id, SoundType a_type, char[] a_path) {
+    this(ResourceFile context, string id, SoundType a_type, string a_path) {
         super(context, id, null);
         type = a_type;
         path = a_path;

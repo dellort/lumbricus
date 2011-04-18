@@ -132,7 +132,7 @@ class AnimationStrip : AnimationSimple {
     //both need to be a factor of the total image width/height
     //if frameWidth == -1 && frameHeight == -1, frames will be square (smallest)
     //else if only one given, other will be full image size
-    this(ConfigNode config, char[] filename) {
+    this(ConfigNode config, string filename) {
         super(config);
 
         int frameWidth = config.getIntValue("frame_width", -1);
@@ -164,14 +164,14 @@ class AnimationStrip : AnimationSimple {
 
 //animation from file list, each file is a frame image
 class AnimationList : AnimationSimple {
-    this(ConfigNode config, char[] pattern) {
+    this(ConfigNode config, string pattern) {
         super(config);
 
         //dumb crap
         //shouldn't there be library functions for this?
         //actually, blame filesystem.d
         auto res = str.rfind(pattern, "/");
-        char[] path, file;
+        string path, file;
         if (res < 0) {
             file = pattern;
         } else {
@@ -179,9 +179,9 @@ class AnimationList : AnimationSimple {
             file = pattern[res+1..$];
         }
 
-        char[][] flist;
+        string[] flist;
         gFS.listdir(path, file, false,
-            (char[] filename) {
+            (string filename) {
                 //and of course we have to add the path again
                 flist ~= path ~ "/" ~ filename;
                 return true;
@@ -213,7 +213,7 @@ class AnimationList : AnimationSimple {
 //will load the anim file on get()
 //config item   type = "xxx"   chooses Animation implementation
 class AnimationResource : ResourceItem {
-    this(ResourceFile context, char[] id, ConfigNode item) {
+    this(ResourceFile context, string id, ConfigNode item) {
         super(context, id, item);
     }
 
@@ -221,10 +221,10 @@ class AnimationResource : ResourceItem {
         ConfigNode node = mConfig;
         assert(node !is null);
         try {
-            char[] type = node.getStringValue("type", "");
+            string type = node.getStringValue("type", "");
             switch (type) {
                 case "strip": {
-                    char[] fn = mContext.fixPath(node["file"]);
+                    string fn = mContext.fixPath(node["file"]);
                     mContents = new AnimationStrip(node, fn);
                     break;
                 }
@@ -232,7 +232,7 @@ class AnimationResource : ResourceItem {
                 //(to avoid dumb conversion steps like packing)
                 case "list": {
                     //pat is like a filename, but with a wildcard ('*') in it
-                    char[] pat = mContext.fixPath(node["pattern"]);
+                    string pat = mContext.fixPath(node["pattern"]);
                     mContents = new AnimationList(node, pat);
                     break;
                 }

@@ -16,15 +16,15 @@ import utils.vector2;
 //global list of commands (variable is read only, object is read/write)
 CommandBucket gCommands;
 
-alias void delegate(char[]) InputDelegate;
+alias void delegate(string) InputDelegate;
 
-const char[] cConsoleTagTS = "console.inputmodes";
+const string cConsoleTagTS = "console.inputmodes";
 
 private {
     LogBackend gLogBackendGui;
     Chatbox gConsoleWidget;
     //a "tag" that tells the current input mode (see setConsoleMode())
-    char[] gModeCurrent;
+    string gModeCurrent;
     //delegate for the current mode where all input is delivered to
     InputDelegate gModeInput;
     //tab completion handler for the current mode
@@ -41,18 +41,18 @@ static this() {
 //  easily turned into delegates
 //not using utils.output because that is legacy crap
 struct ConsoleOutput {
-    void writef(char[] fmt, ...) {
+    void writef(string fmt, ...) {
         writef_ind(fmt, _arguments, _argptr);
     }
-    void writefln(char[] fmt, ...) {
+    void writefln(string fmt, ...) {
         writef_ind(fmt, _arguments, _argptr);
         writef("\n");
     }
-    void writeString(char[] text) {
+    void writeString(string text) {
         writef("{}", text);
     }
 
-    private void writef_ind(char[] fmt, TypeInfo[] arguments, va_list argptr) {
+    private void writef_ind(string fmt, TypeInfo[] arguments, va_list argptr) {
         if (gConsoleWidget) {
             gConsoleWidget.output.writef_ind(false, fmt, arguments, argptr);
         } else {
@@ -101,7 +101,7 @@ CommandLine getCommandLine() {
 //  completion with the tab key
 //when the thing the delegate refers to is destroyed, disableConsoleMode
 //  should be used to unset the mode!
-void setConsoleMode(char[] tag, InputDelegate on_input) {
+void setConsoleMode(string tag, InputDelegate on_input) {
     auto old_mode = gModeCurrent;
 
     //remove old one
@@ -139,7 +139,7 @@ void setConsoleTabHandler(TabCompleteDelegate on_tab) {
 }
 
 //some code needs this, I'd consider this mostly legacy crap
-void executeGlobalCommand(char[] cmd) {
+void executeGlobalCommand(string cmd) {
     if (gConsoleWidget) {
         gConsoleWidget.cmdline.execute("/" ~ cmd);
     } else {
@@ -149,7 +149,7 @@ void executeGlobalCommand(char[] cmd) {
 }
 
 private void onExecConsole(MyBox[] args, Output output) {
-    char[] text = args[0].unbox!(char[])();
+    string text = args[0].unbox!(string)();
     if (gModeInput) {
         gModeInput(text);
     } else {
@@ -161,7 +161,7 @@ private void onActivate(MyBox[] args, Output output) {
     activateConsole();
 }
 
-private void onTabComplete(char[] line, int cursor1, int cursor2,
+private void onTabComplete(string line, int cursor1, int cursor2,
     EditDelegate edit)
 {
     //xxx: somehow should call CommandLine tabhandler if the line starts with

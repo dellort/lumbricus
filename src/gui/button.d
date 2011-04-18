@@ -231,25 +231,25 @@ class ButtonBase : Widget {
     //tunnel through the text accessors
     //see Label
 
-    void text(char[] txt) {
+    void text(string txt) {
         getLabel().text = txt;
     }
-    void textMarkup(char[] txt) {
+    void textMarkup(string txt) {
         getLabel().textMarkup = txt;
     }
-    void setText(bool as_markup, char[] txt) {
+    void setText(bool as_markup, string txt) {
         getLabel().setText(as_markup, txt);
     }
-    void setTextFmt(bool as_markup, char[] fmt, ...) {
+    void setTextFmt(bool as_markup, string fmt, ...) {
         setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
     }
-    void setTextFmt_fx(bool as_markup, char[] fmt,
+    void setTextFmt_fx(bool as_markup, string fmt,
         TypeInfo[] arguments, va_list argptr)
     {
         getLabel().setTextFmt_fx(as_markup, fmt, arguments, argptr);
     }
     //returns an empty string if no label set (never throws an exception)
-    char[] text() {
+    string text() {
         if (auto label = getLabel(false))
             return label.text;
         return "";

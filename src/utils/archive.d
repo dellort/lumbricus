@@ -144,7 +144,7 @@ class TarArchive : ArchiveReader {
             char[100] linkedfile;
             char[255] pad;
 
-            char[] getchecksum() {
+            string getchecksum() {
                 TarHeader copy = *this;
                 copy.checksum[] = ' ';
                 char* ptr = cast(char*)&copy;
@@ -192,7 +192,7 @@ class TarArchive : ArchiveReader {
                     if (digit == ' ') digit = '0';
                 if (h.getchecksum()[0..6] != hcs)
                     throw new CustomException("tar error: CS "~h.getchecksum()[0..6]~" != "~hcs);
-                char[] getField(char[] f) {
+                string getField(string f) {
                     assert (f.length > 0);
                     //else we had a buffer overflow with toString
                     //xxx: utf safety?
@@ -201,7 +201,7 @@ class TarArchive : ArchiveReader {
                     return fromStringz(&f[0]);
                 }
                 e.name = VFSPath(getField(h.filename).dup);
-                char[] sz = h.filesize[0..11].dup;
+                string sz = h.filesize[0..11].dup;
                 //parse octal by myself, Phobos is too stupid to do it
                 ulong isz = 0;
                 while (sz.length) {
@@ -266,7 +266,7 @@ class TarArchive : ArchiveReader {
         throw new CustomException("tar entry not found: >"~name.toString~"<");
     }
 
-    PipeIn openReadStreamCompressed(char[] name, bool can_fail = false) {
+    PipeIn openReadStreamCompressed(string name, bool can_fail = false) {
         name = name ~ ".gz";
         auto s = openReadStream(VFSPath(name), can_fail);
         if (!s)
@@ -275,15 +275,15 @@ class TarArchive : ArchiveReader {
     }
 
     //open a file by openReadStream() and parse as config file
-    ConfigNode readConfigStream(char[] name) {
+    ConfigNode readConfigStream(string name) {
         auto r = openReadStreamCompressed(name);
         scope(exit) r.close();
-        return ConfigFile.Parse(cast(char[])r.readAll(), "?.tar/"~name);
+        return ConfigFile.Parse(cast(string)r.readAll(), "?.tar/"~name);
     }
 
     static ubyte[512] waste;
 
-    private void startEntry(char[] name) {
+    private void startEntry(string name) {
         finishLastFile();
         Entry e;
         e.name = VFSPath(name);
@@ -294,14 +294,14 @@ class TarArchive : ArchiveReader {
     }
 
     //NOTE: sequential writing is assumed, e.g. only one stream at a time
-    PipeOut openWriteStream(char[] name) {
+    PipeOut openWriteStream(string name) {
         Stream o = openUncompressed(name ~ ".gz");
         return gzip.GZWriter.Pipe(o.pipeOut(true));
     }
 
     //NOTE: sequential writing is assumed, e.g. only one stream at a time
     //this does the same as openWriteStream(), but it's uncompressed
-    Stream openUncompressed(char[] name) {
+    Stream openUncompressed(string name) {
         startEntry(name);
         assert(!mCurrentWriter);
         auto s = new SliceStream(mFile, mFile.position());
@@ -353,9 +353,9 @@ class TarArchive : ArchiveReader {
             foreach (Entry e;  mEntries) {
                 TarHeader h;
                 (cast(char*)&h)[0..h.sizeof] = '\0';
-                char[] fname = e.name.get(false);
+                string fname = e.name.get(false);
                 h.filename[0..fname.length] = fname;
-                char[] sz = myformat("{:o11}", e.size) ~ '\0';
+                string sz = myformat("{:o11}", e.size) ~ '\0';
                 assert (sz.length == 12);
                 h.filesize[] = sz;
                 h.link[0] = '0';

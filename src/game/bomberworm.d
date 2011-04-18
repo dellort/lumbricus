@@ -194,7 +194,7 @@ private:
             bindings = new KeyBindings();
         }
 
-        void updateKey(char[] k, bool down) {
+        void updateKey(string k, bool down) {
             int v = down ? 1 : 0;
             switch (k) {
                 case "up": state_a.y = -v; break;
@@ -417,7 +417,7 @@ private:
                 auto p = cast(Player)e;
                 if (!p)
                     continue;
-                char[] bind = p.bindings.findBinding(info);
+                string bind = p.bindings.findBinding(info);
                 if (bind.length) {
                     if (!info.isRepeated)
                         p.updateKey(bind, info.isDown);
@@ -436,7 +436,7 @@ private:
         }
     }
 
-    public this(char[] args = "") {
+    public this(string args = "") {
 
         mTime = new TimeSource("bomberworm");
         mTime.update();

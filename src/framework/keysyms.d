@@ -267,7 +267,7 @@ bool keycodeIsModifierKey(Keycode c) {
 
 struct KeycodeToName {
     Keycode code;
-    char[] name;
+    string name;
 }
 
 const KeycodeToName g_keycode_to_name[] = [

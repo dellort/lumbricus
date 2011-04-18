@@ -49,7 +49,7 @@ class LandscapeTheme {
     this(ConfigNode node) {
         ResourceSet res = gResources.loadResSet(node);
 
-        void load(char[] name, out Surface s, out Color c) {
+        void load(string name, out Surface s, out Color c) {
             s = res.get!(Surface)(node[name ~ "_tex"], true);
             c = node.getValue(name ~ "_color", c);
 

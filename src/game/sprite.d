@@ -320,7 +320,7 @@ class Sprite : GameObject {
         c.drawCircle(p, 3, Color(1,1,1));
     }
 
-    char[] toString() {
+    string toString() {
         return myformat("[Sprite 0x{:x} {} at {}]", cast(void*)this, type.name,
             physics.pos);
     }
@@ -328,7 +328,7 @@ class Sprite : GameObject {
 
 class SpriteClass {
     GameCore engine;
-    char[] name;
+    string name;
 
     SequenceType sequenceType;
     //can be null (then sequenceType.normalState is used)
@@ -345,7 +345,7 @@ class SpriteClass {
     bool initNoActivityWhenGlued = false;
     bool initNoActivity = false;
 
-    this (GameCore a_core, char[] a_name) {
+    this (GameCore a_core, string a_name) {
         engine = a_core;
         name = a_name;
 
@@ -371,6 +371,6 @@ class SpriteClass {
         return sequenceType;
     }
 
-    char[] toString() { return "SpriteClass["~name~"]"; }
+    string toString() { return "SpriteClass["~name~"]"; }
 }
 

@@ -109,7 +109,7 @@ private:
         loadScript(mLua, "init.lua");
 
         ConfigNode autoexec = loadConfig("autoexec.conf");
-        foreach (char[] name, char[] value; autoexec) {
+        foreach (string name, string value; autoexec) {
             mGuiConsole.cmdline.execute(value);
         }
     }
@@ -161,7 +161,7 @@ private:
     }
 
     //add a Lua command - del should be a delegate or a function ptr
-    private void addL(T)(char[] name, T del) {
+    private void addL(T)(string name, T del) {
         //may change; maybe put all commands into a special table, and do the
         //  same stuff as cmdLine does (providing help, auto completion, etc.)
         mLua.setGlobal(name, del);
@@ -182,24 +182,24 @@ private:
         mLua.register(reg);
 
         //bridge to cmdLine
-        addL("exec", function(char[] cmd) {
+        addL("exec", function(string cmd) {
             executeGlobalCommand(cmd);
         });
 
-        addL("spawn", function(char[] cmd) {
+        addL("spawn", function(string cmd) {
             return spawnTask(cmd);
         });
-        addL("spawnargs", function(char[] cmd, char[] args) {
+        addL("spawnargs", function(string cmd, string args) {
             return spawnTask(cmd, args);
         });
 
-        addL("dofile", function(char[] fn) {
+        addL("dofile", function(string fn) {
             loadScript(gTopLevel.mLua, fn);
         });
     }
 
     private void cmdLua(MyBox[] args, Output write) {
-        char[] cmd = args[0].unbox!(char[]);
+        string cmd = args[0].unbox!(string);
         mLua.scriptExec("ConsoleUtils.exec(...)", cmd, &write.writeString);
     }
 
@@ -208,13 +208,13 @@ private:
     }
 
     private void cmdSetSet(MyBox[] args, Output write) {
-        char[] name = args[0].unbox!(char[]);
-        char[] value = args[1].unbox!(char[]);
+        string name = args[0].unbox!(string);
+        string value = args[1].unbox!(string);
         setSetting(name, value);
     }
 
     private void cmdSetHelp(MyBox[] args, Output write) {
-        char[] name = args[0].unbox!(char[]);
+        string name = args[0].unbox!(string);
         write.writefln("{}", settingValueHelp(name));
     }
 
@@ -225,7 +225,7 @@ private:
     }
 
     private void cmdSetCycle(MyBox[] args, Output write) {
-        char[] name = args[0].unbox!(char[]);
+        string name = args[0].unbox!(string);
         settingCycle(name, +1);
     }
 
@@ -235,12 +235,12 @@ private:
     }
 
     private void cmdSpawn(MyBox[] args, Output write) {
-        char[] name = args[0].unbox!(char[])();
-        char[] spawnArgs = args[1].unboxMaybe!(char[])();
+        string name = args[0].unbox!(string)();
+        string spawnArgs = args[1].unboxMaybe!(string)();
         spawnTask(name, spawnArgs);
     }
 
-    private char[][] complete_spawn() {
+    private string[] complete_spawn() {
         return taskList();
     }
 
@@ -270,7 +270,7 @@ private:
     }
 
     private void cmdFS(MyBox[] args, Output write) {
-        bool desktop = args[0].unboxMaybe!(char[]) == "desktop";
+        bool desktop = args[0].unboxMaybe!(string) == "desktop";
         try {
             if (desktop) {
                 //go fullscreen in desktop mode
@@ -288,13 +288,13 @@ private:
     const cScreenshotDir = "/screenshots/";
 
     private void cmdScreenshot(MyBox[] args, Output write) {
-        char[] filename = args[0].unboxMaybe!(char[]);
+        string filename = args[0].unboxMaybe!(string);
         saveScreenshot(filename, false);
         write.writefln("Screenshot saved as '{}'", filename);
     }
 
     private void cmdScreenshotWnd(MyBox[] args, Output write) {
-        char[] filename = args[0].unboxMaybe!(char[]);
+        string filename = args[0].unboxMaybe!(string);
         saveScreenshot(filename, true);
         write.writefln("Screenshot saved as '{}'", filename);
     }
@@ -303,12 +303,12 @@ private:
     //  activeWindow: only save area of active window, with decorations
     //    (screen contents of window area, also saves overlapping stuff)
     //throws exception on error (catched by the command line handler)
-    private void saveScreenshot(ref char[] filename,
+    private void saveScreenshot(ref string filename,
         bool activeWindow = false)
     {
         //get active window, and its title
         WindowWidget topWnd = gWindowFrame.activeWindow();
-        char[] wndTitle;
+        string wndTitle;
         if (topWnd)
             wndTitle = topWnd.properties.windowTitle;
         else
@@ -375,7 +375,7 @@ private:
 
         //execute global shortcuts
         if (event.isKeyEvent) {
-            char[] bind = keybindings.findBinding(event.keyEvent);
+            string bind = keybindings.findBinding(event.keyEvent);
             if (bind.length > 0) {
                 if (event.keyEvent.isDown)
                     mGuiConsole.cmdline.execute(bind);

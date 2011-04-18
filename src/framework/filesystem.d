@@ -26,13 +26,13 @@ private Log log;
 //version = FSDebug;
 
 class FilesystemException : CustomException {
-    this(char[] m) {
+    this(string m) {
         super(m);
     }
 }
 
 ///return true if dir exists and is a directory, false otherwise
-public bool dirExists(char[] dir) {
+public bool dirExists(string dir) {
     if (tpath.exists(dir) && tpath.isFolder(dir))
         return true;
     else
@@ -56,13 +56,13 @@ private abstract class MountPointHandler {
     ///Can this handler class mount the path/file
     ///Params:
     ///  absPath = Absolute system path to object that should be mounted
-    abstract bool canHandle(char[] absPath);
+    abstract bool canHandle(string absPath);
 
     ///Mount absPath and create HandlerInstance
     ///You can assume that canHandle has been called before
     ///Params:
     ///  absPath = Absolute system path to object that should be mounted
-    abstract HandlerInstance mount(char[] absPath);
+    abstract HandlerInstance mount(string absPath);
 }
 
 ///A mounted path/file
@@ -84,19 +84,19 @@ private abstract class HandlerInstance {
     ///you can assume that pathExists has been called before
     ///if findDir is true, also find directories
     ///if callback returns false, you should abort and return false too
-    abstract bool listdir(VFSPath handlerPath, char[] pattern, bool findDir,
-        bool delegate(char[] filename) callback);
+    abstract bool listdir(VFSPath handlerPath, string pattern, bool findDir,
+        bool delegate(string filename) callback);
 
     abstract void close();
 }
 
 ///Specific MountPointHandler for mounting directories
 private class MountPointHandlerDirectory : MountPointHandler {
-    bool canHandle(char[] absPath) {
+    bool canHandle(string absPath) {
         return dirExists(absPath);
     }
 
-    HandlerInstance mount(char[] absPath) {
+    HandlerInstance mount(string absPath) {
         if (canHandle(absPath)) {
             return new HandlerDirectory(absPath);
         }
@@ -110,10 +110,10 @@ private class MountPointHandlerDirectory : MountPointHandler {
 ///Specific HandlerInstance for opening files from mounted directories
 private class HandlerDirectory : HandlerInstance {
     private {
-        char[] mDirPath;
+        string mDirPath;
     }
 
-    this(char[] absPath) {
+    this(string absPath) {
         if (!dirExists(absPath))
             throw new FilesystemException("Directory doesn't exist");
         mDirPath = addTrailingPathDelimiter(absPath);
@@ -125,13 +125,13 @@ private class HandlerDirectory : HandlerInstance {
     }
 
     bool exists(VFSPath handlerPath) {
-        char[] p = handlerPath.makeAbsolute(mDirPath);
+        string p = handlerPath.makeAbsolute(mDirPath);
         log("Checking for existance: '{}'",p);
         return tpath.exists(p) && !tpath.isFolder(p);
     }
 
     bool pathExists(VFSPath handlerPath) {
-        char[] p = handlerPath.makeAbsolute(mDirPath);
+        string p = handlerPath.makeAbsolute(mDirPath);
         return tpath.exists(p) && tpath.isFolder(p);
     }
 
@@ -165,10 +165,10 @@ private class HandlerDirectory : HandlerInstance {
         }
     }
 
-    bool listdir(VFSPath handlerPath, char[] pattern, bool findDirs,
-        bool delegate(char[] filename) callback)
+    bool listdir(VFSPath handlerPath, string pattern, bool findDirs,
+        bool delegate(string filename) callback)
     {
-        char[] searchPath = handlerPath.makeAbsolute(mDirPath);
+        string searchPath = handlerPath.makeAbsolute(mDirPath);
 
         foreach (de; tpath.children(searchPath)) {
             if (findDirs || !de.folder) {
@@ -176,7 +176,7 @@ private class HandlerDirectory : HandlerInstance {
                 //remove this
                 VFSPath vfn = VFSPath(de.name);
                 //add trailing '/' for directories
-                char[] fn = vfn.get(false, de.folder);
+                string fn = vfn.get(false, de.folder);
                 //match search pattern
                 if (tpath.patternMatch(fn, pattern)) {
                     if (!callback(fn))
@@ -213,13 +213,13 @@ import ic = tango.io.model.IConduit;
 
 ///Specific MountPointHandler for mounting ZIP archives
 private class MountPointHandlerZip : MountPointHandler {
-    bool canHandle(char[] absPath) {
+    bool canHandle(string absPath) {
         //exisiting files, name ending with ".zip"
         return tpath.exists(absPath) && !tpath.isFolder(absPath)
             && absPath.length > 4 && str.tolower(absPath[$-4..$]) == ".zip";
     }
 
-    HandlerInstance mount(char[] absPath) {
+    HandlerInstance mount(string absPath) {
         assert(canHandle(absPath));
         return new HandlerTangoVfs(new ZipFolder(absPath, true));
     }
@@ -302,8 +302,8 @@ private class HandlerTangoVfs : HandlerInstance {
         }
     }
 
-    bool listdir(VFSPath handlerPath, char[] pattern, bool findDir,
-        bool delegate(char[] filename) callback)
+    bool listdir(VFSPath handlerPath, string pattern, bool findDir,
+        bool delegate(string filename) callback)
     {
         //xxx I don't know how many useless classes this function creates...
         auto fld = mVfsFolder;
@@ -337,18 +337,18 @@ private class HandlerTangoVfs : HandlerInstance {
 
 ///Specific MountPointHandler for mounting TAR/ZIP archives
 private class MountPointHandlerArchive : MountPointHandler {
-    bool canHandle(char[] absPath) {
+    bool canHandle(string absPath) {
         //exisiting files, name ending with ".tar" or ".zip"
         if (tpath.exists(absPath) && !tpath.isFolder(absPath)
             && absPath.length > 4)
         {
-            char[] ext = str.tolower(absPath[$-4..$]);
+            string ext = str.tolower(absPath[$-4..$]);
             return ext == ".tar" || ext == ".zip";
         }
         return false;
     }
 
-    static HandlerInstance mountStream(Stream archFile, char[] fmt) {
+    static HandlerInstance mountStream(Stream archFile, string fmt) {
         ArchiveReader archive;
         if (fmt == "tar") {
             archive = new TarArchive(archFile, true);
@@ -360,9 +360,9 @@ private class MountPointHandlerArchive : MountPointHandler {
         return new HandlerArchive(archive);
     }
 
-    HandlerInstance mount(char[] absPath) {
+    HandlerInstance mount(string absPath) {
         assert(canHandle(absPath));
-        char[] ext = str.tolower(absPath[$-4..$]);
+        string ext = str.tolower(absPath[$-4..$]);
         auto archFile = Stream.OpenFile(absPath);
         return mountStream(archFile, ext[1..$]);
     }
@@ -400,16 +400,16 @@ private class HandlerArchive : HandlerInstance {
 
     //this is so complicated because ArchiveReader only lists file, while
     //  we also want to list directories
-    bool listdir(VFSPath handlerPath, char[] pattern, bool findDir,
-        bool delegate(char[] filename) callback)
+    bool listdir(VFSPath handlerPath, string pattern, bool findDir,
+        bool delegate(string filename) callback)
     {
-        bool[char[]] dirCache;
+        bool[string] dirCache;
         foreach (VFSPath cur; mArchive) {
             if (handlerPath.isChild(cur)) {
                 auto rel = cur.relativePath(handlerPath);
                 if (rel.parent.isEmpty) {
                     //entry is a file in the directory
-                    char[] filen = rel.get(false);
+                    string filen = rel.get(false);
                     if (!tpath.patternMatch(filen, pattern))
                         continue;
                     if (!callback(filen))
@@ -417,7 +417,7 @@ private class HandlerArchive : HandlerInstance {
                 } else if (rel.parent.parent.isEmpty) {
                     //entry is a file in a direct subdirectory
                     if (findDir) {
-                        char[] dirn = rel.parent.get(false);
+                        string dirn = rel.parent.get(false);
                         if (!tpath.patternMatch(dirn, pattern))
                             continue;
                         if (!(dirn in dirCache)) {
@@ -469,8 +469,8 @@ private class HandlerLink : HandlerInstance {
         return mParent.open(mLinkedPath.join(handlerPath), mode, this);
     }
 
-    bool listdir(VFSPath handlerPath, char[] pattern, bool findDirs,
-        bool delegate(char[] filename) callback)
+    bool listdir(VFSPath handlerPath, string pattern, bool findDirs,
+        bool delegate(string filename) callback)
     {
         return mParent.listdir(mLinkedPath.join(handlerPath), pattern, findDirs,
             callback, this);
@@ -542,15 +542,15 @@ class FileSystem {
             }
         }
 
-        char[] mUserPath;
-        char[] mDataPath;
+        string mUserPath;
+        string mDataPath;
         MountedPath[] mMountedPaths;
         static MountId mNextMountId;
 
         static MountPointHandler[] mHandlers;
     }
 
-    this(char[] appId) {
+    this(string appId) {
         assert(!gFS, "FileSystem is singleton");
         gFS = this;
         log = registerLog("fs");
@@ -566,15 +566,15 @@ class FileSystem {
 
     //replace invalid/dangerous characters from the filename fn and replace them
     //  by "_"; this shouldn't be a path, as '\'/'/' will be replaced too
-    static char[] fixFilename(char[] fn) {
+    static string fixFilename(string fn) {
         //ranges of valid characters (must be ASCII)
         //orig.: Regex(`[^-+!.,;a-zA-Z0-9()\[\]]`);
-        static const char[][] valid = ["az", "AZ", "09", ".", "_"];
-        char[] res;
+        static const string[] valid = ["az", "AZ", "09", ".", "_"];
+        string res;
         //this will reduce utf-8 to ASCII (a bit dirty, but effective)
         foreach (char d; fn) {
             char nd = '_';
-            foreach (char[] vr; valid) {
+            foreach (string vr; valid) {
                 assert(vr.length <= 2);
                 if ((vr.length == 2 && d >= vr[0] && d <= vr[1])
                     || (vr.length == 1 && d == vr[0]))
@@ -596,12 +596,12 @@ class FileSystem {
     ///Returns path to '.<appId>' in user's home directory
     ///Created if not existant
     ///appPath = directory where exe is located
-    protected char[] getUserPath(char[] appPath, char[] appId) {
-        char[] userPath;
+    protected string getUserPath(string appPath, string appId) {
+        string userPath;
 
         //set user directory from os home path
-        char[] home = null;
-        char[] os_appid = appId;
+        string home = null;
+        string os_appid = appId;
         version(Windows) {
             //windows: Docs & Settings\AppData\Lumbricus
             //home = Environment.get("APPDATA");
@@ -632,7 +632,7 @@ class FileSystem {
     }
 
     ///initialize paths where files/folders to mount will be searched
-    protected void initPaths(char[] appId) {
+    protected void initPaths(string appId) {
         auto appPath = getAppPath();
 
         //user path: home directory + .appId
@@ -678,11 +678,11 @@ class FileSystem {
     ///             or create files in this path
     ///             if path is not physically writable, this parameter is
     ///             ignored
-    public MountId mount(MountPath mp, char[] sysPath, VFSPath mountPoint,
+    public MountId mount(MountPath mp, string sysPath, VFSPath mountPoint,
         bool writable, uint precedence = 0)
     {
         //get absolute path to object, considering mp
-        char[] absPath;
+        string absPath;
         switch (mp) {
             case MountPath.data:
                 if (!mDataPath.length)
@@ -729,7 +729,7 @@ class FileSystem {
     ///  fmt = type of the archive, usually the file extension (e.g. "tar")
     ///  mountPoint = see mount()
     ///  precedence = see mount()
-    MountId mountArchive(MountPath mp, Stream archive, char[] fmt,
+    MountId mountArchive(MountPath mp, Stream archive, string fmt,
         VFSPath mountPoint, uint precedence = 0)
     {
         auto handler = MountPointHandlerArchive.mountStream(archive, fmt);
@@ -738,20 +738,20 @@ class FileSystem {
         return mounted.mountId;
     }
 
-    MountId mountArchive(MountPath mp, Stream archive, char[] fmt,
-        char[] mountPoint, uint precedence = 0)
+    MountId mountArchive(MountPath mp, Stream archive, string fmt,
+        string mountPoint, uint precedence = 0)
     {
         return mountArchive(mp, archive, fmt, VFSPath(mountPoint), precedence);
     }
 
-    public MountId mount(MountPath mp, char[] sysPath, char[] mountPoint,
+    public MountId mount(MountPath mp, string sysPath, string mountPoint,
         bool writable, uint precedence = 0)
     {
         return mount(mp, sysPath, VFSPath(mountPoint), writable, precedence);
     }
 
     ///Try mounting a file/folder and return if the mount succeeded
-    public bool tryMount(MountPath mp, char[] path, VFSPath mountPoint,
+    public bool tryMount(MountPath mp, string path, VFSPath mountPoint,
         bool writable, uint precedence = 0)
     {
         try {
@@ -762,7 +762,7 @@ class FileSystem {
         }
     }
 
-    public bool tryMount(MountPath mp, char[] path, char[] mountPoint,
+    public bool tryMount(MountPath mp, string path, string mountPoint,
         bool writable, uint precedence = 0)
     {
         return tryMount(mp, path, VFSPath(mountPoint), writable, precedence);
@@ -797,7 +797,7 @@ class FileSystem {
         return mp.mountId;
     }
 
-    public MountId link(char[] relPath, char[] mountPoint, bool writable,
+    public MountId link(string relPath, string mountPoint, bool writable,
         uint precedence = 0)
     {
         return link(VFSPath(relPath), VFSPath(mountPoint), writable, precedence);
@@ -806,7 +806,7 @@ class FileSystem {
     ///Mount fsPath from fs on mountPoint()
     ///also see link()
     ///xxx: not bothering with a VFSPath version
-    public MountId linkExternal(FileSystem fs, char[] fsPath, char[] mountPoint,
+    public MountId linkExternal(FileSystem fs, string fsPath, string mountPoint,
         bool writable, uint precedence = 0)
     {
         auto fsPath_ = VFSPath(fsPath);
@@ -864,7 +864,7 @@ class FileSystem {
         throw new FilesystemException("File not found: " ~ filename.toString);
     }
 
-    public Stream open(char[] filename, File.Style mode = File.ReadShared)
+    public Stream open(string filename, File.Style mode = File.ReadShared)
     {
         return open(VFSPath(filename), mode, null);
     }
@@ -875,20 +875,20 @@ class FileSystem {
     ///findDirs: also find directories (these have '/' at the end of filename!)
     ///Returns:
     /// false if listing was aborted, true otherwise
-    public bool listdir(VFSPath relPath, char[] pattern, bool findDirs,
-        bool delegate(char[] filename) callback)
+    public bool listdir(VFSPath relPath, string pattern, bool findDirs,
+        bool delegate(string filename) callback)
     {
         return listdir(relPath, pattern, findDirs, callback, null);
     }
 
-    public bool listdir(char[] relPath, char[] pattern, bool findDirs,
-        bool delegate(char[] filename) callback)
+    public bool listdir(string relPath, string pattern, bool findDirs,
+        bool delegate(string filename) callback)
     {
         return listdir(VFSPath(relPath), pattern, findDirs, callback);
     }
 
-    protected bool listdir(VFSPath relPath, char[] pattern, bool findDirs,
-        bool delegate(char[] filename) callback, HandlerInstance caller)
+    protected bool listdir(VFSPath relPath, string pattern, bool findDirs,
+        bool delegate(string filename) callback, HandlerInstance caller)
     {
         bool cont = true;
         foreach (inout MountedPath p; mMountedPaths) {
@@ -917,7 +917,7 @@ class FileSystem {
         return exists(filename, null);
     }
 
-    public bool exists(char[] filename) {
+    public bool exists(string filename) {
         return exists(VFSPath(filename));
     }
 
@@ -938,7 +938,7 @@ class FileSystem {
 
     //throw exception if file is not existent and not readable
     //(doesn't check if it's readable yet)
-    void mustExist(char[] filename) {
+    void mustExist(string filename) {
         auto fn = VFSPath(filename);
         if (!exists(fn))
             throw new FilesystemException("File not found: " ~ fn.toString);
@@ -950,7 +950,7 @@ class FileSystem {
         return pathExists(relPath, null);
     }
 
-    public bool pathExists(char[] relPath) {
+    public bool pathExists(string relPath) {
         return pathExists(VFSPath(relPath));
     }
 
@@ -973,7 +973,7 @@ class FileSystem {
         return pathIsWritable(relPath, null);
     }
 
-    public bool pathIsWritable(char[] relPath) {
+    public bool pathIsWritable(string relPath) {
         return pathIsWritable(VFSPath(relPath));
     }
 
@@ -993,13 +993,13 @@ class FileSystem {
 
     ///get a unique (non-existing) filename in path with extension ext
     ///if the file already exists, either replace {} with or append 2,3 etc.
-    char[] getUniqueFilename(char[] path, char[] nameTemplate, char[] ext,
+    string getUniqueFilename(string path, string nameTemplate, string ext,
         out int tries)
     {
         //changed in r657: always append a number to filename (I hope it's ok)
 
         int i = 0;
-        char[] fn, ret;
+        string fn, ret;
         do {
             i++;
             fn = myformat(nameTemplate, i);

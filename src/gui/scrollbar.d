@@ -42,8 +42,8 @@ class ScrollBar : Widget {
         const int cMinSliderSize = 8;
         const int cDefSliderSize = 16;
 
-        const char[][] cAddImg = ["scroll_right","scroll_down"];
-        const char[][] cSubImg = ["scroll_left","scroll_up"];
+        const string[] cAddImg = ["scroll_right","scroll_down"];
+        const string[] cSubImg = ["scroll_left","scroll_up"];
     }
 
     //that thing which sits between the two buttons

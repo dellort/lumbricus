@@ -4,7 +4,7 @@ import utils.misc;
 
 //failed unboxing is serious business => not a CustomException
 class MyBoxException : Exception {
-    this(char[] msg) { super(msg); }
+    this(string msg) { super(msg); }
 }
 
 //dynamically check if sub is equal to or is below c

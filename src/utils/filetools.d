@@ -4,7 +4,7 @@ import tango.io.model.IFile : FileConst;
 import path = tango.io.Path;
 import tango.io.FilePath;
 
-void remove_dir(char[] dirpath) {
+void remove_dir(string dirpath) {
     try {
         foreach (f; path.children(dirpath)) {
             if (f.folder)
@@ -16,11 +16,11 @@ void remove_dir(char[] dirpath) {
     } catch {assert(false);} //xxx: someone remove this
 }
 
-void trymkdir(char[] dir) {
+void trymkdir(string dir) {
     try { path.createFolder(dir); } catch {}
 }
 
-char[] basename(char[] f) {
+string basename(string f) {
     //return path.getBaseName(path.getName(filename));
     return FilePath(f).name;
 }

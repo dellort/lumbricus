@@ -37,7 +37,7 @@ class ControllerStats : GameObject {
             int shotsFired;
             //collected crates
             int crateCount;
-            int[char[]] weaponStats;
+            int[string] weaponStats;
 
             //dump everything to console
             void output() {
@@ -50,8 +50,8 @@ class ControllerStats : GameObject {
                 log("Total overdamage: {}", overDmg);
                 log("Shots fired: {}", shotsFired);
                 int c = -1;
-                char[] maxwName;
-                foreach (char[] wc, int count; weaponStats) {
+                string maxwName;
+                foreach (string wc, int count; weaponStats) {
                     if (count > c) {
                         maxwName = wc;
                         c = count;
@@ -79,13 +79,13 @@ class ControllerStats : GameObject {
     private void onDamage(Sprite victim, GameObject cause, DamageCause type,
         float damage)
     {
-        char[] wname = "unknown_weapon";
+        string wname = "unknown_weapon";
         WeaponClass wclass = mController.weaponFromGameObject(cause);
         if (wclass)
             wname = wclass.name;
         auto m1 = mController.memberFromGameObject(cause, true);
         auto m2 = mController.memberFromGameObject(victim, false);
-        char[] dmgs = myformat("{}", damage);
+        string dmgs = myformat("{}", damage);
         if (victim.physics.lifepower < 0) {
             float ov = min(-victim.physics.lifepower, damage);
             mStats.overDmg += ov;
@@ -119,7 +119,7 @@ class ControllerStats : GameObject {
     }
 
     private void onFireWeapon(WeaponClass wclass, bool refire) {
-        char[] wname = "unknown_weapon";
+        string wname = "unknown_weapon";
         if (wclass)
             wname = wclass.name;
         log("Fired weapon (refire={}): {}",refire,wname);

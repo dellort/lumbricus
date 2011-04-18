@@ -65,12 +65,12 @@ static this() {
 class GameLuaInterpreter : LuaInterpreter {
     private GameInfo mGame;
 
-    this(void delegate(char[]) a_sink, GameInfo game) {
+    this(void delegate(string) a_sink, GameInfo game) {
         super(a_sink, game.engine.scripting, true);
         mGame = game;
     }
 
-    override void runLuaCode(char[] code) {
+    override void runLuaCode(string code) {
         //sending the command directly to the Lua state would bypass
         //  networking/replay logging
         mGame.control.execCommand("exec " ~ code);
@@ -133,7 +133,7 @@ class GameFrame : SimpleContainer {
         game.control.execCommand("weapon "~c.name);
     }
 
-    private void selectCategory(char[] category) {
+    private void selectCategory(string category) {
         auto m = game.control.getControlledMember();
         mWeaponSel.checkNextWeaponInCategoryShortcut(category,
             m?m.control.currentWeapon():null);
@@ -324,7 +324,7 @@ class GameFrame : SimpleContainer {
             || (game.shell.paused() && !mPauseLabel.visible());
     }
 
-    void scriptAddHudWidget(LuaGuiAdapter gui, char[] where = "sidebar") {
+    void scriptAddHudWidget(LuaGuiAdapter gui, string where = "sidebar") {
         argcheck(gui);
         Widget w = gui.widget();
         if (where == "sidebar") {
@@ -353,7 +353,7 @@ class GameFrame : SimpleContainer {
 
     //chatbox or whatever it is
 
-    private void chatInput(char[] text) {
+    private void chatInput(string text) {
         if (game.connection) {
             game.connection.sendChat(text);
         } else {
@@ -369,7 +369,7 @@ class GameFrame : SimpleContainer {
         activateConsole();
     }
 
-    private void scriptInput(char[] text) {
+    private void scriptInput(string text) {
         mScriptInterpreter.exec(text);
     }
 
@@ -395,9 +395,9 @@ class GameFrame : SimpleContainer {
     }
 
     private void chatMessage(SimpleNetConnection sender, NetPlayerInfo player,
-        char[] text)
+        string text)
     {
-        char[] color = "white";
+        string color = "white";
         //hacky hack hack
         foreach (team; game.engine.singleton!(GameController)().teams) {
             uint ownerId = to!(uint)(team.netId);

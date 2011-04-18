@@ -95,12 +95,12 @@ struct ServerAddress {
     uint address = IPv4Address.ADDR_NONE;
     ushort port = 0;
 
-    char[] toString() {
+    string toString() {
         return myformat("{}.{}.{}.{}:{}", address >> 24 & 0xFF,
             address >> 16 & 0xFF, address >> 8 & 0xFF, address & 0xFF, port);
     }
 
-    bool parse(char[] addr) {
+    bool parse(string addr) {
         auto tmp = NetAddress(addr);
         port = tmp.port;
         address = IPv4Address.parse(tmp.hostName);

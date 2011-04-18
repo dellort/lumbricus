@@ -35,9 +35,9 @@ package {
     Keycode[int] gSdlToKeycode;
     //cached unicode translations
     //(just so that not each keystroke causes memory allocation)
-    char[][dchar] gUniCache;
+    string[dchar] gUniCache;
 
-    char[] fromUnicode(dchar uc) {
+    string fromUnicode(dchar uc) {
         if (uc == '\0')
             return null;
         if (!str.isValidDchar(uc)) {
@@ -50,7 +50,7 @@ package {
         //  keys like ESC
         if (!tunicode.isPrintable(uc))
             return null;
-        char[] res;
+        string res;
         str.encode(res, uc);
         gUniCache[uc] = res;
         return res;
@@ -59,7 +59,7 @@ package {
 
 private struct Options {
     //empty value means use OS default
-    char[] window_pos = "center";
+    string window_pos = "center";
     //for SDL_GL_SetAttribute (cannot be set by pure OpenGL)
     //xxx setting to true introduces huge input lag and weird "stuttering"
     //    for me (Windows)

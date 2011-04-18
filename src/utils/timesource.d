@@ -9,10 +9,10 @@ class TimeSourcePublic {
         //current time
         Time mSimTime;
         Time mLastSimTime;
-        char[] mName;
+        string mName;
     }
 
-    this(char[] a_name) {
+    this(string a_name) {
         mName = a_name;
     }
 
@@ -57,12 +57,12 @@ final class TimeSource : TimeSourcePublic {
     }
 
     //if parent is null, timeCurrentTime() is used as source
-    this(char[] a_name, TimeSourcePublic parent, Time timeoffset = Time.Null) {
+    this(string a_name, TimeSourcePublic parent, Time timeoffset = Time.Null) {
         super(a_name);
         mParent = parent;
         initTime(timeoffset);
     }
-    this(char[] a_name, Time timeoffset = Time.Null) {
+    this(string a_name, Time timeoffset = Time.Null) {
         this(a_name, null, timeoffset);
     }
 
@@ -195,7 +195,7 @@ class TimeSourceFixFramerate : TimeSourcePublic {
 
     /// parent = anything
     /// frameLength = fixed length of each frame, see update()
-    this(char[] a_name, TimeSourcePublic parent, Time frameLength) {
+    this(string a_name, TimeSourcePublic parent, Time frameLength) {
         super(a_name);
         assert (!!parent);
         mParent = parent;
@@ -251,7 +251,7 @@ class TimeSourceFixFramerate : TimeSourcePublic {
 }
 
 class TimeSourceSimple : TimeSourcePublic {
-    this(char[] a_name) {
+    this(string a_name) {
         super(a_name);
     }
 

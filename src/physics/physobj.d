@@ -355,7 +355,7 @@ class PhysicObject : PhysicBase {
         move(velocity * deltaT);
     }
 
-    char[] toString() {
+    string toString() {
         return myformat("[{}: {} {}]", toHash(), pos, velocity);
     }
 

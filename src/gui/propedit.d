@@ -234,7 +234,7 @@ class EditUnknown : EditProperty {
 
 import gui.window;
 
-WindowWidget createPropertyEditWindow(char[] caption) {
+WindowWidget createPropertyEditWindow(string caption) {
     auto edit = new PropertyEditor();
     return gWindowFrame.createWindow(edit, caption, Vector2i(600, 500));
 }

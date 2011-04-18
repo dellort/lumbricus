@@ -67,9 +67,9 @@ struct VideoWindowState {
     Vector2i window_size, fs_size;
     int bitdepth;
     bool fullscreen;
-    char[] window_caption;
+    string window_caption;
     Surface window_icon;
-    char[] window_icon_res_win32;
+    string window_icon_res_win32;
     SysWinHandle window_handle;
 
     Vector2i actualSize() {
@@ -157,7 +157,7 @@ class Framework {
 
     private void replaceDriver() {
         //Trace.formatln("replace:");
-        //gFrameworkSettings.dump((char[] s) { Trace.format("{}", s); } );
+        //gFrameworkSettings.dump((string s) { Trace.format("{}", s); } );
 
         //deinit old driver
         VideoWindowState vstate;
@@ -189,7 +189,7 @@ class Framework {
     }
 
     private void reloadSoundDriver() {
-        char[] driver = "sound_none";
+        string driver = "sound_none";
         //special exception for simple activation/deactivation of sound
         //disabling sound simply overrides normal sound driver choice
         if (gEnableSound.get!(bool)()) {
@@ -577,13 +577,13 @@ class Framework {
 
     //--- misc
 
-    void setCaption(char[] caption) {
+    void setCaption(string caption) {
         VideoWindowState state = mDriver.getVideoWindowState();
         state.window_caption = caption;
         mDriver.setVideoWindowState(state);
     }
 
-    void setIcon(Surface icon, char[] win32ResItem = "") {
+    void setIcon(Surface icon, string win32ResItem = "") {
         VideoWindowState state = mDriver.getVideoWindowState();
         state.window_icon = icon;
         state.window_icon_res_win32 = win32ResItem;

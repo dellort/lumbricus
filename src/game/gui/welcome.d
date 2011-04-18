@@ -19,7 +19,7 @@ import gui.list;
 
 //xxx this maybe shouldn't be here
 class CommandButton : Button {
-    private char[] mCommand;
+    private string mCommand;
 
     override protected void doClick() {
         super.doClick();
@@ -60,10 +60,10 @@ class WelcomeTask {
     private {
         Widget mWelcome;
         WindowWidget mWindow;
-        char[] mDefaultCommand;
+        string mDefaultCommand;
     }
 
-    this(char[] args = "") {
+    this(string args = "") {
         auto config = loadConfig("dialogs/welcome_gui.conf");
         auto loader = new LoadGui(config);
         mDefaultCommand = config["default_command"];

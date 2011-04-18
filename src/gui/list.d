@@ -184,7 +184,7 @@ class AbstractListWidget : Widget {
 /// Contains... strings
 class StringListWidget : AbstractListWidget {
     private {
-        char[][] mContents;
+        string[] mContents;
         Font mFont;
         bool mCheckWidth;
         int mWidth; //only when mCheckWidth is true, else this is 0
@@ -195,13 +195,13 @@ class StringListWidget : AbstractListWidget {
     /// doesn't change anything for the list except the rendering; if elements
     /// are added or removed, call this again after changing...
     /// When checkWidth is true, this should/must be called on each change
-    void setContents(char[][] contents) {
+    void setContents(string[] contents) {
         mContents = contents;
         notifyResize(mContents.length);
         recheckWidths();
     }
 
-    char[][] contents() {
+    string[] contents() {
         return mContents;
     }
 
@@ -209,7 +209,7 @@ class StringListWidget : AbstractListWidget {
         if (!mCheckWidth)
             return;
         int w;
-        foreach (char[] item; mContents) {
+        foreach (string item; mContents) {
             w = max(w, mFont.textSize(item).x);
         }
         if (w != mWidth) {
@@ -272,7 +272,7 @@ class StringListWidget : AbstractListWidget {
         checkWidth = node.getBoolValue("check_width", checkWidth);
         auto cnt = node.findNode("contents");
         if (cnt) {
-            setContents(cnt.getCurValue!(char[][])());
+            setContents(cnt.getCurValue!(string[])());
         }
 
         super.loadFrom(loader);

@@ -57,7 +57,7 @@ static this() {
     gScripting.properties_ro!(Sprite, "physics", "isUnderWater", "visible",
         "type");
 
-    gScripting.ctor!(SpriteClass, GameCore, char[])();
+    gScripting.ctor!(SpriteClass, GameCore, string)();
     gScripting.methods!(SpriteClass, "createSprite", "getInitSequenceState",
         "getInitSequenceType");
     gScripting.property_ro!(SpriteClass, "name");

@@ -360,7 +360,7 @@ class PainterWidget : Widget {
 
     void colorsFromNode(ConfigNode node) {
         Color[] colors;
-        foreach (char[] n, char[] value; node) {
+        foreach (string n, string value; node) {
             colors ~= Color.fromString(value);
         }
         if (colors.length > 0)

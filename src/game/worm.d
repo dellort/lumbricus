@@ -730,7 +730,7 @@ class WormSprite : Sprite {
 
 //contains custom state attributes for worm sprites
 class WormStateInfo {
-    char[] name;
+    string name;
 
     POSP physic;
 
@@ -755,14 +755,14 @@ class WormStateInfo {
 
     bool activity = false;      //if true, WormSprite.activity() returns true
 
-    this (char[] a_name) {
+    this (string a_name) {
         name = a_name;
     }
 }
 
 //the factories work over the sprite classes, so we need one
 class WormSpriteClass : SpriteClass {
-    WormStateInfo[char[]] states;
+    WormStateInfo[string] states;
 
     float suicideDamage;
     //SequenceObject[] gravestones;
@@ -786,12 +786,12 @@ class WormSpriteClass : SpriteClass {
 
     SequenceState[FlyMode.max+1] flyState;
 
-    this(GameCore e, char[] r) {
+    this(GameCore e, string r) {
         super(e, r);
 
         initNoActivityWhenGlued = true;
 
-        WormStateInfo state(char[] name) {
+        WormStateInfo state(string name) {
             assert(!(name in states));
             auto nstate = new WormStateInfo(name);
             states[name] = nstate;
@@ -843,7 +843,7 @@ class WormSpriteClass : SpriteClass {
         return new WormSprite(this);
     }
 
-    WormStateInfo findState(char[] name) {
+    WormStateInfo findState(string name) {
         WormStateInfo* state = name in states;
         if (!state) {
             throwError("state {} not found", name);
@@ -851,7 +851,7 @@ class WormSpriteClass : SpriteClass {
         return *state;
     }
 
-    SequenceState findSequenceState(char[] name,
+    SequenceState findSequenceState(string name,
         bool allow_not_found = false)
     {
         //something in projectile.d seems to need this special case?

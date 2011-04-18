@@ -2,7 +2,7 @@ module derelict.fmod.fmoderrors;
 
 private import derelict.fmod.fmodtypes;
 
-public char[] FMOD_ErrorString(FMOD_RESULT errcode)
+public string FMOD_ErrorString(FMOD_RESULT errcode)
 {
     switch (errcode)
     {
@@ -110,7 +110,7 @@ public char[] FMOD_ErrorString(FMOD_RESULT errcode)
 }
 
 public class FMODException: Exception {
-    this(char[] msg) {
+    this(string msg) {
         super(msg);
     };
 }

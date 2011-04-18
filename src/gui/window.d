@@ -35,7 +35,7 @@ enum WindowZOrder {
 
 //only static properties
 struct WindowProperties {
-    char[] windowTitle = "<huhu, you forgot to set a title!>";
+    string windowTitle = "<huhu, you forgot to set a title!>";
     bool canResize = true;   //disallow user to resize the window
     bool canMove = true;    //disallow the user to move the window (by kb/mouse)
     Color background = Color.Invalid; //of the client part of the window
@@ -150,7 +150,7 @@ class WindowWidget : Widget {
                 focusable = false;
                 x = a_x; y = a_y;
                 styles.addClass("window-sizer");
-                char[] spc;
+                string spc;
                 if (x == 0)
                     spc = "ns";
                 else if (y == 0)
@@ -425,7 +425,7 @@ class WindowWidget : Widget {
         return false;
     }
 
-    void doAction(char[] s) {
+    void doAction(string s) {
         switch (s) {
             case "toggle_fs": {
                 fullScreen = !fullScreen;
@@ -465,7 +465,7 @@ class WindowWidget : Widget {
 
     //treat all events as handled (?)
     override bool onKeyDown(KeyInfo key) {
-        char[] bind = findBind(key);
+        string bind = findBind(key);
 
         if (bind.length) {
             doAction(bind);
@@ -570,7 +570,7 @@ class WindowWidget : Widget {
         return !parent;
     }
 
-    char[] toString() {
+    string toString() {
         return "["~super.toString~" '"~mTitleBar.text~"']";
     }
 }
@@ -608,8 +608,8 @@ class WindowFrame : Container {
 
     private static class ButtonAction {
         WindowWidget mWindow;
-        char[] mAction;
-        static void Set(Button button, WindowWidget a_window, char[] a_action) {
+        string mAction;
+        static void Set(Button button, WindowWidget a_window, string a_action) {
             auto a = new ButtonAction;
             a.mWindow = a_window;
             a.mAction = a_action;
@@ -624,7 +624,7 @@ class WindowFrame : Container {
         void adddec(Widget w) {
             wnd.mTitleContainer.add(w);
         }
-        void button(char[] action, char[] markup) {
+        void button(string action, string markup) {
             auto b = new Button;
             b.textMarkup = markup;
             b.styles.addClass("window-button");
@@ -761,7 +761,7 @@ class WindowFrame : Container {
 
     //emulate what was in wm.d
 
-    WindowWidget createWindow(Widget client, char[] title,
+    WindowWidget createWindow(Widget client, string title,
         Vector2i initSize = Vector2i(0, 0))
     {
         auto w = new WindowWidget();
@@ -774,7 +774,7 @@ class WindowFrame : Container {
         return w;
     }
 
-    WindowWidget createWindowFullscreen(Widget client, char[] title) {
+    WindowWidget createWindowFullscreen(Widget client, string title) {
         auto w = createWindow(client, title);
         w.fullScreen = true;
         return w;

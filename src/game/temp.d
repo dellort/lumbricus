@@ -39,7 +39,7 @@ const Time cFrameLength = timeMsecs(20);
 struct EngineHash {
     uint hash;
 
-    char[] toString() {
+    string toString() {
         return myformat("0x{:x}", hash);
     }
 }

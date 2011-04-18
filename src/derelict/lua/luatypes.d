@@ -6,13 +6,13 @@ import derelict.lua.luaconf;
 // Types
 //==============================================================================
 // add: constants
-const char[] LUA_VERSION     = "Lua 5.1";
-const char[] LUA_RELEASE     = "Lua 5.1.1";
+const string LUA_VERSION     = "Lua 5.1";
+const string LUA_RELEASE     = "Lua 5.1.1";
 const int    LUA_VERSION_NUM = 501;
-const char[] LUA_COPYRIGHT   = "Copyright (C) 1994-2006 Lua.org, PUC-Rio";
-const char[] LUA_AUTHORS 	   = "R. Ierusalimschy, L. H. de Figueiredo & W.  Celes";
+const string LUA_COPYRIGHT   = "Copyright (C) 1994-2006 Lua.org, PUC-Rio";
+const string LUA_AUTHORS 	   = "R. Ierusalimschy, L. H. de Figueiredo & W.  Celes";
 
-const char[] LUA_SIGNATURE   = "\033Lua";
+const string LUA_SIGNATURE   = "\033Lua";
 
 /* option for multiple returns in `lua_pcall' and `lua_call' */
 int LUA_MULTRET =	-1;

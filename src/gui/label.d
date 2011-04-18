@@ -48,27 +48,27 @@ class Label : Widget {
         mText.setArea(size, mCenterX ? 0 : -1, 0);
     }
 
-    void text(char[] txt) {
+    void text(string txt) {
         setText(false, txt);
     }
-    void textMarkup(char[] txt) {
+    void textMarkup(string txt) {
         setText(true, txt);
     }
-    char[] text() {
-        char[] txt;
+    string text() {
+        string txt;
         bool is_markup;
         mText.getText(is_markup, txt);
         return txt;
     }
     //txt can become invalid after this function is called
-    void setText(bool as_markup, char[] txt) {
+    void setText(bool as_markup, string txt) {
         setTextFmt(as_markup, "{}", txt);
     }
     //like FormattedText.setTextFmt()
-    void setTextFmt(bool as_markup, char[] fmt, ...) {
+    void setTextFmt(bool as_markup, string fmt, ...) {
         setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
     }
-    void setTextFmt_fx(bool as_markup, char[] fmt,
+    void setTextFmt_fx(bool as_markup, string fmt,
         TypeInfo[] arguments, va_list argptr)
     {
         if (mText.setTextFmt_fx(as_markup, fmt, arguments, argptr)) {

@@ -10,7 +10,7 @@ import array = utils.array;
 import str = utils.string;
 
 /// Access to all Log objects created so far.
-Log[char[]] gAllLogs;
+Log[string] gAllLogs;
 
 //anonymous log, if you just want to output something
 Log gLog;
@@ -48,7 +48,7 @@ struct LogEntry {
     Time time;
     //txt contains only the original log text, use .fmt() to get a full string
     //warning: txt may point to temporary memory; use .dup() to be sure
-    char[] txt;
+    string txt;
 
     LogEntry dup() {
         LogEntry e = *this;
@@ -57,7 +57,7 @@ struct LogEntry {
     }
 
     //some sort of default formatting
-    void fmt(void delegate(char[]) sink) {
+    void fmt(void delegate(string) sink) {
         //trying to keep heap activity down with that buffer thing
         char[80] buffer = void;
         myformat_cb(sink, "[{}] [{}] [{}] {}\n", time.toString_s(buffer),
@@ -77,7 +77,7 @@ final class LogBackend {
     private {
         LogSink mSink;
         LogEntry[] mBuffered;
-        char[] mName;
+        string mName;
         bool mEnabled = true;
     }
 
@@ -86,7 +86,7 @@ final class LogBackend {
     //  is set to Trace, because Log.minPriority is Minor by default
     LogPriority minPriority;
 
-    this(char[] a_name, LogPriority a_minPriority, LogSink a_sink,
+    this(string a_name, LogPriority a_minPriority, LogSink a_sink,
         bool add = true)
     {
         mName = a_name;
@@ -135,7 +135,7 @@ final class LogBackend {
             mBuffered = null;
     }
 
-    char[] name() {
+    string name() {
         return mName;
     }
 
@@ -158,7 +158,7 @@ final class LogBackend {
 
 static this() {
     void dump(LogEntry e) {
-        void write(char[] s) { Trace.write(s); }
+        void write(string s) { Trace.write(s); }
         e.fmt(&write);
     }
     gDefaultBackend = new LogBackend("def", LogPriority.Minor, &dump, false);
@@ -168,7 +168,7 @@ static this() {
 /// written to it are prefixed with a descriptive header.
 final class Log {
     private {
-        char[] mCategory;
+        string mCategory;
         static array.Appender!(char) gBuffer;
     }
 
@@ -176,7 +176,7 @@ final class Log {
     LogPriority minPriority = LogPriority.Minor;
 
     //use registerLog()
-    private this(char[] category) {
+    private this(string category) {
         mCategory = category;
         gAllLogs[category] = this;
     }
@@ -187,36 +187,36 @@ final class Log {
         minPriority = LogPriority.Minor;
     }
 
-    char[] category() {
+    string category() {
         return mCategory;
     }
 
     //same as calling trace(), mainly for compatibility
-    void opCall(char[] fmt, ...) {
+    void opCall(string fmt, ...) {
         emitx(LogPriority.Trace, fmt, _arguments, _argptr);
     }
 
-    void trace(char[] fmt, ...) {
+    void trace(string fmt, ...) {
         emitx(LogPriority.Trace, fmt, _arguments, _argptr);
     }
-    void minor(char[] fmt, ...) {
+    void minor(string fmt, ...) {
         emitx(LogPriority.Minor, fmt, _arguments, _argptr);
     }
-    void notice(char[] fmt, ...) {
+    void notice(string fmt, ...) {
         emitx(LogPriority.Notice, fmt, _arguments, _argptr);
     }
-    void warn(char[] fmt, ...) {
+    void warn(string fmt, ...) {
         emitx(LogPriority.Warn, fmt, _arguments, _argptr);
     }
-    void error(char[] fmt, ...) {
+    void error(string fmt, ...) {
         emitx(LogPriority.Error, fmt, _arguments, _argptr);
     }
 
-    void emit(LogPriority pri, char[] fmt, ...) {
+    void emit(LogPriority pri, string fmt, ...) {
         emitx(pri, fmt, _arguments, _argptr);
     }
 
-    void emitx(LogPriority pri, char[] fmt, TypeInfo[] arguments,
+    void emitx(LogPriority pri, string fmt, TypeInfo[] arguments,
         va_list argptr)
     {
         //see if there's anything that wants this log entry
@@ -238,7 +238,7 @@ final class Log {
 
         //format into temporary buffer
         gBuffer.length = 0;
-        void sink(char[] s) {
+        void sink(string s) {
             gBuffer ~= s;
         }
         myformat_cb_fx(&sink, fmt, arguments, argptr);
@@ -248,7 +248,7 @@ final class Log {
         e.pri = pri;
         e.source = this;
         e.time = timeCurrentTime();
-        char[] txt = gBuffer[];
+        string txt = gBuffer[];
         //generate multiple events if there are line breaks
         while (txt.length) {
             int idx = str.find(txt, '\n');
@@ -267,14 +267,14 @@ final class Log {
         }
     }
 
-    char[] toString() {
+    string toString() {
         return "Log: >" ~ mCategory ~ "<";
     }
 }
 
 /// Register a log-category. There's one Log object per category-string, i.e.
 /// multiple calls with the same argument will return the same object.
-Log registerLog(char[] category) {
+Log registerLog(string category) {
     auto log = findLog(category);
     if (!log) {
         log = new Log(category);
@@ -283,7 +283,7 @@ Log registerLog(char[] category) {
     return log;
 }
 
-Log findLog(char[] category) {
+Log findLog(string category) {
     auto plog = category in gAllLogs;
     return plog ? *plog : null;
 }
@@ -291,7 +291,7 @@ Log findLog(char[] category) {
 ///Stupid proxy that allows to specify the log identifier with the declaration,
 ///and have the log created on demand, i.e.
 ///  private LogStruct!("mylog") log;
-struct LogStruct(char[] cId) {
+struct LogStruct(string cId) {
     private Log mLog;
 
     private Log check() {
@@ -306,11 +306,11 @@ struct LogStruct(char[] cId) {
     }
     alias logClass get;
 
-    char[] category() {
+    string category() {
         return cId;
     }
 
-    void emitx(LogPriority pri, char[] fmt, TypeInfo[] arguments,
+    void emitx(LogPriority pri, string fmt, TypeInfo[] arguments,
         va_list argptr)
     {
         check();
@@ -318,27 +318,27 @@ struct LogStruct(char[] cId) {
     }
 
     //------ sigh... copied from Log
-    void opCall(char[] fmt, ...) {
+    void opCall(string fmt, ...) {
         emitx(LogPriority.Trace, fmt, _arguments, _argptr);
     }
 
-    void trace(char[] fmt, ...) {
+    void trace(string fmt, ...) {
         emitx(LogPriority.Trace, fmt, _arguments, _argptr);
     }
-    void minor(char[] fmt, ...) {
+    void minor(string fmt, ...) {
         emitx(LogPriority.Minor, fmt, _arguments, _argptr);
     }
-    void notice(char[] fmt, ...) {
+    void notice(string fmt, ...) {
         emitx(LogPriority.Notice, fmt, _arguments, _argptr);
     }
-    void warn(char[] fmt, ...) {
+    void warn(string fmt, ...) {
         emitx(LogPriority.Warn, fmt, _arguments, _argptr);
     }
-    void error(char[] fmt, ...) {
+    void error(string fmt, ...) {
         emitx(LogPriority.Error, fmt, _arguments, _argptr);
     }
 
-    void emit(LogPriority pri, char[] fmt, ...) {
+    void emit(LogPriority pri, string fmt, ...) {
         emitx(pri, fmt, _arguments, _argptr);
     }
     //------
@@ -348,24 +348,24 @@ struct LogStruct(char[] cId) {
 //  after killing utils.output, but then again it doesn't matter & nobody cares
 //xxx2 this is made for a dark background
 void writeColoredLogEntry(LogEntry e, bool show_source,
-    void delegate(char[] fmt, ...) writefln)
+    void delegate(string fmt, ...) writefln)
 {
-    const char[][] cColorString = [
+    const string[] cColorString = [
         LogPriority.Trace: "0000ff",
         LogPriority.Minor: "bbbbbb",
         LogPriority.Notice: "ffffff",
         LogPriority.Warn: "ffff00",
         LogPriority.Error: "ff0000"
     ];
-    char[] c = "ffffff";
+    string c = "ffffff";
     if (indexValid(cColorString, e.pri))
         c = cColorString[e.pri];
     char[40] buffer;
-    char[] source;
+    string source;
     if (show_source)
         source = myformat_s(buffer, "[{}] ", e.source.category);
     //the \litx prevents tag interpretation in msg
-    char[] msg = e.txt;
+    string msg = e.txt;
     writefln("\\c({}){}\\litx({},{})", c, source, msg.length, msg);
 }
 
@@ -375,15 +375,15 @@ void writeColoredLogEntry(LogEntry e, bool show_source,
 //the idea is that, when catching an exception, you:
 //  1. log a human readable error message with LogPriority.Error to the screen
 //  2. spam the logfile with the precious backtrace using this function
-void traceException(Log dest, Exception e, char[] what = "") {
+void traceException(Log dest, Exception e, string what = "") {
     auto write = &dest.minor;
     if (e) {
-        char[] buffer;
+        string buffer;
         buffer ~= "Exception backtrace";
         if (what.length)
             buffer ~= " (" ~ what ~ ")";
         buffer ~= ":\n";
-        e.writeOut( (char[] txt) { buffer ~= txt; } );
+        e.writeOut( (string txt) { buffer ~= txt; } );
         buffer ~= "Backtrace end.\n";
         write("{}", buffer);
     } else {

@@ -152,7 +152,7 @@ class SampleHandler : ResViewHandler!(Sample) {
     Source ch;
     SoundSourceInfo pos;
 
-    char[] state() {
+    string state() {
         switch (ch.state) {
             case PlaybackState.stopped: return "stopped";
             case PlaybackState.stopping: return "stopping";
@@ -171,7 +171,7 @@ class SampleHandler : ResViewHandler!(Sample) {
             lblstate = new Label();
             box.add(lblstate, al);
             auto btnBox = new BoxContainer(true, false, 2);
-            Button button(char[] c, void delegate(Button) cb, bool bx = false) {
+            Button button(string c, void delegate(Button) cb, bool bx = false) {
                 auto b = new Button();
                 b.text = c;
                 b.onClick = cb;
@@ -218,7 +218,7 @@ class SampleHandler : ResViewHandler!(Sample) {
 
     class Position : Widget {
         Font f;
-        char[] msg;
+        string msg;
         Rect2i box;
         override void onMouseMove(MouseInfo mi) {
             auto sz = widgetBounds().size();
@@ -267,7 +267,7 @@ class ViewAniFrames : Container {
 
         auto gui = new BoxContainer(false);
 
-        char[] inf;
+        string inf;
 
         inf ~= "Param mappings:\n";
         foreach (i; frames.paramInfos()) {
@@ -553,7 +553,7 @@ class ResViewerTask {
         Label mName;
 
         struct ResEntry {
-            char[] name;
+            string name;
             Object res;
 
             int opCmp(ResEntry* other) {
@@ -606,7 +606,7 @@ class ResViewerTask {
             props.addColumn();
             props.addColumn();
             props.cellSpacing = Vector2i(7, 1);
-            void addLabel(out Label val, char[] name) {
+            void addLabel(out Label val, string name) {
                 props.addRow();
                 auto lbl = new Label();
                 lbl.text = name ~ ":";
@@ -638,9 +638,9 @@ class ResViewerTask {
 
         void doUpdate() {
             doSelect(null, null);
-            char[][] list;
+            string[] list;
             mResources = null;
-            void add(char[] name, Object res) {
+            void add(string name, Object res) {
                 bool ok;
                 if (mCurRes) {
                     ok = isSub(res.classinfo, mCurRes);
@@ -661,7 +661,7 @@ class ResViewerTask {
                 }
             } else {
                 gResources.enumResources(
-                    (char[] fullname, ResourceItem res) {
+                    (string fullname, ResourceItem res) {
                         assert(fullname == res.fullname);
                         add(fullname, res.get);
                     }
@@ -675,7 +675,7 @@ class ResViewerTask {
         }
 
         void doUpdate2() {
-            char[][] list = null;
+            string[] list = null;
             mResTypes = null;
             foreach (name; ResViewHandlers.classes) {
                 auto cinf = ClassInfo.find(name);
@@ -713,7 +713,7 @@ class ResViewerTask {
             mName.text = s ? s.name : "-";
             mClient.clear();
             if (s && type) {
-                char[] name = type.name;
+                string name = type.name;
                 Widget widget;
                 if (ResViewHandlers.exists(name)) {
                     widget = ResViewHandlers.instantiate(name, s.res).getGUI();

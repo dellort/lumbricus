@@ -19,28 +19,28 @@ import tango.math.Math : abs;
 //  robust, and it is 2726 lines shorter)
 class Trace {
 
-    static void write(char[] s) {
+    static void write(string s) {
         runtime.Runtime.console.stderr(s);
     }
     static void flush() {
         //Runtime.console should write directly to stderr; no buffering anywhere
     }
 
-    static void format(char[] fmt, ...) {
+    static void format(string fmt, ...) {
         synchronized(Trace.classinfo) {
             doprint(fmt, _arguments, _argptr);
         }
     }
-    static void formatln(char[] fmt, ...) {
+    static void formatln(string fmt, ...) {
         synchronized(Trace.classinfo) {
             doprint(fmt, _arguments, _argptr);
             write("\n");
         }
     }
 
-    private static void doprint(char[] fmt, TypeInfo[] arguments, void* argptr)
+    private static void doprint(string fmt, TypeInfo[] arguments, void* argptr)
     {
-        uint sink(char[] s) {
+        uint sink(string s) {
             write(s);
             return s.length;
         }
@@ -51,18 +51,18 @@ class Trace {
 //marker type for temporary string
 //possible use cases:
 //- the Lua interface doesn't allocate+copy a new string if TempString instead
-//  of char[] is demarshalled from Lua->D
+//  of string is demarshalled from Lua->D
 //- other functions that copy the string anyway
 //basically, this reinforces the normal D protocol of treating a string like a
 //  garbage collected, immutable string by providing a separate string type for
 //  manually managed or stack allocated strings
-//NOTE: one can always pass a normal string (char[]) as TempString; it's just
-//  that converting a TempString to char[] requires a .dup
-//  => char[] should be implicitly conversible to TempString
+//NOTE: one can always pass a normal string (string) as TempString; it's just
+//  that converting a TempString to string requires a .dup
+//  => string should be implicitly conversible to TempString
 struct TempString {
-    char[] raw;
+    string raw;
     //for the dumb
-    char[] get() { return raw.dup; }
+    string get() { return raw.dup; }
 }
 
 //behave mathematically correctly for negative values
@@ -175,14 +175,14 @@ R delegate(T) toDelegate(R, T...)(R function(T) fn) {
     return &res.call;
 }
 
-char[] myformat_fx(char[] a_fmt, TypeInfo[] arguments, va_list argptr) {
+string myformat_fx(string a_fmt, TypeInfo[] arguments, va_list argptr) {
     return Format.convert(arguments, argptr, a_fmt);
 }
 
 //replacement for stdx.string.format()
 //trivial, but Tango really is annoyingly noisy
 //should be in utils.string, but ugh the required changes
-char[] myformat(char[] fmt, ...) {
+string myformat(string fmt, ...) {
     return myformat_fx(fmt, _arguments, _argptr);
 }
 
@@ -190,18 +190,18 @@ char[] myformat(char[] fmt, ...) {
 //StrBuffer.sink() will append a string using the provided memory buffer
 //if the memory buffer is too short, it falls back to heap allocation
 struct StrBuffer {
-    char[] buffer;  //static buffer passed by user
-    char[] output;  //append buffer (may be larger than actual string)
+    string buffer;  //static buffer passed by user
+    string output;  //append buffer (may be larger than actual string)
     size_t outpos;  //output[0..outpos] is actual (valid) string
 
-    static StrBuffer opCall(char[] buffer) {
+    static StrBuffer opCall(string buffer) {
         StrBuffer s;
         s.buffer = buffer;
         s.output = s.buffer;
         return s;
     }
 
-    void sink(char[] append) {
+    void sink(string append) {
         auto end = outpos + append.length;
         if (end > buffer.length) {
             //(force reallocation, never resize buffer's memory block)
@@ -216,13 +216,13 @@ struct StrBuffer {
     }
 
     //like sink, but compatible with Tango
-    uint tsink(char[] s) {
+    uint tsink(string s) {
         sink(s);
         return s.length; //????
     }
 
     //retrieve actual string
-    char[] get() {
+    string get() {
         return output[0..outpos];
     }
 
@@ -234,7 +234,7 @@ struct StrBuffer {
 }
 
 //if the buffer is too small, allocate a new one
-char[] myformat_s_fx(char[] buffer, char[] fmt, TypeInfo[] arguments,
+string myformat_s_fx(string buffer, string fmt, TypeInfo[] arguments,
     va_list argptr)
 {
     //NOTE: there's Layout.vprint(), but it simply cuts the output if the buffer
@@ -246,17 +246,17 @@ char[] myformat_s_fx(char[] buffer, char[] fmt, TypeInfo[] arguments,
 
 //like myformat(), but use the buffer
 //if the buffer is too small, allocate a new one
-char[] myformat_s(char[] buffer, char[] fmt, ...) {
+string myformat_s(string buffer, string fmt, ...) {
     return myformat_s_fx(buffer, fmt, _arguments, _argptr);
 }
 
-void myformat_cb_fx(void delegate(char[] s) sink, char[] fmt,
+void myformat_cb_fx(void delegate(string s) sink, string fmt,
     TypeInfo[] arguments, va_list argptr)
 {
-    uint xsink(char[] s) { sink(s); return s.length; }
+    uint xsink(string s) { sink(s); return s.length; }
     return Format.convert(&xsink, arguments, argptr, fmt);
 }
-void myformat_cb(void delegate(char[] s) sink, char[] fmt, ...) {
+void myformat_cb(void delegate(string s) sink, string fmt, ...) {
     myformat_cb_fx(sink, fmt, _arguments, _argptr);
 }
 
@@ -365,9 +365,9 @@ version (bug2881) {
 //a simpler approach can be used once dmd bug 2881 is fixed
 private template StructMemberNames(T) {
     version (bug2881) {
-        private char[][] get() {
-            char[][] res;
-            const char[] st = T.tupleof.stringof;
+        private string[] get() {
+            string[] res;
+            const string st = T.tupleof.stringof;
             //currently, dmd produces something like "tuple((Type).a,(Type).b)"
             //the really bad thing is that it really inline expands the Type,
             //  and "Type" can contain further brackets and quoted strings (!!!)
@@ -409,7 +409,7 @@ private template StructMemberNames(T) {
         }
     } else { //version(bug2881)
         //warning: dmd bug 2881 ruins this
-        private char[] structProcName(char[] tupleString) {
+        private string structProcName(string tupleString) {
             //struct.tupleof is always fully qualified (obj.x), so get the
             //string after the last .
             //search backwards for '.'
@@ -423,8 +423,8 @@ private template StructMemberNames(T) {
             assert(p > 0 && p < tupleString.length-1);
             return tupleString[p+1..$];
         }
-        private char[][] get() {
-            char[][] res;
+        private string[] get() {
+            string[] res;
             T x;
             foreach (int idx, _; x.tupleof) {
                 const n = structProcName(x.tupleof[idx].stringof);
@@ -440,7 +440,7 @@ private template StructMemberNames(T) {
 //similar to structProcName; return an array of all members
 //unlike structProcName, this successfully works around dmd bug 2881
 //this should actually be implemented using __traits (only available in D2)
-char[][] structMemberNames(T)() {
+string[] structMemberNames(T)() {
     //the template is to cache the result (no idea if that works as intended)
     return StructMemberNames!(T).StructMemberNames;
 }
@@ -448,7 +448,7 @@ char[][] structMemberNames(T)() {
 debug {
     enum E { x }
 
-    struct N(T, char[] S) {
+    struct N(T, string S) {
         T abc;
         E defg;
     }
@@ -467,7 +467,7 @@ unittest {
         int muh;
         bool fool;
     }
-    char[][] names = structMemberNames!(Foo)();
+    string[] names = structMemberNames!(Foo)();
     assert(names == ["muh"[], "fool"]);
 }
 
@@ -476,13 +476,13 @@ unittest {
 ///if you expect a system error, wrap it with this (or a derived class)
 ///also see require()
 class CustomException : Exception {
-    this(char[] msg, Exception n = null) {
+    this(string msg, Exception n = null) {
         super(msg, n);
     }
 }
 
 //I got tired of retyping throw new CustomException...
-void throwError(char[] fmt, ...) {
+void throwError(string fmt, ...) {
     throw new CustomException(myformat_fx(fmt, _arguments, _argptr));
 }
 
@@ -497,7 +497,7 @@ void throwError(char[] fmt, ...) {
 //  argcheck(): same as require(), but hint to the user that something is wrong
 //      with the parameters passed to the function.
 //  throwError()/CustomException: really the same as require().
-void require(bool cond, char[] msg = "Something went wrong.", ...) {
+void require(bool cond, string msg = "Something went wrong.", ...) {
     if (cond)
         return;
     throw new CustomException(myformat_fx(msg, _arguments, _argptr));
@@ -505,13 +505,13 @@ void require(bool cond, char[] msg = "Something went wrong.", ...) {
 
 //exception thrown by argcheck
 class ParameterException : CustomException {
-    this(char[] msg) {
+    this(string msg) {
         super(msg);
     }
 }
-void argcheck(bool condition, char[] msg = "") {
+void argcheck(bool condition, string msg = "") {
     if (!condition) {
-        char[] err = "Invalid parameter";
+        string err = "Invalid parameter";
         if (msg.length) {
             err ~= " (" ~ msg ~ ")";
         }

@@ -46,7 +46,7 @@ alias DeclareEvent!("sprite_offworld", Sprite) OnSpriteOffworld;
 
 //legacy crap (makes engine available as GameEngine, instead of GameCore)
 abstract class GameObject2 : GameObject {
-    this(GameCore aengine, char[] event_target_type) {
+    this(GameCore aengine, string event_target_type) {
         assert(aengine !is null);
         super(aengine, event_target_type);
     }
@@ -142,7 +142,7 @@ class GameEngine : GameCore {
         //scripting initialization
         //code loaded here can be considered "internal" and should explode
         //  on errors
-        foreach (char[] name, char[] value; mGameConf.getSubNode("scripts")) {
+        foreach (string name, string value; mGameConf.getSubNode("scripts")) {
             loadScript(scripting(), value);
         }
     }
@@ -773,7 +773,7 @@ class GameEngine : GameCore {
     }
 
     //count sprites with passed spriteclass name currently in the game
-    int countSprites(char[] name) {
+    int countSprites(string name) {
         auto sc = resources.get!(SpriteClass)(name, true);
         if (!sc)
             return 0;

@@ -79,7 +79,7 @@ class TestFrame2 : SimpleContainer {
         struct BoxTest {
             bool hom, exp, fill;
         }
-        char[][] texts = ["Small", "Large Child", "Even Larger Child"];
+        string[] texts = ["Small", "Large Child", "Even Larger Child"];
         BoxTest[] stuff = [
             BoxTest(false, false, false),
             BoxTest(false, true, false),
@@ -100,7 +100,7 @@ class TestFrame2 : SimpleContainer {
             w = WidgetLayout.init;
             w.expand[0] = true;
             vbox.add(hbox, w);
-            foreach (char[] t; texts) {
+            foreach (string t; texts) {
                 WidgetLayout wl;
                 wl.expand[0] = bt.exp;
                 wl.fill[0] = bt.fill ? 1.0 : 0;
@@ -181,7 +181,7 @@ class TestFrame6 : Container {
     }
 
     void cmdSay(MyBox[] args, Output write) {
-        write.writefln("you said: '{}'", args[0].unbox!(char[]));
+        write.writefln("you said: '{}'", args[0].unbox!(string));
     }
 }
 
@@ -357,7 +357,7 @@ class TestTask {
 
     this() {
         //xxx move to WindowFrame
-        void createWindow(char[] name, Widget client) {
+        void createWindow(string name, Widget client) {
             gWindowFrame.createWindow(client, name);
         }
 
@@ -513,7 +513,7 @@ class TestTask2 {
         gui.add(cnt);
 
         auto scr = new TableContainer(2, 0, Vector2i(15, 1));
-        char[][] labels = ["foreground alpha", "background alpha",
+        string[] labels = ["foreground alpha", "background alpha",
             "container red", "corner size", "border size", "shadow offset"];
         int[] values = [128, 128, 128, 5, 5, 0];
         int[] maxvals = [255, 255, 255, 50, 50, 10];
@@ -563,7 +563,7 @@ class TestTask2 {
 class TestTask3 {
     ScrollBar[4] mBars;
     ImgView mView;
-    char[] filename = "storedlevels/bla.png";
+    string filename = "storedlevels/bla.png";
     Label mValues;
     StringListWidget mFList;
 
@@ -626,7 +626,7 @@ class TestTask3 {
         }
     }
 
-    void loadFile(char[] fn) {
+    void loadFile(string fn) {
         if (fn != "") {
             Surface img;
             try {
@@ -656,7 +656,7 @@ class TestTask3 {
         gui.add(cnt);
 
         auto scr = new TableContainer(2, 4, Vector2i(15, 1));
-        char[][] labels = ["brightness", "contrast", "gamma", "alpha"];
+        string[] labels = ["brightness", "contrast", "gamma", "alpha"];
         int[] values = [50, 50, 10, 100];
         int[] maxvals = [100, 100, 100, 100];
 
@@ -683,9 +683,9 @@ class TestTask3 {
         mValues = new Label();
         gui.add(mValues, WidgetLayout.Aligned(-1, 0));
 
-        char[][] files;
+        string[] files;
         gFS.listdir("/", "*", false,
-            (char[] path) {
+            (string path) {
                 files ~= path;
                 return true;
             }
@@ -755,7 +755,7 @@ class TestTask4 {
 
     class W1 : Widget {
         mixin ReportEvents;
-        char[] toString() {
+        string toString() {
             return "W1";
         }
     }

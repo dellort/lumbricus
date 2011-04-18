@@ -32,7 +32,7 @@ private void ensure_init() {
 
 //extension: file extension (with .), because some image formats can't be
 //           identified by header alone
-Surface loadImage(Stream source, char[] extension = null) {
+Surface loadImage(Stream source, string extension = null) {
     ensure_init();
     SDL_RWops* ops = rwopsFromStream(source);
     SDL_Surface* surf;
@@ -49,7 +49,7 @@ Surface loadImage(Stream source, char[] extension = null) {
     return convertFromSDLSurface(surf, true);
 }
 
-Surface loadImage(char[] path) {
+Surface loadImage(string path) {
     //mLog("load image: {}", path);
     auto p = VFSPath(path);
     scope stream = gFS.open(p, File.ReadShared);

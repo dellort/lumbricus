@@ -137,10 +137,10 @@ struct SDL_SysWMinfo_ {
 //--- actual clipboard code
 //this is mostly taken from FLTK (license is LGPL) and heavily edited
 
-void delegate(char[]) gSelectionRequestor;
-char[][2] gSelectionBuffer;
+void delegate(string) gSelectionRequestor;
+string[2] gSelectionBuffer;
 bool[2] gIsOwnSelection;
-char[] gPasteResult;
+string gPasteResult;
 
 void* gXlib;
 SDL_SysWMinfo_ gWMInfo;
@@ -159,7 +159,7 @@ void xlocked(void delegate() cb) {
     }
 }
 
-public void copyText(bool clipboard, char[] text) {
+public void copyText(bool clipboard, string text) {
     int buffer = clipboard ? 1 : 0;
     gSelectionBuffer[buffer] = text;
     gIsOwnSelection[buffer] = true;
@@ -169,7 +169,7 @@ public void copyText(bool clipboard, char[] text) {
     });
 }
 
-public void pasteText(bool clipboard, void delegate(char[] text) cb) {
+public void pasteText(bool clipboard, void delegate(string text) cb) {
     int buffer = clipboard ? 1 : 0;
     if (gIsOwnSelection[buffer]) {
         cb(gSelectionBuffer[buffer]);
@@ -183,7 +183,7 @@ public void pasteText(bool clipboard, void delegate(char[] text) cb) {
     });
 }
 
-public void pasteCancel(void delegate(char[] text) cb) {
+public void pasteCancel(void delegate(string text) cb) {
     if (gSelectionRequestor == cb)
         gSelectionRequestor = null;
 }
@@ -196,7 +196,7 @@ bool handle_xevent(XEvent* xevent) {
             return false;
         if (!xevent.xselection.property)
             return true;
-        char[] buffer;
+        string buffer;
         long read = 0;
         for (;;) {
             Atom actual; int format; c_ulong count, remaining;
@@ -302,7 +302,7 @@ bool handle_event(SDL_Event* event) {
     }
 
     if (gPasteResult) {
-        char[] data = gPasteResult;
+        string data = gPasteResult;
         auto sel = gSelectionRequestor;
         gPasteResult = null;
         gSelectionRequestor = null;
@@ -364,7 +364,7 @@ bool load() {
     assert(gDisplay);
     assert(gWindow);
 
-    void atom(ref Atom a, char[] name) {
+    void atom(ref Atom a, string name) {
         a = XInternAtom(gDisplay, czstr.toStringz(name), 0);
     }
 
@@ -396,9 +396,9 @@ void onVideoInit(bool is_loading) {
 }
 
 class Handler : ClipboardHandler {
-    void copyText(bool a, char[] b) { .copyText(a, b); }
-    void pasteText(bool a, void delegate(char[]) b) { .pasteText(a, b); }
-    void pasteCancel(void delegate(char[]) a) { .pasteCancel(a); }
+    void copyText(bool a, string b) { .copyText(a, b); }
+    void pasteText(bool a, void delegate(string) b) { .pasteText(a, b); }
+    void pasteCancel(void delegate(string) a) { .pasteCancel(a); }
 }
 
 //loads itself when SDL is loaded

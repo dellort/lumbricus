@@ -21,15 +21,15 @@ enum SettingType {
 }
 
 class Setting {
-    char[] name;
+    string name;
     //should not set directly; use set()
-    char[] value;
+    string value;
     //.type and .choices are just hints (mainly for user interaction)
     SettingType type;
     //depends from .type:
     //  SettingType.Choice: list of possible values
     //  SettingType.IntRange choices[0] = min, choices[1] = max
-    char[][] choices;
+    string[] choices;
     //called as a setting gets written
     void delegate(Setting s)[] onChange;
 
@@ -40,7 +40,7 @@ class Setting {
     }
 
     void set(T)(T val) {
-        char[] nv = toStr!(T)(val);
+        string nv = toStr!(T)(val);
         if (nv != value) {
             value = nv;
             changed();
@@ -70,7 +70,7 @@ void relistAllSettings() {
     foreach (c; gOnRelistSettings) { c(); }
 }
 
-Setting findSetting(char[] name) {
+Setting findSetting(string name) {
     foreach (s; gSettings) {
         if (s.name == name)
             return s;
@@ -78,7 +78,7 @@ Setting findSetting(char[] name) {
     return null;
 }
 
-Setting addSetting(T)(char[] name, T init_val = T.init,
+Setting addSetting(T)(string name, T init_val = T.init,
     SettingType t = SettingType.Unknown)
 {
     if (findSetting(name))
@@ -88,7 +88,7 @@ Setting addSetting(T)(char[] name, T init_val = T.init,
     s.type = t;
     if (t == SettingType.Unknown) {
         //auto-guess a bit
-        static if (is(T == char[])) {
+        static if (is(T == string)) {
             s.type = SettingType.String;
         } else static if (is(T == int)) {
             s.type = SettingType.Integer;
@@ -102,7 +102,7 @@ Setting addSetting(T)(char[] name, T init_val = T.init,
     return s;
 }
 
-T getSetting(T)(char[] name, T def = T.init) {
+T getSetting(T)(string name, T def = T.init) {
     Setting ps = findSetting(name);
     if (!ps)
         return def;
@@ -110,7 +110,7 @@ T getSetting(T)(char[] name, T def = T.init) {
 }
 
 //if the setting didn't exist yet, it is added
-void setSetting(T)(char[] name, T value) {
+void setSetting(T)(string name, T value) {
     Setting ps = findSetting(name);
     if (!ps) {
         addSetting!(T)(name, value);
@@ -119,7 +119,7 @@ void setSetting(T)(char[] name, T value) {
     }
 }
 
-void addSettingsStruct(T)(char[] prefix, T init_val = T.init) {
+void addSettingsStruct(T)(string prefix, T init_val = T.init) {
     T x = init_val;
     const names = structMemberNames!(T)();
     foreach (int idx, i; x.tupleof) {
@@ -127,7 +127,7 @@ void addSettingsStruct(T)(char[] prefix, T init_val = T.init) {
     }
 }
 //NOTE: this is slow because of string memory allocation
-T getSettingsStruct(T)(char[] prefix, T def = T.init) {
+T getSettingsStruct(T)(string prefix, T def = T.init) {
     T x = def;
     const names = structMemberNames!(T)();
     foreach (int idx, i; x.tupleof) {
@@ -149,7 +149,7 @@ void settingMakeIntRange(Setting s, int min, int max) {
 //set to first choice if current value is invalid (reason: otherwise, using key
 //  shortcuts to cycle through values would do nothing => confusion)
 //do nothing on other errors
-void settingCycle(char[] name, int dir = +1) {
+void settingCycle(string name, int dir = +1) {
     Setting s = findSetting(name);
     if (!s)
         return;
@@ -201,7 +201,7 @@ class SettingVar(T, bool GuardNan = true) {
         mSetting.onChange ~= &onChange;
     }
 
-    static SettingVar Add(char[] name, T init_val = T.init) {
+    static SettingVar Add(string name, T init_val = T.init) {
         return new SettingVar(addSetting!(T)(name, init_val));
     }
 
@@ -226,9 +226,9 @@ class SettingVar(T, bool GuardNan = true) {
 }
 
 //helper to show user help string
-char[] settingValueHelp(char[] setting) {
-    char[] res;
-    void write(char[] fmt, ...) {
+string settingValueHelp(string setting) {
+    string res;
+    void write(string fmt, ...) {
         res ~= myformat_fx(fmt, _arguments, _argptr) ~ "\n";
     }
 
@@ -281,7 +281,7 @@ void loadSettings() {
         //  to deal with it (but it's the same when you e.g. write the setting
         //  from the commandline; but maybe one could provide a validator
         //  callback for settings which want it...?)
-        setSetting!(char[])(sub.name, sub.value);
+        setSetting!(string)(sub.name, sub.value);
     }
 }
 

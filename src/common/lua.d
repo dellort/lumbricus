@@ -7,13 +7,13 @@ import utils.misc;
 import utils.time;
 
 //didn't want to put this in framework.lua (too many weird dependencies)
-void loadScript(LuaState state, char[] filename, char[] environment = null) {
+void loadScript(LuaState state, string filename, string environment = null) {
     auto st = gFS.open(filename);
     scope(exit) st.close();
     //xxx: IOExceptions and all that?
     auto data = st.readAll();
     scope(exit) delete data;
-    state.loadScript(filename, cast(char[])data, environment);
+    state.loadScript(filename, cast(string)data, environment);
 }
 
 //call each frame; will update the frame time and possibly call the Lua timers
@@ -36,7 +36,7 @@ void setLogger(LuaState state, Log log) {
         void emitlog(LogPriority pri, TempString s) {
             log.emit(pri, "{}", s.raw);
         }
-        void printsink(char[] msg) {
+        void printsink(string msg) {
             if (msg == "\n")
                 return;   //hmm
             log.notice("{}", msg);
@@ -55,11 +55,11 @@ alias LuaInterpreter ScriptInterpreter;
 class LuaInterpreter {
     private {
         LuaState mLua;
-        void delegate(char[]) mSink;
+        void delegate(string) mSink;
     }
 
     //a_sink = output of Lua and the wrapper, will include '\n's
-    this(void delegate(char[]) a_sink, LuaState a_state = null,
+    this(void delegate(string) a_sink, LuaState a_state = null,
         bool suppressVersionMessage = false)
     {
         mSink = a_sink;
@@ -88,25 +88,25 @@ class LuaInterpreter {
         }
     }
 
-    final void exec(char[] code) {
+    final void exec(string code) {
         //print literal command to console
         myformat_cb(mSink, "> {}\n", code);
         runLuaCode(code);
     }
 
-    protected void runLuaCode(char[] code) {
+    protected void runLuaCode(string code) {
         mLua.scriptExec("ConsoleUtils.exec(...)", code, mSink);
     }
 
     struct CompletionResult {
         int match_start, match_end;
-        char[][] matches;
+        string[] matches;
         bool more;
     }
 
     //cursor1..cursor2: indices into line for cursor position + selection
     //parameters are similar to TabCompletionDelegate in GuiConsole
-    CompletionResult autocomplete(char[] line, int cursor1, int cursor2) {
+    CompletionResult autocomplete(string line, int cursor1, int cursor2) {
         try {
             return mLua.scriptExecR!(CompletionResult)
                 ("return ConsoleUtils.autocomplete(...)", line, cursor1, cursor2);
@@ -116,7 +116,7 @@ class LuaInterpreter {
         }
     }
 
-    private static char[] common_prefix(char[] s1, char[] s2) {
+    private static string common_prefix(string s1, string s2) {
         uint slen = min(s1.length, s2.length);
         for (int n = 0; n < slen; n++) {
             if (s1[n] != s2[n]) {
@@ -129,8 +129,8 @@ class LuaInterpreter {
     }
 
     //what this function does and its parameters see GuiConsole.setTabCompletion
-    void tabcomplete(char[] line, int cursor1, int cursor2,
-        void delegate(int, int, char[]) edit)
+    void tabcomplete(string line, int cursor1, int cursor2,
+        void delegate(int, int, string) edit)
     {
         auto res = autocomplete(line, cursor1 + 1, cursor2 + 1);
         if (res.matches.length == 0)

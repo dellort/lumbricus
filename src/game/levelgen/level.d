@@ -61,8 +61,8 @@ class EnvironmentTheme {
 //not used in-game (the game only uses it to create the world, except for the
 //above thing)
 class Level {
-    /+char[] name;
-    char[] description;+/
+    /+string name;
+    string description;+/
 
     //if this is true, no aistrikes are possible and no clouds are shown
     //(apart from that there are no differences: usually, the level is simply
@@ -136,7 +136,7 @@ class Level {
 //used for the landscape and mines
 class LevelItem {
     Level owner;
-    char[] name;
+    string name;
 
     protected void copyFrom(LevelItem other) {
         name = other.name;
@@ -156,7 +156,7 @@ class LevelItemObject : LevelItem {
     // - further unknown and weird reasons
     //regardless, size might still be 0x0 in random cases (...have fun)
     Vector2i position, size;
-    char[] type;
+    string type;
 
     protected override void copyFrom(LevelItem other) {
         super.copyFrom(other);
@@ -196,9 +196,9 @@ package:
 
 import str = utils.string;
 
-private static char[][] marker_strings = ["FREE", "LAND", "SOLID_LAND"];
+private static string[] marker_strings = ["FREE", "LAND", "SOLID_LAND"];
 
-Lexel parseMarker(char[] value) {
+Lexel parseMarker(string value) {
     static Lexel[] marker_values = [Lexel.Null, Lexel.SolidSoft,
         Lexel.SolidHard];
     for (uint i = 0; i < marker_strings.length; i++) {
@@ -210,6 +210,6 @@ Lexel parseMarker(char[] value) {
     throw new CustomException("invalid marker value in configfile: " ~ value);
 }
 
-char[] writeMarker(Lexel v) {
+string writeMarker(Lexel v) {
     return marker_strings[v];
 }

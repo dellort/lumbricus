@@ -124,7 +124,7 @@ class GameLoader {
 
     //filename_prefix is e.g. "last_demo", and the code will try to read the
     //  files last_demo.conf and last_demo.dat
-    static GameLoader CreateFromDemo(char[] filename) {
+    static GameLoader CreateFromDemo(string filename) {
         try {
             return doCreateFromDemo(filename);
         } catch (CustomException e) {
@@ -134,13 +134,13 @@ class GameLoader {
         }
     }
 
-    private static GameLoader doCreateFromDemo(char[] filename) {
+    private static GameLoader doCreateFromDemo(string filename) {
         auto r = new GameLoader();
         auto lg = new GameShell.InputLog;
         r.mDemoInput = lg;
 
         auto f = gFS.open(filename);
-        char[] data = cast(char[])f.readAll();
+        string data = cast(string)f.readAll();
         scope(exit) f.close();
 
         //xxx should catch & convert utf-8 exception (dammit)
@@ -336,14 +336,14 @@ class GameShell {
 
     struct LogEntry {
         long timestamp;
-        char[] access_tag;
-        char[] cmd;
+        string access_tag;
+        string cmd;
 
         //the hash is done right before the input is executed
         //only valid if !is EngineHash.init
         EngineHash hash;
 
-        char[] toString() {
+        string toString() {
             return myformat("ts={}, access='{}': '{}'", timestamp, access_tag,
                 cmd);
         }
@@ -374,14 +374,14 @@ class GameShell {
     }
 
     //xxx: not networking save, I guess
-    private bool inpSetPaused(char[] s) {
+    private bool inpSetPaused(string s) {
         bool nstate = !mGameTime.paused;
         tryFromStr(s, nstate);
         log.minor("pause: {}", nstate);
         pauseBlock(nstate, this);
         return true;
     }
-    private bool inpSetSlowdown(char[] s) {
+    private bool inpSetSlowdown(string s) {
         float state = tryFromStrDef(s, 1.0f);
         if (state != state)
             return false;
@@ -389,7 +389,7 @@ class GameShell {
         mGameTime.slowDown = state;
         return true;
     }
-    private bool inpSinglestep(char[] s) {
+    private bool inpSinglestep(string s) {
         int step = tryFromStrDef(s, 1);
         mSingleStep += max(step, 0);
         return true;
@@ -458,7 +458,7 @@ class GameShell {
     //command to be executed by GameEngine.executeCommand()
     //this is logged/timestamped for networking, snapshot/replays, and demo mode
     //NOTE: cmd=="" is abused as a special case for demo hash frames
-    void addLoggedInput(char[] access_tag, char[] cmd, long cmdTimeStamp = -1) {
+    void addLoggedInput(string access_tag, string cmd, long cmdTimeStamp = -1) {
         //yeh, this might be a really bad idea
         if (replayMode() && str.startsWith(cmd, "weapon_fire")) {
             replaySkip();
@@ -494,7 +494,7 @@ class GameShell {
     }
 
     //public access
-    void executeCommand(char[] access_tag, char[] cmd) {
+    void executeCommand(string access_tag, string cmd) {
         addLoggedInput(access_tag, cmd);
     }
 
@@ -792,14 +792,14 @@ class GameShell {
 class ClientControl {
     private {
         GameShell mShell;
-        char[] mAccessTag;
+        string mAccessTag;
         Team[] mCachedOwnedTeams;
     }
 
     //for explanation for access_control_tag, see GameEngine.executeCmd()
     //instantiating this directly is "dangerous", because this might
     //  accidentally bypass networking (see CmdNetControl)
-    this(GameShell sh, char[] access_control_tag) {
+    this(GameShell sh, string access_control_tag) {
         assert(!!sh);
         mShell = sh;
         mAccessTag = access_control_tag;
@@ -807,11 +807,11 @@ class ClientControl {
 
     //NOTE: CmdNetControl overrides this method and redirects it so, that cmd
     //  gets sent over network, instead of being interpreted here
-    protected void sendCommand(char[] cmd) {
+    protected void sendCommand(string cmd) {
         mShell.addLoggedInput(mAccessTag, cmd);
     }
 
-    final void execCommand(char[] cmd) {
+    final void execCommand(string cmd) {
         if (checkCommand(cmd)) {
             sendCommand(cmd);
         } else {
@@ -821,7 +821,7 @@ class ClientControl {
 
     //whether the game code would likely accept the input
     //(too high network lag may introduce random false results)
-    final bool checkCommand(char[] cmd) {
+    final bool checkCommand(string cmd) {
         return mShell.serverEngine.input.checkCommand(mAccessTag, cmd);
     }
 
@@ -869,8 +869,8 @@ struct NetLoadState {
 
 struct NetPlayerInfo {
     uint id;
-    char[] name;
-    char[] teamName;
+    string name;
+    string teamName;
     Time ping;
 }
 
@@ -898,7 +898,7 @@ abstract class SimpleNetConnection {
     void delegate(SimpleNetConnection sender, ClientControl control) onGameStart;
     //receiving a chat message
     void delegate(SimpleNetConnection sender, NetPlayerInfo player,
-        char[] msg) onChat;
+        string msg) onChat;
 
 abstract:
 
@@ -906,7 +906,7 @@ abstract:
     //  "pm Player2 Secret message")
     //"game-independent" means the command is not logged/timestamped/passed
     //  through the engine
-    void lobbyCmd(char[] cmd);
+    void lobbyCmd(string cmd);
 
     //join the game with a team
     //a client can only add one team, multiple calls will replace the client's
@@ -922,11 +922,11 @@ abstract:
     //returns true if the game is paused because server frames are not available
     bool waitingForServer();
 
-    void sendChat(char[] msg);
+    void sendChat(string msg);
 }
 
-const char[] cDemoFileSignature = "=== lumbricus demo file ===\n";
-const char[] cDemoFileStartLog = "\n=== start log entries ===\n";
+const string cDemoFileSignature = "=== lumbricus demo file ===\n";
+const string cDemoFileStartLog = "\n=== start log entries ===\n";
 
 //oh how I wish D had real tuples
 struct ParseDemoFileResult {
@@ -934,23 +934,23 @@ struct ParseDemoFileResult {
     GameShell.LogEntry[] log;
 }
 //this thing is supposed to throw a CustomException on any failure
-ParseDemoFileResult parseDemoFile(char[] data) {
+ParseDemoFileResult parseDemoFile(string data) {
     if (!str.eatStart(data, cDemoFileSignature))
         throwError("no header");
     //hurrr.... but it works
     int logpos = str.find(data, cDemoFileStartLog);
     if (logpos < 0)
         throwError("no log entries");
-    char[] s_conf = data[0..logpos];
-    char[] s_log = data[logpos + cDemoFileStartLog.length .. $];
+    string s_conf = data[0..logpos];
+    string s_log = data[logpos + cDemoFileStartLog.length .. $];
     auto config = new ConfigFile(s_conf, "game config embedded in demo file");
     //parse the logs
     GameShell.LogEntry[] log;
-    foreach (char[] s_entry; str.splitlines(s_log)) {
+    foreach (string s_entry; str.splitlines(s_log)) {
         if (s_entry.length == 0)
             continue;
         //every entry is <timestamp>:<hash>:<accesstag>:<command>
-        char[][] cols = str.split(s_entry, ":");
+        string[] cols = str.split(s_entry, ":");
         if (cols.length != 4)
             throwError("error in log entry");
         GameShell.LogEntry entry;
@@ -974,10 +974,10 @@ void startDemoFile(PipeOut dest, ConfigNode config) {
 }
 
 void writeDemoEntry(PipeOut dest, GameShell.LogEntry e) {
-    void dump(char[] s) {
+    void dump(string s) {
         dest.write(cast(ubyte[])s);
     }
-    char[] demoesc(char[] s) {
+    string demoesc(string s) {
         //escape anything that would make the log part unparseable
         return str.simpleEscape(s, "\n\r:");
     }

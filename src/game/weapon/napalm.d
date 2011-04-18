@@ -160,7 +160,7 @@ class NapalmSpriteClass : SpriteClass {
 
     package int currentDecay;
 
-    this(GameCore e, char[] r) {
+    this(GameCore e, string r) {
         super(e, r);
     }
 

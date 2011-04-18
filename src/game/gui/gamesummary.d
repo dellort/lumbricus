@@ -60,7 +60,7 @@ class GameSummary {
         WindowProperties props;
         auto teamsNode = persist.getSubNode("teams");
         props.background = Color(0.2, 0.2, 0.2);
-        char[] bgCol;
+        string bgCol;
         if (persist.exists("winner")) {
             //game is over
             mGameOver = true;

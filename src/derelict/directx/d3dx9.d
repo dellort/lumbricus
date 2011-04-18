@@ -1733,7 +1733,7 @@ align(1) struct XFILECOMPRESSEDANIMATIONSET
     DWORD BufferLength;
 }
 
-const char[] XSKINEXP_TEMPLATES =
+const string XSKINEXP_TEMPLATES =
         "xof 0303txt 0032
         template XSkinMeshHeader
         {
@@ -1847,7 +1847,7 @@ const char[] XSKINEXP_TEMPLATES =
             array DWORD CompressedData[BufferLength];
         } ";
 
-const char[] XEXTENSIONS_TEMPLATES =
+const string XEXTENSIONS_TEMPLATES =
         "xof 0303txt 0032
         template FVFData
         {

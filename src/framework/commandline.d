@@ -18,28 +18,28 @@ public import utils.mybox : MyBox;
 public import utils.output : Output;
 
 //the coin has decided
-alias MyBox function(char[] args) TypeHandler;
+alias MyBox function(string args) TypeHandler;
 
 alias void delegate(MyBox[] args, Output write) CommandHandler;
-alias char[][] delegate() CompletionHandler;
+alias string[] delegate() CompletionHandler;
 
-TypeHandler[char[]] gCommandLineParsers;
-char[][TypeInfo] gCommandLineParserTypes; //kind of reverse lookup
-CompletionHandler[char[]] gCommandLineCompletionHandlers;
+TypeHandler[string] gCommandLineParsers;
+string[TypeInfo] gCommandLineParserTypes; //kind of reverse lookup
+CompletionHandler[string] gCommandLineCompletionHandlers;
 
 static this() {
-    void add(char[] name, TypeInfo t) {
+    void add(string name, TypeInfo t) {
         gCommandLineParsers[name] = gBoxParsers[t];
         gCommandLineParserTypes[t] = name;
     }
-    add("text", typeid(char[]));
+    add("text", typeid(string));
     add("int", typeid(int));
     add("float", typeid(float));
     add("color", typeid(Color));
     add("bool", typeid(bool));
     add("Time", typeid(Time));
 
-    char[][] complete_bool() {
+    string[] complete_bool() {
         return ["true", "false"];
     }
     gCommandLineCompletionHandlers["bool"] = &complete_bool;
@@ -63,8 +63,8 @@ public class Command {
     // <default> can be given for optional arguments; if an optional argument
     //   isn't available, then this will be passed to the handler
     // <help> is the help text for that parameter
-    static Command opCall(char[] name, CommandHandler handler,
-        char[] helpText, char[][] args = null, CompletionHandler[] compl = null)
+    static Command opCall(string name, CommandHandler handler,
+        string helpText, string[] args = null, CompletionHandler[] compl = null)
     {
         Command cmd = new Command();
         cmd.name = name;
@@ -75,8 +75,8 @@ public class Command {
         cmd.param_types.length = args.length;
         cmd.completions.length = args.length;
         int firstOptional = -1;
-        foreach (int index, char[] arg; args) {
-            char[] help = "no help";
+        foreach (int index, string arg; args) {
+            string help = "no help";
 
             //<rest> ':' <help>
             int p = str.find(arg, ':');
@@ -87,7 +87,7 @@ public class Command {
             cmd.param_help[index] = help;
 
             //<rest> = <default>
-            char[] def = "";
+            string def = "";
             bool have_def = false;
             p = str.find(arg, '=');
             if (p >= 0) {
@@ -153,13 +153,13 @@ public class Command {
     }
 
 private:
-    char[] name;
+    string name;
     CommandHandler cmdProc;
-    char[] helpText;
+    string helpText;
 
     TypeHandler[] param_types;
     MyBox[] param_defaults;
-    char[][] param_help;
+    string[] param_help;
     int minArgCount;
     //pass rest of the commandline as string for the last parameter
     bool textArgument;
@@ -169,11 +169,11 @@ private:
 
     public struct CmdItem {
         //parsed string (i.e. quotes and escapes removed)
-        char[] s;
+        string s;
         //start and end in the raw string (without surrounding white space)
         int start, end;
     }
-    public static CmdItem[] parseLine(char[] cmdline) {
+    public static CmdItem[] parseLine(string cmdline) {
         CmdItem[] res;
         int orglen = cmdline.length;
 
@@ -191,7 +191,7 @@ private:
             //in the middle of it, which again can contain whitespace...
             bool in_quote;
             bool done;
-            char[] arg_string;
+            string arg_string;
 
             while (!(done || cmdline.length == 0)) {
                 if (cmdline[0] == '"') {
@@ -216,7 +216,7 @@ private:
 
     //parse the commandline and fix it up to respect the text argument
     //it just does that, no further error handling or checking etc.
-    public CmdItem[] parseLine2(char[] cmdline) {
+    public CmdItem[] parseLine2(string cmdline) {
         CmdItem[] items = parseLine(cmdline);
         if (textArgument) {
             int start = param_types.length - 1;
@@ -243,8 +243,8 @@ private:
     // cmdline, argument: argument number, preceeding: text in the current
     // argument, which is preceeding the cursor
     //returns true if output params are valid
-    public bool findArgAt(char[] cmdline, int cursor, out int argument,
-        out char[] preceeding)
+    public bool findArgAt(string cmdline, int cursor, out int argument,
+        out string preceeding)
     {
         //only parse up to the cursor => simpler
         assert(cursor >= 0 && cursor <= cmdline.length);
@@ -259,7 +259,7 @@ private:
     }
 
     //parse and invoke commandline, return if parsing was successful
-    public bool parseAndInvoke(char[] cmdline, Output write) {
+    public bool parseAndInvoke(string cmdline, Output write) {
         CmdItem[] items = parseLine2(cmdline);
         int last_item;
         MyBox[] args;
@@ -320,7 +320,7 @@ class CommandBucket {
 
     //entry for each command
     struct Entry {
-        char[] alias_name;
+        string alias_name;
         Command cmd;
         private Translator mTrans;
 
@@ -330,12 +330,12 @@ class CommandBucket {
             return str.cmp(alias_name, other.alias_name);
         }
 
-        char[] toString() {
+        string toString() {
             return alias_name ~ " -> " ~ cmd.name;
         }
 
         //(possibly translated) help text for this command
-        char[] helpText() {
+        string helpText() {
             if (mTrans && mTrans.hasId(cmd.name)) {
                 return mTrans(cmd.name);
             } else {
@@ -344,9 +344,9 @@ class CommandBucket {
         }
 
         //(possibly translated) help text for parameter idx
-        char[] paramHelp(int idx) {
+        string paramHelp(int idx) {
             assert(idx < cmd.param_types.length);
-            char[] id = myformat("{}_arg{}", cmd.name, idx);
+            string id = myformat("{}_arg{}", cmd.name, idx);
             if (mTrans && mTrans.hasId(id)) {
                 return mTrans(id);
             } else {
@@ -388,8 +388,8 @@ class CommandBucket {
         register(cmd);
     }
 
-    public void registerCommand(char[] name, CommandHandler handler,
-        char[] helpText, char[][] args = null, CompletionHandler[] compl = null)
+    public void registerCommand(string name, CommandHandler handler,
+        string helpText, string[] args = null, CompletionHandler[] compl = null)
     {
         register(Command(name, handler, helpText, args, compl));
     }
@@ -454,12 +454,12 @@ class CommandBucket {
 public class CommandLine {
     private {
         CommandBucket mCommands;
-        char[] mCommandPrefix;
-        char[] mDefaultCommand;
+        string mCommandPrefix;
+        string mDefaultCommand;
         CommandLineInstance mDefInstance; //to support execute()
     }
 
-    void delegate(CommandLine sender, char[] line) onFallbackExecute;
+    void delegate(CommandLine sender, string line) onFallbackExecute;
 
     CommandBucket commands() {
         return mCommands;
@@ -476,20 +476,20 @@ public class CommandLine {
         mCommands.register(cmd);
     }
 
-    public void registerCommand(char[] name, CommandHandler handler,
-        char[] helpText, char[][] args = null, CompletionHandler[] compl = null)
+    public void registerCommand(string name, CommandHandler handler,
+        string helpText, string[] args = null, CompletionHandler[] compl = null)
     {
         registerCommand(Command(name, handler, helpText, args, compl));
     }
 
     /// Set a prefix which is required before each command (disable with ""),
     /// and a default_command, which is invoked when the prefix isn't given.
-    public void setPrefix(char[] prefix, char[] default_command) {
+    public void setPrefix(string prefix, string default_command) {
         mCommandPrefix = prefix;
         mDefaultCommand = default_command;
     }
 
-    public bool execute(char[] cmdline, bool silentOnError = false) {
+    public bool execute(string cmdline, bool silentOnError = false) {
         return mDefInstance.execute(cmdline, false, silentOnError);
     }
 }
@@ -500,7 +500,7 @@ class CommandLineInstance {
         CommandLine mCmdline;
         CommandBucket mCommands;
         Output mConsole;
-        char[][] mHistory;
+        string[] mHistory;
         int mCurrentHistoryEntry = 0;
 
         const uint MAX_HISTORY_ENTRIES = 20;
@@ -509,8 +509,8 @@ class CommandLineInstance {
         alias CommandBucket.Entry CommandEntry;
     }
 
-    private char[][] complete_command_list() {
-        char[][] res;
+    private string[] complete_command_list() {
+        string[] res;
         foreach (CommandEntry e; mCommands) {
             res ~= e.alias_name;
         }
@@ -530,7 +530,7 @@ class CommandLineInstance {
     }
 
     private void cmdHelp(MyBox[] args, Output write) {
-        char[] foo = args[0].unboxMaybe!(char[])("");
+        string foo = args[0].unboxMaybe!(string)("");
         if (foo.length == 0) {
             mConsole.writefln("List of commands: ");
             uint count = 0;
@@ -564,7 +564,7 @@ class CommandLineInstance {
 
     private void cmdHistory(MyBox[] args, Output write) {
         mConsole.writefln("History:");
-        foreach (char[] hist; mHistory) {
+        foreach (string hist; mHistory) {
             mConsole.writefln("   "~hist);
         }
     }
@@ -578,7 +578,7 @@ class CommandLineInstance {
        - modifying an entry and, without hitting enter, going to another entry,
          changes the entry in the history and doesn't create a new entry
     */
-    public char[] selectHistory(char[] cur, int dir) {
+    public string selectHistory(string cur, int dir) {
         setHistory(cur);
 
         if (dir == -1) {
@@ -596,7 +596,7 @@ class CommandLineInstance {
         }
     }
 
-    private void setHistory(char[] line) {
+    private void setHistory(string line) {
         if (line.length == 0)
             return;
         line = line.dup;
@@ -611,7 +611,7 @@ class CommandLineInstance {
     //get the command part of the command line
     //start-end: position of command literal, excluding whitespace or prefix
     //argstart: start-index of the arguments (line.length if none)
-    private bool parseCommand(char[] line, out char[] command, out uint start,
+    private bool parseCommand(string line, out string command, out uint start,
         out uint end, out uint argstart)
     {
         auto plen = mCmdline.mCommandPrefix.length;
@@ -638,10 +638,10 @@ class CommandLineInstance {
     }
 
     /// Execute any command from outside.
-    public bool execute(char[] cmdline, bool addHistory = true,
+    public bool execute(string cmdline, bool addHistory = true,
         bool silentOnError = false)
     {
-        char[] cmd, args;
+        string cmd, args;
         uint start, end, argstart;
 
         if (!parseCommand(cmdline, cmd, start, end, argstart)) {
@@ -685,7 +685,7 @@ class CommandLineInstance {
     }
 
     //find a command, even if cmd only partially matches (but is unique)
-    CommandEntry findCommand(char[] cmd) {
+    CommandEntry findCommand(string cmd) {
         CommandEntry[] throwup;
         auto ccmd = find_command_completions(cmd, throwup);
         //accept unique partial matches
@@ -695,7 +695,7 @@ class CommandLineInstance {
         return ccmd;
     }
 
-    private static char[] common_prefix(char[] s1, char[] s2) {
+    private static string common_prefix(string s1, string s2) {
         uint slen = min(s1.length, s2.length);
         for (int n = 0; n < slen; n++) {
             if (s1[n] != s2[n]) {
@@ -709,27 +709,27 @@ class CommandLineInstance {
 
     /// Replace the text between start and end by text
     /// operation: newline = line[0..start] ~ text ~ line[end..$];
-    public alias void delegate(int start, int end, char[] text) EditDelegate;
+    public alias void delegate(int start, int end, string text) EditDelegate;
 
     /// Do tab completion for the given line. The delegate by edit inserts
     /// completed text.
     /// at = cursor position; currently unused
-    public void tabCompletion(char[] line, int at, EditDelegate edit) {
-        void do_edit(int start, int end, char[] text) {
+    public void tabCompletion(string line, int at, EditDelegate edit) {
+        void do_edit(int start, int end, string text) {
             line = line[0..start] ~ text ~ line[end..$];
             if (edit)
                 edit(start, end, text);
         }
 
-        char[] cmd;
+        string cmd;
         uint start, end, argstart;
         if (!parseCommand(line, cmd, start, end, argstart))
             return;
 
         //find out, what or where to complete
         int arg_e; //position where to insert completion
-        char[] argstr; //(uncompleted) thing which then user wants to complete
-        char[][] all_completions; //list of possible completions
+        string argstr; //(uncompleted) thing which then user wants to complete
+        string[] all_completions; //list of possible completions
 
         //NOTE: start==end => "default" command (no prefix)
         if (at <= end && start != end) {
@@ -759,7 +759,7 @@ class CommandLineInstance {
         }
 
         //filter completions (remove unuseful ones)
-        char[][] completions;
+        string[] completions;
         foreach (c; all_completions) {
             if (c.length >= argstr.length && c[0..argstr.length] == argstr)
                 completions ~= c;
@@ -769,8 +769,8 @@ class CommandLineInstance {
             //no hit, too bad, maybe beep?
         } else {
             //get biggest common starting-string of all completions
-            char[] common = completions[0];
-            foreach (char[] item; completions[1..$]) {
+            string common = completions[0];
+            foreach (string item; completions[1..$]) {
                 common = common_prefix(common, item);
             }
             //mConsole.writefln(" ..: '{}' '{}' {}", common, cmd, res);
@@ -789,7 +789,7 @@ class CommandLineInstance {
                     mConsole.writefln("Tab completions:");
                     bool toomuch = (completions.length == MAX_AUTO_COMPLETIONS);
                     if (toomuch) completions = completions[0..$-1];
-                    foreach (char[] item; completions) {
+                    foreach (string item; completions) {
                         //draw a "|" between the completed and the missing part
                         mConsole.writefln("  {}|{}", item[0..common.length],
                             item[common.length..$]);
@@ -812,7 +812,7 @@ class CommandLineInstance {
 
     //if there's a perfect match (whole string equals), then it is returned,
     //  else return null (for the .cmd field)
-    private CommandEntry find_command_completions(char[] cmd,
+    private CommandEntry find_command_completions(string cmd,
         inout CommandEntry[] res)
     {
         CommandEntry exact;

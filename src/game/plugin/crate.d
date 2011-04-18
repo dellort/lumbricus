@@ -52,7 +52,7 @@ class Collectable {
 
     //translation ID for contents; used to display collect messages
     //could also be used for crate-spy
-    abstract char[] id();
+    abstract string id();
 
     //what animation to show
     CrateType type() {
@@ -64,7 +64,7 @@ class Collectable {
         //default is do nothing
     }
 
-    char[] toString() {
+    string toString() {
         return id();
     }
 
@@ -78,7 +78,7 @@ class CollectableBomb : Collectable {
     this() {
     }
 
-    char[] id() {
+    string id() {
         return "game_msg.crate.bomb";
     }
 
@@ -113,7 +113,7 @@ class CollectableWeapon : TeamCollectable {
         return CrateType.weapon;
     }
 
-    char[] id() {
+    string id() {
         return "weapons." ~ weapon.name;
     }
 
@@ -136,7 +136,7 @@ class CollectableMedkit : TeamCollectable {
         return CrateType.med;
     }
 
-    char[] id() {
+    string id() {
         return "game_msg.crate.medkit";
     }
 
@@ -147,10 +147,10 @@ class CollectableMedkit : TeamCollectable {
 
 class CollectableTool : TeamCollectable {
     private {
-        char[] mToolID;
+        string mToolID;
     }
 
-    this(char[] tool_id) {
+    this(string tool_id) {
         mToolID = tool_id;
     }
 
@@ -158,11 +158,11 @@ class CollectableTool : TeamCollectable {
         return CrateType.tool;
     }
 
-    override char[] id() {
+    override string id() {
         return "game_msg.crate." ~ mToolID;
     }
 
-    char[] toolID() {
+    string toolID() {
         return mToolID;
     }
 
@@ -296,7 +296,7 @@ class CrateSprite : Sprite {
 class CrateSpriteClass : SpriteClass {
     float collectRadius = 1000;
 
-    this(GameCore e, char[] r) {
+    this(GameCore e, string r) {
         super(e, r);
     }
 
@@ -312,7 +312,7 @@ class CratePlugin : GameObject2 {
         //  (rest is rigged weapon)
         float[3] mCrateProbs = [0.20f, 0.40f, 0.95f];
         //list of tool crates that can drop
-        char[][] mActiveCrateTools;
+        string[] mActiveCrateTools;
 
         GameController mController;
         WeaponSet mCrateSet;
@@ -367,7 +367,7 @@ class CratePlugin : GameObject2 {
         return engine.log;
     }
 
-    void addCrateTool(char[] id) {
+    void addCrateTool(string id) {
         assert(arraySearch(mActiveCrateTools, id) < 0);
         mActiveCrateTools ~= id;
     }
@@ -469,7 +469,7 @@ class CratePlugin : GameObject2 {
 
     //xxx wouldn't need this anymore, but doubletime still makes it a bit messy
     private void doCollectTool(TeamMember collector, CollectableTool tool) {
-        char[] id = tool.toolID();
+        string id = tool.toolID();
         if (id == "cratespy") {
             collector.team.addCrateSpy();
         }
@@ -498,12 +498,12 @@ static this() {
     gCrateRegistry.methods!(CratePlugin, "dropCrate", "addCrateTool",
         "fillCrate");
 
-    gCrateRegistry.ctor!(CollectableTool, char[])();
+    gCrateRegistry.ctor!(CollectableTool, string)();
     gCrateRegistry.ctor!(CollectableWeapon, WeaponClass, int)();
     gCrateRegistry.ctor!(CollectableBomb)();
     gCrateRegistry.ctor!(CollectableMedkit)();
 
-    gCrateRegistry.ctor!(CrateSpriteClass, GameCore, char[])();
+    gCrateRegistry.ctor!(CrateSpriteClass, GameCore, string)();
     gCrateRegistry.properties!(CrateSpriteClass, "collectRadius");
     gCrateRegistry.methods!(CrateSprite, "blowStuffies")();
     gCrateRegistry.property_ro!(CrateSprite, "crateType")();

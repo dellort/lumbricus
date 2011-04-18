@@ -9,11 +9,11 @@ import utils.perf;
 
 //high resolution timers which are updated each frame, or so
 //debugstuff.d will reset them all!
-PerfTimer[char[]] gTimers;
-long[char[]] gCounters;
-size_t[char[]] gSizeStats;
+PerfTimer[string] gTimers;
+long[string] gCounters;
+size_t[string] gSizeStats;
 
-PerfTimer newTimer(char[] name) {
+PerfTimer newTimer(string name) {
     auto pold = name in gTimers;
     if (pold)
         return *pold;
@@ -24,19 +24,19 @@ PerfTimer newTimer(char[] name) {
 
 //consider using newTimer() instead to get a PerfTimer and work on that directly
 //  if you want to do this in performance-sensitive code
-PerfTimer startTimer(char[] name) {
+PerfTimer startTimer(string name) {
     auto t = newTimer(name);
     t.start();
     return t;
 }
 
-PerfTimer stopTimer(char[] name) {
+PerfTimer stopTimer(string name) {
     auto t = newTimer(name);
     t.stop();
     return t;
 }
 
-void incCounter(char[] name, long amount = 1) {
+void incCounter(string name, long amount = 1) {
     long* pold = name in gCounters;
     if (!pold) {
         gCounters[name] = 0;
@@ -44,10 +44,10 @@ void incCounter(char[] name, long amount = 1) {
     }
     (*pold) += amount;
 }
-void setCounter(char[] name, long cnt) {
+void setCounter(string name, long cnt) {
     gCounters[name] = cnt;
 }
 
-void setByteSizeStat(char[] name, size_t size) {
+void setByteSizeStat(string name, size_t size) {
     gSizeStats[name] = size;
 }

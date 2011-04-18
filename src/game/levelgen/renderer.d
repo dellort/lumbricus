@@ -1180,7 +1180,7 @@ class LandscapeBitmap {
     //(the image doesn't matter for the game, as only the "data" is used for
     //  collision testing; further, image saving and reloading with colorkeyed
     //  images may change the color value for transparent pixels)
-    char[] checksum() {
+    string checksum() {
         digest.Digest hash = new md5.Md5();
         hash.update(cast(void[])mLevelData);
         return hash.hexDigest();

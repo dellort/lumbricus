@@ -9,7 +9,7 @@ import tango.io.Path; //eh, tangopath?
 import tango.io.FilePath;
 import utils.misc;
 
-char[] getFilePath(char[] fullname)
+string getFilePath(string fullname)
     out (result)
     {
         assert(result.length <= fullname.length);
@@ -29,7 +29,7 @@ char[] getFilePath(char[] fullname)
     }
 
 ///add OS-dependant path delimiter to pathStr, if not there
-char[] addTrailingPathDelimiter(char[] pathStr) {
+string addTrailingPathDelimiter(string pathStr) {
 version(Windows) {
     if (pathStr[$-1] != '/' && pathStr[$-1] != '\\') {
         pathStr ~= '/';
@@ -47,7 +47,7 @@ import tango.sys.win32.UserGdi : GetModuleFileNameW;
 import tango.sys.win32.Types : MAX_PATH;
 import utf = tango.text.convert.Utf;
 
-char[] getExePath() {
+string getExePath() {
     wchar[MAX_PATH] buf;
     size_t len = GetModuleFileNameW(null, buf.ptr, buf.length);
     return utf.toString(buf[0..len]);
@@ -60,8 +60,8 @@ char[] getExePath() {
 //until I get to know of a better way, just read the Linux specific
 //  /proc/self/exe symlink, which contains an absolute path to the binary
 import tango.stdc.posix.unistd;
-char[] getExePath() {
-    char[] buffer = new char[80];
+string getExePath() {
+    string buffer = new char[80];
     for (;;) {
         ssize_t res = readlink("/proc/self/exe".ptr, buffer.ptr, buffer.length);
         if (res < 0)
@@ -84,7 +84,7 @@ static assert(false, "add me");
 }
 
 ///Return path to application's executable file, with trailing '/'
-char[] getAppPath() {
+string getAppPath() {
     return getFilePath(getExePath());
 }
 
@@ -95,12 +95,12 @@ struct VFSPath {
     const cPathSep = '/';
 
     private {
-        char[] mPath;
+        string mPath;
         int mNameIdx, mExtIdx;
     }
 
     ///create VFSPath struct and set path (see set())
-    static VFSPath opCall(char[] p, bool fixIllegal = false,
+    static VFSPath opCall(string p, bool fixIllegal = false,
         bool allowWildcards = false)
     {
         VFSPath ret;
@@ -114,7 +114,7 @@ struct VFSPath {
     ///  fixIllegal = if true, illegal characters will be replaced with _
     ///               if false, illegal chars will throw an exception
     ///  allowWildcards = true to allow * and ? in filenames
-    void set(char[] p, bool fixIllegal = false, bool allowWildcards = false) {
+    void set(string p, bool fixIllegal = false, bool allowWildcards = false) {
         mPath = p;
         parse(fixIllegal, allowWildcards);
     }
@@ -123,8 +123,8 @@ struct VFSPath {
     ///return value will have a leading /
     ///Params:
     ///  trailingSep = true to append a '/'
-    char[] get(bool leadingSep = true, bool trailingSep = false) {
-        char[] ret = mPath;
+    string get(bool leadingSep = true, bool trailingSep = false) {
+        string ret = mPath;
         if (trailingSep)
             ret ~= cPathSep;
         if (!leadingSep && ret.length > 0 && ret[0] == cPathSep)
@@ -134,7 +134,7 @@ struct VFSPath {
 
     ///join this path with an absolute path and get an os-dependant absolute
     ///path
-    char[] makeAbsolute(char[] absParent) {
+    string makeAbsolute(string absParent) {
         //cut off all trailing separators
         while (absParent.length
             && (absParent[$-1] == '/' || absParent[$-1] == '\\'))
@@ -163,28 +163,28 @@ struct VFSPath {
 
     ///return file extension (with .) of the last path component
     ///returns an empty string for files without extension
-    char[] extension() {
+    string extension() {
         if (mExtIdx >= 0)
             return mPath[mExtIdx..$];
         return "";
     }
 
     //xxx same as above... choose one, kill the other
-    char[] extNoDot() {
+    string extNoDot() {
         if (mExtIdx >= 0)
             return mPath[mExtIdx+1..$];
         return "";
     }
 
     ///return filename with extension of the last path component
-    char[] filename() {
+    string filename() {
         if (mNameIdx >= 0)
             return mPath[mNameIdx..$];
         return "";
     }
 
     ///return base name (without extension) of the last path component
-    char[] filebase() {
+    string filebase() {
         int ext = mExtIdx;
         if (ext < 0)
             ext = mPath.length;
@@ -197,7 +197,7 @@ struct VFSPath {
     ///return the path (without filename)
     ///always includes the leading '/'
     /// trailingSep = if there's no trailing separator, append it
-    char[] path(bool trailingSep = true) {
+    string path(bool trailingSep = true) {
         auto res = mPath[0..mNameIdx];
         if (trailingSep) {
             if (res == "") {
@@ -238,7 +238,7 @@ struct VFSPath {
         return VFSPath(mPath ~ other.mPath);
     }
 
-    char[] toString() {
+    string toString() {
         return mPath;
     }
 
@@ -249,8 +249,8 @@ struct VFSPath {
     // - sets name and extension split points
     private void parse(bool fixIllegal = false, bool allowWildcards = false) {
         mNameIdx = mExtIdx = -1;
-        char[] curpart;
-        char[][] parts;
+        string curpart;
+        string[] parts;
 
         int discard = 0;
         //add a filename part (everything between / ) to the final part list
@@ -308,7 +308,7 @@ struct VFSPath {
 
         //now join everything back together
         mPath = null;
-        foreach (inout char[] p; parts) {
+        foreach (inout string p; parts) {
             mPath ~= cPathSep ~ p;
         }
 
@@ -333,7 +333,7 @@ struct VFSPath {
         }
     }
 
-    private void error(char[] msg) {
+    private void error(string msg) {
         throw new CustomException("VFSPath: "~msg);
     }
 }

@@ -20,7 +20,7 @@ import str = utils.string;
 ///simple editline
 class EditLine : Widget {
     private {
-        char[] mCurline;
+        string mCurline;
         uint mCursor;       //call updateCursor on change
         Vector2i mOffset;   //text rendering offset for scrolling
         FormattedText mRender;
@@ -145,7 +145,7 @@ class EditLine : Widget {
     }
 
     protected void clipCopy(bool clipboard) {
-        char[] sel = selectedText();
+        string sel = selectedText();
         //don't overwrite if no selection
         if (sel.length) {
             Clipboard.copyText(clipboard, sel);
@@ -168,16 +168,16 @@ class EditLine : Widget {
         Clipboard.pasteCancel(&onPaste);
     }
 
-    private void onPaste(char[] txt) {
+    private void onPaste(string txt) {
         //sanity checks?
         if (visible && isLinked) {
             clipInsertPaste(txt);
         }
     }
 
-    protected void clipInsertPaste(char[] text) {
+    protected void clipInsertPaste(string text) {
         //only text to first newline by default
-        char[] txt = str.split2(text, '\n')[0];
+        string txt = str.split2(text, '\n')[0];
         insertEvent(txt);
     }
 
@@ -185,7 +185,7 @@ class EditLine : Widget {
     //if mCursor was between start and end, it's set to end; if mCursor was
     //  after end, its value is fixed
     //onChange is not emitted
-    void editText(int start, int end, char[] replace) {
+    void editText(int start, int end, string replace) {
         assert(start >= 0 && start <= end && end <= mCurline.length);
         debug str.validate(replace);
         killSelection();
@@ -202,7 +202,7 @@ class EditLine : Widget {
     }
 
     //do everything what's typically done when text is entered by the user
-    void insertEvent(char[] text) {
+    void insertEvent(string text) {
         deleteSelection();
         editText(mCursor, mCursor, text);
         doOnChange();
@@ -258,7 +258,7 @@ class EditLine : Widget {
         killSelection();
     }
 
-    char[] selectedText() {
+    string selectedText() {
         auto sel = orderedSelection();
         return mCurline[sel.start..sel.end];
     }
@@ -378,10 +378,10 @@ class EditLine : Widget {
         mCursorVisible = !mCursorVisible;
     }
 
-    public char[] text() {
+    public string text() {
         return mCurline;
     }
-    public void text(char[] newtext) {
+    public void text(string newtext) {
         editText(0, mCurline.length, newtext);
         cursorPos = 0;
     }
@@ -432,7 +432,7 @@ class MultilineEdit : EditLine {
         mRender.shrink = ShrinkMode.wrap;
     }
 
-    override void clipInsertPaste(char[] text) {
+    override void clipInsertPaste(string text) {
         //no need to remove newlines in multiline mode
         insertEvent(text);
     }
@@ -453,7 +453,7 @@ private:
 //if there are spaces, the cursor is positioned at the start of the sequence
 //both are just helpers and require "pos" not to be at the end resp. beginning
 
-uint findNextWord(char[] astr, uint pos) {
+uint findNextWord(string astr, uint pos) {
     bool what = isWord(astr, pos);
     while (pos < astr.length) {
         pos = str.charNext(astr, pos);
@@ -468,7 +468,7 @@ uint findNextWord(char[] astr, uint pos) {
     return pos;
 }
 
-uint findPrevWord(char[] astr, uint pos) {
+uint findPrevWord(string astr, uint pos) {
     pos = str.charPrev(astr, pos);
     //overjump spaces, if any
     while (pos > 0 && isSpaceAt(astr, pos))
@@ -484,9 +484,9 @@ uint findPrevWord(char[] astr, uint pos) {
 }
 
 //little helpers
-bool isSpaceAt(char[] s, size_t pos) {
+bool isSpaceAt(string s, size_t pos) {
     return isSpace(str.decode(s, pos));
 }
-bool isWord(char[] s, size_t pos) {
+bool isWord(string s, size_t pos) {
     return isLetterOrDigit(str.decode(s, pos));
 }

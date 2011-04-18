@@ -207,7 +207,7 @@ class Widget {
     ///text to display as tooltip
     ///note that there are no popup tooltips (and there'll never be one)
     ///instead, you need something else to display them
-    char[] tooltip;
+    string tooltip;
 
     ///use Widget.doesCover
     protected bool checkCover = false;
@@ -220,9 +220,9 @@ class Widget {
         //register with _actual_ classes of the object
         //(that's how D ctors work... this wouldn't work in C++)
         auto curclass = this.classinfo;
-        char[][] myclasses;
+        string[] myclasses;
         while (curclass) {
-            char[] clsname = WidgetFactory.lookupDynamic(curclass);
+            string clsname = WidgetFactory.lookupDynamic(curclass);
             if (clsname.length) {
                 myclasses ~= "w-" ~ clsname;
             }
@@ -974,8 +974,8 @@ class Widget {
         return mMousePos;
     }
 
-    final char[] findBind(KeyInfo k) {
-        char[] bind;
+    final string findBind(KeyInfo k) {
+        string bind;
         if (mBindings) {
             bind = mBindings.findBinding(k);
         }
@@ -1491,7 +1491,7 @@ class Widget {
     //by default, the styles stuff (= GUI theme) selects the cursor
     MouseCursor mouseCursor() {
         MouseCursor cursor = MouseCursor.Standard;
-        auto bmpres = styles.get!(char[])("bitmap-cursor-res");
+        auto bmpres = styles.get!(string)("bitmap-cursor-res");
         if (bmpres.length) {
             cursor.graphic = gGuiResources.get!(Surface)(bmpres);
             //xxx maybe make configurable as well
@@ -1508,7 +1508,7 @@ class Widget {
         mWidgetPad = styles.get!(int)("widget-pad");
         mBorderMin = styles.get!(int)("border-min");
 
-        char[] back = styles.get!(char[])("bitmap-background-res");
+        string back = styles.get!(string)("bitmap-background-res");
         mBmpBackground = back == "" ? null : gGuiResources.get!(Surface)(back);
 
         //draw-border is a misnomer, because it has influence on layout (size)?
@@ -2234,12 +2234,12 @@ final class GUI {
     const cThemeNone = "<none>";
 
     //theme = relative filename of the theme, can be cThemeNone for no theme
-    void loadTheme(char[] theme) {
+    void loadTheme(string theme) {
         gThemeSetting.set(theme);
     }
 
     private bool doReloadTheme() {
-        char[] theme = gThemeSetting.value;
+        string theme = gThemeSetting.value;
 
         log("load theme '{}'", theme);
 
@@ -2269,10 +2269,10 @@ final class GUI {
         return true;
     }
 
-    static char[][] listThemes() {
+    static string[] listThemes() {
         //xxx in i18n we have something similar, the code in i18n looks reboster
-        char[][] list;
-        gFS.listdir(cThemeFolder, "*.conf", false, (char[] filename) {
+        string[] list;
+        gFS.listdir(cThemeFolder, "*.conf", false, (string filename) {
             list ~= filename;
             return true;
         });
@@ -2292,7 +2292,7 @@ Setting gThemeSetting;
 const cDefTheme = "normal.conf";
 
 static this() {
-    gThemeSetting = addSetting!(char[])("gui.theme", cDefTheme,
+    gThemeSetting = addSetting!(string)("gui.theme", cDefTheme,
         SettingType.Choice);
     gOnRelistSettings ~= {
         gThemeSetting.choices = GUI.listThemes();

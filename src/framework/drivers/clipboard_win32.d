@@ -11,21 +11,21 @@ import str = utils.string;
 //Windows clipboard implementation
 class Win32Clipboard : ClipboardHandler {
     //first the functions for ClipboardHandler
-    void copyText(bool clipboard, char[] text) {
+    void copyText(bool clipboard, string text) {
         if (clipboard)
             setText(text);
     }
-    void pasteText(bool clipboard, void delegate(char[] text) cb) {
+    void pasteText(bool clipboard, void delegate(string text) cb) {
         if (clipboard)
             cb(getText());
     }
-    void pasteCancel(void delegate(char[] text) cb) {
+    void pasteCancel(void delegate(string text) cb) {
     }
 
     //return text in the clipboard; if the format is not CF_UNICODETEXT,
     //  it will be converted by Windows if possible
     //returns empty string on error
-    static char[] getText() {
+    static string getText() {
         if (!OpenClipboard(null)) {
             return null;
         }
@@ -42,21 +42,21 @@ class Win32Clipboard : ClipboardHandler {
         }
         scope(exit) GlobalUnlock(hData);
 
-        char[] ret = tutf.toString(fromString16z(data));
+        string ret = tutf.toString(fromString16z(data));
         //correct Windows newlines
         return str.replace(ret, "\r", "");
     }
 
     //put text into the clipboard as unicode text
     //xxx does nothing on error, maybe add exception
-    static void setText(char[] text) {
+    static void setText(string text) {
         if (!OpenClipboard(null)) {
             return;
         }
         scope(exit) CloseClipboard();
         EmptyClipboard();
 
-        wchar[] wtxt = tutf.toString16(text);
+        wstring wtxt = tutf.toString16(text);
         //ownership of this memory passes to Windows with the
         //  SetClipboardData() call
         HGLOBAL hGlobal = GlobalAlloc(GMEM_MOVEABLE, (wtxt.length + 1)

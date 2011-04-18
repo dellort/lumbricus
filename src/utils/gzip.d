@@ -18,7 +18,7 @@ enum {
 //adapted from Phobos' std.zlib, license was public domain
 class ZlibException : Exception {
     this(int errnum) {
-        char[] msg;
+        string msg;
 
         switch (errnum)
         {

@@ -127,7 +127,7 @@ class ControllerPersistence : GameObject {
     //return true if the game is over
     //xxx this does not have to be here, all needed information is in
     //    engine.persistentState
-    private bool checkVictory(char[] condition, out Team winner) {
+    private bool checkVictory(string condition, out Team winner) {
         //first check error cases (0 or 1 team in the game)
         //Note: even if teams surrender or leave during game, they are not
         //      removed from this list

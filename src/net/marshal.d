@@ -45,7 +45,7 @@ void swapBytes(T)(ref T data) {
  + static arrays: elements are written sequentially
  + dynamic arrays: like static arrays, but a 32 bit length value is prefixed
  + structs: members are written sequentially, without any padding
- + char[] arrays are handled specially: utf-8 encoding is verified on reading
+ + string arrays are handled specially: utf-8 encoding is verified on reading
  +
  + the struct is only here for practical reasons, no state is actually stored
  + you just need to set the writer before calling write()
@@ -227,7 +227,7 @@ struct Unmarshaller {
 }
 
 class UnmarshalException : CustomException {
-    this(char[] msg) {
+    this(string msg) {
         super(msg);
     }
 }
@@ -300,13 +300,13 @@ class UnmarshalBuffer {
 }
 
 //now this is a speciality...
-char[] marshalBase64(T)(T data) {
+string marshalBase64(T)(T data) {
     auto marsh = new MarshalBuffer();
     marsh.write!(T)(data);
     return base64.encode(marsh.data());
 }
 
-RetType!(T) unmarshalBase64(T)(char[] data) {
+RetType!(T) unmarshalBase64(T)(string data) {
     ubyte[] dec;
     try {
         dec = base64.decode(data);
@@ -377,10 +377,10 @@ debug unittest {
         //dchar k;
         char[5] l;
         int[3] l2;
-        char[] m;
-        char[][] n;
+        string m;
+        string[] n;
         E o;
-        char[] p;
+        string p;
     }
 
     auto m = new MarshalBuffer();

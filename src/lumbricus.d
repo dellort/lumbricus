@@ -40,7 +40,7 @@ import game.wtris; //lol
 import game.bomberworm; //?
 import common.localeswitch;
 
-void lmain(char[][] args) {
+void lmain(string[] args) {
     args = args[1..$];
     bool is_server = getarg(args, "server");
 
@@ -73,6 +73,6 @@ void lmain(char[][] args) {
     gFramework.deinitialize();
 }
 
-int main(char[][] args) {
+int main(string[] args) {
     return wrapMain(args, &lmain);
 }

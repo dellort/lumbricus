@@ -21,7 +21,7 @@ class GuiFps : Widget {
     private Font mFont;
     private Vector2i mPos;
     private float mFps;
-    private char[] mText; //will point to mBuffer
+    private string mText; //will point to mBuffer
     private char[60] mBuffer, mBuffer2, mBuffer3; //avoid heap allocations
     private bool oldDelta; //change text if setting changes
 

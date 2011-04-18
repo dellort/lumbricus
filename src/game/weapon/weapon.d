@@ -33,9 +33,9 @@ abstract class WeaponClass : EventTarget {
     private GameCore mCore;
 
     //generally read-only fields
-    char[] name; //weapon name, translateable string
+    string name; //weapon name, translateable string
     int value = 0;  //see config file
-    char[] category = "none"; //category-id for this weapon
+    string category = "none"; //category-id for this weapon
     bool isAirstrike = false; //needed to exlude it from cave levels
     bool allowSecondary = false;  //allow selecting and firing a second
                                   //weapon while active
@@ -54,13 +54,13 @@ abstract class WeaponClass : EventTarget {
     FireMode fireMode;
 
     //weapon-holding animations
-    char[] animation;
+    string animation;
 
     GameCore engine() {
         return mCore;
     }
 
-    this(GameCore a_core, char[] a_name) {
+    this(GameCore a_core, string a_name) {
         assert(a_core !is null);
         super("weapon_" ~ a_name, a_core.events);
         mCore = a_core;
@@ -85,7 +85,7 @@ abstract class WeaponClass : EventTarget {
         return !isAirstrike || engine.level.airstrikeAllow;
     }
 
-    override char[] toString() {
+    override string toString() {
         return myformat("[Weapon {}]", name);
     }
 }
@@ -700,7 +700,7 @@ abstract class Shooter : GameObject {
         if (auto wani = weaponAniState()) {
             mQueueAnimUpdate = false;
             if (mIsSelected) {
-                char[] w = weapon.animation;
+                string w = weapon.animation;
                 //right now, an empty string means "no weapon", but we mean
                 //  "unknown weapon" (so a default animation is selected, not none)
                 if (w == "") {
@@ -825,7 +825,7 @@ abstract class Shooter : GameObject {
         }
     }
 
-    override char[] toString() {
+    override string toString() {
         return myformat("[Shooter {:x} {}]", toHash, mClass);
     }
 }

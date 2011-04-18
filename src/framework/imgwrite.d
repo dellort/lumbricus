@@ -17,7 +17,7 @@ import net.marshal : Marshaller;
 //NOTE: stream must be seekable (used to back-patch the length), but the
 //      functions still start writing at the preset seek position, and end
 //      writing at the end of the written image
-void saveImage(Surface img, Stream stream, char[] extension = ".png") {
+void saveImage(Surface img, Stream stream, string extension = ".png") {
     extension = str.tolower(extension);
     if (extension == ".png") {
         writePNG(img, stream);
@@ -26,7 +26,7 @@ void saveImage(Surface img, Stream stream, char[] extension = ".png") {
     }
 }
 
-void saveImage(Surface img, char[] path) {
+void saveImage(Surface img, string path) {
     auto p = VFSPath(path);
     scope stream = gFS.open(p, File.WriteCreate);
     scope(exit) stream.close();
@@ -79,7 +79,7 @@ private void writePNG(Surface img, Stream stream) {
         chunk_crc.update(d);
         stream.writeExact(d);
     }
-    void startChunk(char[] name) {
+    void startChunk(string name) {
         if (chunk_writing)
             endChunk();
         assert(name.length == 4);

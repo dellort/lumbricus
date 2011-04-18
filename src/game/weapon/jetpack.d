@@ -24,7 +24,7 @@ class JetpackClass : WeaponClass {
     Vector2f jetpackThrust = {0f, 0f};
     bool stopOnDisable = true;
 
-    this(GameCore a_engine, char[] name) {
+    this(GameCore a_engine, string name) {
         super(a_engine, name);
     }
 

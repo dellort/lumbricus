@@ -32,7 +32,7 @@ class WeaponSet : GameObject {
             return quantity == cINF;
         }
 
-        char[] quantityToString() {
+        string quantityToString() {
             if (infinite)
                 return "inf";
             return myformat("{}", quantity);
@@ -56,7 +56,7 @@ class WeaponSet : GameObject {
         foreach (ConfigNode node; config.getSubNode("weapon_list")) {
             WeaponClass w;
             uint quantity;
-            char[] wname = node.name;
+            string wname = node.name;
             try {
                 //may throw some exception
                 w = engine.resources.get!(WeaponClass)(wname);

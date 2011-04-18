@@ -29,16 +29,16 @@ import derelict.lua.luatypes;
 //==============================================================================
 // Types
 //==============================================================================
-const char[] LUA_FILEHANDLE  = "FILE*";
+const string LUA_FILEHANDLE  = "FILE*";
 
-const char[] LUA_COLIBNAME	 = "coroutine";
-const char[] LUA_TABLIBNAME  = "table";
-const char[] LUA_IOLIBNAME   = "io";
-const char[] LUA_OSLIBNAME   = "os";
-const char[] LUA_STRLIBNAME  = "string";
-const char[] LUA_MATHLIBNAME = "math";
-const char[] LUA_DBLIBNAME   = "debug";
-const char[] LUA_LOADLIBNAME = "package";
+const string LUA_COLIBNAME	 = "coroutine";
+const string LUA_TABLIBNAME  = "table";
+const string LUA_IOLIBNAME   = "io";
+const string LUA_OSLIBNAME   = "os";
+const string LUA_STRLIBNAME  = "string";
+const string LUA_MATHLIBNAME = "math";
+const string LUA_DBLIBNAME   = "debug";
+const string LUA_LOADLIBNAME = "package";
 
 extern (C)
 {

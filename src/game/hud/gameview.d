@@ -446,7 +446,7 @@ class GameView : Widget {
     void delegate() onKeyHelp;
     void delegate() onToggleWeaponWindow, onToggleScroll;
     void delegate() onToggleChat, onToggleScript;
-    void delegate(char[] category) onSelectCategory;
+    void delegate(string category) onSelectCategory;
     bool canUseMouse;
 
     //what a stupid type name
@@ -481,7 +481,7 @@ class GameView : Widget {
         MoveStateXY mCameraMovement;
 
         //key binding identifier to game engine command (wormbinds map_commands)
-        char[][char[]] mKeybindToCommand;
+        string[string] mKeybindToCommand;
         //wormbinds.conf/map_commands
         ConfigNode mCommandMap;
 
@@ -663,24 +663,24 @@ class GameView : Widget {
     //  shortcut input went to the game; otherwise the key shortcuts for
     //  teamlabels ("delete") would be globally catched, and you couldn't use
     //  them e.g. in a text edit field
-    private bool inpCmd(char[] cmd) {
+    private bool inpCmd(string cmd) {
         executeGlobalCommand(cmd);
         return true;
     }
 
-    private bool inpCategory(char[] catname) {
+    private bool inpCategory(string catname) {
         if (onSelectCategory)
             onSelectCategory(catname);
         return true;
     }
 
-    private bool inpZoom(char[] cmd) {
+    private bool inpZoom(string cmd) {
         bool isDown = tryFromStrDef(cmd, false);
         mZoomChange = isDown?-1:1;
         return true;
     }
 
-    private bool inpCameraDisable(char[] cmd) {
+    private bool inpCameraDisable(string cmd) {
         enableCamera = !tryFromStrDef(cmd, enableCamera);
         //gLog.warn("set camera enable: {}", enableCamera);
         return true;
@@ -735,7 +735,7 @@ class GameView : Widget {
             table.add(head, 0, table.height-1, 2, 1);
             //command...
             foreach (ConfigNode cmd; cat) {
-                char[] id = cmd.name;
+                string id = cmd.name;
                 auto caption = new Label();
                 caption.text = tr_ids(id);
                 caption.styles.addClass("keybind_help_caption");
@@ -750,7 +750,7 @@ class GameView : Widget {
         return table;
     }
 
-    private bool inpMoveCamera(char[] cmd) {
+    private bool inpMoveCamera(string cmd) {
         mCameraMovement.handleCommand(cmd);
         mCamera.setAutoScroll(mCameraMovement.direction);
         return true;
@@ -775,7 +775,7 @@ class GameView : Widget {
 
     //find a WeaponClass of the weapon named "name" in the current team's
     //weapon-set (or return null)
-    private WeaponClass findWeapon(char[] name) {
+    private WeaponClass findWeapon(string name) {
         return mGame.engine.resources.get!(WeaponClass)(name, true);
     }
 
@@ -826,7 +826,7 @@ class GameView : Widget {
 
     private bool doKeyEvent(KeyInfo ki) {
         BindKey key = BindKey.FromKeyInfo(ki);
-        char[] bind = bindings.findBinding(key);
+        string bind = bindings.findBinding(key);
 
         //xxx is there a reason not to use the command directly?
         if (auto pcmd = bind in mKeybindToCommand) {
@@ -851,7 +851,7 @@ class GameView : Widget {
     //  %mx, %my -> mouse position
     //also, will not trigger an up event for commands without %d param
     //buffer can be memory of any size that will be used to reduce heap allocs
-    private char[] processBinding(char[] bind, KeyInfo ki, char[] buffer = null)
+    private string processBinding(string bind, KeyInfo ki, string buffer = null)
     {
         bool isUp = !ki.isDown;
         //no up/down parameter, and key was released -> no event
@@ -865,7 +865,7 @@ class GameView : Widget {
         return txt.get;
     }
 
-    private bool doInput(char[] s) {
+    private bool doInput(string s) {
         if (!s.length)
             return false;
 

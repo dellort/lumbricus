@@ -25,7 +25,7 @@ class LoadingScreen : Container {
 
     //fixed amount of chunks; each chunk has an associated message
     //these are used to show what's going on
-    void setPrimaryChunks(char[][] stuff) {
+    void setPrimaryChunks(string[] stuff) {
         if (mLabelList) {
             mLabelList.remove();
         }
@@ -34,7 +34,7 @@ class LoadingScreen : Container {
         mLabelList.setLayout(WidgetLayout.Aligned(-1,-1,Vector2i(50,50)));
         addChild(mLabelList);
 
-        foreach (char[] chunk; stuff) {
+        foreach (string chunk; stuff) {
             auto label = new Label();
             mChunkLabels ~= label;
             label.styles.addClass("loadingscreen-label");

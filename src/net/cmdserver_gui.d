@@ -34,7 +34,7 @@ class CmdNetServerTask {
     }
 
     this() {
-        char[][] args;
+        string[] args;
         args ~= getExePath();
         args ~= "--server";
         mProcess = new Process(true, args);

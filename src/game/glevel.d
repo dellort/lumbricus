@@ -359,7 +359,7 @@ class LevelColTest : Widget {
 }
 
 static this() {
-    registerTask("levelcoltest", function(char[] args) {
+    registerTask("levelcoltest", function(string args) {
         gWindowFrame.createWindowFullscreen(new LevelColTest(), "coltest");
     });
 }
