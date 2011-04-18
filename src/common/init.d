@@ -19,7 +19,7 @@ import stream = utils.stream;
 import str = utils.string;
 import strparser = utils.strparser;
 
-import tango.io.Stdout;
+import std.stdio;
 
 //Currently, this is just used in FileSystem to determine data/user paths
 const string APP_ID = "lumbricus";
@@ -217,10 +217,10 @@ void cmdlineLoadSettings(ref string[] args) {
     if (getarg(args, "setting-help", sname)) {
         Setting s = findSetting(sname);
         if (!s) {
-            Stdout.formatln("Setting '{}' not found.", sname);
+            writefln("Setting '%s' not found.", sname);
         } else {
             relistAllSettings(); //load/scan files to init all s.choices
-            Stdout.formatln("{}", settingValueHelp(s.name));
+            writefln("%s", settingValueHelp(s.name));
         }
 
         exit();
@@ -239,7 +239,7 @@ void cmdlineCheckHelp(ref string[] args) {
     if (!getarg(args, "help"))
         return;
 
-    void line(string s) { Stdout(s).newline; }
+    void line(string s) { writeln(s); }
 
     line("Commandline options:");
     line("  --help                  Show this.");
@@ -262,8 +262,8 @@ void cmdlineCheckHelp(ref string[] args) {
 //make sure no args are left over; otherwise print error and exit()
 void cmdlineTerminate(ref string[] args) {
     if (args.length) {
-        Stdout.formatln("Unknown command line arguments: {}", args);
-        Stdout.formatln("Try --help instead.");
+        writefln("Unknown command line arguments: %s", args);
+        writefln("Try --help instead.");
         exit();
     }
     args = null;
@@ -392,8 +392,8 @@ bool findarg(ref string[] args, string name, string[] getargs) {
     auto nargs = getargs.length;
     assert(nargs == 0 || nargs == 1);
 
-    void error(string fmt, ...) {
-        Stdout.formatln("{}", myformat_fx(fmt, _arguments, _argptr));
+    void error(T...)(string fmt, T args) {
+        writefln(fmt, args);
         exit();
     }
 

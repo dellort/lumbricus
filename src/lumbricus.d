@@ -1,8 +1,5 @@
 module lumbricus;
 
-//enable tango backtracing (on exceptions)
-debug import tango.core.tools.TraceExceptions;
-
 import framework.filesystem;
 import framework.globalsettings;
 import framework.imgread;

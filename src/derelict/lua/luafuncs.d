@@ -2,11 +2,7 @@ module derelict.lua.luafuncs;
 
 import derelict.lua.luatypes;
 
-version (Tango) {
-    import tango.stdc.stdarg : va_list;
-} else {
-    import std.c.stdarg;
-}
+import std.c.stdarg;
 
 //==============================================================================
 // Functions

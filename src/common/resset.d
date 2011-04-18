@@ -5,8 +5,6 @@ module common.resset;
 
 import utils.misc;
 
-import rtraits = tango.core.RuntimeTraits;
-
 ///a ResourceSet holds a set of resources and can be i.e. used to do level
 ///themes, graphic themes (GPL versus WWP graphics) or to change graphic aspects
 ///of the game (different water colors + associated graphics for objects)
@@ -140,7 +138,7 @@ class ResourceSet {
         Object[] res;
         foreach (Entry e; mResByName) {
             Object o = e.resource();
-            if (rtraits.isImplicitly(o.classinfo, cls))
+            if (isImplicitly(o.classinfo, cls))
                 res ~= o;
         }
         return res;
@@ -170,3 +168,87 @@ class ResourceException : LoadException {
 }
 
 
+// Parts taken from Tango tango.core.RuntimeTraits, as Phobos2 doesn't seem to
+//  provide anything like this.
+// The only function I needed was isImplicitly().
+
+private:
+
+/**
+ * Provides runtime traits, which provide much of the functionality of tango.core.Traits and
+ * is-expressions, as well as some functionality that is only available at runtime, using
+ * runtime type information.
+ *
+ * Authors: Chris Wright (dhasenan) $(EMAIL dhasenan@gmail.com)
+ * License: Tango License, Apache 2.0
+ * Copyright: Copyright (c) 2009, CHRISTOPHER WRIGHT
+ */
+
+/** Returns true iff one type is an ancestor of the other, or if the types are the same.
+ * If either is null, returns false. */
+bool isDerived (ClassInfo derived, ClassInfo base)
+{
+    if (derived is null || base is null)
+        return false;
+    do
+        if (derived is base)
+            return true;
+    while ((derived = derived.base) !is null)
+    return false;
+}
+
+/** Returns true iff implementor implements the interface described
+ * by iface. This is an expensive operation (linear in the number of
+ * interfaces and base classes).
+ */
+bool implements (ClassInfo implementor, ClassInfo iface)
+{
+    foreach (info; applyInterfaces (implementor))
+    {
+        if (iface is info)
+            return true;
+    }
+    return false;
+}
+
+/** Returns true iff an instance of class test is implicitly castable to target.
+ * This is an expensive operation (isDerived + implements). */
+bool isImplicitly (ClassInfo test, ClassInfo target)
+{
+    // Keep isDerived first.
+    // isDerived will be much faster than implements.
+    return (isDerived (test, target) || implements (test, target));
+}
+
+/** Iterate through all interfaces that type implements, directly or indirectly, including base interfaces. */
+struct applyInterfaces
+{
+    ///
+    static applyInterfaces opCall (ClassInfo type)
+    {
+        applyInterfaces apply;
+        apply.type = type;
+        return apply;
+    }
+
+    ///
+    int opApply (int delegate (ref ClassInfo) dg)
+    {
+        int result = 0;
+        for (; type; type = type.base)
+        {
+            foreach (iface; type.interfaces)
+            {
+                result = dg (iface.classinfo);
+                if (result)
+                    return result;
+                result = applyInterfaces (iface.classinfo).opApply (dg);
+                if (result)
+                    return result;
+            }
+        }
+        return result;
+    }
+
+    ClassInfo type;
+}

@@ -17,8 +17,7 @@ import utils.drawing;
 import utils.misc;
 import utils.strparser;
 
-import math = tango.math.Math;
-import ieee = tango.math.IEEE;
+import math = std.math;
 import utils.stream;
 import tango.stdc.stringz;
 import tango.sys.Environment;

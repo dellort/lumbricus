@@ -37,10 +37,6 @@ import stats = common.stats;
 //import all restypes because of the factories (more for debugging...)
 import common.allres;
 
-//bloaty "stuff" to help with debugging (questionable)
-//this module registers itself via static this
-debug import common.debugstuff;
-
 //ZOrders!
 //only for the stuff managed by TopLevel
 //note that Widget.zorder can take any value

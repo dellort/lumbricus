@@ -17,7 +17,7 @@ import utils.factory;
 import utils.strparser;
 
 import str = utils.string;
-import math = tango.math.Math;
+import math = std.math;
 import mymath = utils.math;
 
 

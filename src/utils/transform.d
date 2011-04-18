@@ -1,6 +1,6 @@
 module utils.transform;
 
-import math = tango.math.Math;
+import math = std.math;
 import utils.vector2;
 
 //2x2 matrix + translation vector

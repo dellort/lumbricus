@@ -7,8 +7,8 @@ import utils.misc;
 import tango.core.WeakRef;
 
 import str = utils.string;
-import math = tango.math.Math;
-import cstdlib = tango.stdc.stdlib;
+import math = std.math;
+import cstdlib = std.c.stdlib;
 
 /+
 //periodic cleanups (gets actually called each frame)
