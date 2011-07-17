@@ -7,7 +7,6 @@
 //  - SliceStream (couldn't find anything similar in Tango)
 module utils.stream;
 
-public import tango.core.Exception : IOException;
 public import tango.io.device.Conduit : Conduit;
 //important for file modes (many types/constants), even if File itself is unused
 public import tango.io.device.File : File;
@@ -18,6 +17,11 @@ import utils.misc;
 
 import marray = utils.array;
 
+import std.file;
+// maybe? the shitty phobos docs are nebulous
+//alias FileException IOException;
+import std.exception;
+alias ErrnoException IOException;
 
 //HAHAHAHAHAHAHAHAHAHAHAHAHA
 //actually, I don't feel like inventing my own I/O API
@@ -295,105 +299,49 @@ abstract class Stream {
     }
 
     //meh
-    static ConduitStream OpenFile(string path,
-        File.Style mode = File.ReadShared)
-    {
-        return new ConduitStream(castStrict!(Conduit)(new File(path, mode)));
+    static ConduitStream OpenFile(string path, string mode) {
+        return new ShitStream(File(path, mode));
     }
 }
 
-class ConduitStream : Stream {
+//I wanted to name this PhobosStream, but I think this name is better
+class ShitStream : Stream {
     private {
-        InputStream mInput;
-        OutputStream mOutput;
+        File mShit;
     }
 
     //use File (which is a Conduit) from tango.io.device.File to open files
-    this(Conduit c) {
-        assert(!!c);
-        //both calls return the Conduit itself
-        mInput = c.input();
-        mOutput = c.output();
-        assert(mInput.conduit is c && mOutput.conduit is c);
-    }
-
-    //comedy
-    this(InputStream i) {
-        //using i.conduit() here would be wrong, because it destroys the
-        //  InputFilter chain
-        assert(!!i);
-        mInput = i;
-    }
-
-    //more comedy
-    this(OutputStream o) {
-        assert(!!o);
-        mOutput = o;
-    }
-
-    //more and more comedy!
-    private IOStream whatever() {
-        //one of these can be null
-        IOStream a = mInput;
-        IOStream b = mOutput;
-        return a ? a : b;
-    }
-
-    //returns something (changed this after r953, I don't know what this is for)
-    IConduit conduit() {
-        return whatever.conduit;
-    }
-
-    InputStream input() {
-        return mInput;
+    this(File s) {
+        mShit = s;
     }
 
     ulong position() {
-        return whatever.seek(0, Conduit.Anchor.Current);
+        //XXXTANGO may throw
+        return mShit.tell;
     }
     //I define that the actual position is only checked on read/write accesses
     // => IOException never thrown
     void position(ulong pos) {
-        whatever.seek(pos, Conduit.Anchor.Begin);
+        //XXXTANGO may throw
+        mShit.seek(pos);
     }
 
     ulong size() {
-        //??????????????????????
-        auto cur = position;
-        auto sz = whatever.seek(0, Conduit.Anchor.End);
-        position = cur;
-        return sz;
+        //XXXTANGO may throw
+        return mShit.size;
     }
 
     size_t writePartial(ubyte[] data) {
-        if (!mOutput)
-            ioerror("no write access");
-        auto res = mOutput.write(data);
-        //probably could happen if the Conduit is a UNIX pipe or a socket
-        //how the shell should I know? fuck Tango.
-        if (res == Conduit.Eof)
-            assert(false);
-        if (data.length && res == 0)
-            assert(false);
-        return res;
+        mShit.rawWrite(data);
+        return data.length;
     }
 
     size_t readPartial(ubyte[] data) {
-        if (!mInput)
-            ioerror("no read access");
-        auto res = mInput.read(data);
-        //????????
-        if (data.length && res == 0)
-            assert(false);
-        //allow me to fix those shitty semantics
-        if (res == Conduit.Eof)
-            res = 0;
-        return res;
+        return mShit.rawRead(data).length;
     }
 
     void close() {
-        whatever.close();
-        //if mOutput is set, it is the same as mInput (no close needed)
+        mShit.close();
     }
 }
 
@@ -601,86 +549,3 @@ class MemoryStream : Stream {
     }
 }
 
-
-
-import tango.core.Thread;
-import tango.io.device.ThreadPipe;
-
-//implements asynchronous writing to an output stream
-//usage: auto tw = new ThreadWriter(fileStream); auto pipe = tw.pipeOut();
-//all writes to pipe will then be asynchronous
-//when done, call pipe.close() to wait for all writes to finish and close
-//  the sink
-//Important: ownership of the sink stream passes over to the ThreadedWriter,
-//           and the stream will be finalized on close().
-//           Do _not_ keep an outside reference to the sink stream
-//By design, no data will be lost, even if the main thread crashes
-class ThreadedWriter {
-    private {
-        Thread mWorker, mParent;
-        ThreadPipe mPipe;
-        PipeIn mPipeWrapper;
-        PipeOut mSink;
-    }
-
-    //ownership of sink passes over to ThreadedWriter (see above)
-    this(Stream sink) {
-        mParent = Thread.getThis();
-        mSink = sink.pipeOut(true);
-        mPipe = new ThreadPipe();
-        //isn't it funny...
-        mPipeWrapper = (new ConduitStream(castStrict!(Conduit)(mPipe))).pipeIn();
-
-        mWorker = new Thread(&run);
-        mWorker.start();
-    }
-
-    private void run() {
-        bool terminated;
-        do {
-            Thread.sleep(0.1);
-            copyAvailable();
-            //exit when the write end is closed, or when the main thread
-            //shuts down
-            terminated = (!mPipe.isAlive() || Runtime.isHalting());
-        } while (!terminated);
-        copyAvailable();
-        mPipe.stop();
-        mPipe.close();
-    }
-
-    //copy all data in the ThreadPipe to sink
-    private void copyAvailable() {
-        size_t r;
-        if ((r = mPipe.remaining()) > 0) {
-            mSink.copyFrom(mPipeWrapper, r);
-        }
-    }
-
-    PipeOut pipeOut() {
-        return PipeOut(&write, &close);
-    }
-
-    private void write(ubyte[] data) {
-        if (mPipe.isAlive()) {
-            //normal, threaded operation
-            mPipe.write(data);
-        } else if (!mSink.isNull()) {
-            //thread is terminated, but close() was not called
-            //(this can happen e.g. on program exit)
-            //write directly to sink then
-            mSink.write(data);
-        } else {
-            assert(false, "attempted write in closed ThreadedWriter");
-        }
-    }
-
-    private void close() {
-        //closing the pipe will shut down the thread
-        mPipe.stop();
-        //wait until all writes are completed
-        mWorker.join();
-        //all writes are done, close the sink stream
-        mSink.close();
-    }
-}

@@ -15,7 +15,7 @@ static if (Tango.Major == 0 && Tango.Minor == 999) {
 } else {
     import tango.util.compress.Zip;
 }
-import tango.io.model.IConduit;
+//import tango.io.model.IConduit;
 
 //shared interface for archive readers (currently: tar and zip)
 interface ArchiveReader {
@@ -31,6 +31,7 @@ interface ArchiveReader {
     void close();
 }
 
+/+
 //now what is so hard about that, tango guys? (ZipFolder throws AVs at me)
 class ZipArchiveReader : ArchiveReader {
     private {
@@ -117,6 +118,7 @@ class ZipArchiveReader : ArchiveReader {
         mEntries = null;
     }
 }
++/
 
 class TarArchive : ArchiveReader {
     private {

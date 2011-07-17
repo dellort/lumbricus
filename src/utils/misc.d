@@ -1,15 +1,11 @@
 module utils.misc;
 
-import tango.text.convert.Format;
-import intr = tango.core.BitManip;
-import runtime = tango.core.Runtime;
+import std.stdio;
+import std.format;
+import std.intrinsic;
 
-public import tango.stdc.stdarg : va_list;
-//import tango.core.Traits : ParameterTupleOf;
-
-//Tango team = stupid (defining your own min/max functions will conflict)
-public import tango.math.Math : min, max;
-import tango.math.Math : abs;
+public import std.algorithm : min, max;
+import std.math : abs;
 
 //because printf debugging is common and usefull
 //public import tango.util.log.Trace : Trace;
@@ -20,31 +16,26 @@ import tango.math.Math : abs;
 class Trace {
 
     static void write(string s) {
-        runtime.Runtime.console.stderr(s);
+        stderr.write(s);
     }
     static void flush() {
-        //Runtime.console should write directly to stderr; no buffering anywhere
+        //hopefully unbuffered (but who knows, fuck Phobos)
     }
 
-    static void format(string fmt, ...) {
+    static void format(T...)(string fmt, T args) {
         synchronized(Trace.classinfo) {
-            doprint(fmt, _arguments, _argptr);
+            doprint(fmt, args);
         }
     }
-    static void formatln(string fmt, ...) {
+    static void formatln(T...)(string fmt, T args) {
         synchronized(Trace.classinfo) {
-            doprint(fmt, _arguments, _argptr);
+            doprint(fmt, args);
             write("\n");
         }
     }
 
-    private static void doprint(string fmt, TypeInfo[] arguments, void* argptr)
-    {
-        uint sink(string s) {
-            write(s);
-            return s.length;
-        }
-        Format.convert(&sink, arguments, argptr, fmt);
+    private static void doprint(T...)(string fmt, T args) {
+        formattedWrite(stderr, fmt, args);
     }
 }
 
@@ -182,82 +173,15 @@ string myformat_fx(string a_fmt, TypeInfo[] arguments, va_list argptr) {
 //replacement for stdx.string.format()
 //trivial, but Tango really is annoyingly noisy
 //should be in utils.string, but ugh the required changes
-string myformat(string fmt, ...) {
-    return myformat_fx(fmt, _arguments, _argptr);
-}
-
-//make it simpler to append to a string without memory allocation
-//StrBuffer.sink() will append a string using the provided memory buffer
-//if the memory buffer is too short, it falls back to heap allocation
-struct StrBuffer {
-    string buffer;  //static buffer passed by user
-    string output;  //append buffer (may be larger than actual string)
-    size_t outpos;  //output[0..outpos] is actual (valid) string
-
-    static StrBuffer opCall(string buffer) {
-        StrBuffer s;
-        s.buffer = buffer;
-        s.output = s.buffer;
-        return s;
-    }
-
-    void sink(string append) {
-        auto end = outpos + append.length;
-        if (end > buffer.length) {
-            //(force reallocation, never resize buffer's memory block)
-            if (output.ptr == buffer.ptr)
-                output = buffer.dup;
-            output = output[0..outpos];
-            output ~= append;
-        } else {
-            output[outpos..end] = append;
-        }
-        outpos = end;
-    }
-
-    //like sink, but compatible with Tango
-    uint tsink(string s) {
-        sink(s);
-        return s.length; //????
-    }
-
-    //retrieve actual string
-    string get() {
-        return output[0..outpos];
-    }
-
-    //reuse the buffer by setting outpos to 0
-    //the previous result of get() will get invalid
-    void reset() {
-        outpos = 0;
-    }
-}
-
-//if the buffer is too small, allocate a new one
-string myformat_s_fx(string buffer, string fmt, TypeInfo[] arguments,
-    va_list argptr)
-{
-    //NOTE: there's Layout.vprint(), but it simply cuts the output if the buffer
-    //      is too small (and you don't know if this happened)
-    auto buf = StrBuffer(buffer);
-    Format.convert(&buf.tsink, arguments, argptr, fmt);
-    return buf.get;
+string myformat(T...)(string fmt, T args) {
+    return format(fmt, args);
 }
 
 //like myformat(), but use the buffer
 //if the buffer is too small, allocate a new one
-string myformat_s(string buffer, string fmt, ...) {
-    return myformat_s_fx(buffer, fmt, _arguments, _argptr);
-}
-
-void myformat_cb_fx(void delegate(string s) sink, string fmt,
-    TypeInfo[] arguments, va_list argptr)
-{
-    uint xsink(string s) { sink(s); return s.length; }
-    return Format.convert(&xsink, arguments, argptr, fmt);
-}
-void myformat_cb(void delegate(string s) sink, string fmt, ...) {
-    myformat_cb_fx(sink, fmt, _arguments, _argptr);
+string myformat_s(T...)(char[] buffer, string fmt, T args) {
+    //XXXTANGO avoid heap allocation
+    return myformat(fmt, args);
 }
 
 //functions cannot return static arrays, so this gets the equivalent

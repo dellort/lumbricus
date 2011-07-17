@@ -1,15 +1,7 @@
 module framework.lua;
 
 import derelict.lua.lua;
-import czstr = tango.stdc.stringz;
-import cstdlib = tango.stdc.stdlib;
-import tango.core.Traits : ParameterTupleOf, isIntegerType, isFloatingPointType,
-    ElementTypeOfArray, isArrayType, isAssocArrayType, KeyTypeOfAA, ValTypeOfAA,
-    ReturnTypeOf, isStaticArrayType;
-import rtraits = tango.core.RuntimeTraits;
-import env = tango.sys.Environment;
-import tango.core.WeakRef : WeakRef;
-import tango.core.Exception;
+//import tango.core.WeakRef : WeakRef;
 
 import str = utils.string;
 import utils.list2;
@@ -17,6 +9,107 @@ import utils.misc;
 import utils.stream;
 import utils.strparser;
 import utils.time;      //for special Time marshalling
+
+import std.conv;
+
+char* toStringz(const(char)[] s) {
+    return to!(char*)(s);
+}
+char[] fromStringz(char* s) {
+    //XXXTANGO confirm that this doesn't heap allocate (we don't want that)
+    return to!(char[])(s);
+}
+
+//--- stolen from tango code
+template ElementTypeOfArray(T:T[])
+{
+    alias T ElementTypeOfArray;
+}
+template KeyTypeOfAA(T){
+    alias typeof(T.init.keys[0]) KeyTypeOfAA;
+}
+template ValTypeOfAA(T){
+    alias typeof(T.init.values[0]) ValTypeOfAA;
+}
+bool isImplicitly (ClassInfo test, ClassInfo target)
+{
+    // Keep isDerived first.
+    // isDerived will be much faster than implements.
+    return (isDerived_ (test, target) || implements_ (test, target));
+}
+bool implements_ (ClassInfo implementor, ClassInfo iface)
+{
+    foreach (info; applyInterfaces (implementor))
+    {
+        if (iface is info)
+            return true;
+    }
+    return false;
+}
+bool isDerived_ (ClassInfo derived, ClassInfo base)
+{
+    if (derived is null || base is null)
+        return false;
+    do
+        if (derived is base)
+            return true;
+    while ((derived = derived.base) !is null)
+    return false;
+}
+struct applyInterfaces
+{
+    ///
+    static applyInterfaces opCall (ClassInfo type)
+    {
+        applyInterfaces apply;
+        apply.type = type;
+        return apply;
+    }
+
+    ///
+    int opApply (int delegate (ref ClassInfo) dg)
+    {
+        int result = 0;
+        for (; type; type = type.base)
+        {
+            foreach (iface; type.interfaces)
+            {
+                result = dg (iface.classinfo);
+                if (result)
+                    return result;
+                result = applyInterfaces (iface.classinfo).opApply (dg);
+                if (result)
+                    return result;
+            }
+        }
+        return result;
+    }
+
+    ClassInfo type;
+}
+//---
+
+//XXXTANGO phobos doesn't have weakrefs; replace with memory leak
+class WeakRef {
+    private Object weakpointer;
+
+    this (Object obj) {
+        weakpointer = obj;
+    }
+
+    final void set (Object obj) {
+        clear;
+        weakpointer = obj;
+    }
+
+    final void clear () {
+        weakpointer = null;
+    }
+
+    final Object get () {
+        return weakpointer;
+    }
+}
 
 /+
 Error handling notes:
@@ -222,7 +315,7 @@ private string luaWhere(lua_State* L, int level) {
     if (lua_getstack(L, level, &ar)) {  /* check function at level */
         lua_getinfo(L, "Sl", &ar);  /* get info about it */
         if (ar.currentline > 0) {  /* is there info? */
-            return myformat("{}:{}: ", czstr.fromStringz(ar.short_src.ptr),
+            return myformat("{}:{}: ", fromStringz(ar.short_src.ptr),
                 ar.currentline);
         }
     }
@@ -255,11 +348,11 @@ private string luaStackTrace(lua_State* state, int level = 1) {
         }
         ret ~= "\t";
         lua_getinfo(state, "Snl", &ar);
-        ret ~= czstr.fromStringz(ar.short_src.ptr) ~ ":";
+        ret ~= fromStringz(ar.short_src.ptr) ~ ":";
         if (ar.currentline > 0)
             ret ~= myformat("{}:", ar.currentline);
         if (*ar.namewhat != '\0')  /* is there a name? */
-            ret ~= myformat(" in function '{}'", czstr.fromStringz(ar.name));
+            ret ~= myformat(" in function '{}'", fromStringz(ar.name));
         else {
             if (*ar.what == 'm')  /* main? */
                 ret ~= " in main chunk";
@@ -267,7 +360,7 @@ private string luaStackTrace(lua_State* state, int level = 1) {
                 ret ~= " ?";  /* C function or tail call */
             else
                 ret ~= myformat(" in function <{}:{}>",
-                    czstr.fromStringz(ar.short_src.ptr), ar.linedefined);
+                    fromStringz(ar.short_src.ptr), ar.linedefined);
         }
         ret ~= "\n";
     }
@@ -362,9 +455,9 @@ private bool canCast(ClassInfo from, ClassInfo to) {
 
 private void luaExpected(lua_State* state, int stackIdx, string expected) {
     char* s = luaL_typename(state, stackIdx);
-    luaExpected(state, expected, czstr.fromStringz(s));
+    luaExpected(state, expected, fromStringz(s));
 }
-private void luaExpected(lua_State* state, string expected, string got) {
+private void luaExpected(lua_State* state, const(char)[] expected, const(char)[] got) {
     luaErrorf(state, "{} expected, got {}", expected, got);
 }
 
@@ -375,7 +468,7 @@ private void luaExpected(lua_State* state, string expected, string got) {
 private T luaStackValue(T)(lua_State *state, int stackIdx) {
     void expected(string t) { luaExpected(state, stackIdx, t); }
     //xxx no check if stackIdx is valid (is checked in demarshal() anyway)
-    static if (isIntegerType!(T) || isFloatingPointType!(T)) {
+    static if (isIntegral!(T) || isFloatingPoint!(T)) {
         lua_Number ret = lua_tonumber(state, stackIdx);
         if (ret == 0 && !lua_isnumber(state, stackIdx))
             expected("number");
@@ -518,8 +611,8 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
             }
         }
         return ret;
-    } else static if (isArrayType!(T) || isAssocArrayType!(T)) {
-        const is_assoc = isAssocArrayType!(T);
+    } else static if (isArray!(T) || isAssociativeArray!(T)) {
+        const is_assoc = isAssociativeArray!(T);
         if (!lua_istable(state, stackIdx))
             expected("array table");
         T ret;
@@ -570,8 +663,8 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
 //XXX: ok that tuple return is really weird... should be killed off IMHO
 //Lua error domain
 private int luaPush(T)(lua_State *state, T value) {
-    static if (isFloatingPointType!(T) || isIntegerType!(T) ||
-        (is(T Base == enum) && isIntegerType!(Base)))
+    static if (isFloatingPoint!(T) || isIntegral!(T) ||
+        (is(T Base == enum) && isIntegral!(Base)))
     {
         //everything is casted to double internally anyway; avoids overflows
         //NOTE about enums: we could convert enums to strings (with
@@ -629,14 +722,14 @@ private int luaPush(T)(lua_State *state, T value) {
         lua_pushlightuserdata(state, cast(void*)typeid(T));
         lua_rawget(state, LUA_REGISTRYINDEX);
         lua_setmetatable(state, -2);
-    } else static if (isArrayType!(T)) {
+    } else static if (isArray!(T)) {
         lua_createtable(state, value.length, 0);
         foreach (k, v; value) {
             lua_pushinteger(state, k+1);
             luaPush(state, v);
             lua_rawset(state, -3);
         }
-    } else static if (isAssocArrayType!(T)) {
+    } else static if (isAssociativeArray!(T)) {
         lua_newtable(state);
         foreach (k, v; value) {
             luaPush(state, k);
@@ -658,11 +751,11 @@ private int luaPush(T)(lua_State *state, T value) {
 }
 
 debug {
-    import tango.core.Memory;
+    //import tango.core.Memory;
 
     void assert_gcptr(void* p) {
         //if this fails, the delegate probably points into the stack (unsafe)
-        assert(GC.addrOf(p) !is null);
+        //assert(GC.addrOf(p) !is null);
     }
 }
 
@@ -831,8 +924,8 @@ final class LuaReference {
 private class LuaDelegateWrapper(T) {
     private LuaState mDState;
     private RealLuaRef mRef;
-    alias ParameterTupleOf!(T) Params;
-    alias ReturnTypeOf!(T) RetType;
+    alias Pa­ra­me­ter­Type­Tu­ple!(T) Params;
+    alias ReturnType!(T) RetType;
 
     //only to be called from luaStackDelegate()
     private this(lua_State* state, int stackIdx) {
@@ -1012,7 +1105,7 @@ private int callFromLua(T)(T del, lua_State* state, int skipCount,
     if (numArgs > LUA_MINSTACK/3)
         lua_checkstack(state, LUA_MINSTACK/3);
 
-    alias ParameterTupleOf!(typeof(del)) Params;
+    alias Pa­ra­me­ter­Type­Tu­ple!(typeof(del)) Params;
 
     if (numRealArgs != Params.length) {
         luaErrorf(state, "'{}' requires {} arguments, got {}, skip={}",
@@ -1033,7 +1126,7 @@ private int callFromLua(T)(T del, lua_State* state, int skipCount,
     }
 
     //the del is executed in D error handling domain
-    static if (is(ReturnTypeOf!(del) == void)) {
+    static if (is(ReturnType!(del) == void)) {
         try {
             del(p);
             return 0;
@@ -1041,7 +1134,7 @@ private int callFromLua(T)(T del, lua_State* state, int skipCount,
             luaDError(state, e);
         }
     } else {
-        ReturnTypeOf!(del) ret = void;
+        ReturnType!(del) ret = void;
         try {
             ret = del(p);
         } catch (CustomException e) {
@@ -1179,7 +1272,7 @@ class LuaRegistry {
             int realargs = lua_gettop(state) - 1;
 
             mixin ("alias Class."~name~" T;");
-            alias ParameterTupleOf!(T) Params;
+            alias Pa­ra­me­ter­Type­Tu­ple!(T) Params;
             const Params x;
             foreach (int idx, _; Repeat!(Params.length)) {
                 const fn = "c."~name~"(x[0..idx])";
@@ -1222,7 +1315,7 @@ class LuaRegistry {
             int realargs = lua_gettop(state);
 
             mixin ("alias Class."~name~" T;");
-            alias ParameterTupleOf!(T) Params;
+            alias Pa­ra­me­ter­Type­Tu­ple!(T) Params;
             const Params x;
             foreach (int idx, _; Repeat!(Params.length)) {
                 const fn = "c."~name~"(x[0..idx])";
@@ -1375,7 +1468,7 @@ class LuaRegistry {
 
             int realargs = lua_gettop(state);
 
-            alias ParameterTupleOf!(Fn) Params;
+            alias Pa­ra­me­ter­Type­Tu­ple!(Fn) Params;
             const Params x;
             foreach (int idx, _; Repeat!(Params.length)) {
                 const fn = "Fn(x[0..idx])";
@@ -1468,9 +1561,12 @@ class LuaState {
         mRefList = new typeof(mRefList)();
 
         if (!gLibLuaLoaded) {
+            string libname = null;
+            /* XXXTANGO
             string libname = env.Environment.get("LUALIB");
             if (!libname.length)
                 libname = null; //derelict uses "libname is null"
+            */
             DerelictLua.load(libname);
             gLibLuaLoaded = true;
         }
@@ -1557,7 +1653,7 @@ class LuaState {
 
         void kill(string global) {
             lua_pushnil(mLua);
-            lua_setglobal(mLua, czstr.toStringz(global));
+            lua_setglobal(mLua, toStringz(global));
         }
 
         //dofile and loadfile are unsafe, and even worse, freeze your program
@@ -2192,7 +2288,7 @@ class LuaState {
     private void luaLoadChecked(string chunkname, string data) {
         //'=' means use the name as-is (else "string " is added)
         int res = luaL_loadbuffer(mLua, data.ptr, data.length,
-            czstr.toStringz('='~chunkname));
+            toStringz('='~chunkname));
         if (res != 0) {
             //xxx if this fails to get the message (e.g. utf8 error), there
             //    will be no line number
@@ -2364,7 +2460,7 @@ class LuaState {
             //get the metatable from the global scope and write it into the
             //  registry; see luaPush()
             lua_pushlightuserdata(mLua, cast(void*)typeid(T));
-            lua_getfield(mLua, LUA_GLOBALSINDEX, czstr.toStringz(tableName));
+            lua_getfield(mLua, LUA_GLOBALSINDEX, toStringz(tableName));
             lua_rawset(mLua, LUA_REGISTRYINDEX);
         });
     }

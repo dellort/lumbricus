@@ -12,7 +12,7 @@ import gui.renderbox;
 import utils.color;
 import utils.time;
 
-import tango.core.Array : sort, find;
+import algorithm = std.algorithm;
 import arr = utils.array;
 import str = utils.string;
 import strparser = utils.strparser;
@@ -77,16 +77,16 @@ abstract class StylesLookup {
     //  single inheritance, sigh.)
     final void addClass(string name) {
         //no duplicates
-        if (find(mSortedClasses, name) < mSortedClasses.length)
+        if (arr.arraySearch(mSortedClasses, name) < 0)
             return;
         mSortedClasses ~= name;
-        sort(mSortedClasses);
+        algorithm.sort(mSortedClasses);
         changed_classes();
     }
 
     final void removeClass(string name) {
-        int idx = find(mSortedClasses, name);
-        if (idx == mSortedClasses.length)
+        int idx = arr.arraySearch(mSortedClasses, name);
+        if (idx < 0)
             return;
         mSortedClasses = mSortedClasses[0..idx] ~ mSortedClasses[idx+1..$];
         changed_classes();
@@ -111,7 +111,7 @@ abstract class StylesLookup {
             if (value)
                 mSortedEnabledStates ~= name;
         }
-        sort(mSortedEnabledStates);
+        algorithm.sort(mSortedEnabledStates);
         updateState(name, val);
     }
 
@@ -240,8 +240,8 @@ class StylesPseudoCSS : StylesBase {
                     throw new CustomException("unparsable string in selector");
                 }
             }
-            sort(sorted_classes);
-            sort(sorted_states);
+            algorithm.sort(sorted_classes);
+            algorithm.sort(sorted_states);
         }
 
         //sort value (higher => more specific, cf. CSS)
@@ -288,9 +288,9 @@ class StylesPseudoCSS : StylesBase {
                 }
             }
         }
-        sort(mSortedRules, (Rule e1, Rule e2) {
+        algorithm.sort!((Rule e1, Rule e2) {
             return e2.selector.specificity < e1.selector.specificity;
-        });
+        })(mSortedRules);
         reload();
     }
 
@@ -353,9 +353,9 @@ class StylesPseudoCSS : StylesBase {
                 sub.mSortedStates = r.selector.sorted_states;
                 //xxx is this sorting correct, does it make sense?
                 res.mSortedProperties ~= sub;
-                sort(res.mSortedProperties, (L a, L b) {
+                algorithm.sort!((L a, L b) {
                     return b.mSortedStates.length < a.mSortedStates.length;
-                });
+                })(res.mSortedProperties);
                 //all states that can influence property lookup
                 foreach (s; sub.mSortedStates) {
                     res.mAllStates[s] = true;

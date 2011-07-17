@@ -11,8 +11,6 @@ import utils.time;
 import utils.vector2;
 import utils.log;
 
-import tarray = tango.core.Array;
-
 import physics.base;
 import physics.force;
 import physics.physobj;

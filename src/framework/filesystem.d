@@ -2,23 +2,21 @@ module framework.filesystem;
 
 import str = utils.string;
 import utils.stream;
-import tpath = tango.io.Path;
+import tpath = std.file; //XXXTANGO old name
+import std.path;
 import utils.misc;
 import utils.log;
 import utils.path;
 import utils.archive;
 
-import tango.sys.Environment;
-version(Windows) {
-    //for My Documents folder
-    import tango.sys.win32.SpecialPath;
-}
+//import tango.sys.Environment;
 
 FileSystem gFS;
 
-public import tango.core.Exception : IOException;
 
 private Log log;
+
+//XXXTANGO: check IOExceptions; Phobos may throw different exception sometimes
 
 //Uncomment this to see detailed filesystem log messages
 //xxx: not needed anymore, logs are enabled or disabled by a runtime mechanism
@@ -33,7 +31,7 @@ class FilesystemException : CustomException {
 
 ///return true if dir exists and is a directory, false otherwise
 public bool dirExists(string dir) {
-    if (tpath.exists(dir) && tpath.isFolder(dir))
+    if (tpath.exists(dir) && tpath.isDir(dir))
         return true;
     else
         return false;
@@ -127,12 +125,12 @@ private class HandlerDirectory : HandlerInstance {
     bool exists(VFSPath handlerPath) {
         string p = handlerPath.makeAbsolute(mDirPath);
         log("Checking for existance: '{}'",p);
-        return tpath.exists(p) && !tpath.isFolder(p);
+        return tpath.exists(p) && !tpath.isDir(p);
     }
 
     bool pathExists(VFSPath handlerPath) {
         string p = handlerPath.makeAbsolute(mDirPath);
-        return tpath.exists(p) && tpath.isFolder(p);
+        return tpath.exists(p) && tpath.isDir(p);
     }
 
     private void createPath(VFSPath handlerPath) {
@@ -144,7 +142,7 @@ private class HandlerDirectory : HandlerInstance {
             createPath(handlerPath.parent);
             //create last path
             try {
-                tpath.createFolder(handlerPath.makeAbsolute(mDirPath));
+                tpath.mkdirRecurse(handlerPath.makeAbsolute(mDirPath));
             } catch (IOException e) {
                 throw new FilesystemException(myformat("createPath error: {}",
                     e));
@@ -152,7 +150,7 @@ private class HandlerDirectory : HandlerInstance {
         }
     }
 
-    Stream open(VFSPath handlerPath, File.Style mode) {
+    Stream open(VFSPath handlerPath, string mode) {
         log("Handler for '{}': Opening '{}'",mDirPath, handlerPath);
         if (mode.open != File.Open.Exists) {
             //make sure path exists
@@ -170,15 +168,15 @@ private class HandlerDirectory : HandlerInstance {
     {
         string searchPath = handlerPath.makeAbsolute(mDirPath);
 
-        foreach (de; tpath.children(searchPath)) {
-            if (findDirs || !de.folder) {
+        foreach (DirEntry de; dirEntries(searchPath, SpanMode.shallow)) {
+            if (findDirs || !de.isDir) {
                 //listdir does a path.join with searchpath and found file,
                 //remove this
                 VFSPath vfn = VFSPath(de.name);
                 //add trailing '/' for directories
-                string fn = vfn.get(false, de.folder);
+                string fn = vfn.get(false, de.isDir);
                 //match search pattern
-                if (tpath.patternMatch(fn, pattern)) {
+                if (fnmatch(fn, pattern)) {
                     if (!callback(fn))
                         return false;
                 }
@@ -339,7 +337,7 @@ private class HandlerTangoVfs : HandlerInstance {
 private class MountPointHandlerArchive : MountPointHandler {
     bool canHandle(string absPath) {
         //exisiting files, name ending with ".tar" or ".zip"
-        if (tpath.exists(absPath) && !tpath.isFolder(absPath)
+        if (tpath.exists(absPath) && !tpath.isDir(absPath)
             && absPath.length > 4)
         {
             string ext = str.tolower(absPath[$-4..$]);
@@ -410,7 +408,7 @@ private class HandlerArchive : HandlerInstance {
                 if (rel.parent.isEmpty) {
                     //entry is a file in the directory
                     string filen = rel.get(false);
-                    if (!tpath.patternMatch(filen, pattern))
+                    if (!fnmatch(filen, pattern))
                         continue;
                     if (!callback(filen))
                         return false;
@@ -418,7 +416,7 @@ private class HandlerArchive : HandlerInstance {
                     //entry is a file in a direct subdirectory
                     if (findDir) {
                         string dirn = rel.parent.get(false);
-                        if (!tpath.patternMatch(dirn, pattern))
+                        if (!fnmatch(dirn, pattern))
                             continue;
                         if (!(dirn in dirCache)) {
                             dirCache[dirn] = true;
@@ -612,7 +610,9 @@ class FileSystem {
                 os_appid = str.toupper(os_appid[0..1]) ~ os_appid[1..$];
         } else {
             //linux: ~/.lumbricus
-            home = Environment.get("HOME");
+            //XXXTANGO fix
+            home = "/home/vlx";
+            //home = Environment.get("HOME");
             os_appid = "." ~ os_appid;
         }
         if (home != null)
@@ -624,7 +624,7 @@ class FileSystem {
 
         //try to create user directory
         try {
-            tpath.createFolder(userPath);
+            tpath.mkdirRecurse(userPath);
         } catch (IOException e) {
             //directory already exists, do nothing
         }

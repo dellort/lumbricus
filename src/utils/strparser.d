@@ -2,13 +2,11 @@
 //(including native types).
 module utils.strparser;
 import utils.mybox;
-import tango.util.Convert : to;
-import tango.text.convert.Float : toFloat;
-import tango.core.Exception;
+import std.conv;
 import str = utils.string;
 import utils.misc;
 
-public import tango.util.Convert : ConversionException;
+alias ConvException ConversionException;
 
 //xxx function, should be delegate
 //convention: return empty box if not parseable

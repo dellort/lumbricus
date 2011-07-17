@@ -190,8 +190,7 @@ class GameLoader {
 
             try {
                 auto outstr = gFS.open("last_demo.demo", File.WriteCreate);
-                auto threadstr = new ThreadedWriter(outstr);
-                mDemoOutput = threadstr.pipeOut();
+                mDemoOutput = outstr.pipeOut();
                 startDemoFile(mDemoOutput, demoConf);
             } catch (CustomException e) {
                 mDemoOutput = mDemoOutput.init;

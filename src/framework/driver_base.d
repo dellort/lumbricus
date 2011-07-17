@@ -4,11 +4,31 @@ import framework.globalsettings;
 import utils.list2;
 import utils.misc;
 
-import tango.core.WeakRef;
-
 import str = utils.string;
 import math = std.math;
 import cstdlib = std.c.stdlib;
+
+//XXXTANGO phobos doesn't have weakrefs; replace with memory leak
+class WeakReference(T) {
+    private T weakpointer;
+
+    this (T obj) {
+        weakpointer = obj;
+    }
+
+    final void set (T obj) {
+        clear;
+        weakpointer = obj;
+    }
+
+    final void clear () {
+        weakpointer = null;
+    }
+
+    final T get () {
+        return weakpointer;
+    }
+}
 
 /+
 //periodic cleanups (gets actually called each frame)

@@ -22,7 +22,7 @@ import utils.log;
 import utils.misc;
 import utils.mybox;
 import str = utils.string;
-import array = tango.core.Array;
+import algorithm = std.algorithm;
 import marray = utils.array;
 
 //debugging (draw a red frame for the widget's bounds)
@@ -350,14 +350,14 @@ class Widget {
         //avoid unneeded work (note that mZOrder2 still must be set)
         if (!hard && mZWidgets[$-1] is child)
             return;
-        array.sort(mZWidgets,
+        algorithm.sort!(
             (Widget a, Widget b) {
                 if (a.mZOrder == b.mZOrder) {
                     return a.mZOrder2 < b.mZOrder2;
                 }
                 return a.mZOrder < b.mZOrder;
             }
-        );
+        )(mZWidgets);
     }
 
     protected void setChildLayout(Widget child, WidgetLayout layout) {

@@ -9,8 +9,6 @@ import utils.vector2;
 import utils.rect2;
 import utils.misc;
 
-import arr = tango.core.Array;
-
 private alias ObjectList!(SceneObject, "node") SList;
 
 ///a scene contains all graphics drawn onto the screen.

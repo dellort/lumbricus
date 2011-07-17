@@ -62,7 +62,6 @@ import str = utils.string;
 
 import utils.stream;
 import tango.io.device.File : File;
-import memory = tango.core.Memory;
 
 //these imports register classes in a factory on module initialization
 import game.animation;
@@ -422,7 +421,7 @@ class GameTask : IKillable {
         //this helps a small little bit to reduce heap growth, and also defers
         //  the first collection to a later point in the game, giving the user
         //  the impression that using a GC in a game is a good idea - INGENIOUS!
-        memory.GC.collect();
+        //XXXTANGO memory.GC.collect();
     }
 
     private void loadingFailed() {

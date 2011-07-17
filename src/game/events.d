@@ -6,8 +6,6 @@ import utils.array;
 import utils.misc;
 import utils.mybox;
 
-import traits = tango.core.Traits;
-
 
 class EventTarget {
     private {

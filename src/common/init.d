@@ -12,7 +12,7 @@ import utils.configfile;
 import utils.log;
 import utils.misc;
 
-import utils.stream : File, ThreadedWriter; //???
+import utils.stream : File; //???
 import marray = utils.array;
 import path = utils.path;
 import stream = utils.stream;
@@ -172,7 +172,7 @@ void init(string[] args) {
                 }
             }
             auto c = new Closure;
-            c.writer = (new ThreadedWriter(logf)).pipeOut();
+            c.writer = logf.pipeOut();
             //write buffered log
             c.sink(gLogFileTmp);
             gLogFileSink = &c.sink;
