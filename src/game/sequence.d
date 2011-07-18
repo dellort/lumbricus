@@ -45,14 +45,14 @@ final class SequenceType {
             string type = "simple_animation";
             if (sub.hasSubNodes())
                 type = sub.getValue!(string)("type");
-            loadcheck(type != "", "no 'type' field set: {}", sub.filePosition);
+            loadcheck(type != "", "no 'type' field set: %s", sub.filePosition);
             try {
                 mStates[sname] = SequenceStateFactory.instantiate(type, this,
                     sub);
             } catch (CustomException e) {
                 //edit exception to include more information; because catching
                 //  CustomExceptions is "safe", this should be fine too
-                e.msg = myformat("While loading sequence '{}::{}': {}", name,
+                e.msg = myformat("While loading sequence '%s::%s': %s", name,
                     sname, e.msg);
                 throw e;
             }
@@ -83,7 +83,7 @@ final class SequenceType {
             return *pstate;
         }
         if (!allow_notfound)
-            throw new CustomException(myformat("state not found: {} in {}",
+            throw new CustomException(myformat("state not found: %s in %s",
                 sname, name));
         return null;
     }
@@ -141,7 +141,7 @@ class SequenceState {
         if (cond)
             return;
         //meh, varargs not chainable
-        owner.loadcheck(false, "{}", myformat_fx(fmt, _arguments, _argptr));
+        owner.loadcheck(false, "%s", myformat_fx(fmt, _arguments, _argptr));
     }
 
     protected abstract DisplayType getDisplayType();
@@ -154,7 +154,7 @@ class SequenceState {
                 node.getValue!(string)(name), optional);
         } catch (CustomException e) {
             //same "trick" as in SequenceType ctor
-            e.msg = myformat("While loading animation from {} / '{}': {}",
+            e.msg = myformat("While loading animation from %s / '%s': %s",
                 node.locationString(), name, e.msg);
             throw e;
         }
@@ -420,7 +420,7 @@ final class Sequence : SceneObject {
                 //label for distance between outer border and object
                 posrect.extendBorder(Vector2i(-cMargin));
                 FormattedText txt = engine.getTempLabel(team);
-                txt.setTextFmt(false, "{}", (ipos-apos).length - cMargin);
+                txt.setTextFmt(false, "%s", (ipos-apos).length - cMargin);
                 Vector2i s = txt.textSize();
                 Rect2i rn = posrect.moveInside(Rect2i(s).centeredAt(ipos));
                 txt.draw(c, rn.p1);
@@ -1311,7 +1311,7 @@ class WwpWeaponState : SequenceState {
         foreach (string key, string value; node.getSubNode("weapons")) {
             //this '+' thing is just to remind the user that value is a prefix
             if (!str.endsWith(value, "+"))
-                loadcheck(false, "weapon entry doesn't end with '+': {}",value);
+                loadcheck(false, "weapon entry doesn't end with '+': %s",value);
             value = value[0..$-1];
             auto w = new Weapon();
             w.name = key;
@@ -1330,7 +1330,7 @@ class WwpWeaponState : SequenceState {
             auto fire_end = loadanim(value ~ "fire_end", true);
             auto release = loadanim(value ~ "release", true);
             loadcheck(!(fire_end && release), "can have only either fire_end or"
-                " release animation for weapon entry: {}", value);
+                " release animation for weapon entry: %s", value);
             if (release) {
                 w.fire_end = release;
                 w.fire_end_releases = true;
@@ -1357,7 +1357,7 @@ class WwpWeaponState : SequenceState {
             return new SubAnimation(a, a.frameCount() - 1);
         }
 
-        loadcheck(!!weapon_unknown.get, "need get animation for {}", cUnknown);
+        loadcheck(!!weapon_unknown.get, "need get animation for %s", cUnknown);
         //fix up other weapons that don't have some animations
         foreach (ref w; weapons) {
             if (!w.get)

@@ -48,7 +48,7 @@ class TeamEditorTask {
         mTeamEdit.onChange = &teamChange;
         for (int i = 0; i < 8; i++) {
             //hardcoded to 8 teammembers
-            mWormEdit[i] = loader.lookup!(EditLine)(myformat("edit_worm{}", i+1));
+            mWormEdit[i] = loader.lookup!(EditLine)(myformat("edit_worm%s", i+1));
             mWormEdit[i].onChange = &wormChange;
         }
         mColorButton = loader.lookup!(Button)("colorbutton");
@@ -129,7 +129,7 @@ class TeamEditorTask {
                 newName = name;
             while (mTeams.hasNode(newName)) {
                 i++;
-                newName = myformat("{} {}", unnamed, i);
+                newName = myformat("%s %s", unnamed, i);
             }
             //create team
             auto newTeam = mTeams.getSubNode(newName);

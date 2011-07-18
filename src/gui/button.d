@@ -192,7 +192,7 @@ class ButtonBase : Widget {
             auto txt = node.getStringValue("text");
             auto markup = node.getStringValue("markup");
             if (txt.length) {
-                label.setTextFmt(true, r"\t({})", txt);
+                label.setTextFmt(true, r"\t(%s)", txt);
             } else if (markup.length) {
                 label.textMarkup = markup;
             }

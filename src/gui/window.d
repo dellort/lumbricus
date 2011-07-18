@@ -444,7 +444,7 @@ class WindowWidget : Widget {
                 break;
             }
             default:
-                //globals.defaultOut.writefln("window action '{}'??", s);
+                //globals.defaultOut.writefln("window action '%s'??", s);
         }
     }
 

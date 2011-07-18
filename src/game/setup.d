@@ -88,7 +88,7 @@ GameConfig loadGameConfig(ConfigNode config, Level level = null,
     try {
         return doLoadGameConfig(config, level, renderBitmaps, persistentState);
     } catch (CustomException e) {
-        e.msg = myformat("when trying to create new game from {}: {}",
+        e.msg = myformat("when trying to create new game from %s: %s",
             config.locationString, e.msg);
         throw e;
     }
@@ -126,7 +126,7 @@ GameConfig doLoadGameConfig(ConfigNode mConfig, Level level = null,
             break;
         default:
             //wrong string in configfile
-            throwError("invalid value in {}", valnode.locationString());
+            throwError("invalid value in %s", valnode.locationString());
         }
     }
 
@@ -159,7 +159,7 @@ GameConfig doLoadGameConfig(ConfigNode mConfig, Level level = null,
                 cfg.weapons.addNode(item.name, sub);
                 wCache[item.value] = item.name;
             } else {
-                gLog.error("Weapon set not found: '{}' in {}", item.value,
+                gLog.error("Weapon set not found: '%s' in %s", item.value,
                     item.locationString);
             }
         }
@@ -186,7 +186,7 @@ GameConfig doLoadGameConfig(ConfigNode mConfig, Level level = null,
 
     string modeplugin = modeNode["plugin"];
     if (!modeplugin.length)
-        throwError("game mode plugin missing in {}", modeNode.locationString());
+        throwError("game mode plugin missing in %s", modeNode.locationString());
 
     //add the game mode plugin at the end of the plugin list, or if it is
     //  already listed as plugin, add the game mode parameters (?)

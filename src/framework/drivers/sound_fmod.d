@@ -22,7 +22,7 @@ private FMODSoundDriver gBase;
 
 private void checkFMODError(FMOD_RESULT errcode) {
     if (errcode != FMOD_OK) {
-        throwError("FMOD error: {}", FMOD_ErrorString(errcode));
+        throwError("FMOD error: %s", FMOD_ErrorString(errcode));
     }
 }
 
@@ -262,7 +262,7 @@ class FMODSoundDriver : SoundDriver {
             DerelictFMOD.load();
         } catch (DerelictException e) {
             //wrap it (a failing sound driver does not have to be fatal)
-            throwError("{}", e.msg);
+            throwError("%s", e.msg);
         }
 
         checkFMODError(FMOD_System_Create(&mSystem));
@@ -272,7 +272,7 @@ class FMODSoundDriver : SoundDriver {
         checkFMODError(FMOD_System_GetVersion(mSystem, &fmVersion));
         if (fmVersion < FMOD_VERSION)
             throwError("Version of FMOD library is too low. Required is at "
-                "least {:x8}", FMOD_VERSION);
+                "least %#8x", FMOD_VERSION);
 
         checkFMODError(FMOD_System_SetOutput(mSystem,
             FMOD_OUTPUTTYPE_AUTODETECT));
@@ -284,7 +284,7 @@ class FMODSoundDriver : SoundDriver {
         try {
             FMODSetStreamFs(mSystem,true);
         } catch (FMODException e) {
-            throwError("FMOD error: {}", e.msg);
+            throwError("FMOD error: %s", e.msg);
         }
     }
 

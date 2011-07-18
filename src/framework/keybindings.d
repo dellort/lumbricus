@@ -147,7 +147,7 @@ public class KeyBindings {
                 key = v.value;
             }
             if (!addBinding(cmd, str.tolower(key))) {
-                gLog.error("Could not bind '{}' to '{}' in {}", key, cmd,
+                gLog.error("Could not bind '%s' to '%s' in %s", key, cmd,
                     node.locationString());
             }
         }

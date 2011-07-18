@@ -118,13 +118,13 @@ public struct KeyInfo {
         //append all modifiers
         for (Modifier mod = Modifier.min; mod <= Modifier.max; mod++) {
             if ((1<<mod) & mods) {
-                modstr ~= myformat("{} ", modifierToString(mod));
+                modstr ~= myformat("%s ", modifierToString(mod));
             }
         }
         modstr ~= "]";
 
-        return myformat("[KeyInfo: ev={} code={} ('{}') mods={} isRepeated={}"
-            " ch='{}']", isDown ? "down" : "up",
+        return myformat("[KeyInfo: ev=%s code=%s ('%s') mods=%s isRepeated=%s"
+            " ch='%s']", isDown ? "down" : "up",
             cast(int)code, translateKeycodeToKeyID(code), modstr, isRepeated,
             isPrintable ? unicode : "None");
     }
@@ -135,7 +135,7 @@ public struct MouseInfo {
     Vector2i rel;
 
     string toString() {
-        return myformat("[MouseInfo: pos={} rel={}]", pos, rel);
+        return myformat("[MouseInfo: pos=%s rel=%s]", pos, rel);
     }
 }
 

@@ -126,7 +126,7 @@ public struct Time {
         for (int i = 0; ; i++) {
             timeDiv *= cTimeDiv[i];
             if (time < timeDiv*cTimeDiv[i+1] || i == cTimeName.length-1) {
-                //auto s = myformat("%.*f {}", cPrec[i],
+                //auto s = myformat("%.*f %s", cPrec[i],
                 //    cast(double)time / cTimeDiv[i], cTimeName[i]);
                 char[20] fmt_b = void;
                 auto fmt = myformat_s(fmt_b, "%s%s %s", sign, cPrec[i], "%s");
@@ -266,7 +266,7 @@ public struct Time {
         assert((-timeHms(55, 45, 5)).fromStringRev() == "- 55 h, 45 min, 5 s");
         assert(Time.Null.fromStringRev() == "0");
         assert(Time.Never.fromStringRev() == "infinite");
-        //Trace.formatln("{}", (-Time.Never).fromStringRev());
+        //Trace.formatln("%s", (-Time.Never).fromStringRev());
         assert((-Time.Never).fromStringRev() == "- infinite");
     }
 

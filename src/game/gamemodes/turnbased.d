@@ -309,7 +309,7 @@ class ModeTurnbased : Gamemode {
 
     private void transition(TurnState st) {
         assert(st != mCurrentTurnState);
-        log("state transition {} -> {}", cast(int)mCurrentTurnState,
+        log("state transition %s -> %s", cast(int)mCurrentTurnState,
             cast(int)st);
         mCurrentTurnState = st;
         mPrepareSt.visible = (st == TurnState.prepare);
@@ -351,7 +351,7 @@ class ModeTurnbased : Gamemode {
                 currentTeam = next;
                 if (config.allowselect)
                     mCurrentTeam.allowSelect = true;
-                log("active: {}", next);
+                log("active: %s", next);
                 mTurnCrateCounter = config.maxcratesperturn;
 
                 break;

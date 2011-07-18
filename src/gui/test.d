@@ -49,14 +49,14 @@ class TestFrame : SimpleContainer {
     private Button[] mButtons;
 
     private void foo(Button sender) {
-        gLog.notice("button: {}", arraySearch(mButtons, sender));
+        gLog.notice("button: %s", arraySearch(mButtons, sender));
     }
 
     this() {
         void put(int nr, int x, int y) {
             auto label = new Button();
             label.onClick = &foo;
-            label.text = myformat("Label {}", nr);
+            label.text = myformat("Label %s", nr);
             add(label, WidgetLayout.Aligned(x, y, Vector2i(10, 40)));
             mButtons ~= label;
         }
@@ -181,7 +181,7 @@ class TestFrame6 : Container {
     }
 
     void cmdSay(MyBox[] args, Output write) {
-        write.writefln("you said: '{}'", args[0].unbox!(string));
+        write.writefln("you said: '%s'", args[0].unbox!(string));
     }
 }
 
@@ -256,7 +256,7 @@ class TestFrame8 : Container {
     int mSelCount;
 
     void select(DropDownList list) {
-        mInfo.text = myformat("sel {}: '{}'", mSelCount, list.selection);
+        mInfo.text = myformat("sel %s: '%s'", mSelCount, list.selection);
         mSelCount++;
     }
 
@@ -276,7 +276,7 @@ class TestFrame9 : Container {
     class T : Container {
         this(int r) {
             auto x = new Label();
-            x.text = myformat("{}", r);
+            x.text = myformat("%s", r);
             auto props = gFontManager.loadFont("normal").properties();
             props.size += r*10; //just to have different request sizes
             x.styles.setStyleOverrideT!(Font)("text-font",
@@ -580,7 +580,7 @@ class TestTask3 {
             return cl;
         });
         t.stop();
-        mValues.text = myformat("size={}, took={}, b={}, c={}, g={}, a={}",
+        mValues.text = myformat("size=%s, took=%s, b=%s, c=%s, g=%s, a=%s",
             s.size, t.time, b, c, g, a);
     }
 
@@ -716,34 +716,34 @@ class TestTask4 {
         }
 
         override void onMouseMove(MouseInfo m) {
-            log.writefln("{}: {}", this, m);
+            log.writefln("%s: %s", this, m);
         }
 
         override bool onKeyDown(KeyInfo info) {
-            log.writefln("{}: {}", this, info.toString());
+            log.writefln("%s: %s", this, info.toString());
             if (info.isDown && info.code == Keycode.MOUSE_RIGHT)
                 gFramework.mouseLocked = !gFramework.mouseLocked;
             return true;
         }
         override void onKeyUp(KeyInfo info) {
-            log.writefln("{}: {}", this, info.toString());
+            log.writefln("%s: %s", this, info.toString());
         }
 
         override void onMouseEnterLeave(bool mouseIsInside) {
-            log.writefln("{}: onMouseEnterLeave({})", this, mouseIsInside);
+            log.writefln("%s: onMouseEnterLeave(%s)", this, mouseIsInside);
         }
 
         override Vector2i layoutSizeRequest() {
-            log.writefln("{}: layoutSizeRequest()", this);
+            log.writefln("%s: layoutSizeRequest()", this);
             return Vector2i(0);
         }
 
         override void layoutSizeAllocation() {
-            log.writefln("{}: layoutSizeAllocation(), size={}", this, size());
+            log.writefln("%s: layoutSizeAllocation(), size=%s", this, size());
         }
 
         override void onFocusChange() {
-            log.writefln("{}: focus change: global={} focus={}", this,
+            log.writefln("%s: focus change: global=%s focus=%s", this,
                 gui?gui.focused():null, focused());
             super.onFocusChange();
         }
@@ -944,7 +944,7 @@ class FoobarTest {
 
     private void onScroll(ScrollBar sender) {
         float p = cast(float)mBar1.curValue/mBar1.maxValue;
-        mLabel.text = myformat("{}/{}", p, mBar2.curValue);
+        mLabel.text = myformat("%s/%s", p, mBar2.curValue);
         mFoo.percent = p;
         mFoo.minSize = Vector2i(mBar2.curValue, 0);
     }
@@ -1134,7 +1134,7 @@ class InterpTest {
 
     private void onScroll(ScrollBar sender) {
         mIdx = sender.curValue();
-        mLabel.text = myformat("A = {}", getP(sender.curValue()));
+        mLabel.text = myformat("A = %s", getP(sender.curValue()));
     }
 
     static this() {

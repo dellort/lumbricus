@@ -211,12 +211,12 @@ private:
 
     private void cmdSetHelp(MyBox[] args, Output write) {
         string name = args[0].unbox!(string);
-        write.writefln("{}", settingValueHelp(name));
+        write.writefln("%s", settingValueHelp(name));
     }
 
     private void cmdSetList(MyBox[] args, Output write) {
         foreach (s; gSettings) {
-            write.writefln("{} = {}", s.name, s.value);
+            write.writefln("%s = %s", s.name, s.value);
         }
     }
 
@@ -227,7 +227,7 @@ private:
 
     private void cmdReleaseCaches(MyBox[] args, Output write) {
         int released = gFramework.releaseCaches(args[0].unbox!(bool));
-        write.writefln("released {} memory consuming house shoes", released);
+        write.writefln("released %s memory consuming house shoes", released);
     }
 
     private void cmdSpawn(MyBox[] args, Output write) {
@@ -241,11 +241,11 @@ private:
     }
 
     private void cmdSpawnHelp(MyBox[] args, Output write) {
-        write.writefln("registered tasks: {}", taskList());
+        write.writefln("registered tasks: %s", taskList());
     }
 
     private void onVideoInit() {
-        //globals.log("Changed video: {}", gFramework.screenSize);
+        //globals.log("Changed video: %s", gFramework.screenSize);
         gGui.size = gFramework.screenSize;
         saveVideoConfig();
     }
@@ -277,7 +277,7 @@ private:
             }
         } catch (CustomException e) {
             //fullscreen switch failed
-            write.writefln("error: {}", e);
+            write.writefln("error: %s", e);
         }
     }
 
@@ -286,13 +286,13 @@ private:
     private void cmdScreenshot(MyBox[] args, Output write) {
         string filename = args[0].unboxMaybe!(string);
         saveScreenshot(filename, false);
-        write.writefln("Screenshot saved as '{}'", filename);
+        write.writefln("Screenshot saved as '%s'", filename);
     }
 
     private void cmdScreenshotWnd(MyBox[] args, Output write) {
         string filename = args[0].unboxMaybe!(string);
         saveScreenshot(filename, true);
-        write.writefln("Screenshot saved as '{}'", filename);
+        write.writefln("Screenshot saved as '%s'", filename);
     }
 
     //save a screenshot to a png image
@@ -317,7 +317,7 @@ private:
             //no filename, generate one
             int i;
             filename = gFS.getUniqueFilename(cScreenshotDir,
-                activeWindow?"window-"~wndTitle~"{}":"screen{}", ".png", i);
+                activeWindow?"window-"~wndTitle~"%s":"screen%s", ".png", i);
         }
 
         auto surf = gFramework.screenshot();

@@ -91,7 +91,7 @@ class InputGroup : Input {
         argcheck(!!cb);
         foreach (ref c; mCommands) {
             if (c.name == name)
-                throwError("command already added: '{}'", name);
+                throwError("command already added: '%s'", name);
         }
         mCommands ~= Command(null, name, cb);
     }
@@ -255,7 +255,7 @@ struct MoveStateXY {
     }
 
     string toString() {
-        return myformat("lu={} ld={} dir={}", keyState_lu, keyState_rd,
+        return myformat("lu=%s ld=%s dir=%s", keyState_lu, keyState_rd,
             direction);
     }
 }

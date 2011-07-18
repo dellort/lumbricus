@@ -85,7 +85,7 @@ class CmdNetClientTask {
         auto ann = config.getSubNode("announce");
         foreach (ConfigNode sub; ann) {
             AnnounceSt as;
-            log.minor("Init announce client: {}", sub.name);
+            log.minor("Init announce client: %s", sub.name);
             as.servers = new ServerList(
                 AnnounceClientFactory.instantiate(sub.name, sub));
             as.servers.onChange = &serverListChange;
@@ -127,7 +127,7 @@ class CmdNetClientTask {
     }
 
     private void onConnect(CmdNetClient sender) {
-        log.notice("Connection to {} succeeded", sender.serverAddress);
+        log.notice("Connection to %s succeeded", sender.serverAddress);
         mClient.onConnect = null;
         mClient.onDisconnect = null;
         mClient.onError = null;
@@ -149,14 +149,14 @@ class CmdNetClientTask {
         }
         mConnectButton.text = translate("connect.connect");
         mConnectButton.enabled = true;
-        log.emit(type, "Lost connection to {}: {}", sender.serverAddress,
+        log.emit(type, "Lost connection to %s: %s", sender.serverAddress,
             reasonToString[code]);
     }
 
     private void onError(CmdNetClient sender, string msg, string[] args) {
         //connection error
         mLblError.text = translate("connect.error", msg);
-        log.error("Error from {}: {}", sender.serverAddress, msg);
+        log.error("Error from %s: %s", sender.serverAddress, msg);
     }
 
     private void connectClick(Button sender) {
@@ -167,7 +167,7 @@ class CmdNetClientTask {
                 return;
             addr = mCurServers[sel].toString();
         }
-        log.notice("Trying to connect to {}", NetAddress(addr));
+        log.notice("Trying to connect to %s", NetAddress(addr));
         mClient.connect(NetAddress(addr), mNickname.text);
         sender.text = translate("connect.connecting");
         sender.enabled = false;
@@ -349,7 +349,7 @@ class CreateNetworkGame : SimpleContainer {
                     else
                         //xxx localize? not so sure about that (we don't
                         //    have access to the team owner's locale)
-                        memberNode.add("", myformat("Worm {}", i));
+                        memberNode.add("", myformat("Worm %s", i));
                 }
                 //fixed health
                 ct.setValue("power", wormHP);
@@ -598,7 +598,7 @@ class CmdNetLobbyTask {
         contents.length = mClient.playerCount;
         int idx = 0;
         foreach (ref NetPlayerInfo pinfo; mClient) {
-            contents[idx] = myformat("{} ({}), {}", pinfo.name, pinfo.teamName,
+            contents[idx] = myformat("%s (%s), %s", pinfo.name, pinfo.teamName,
                 pinfo.ping);
             idx++;
         }

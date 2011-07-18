@@ -176,7 +176,7 @@ class Sprite : GameObject {
 
     final void exterminate() {
         //_always_ die completely (or are there exceptions?)
-        engine.log.trace("exterminate in deathzone: {}", type.name);
+        engine.log.trace("exterminate in deathzone: %s", type.name);
         kill();
     }
 
@@ -185,7 +185,7 @@ class Sprite : GameObject {
         internal_active = false;
         if (!physics.dead) {
             physics.dead = true;
-            engine.log.trace("really die: {}", type.name);
+            engine.log.trace("really die: %s", type.name);
             OnSpriteDie.raise(this);
         }
     }
@@ -321,7 +321,7 @@ class Sprite : GameObject {
     }
 
     string toString() {
-        return myformat("[Sprite 0x{:x} {} at {}]", cast(void*)this, type.name,
+        return myformat("[Sprite %#x %s at %s]", cast(void*)this, type.name,
             physics.pos);
     }
 }

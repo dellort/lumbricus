@@ -241,7 +241,7 @@ class FontManager : ResourceManagerT!(FontDriver) {
         auto f = create(p);
         if (!f) {
             if (tryHard)
-                throwError("font >{}< not found (1)", id);
+                throwError("font >%s< not found (1)", id);
             return null;
         }
 
@@ -258,8 +258,8 @@ class FontManager : ResourceManagerT!(FontDriver) {
         ConfigNode font = mNodes.findNode(id);
         if (!font) {
             if (fail_exception)
-                throwError("font >{}< not found (2)", id);
-            //Trace.formatln("not found: >{}<", id);
+                throwError("font >%s< not found (2)", id);
+            //Trace.formatln("not found: >%s<", id);
             font = mNodes.getSubNode("normal");
         }
 

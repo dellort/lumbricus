@@ -33,7 +33,7 @@ class JetpackClass : WeaponClass {
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
         if (!worm)
-            throw new CustomException(myformat("not a worm: {}", go));
+            throw new CustomException(myformat("not a worm: %s", go));
         return new Jetpack(this, worm);
     }
 }

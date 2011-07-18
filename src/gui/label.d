@@ -62,7 +62,7 @@ class Label : Widget {
     }
     //txt can become invalid after this function is called
     void setText(bool as_markup, string txt) {
-        setTextFmt(as_markup, "{}", txt);
+        setTextFmt(as_markup, "%s", txt);
     }
     //like FormattedText.setTextFmt()
     void setTextFmt(T...)(bool as_markup, string fmt, T args) {
@@ -131,7 +131,7 @@ class Label : Widget {
         mText.translator = loader.locale();
 
         //haw haw... but it's ok?
-        setTextFmt(true, r"\t({})", node.getStringValue("text"));
+        setTextFmt(true, r"\t(%s)", node.getStringValue("text"));
 
         mShrink = node.getBoolValue("shrink", mShrink);
         mCenterX = node.getBoolValue("center_x", mCenterX);

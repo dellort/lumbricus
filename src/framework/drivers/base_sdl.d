@@ -100,7 +100,7 @@ class SDLDriver : FrameworkDriver {
                 try {
                     //empty (or invalid) value will throw and not set the var
                     Vector2i pos = fromStr!(Vector2i)(opts.window_pos);
-                    setenv("SDL_VIDEO_WINDOW_POS", myformat("{},{}",
+                    setenv("SDL_VIDEO_WINDOW_POS", myformat("%s,%s",
                         pos.x, pos.y), true);
                 } catch (ConversionException e) {
                     //ignore
@@ -111,7 +111,7 @@ class SDLDriver : FrameworkDriver {
         sdlInit();
 
         if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
-            throwError("Could not init SDL video: {}",
+            throwError("Could not init SDL video: %s",
                 fromStringz(SDL_GetError()));
         }
 
@@ -124,7 +124,7 @@ class SDLDriver : FrameworkDriver {
         /*SDL_Rect** modes;
         modes = SDL_ListModes(null, SDL_FULLSCREEN | SDL_OPENGL);
         for (int i = 0; modes[i]; ++i) {
-            Trace.formatln("{}x{}", modes[i].w, modes[i].h);
+            Trace.formatln("%sx%s", modes[i].w, modes[i].h);
         }*/
 
         mCursorStd = SDL_GetCursor();

@@ -272,7 +272,7 @@ struct Particle {
         }
 
         pos += add;
-        //Trace.formatln("{} {} {}", pos, velocity, deltaT);
+        //Trace.formatln("%s %s %s", pos, velocity, deltaT);
 
         if ((props.water_area == ParticleWaterArea.under
             && pos.y < owner.waterLine)

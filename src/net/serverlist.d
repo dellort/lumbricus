@@ -44,16 +44,16 @@ class ServerList {
         string toString() {
             if (lastSeen > Time.Null) {
                 if (unsupportedVersion()) {
-                    return myformat("{} (version mismatch) [{} ms]",
+                    return myformat("%s (version mismatch) [%s ms]",
                         addr.toString(), ping.msecs());
                 } else {
-                    return myformat("{} ({}/{}) {} [{} ms]", addr.toString(),
+                    return myformat("%s (%s/%s) %s [%s ms]", addr.toString(),
                         info.curPlayers, info.maxPlayers,
                         info.serverName, ping.msecs());
                 }
             } else {
                 //server didn't respond
-                return myformat("{} [9999 ms]", addr.toString());
+                return myformat("%s [9999 ms]", addr.toString());
             }
         }
 
@@ -69,7 +69,7 @@ class ServerList {
             socket.send(cQueryIdent, dest);
             //store query time (to calculate ping and prevent multiple queries)
             lastQuery = timeCurrentTime();
-            log.trace("{} : Query sent at {} ms", addr.toString(),
+            log.trace("%s : Query sent at %s ms", addr.toString(),
                 lastQuery.msecs);
         }
 
@@ -100,7 +100,7 @@ class ServerList {
                 //xxx ping time is a bit off, as we only check for responses
                 //    every frame (at 100fps every 10ms)
                 ping = lastSeen - lastQuery;
-                log.trace("{} : Response at {} ms", addr.toString(),
+                log.trace("%s : Response at %s ms", addr.toString(),
                     lastSeen.msecs);
                 return true;
             }
@@ -184,7 +184,7 @@ class ServerList {
                     mServers ~= ServerInfo(s);
                     curIdx = mServers.length - 1;
                     mChanged = true;
-                    log.trace("New server {} found", s.toString());
+                    log.trace("New server %s found", s.toString());
                 }
                 //mark as updated
                 mServers[curIdx].update(mGenNo);
@@ -193,7 +193,7 @@ class ServerList {
             //announcer (announcer controls what servers are available)
             foreach_reverse (int idx, ref s; mServers) {
                 if (!s.isUpdated(mGenNo)) {
-                    log.trace("Server {} no longer available",
+                    log.trace("Server %s no longer available",
                         s.addr.toString());
                     //keep it ordered (new servers at bottom)
                     arrayRemoveN(mServers, idx);

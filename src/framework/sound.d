@@ -146,7 +146,7 @@ class SoundManager : ResourceManagerT!(SoundDriver) {
         mVolume = addsndval("master_volume");
 
         foreach (int idx, ref tv; mTypeVolume) {
-            tv = addsndval(myformat("volume{}", idx));
+            tv = addsndval(myformat("volume%s", idx));
         }
     }
 
@@ -154,7 +154,7 @@ class SoundManager : ResourceManagerT!(SoundDriver) {
         try {
             super.loadDriver(name);
         } catch (CustomException e) {
-            gLog.error("Sound driver '{}' failed to load: {}. "
+            gLog.error("Sound driver '%s' failed to load: %s. "
                 "Sound is disabled.", name, e.msg);
             super.loadDriver("sound_none");
         }
@@ -416,7 +416,7 @@ class Source {
             //may get FilesystemException or FrameworkException if the file was
             //  not found/couldn't be opened
             } catch (CustomException e) {
-                gLog.error("couldn't play sound {}", mSample.name);
+                gLog.error("couldn't play sound %s", mSample.name);
                 mState = PlaybackState.stopped;
             }
         }

@@ -74,7 +74,7 @@ class LandscapeGeometry : PhysicObject {
                 collide_bits);
         }
 
-        //Trace.formatln("dir={} pix={}", dir, pixelcount);
+        //Trace.formatln("dir=%s pix=%s", dir, pixelcount);
 
         //no collided pixels
         if (pixelcount == 0)

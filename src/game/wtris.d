@@ -493,9 +493,9 @@ public class WTris {
     }
 
     private void update_gui() {
-         set_lines(myformat("{}", lines));
-         set_points(myformat("{}", points));
-         set_speed(myformat("{}", speed));
+         set_lines(myformat("%s", lines));
+         set_points(myformat("%s", points));
+         set_speed(myformat("%s", speed));
 
          bool msg_active;
 

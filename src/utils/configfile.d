@@ -33,7 +33,7 @@ private bool my_isid(dchar c) {
         || (c >= '0' && c <= '9')
         || c == '_' || c == '-' || c == '*' || c == '$' || c == ':'
         || c == '%' || c == '&' || c == '(' || c == ')' || c == '[' || c == ']';
-    //Trace.formatln("{} -> {}", c, r);
+    //Trace.formatln("%s -> %s", c, r);
     return r;
 }
 
@@ -58,7 +58,7 @@ struct FilePosition {
     }
 
     string toString() {
-        return myformat("'{}':{}:{}", filename, line >= 0 ? toStr(line) : "?",
+        return myformat("'%s':%s:%s", filename, line >= 0 ? toStr(line) : "?",
             column >= 0 ? toStr(column) : "?");
     }
 }
@@ -818,16 +818,16 @@ public class ConfigFile {
 
         auto log = registerLog("configparse");
 
-        log.error("error in {}({},{}): ", mFilename, mPos.line, mPos.column);
+        log.error("error in %s(%s,%s): ", mFilename, mPos.line, mPos.column);
         //scary D varargs!
         log.emitx(LogPriority.Error, fmt, _arguments, _argptr);
 
         //abuse exception handling to abort parsing
         if (fatal) {
-            log.error("{}: fatal error, aborting", mFilename);
+            log.error("%s: fatal error, aborting", mFilename);
             throw new ConfigFatalError(2);
         } else if (mErrorCount > cMaxErrors) {
-            log.error("{}: too many errors, aborting", mFilename);
+            log.error("%s: too many errors, aborting", mFilename);
             throw new ConfigFatalError(1);
         }
     }
@@ -1144,7 +1144,7 @@ public class ConfigFile {
                     val = curChar - 'a' + 10;
                 } else {
                     if (i == 0)
-                        reportError(false, "expected {} hex digits max", digits);
+                        reportError(false, "expected %s hex digits max", digits);
                     break;
                 }
                 next();

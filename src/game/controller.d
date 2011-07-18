@@ -93,7 +93,7 @@ class Team : GameObject2 {
             mMembers ~= worm;
         }
         if (mMembers.length == 0) {
-            engine.log.warn("Team '{}' has no members!", name);
+            engine.log.warn("Team '%s' has no members!", name);
         }
         weapons = parent.initWeaponSet(node["weapon_set"]);
         gravestone = node.getIntValue("grave", 0);
@@ -781,7 +781,7 @@ class GameController : GameObject2 {
         auto p = &log.trace;
         p("access map:");
         foreach (string[2] a; mAccessMap) {
-            p("  '{}' -> '{}'", a[0], a[1]);
+            p("  '%s' -> '%s'", a[0], a[1]);
         }
         p("access map end.");
     }
@@ -996,7 +996,7 @@ class GameController : GameObject2 {
 
         if (colId < 0) {
             //hm would be nice to print the origin
-            engine.log.error("invalid team color: '{}' in {}", col,
+            engine.log.error("invalid team color: '%s' in %s", col,
                 colvalue.locationString());
             colId = 0; //default to first color
         }
@@ -1019,7 +1019,7 @@ class GameController : GameObject2 {
             ws = mWeaponSets[id];
         else {
             if (!noError && id.length) {
-                engine.log.warn("Weapon set {} not found.", id);
+                engine.log.warn("Weapon set %s not found.", id);
             }
             ws = mWeaponSets["default"];
         }
@@ -1048,7 +1048,7 @@ class GameController : GameObject2 {
         foreach (ConfigNode item; config) {
             if (item.value.length > 0) {
                 if (!(item.value in mWeaponSets)) {
-                    engine.log.warn("Weapon set {} not found.", item.value);
+                    engine.log.warn("Weapon set %s not found.", item.value);
                     continue;
                 }
                 mWeaponSets[item.name] = mWeaponSets[item.value];
@@ -1080,18 +1080,18 @@ class GameController : GameObject2 {
             if (mode == "random") {
                 try {
                     auto cnt = sub.getIntValue("count");
-                    log.trace("count {} type {}", cnt, sub["type"]);
+                    log.trace("count %s type %s", cnt, sub["type"]);
                     for (int n = 0; n < cnt; n++) {
                         engine.queuePlaceOnLandscape(engine.resources
                             .get!(SpriteClass)(sub["type"]).createSprite());
                     }
                 } catch (CustomException e) {
-                    log.warn("Warning: Placing {} objects failed: {}",
+                    log.warn("Warning: Placing %s objects failed: %s",
                         sub["type"], e);
                     continue;
                 }
             } else {
-                log.warn("Warning: unknown placing mode: '{}'",
+                log.warn("Warning: unknown placing mode: '%s'",
                     sub["mode"]);
             }
         }

@@ -40,7 +40,7 @@ struct EngineHash {
     uint hash;
 
     string toString() {
-        return myformat("0x{:x}", hash);
+        return myformat("%#x", hash);
     }
 }
 

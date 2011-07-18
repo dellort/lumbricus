@@ -40,7 +40,7 @@ D3DCOLOR D3DCOLOR_FLOAT(Color c) {
 
 void checkDX(HRESULT res, string msg) {
     if (FAILED(res)) {
-        throwError("D3D: {} failed (hr = {:x8#}).", msg, res);
+        throwError("D3D: %s failed (hr = %#8x).", msg, res);
     }
 }
 

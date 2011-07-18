@@ -348,7 +348,8 @@ class TarArchive : ArchiveReader {
                 (cast(char*)&h)[0..h.sizeof] = '\0';
                 string fname = e.name.get(false);
                 h.filename[0..fname.length] = fname;
-                string sz = myformat("{:o11}", e.size) ~ '\0';
+                //XXXTANGO, was {:o11}
+                string sz = myformat("%11o", e.size) ~ '\0';
                 assert (sz.length == 12);
                 h.filesize[] = sz;
                 h.link[0] = '0';

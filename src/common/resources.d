@@ -110,12 +110,12 @@ class ResourceItem : ResourceObject {
     //display non-fatal load error (non-fatal as in, we can continue with a
     //  dummy replacement, such as an error graphic for bitmaps)
     void loadError(string fmt, ...) {
-        Resources.log.error("Loading resource '{}' specified in {} failed: {}",
+        Resources.log.error("Loading resource '%s' specified in %s failed: %s",
             id, location(),
             myformat_fx(fmt, _arguments, _argptr));
     }
     void loadError(CustomException e) {
-        loadError("{}", e);
+        loadError("%s", e);
     }
 }
 
@@ -292,7 +292,7 @@ public class Resources {
         try {
             return ResFactory.instantiate(type,context,it.name,it);
         } catch (ClassNotFoundException e) {
-            throwError("when loading resource in '{}': resource type '{}'"
+            throwError("when loading resource in '%s': resource type '%s'"
                 " unknown", it.locationString, type);
         }
     }
@@ -320,7 +320,7 @@ public class Resources {
         }
 
         if (!parent)
-            throwError("not a resource file: {}", config.locationString());
+            throwError("not a resource file: %s", config.locationString());
 
         //using VFSPath will normalize the path too (includes adding a separator
         //  as first element of the path: "bla.conf" => "/bla.conf")
@@ -331,7 +331,7 @@ public class Resources {
         auto path = filepath.path();
 
         if (!virtual && !gFS.pathExists(path)) {
-            throwError("resource file {} contains invalid path: {}",
+            throwError("resource file %s contains invalid path: %s",
                 config.locationString(), path);
         }
 
@@ -348,12 +348,12 @@ public class Resources {
         //arbitrary but for this resource file/section unique ID
         auto id = filepath.get() ~ '#' ~ config_path;
 
-        log.trace("loading resource file '{}'", id);
+        log.trace("loading resource file '%s'", id);
 
         try {
             processIncludes(config, path);
         } catch (CustomException e) {
-            log.trace("error loading includes for resource file '{}'", id);
+            log.trace("error loading includes for resource file '%s'", id);
         }
 
         if (auto file = id in mLoadedResourceFiles) {
@@ -364,8 +364,8 @@ public class Resources {
                     if (o_file.loading && o_id != id)
                         offenders ~= o_id;
                 }
-                throwError("circular dependency when loading resource file '{}'"
-                    ", possible offenders: {}", id, offenders);
+                throwError("circular dependency when loading resource file '%s'"
+                    ", possible offenders: %s", id, offenders);
             }
             return *file;
         }
@@ -384,13 +384,13 @@ public class Resources {
         foreach (ConfigNode sub; config.getSubNode("load_hacks")) {
             auto cb = sub.name in gResLoadHacks;
             if (!cb) {
-                throwError("error loading resource file '{}', can't load via"
-                    " '{}'", id, sub.name);
+                throwError("error loading resource file '%s', can't load via"
+                    " '%s'", id, sub.name);
             }
             try {
                 (*cb)(sub, res);
             } catch (CustomException e) {
-                e.msg = myformat("when loading '{}' via '{}': {}", id, sub.name,
+                e.msg = myformat("when loading '%s' via '%s': %s", id, sub.name,
                     e.msg);
                 throw e;
             }
@@ -402,7 +402,7 @@ public class Resources {
                 try {
                     res.requires ~= loadResources(res.fixPath(sub.value));
                 } catch (CustomException e) {
-                    e.msg = myformat("when loading '{}' from '{}': {}",
+                    e.msg = myformat("when loading '%s' from '%s': %s",
                         sub.value, sub.locationString, e.msg);
                     throw e;
                 }
@@ -416,11 +416,11 @@ public class Resources {
             }
 
         } catch (CustomException e) {
-            log.trace("error loading resource file '{}'", id);
+            log.trace("error loading resource file '%s'", id);
             throw e;
         }
 
-        log.trace("done loading resource file '{}'", id);
+        log.trace("done loading resource file '%s'", id);
 
         res.loading = false;
 
@@ -494,7 +494,7 @@ public class Resources {
 
         private void doload(ResourceItem[] list) {
             mTime = new PerfTimer(true);
-            log.minor("Preloading {} resources", list.length);
+            log.minor("Preloading %s resources", list.length);
 
             mToLoad = list.dup;
         }
@@ -550,7 +550,7 @@ public class Resources {
                     //updateToLoad();
 
                     if (done)
-                        log.minor("Finished preloading, time={}",
+                        log.minor("Finished preloading, time=%s",
                             mTime.time.toString());
                 }
             }

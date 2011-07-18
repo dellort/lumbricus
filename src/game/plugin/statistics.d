@@ -41,14 +41,14 @@ class ControllerStats : GameObject {
 
             //dump everything to console
             void output() {
-                log("Worms killed: {} ({} died, {} drowned)", wormsDied
+                log("Worms killed: %s (%s died, %s drowned)", wormsDied
                     + wormsDrowned, wormsDied, wormsDrowned);
-                log("Total damage caused: {}", totalDmg);
-                log("Damage by water: {}", waterDmg);
-                log("Collateral damage caused: {}", collateralDmg);
-                log("Damage by neutral objects: {}", neutralDamage);
-                log("Total overdamage: {}", overDmg);
-                log("Shots fired: {}", shotsFired);
+                log("Total damage caused: %s", totalDmg);
+                log("Damage by water: %s", waterDmg);
+                log("Collateral damage caused: %s", collateralDmg);
+                log("Damage by neutral objects: %s", neutralDamage);
+                log("Total overdamage: %s", overDmg);
+                log("Shots fired: %s", shotsFired);
                 int c = -1;
                 string maxwName;
                 foreach (string wc, int count; weaponStats) {
@@ -58,8 +58,8 @@ class ControllerStats : GameObject {
                     }
                 }
                 if (maxwName.length > 0)
-                    log("Favorite weapon: {} ({} shots)", maxwName, c);
-                log("Crates collected: {}", crateCount);
+                    log("Favorite weapon: %s (%s shots)", maxwName, c);
+                log("Crates collected: %s", crateCount);
             }
         }
         Stats mStats;
@@ -85,36 +85,36 @@ class ControllerStats : GameObject {
             wname = wclass.name;
         auto m1 = mController.memberFromGameObject(cause, true);
         auto m2 = mController.memberFromGameObject(victim, false);
-        string dmgs = myformat("{}", damage);
+        string dmgs = myformat("%s", damage);
         if (victim.physics.lifepower < 0) {
             float ov = min(-victim.physics.lifepower, damage);
             mStats.overDmg += ov;
-            dmgs = myformat("{} ({} overdmg)", damage, ov);
+            dmgs = myformat("%s (%s overdmg)", damage, ov);
         }
         mStats.totalDmg += damage;
         if (m1 && m2) {
             if (m1 is m2)
-                log("worm {} injured himself by {} with {}", m1, dmgs, wname);
+                log("worm %s injured himself by %s with %s", m1, dmgs, wname);
             else
-                log("worm {} injured {} by {} with {}", m1, m2, dmgs, wname);
+                log("worm %s injured %s by %s with %s", m1, m2, dmgs, wname);
         } else if (m1 && !m2) {
             mStats.collateralDmg += damage;
-            log("worm {} caused {} collateral damage with {}", m1, dmgs,
+            log("worm %s caused %s collateral damage with %s", m1, dmgs,
                 wname);
         } else if (m2 && type == DamageCause.fall) {
             assert(!cause);
-            log("worm {} took {} fall damage", m2, dmgs);
+            log("worm %s took %s fall damage", m2, dmgs);
         } else if (!m1 && m2) {
             //neutral damage is not caused by weapons
             assert(wclass is null, "some createdBy relation wrong");
             mStats.neutralDamage += damage;
-            log("victim {} received {} damage from neutral objects", m2,
+            log("victim %s received %s damage from neutral objects", m2,
                 dmgs);
         } else {
             //most likely level objects blowing up other objects
             //  -> count as collateral
             mStats.collateralDmg += damage;
-            log("unknown damage {}", dmgs);
+            log("unknown damage %s", dmgs);
         }
     }
 
@@ -122,7 +122,7 @@ class ControllerStats : GameObject {
         string wname = "unknown_weapon";
         if (wclass)
             wname = wclass.name;
-        log("Fired weapon (refire={}): {}",refire,wname);
+        log("Fired weapon (refire=%s): %s",refire,wname);
         if (!refire) {
             if (!(wname in mStats.weaponStats))
                 mStats.weaponStats[wname] = 1;
@@ -138,11 +138,11 @@ class ControllerStats : GameObject {
             return;
         bool drowned = sprite.isUnderWater();
         if (!drowned) {
-            log("Worm die: {}", m);
+            log("Worm die: %s", m);
             mStats.wormsDied++;
         } else {
             int dh = m.currentHealth() - m.health();
-            log("Worm drown (floating label would say: {}): {} ", dh, m);
+            log("Worm drown (floating label would say: %s): %s ", dh, m);
             if (m.health(true) > 0)
                 mStats.waterDmg += m.health(true);
             mStats.wormsDrowned++;
@@ -151,7 +151,7 @@ class ControllerStats : GameObject {
 
 /+
     private void onCrateCollect(CrateSprite crate, TeamMember m) {
-        log("{} collects crate: {}", m, crate.stuffies);
+        log("%s collects crate: %s", m, crate.stuffies);
         mStats.crateCount++;
     }
 +/

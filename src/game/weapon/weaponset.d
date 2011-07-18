@@ -35,7 +35,7 @@ class WeaponSet : GameObject {
         string quantityToString() {
             if (infinite)
                 return "inf";
-            return myformat("{}", quantity);
+            return myformat("%s", quantity);
         }
 
         //non-deterministic (for GUI)
@@ -62,7 +62,7 @@ class WeaponSet : GameObject {
                 w = engine.resources.get!(WeaponClass)(wname);
                 assert(!!w);
             } catch (ResourceException e) {
-                engine.log.warn("Error in weapon set '{}': {}", wname, e.msg);
+                engine.log.warn("Error in weapon set '%s': %s", wname, e.msg);
                 continue;
             }
             if (node.value == "inf") {

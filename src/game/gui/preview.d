@@ -88,7 +88,7 @@ class LevelSelector : SimpleContainer {
             if (i >= templCount)
                 break;
             //prepare button
-            auto sb = loader.lookup!(ImageButton)(myformat("level{}", i));
+            auto sb = loader.lookup!(ImageButton)(myformat("level%s", i));
             sb.onClick = &levelClick;
             sb.onRightClick = &generate;
             mShowBitmap ~= sb;
@@ -96,13 +96,13 @@ class LevelSelector : SimpleContainer {
             try {
                 mLevel ~= LevelInfo(new GenerateFromTemplate(mGenerator, t));
             } catch (CustomException e) {
-                gLog.error("Level generation failed: {}", e);
+                gLog.error("Level generation failed: %s", e);
                 mLevel ~= LevelInfo(null);
                 continue;
             }
             doGenerate(i);
             //add a description label below
-            loader.lookup!(Label)(myformat("label{}", i)).text =
+            loader.lookup!(Label)(myformat("label%s", i)).text =
                 templ_trans(t.description);
         }
 

@@ -68,7 +68,7 @@ public class LandscapeGeometry {
     }
 
     void saveTo(ConfigNode node) {
-        node["size"] = myformat("{} {}", size.x, size.y);
+        node["size"] = myformat("%s %s", size.x, size.y);
         bool is_cave = fill != Lexel.Null;
         node.setBoolValue("is_cave", is_cave);
         if (is_cave) {
@@ -278,7 +278,7 @@ private final class Group {
             Segment cur = segments.ring_next(start);
             if (start is last || cur is last)
                 break;
-            //debug Trace.formatln("remove {} {}", cur.a.toString, cur.b.toString);
+            //debug Trace.formatln("remove %s %s", cur.a.toString, cur.b.toString);
             segments.remove(cur);
         }
 

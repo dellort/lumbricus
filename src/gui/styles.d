@@ -199,7 +199,7 @@ class StylesPseudoCSS : StylesBase {
 
         string toString() {
             assert(contents.name == name);
-            return myformat("{}: '{}' '{}'", name, selector.toString(),
+            return myformat("%s: '%s' '%s'", name, selector.toString(),
                 contents.value/+writeAsString()+/);
         }
     }
@@ -264,7 +264,7 @@ class StylesPseudoCSS : StylesBase {
             addstuff(":", sorted_states);
             if (!(sorted_classes.length | sorted_states.length))
                 res ~= "*";
-            res ~= myformat(" #{}", declaration);
+            res ~= myformat(" #%s", declaration);
             return res;
         }
     }
@@ -393,15 +393,15 @@ class StylesPseudoCSS : StylesBase {
 
 /+
         Trace.formatln("create prop...");
-        Trace.formatln("classes: {}", res.mSortedClasses);
-        Trace.formatln("all states: {}", res.mAllStates.keys);
+        Trace.formatln("classes: %s", res.mSortedClasses);
+        Trace.formatln("all states: %s", res.mAllStates.keys);
         foreach (s; res.mSortedProperties) {
-            Trace.formatln("- for states: {}", s.mSortedStates);
+            Trace.formatln("- for states: %s", s.mSortedStates);
             foreach (string k, MyBox v; s.mProperties) {
                 if (strparser.hasBoxParser(v.type)) {
-                    Trace.formatln("  {} = '{}'", k, strparser.boxToString(v));
+                    Trace.formatln("  %s = '%s'", k, strparser.boxToString(v));
                 } else {
-                    Trace.formatln("  {} = ?", k);
+                    Trace.formatln("  %s = ?", k);
                 }
             }
         }

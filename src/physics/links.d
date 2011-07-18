@@ -45,7 +45,7 @@ class PhysicConstraint : PhysicContactGen {
             if (lcInt > 0 && obj.mSurfaceCtr > 0) {
                 //don't extend into the surface
                 //float a = (anchor - obj.pos).normal*obj.surface_normal;
-                //Trace.formatln("{}", a);
+                //Trace.formatln("%s", a);
                 //if (a > 0.5)
                     lcInt = 0;
             }

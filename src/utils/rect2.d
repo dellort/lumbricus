@@ -310,7 +310,7 @@ public struct Rect2(T) {
     }
 
     string toString() {
-        return myformat("[{} - {}]", p1, p2);
+        return myformat("[%s - %s]", p1, p2);
     }
 }
 

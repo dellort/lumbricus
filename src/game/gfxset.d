@@ -123,8 +123,8 @@ class GfxSet {
             //  tolerant than what we want and what is good, blergh)
             if (gfxconf == cFailsafeGraphics)
                 throw e;
-            core.log.error("Loading graphicsset in '{}' failed ({}), trying to"
-                " load {} instead.", gfxconf, e, cFailsafeGraphics);
+            core.log.error("Loading graphicsset in '%s' failed (%s), trying to"
+                " load %s instead.", gfxconf, e, cFailsafeGraphics);
             gfxconf = cFailsafeGraphics;
             config = gResources.loadConfigForRes(gfxconf);
             resfile = addGfxSet(config);
@@ -137,7 +137,7 @@ class GfxSet {
         if (waterloader != "") {
             auto pload = waterloader in gWaterLoadHack;
             if (!pload)
-                throwError("water loader not found: {}", waterloader);
+                throwError("water loader not found: %s", waterloader);
             auto res = (*pload)(gfx.getSubNode("waterset"));
             load_resources ~= res.res;
             waterColor = res.color;

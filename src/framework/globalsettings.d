@@ -235,15 +235,15 @@ string settingValueHelp(string setting) {
     Setting s = findSetting(setting);
 
     if (!s) {
-        write("Unknown setting '{}'!", setting);
+        write("Unknown setting '%s'!", setting);
         return res;
     }
 
-    write("Possible values for setting '{}':", s.name);
+    write("Possible values for setting '%s':", s.name);
 
     if (s.type == SettingType.Choice) {
         foreach (c; s.choices) {
-            write("   {}", c);
+            write("   %s", c);
         }
     } else if (s.type == SettingType.String) {
         write("   <any string>");
@@ -251,7 +251,7 @@ string settingValueHelp(string setting) {
         write("   <integer number>");
     } else if (s.type == SettingType.IntRange) {
         if (s.choices.length == 2) {
-            write("   <integer number in range [{}, {}]>", s.choices[0],
+            write("   <integer number in range [%s, %s]>", s.choices[0],
                 s.choices[1]);
         } else {
             write("   ?");
@@ -270,7 +270,7 @@ string settingValueHelp(string setting) {
 const cSettingsFile = "settings2.conf";
 
 void loadSettings() {
-    log.minor("Loading global settings from {}", cSettingsFile);
+    log.minor("Loading global settings from %s", cSettingsFile);
     ConfigNode node = loadConfig(cSettingsFile, true);
     if (!node)
         return;
@@ -286,7 +286,7 @@ void loadSettings() {
 }
 
 void saveSettings() {
-    log.minor("Saving global settings to {}", cSettingsFile);
+    log.minor("Saving global settings to %s", cSettingsFile);
     auto n = new ConfigNode();
     foreach (s; gSettings) {
         n[s.name] = s.value;

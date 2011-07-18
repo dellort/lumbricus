@@ -25,7 +25,7 @@ void sdlInit() {
 
         //probably really needed, don't know
         if (SDL_Init(0) < 0) {
-            throwError("Could not init SDL: {}", fromStringz(SDL_GetError()));
+            throwError("Could not init SDL: %s", fromStringz(SDL_GetError()));
         }
     }
 }
@@ -42,7 +42,7 @@ void sdlQuit() {
 //additional utility functions
 
 string pixelFormatToString(SDL_PixelFormat* fmt) {
-    return myformat("bits={} R/G/B/A={:x8}/{:x8}/{:x8}/{:x8}",
+    return myformat("bits=%s R/G/B/A=%8x/%8x/%8x/%8x",
         fmt.BitsPerPixel, fmt.Rmask, fmt.Gmask, fmt.Bmask, fmt.Amask);
 }
 

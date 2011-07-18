@@ -69,7 +69,7 @@ class FTGlyphCache {
         //will fall back to default style if specified was not found
         mFontStream = gFontManager.findFace(props.face, props.getFaceStyle);
         if (!mFontStream.length) {
-            throwError("Failed to load font '{}': Face file not found.",
+            throwError("Failed to load font '%s': Face file not found.",
                 props.face);
         }
         this.props = props;
@@ -77,7 +77,7 @@ class FTGlyphCache {
         if (FT_New_Memory_Face(driver.library, mFontStream.ptr,
             mFontStream.length, 0, &mFace))
         {
-            throwError("Freetype failed to load font '{}'.", props.face);
+            throwError("Freetype failed to load font '%s'.", props.face);
         }
 
         //only supports scalable fonts
@@ -163,7 +163,7 @@ class FTGlyphCache {
         void ftcheck(string name) {
             if (ftres)
                 throw new Exception(
-                    myformat("fontft.d failed: err={} in {}", ftres, name));
+                    myformat("fontft.d failed: err=%s in %s", ftres, name));
         }
 
         //Load the Glyph for our character.

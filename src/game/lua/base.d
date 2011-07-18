@@ -32,7 +32,7 @@ private Time timeParse(string s) {
     try {
         return Time.fromString(s);
     } catch (ConversionException e) {
-        throwError("{}", e);
+        throwError("%s", e);
     }
 }
 

@@ -16,7 +16,7 @@ void do_unworms(char[] filename, char[] outputDir) {
     scope(exit) st.close();
 
     if (auto readFunc = findReader(st)) {
-        Stdout.formatln("Extracting from '{}'...", filename);
+        Stdout.formatln("Extracting from '%s'...", filename);
         readFunc(st, outputDir, fnBase);
     }
 }

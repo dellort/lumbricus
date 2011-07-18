@@ -155,7 +155,7 @@ class Framework {
 
     private void replaceDriver() {
         //Trace.formatln("replace:");
-        //gFrameworkSettings.dump((string s) { Trace.format("{}", s); } );
+        //gFrameworkSettings.dump((string s) { Trace.format("%s", s); } );
 
         //deinit old driver
         VideoWindowState vstate;

@@ -20,7 +20,7 @@ void saveImage(Surface img, Stream stream, string extension = ".png") {
     if (extension == ".png") {
         writePNG(img, stream);
     } else {
-        throwError("Writing image format not supported: {}", extension);
+        throwError("Writing image format not supported: %s", extension);
     }
 }
 

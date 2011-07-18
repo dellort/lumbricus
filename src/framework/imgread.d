@@ -42,14 +42,14 @@ Surface loadImage(Stream source, string extension = null) {
         surf = IMG_Load_RW(ops, 0);
     if (!surf) {
         auto err = fromStringz(IMG_GetError());
-        throwError("image couldn't be loaded: {}", err);
+        throwError("image couldn't be loaded: %s", err);
     }
 
     return convertFromSDLSurface(surf, true);
 }
 
 Surface loadImage(string path) {
-    //mLog("load image: {}", path);
+    //mLog("load image: %s", path);
     auto p = VFSPath(path);
     scope stream = gFS.open(p, File.ReadShared);
     scope(exit) stream.close();

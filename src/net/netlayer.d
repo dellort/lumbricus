@@ -51,7 +51,7 @@ struct NetAddress {
     }
 
     string toString() {
-        return myformat("['{}', {}{}]", hostName, port,
+        return myformat("['%s', %s%s]", hostName, port,
             broadcast ? " (broadcast)" : "");
     }
 }

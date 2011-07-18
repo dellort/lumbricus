@@ -206,7 +206,7 @@ class ALSound : DriverSound {
         mSample = Sound_NewSample(ops,
             toStringz(VFSPath(data.filename).extNoDot()), null, bufs);
         if (!mSample) {
-            throwError("SDL_sound failed to load '{}'", data.filename);
+            throwError("SDL_sound failed to load '%s'", data.filename);
         }
 
         //recent versions of SDL_sound support fast duration calculation
@@ -498,7 +498,7 @@ class ALSoundDriver : SoundDriver {
     }
 
     void closeSound(DriverSound s) {
-        gLog("close sound {}", s);
+        gLog("close sound %s", s);
         auto as = castStrict!(ALSound)(s);
         foreach (c; mChannels) {
             if (c.mSound is as)

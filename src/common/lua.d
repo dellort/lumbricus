@@ -34,12 +34,12 @@ void setLogger(LuaState state, Log log) {
     struct Closure {
         Log log;
         void emitlog(LogPriority pri, TempString s) {
-            log.emit(pri, "{}", s.raw);
+            log.emit(pri, "%s", s.raw);
         }
         void printsink(string msg) {
             if (msg == "\n")
                 return;   //hmm
-            log.notice("{}", msg);
+            log.notice("%s", msg);
         }
     }
     auto c = new Closure;
@@ -83,14 +83,14 @@ class LuaInterpreter {
         //mLua.setPrintOutput(mSink);
 
         if (!suppressVersionMessage) {
-            myformat_cb(mSink, "Scripting console using: {}\n",
+            myformat_cb(mSink, "Scripting console using: %s\n",
                 mLua.cLanguageAndVersion);
         }
     }
 
     final void exec(string code) {
         //print literal command to console
-        myformat_cb(mSink, "> {}\n", code);
+        myformat_cb(mSink, "> %s\n", code);
         runLuaCode(code);
     }
 
@@ -111,7 +111,7 @@ class LuaInterpreter {
             return mLua.scriptExecR!(CompletionResult)
                 ("return ConsoleUtils.autocomplete(...)", line, cursor1, cursor2);
         } catch (LuaException e) {
-            myformat_cb(mSink, "error in autocompletion code: {}\n", e);
+            myformat_cb(mSink, "error in autocompletion code: %s\n", e);
             return CompletionResult.init;
         }
     }
@@ -143,7 +143,7 @@ class LuaInterpreter {
         {
             //Lua script returned something stupid
             //no need to crash hard
-            myformat_cb(mSink, "bogus completion: {} {}\n", res.match_start,
+            myformat_cb(mSink, "bogus completion: %s %s\n", res.match_start,
                 res.match_end);
             return;
         }
@@ -168,7 +168,7 @@ class LuaInterpreter {
         res.matches.sort;
         foreach (c; res.matches) {
             auto xlen = prefix.length;
-            myformat_cb(mSink, "    {}|{}\n", c[0..xlen], c[xlen..$]);
+            myformat_cb(mSink, "    %s|%s\n", c[0..xlen], c[xlen..$]);
         }
         if (res.more) {
             mSink("    ...\n");

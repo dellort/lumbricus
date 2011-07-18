@@ -177,7 +177,7 @@ private class ViewMember : SceneObject {
         Rect2i bounds = Rect2i(-d, -d, d, d);
         bounds += graphic.interpolated_position();
 
-        wormPoints.setTextFmt(false, "{}", member.currentHealth);
+        wormPoints.setTextFmt(false, "%s", member.currentHealth);
 
         //labels are positioned above pos
         Vector2i pos = bounds.center;
@@ -352,7 +352,7 @@ private class ViewMember : SceneObject {
                 //start (only for damages, not upgrades => "< 0")
                 moveHealth.init(cHealthHintTime, 0,
                     cHealthHintDistance);
-                healthHint.setTextFmt(false, "{}", -diff);
+                healthHint.setTextFmt(false, "%s", -diff);
                 //this is to avoid restarting the label animation several times
                 //  when counting down takes longer than to display the full
                 //  health damage hint animation
@@ -394,7 +394,7 @@ class DrownLabel : SceneObject {
     //member inf drowned at pos (pos is on the ground)
     this(GameInfo a_game, TeamMember m, int lost, Vector2i pos) {
         mTxt = m.team.color.textCreate();
-        mTxt.setTextFmt(false, "{}", lost);
+        mTxt.setTextFmt(false, "%s", lost);
         mFrom = pos;
         auto rengine = GameEngine.fromCore(a_game.engine);
         mTo = Vector2i(pos.x, rengine.waterOffset);
@@ -682,7 +682,7 @@ class GameView : Widget {
 
     private bool inpCameraDisable(string cmd) {
         enableCamera = !tryFromStrDef(cmd, enableCamera);
-        //gLog.warn("set camera enable: {}", enableCamera);
+        //gLog.warn("set camera enable: %s", enableCamera);
         return true;
     }
 
@@ -859,9 +859,9 @@ class GameView : Widget {
             return null;
         auto txt = StrBuffer(buffer);
         txt.sink(bind);
-        str.buffer_replace_fmt(txt, "%d", "{}", !isUp);
-        str.buffer_replace_fmt(txt, "%mx", "{}", mousePos.x);
-        str.buffer_replace_fmt(txt, "%my", "{}", mousePos.y);
+        str.buffer_replace_fmt(txt, "%d", "%s", !isUp);
+        str.buffer_replace_fmt(txt, "%mx", "%s", mousePos.x);
+        str.buffer_replace_fmt(txt, "%my", "%s", mousePos.y);
         return txt.get;
     }
 

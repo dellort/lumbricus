@@ -266,7 +266,7 @@ Lerror:
     if (geterr) {
         *geterr = error;
     } else {
-        luaErrorf(L, "{}", error);
+        luaErrorf(L, "%s", error);
     }
     return null;
 }
@@ -307,7 +307,7 @@ private string luaWhere(lua_State* L, int level) {
     if (lua_getstack(L, level, &ar)) {  /* check function at level */
         lua_getinfo(L, "Sl".ptr, &ar);  /* get info about it */
         if (ar.currentline > 0) {  /* is there info? */
-            return myformat("{}:{}: ", fromStringz(ar.short_src.ptr),
+            return myformat("%s:%s: ", fromStringz(ar.short_src.ptr),
                 ar.currentline);
         }
     }
@@ -342,16 +342,16 @@ private string luaStackTrace(lua_State* state, int level = 1) {
         lua_getinfo(state, "Snl", &ar);
         ret ~= fromStringz(ar.short_src.ptr) ~ ":";
         if (ar.currentline > 0)
-            ret ~= myformat("{}:", ar.currentline);
+            ret ~= myformat("%s:", ar.currentline);
         if (*ar.namewhat != '\0')  /* is there a name? */
-            ret ~= myformat(" in function '{}'", fromStringz(ar.name));
+            ret ~= myformat(" in function '%s'", fromStringz(ar.name));
         else {
             if (*ar.what == 'm')  /* main? */
                 ret ~= " in main chunk";
             else if (*ar.what == 'C' || *ar.what == 't')
                 ret ~= " ?";  /* C function or tail call */
             else
-                ret ~= myformat(" in function <{}:{}>",
+                ret ~= myformat(" in function <%s:%s>",
                     fromStringz(ar.short_src.ptr), ar.linedefined);
         }
         ret ~= "\n";
@@ -450,7 +450,7 @@ private void luaExpected(lua_State* state, int stackIdx, string expected) {
     luaExpected(state, expected, fromStringz(s));
 }
 private void luaExpected(lua_State* state, const(char)[] expected, const(char)[] got) {
-    luaErrorf(state, "{} expected, got {}", expected, got);
+    luaErrorf(state, "%s expected, got %s", expected, got);
 }
 
 //if this returns a TempString, you can use it only until you pop the
@@ -571,7 +571,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
                     int iidx = cast(int)idx;
                     if (iidx < 1 || iidx > ret.tupleof.length || iidx != idx) {
                         luaExpected(state, "valid integer index for " ~ cTName,
-                            myformat("invalid index {}", idx));
+                            myformat("invalid index %s", idx));
                     }
                     iidx -= 1; //lua arrays are 1-based
                     //this loop must be a major WTF for people who don't know D
@@ -640,7 +640,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
                 auto index = luaStackValue!(int)(state, -2);
                 if (index < 1 || index > ret.length)
                     luaErrorf(state, "invalid index in lua array"
-                        " table: got {} in range 1-{}", index, ret.length+1);
+                        " table: got %s in range 1-%s", index, ret.length+1);
                 index -= 1; //1-based arrays
                 ret[index] = luaStackValue!(ElementTypeOfArray!(T))(state, -1);
             }
@@ -1045,7 +1045,7 @@ private void luaProtected(lua_State* state, void delegate() code) {
             //something REALLY bad happened *shrug*
             //  LUA_ERRMEM: out of memory... nothing will work anymore, go die
             //  LUA_ERRERR: even worse, everything is cursed
-            throw new Exception(myformat("lua_pcall returned {}", res));
+            throw new Exception(myformat("lua_pcall returned %s", res));
         }
         //the error handler (pcall_err_handler) always returns a LuaException
         assert(LuaState.luaIsDObject(state, -1));
@@ -1108,7 +1108,7 @@ private int callFromLua(T)(T del, lua_State* state, int skipCount,
     alias ParameterTypeTuple!(typeof(del)) Params;
 
     if (numRealArgs != Params.length) {
-        luaErrorf(state, "'{}' requires {} arguments, got {}, skip={}",
+        luaErrorf(state, "'%s' requires %s arguments, got %s, skip=%s",
             funcName, Params.length+skipCount, numArgs, skipCount);
     }
 
@@ -1120,7 +1120,7 @@ private int callFromLua(T)(T del, lua_State* state, int skipCount,
         //try {
             p[idx] = luaStackValue!(PT)(state, skipCount + idx + 1);
         //} catch (LuaError e) {
-        //    luaErrorf(state, "bad argument #{} to '{}' ({})", idx + 1,
+        //    luaErrorf(state, "bad argument #%s to '%s' (%s)", idx + 1,
         //        funcName, e.msg);
         //}
     }
@@ -1161,7 +1161,7 @@ extern (C) private int typecheck_d_object(lua_State* state) {
     if (!obj)
         luaErrorf(state, "nil passed to T()");
     if (!canCast(obj.classinfo, cls))
-        luaErrorf(state, "T(): {} expected, but got {}", cls.name,
+        luaErrorf(state, "T(): %s expected, but got %s", cls.name,
             obj.classinfo.name);
     //return argument on success
     return 1;
@@ -1239,8 +1239,8 @@ class LuaRegistry {
     private static void methodThisError(lua_State* state, string name,
         ClassInfo expected, Object got)
     {
-        luaErrorf(state, "method call to '{}' requires non-null "
-            "this pointer of type {} as first argument, but got: {}", name,
+        luaErrorf(state, "method call to '%s' requires non-null "
+            "this pointer of type %s as first argument, but got: %s", name,
             expected.name, got ? got.classinfo.name : "*null");
     }
 
@@ -2296,7 +2296,7 @@ class LuaState {
             //    will be no line number
             string err = lua_todstring_protected(mLua, -1);
             lua_pop(mLua, 1);  //remove error message
-            luaErrorf(mLua, "Parse error: {}", err);
+            luaErrorf(mLua, "Parse error: %s", err);
         }
     }
 

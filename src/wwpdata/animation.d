@@ -11,12 +11,9 @@ import utils.rect2;
 import utils.vector2;
 import utils.filetools;
 import utils.misc;
-import tango.io.Stdout;
-import tango.math.Math;
 
-//dear tango team, please make things more convenient
-import tango.io.model.IFile : FileConst;
-const pathsep = FileConst.PathSeparatorChar;
+//XXXTANGO
+const pathsep = "/";
 
 //xxx should be moved somewhere else, no reason to compile this into the game
 void saveAnimations(RawAnimation[] animations, char[] outPath, char[] fnBase,
@@ -28,7 +25,7 @@ void saveAnimations(RawAnimation[] animations, char[] outPath, char[] fnBase,
         char[] afn, apath;
         if (tosubdir) {
             //ah, how I love those "intuitive" formatting parameters...
-            afn = myformat("anim_{0:d3}", i);
+            afn = myformat("anim_%03d", i);
             apath = outPath ~ pathsep ~ fnBase;
             trymkdir(apath);
         } else {
@@ -36,7 +33,7 @@ void saveAnimations(RawAnimation[] animations, char[] outPath, char[] fnBase,
             apath = outPath;
         }
         saveImageToFile(a.toBitmap(), apath ~ pathsep ~ afn ~ ".png");
-        Stdout.format("Saving {}/{}   \r",i+1 , animations.length);
+        Stdout.format("Saving %s/%s   \r",i+1 , animations.length);
         Stdout.flush();
     }
     Stdout.newline; //??

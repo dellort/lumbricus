@@ -136,7 +136,7 @@ class WormControl : WeaponController {
 
     private bool inpMove(string cmd) {
         mInputMoveState.handleCommand(cmd);
-        engine.log.trace("move state for {:x}: {}", toHash, mInputMoveState);
+        engine.log.trace("move state for %#x: %s", toHash, mInputMoveState);
         move(toVector2f(mInputMoveState.direction));
         return true;
     }
@@ -424,7 +424,7 @@ class WormControl : WeaponController {
             sh.setControl(this);
             sh.isSelected = true;
             mWeapons ~= sh;
-            gWeaponLog.trace("weapons: {}", mWeapons);
+            gWeaponLog.trace("weapons: %s", mWeapons);
             //hack to make weapon angle permanent
             if (sh is mWeapons[0] && mWeaponAngle == mWeaponAngle)
                 sh.weaponAngle = mWeaponAngle;
@@ -577,7 +577,7 @@ class WormControl : WeaponController {
         if (mWeapons.length > idx) {
             mWeapons[idx].kill();
             arrayRemoveN(mWeapons, idx);
-            gWeaponLog.trace("weapons: {}", mWeapons);
+            gWeaponLog.trace("weapons: %s", mWeapons);
         }
     }
 
@@ -585,7 +585,7 @@ class WormControl : WeaponController {
         if (mWeapons.length > 0 && sh) {
             sh.kill();
             arrayRemove(mWeapons, sh);
-            gWeaponLog.trace("weapons: {}", mWeapons);
+            gWeaponLog.trace("weapons: %s", mWeapons);
         }
     }
 

@@ -175,7 +175,7 @@ final class SDLSurface : DriverSurface {
             rgba32.Bmask, rgba32.Amask);
         if (!mSurfaceRGBA32) {
             throw new Exception(
-                myformat("couldn't create SDL surface, size={}", mSize));
+                myformat("couldn't create SDL surface, size=%s", mSize));
         }
 
         SDL_SetAlpha(mSurfaceRGBA32, SDL_SRCALPHA, SDL_ALPHA_OPAQUE);

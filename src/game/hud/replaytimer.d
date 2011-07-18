@@ -33,7 +33,7 @@ class ReplayTimer : BoxContainer {
         if (mGame.shell.replayRemain != Time.Null) {
             mReplayImg.visible = (timeCurrentTime().msecs/500)%2 == 0;
             mReplayTimer.visible = true;
-            mReplayTimer.text = myformat("{:f1}s",
+            mReplayTimer.text = myformat("%.1fs",
                 mGame.shell.replayRemain.secsf);
         } else {
             mReplayImg.visible = false;

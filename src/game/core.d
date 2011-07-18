@@ -311,7 +311,7 @@ abstract class GameCore {
     final T singleton(T)() {
         T r = querySingleton!(T)();
         if (!r)
-            throwError("singleton {} doesn't exist", T.classinfo.name);
+            throwError("singleton %s doesn't exist", T.classinfo.name);
         return r;
     }
 
@@ -358,7 +358,7 @@ abstract class GameCore {
     void benchStart(Time simtime) {
         mBenchMode = true;
         mBenchFramesMax = simtime/cFrameLength;
-        log.notice("Start benchmark, {} => {} frames...", simtime,
+        log.notice("Start benchmark, %s => %s frames...", simtime,
             mBenchFramesMax);
         mBenchFramesCur = 0;
         mBenchDrawTime = getRenderTime();
@@ -380,11 +380,11 @@ abstract class GameCore {
         mBenchMode = false;
         mBenchRealTime.stop();
         mBenchDrawTime = getRenderTime() - mBenchDrawTime;
-        log.notice("Benchmark done ({} frames)", mBenchFramesCur);
-        log.notice("  Real time (may or may not include sleep() calls): {}",
+        log.notice("Benchmark done (%s frames)", mBenchFramesCur);
+        log.notice("  Real time (may or may not include sleep() calls): %s",
             mBenchRealTime.time());
-        log.notice("  Game time: {}", mBenchSimTime.time());
-        log.notice("  Draw time (without GUI): {}", mBenchDrawTime);
+        log.notice("  Game time: %s", mBenchSimTime.time());
+        log.notice("  Draw time (without GUI): %s", mBenchDrawTime);
     }
 
     //-- scripting
@@ -394,7 +394,7 @@ abstract class GameCore {
     }
 
     private void scriptingError(string where, ScriptingException e) {
-        log.error("Scripting error ({}): {}", where, e.msg);
+        log.error("Scripting error (%s): %s", where, e.msg);
         traceException(log, e, "for scripting error");
     }
 
@@ -471,7 +471,7 @@ abstract class GameCore {
         //the promise is, that dead objects get invalid only in the "next" game
         //  frame - and this is here
         foreach (GameObject o; mKillList) {
-            log.trace("killed GameObject: {}", o);
+            log.trace("killed GameObject: %s", o);
             mKillList.remove(o);
             scripting().call("game_kill_object", o);
         }

@@ -31,7 +31,7 @@ enum ClientState {
 
 //playerId corresponds to CmdNetClient.myId() and NetTeamInfo.Team.playerId
 string makeAccessTag(uint playerId) {
-    return myformat("net_id::{}", playerId);
+    return myformat("net_id::%s", playerId);
 }
 
 private CmdNetClient[] gClients;
@@ -305,7 +305,7 @@ class CmdNetClient : SimpleNetConnection {
         //--- just dump hash for debugging
         foreach (o; loader.gameConfig.level.objects) {
             if (auto bmp = cast(LevelLandscape)o) {
-                gLog.notice("checksum bitmap '{}': {}", bmp.name,
+                gLog.notice("checksum bitmap '%s': %s", bmp.name,
                     bmp.landscape.checksum);
             }
         }
@@ -578,7 +578,7 @@ class CmdNetClient : SimpleNetConnection {
             case Client2ClientPacket.chatMessage:
                 auto p = unmarshal.read!(CCChatMessage)();
                 if (onMessage) {
-                    string text = myformat("<{}> {}", name, p.witty_comment);
+                    string text = myformat("<%s> %s", name, p.witty_comment);
                     onMessage(this, [text]);
                 }
                 if (onChat) {

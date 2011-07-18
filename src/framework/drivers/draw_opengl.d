@@ -60,9 +60,9 @@ private bool checkGLError(lazy string operation, bool crash = false) {
     if (!errors.length)
         return false;
     string msg = operation;
-    debug mLog.warn("GL error at '{}': {}", msg, errors);
+    debug mLog.warn("GL error at '%s': %s", msg, errors);
     if (crash)
-        throw new Exception(myformat("OpenGL error: '{}': {}", msg, errors));
+        throw new Exception(myformat("OpenGL error: '%s': %s", msg, errors));
     return true;
 }
 
@@ -99,7 +99,7 @@ class GLDrawDriver : DrawDriver {
         assert(screen_size.quad_length > 0);
         mScreenSize = screen_size;
         DerelictGL.loadExtensions();
-        mLog.minor("GL supports non-power-of-two: {}",
+        mLog.minor("GL supports non-power-of-two: %s",
             ARBTextureNonPowerOfTwo.isEnabled);
 
         //initialize some static OpenGL context attributes
@@ -255,7 +255,7 @@ final class GLSurface : DriverSurface {
         steal();
 
         if (mError)
-            mLog.error("Failed to create texture of size {}.", mTexSize);
+            mLog.error("Failed to create texture of size %s.", mTexSize);
     }
 
     override void destroy() {

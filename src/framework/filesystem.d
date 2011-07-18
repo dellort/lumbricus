@@ -121,7 +121,7 @@ private class HandlerDirectory : HandlerInstance {
         if (!dirExists(absPath))
             throw new FilesystemException("Directory doesn't exist");
         mDirPath = addTrailingPathDelimiter(absPath);
-        log("New dir handler for '{}'",mDirPath);
+        log("New dir handler for '%s'",mDirPath);
     }
 
     bool isWritable() {
@@ -130,7 +130,7 @@ private class HandlerDirectory : HandlerInstance {
 
     bool exists(VFSPath handlerPath) {
         string p = handlerPath.makeAbsolute(mDirPath);
-        log("Checking for existance: '{}'",p);
+        log("Checking for existance: '%s'",p);
         return tpath.exists(p) && !tpath.isDir(p);
     }
 
@@ -150,14 +150,14 @@ private class HandlerDirectory : HandlerInstance {
             try {
                 tpath.mkdirRecurse(handlerPath.makeAbsolute(mDirPath));
             } catch (IOException e) {
-                throw new FilesystemException(myformat("createPath error: {}",
+                throw new FilesystemException(myformat("createPath error: %s",
                     e));
             }
         }
     }
 
     Stream open(VFSPath handlerPath, string mode) {
-        log("Handler for '{}': Opening '{}'",mDirPath, handlerPath);
+        log("Handler for '%s': Opening '%s'",mDirPath, handlerPath);
         //if (mode.open != File.Open.Exists) {
         if (!is_read_mode(mode)) {
             //make sure path exists
@@ -449,7 +449,7 @@ private class HandlerLink : HandlerInstance {
     private FileSystem mParent;
 
     this(FileSystem parent, VFSPath relPath) {
-        log("New link: {}",relPath);
+        log("New link: %s",relPath);
         mLinkedPath = relPath;
         mParent = parent;
     }
@@ -460,17 +460,17 @@ private class HandlerLink : HandlerInstance {
     }
 
     bool exists(VFSPath handlerPath) {
-        log("Link: exists({})",handlerPath);
+        log("Link: exists(%s)",handlerPath);
         return mParent.exists(mLinkedPath.join(handlerPath), this);
     }
 
     bool pathExists(VFSPath handlerPath) {
-        log("Link: pathexists({})",handlerPath);
+        log("Link: pathexists(%s)",handlerPath);
         return mParent.pathExists(mLinkedPath.join(handlerPath), this);
     }
 
     Stream open(VFSPath handlerPath, string mode) {
-        log("Link: open({})",handlerPath);
+        log("Link: open(%s)",handlerPath);
         return mParent.open(mLinkedPath.join(handlerPath), mode, this);
     }
 
@@ -527,7 +527,7 @@ class FileSystem {
             ///is relPath a subdirectory of mountPoint?
             ///compares case-sensitive
             public bool matchesPath(VFSPath other) {
-                log("Checking for match: '{}' and '{}'",other,mountPoint);
+                log("Checking for match: '%s' and '%s'",other,mountPoint);
                 return mountPoint.isChild(other);
             }
 
@@ -644,11 +644,11 @@ class FileSystem {
 
         //user path: home directory + .appId
         mUserPath = getUserPath(appPath, appId);
-        log("PUser = '{}'",mUserPath);
+        log("PUser = '%s'",mUserPath);
 
         //data path: prefix/share/appId
         mDataPath ~= appPath ~ "../share/" ~ appId ~ "/";
-        log("PData = '{}'", mDataPath);
+        log("PData = '%s'", mDataPath);
     }
 
     //find array index after which to insert new MountedPath with precedence
@@ -851,7 +851,7 @@ class FileSystem {
     public Stream open(VFSPath filename, string mode = "r",
         HandlerInstance caller = null)
     {
-        log("Trying to open '{}'",filename);
+        log("Trying to open '%s'",filename);
         //always shared reading
         //XXXTANGO: what the hell is this?
         //if (mode.share == File.Share.None)
@@ -1001,7 +1001,7 @@ class FileSystem {
     }
 
     ///get a unique (non-existing) filename in path with extension ext
-    ///if the file already exists, either replace {} with or append 2,3 etc.
+    ///if the file already exists, either replace %s with or append 2,3 etc.
     string getUniqueFilename(string path, string nameTemplate, string ext,
         out int tries)
     {

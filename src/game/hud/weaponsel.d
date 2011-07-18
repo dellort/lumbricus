@@ -196,7 +196,7 @@ class WeaponSelWindow : Container {
 
         if (w && w.visible()) {
             mWeaponName.text = translateWeapon(w.weapon.name);
-            mWeaponQuantity.text = w.infinite ? "" : myformat("x{}", w.quantity);
+            mWeaponQuantity.text = w.infinite ? "" : myformat("x%s", w.quantity);
         } else {
             mWeaponName.text = "";
             mWeaponQuantity.text = "";
@@ -223,7 +223,7 @@ class WeaponSelWindow : Container {
                         break;
                     }
                 }
-                assert(found, myformat("weapon '{}' was not known at init time!",
+                assert(found, myformat("weapon '%s' was not known at init time!",
                     w.weapon.name));
             }
         }

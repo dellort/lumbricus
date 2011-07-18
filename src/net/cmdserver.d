@@ -87,7 +87,7 @@ class CmdNetServer {
         mQueryMarshal = new MarshalBuffer();
 
         //create and open server
-        log.notice("Server listening on port {}", mPort);
+        log.notice("Server listening on port %s", mPort);
         mBase = new NetBase();
         mHost = mBase.createServer(mPort, mMaxPlayers+1);
         mHost.onConnect = &onConnect;
@@ -256,7 +256,7 @@ class CmdNetServer {
         if (cl.state != ClientConState.establish)
             //connection was rejected
             return;
-        log.minor("New connection from {}, id = {}", cl.address, cl.id);
+        log.minor("New connection from %s, id = %s", cl.address, cl.id);
         mClients.insert_before(cl, insertBefore);
         mPlayerCount++;
         updateAnnounce();
@@ -265,7 +265,7 @@ class CmdNetServer {
 
     //called from CmdNetClientConnection: peer has been disconnected
     private void clientRemove(CmdNetClientConnection client) {
-        log.minor("Client from {} ({}) disconnected",
+        log.minor("Client from %s (%s) disconnected",
             client.address, client.playerName);
         //store id, to notify other players
         if ((mState == CmdServerState.playing
@@ -428,7 +428,7 @@ class CmdNetServer {
 
     //incoming game command from a client
     private void gameCommand(CmdNetClientConnection client, string cmd) {
-        //Trace.formatln("Gamecommand({}): {}",client.playerName, cmd);
+        //Trace.formatln("Gamecommand(%s): %s",client.playerName, cmd);
         assert(mState == CmdServerState.playing);
         //add to queue, for sending with next server frame
         PendingCommand pc;
@@ -492,7 +492,7 @@ class CmdNetServer {
 
     //execute a server frame
     private void gameTick(Time overdue) {
-        //Trace.formatln("Tick, {} commands", mPendingCommands.length);
+        //Trace.formatln("Tick, %s commands", mPendingCommands.length);
         CmdNetClientConnection[] lagClients;
         bool haveAllAck = true;
         foreach (cl; mClients) {
@@ -549,10 +549,10 @@ class CmdNetServer {
     void printClients() {
         log.notice("Connected:");
         foreach (CmdNetClientConnection c; mClients) {
-            log.notice("  address {} state {} name '{}'", c.address, c.state,
+            log.notice("  address %s state %s name '%s'", c.address, c.state,
                 c.playerName);
         }
-        log.notice("playerCount={}", mPlayerCount);
+        log.notice("playerCount=%s", mPlayerCount);
     }
 }
 
@@ -643,7 +643,7 @@ class CmdNetClientConnection {
             throw new CCError("Invalid nickname or name already in use.");
         }
         mPlayerName = newName;
-        write.writefln("Your new nickname is {}", mPlayerName);
+        write.writefln("Your new nickname is %s", mPlayerName);
         mOwner.updatePlayerList();
     }
 
@@ -656,7 +656,7 @@ class CmdNetClientConnection {
     }
 
     void close(string desc, DiscReason why = DiscReason.none) {
-        log.notice("disconnect peer {}, code={}, reason: {}", id(), why, desc);
+        log.notice("disconnect peer %s, code=%s, reason: %s", id(), why, desc);
         mPeer.disconnect(why);
         state(ClientConState.closed);
     }
@@ -794,8 +794,8 @@ class CmdNetClientConnection {
         if (mDesyncSent)
             return;
         mDesyncSent = true;
-        log.warn("Game is out of sync for player '{}'", mPlayerName);
-        log.warn("  Timestamp: {}  Hash: {}  Expected: {}", timestamp,
+        log.warn("Game is out of sync for player '%s'", mPlayerName);
+        log.warn("  Timestamp: %s  Hash: %s  Expected: %s", timestamp,
             hash, expected);
 
         SPGameAsync p;
@@ -812,7 +812,7 @@ class CmdNetClientConnection {
         switch (pid) {
             case ClientPacket.error:
                 auto p = unmarshal.read!(CPError)();
-                log.warn("Client reported error: {}", p.errMsg);
+                log.warn("Client reported error: %s", p.errMsg);
                 break;
             case ClientPacket.hello:
                 //this is the first packet a client should send after connecting
@@ -951,7 +951,7 @@ class CmdNetClientConnection {
                     lastAckTS = p.timestamp;
                     mAckQueue.push(p);
                 }
-                log.trace("[{}] Ack for frame {}, hash = {}", mId, p.timestamp,
+                log.trace("[%s] Ack for frame %s, hash = %s", mId, p.timestamp,
                     p.hash);
                 break;
             case ClientPacket.pong:
@@ -992,7 +992,7 @@ class CmdNetClientConnection {
         //we just got a pong, so there's at least that
         assert(count > 0);
         mAvgPing = pa / count;
-        //Trace.formatln("Ping: {} (avg = {})", rtt, ping());
+        //Trace.formatln("Ping: %s (avg = %s)", rtt, ping());
     }
 
     Time ping() {
@@ -1015,7 +1015,7 @@ class CmdNetClientConnection {
     private void onDisconnect(NetPeer sender, uint code) {
         assert(sender is mPeer);
         if (code > 0)
-            log.error("Client disconnected with error: {}",
+            log.error("Client disconnected with error: %s",
                 reasonToString[code]);
         state(ClientConState.closed);
     }
@@ -1061,7 +1061,7 @@ version(Windows) {
     }
 
     void setupConsole(string title) {
-        xout.Stdout.formatln("\033]0;{}\007", title);
+        xout.Stdout.formatln("\033]0;%s\007", title);
         signal(SIGINT, &sighandler);
         signal(SIGTERM, &sighandler);
     }

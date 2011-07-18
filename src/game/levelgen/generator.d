@@ -224,7 +224,7 @@ class GenerateFromTemplate : LevelGenerator {
         saveto.setStringValue("type", "level_renderer");
 
         saveto.setStringValue("theme", mCurTheme.name);
-        saveto.setStringValue("world_size", myformat("{} {}",
+        saveto.setStringValue("world_size", myformat("%s %s",
             nlevel.worldSize.x, nlevel.worldSize.y));
         saveto.setBoolValue("airstrike_allow", nlevel.airstrikeAllow);
         saveto.setIntValue("airstrike_y", nlevel.airstrikeY);
@@ -316,9 +316,9 @@ class GenerateFromTemplate : LevelGenerator {
                 land.landscape_theme = rendered_theme;
                 rland.land = land;
                 saveto_obj.setStringValue("type", type);
-                saveto_obj.setStringValue("position", myformat("{} {}",
+                saveto_obj.setStringValue("position", myformat("%s %s",
                     land.position.x, land.position.y));
-                //onode.setStringValue("size", myformat("{} {}",
+                //onode.setStringValue("size", myformat("%s %s",
                   //  land.size.x, land.size.y));
                 foreach (int i, val; land.impenetrable) {
                     saveto_obj.setValue(LevelLandscape.cWallNames[i], val);
@@ -483,7 +483,7 @@ class GenerateFromTemplate : LevelGenerator {
                     assert(false);
                 }
             } else {
-                throwError("unknown object type '{}' in level template at {}",
+                throwError("unknown object type '%s' in level template at %s",
                     t, onode.locationString);
             }
         }
@@ -1056,7 +1056,7 @@ class LevelThemes {
                 if (theme) {
                     mItems ~= theme;
                 } else {
-                    mLog.warn("could not load '{}' as LevelTheme: {}", filename,
+                    mLog.warn("could not load '%s' as LevelTheme: %s", filename,
                         err);
                 }
                 return true;
@@ -1086,7 +1086,7 @@ class LevelTemplates {
                 if (templ) {
                     mItems ~= templ;
                 } else {
-                    mLog.warn("could not load '{}' as LevelTemplate: {}", path,
+                    mLog.warn("could not load '%s' as LevelTemplate: %s", path,
                         err);
                 }
                 return true;
@@ -1124,7 +1124,7 @@ LandscapeBitmap landscapeRenderGeometry(LandscapeGeometry geometry,
 
     debug {
         counter.stop();
-        mLog.minor("geometry: {}", counter.time());
+        mLog.minor("geometry: %s", counter.time());
         counter.reset();
         counter.start();
     }
@@ -1138,7 +1138,7 @@ LandscapeBitmap landscapeRenderGeometry(LandscapeGeometry geometry,
 
     debug {
         counter.stop();
-        mLog.minor("borders: {}", counter.time());
+        mLog.minor("borders: %s", counter.time());
     }
     return renderer;
 }
@@ -1255,7 +1255,7 @@ LandscapeObjects landscapePlaceObjects(LandscapeBitmap renderer,
 
     debug {
         counter.stop();
-        mLog.minor("placed objects in {}", counter.time());
+        mLog.minor("placed objects in %s", counter.time());
     }
 
     return placer.objects;
@@ -1277,7 +1277,7 @@ void landscapeRenderObjects(LandscapeBitmap renderer, LandscapeObjects objs,
 
     debug {
         counter.stop();
-        mLog.minor("rendered objects in {}", counter.time());
+        mLog.minor("rendered objects in %s", counter.time());
     }
 }
 

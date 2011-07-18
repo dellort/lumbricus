@@ -386,7 +386,7 @@ class ImportedWWPAnimation : Animation, DebugAniFrames {
                 if (fn is p.conv)
                     pconv = name;
             }
-            inf ~= myformat("  {} <- {} '{}' ({} frames)", i,
+            inf ~= myformat("  %s <- %s '%s' (%s frames)", i,
                 cParamTypeStr[p.map], pconv, mData.length(i));
         }
         return inf;
@@ -445,7 +445,7 @@ void importAnimations(AniFile dest, RawAnimation[] animations,
         if (!item.hasSubNodes())
             continue;
         if (!(item.name in gAnimationLoadHandlers))
-            throwError("no handler found for: {}", item.name);
+            throwError("no handler found for: %s", item.name);
         auto handler = gAnimationLoadHandlers[item.name];
         handler(dest, animations, item);
     }
@@ -453,7 +453,7 @@ void importAnimations(AniFile dest, RawAnimation[] animations,
 
 RawAnimation getAnimation(RawAnimation[] animations, int index) {
     if (!indexValid(animations, index))
-        throwError("invalid animation index: {}", index);
+        throwError("invalid animation index: %s", index);
     auto res = animations[index];
     res.seen = true;
     return res;
@@ -476,7 +476,7 @@ RawAnimation[] getSimple(RawAnimation[] animations, char[] val, int n, int x) {
             res ~= getAnimation(animations, z + i);
     }
     if (res.length != n*x) {
-        throw new Exception(myformat("unexpected blahblah {}/{}: {}",
+        throw new Exception(myformat("unexpected blahblah %s/%s: %s",
             n, x, val));
     }
     return res;
@@ -527,7 +527,7 @@ ParamType paramTypeFromStr(char[] s) {
         if (str.icmp(ts, s) == 0)
             return cast(ParamType)idx;
     }
-    throwError("unknown param type: '{}'", s);
+    throwError("unknown param type: '%s'", s);
 }
 
 //s has the format x ::= <param>[ "/" <string>] , s ::= s (s ",")*
@@ -544,14 +544,14 @@ void parseParams(char[] s, ParamInfo[3] p) {
         p[n].map = param;
         bool is_real_param = param >= ParamType.P1 && param <= ParamType.P3;
         if (sub.length < 2) {
-            require(!is_real_param, "{} requires param mapping", pname);
+            require(!is_real_param, "%s requires param mapping", pname);
             continue;
         }
-        require(is_real_param, "{} can't have a param mapping", pname);
+        require(is_real_param, "%s can't have a param mapping", pname);
         char[] pmap = sub[1];
         auto pconv = pmap in gParamConverters;
         if (!pconv)
-            throwError("param conv. '{}' not found", pmap);
+            throwError("param conv. '%s' not found", pmap);
         p[n].conv = *pconv;
     }
 }
@@ -582,7 +582,7 @@ private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
                 //use this as an int-flag; syntax: <name> ":" <number>
                 int sp = str.find(f, ":");
                 if (sp < 0)
-                    throwError("name:number expected, got: {}", f);
+                    throwError("name:number expected, got: %s", f);
                 auto n = f[0..sp];
                 auto v = f[sp+1..$];
                 int i = fromStr!(int)(v); //might throw ConversionException
@@ -681,7 +681,7 @@ private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
         }
         auto unused = boolFlags.keys ~ intFlags.keys;
         if (unused.length) {
-            throwError("unknown flags: {} in {}", unused, name);
+            throwError("unknown flags: %s in %s", unused, name);
         }
     }
 
@@ -693,7 +693,7 @@ private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
             char[] paramstr = node.getStringValue(cParamItem);
             auto subflags = flags ~ parseFlags(flagstr, true);
             if (flagstr.length > 0)
-                throwError("unparsed flag values: {}", flagstr);
+                throwError("unparsed flag values: %s", flagstr);
             if (paramstr.length > 0) {
                 parseParams(paramstr, nparams);
             }
@@ -724,14 +724,14 @@ private void loadBitmapFrames(AniFile anims, RawAnimation[] anis,
         char[] frame = sub.value;
         char[][] x = str.split(frame, ",");
         if (x.length != 2)
-            throwError("invalid frame reference: {}", frame);
+            throwError("invalid frame reference: %s", frame);
         int[2] f;
         for (int i = 0; i < 2; i++) {
             f[i] = fromStr!(int)(x[i]);
         }
         auto ani = getAnimation(anis, f[0]);
         if (!indexValid(ani.frames, f[1]))
-            throwError("unknown frame: {}", frame);
+            throwError("unknown frame: %s", frame);
         auto fr = ani.frames[f[1]];
         anims.addBitmap(name, ani.frameToBitmap(fr));
     }

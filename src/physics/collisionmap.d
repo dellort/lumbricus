@@ -122,7 +122,7 @@ final class CollisionMap {
         if (auto pres = name in mCollisionNames)
             return *pres;
 
-        throwError("collision ID '{}' not found.", name);
+        throwError("collision ID '%s' not found.", name);
     }
 
     alias find findCollisionID;
@@ -191,7 +191,7 @@ final class CollisionMap {
                 auto supercls = findCollisionID(sub.value);
                 newCollisionType(sub.name, supercls);
             } catch (CustomException e) {
-                e.msg = myformat("When loading collision classes from {}: {}",
+                e.msg = myformat("When loading collision classes from %s: %s",
                     sub.locationString, e.msg);
                 throw e;
             }
@@ -213,7 +213,7 @@ final class CollisionMap {
                         enableCollision(ct, h, ch);
                     }
                 } catch (CustomException e) {
-                    e.msg = myformat("When loading collisions from {}: {}",
+                    e.msg = myformat("When loading collisions from %s: %s",
                         sub.locationString, e.msg);
                     throw e;
                 }

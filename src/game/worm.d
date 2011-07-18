@@ -286,7 +286,7 @@ class WormSprite : Sprite {
     void beamTo(Vector2f npos) {
         //if (!isSitting())
         //    return; //only can beam when standing
-        log.trace("beam to: {}", npos);
+        log.trace("beam to: %s", npos);
         //xxx: check and lock destination
         mBeamDest = npos;
         setState(wsc.st_beaming);
@@ -433,7 +433,7 @@ class WormSprite : Sprite {
                 engine.explosionAt(physics.pos, wsc.suicideDamage, this);
                 SpriteClass findGrave(int id) {
                     return engine.resources.get!(SpriteClass)
-                        (myformat("x_gravestone{}", id), true);
+                        (myformat("x_gravestone%s", id), true);
                 }
                 auto graveclass = findGrave(mGravestone);
                 if (!graveclass) //try to default to first gravestone
@@ -480,7 +480,7 @@ class WormSprite : Sprite {
             assert(nstate is currentState.onAnimationEnd);
         }
 
-        log.trace("state {} -> {}", currentState.name, nstate.name);
+        log.trace("state %s -> %s", currentState.name, nstate.name);
 
         auto oldstate = currentState;
         currentState = nstate;
@@ -519,7 +519,7 @@ class WormSprite : Sprite {
             updateAnimation();
         }
 
-        log.trace("force state: {}", nstate.name);
+        log.trace("force state: %s", nstate.name);
 
         waterStateChange();
     }
@@ -846,7 +846,7 @@ class WormSpriteClass : SpriteClass {
     WormStateInfo findState(string name) {
         WormStateInfo* state = name in states;
         if (!state) {
-            throwError("state {} not found", name);
+            throwError("state %s not found", name);
         }
         return *state;
     }

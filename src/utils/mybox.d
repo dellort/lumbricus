@@ -212,7 +212,7 @@ struct MyBox {
             throw new MyBoxException("incompatible types.");
         //xxx wrong, but it was 3:10 am
         if (!isSubClass(cur.info, toc.info) && !isSubClass(toc.info, cur.info))
-            throw new MyBoxException(myformat("inconvertible types: {} {}.",
+            throw new MyBoxException(myformat("inconvertible types: %s %s.",
                 cur, toc));
         mType = toc;
     }

@@ -48,7 +48,7 @@ class RopeClass : WeaponClass {
         //(because of special control methods, i.e. for jetpacks, ropes...)
         auto worm = cast(WormSprite)(go);
         if (!worm)
-            throw new CustomException(myformat("not a worm: {}", go));
+            throw new CustomException(myformat("not a worm: %s", go));
         return new Rope(this, worm);
     }
 }
@@ -328,9 +328,9 @@ class Rope : Shooter, Controllable {
                 cSegmentRadius, hit1, hit2) && (pstart-hit1).quad_length > 150)
             {
                 if (hit1 != hit2)
-                    log("seg: h1 {}, h2 {}, worm {}", hit1, hit2, pstart);
+                    log("seg: h1 %s, h2 %s, worm %s", hit1, hit2, pstart);
                 else
-                    log("seg: h1 {}, worm {}",hit1, pstart);
+                    log("seg: h1 %s, worm %s",hit1, pstart);
                 //collided => new segment to attach the rope to the
                 //  connection point
                 //xxx: small hack to make it more robust

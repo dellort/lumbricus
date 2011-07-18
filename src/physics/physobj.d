@@ -195,7 +195,7 @@ class PhysicObject : PhysicBase {
     }
 
     package void glueObject() {
-        version(PhysDebug) log("glue object {}", this);
+        version(PhysDebug) log("glue object %s", this);
         mIsGlued = true;
         //velocity must be set to 0 (or change glue handling)
         //ok I did change glue handling.
@@ -209,7 +209,7 @@ class PhysicObject : PhysicBase {
             return;
         if (isStatic)
             return;
-        version(PhysDebug) log("unglue object {}", this);
+        version(PhysDebug) log("unglue object %s", this);
         //he flies away! arrrgh!
         mIsGlued = false;
         //mWalkingMode = false; (no! object _wants_ to walk, and continue
@@ -355,7 +355,7 @@ class PhysicObject : PhysicBase {
     }
 
     string toString() {
-        return myformat("[{}: {} {}]", toHash(), pos, velocity);
+        return myformat("[%s: %s %s]", toHash(), pos, velocity);
     }
 
     //set new position
@@ -508,7 +508,7 @@ class PhysicObject : PhysicBase {
 
     void applyDamage(float severity, DamageCause type, Object cause = null) {
         auto delta = -severity*posp.damageable;
-        //log("damage: {}/{}", severity, delta);
+        //log("damage: %s/%s", severity, delta);
         if (abs(delta) > posp.damageThreshold) {
             float before = lifepower;
             lifepower += delta;
@@ -610,9 +610,9 @@ class PhysicObject : PhysicBase {
                 } else if (!hitLast) {
                     //hit the landscape, but worm would fit on last checked pos
                     //  --> walk there
-                    version(WalkDebug) log("walk: bottom at {}", y);
+                    version(WalkDebug) log("walk: bottom at %s", y);
                     y--;
-                    version(WalkDebug) log("walk at {} -> {}", npos, npos-pos);
+                    version(WalkDebug) log("walk at %s -> %s", npos, npos-pos);
                     //walk to there...
                     Vector2f fpos = pos;
                     if (mPosp.walkLimitSlopeSpeed) {

@@ -47,7 +47,7 @@ class PluginBase {
                 loadPlugin(pid, sub, cfg.plugins);
             } catch (CustomException e) {
                 //xxx is continuing here really such a good idea
-                log.error("Plugin '{}' failed to load: {}", pid, e);
+                log.error("Plugin '%s' failed to load: %s", pid, e);
                 traceException(log.get, e);
             }
         }
@@ -60,7 +60,7 @@ class PluginBase {
             return;
         }
         if (pluginId in mErrorPlugins) {
-            log.warn("plugin '{}' has been marked as failed, will"
+            log.warn("plugin '%s' has been marked as failed, will"
                 " request for loading it ignored.",  pluginId);
             return;
         }
@@ -82,7 +82,7 @@ class PluginBase {
             //  be ignored, instead of retrying it (when several other plugins
             //  dependon the same failed plugins, several attempts are made)
             mErrorPlugins[pluginId] = true;
-            e.msg = myformat("when loading plugin '{}': {}", pluginId, e.msg);
+            e.msg = myformat("when loading plugin '%s': %s", pluginId, e.msg);
             throw e;
         }
         //otherwise, success!
@@ -122,7 +122,7 @@ class PluginBase {
             try {
                 loadPlugin(dep, allPlugins.findNode(dep), allPlugins);
             } catch (CustomException e) {
-                e.msg = myformat("when loading dependency '{}': {}", dep,
+                e.msg = myformat("when loading dependency '%s': %s", dep,
                     e.msg);
                 throw e;
             }
@@ -139,7 +139,7 @@ class PluginBase {
             try {
                 plg.doinit(mEngine);
             } catch (CustomException e) {
-                log.error("Plugin '{}' failed to init(): {}", plg.name, e);
+                log.error("Plugin '%s' failed to init(): %s", plg.name, e);
                 traceException(log.get, e);
             }
         }
@@ -164,9 +164,9 @@ class Plugin {
     //  conf = static plugin configuration
     this(string a_name, GfxSet gfx, ConfigNode conf) {
         name = a_name;
-        log.minor("loading '{}'", name);
+        log.minor("loading '%s'", name);
         if (!isIdentifier(name)) {
-            throwError("Plugin name '{}' in {} is not a valid identifier.",
+            throwError("Plugin name '%s' in %s is not a valid identifier.",
                 name, conf.locationString);
         }
         mGfx = gfx;
@@ -179,7 +179,7 @@ class Plugin {
             try {
                 mResources = gfx.addGfxSet(mConfig);
             } catch (CustomException e) {
-                e.msg = myformat("when loading resources for plugin {}: {}",
+                e.msg = myformat("when loading resources for plugin %s: %s",
                     name, e.msg);
                 throw e;
             }
@@ -209,13 +209,13 @@ class Plugin {
 
     //create the runtime part of this plugin
     void doinit(GameCore eng) {
-        log("init '{}'", name);
+        log("init '%s'", name);
 
         if (mCollisions) {
             try {
                 eng.physicWorld.collide.loadCollisions(mCollisions);
             } catch (CustomException e) {
-                e.msg = myformat("when loading collisions for plugin {}: {}",
+                e.msg = myformat("when loading collisions for plugin %s: %s",
                     name, e.msg);
                 throw e;
             }
@@ -249,7 +249,7 @@ class Plugin {
                 loadedModules[filename] = true;
                 //filename = for debug output; name = lua environment
                 //xxx catch lua errors here, so other modules can be loaded?
-                log("load lua script for '{}': {}", name, filename);
+                log("load lua script for '%s': %s", name, filename);
                 loadScript(eng.scripting(), filename, name);
                 loaded = true;
                 return true;
@@ -257,7 +257,7 @@ class Plugin {
 
             //file not found
             if (!loaded) {
-                throwError("when loading plugin '{}': {} couldn't be found.",
+                throwError("when loading plugin '%s': %s couldn't be found.",
                     name, mpath);
             }
         }

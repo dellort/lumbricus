@@ -96,7 +96,7 @@ struct ServerAddress {
     ushort port = 0;
 
     string toString() {
-        return myformat("{}.{}.{}.{}:{}", address >> 24 & 0xFF,
+        return myformat("%s.%s.%s.%s:%s", address >> 24 & 0xFF,
             address >> 16 & 0xFF, address >> 8 & 0xFF, address & 0xFF, port);
     }
 

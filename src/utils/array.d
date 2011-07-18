@@ -428,7 +428,7 @@ final class BigArray(T) {
         if (!res && newlen != 0) {
             //reallocation failed; realloc() leaves memory untouched
             //xxx: throw out OutOfMemoryException instead?
-            throw new Exception(myformat("Out of memory when allocating {} "
+            throw new Exception(myformat("Out of memory when allocating %s "
                 "bytes.", sz));
         }
         debug {

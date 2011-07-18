@@ -250,7 +250,7 @@ class Widget {
 
         o.do_add();
 
-        log("on child add {} {}", this, o);
+        log("on child add %s %s", this, o);
         onAddChild(o);
 
         //just to be sure
@@ -281,7 +281,7 @@ class Widget {
         o.mParent = null;
         o.styles.parent = null;
 
-        log("on child remove {} {}", this, o);
+        log("on child remove %s %s", this, o);
         onRemoveChild(o);
 
         if (had_focus) {
@@ -732,7 +732,7 @@ class Widget {
             //(reallocation can be expensive; so avoid it)
         } else {
             mLayoutNeedReallocate = false;
-            //log("realloc {} {}/{}", this, mContainerBounds, rect);
+            //log("realloc %s %s/%s", this, mContainerBounds, rect);
             layoutSizeAllocation();
         }
         if (mGUI && mouseIsInside() && rectChanged) {
@@ -798,7 +798,7 @@ class Widget {
             return;
 
         if (!was_resized) {
-            log("relayout-down: {}", this);
+            log("relayout-down: %s", this);
             //don't need to involve parent, just make this widget happy
             layoutContainerAllocate(mContainerBounds);
             return;
@@ -808,7 +808,7 @@ class Widget {
         //some container could handle the resize of a single child change more
         //  efficiently, and some require complete relayouting
         if (parent) {
-            log("relayout-up: {}", this);
+            log("relayout-up: %s", this);
             parent.needRelayout();
         } else {
             assert(isTopLevel());
@@ -844,7 +844,7 @@ class Widget {
         version (ResizeDebug) {
             //assertion must work - checking this subverts optimization
             assert(rsize == layoutContainerSizeRequest());
-            log.trace("parent-alloc {}: {} {}", this, rsize, area);
+            log.trace("parent-alloc %s: %s %s", this, rsize, area);
         }
         //fit the widget with its size into the area
         for (int n = 0; n < 2; n++) {
@@ -867,13 +867,13 @@ class Widget {
         version (ResizeDebug) {
             auto cs = layoutSizeRequest();
             if (area.size.x < cs.x || area.size.y < cs.y) {
-                log.trace("underallocation in {}, {} {}",
+                log.trace("underallocation in %s, %s %s",
                     this.classinfo.name, area.size, cs);
                 area.p2 = area.p1 + cs.max(area.size);
             }
             assert(area.size.x >= cs.x);
             assert(area.size.y >= cs.y);
-            log.trace("sub-alloc {}: {}", this, area);
+            log.trace("sub-alloc %s: %s", this, area);
         }
         //force no negative sizes
         area.p2 = area.p1 + area.size.max(Vector2i(0));
@@ -1242,7 +1242,7 @@ class Widget {
 
         if (mOldFocus != focused()) {
             mOldFocus = focused();
-            log("focus={} for {}", mOldFocus, this);
+            log("focus=%s for %s", mOldFocus, this);
             onFocusChange();
         }
     }
@@ -1250,7 +1250,7 @@ class Widget {
     /// called when focused() changes
     /// default implementation: set Widget zorder to front
     protected void onFocusChange() {
-        //log("focus change for {}: {}", this, focused());
+        //log("focus change for %s: %s", this, focused());
         //also adjust zorder, else it looks strange
         if (focused)
             toFront();
@@ -1263,7 +1263,7 @@ class Widget {
     final bool focusSomething(bool global = true) {
         Widget best = focus_find_something(global);
 
-        log("focus something {} {} {}", global, this, best);
+        log("focus something %s %s %s", global, this, best);
 
         if (!best)
             return false;
@@ -1416,7 +1416,7 @@ class Widget {
             break;
         }
 
-        log("nextFocus({}): start={} found={}", invertDir, start, cur);
+        log("nextFocus(%s): start=%s found=%s", invertDir, start, cur);
 
         cur.claimFocus();
     }
@@ -1898,7 +1898,7 @@ final class GUI {
             //send using the usual event routing (mouse pos, keyboard focus)
             bool handled = dest.widget.handleInput(event);
             if (!handled)
-                log("unhandled event: {}", event);
+                log("unhandled event: %s", event);
         } else {
             //send event directly to receiver (== don't route the event using
             //  focus, mouse position etc.); also don't try to send events to
@@ -1944,7 +1944,7 @@ final class GUI {
         assert(!!w);
 
         if (mCaptureKey !is w) {
-            log("capture key {} -> {}", mCaptureKey, w);
+            log("capture key %s -> %s", mCaptureKey, w);
             //input widget changed; send release events to old widget
             auto old = mCaptureKey;
             foreach (int i, ref bool state; mCaptureKeyState) {
@@ -1980,7 +1980,7 @@ final class GUI {
         //if we get the event and a mouse button is hold, we should receive all
         //  other mouse events until no mouse button is down anymore
         if (!mCaptureMouse && event.isMouseButton) {
-            log("mouse capture: {}", w);
+            log("mouse capture: %s", w);
             mCaptureMouse = w;
         }
     }
@@ -1989,7 +1989,7 @@ final class GUI {
     private bool deliverDirectEvent(Widget receiver, InputEvent event,
         bool filter)
     {
-        log("deliver event to {}: {}", receiver, event);
+        log("deliver event to %s: %s", receiver, event);
 
         bool taken = false;
 
@@ -2029,7 +2029,7 @@ final class GUI {
             //  mouse cursor from appearing for a brief moment, if you right
             //  click into a MouseScroller (which is what the game uses)
             if (taken && mMouseWidget !is receiver) {
-                log("set mouse cursor widget: {} -> {}", mMouseWidget,
+                log("set mouse cursor widget: %s -> %s", mMouseWidget,
                     receiver);
                 mMouseWidget = receiver;
             }
@@ -2049,7 +2049,7 @@ final class GUI {
     //gets executed if a Widget returned false for onKeyDown()
     private void defaultKeyEvent(KeyInfo event) {
         if (!(event.isDown && defaultKeyDown(event)))
-            log("unhandled key event: {}", event);
+            log("unhandled key event: %s", event);
     }
 
     private bool defaultKeyDown(KeyInfo event) {
@@ -2181,7 +2181,7 @@ final class GUI {
         if (!best)
             return false;
 
-        log("keynav focus: dist={} widget={}", best_dist, best);
+        log("keynav focus: dist=%s widget=%s", best_dist, best);
 
         best.translateCoords(mRoot, pos);
         best.mKeynavPosition = best.widgetBounds.clip(pos);
@@ -2241,7 +2241,7 @@ final class GUI {
     private bool doReloadTheme() {
         string theme = gThemeSetting.value;
 
-        log("load theme '{}'", theme);
+        log("load theme '%s'", theme);
 
         auto themes = listThemes();
         bool ok = false;
@@ -2254,7 +2254,7 @@ final class GUI {
         if (!ok) {
             auto old = theme;
             theme = themes[0];
-            log.warn("theme '{}' not found, defaulting to '{}' instead", old,
+            log.warn("theme '%s' not found, defaulting to '%s' instead", old,
                 theme);
         }
 

@@ -228,7 +228,7 @@ class SampleHandler : ResViewHandler!(Sample) {
             box.p2 = center+Vector2i(len);
             auto p = mousePos() - center;
             pos.position = (toVector2f(p)/len);
-            msg = myformat("{} -> {}", mousePos(), pos.position);
+            msg = myformat("%s -> %s", mousePos(), pos.position);
         }
         override void onDraw(Canvas c) {
             if (!f)
@@ -354,8 +354,8 @@ class AnimationHandler : ResViewHandler!(Animation) {
         auto infos = new Label();
         infos.text = "Flags: "
             ~ (resource.repeat ? "repeat, " : " ")
-            ~ myformat("frametime: {} ", resource.frameTime)
-            ~ myformat("duration: {}", resource.duration);
+            ~ myformat("frametime: %s ", resource.frameTime)
+            ~ myformat("duration: %s", resource.duration);
         table.addRow();
         table.add(infos, 0, table.height-1, 2, 1);
 
@@ -427,12 +427,12 @@ class AnimationHandler : ResViewHandler!(Animation) {
         p.p[2] = mParams[2].curValue;
         mAnim.params = p;
         foreach (int idx, Label l; mParLbl)
-            l.text = myformat("Param {}: {}", idx, mParams[idx].curValue);
-        mFrameLabel.text = myformat("Frame: {}/{}", mFrame.curValue,
+            l.text = myformat("Param %s: %s", idx, mParams[idx].curValue);
+        mFrameLabel.text = myformat("Frame: %s/%s", mFrame.curValue,
             mFrame.maxValue);
         float speed = 2.0f*mSpeed.curValue/mSpeed.maxValue;
         mTime.slowDown = speed;
-        mSpeedLabel.text = myformat("Speed: {}", mTime.slowDown);
+        mSpeedLabel.text = myformat("Speed: %s", mTime.slowDown);
     }
 
     private void onPause(CheckBox sender) {

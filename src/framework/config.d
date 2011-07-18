@@ -29,7 +29,7 @@ ConfigNode loadConfig(string filename, bool allowFail = false)
         file = fileGz;
         gzipped = true;
     }
-    logConf("load config: {}", file);
+    logConf("load config: %s", file);
     string data;
     try {
         Stream stream = gFS.open(file);
@@ -57,7 +57,7 @@ ConfigNode loadConfig(string filename, bool allowFail = false)
     return f.rootnode;
 
 error:
-    logConf.minor("config file {} failed to load (allowFail = true)", file);
+    logConf.minor("config file %s failed to load (allowFail = true)", file);
     return null;
 }
 
@@ -87,7 +87,7 @@ private bool doSaveConfig(ConfigNode node, string filename, bool compress,
         //  caller would like to detect this failure programmatically => return
         //  value and logerror param)
         if (logerror)
-            logConf.error("saving config file {} failed: {}", filename, e);
+            logConf.error("saving config file %s failed: %s", filename, e);
         return false;
     }
 }

@@ -68,7 +68,7 @@ class WeaponParam : SimpleContainer {
             mLblIcon.visible = true;
             mLblParam.visible = true;
             if (param != mLastParam) {
-                mLblParam.setTextFmt(false, "{}", param);
+                mLblParam.setTextFmt(false, "%s", param);
                 mLastParam = param;
             }
         } else {
@@ -161,7 +161,7 @@ class WeaponIconAmmo : SimpleContainer {
             if (item.quantity != item.cINF) {
                 mLblAmmo.visible = true;
                 if (item.quantity != mLastAmmo) {
-                    mLblAmmo.setTextFmt(false, "x{}", item.quantity);
+                    mLblAmmo.setTextFmt(false, "x%s", item.quantity);
                     mLastAmmo = item.quantity;
                 }
             } else {

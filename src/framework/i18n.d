@@ -118,7 +118,7 @@ void addLocaleDir(string targetId, string localePath) {
 private void reloadLocaleDir(LocaleDir dir) {
     ConfigNode newNode = findNamespaceNode(gRootNode, dir.targetId);
     assert(!!newNode);
-    log.trace("reload locale: id={} path={}", dir.targetId, dir.localePath);
+    log.trace("reload locale: id=%s path=%s", dir.targetId, dir.localePath);
     auto node = loadLocaleNodeFromPath(dir.localePath);
     newNode.mixinNode(node);
 }
@@ -283,7 +283,7 @@ public class Translator {
         if (id.length == 0)
             return "";
         ConfigNode subnode = node();
-        //Trace.formatln("{} '{}'", subnode.locationString(), id);
+        //Trace.formatln("%s '%s'", subnode.locationString(), id);
         if (subnode)
             subnode = findNamespaceNode(subnode, id);
         if (subnode && subnode.count > 0) {
@@ -369,7 +369,7 @@ public void initI18N() {
         gLocaleMount = gFS.link(cLocalePath ~ '/' ~ lang,"/",false,1);
     } catch (FilesystemException e) {
         //don't crash if current locale has no locale-specific files
-        log("catched {}", e);
+        log("catched %s", e);
     }
     +/
 

@@ -275,7 +275,7 @@ private:
             //complain and throw up if not valid
             if (box.empty()) {
                 if (curarg < minArgCount) {
-                    write.writefln("could not parse argument nr. {}", curarg);
+                    write.writefln("could not parse argument nr. %s", curarg);
                     return false;
                 }
                 box = param_defaults[curarg];
@@ -285,7 +285,7 @@ private:
         }
 
         if (last_item < cast(int)items.length - 1) {
-            write.writefln("Warning: trailing unparsed argument string: '{}'",
+            write.writefln("Warning: trailing unparsed argument string: '%s'",
                 cmdline[items[last_item+1].start .. items[$-1].end]);
         }
 
@@ -294,9 +294,9 @@ private:
             try {
                 cmdProc(args, write);
             } catch (CustomException e) {
-                write.writefln("error when executing command: {}", e);
+                write.writefln("error when executing command: %s", e);
                 traceException(gLog, e,
-                    myformat("executing '{} {}'", name, cmdline));
+                    myformat("executing '%s %s'", name, cmdline));
             }
         }
 
@@ -346,7 +346,7 @@ class CommandBucket {
         //(possibly translated) help text for parameter idx
         string paramHelp(int idx) {
             assert(idx < cmd.param_types.length);
-            string id = myformat("{}_arg{}", cmd.name, idx);
+            string id = myformat("%s_arg%s", cmd.name, idx);
             if (mTrans && mTrans.hasId(id)) {
                 return mTrans(id);
             } else {
@@ -355,28 +355,28 @@ class CommandBucket {
         }
 
         void showShortHelp(Output write) {
-            write.writefln("   {}: {}", alias_name, helpText());
+            write.writefln("   %s: %s", alias_name, helpText());
         }
 
         void showHelp(Output write) {
-            write.writefln("Command '{}' ('{}'): {}", alias_name,
+            write.writefln("Command '%s' ('%s'): %s", alias_name,
                 cmd.name, helpText());
             for (int n = 0; n < cmd.param_types.length; n++) {
                 //reverse lookup type
                 foreach (key, value; gCommandLineParsers) {
                     if (value is cmd.param_types[n]) {
-                        write.writef("    {} ", key);
+                        write.writef("    %s ", key);
                     }
                 }
                 if (n >= cmd.minArgCount) {
                     write.writef("[opt] ");
                 }
-                write.writefln("{}", paramHelp(n));
+                write.writefln("%s", paramHelp(n));
             }
             if (cmd.textArgument) {
                 write.writefln("    [text-agument]");
             }
-            write.writefln("{} arguments.", cmd.param_types.length);
+            write.writefln("%s arguments.", cmd.param_types.length);
         }
     }
 
@@ -441,9 +441,9 @@ class CommandBucket {
     //  doesn't like it)
     debug void convertHelpToLocales() {
         foreach (e; this) {
-            Trace.formatln("{} = \"{}\"", e.cmd.name, e.helpText());
+            Trace.formatln("%s = \"%s\"", e.cmd.name, e.helpText());
             for (int n = 0; n < e.cmd.param_types.length; n++) {
-                Trace.formatln("{}_arg{} = \"{}\"", e.cmd.name, n,
+                Trace.formatln("%s_arg%s = \"%s\"", e.cmd.name, n,
                     e.paramHelp(n));
             }
         }
@@ -538,7 +538,7 @@ class CommandLineInstance {
                 c.showShortHelp(mConsole);
                 count++;
             }
-            mConsole.writefln("{} commands.", count);
+            mConsole.writefln("%s commands.", count);
         } else {
             //"detailed" help about one command
             //xxx: maybe replace the exact comparision by calling the auto
@@ -554,11 +554,11 @@ class CommandLineInstance {
             } else if (reslist.length) {
                 mConsole.writefln("matches:");
                 foreach (e; reslist) {
-                    mConsole.writefln("   {}", e.alias_name);
+                    mConsole.writefln("   %s", e.alias_name);
                 }
                 return;
             }
-            mConsole.writefln("Command '{}' not found.", foo);
+            mConsole.writefln("Command '%s' not found.", foo);
         }
     }
 
@@ -773,8 +773,8 @@ class CommandLineInstance {
             foreach (string item; completions[1..$]) {
                 common = common_prefix(common, item);
             }
-            //mConsole.writefln(" ..: '{}' '{}' {}", common, cmd, res);
-            //mConsole.writefln("s={} e={}", start, end);
+            //mConsole.writefln(" ..: '%s' '%s' %s", common, cmd, res);
+            //mConsole.writefln("s=%s e=%s", start, end);
 
             if (common.length > argstr.length) {
                 //if there's a common substring longer than the commandline,
@@ -791,7 +791,7 @@ class CommandLineInstance {
                     if (toomuch) completions = completions[0..$-1];
                     foreach (string item; completions) {
                         //draw a "|" between the completed and the missing part
-                        mConsole.writefln("  {}|{}", item[0..common.length],
+                        mConsole.writefln("  %s|%s", item[0..common.length],
                             item[common.length..$]);
                     }
                     if (toomuch)

@@ -242,7 +242,7 @@ class CrateSprite : Sprite {
             //(crates explode because of the weapon's impact explosion)
             OnCrateCollect.raise(this, goOther);
             //if (!wasCollected)
-            //    log("crate {} can't be collected by {}", this, goOther);
+            //    log("crate %s can't be collected by %s", this, goOther);
         }
     }
 
@@ -265,7 +265,7 @@ class CrateSprite : Sprite {
             //xxx needs a better way to get the contents of the crate
             if (stuffies.length > 0 && mCrateType != CrateType.med) {
                 mSpy = WormLabels.textCreate();
-                mSpy.setTextFmt(true, r"{}\t({})", bomb ? r"\c(team_red)" : "",
+                mSpy.setTextFmt(true, r"%s\t(%s)", bomb ? r"\c(team_red)" : "",
                     stuffies[0].id());
                 assert(!!graphic);
                 graphic.attachText = mSpy;
@@ -347,7 +347,7 @@ class CratePlugin : GameObject2 {
                 mCrateProbs[i] = curAcc;
             }
         }
-        log.trace("Crate probabilites: {}", mCrateProbs);
+        log.trace("Crate probabilites: %s", mCrateProbs);
 
         //those work for all gamemodes
         addCrateTool("cratespy");
@@ -421,7 +421,7 @@ class CratePlugin : GameObject2 {
             //xxx move into CrateSprite.activate()
             OnCrateDrop.raise(crate);
         }
-        log.minor("drop crate {} -> {}", from, to);
+        log.minor("drop crate %s -> %s", from, to);
         return true;
     }
 

@@ -35,10 +35,10 @@ class GuiFps : Widget {
         if (gFramework.FPS != mFps || deltas != oldDelta) {
             mFps = gFramework.FPS;
             if (deltas) {
-                mText = myformat_s(mBuffer, "FPS: {:f2} Min: {} Max: {}", mFps,
+                mText = myformat_s(mBuffer, "FPS: %.2f Min: %s Max: %s", mFps,
                     tmin_s.toString_s(mBuffer2), tmax_s.toString_s(mBuffer3));
             } else {
-                mText = myformat_s(mBuffer, "FPS: {:f2}", mFps);
+                mText = myformat_s(mBuffer, "FPS: %.2f", mFps);
             }
             mPos = (size - mFont.textSize(mText)).X;
         }

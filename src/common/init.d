@@ -159,7 +159,7 @@ void init(string[] args) {
         //xxx why should it be in the user dir? nobody will look for logiles
         //    _there_; rather they'd expect it in the working dir or so?
         string logpath = "/logall.txt";
-        gLogInit.minor("opening logfile: {}", logpath);
+        gLogInit.minor("opening logfile: %s", logpath);
         //NOTE: on Linux, will just overwrite a logfile (even if it's open by
         //  another process)
         //XXXTANGO: phobos2 uses libc stdio, so we won't get this so soon
@@ -180,7 +180,7 @@ void init(string[] args) {
             c.sink(gLogFileTmp);
             gLogFileSink = &c.sink;
         } catch (FilesystemException e) {
-            gLogInit.error("Failed to open logfile: {}", e.msg);
+            gLogInit.error("Failed to open logfile: %s", e.msg);
             gLogFileSink = null;
         }
         gLogFileTmp = null;
@@ -302,7 +302,7 @@ private ExeAttachment* readFatExe() {
     auto att = new ExeAttachment;
     att.fmt = "tar";
     att.data = new stream.SliceStream(exe, end_offset - sz, end_offset);
-    gLogInit.minor("found attachment, format='{}', size={} bytes", att.fmt, sz);
+    gLogInit.minor("found attachment, format='%s', size=%s bytes", att.fmt, sz);
     return att;
 }
 
@@ -363,7 +363,7 @@ void initFSMounts() {
             gFS.mount(MountPath.data, "/", "/", false, 0);
             mountConf = loadConfig("mount.conf");
         } catch (FilesystemException e) {
-            gLogInit.error("Can't read mount.conf ({}), maybe the data "
+            gLogInit.error("Can't read mount.conf (%s), maybe the data "
                 "directory is not setup correctly?", e);
             exit();
         }
@@ -409,10 +409,10 @@ bool findarg(ref string[] args, string name, string[] getargs) {
             continue;
         if (nargs == 0) {
             if (a.length)
-                error("option {} doesn't take an argument ('{}')", name, a);
+                error("option %s doesn't take an argument ('%s')", name, a);
         } else {
             if (!str.eatStart(a, "="))
-                error("argument expected for option {}", name);
+                error("argument expected for option %s", name);
             getargs[0] = a;
         }
         marray.arrayRemoveN(args, i);

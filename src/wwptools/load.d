@@ -50,7 +50,7 @@ private LogStruct!("wwp_loader") gLog;
 private void mountWwp() {
     char[] path = gWwpDataPath.value;
     if (!path.length)
-        throwError("{} not set, can't load data", gWwpDataPath.name);
+        throwError("%s not set, can't load data", gWwpDataPath.name);
 
     //mount the WWP data dir; when I wrote this only the sounds needed that (the
     //  sound drivers get a VFS path to the sound file => VFS must remain
@@ -62,7 +62,7 @@ private void mountWwp() {
         gLastWWpMount = MountId.init;
     }
 
-    gLog.minor("using WWP data path: {}", path);
+    gLog.minor("using WWP data path: %s", path);
     gLastWWpMount = gFS.mount(MountPath.absolute, path, cWwpVfsPath, false);
 }
 
@@ -176,7 +176,7 @@ LoadedWater loadWwpWater(ConfigNode info) {
         resfile.find("water_waves"); //typically part of waterset
     } catch (CustomException e) {
         //most likely not, so actually load stuff
-        gLog.minor("loading waterset '{}'", color);
+        gLog.minor("loading waterset '%s'", color);
         importWater(resfile, vpath);
         gLog.minor("done loading");
     }
@@ -207,13 +207,13 @@ void doImportAnis(ResourceFile dest, RawAnimation[] rawanis,
             unused ~= idx;
     }
     if (unused.length)
-        gLog.trace("unused animation indices: {}", unused);
+        gLog.trace("unused animation indices: %s", unused);
     freeAnimations(rawanis);
     anims.packer.enableCaching();
     //for debugging: write atlas pages to disk
     version (none) {
         foreach (idx, s; anims.packer.surfaces) {
-            saveImage(s, myformat("dump_{}_{}.png", importconf.name, idx));
+            saveImage(s, myformat("dump_%s_%s.png", importconf.name, idx));
         }
     }
 }

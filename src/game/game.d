@@ -344,7 +344,7 @@ class GameEngine : GameCore {
             ef = mEarthquakeForceDmg;
         physicWorld.add(new EarthQuakeDegrader(strength, duration, degrade,
             ef));
-        log.trace("created earth quake, strength={}, duration={}, degrade={}",
+        log.trace("created earth quake, strength=%s, duration=%s, degrade=%s",
             strength, duration, degrade);
     }
 
@@ -557,14 +557,14 @@ class GameEngine : GameCore {
                 if (placeObjectRandom(sprite.physics.posp.radius,
                     50, tmp, npos, true))
                 {
-                    log.minor("placing '{}' in air!", sprite);
+                    log.minor("placing '%s' in air!", sprite);
                 } else {
-                    log.warn("couldn't place '{}', defaulting to level center!",
+                    log.warn("couldn't place '%s', defaulting to level center!",
                         sprite);
                     npos = toVector2f(level.worldSize)/2;
                 }
             }
-            log.minor("placed '{}' at {}", sprite.type.name, npos);
+            log.minor("placed '%s' at %s", sprite.type.name, npos);
             sprite.activate(npos);
         }
         mPlaceQueue = null;
@@ -750,7 +750,7 @@ class GameEngine : GameCore {
             Rect2i[] uncovered = newrc.substractRects(covered);
             foreach (rc; uncovered) {
                 assert(rc.size().x > 0 && rc.size().y > 0);
-                log.trace("insert landscape: {}", rc);
+                log.trace("insert landscape: %s", rc);
                 gameLandscapes ~= new GameLandscape(this, rc);
             }
         }

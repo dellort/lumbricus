@@ -118,13 +118,13 @@ class GameTimer : BoxContainer {
             mGameTime.font = mFont[3];
         }
 
-        mTurnTime.setTextFmt(false, "{}", cast(int)rt_sec);
+        mTurnTime.setTextFmt(false, "%s", cast(int)rt_sec);
     }
 
     private void setGameTime(Time tRemain) {
         Time gt = tRemain - timeMsecs(1);
         int gt_sec = gt > Time.Null ? gt.secs+1 : 0;
-        mGameTime.setTextFmt(false, "{:d2}:{:d2}", gt_sec / 60, gt_sec % 60);
+        mGameTime.setTextFmt(false, "%02d:%02d", gt_sec / 60, gt_sec % 60);
     }
 
     override void simulate() {

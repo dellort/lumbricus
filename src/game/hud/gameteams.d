@@ -185,7 +185,7 @@ class TeamWindow : Widget {
             //also does the first time initialization
             auto curwin = team.globalWins();
             if (ti.last_global_wins != curwin) {
-                ti.global_wins.txt.setTextFmt(false, "{}", curwin);
+                ti.global_wins.txt.setTextFmt(false, "%s", curwin);
                 ti.global_wins.update();
                 ti.last_global_wins = curwin;
             }

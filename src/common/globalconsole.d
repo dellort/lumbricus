@@ -49,7 +49,7 @@ struct ConsoleOutput {
         writef("\n");
     }
     void writeString(string text) {
-        writef("{}", text);
+        writef("%s", text);
     }
 
     private void writef_ind(string fmt, TypeInfo[] arguments, va_list argptr) {
@@ -57,7 +57,7 @@ struct ConsoleOutput {
             gConsoleWidget.output.writef_ind(false, fmt, arguments, argptr);
         } else {
             //does this happen at all? (but it's easy to support)
-            gLog.notice("console output: {}",
+            gLog.notice("console output: %s",
                 myformat_fx(fmt, arguments, argptr));
         }
     }
@@ -113,7 +113,7 @@ void setConsoleMode(string tag, InputDelegate on_input) {
 
     //user notification
     if (old_mode != gModeCurrent)
-        gConsoleOut.writefln(r"\i{}", translate("console.switch_input_mode",
+        gConsoleOut.writefln(r"\i%s", translate("console.switch_input_mode",
             translate(cConsoleTagTS ~ "." ~ gModeCurrent)));
 }
 
@@ -144,7 +144,7 @@ void executeGlobalCommand(string cmd) {
         gConsoleWidget.cmdline.execute("/" ~ cmd);
     } else {
         //no GUI and no cmdline in early initialization
-        gLog.error("Can't execute command at this stage: {}", cmd);
+        gLog.error("Can't execute command at this stage: %s", cmd);
     }
 }
 
@@ -153,7 +153,7 @@ private void onExecConsole(MyBox[] args, Output output) {
     if (gModeInput) {
         gModeInput(text);
     } else {
-        gLog.error("No input mode set, don't know what this is: '{}'", text);
+        gLog.error("No input mode set, don't know what this is: '%s'", text);
     }
 }
 

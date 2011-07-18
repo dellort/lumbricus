@@ -86,7 +86,7 @@ abstract class WeaponClass : EventTarget {
     }
 
     override string toString() {
-        return myformat("[Weapon {}]", name);
+        return myformat("[Weapon %s]", name);
     }
 }
 
@@ -280,7 +280,7 @@ abstract class Shooter : GameObject {
         selector = weapon.createSelector(owner);
         mLastStateChange = engine.gameTime.current;
         internal_active = true;
-        log.trace("create {}", this);
+        log.trace("create %s", this);
     }
 
     //can't use controlFromGameObject because of dependency hell
@@ -543,7 +543,7 @@ abstract class Shooter : GameObject {
     //fill fireinfo and actually fire the weapon (which, in most cases, means
     //  some script code gets executed)
     private bool fireWeapon(bool fixedDir = false) {
-        log.trace("fire: {}", weapon.name);
+        log.trace("fire: %s", weapon.name);
         assert(mState == WeaponState.prepare);
 
         if (fixedDir)
@@ -600,7 +600,7 @@ abstract class Shooter : GameObject {
     //called when direction is changed while firing
     protected void doReadjust(Vector2f dir) {
         fireinfo.dir = dir;
-        log.trace("readjust {}", dir);
+        log.trace("readjust %s", dir);
     }
 
     //often the worm can change shooting direction while the weapon still fires
@@ -826,7 +826,7 @@ abstract class Shooter : GameObject {
     }
 
     override string toString() {
-        return myformat("[Shooter {:x} {}]", toHash, mClass);
+        return myformat("[Shooter %#x %s]", toHash, mClass);
     }
 }
 

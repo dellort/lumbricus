@@ -128,7 +128,7 @@ class GameLoader {
         try {
             return doCreateFromDemo(filename);
         } catch (CustomException e) {
-            e.msg = myformat("when trying to load demo file '{}': {}", filename,
+            e.msg = myformat("when trying to load demo file '%s': %s", filename,
                 e.msg);
             throw e;
         }
@@ -194,7 +194,7 @@ class GameLoader {
                 startDemoFile(mDemoOutput, demoConf);
             } catch (CustomException e) {
                 mDemoOutput = mDemoOutput.init;
-                log.warn("Failed to create demo file ({}). Demo"
+                log.warn("Failed to create demo file (%s). Demo"
                     " writing disabled.", e.msg);
             }
         }
@@ -343,7 +343,7 @@ class GameShell {
         EngineHash hash;
 
         string toString() {
-            return myformat("ts={}, access='{}': '{}'", timestamp, access_tag,
+            return myformat("ts=%s, access='%s': '%s'", timestamp, access_tag,
                 cmd);
         }
     }
@@ -376,7 +376,7 @@ class GameShell {
     private bool inpSetPaused(string s) {
         bool nstate = !mGameTime.paused;
         tryFromStr(s, nstate);
-        log.minor("pause: {}", nstate);
+        log.minor("pause: %s", nstate);
         pauseBlock(nstate, this);
         return true;
     }
@@ -384,7 +384,7 @@ class GameShell {
         float state = tryFromStrDef(s, 1.0f);
         if (state != state)
             return false;
-        log.minor("slowdown: {}", state);
+        log.minor("slowdown: %s", state);
         mGameTime.slowDown = state;
         return true;
     }
@@ -403,9 +403,9 @@ class GameShell {
             }
             woosh();
             log.error("oh hi, something is severely wrong");
-            log.error("current hash: {}", current);
-            log.error("LogEntry/Network hash: {}", expected);
-            log.error("timestamp: {}", mTimeStamp);
+            log.error("current hash: %s", current);
+            log.error("LogEntry/Network hash: %s", expected);
+            log.error("timestamp: %s", mTimeStamp);
             log.error("not bothering you anymore, enjoy your day");
             mSOMETHINGISWRONG = true;
             woosh();
@@ -417,7 +417,7 @@ class GameShell {
         bool for_hash = e.cmd.length == 0;
 
         if (!for_hash)
-            log("exec input: {}", e);
+            log("exec input: %s", e);
         assert(mTimeStamp == e.timestamp);
 
         //check hash (more a special case for demo replaying)
@@ -450,7 +450,7 @@ class GameShell {
 
         if (!for_hash) {
             if (!mEngine.input.execCommand(e.access_tag, e.cmd))
-                log.minor("ignore net input: '{}':'{}'", e.access_tag, e.cmd);
+                log.minor("ignore net input: '%s':'%s'", e.access_tag, e.cmd);
         }
     }
 
@@ -482,7 +482,7 @@ class GameShell {
             e.timestamp = mTimeStamp;
 
         if (e.cmd.length)
-            log("received input: {}", e);
+            log("received input: %s", e);
 
         if (mReplayMode) {
             log.minor("previous input denied, because in replay mode");
@@ -541,7 +541,7 @@ class GameShell {
             //  at cOptimumInputLag by varying game speed
             //how far the server is ahead
             int lag = mTimeStampAvail - mTimeStamp;
-            //log("lag = {}",lag);
+            //log("lag = %s",lag);
             if (lag < 0) {
                 //no server frame coming -> wait
                 mMasterTime.paused = true;
@@ -602,7 +602,7 @@ class GameShell {
             Time newt = cur + passed;
             if (newt > next) {
                 newt = next; //because time can't go back
-                //debug Trace.formatln("XX, cur={} next={} passed={}",cur,next,
+                //debug Trace.formatln("XX, cur=%s next=%s passed=%s",cur,next,
                 //    passed);
             }
             assert(newt >= cur);
@@ -619,7 +619,7 @@ class GameShell {
         Time dt = rt - last;
         last = rt;
 
-        Trace.formatln("GT: {} / {} ## IT: {} / {} ## RT: {} / {}",
+        Trace.formatln("GT: %s / %s ## IT: %s / %s ## RT: %s / %s",
             mGameTime.current, mGameTime.difference, interpol.current,
             interpol.difference, rt, dt);
         +/
@@ -642,9 +642,9 @@ class GameShell {
     }
 
     private void doFrame() {
-        //Trace.formatln("ts={}, hash={}", mTimeStamp, engineHash().hash);
+        //Trace.formatln("ts=%s, hash=%s", mTimeStamp, engineHash().hash);
         debug if (mPrintFrameTime) {
-            log("frame time: ts={} time={} ({} ns)", mTimeStamp,
+            log("frame time: ts=%s time=%s (%s ns)", mTimeStamp,
                 mGameTime.current, mGameTime.current.nsecs);
             mPrintFrameTime = false;
         }
@@ -658,7 +658,7 @@ class GameShell {
             LogEntry e = mCurrentInput.entries[0];
             if (e.timestamp > mTimeStamp)
                 break;
-            //log("pre-exec s={} {}", mTimeStamp, e);
+            //log("pre-exec s=%s %s", mTimeStamp, e);
             assert(e.timestamp == mTimeStamp);
             execEntry(e);
             //remove
@@ -691,7 +691,7 @@ class GameShell {
         mLogReplayInput = false;
         mCurrentInput = input.clone;
         mReplayMode = true;
-        log.minor("replay start, time={} ({} ns)", mGameTime.current,
+        log.minor("replay start, time=%s (%s ns)", mGameTime.current,
             mGameTime.current.nsecs);
         debug mPrintFrameTime = true;
     }
@@ -753,7 +753,7 @@ class GameShell {
             mPauseBlockers.remove(blocker);
         }
         mGameTime.paused = mPauseBlockers.length > 0;
-        log("pause state={} blockers={}", paused(), mPauseBlockers);
+        log("pause state=%s blockers=%s", paused(), mPauseBlockers);
     }
 
     private void writeDemoEntry(LogEntry e) {
@@ -814,7 +814,7 @@ class ClientControl {
         if (checkCommand(cmd)) {
             sendCommand(cmd);
         } else {
-            log.minor("input denied, don't send: '{}':'{}'", mAccessTag, cmd);
+            log.minor("input denied, don't send: '%s':'%s'", mAccessTag, cmd);
         }
     }
 
@@ -980,6 +980,6 @@ void writeDemoEntry(PipeOut dest, GameShell.LogEntry e) {
         //escape anything that would make the log part unparseable
         return str.simpleEscape(s, "\n\r:");
     }
-    myformat_cb(&dump, "{}:{}:{}:{}\n", e.timestamp, e.hash.hash,
+    myformat_cb(&dump, "%s:%s:%s:%s\n", e.timestamp, e.hash.hash,
         demoesc(e.access_tag), demoesc(e.cmd));
 }

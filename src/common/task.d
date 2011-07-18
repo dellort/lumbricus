@@ -47,7 +47,7 @@ string[] taskList() {
 Object spawnTask(string name, string args = "") {
     auto spawner = name in gTaskFactory;
     if (!spawner)
-        throwError("unknown task: '{}'", name);
+        throwError("unknown task: '%s'", name);
     return (*spawner)(args);
 }
 

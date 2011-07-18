@@ -26,7 +26,7 @@ import str = utils.string;
 //return true or false on success or failure
 //result contains the response data or an error message
 private bool http_get(string url, out string result, string[string] args) {
-    //http_log("HTTP GET: url={} args={}", url, args);
+    //http_log("HTTP GET: url=%s args=%s", url, args);
 
     try {
         //hostname is resolved here (which may fail)
@@ -135,7 +135,7 @@ class PhpAnnouncer : NetAnnouncer {
         log("announcing");
         string[string] hdrs;
         hdrs["action"] = "add";
-        hdrs["port"] = myformat("{}", mInfo.port);
+        hdrs["port"] = myformat("%s", mInfo.port);
         //run and forget, we don't need the result
         mLastGetter = new HttpGetter(mUrl, hdrs, null);
         mLastGetter.start();
@@ -146,7 +146,7 @@ class PhpAnnouncer : NetAnnouncer {
         log("removing");
         string[string] hdrs;
         hdrs["action"] = "remove";
-        hdrs["port"] = myformat("{}", mInfo.port);
+        hdrs["port"] = myformat("%s", mInfo.port);
         mLastGetter = new HttpGetter(mUrl, hdrs, null);
         mLastGetter.start();
     }
@@ -162,7 +162,7 @@ class PhpAnnouncer : NetAnnouncer {
     override void active(bool act) {
         if (act == mActive)
             return;
-        log("active = {}", act);
+        log("active = %s", act);
         mActive = act;
         if (act)
             do_update();
@@ -219,7 +219,7 @@ class PhpAnnounceClient : NetAnnounceClient {
     private void requestFinish(bool success, string result) {
         mServers.length = 0;
         if (success) {
-            log("requestFinish OK (length = {})", result.length);
+            log("requestFinish OK (length = %s)", result.length);
             //result is a binary list (4 bytes ip, 2 bytes port little endian)
             for (int idx = 0; idx + 6 <= result.length; idx += 6) {
                 ServerAddress saddr;
@@ -229,7 +229,7 @@ class PhpAnnounceClient : NetAnnounceClient {
                 mServers ~= saddr;
             }
         } else {
-            log.warn("Request failed ({})", result);
+            log.warn("Request failed (%s)", result);
         }
     }
 
@@ -250,7 +250,7 @@ class PhpAnnounceClient : NetAnnounceClient {
     override void active(bool act) {
         if (act == mActive)
             return;
-        log("active = {}", act);
+        log("active = %s", act);
         mActive = act;
         if (mActive)
             do_update();

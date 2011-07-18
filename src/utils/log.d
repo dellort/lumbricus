@@ -361,10 +361,10 @@ void writeColoredLogEntry(T)(LogEntry e, bool show_source,
     char[40] buffer;
     string source;
     if (show_source)
-        source = myformat_s(buffer, "[{}] ", e.source.category);
+        source = myformat_s(buffer, "[%s] ", e.source.category);
     //the \litx prevents tag interpretation in msg
     string msg = e.txt;
-    writefln("\\c({}){}\\litx({},{})", c, source, msg.length, msg);
+    writefln("\\c(%s)%s\\litx(%s,%s)", c, source, msg.length, msg);
 }
 
 //Java style!
@@ -382,7 +382,7 @@ void traceException(Log dest, Exception e, string what = "") {
         buffer ~= ":\n";
         //XXXTANGO e.writeOut( (string txt) { buffer ~= txt; } );
         buffer ~= "Backtrace end.\n";
-        dest.minor("{}", buffer);
+        dest.minor("%s", buffer);
     } else {
         dest.minor("error: no error");
     }

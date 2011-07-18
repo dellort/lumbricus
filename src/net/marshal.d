@@ -347,7 +347,7 @@ final class Hasher {
 //xxx what about a structCompare() function in misc.d?
 debug void asserteq(T)(T x1, T x2) {
     foreach (int idx, _; x2.tupleof) {
-        //Trace.formatln("  {} = {}", s2.tupleof[idx].stringof, x);
+        //Trace.formatln("  %s = %s", s2.tupleof[idx].stringof, x);
         assert(x1.tupleof[idx] == x2.tupleof[idx]);
     }
 }

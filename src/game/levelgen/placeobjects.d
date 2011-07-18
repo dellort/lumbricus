@@ -181,7 +181,7 @@ public class PlaceObjects {
             Vector2i pos, st, en;
             pos = randPoint();
 
-            mLog("bridge at {}? {}", pos, bridge[1].size/3);
+            mLog("bridge at %s? %s", pos, bridge[1].size/3);
 
             //bridge segment size now can be less than the size of the bitmap,
             // but disabled it because it looks worse (?)
@@ -248,11 +248,11 @@ public class PlaceObjects {
             auto pos = Vector2i(cpos.x + line.x/2 - obj.size.x/2,
                 cpos.y-(obj.size.y-line.y));
 
-            mLog("try object at {}", pos);
+            mLog("try object at %s", pos);
 
             if (checkCollide(pos, obj.size - Vector2i(0, dist))) {
                 //yeeha
-                mLog("place object at {}", pos);
+                mLog("place object at %s", pos);
                 placeObject(obj, pos);
                 count++;
             }

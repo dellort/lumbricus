@@ -26,8 +26,8 @@ BoxUnParse[TypeInfo] gBoxUnParsers;
 ConversionException newConversionException(T)(string parsetext,
     string details = "")
 {
-    return new ConversionException(myformat("Can not parse {}: '{}'"
-        ~ " {}{}", typeid(T), parsetext, details.length ? ", reason: " : "",
+    return new ConversionException(myformat("Can not parse %s: '%s'"
+        ~ " %s%s", typeid(T), parsetext, details.length ? ", reason: " : "",
         details));
 }
 
@@ -265,8 +265,8 @@ void enumStrings(EnumType, string fields)() {
         covered[e.value - EnumType.min] = true;
     }
     foreach (int idx, bool b; covered) {
-        assert(b, myformat("for type {}, enum item with numerical value {} is"
-            " not covered by enumStrings() call, field args: '{}'",
+        assert(b, myformat("for type %s, enum item with numerical value %s is"
+            " not covered by enumStrings() call, field args: '%s'",
             typeid(EnumType), idx + EnumType.min, fields));
     }
 

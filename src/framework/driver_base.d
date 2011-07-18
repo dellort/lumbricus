@@ -93,7 +93,7 @@ string getSelectedDriver(string type) {
 T createDriver(T)(string name) {
     auto pctor = name in gDriverFactory;
     if (!pctor)
-        throwError("framework driver not found: {}", name);
+        throwError("framework driver not found: %s", name);
     return castStrict!(T)((*pctor)());
 }
 
@@ -199,7 +199,7 @@ abstract class DriverResource {
         //barely works... maybe too many false references, too much crap
         //essentially useless during the game, some success when using the game
         //  setup gui
-        //debug Trace.formatln("free due to poll release! {}", cast(void*)this);
+        //debug Trace.formatln("free due to poll release! %s", cast(void*)this);
         destroy();
         return true;
     }

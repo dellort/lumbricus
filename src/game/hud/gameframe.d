@@ -358,7 +358,7 @@ class GameFrame : SimpleContainer {
             game.connection.sendChat(text);
         } else {
             gConsoleOut.writefln("no chat in local mode, but you "
-                "wanted to say: {}", text);
+                "wanted to say: %s", text);
         }
     }
 
@@ -407,7 +407,7 @@ class GameFrame : SimpleContainer {
         }
         //the \litx prevents interpretation of the nick name as markup
         //we decided to allow markup in the message text
-        gConsoleOut.writefln(myformat(r"\[\c({})\b\litx({},{}): \]{}",
+        gConsoleOut.writefln(myformat(r"\[\c(%s)\b\litx(%s,%s): \]%s",
             color, player.name.length, player.name, text));
     }
 

@@ -61,7 +61,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     char[][char[]] stuff;
 
     char[] itoa(int x) {
-        return myformat("{}", x);
+        return myformat("%s", x);
     }
 
     Dir ldir = new Dir(sourcePath~"Level.dir");
@@ -144,7 +144,7 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     char[] makeBmps(BmpDef[] bitmaps) {
         char[] res;
         foreach (bmpd; bitmaps) {
-            res ~= myformat("{} = \"{}\"\n",bmpd.id,bmpd.fn);
+            res ~= myformat("%s = \"%s\"\n",bmpd.id,bmpd.fn);
         }
         return res;
     }
@@ -154,12 +154,12 @@ void convert_level(char[] sourcePath, char[] destPath, char[] importPath)
     stuff["env_bitmaps"] = makeBmps(envBitmaps);
 
     char[] fmtColor(RGBTriple c) {
-        return myformat("r={}, g={}, b={}", c.r, c.g, c.b);
+        return myformat("r=%s, g=%s, b=%s", c.r, c.g, c.b);
     }
 
     char[] objs;
     foreach (obj; definedObjects) {
-        objs ~= myformat("{{ image = \"{}\" side = \"{}\" }\n",obj.objid,
+        objs ~= myformat("{{ image = \"%s\" side = \"%s\" }\n",obj.objid,
             obj.sideStr);
     }
     stuff["landgen_objects"] = objs;

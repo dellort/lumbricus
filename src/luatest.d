@@ -32,7 +32,7 @@ class Bar {
     }
 
     void test(char[] msg) {
-        Trace.formatln("Called Bar.test('{}')", msg);
+        Trace.formatln("Called Bar.test('%s')", msg);
     }
 
     string blurgh() {
@@ -54,7 +54,7 @@ class Foo {
     Test muh;
 
     string test(int x, float y = 99.0, string msg = "Default") {
-        return myformat("hello from D! got: {} {} '{}'", x, y, msg);
+        return myformat("hello from D! got: %s %s '%s'", x, y, msg);
     }
 
     string test2(string bla = "huhu") {
@@ -62,7 +62,7 @@ class Foo {
     }
 
     void passBar(Bar the_bar) {
-        Trace.formatln("received a bar: '{}'", the_bar.classinfo.name);
+        Trace.formatln("received a bar: '%s'", the_bar.classinfo.name);
         if (the_bar)
             assert(!!cast(Bar)cast(Object)the_bar);
     }
@@ -78,7 +78,7 @@ class Foo {
     }
 
     void vector(Vector2i v) {
-        Trace.formatln("{}", v);
+        Trace.formatln("%s", v);
     }
 
     Vector2i makeVector(int x, int y) {
@@ -86,16 +86,16 @@ class Foo {
     }
 
     void vectors(Vector2i[] v) {
-        Trace.formatln("vectors: {}", v);
+        Trace.formatln("vectors: %s", v);
     }
 
     int[] array(int[] a) {
-        Trace.formatln("{}", a);
+        Trace.formatln("%s", a);
         return a;
     }
 
     void aarray(int[char[]] a) {
-        Trace.formatln("{}", a);
+        Trace.formatln("%s", a);
     }
 
     char[][] makeArray(char[] a, char[] b, char[] c) {
@@ -135,7 +135,7 @@ static this() {
 }
 
 void funcBlub(char[] arg) {
-    Trace.formatln("Plain old function, yay! Got '{}'", arg);
+    Trace.formatln("Plain old function, yay! Got '%s'", arg);
 }
 
 struct TehEvil {
@@ -148,7 +148,7 @@ void funcBlab(TehEvil evil) {
 }
 
 LuaReference funcRef(LuaReference r) {
-    Trace.formatln("ref as int: {}", r.get!(int)());
+    Trace.formatln("ref as int: %s", r.get!(int)());
     return r;
 }
 
@@ -284,7 +284,7 @@ void main(string[] args) {
     s.call("test", "Blubber");
     s.call("test", "Blubber");
 
-    Trace.formatln("got: '{}'", s.callR!(char[])("test", "..."));
+    Trace.formatln("got: '%s'", s.callR!(char[])("test", "..."));
 
     s.setGlobal("d_global", 123);
     assert(s.getGlobal!(int)("d_global") == 123);
@@ -306,7 +306,7 @@ void main(string[] args) {
             try {
                 fail();
             } catch (LuaException e) {
-                Trace.formatln("nested error ok!: {}", e);
+                Trace.formatln("nested error ok!: %s", e);
             }
         }
     }
@@ -374,7 +374,7 @@ void main(string[] args) {
         try {
             loadexec(code);
         } catch (LuaException e) {
-            Trace.formatln("OK, {}", e.msg);
+            Trace.formatln("OK, %s", e.msg);
             return;
         }
         throw new Exception("Should have thrown.");

@@ -190,7 +190,7 @@ class AnimationList : AnimationSimple {
 
         if (!flist.length) {
             throw new LoadException("animation",
-                myformat("no files found: '{}'", pattern));
+                myformat("no files found: '%s'", pattern));
         }
 
         //hopefully does the right thing; but only works if files are e.g.

@@ -78,7 +78,7 @@ class LevelWidget : SimpleContainer {
         auto allTemplates = mGenerator.templates.all;
         foreach (int idx, ref btn; mLvlQuickGen) {
             //template names are 1-based
-            btn = loader.lookup!(ImageButton)(myformat("btn_quickgen{}", idx+1));
+            btn = loader.lookup!(ImageButton)(myformat("btn_quickgen%s", idx+1));
             //xxx template description used as an id (like in game.gui.preview)
             btn.image = gGuiResources.get!(Surface)("tmpl_thumb_"
                 ~ allTemplates[idx].description);
@@ -157,7 +157,7 @@ class LevelWidget : SimpleContainer {
                 mGenerator.templates.findRandom());
             gen.generate();
         } catch (CustomException e) {
-            gLog.error("Level generation failed: {}", e);
+            gLog.error("Level generation failed: %s", e);
             return;
         }
         setCurrentLevel(gen);

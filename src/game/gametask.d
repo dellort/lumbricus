@@ -183,7 +183,7 @@ class GameTask : IKillable {
                 continue;
             }
 
-            throwError("unknown argument for game spawning: '{}'", arg);
+            throwError("unknown argument for game spawning: '%s'", arg);
         }
 
         if (start_demo.length) {
@@ -267,7 +267,7 @@ class GameTask : IKillable {
 
     //if tryLoad is far too silly
     private void loadFailed(string phase, Exception e) {
-        gGameLog.error("error when {}: {}", phase, e);
+        gGameLog.error("error when %s: %s", phase, e);
         traceException(gGameLog.get, e);
         loadingFailed();
     }
@@ -592,10 +592,10 @@ class GameTask : IKillable {
             //column/row headers
             for (int n = 0; n < types.length; n++) {
                 auto l = new Label();
-                l.text = myformat("{}: {}", n, types[n].name);
+                l.text = myformat("%s: %s", n, types[n].name);
                 addc(0, n+1, l);
                 l = new Label();
-                l.text = myformat("{}", n);//types[n].name;
+                l.text = myformat("%s", n);//types[n].name;
                 addc(n+1, 0, l);
             }
             int y = 1;
@@ -639,16 +639,16 @@ class GameTask : IKillable {
         if (!mControl)
             return;
         float val = args[0].unbox!(float);
-        write.writefln("set slow_down={}", val);
-        mControl.execCommand(myformat("slow_down {}", val));
+        write.writefln("set slow_down=%s", val);
+        mControl.execCommand(myformat("slow_down %s", val));
     }
 
     private void cmdStep(MyBox[] args, Output write) {
         if (!mControl)
             return;
         auto val = args[0].unbox!(int);
-        write.writefln("single_step {}", val);
-        mControl.execCommand(myformat("single_step {}", val));
+        write.writefln("single_step %s", val);
+        mControl.execCommand(myformat("single_step %s", val));
     }
 
     private void cmdDemoStop(MyBox[], Output) {
@@ -702,7 +702,7 @@ class LuaConsole : LuaInterpreter {
     }
 
     private void printOutput(string s) {
-        mOut.writef("{}", s);
+        mOut.writef("%s", s);
     }
 
     private void cmdExec(MyBox[] args, Output output) {
