@@ -4,7 +4,6 @@ import framework.surface;
 import utils.vector2;
 import wwptools.image;
 
-import tango.io.model.IFile : FileConst;
 const pathsep = FileConst.PathSeparatorChar;
 
 struct RGBTriple {

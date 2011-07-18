@@ -13,7 +13,7 @@ Time perfTime() {
 
 //per-thread counters; would require extra code for windows
 version (linux) {
-    version = UseFishyStuff;
+    //version = UseFishyStuff;
 }
 
 version (UseFishyStuff) {

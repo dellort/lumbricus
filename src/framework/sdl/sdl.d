@@ -6,8 +6,6 @@ import utils.misc;
 import utils.vector2;
 import utils.color;
 
-import tango.stdc.stringz;
-
 //this is not really needed; it's just here to make framework.sdl.framework
 //more independent from soundmixer.d, so sdl_mixer can be kept out more easily
 private static int gSDLLoadCount = 0;

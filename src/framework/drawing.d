@@ -3,7 +3,7 @@ module framework.drawing;
 import framework.driver_base;
 import framework.surface;
 
-import tango.math.Math : floor, ceil;
+import std.math;
 public import utils.color;
 public import utils.rect2;
 public import utils.vector2;

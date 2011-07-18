@@ -2,14 +2,8 @@ module utils.gzip;
 
 import utils.stream;
 
-//hack for tango 0.99.9 <-> svn trunk change
-import tango.core.Version;
-static if (Tango.Major == 0 && Tango.Minor == 999) {
-    //lol rebuild xD
-    mixin(`import czlib = tango.io.compress.c.zlib;`);
-} else {
-    import czlib = tango.util.compress.c.zlib;
-}
+import czlib = etc.c.zlib;
+import std.md5;
 
 enum {
     MAX_WBITS = 15,  //from zconf.h
@@ -248,12 +242,11 @@ class GZReader {
     }
 }
 
-
-//replacement for Tango's tango.io.digest.Crc32
-//the Tango one is just too slow
-//should be source compatible for our uses
-
-import tango.util.digest.Digest;
+class Digest {
+    abstract void update(void[] input);
+    abstract uint digestSize();
+    abstract ubyte[] binaryDigest(ubyte[] buf = null);
+}
 
 final class ZLibCrc32 : Digest {
     uint crc;
@@ -262,9 +255,8 @@ final class ZLibCrc32 : Digest {
         //reset
         crc32Digest();
     }
-    override ZLibCrc32 update(void[] input) {
+    override void update(void[] input) {
         crc = czlib.crc32(crc, cast(ubyte*)input.ptr, input.length);
-        return this; //why, oh god why, Tango team?
     }
     override uint digestSize() {
         return 4;
@@ -284,5 +276,28 @@ final class ZLibCrc32 : Digest {
         auto res = crc;
         crc = czlib.crc32(0, null, 0);
         return res;
+    }
+}
+
+final class MD5 : Digest {
+    MD5_CTX md5;
+
+    this() {
+        //reset
+        md5.start();
+    }
+    override void update(void[] input) {
+        md5.update(input);
+    }
+    override uint digestSize() {
+        return 16;
+    }
+    override ubyte[] binaryDigest(ubyte[] buf = null) {
+        ubyte[16] digest;
+        md5.finish(digest);
+        if (buf.length < 16)
+            buf.length = 16;
+        buf[0..16] = digest;
+        return buf;
     }
 }

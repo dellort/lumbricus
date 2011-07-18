@@ -216,7 +216,8 @@ class TimeSourceFixFramerate : TimeSourcePublic {
     void resetTime() {
         mChain.initTime(mParent.current);
         mSimTime = mLastSimTime = mChain.current;
-        assert(this.current == mParent.current);
+        auto dmd_sucks = mParent.current;
+        assert(this.current == dmd_sucks);
     }
 
     void paused(bool p) {

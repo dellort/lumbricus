@@ -33,6 +33,7 @@ public
 }
 
 import derelict.util.loader;
+import derelict.util.sharedlib;
 
 //==============================================================================
 // Loader
@@ -40,8 +41,11 @@ import derelict.util.loader;
 // private SharedLib libLua;
 
 
-private void load(SharedLib lib)
+private void load_lua(SharedLib lib)
 {
+  void * Derelict_GetProc(SharedLib lib, string name) {
+    return lib.loadSymbol(name);
+  }
   *cast(void**)&luaL_newstate = Derelict_GetProc(lib, "luaL_newstate");
   *cast(void**)&lua_newstate = Derelict_GetProc(lib, "lua_newstate");
   *cast(void**)&lua_close = Derelict_GetProc(lib, "lua_close");
@@ -190,14 +194,22 @@ private void load(SharedLib lib)
   *cast(void**)&luaL_openlibs = Derelict_GetProc(lib, "luaL_openlibs");
 }
 
-GenericLoader DerelictLua;
-static this()
-{
-  DerelictLua.setup(
-      "lua5.1.dll",
-      "liblua5.1.so.0", // XXX linux lib list
-      "", // Mac
-      &load
-      );
+class DerelictLuaLoader : SharedLibLoader {
+    this() {
+        super("lua5.1.dll", "liblua5.1.so.0", "TODO: add mac");
+    }
+
+    protected override void loadSymbols() {
+        load_lua(lib());
+    }
 }
 
+DerelictLuaLoader DerelictLua;
+static this()
+{
+    DerelictLua = new DerelictLuaLoader;
+}
+static ~this()
+{
+    DerelictLua.unload();
+}

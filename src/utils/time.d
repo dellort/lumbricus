@@ -3,8 +3,7 @@ module utils.time;
 import str = utils.string;
 import strparser = utils.strparser;
 import utils.misc;
-import tango.util.Convert : to;
-import tango.core.Traits : isIntegerType, isFloatingPointType;
+import std.traits;
 
 //if true, use nanosecond resolution instead of milliseconds
 const bool cNS = true;
@@ -34,7 +33,7 @@ public struct Time {
     }
 
     ///add two Time values
-    public Time opAdd(Time t2) {
+    public Time opAdd(Time t2) const {
         return Time(timeVal + t2.timeVal);
     }
     public void opAddAssign(Time t2) {
@@ -42,7 +41,7 @@ public struct Time {
     }
 
     ///get difference between Time values
-    public Time opSub(Time t2) {
+    public Time opSub(Time t2) const {
         return Time(timeVal - t2.timeVal);
     }
     public void opSubAssign(Time t2) {
@@ -50,7 +49,7 @@ public struct Time {
     }
 
     ///divide Time value by constant (int)
-    public Time opMul(int i) {
+    public Time opMul(int i) const {
         return Time(cast(TType_Int)(timeVal * i));
     }
     public void opMulAssign(int i) {
@@ -58,35 +57,35 @@ public struct Time {
     }
 
     //I hate D operator overloading
-    Time opMul(long i) {
+    Time opMul(long i) const {
         return Time(cast(TType_Int)(timeVal * i));
     }
 
-    public Time opMul(float f) {
-        return *this * cast(double)f;
+    public Time opMul(float f) const {
+        return this * cast(double)f;
     }
 
-    public Time opMul(double f) {
+    public Time opMul(double f) const {
         return Time(cast(TType_Int)(timeVal * f));
     }
 
-    public Time opDiv(int i) {
+    public Time opDiv(int i) const {
         return Time(cast(TType_Int)(timeVal / i));
     }
 
-    public Time opDiv(float f) {
+    public Time opDiv(float f) const {
         return Time(cast(TType_Int)(timeVal / f));
     }
 
-    public long opDiv(Time t) {
+    public long opDiv(Time t) const {
         return timeVal / t.timeVal;
     }
 
-    public int opEquals(Time t2) {
+    public bool opEquals(ref const(Time) t2) const {
         return timeVal == t2.timeVal;
     }
 
-    public int opCmp(Time t2) {
+    public int opCmp(Time t2) const {
         //NOTE: "timeVal - t2.timeVal" is wrong, it wraps around too early!
         if (timeVal > t2.timeVal)
             return 1;
@@ -96,26 +95,27 @@ public struct Time {
             return 0;
     }
 
-    public Time opNeg() {
+    public Time opNeg() const {
         return Time(-timeVal);
     }
 
     ///return string representation of value
-    public string toString() {
+    public string toString() const {
         char[80] buffer = void;
-        return toString_s(buffer).dup;
+        return toString_s(buffer).idup;
     }
 
     //I needed this hack I'm sorry I'm sorry I'm sorry
-    public string toString_s(string buffer) {
-        if (*this == Never)
+    public string toString_s(char[] buffer) const {
+        if (this == Never)
             return "<unknown>";
 
         const string[] cTimeName = ["ns", "us", "ms", "s", "min", "h"];
         //divisior to get from one time unit to the next
         const int[] cTimeDiv =       [1, 1000, 1000, 1000, 60,    60, 0];
         //precission which should be used to display the time
-        const string[] cPrec =["{:f0}","{:f1}","{:f3}","{:f2}","{:f2}","{:f2}"];
+        //XXXTANGO: Phobos2 might be able to read precisiion from arg like C printf
+        const string[] cPrec =["%.0f","%.1f","%.3f","%.2f","%.2f","%.2f"];
         string sign;
         long time = nsecs;
         long timeDiv = 1;
@@ -129,7 +129,7 @@ public struct Time {
                 //auto s = myformat("%.*f {}", cPrec[i],
                 //    cast(double)time / cTimeDiv[i], cTimeName[i]);
                 char[20] fmt_b = void;
-                auto fmt = myformat_s(fmt_b, "{}{} {}", sign, cPrec[i], "{}");
+                auto fmt = myformat_s(fmt_b, "%s%s %s", sign, cPrec[i], "%s");
                 auto s = myformat_s(buffer, fmt,
                     cast(double)time / timeDiv, cTimeName[i]);
                 return s;
@@ -209,8 +209,8 @@ public struct Time {
     //NOTE: unlike toString(), the result of this function
     //  1. is an unrounded, exact representation of the time ("lossless")
     //  2. is actually parseable by fromString()
-    public string fromStringRev() {
-        Time cur = *this;
+    public string fromStringRev() const {
+        Time cur = this;
         string res;
         bool neg = false;
         if (cur.timeVal < 0) {
@@ -251,14 +251,16 @@ public struct Time {
         Time p(string s) {
             return Time.fromString(s);
         }
-        assert(p("1ns") == timeNsecs(1));
-        assert(p("1ns,3ms,67h") == timeNsecs(1)+timeMsecs(3)+timeHours(67));
-        assert(p("  - 1 ns,  3 ms , 67 h ") ==
-            -(timeNsecs(1)+timeMsecs(3)+timeHours(67)));
-        assert(p("  -  0  ") == Time.Null);
-        assert(p("   never  ") == Time.Never);
-        assert(p("   infinite  ") == Time.Never);
-        assert(p("  -  never  ") == -Time.Never);
+        //yes dmd 2.054 was too retarded to grok this...
+        bool cmp(Time a, Time b) { return a == b; }
+        assert(cmp(p("1ns"), timeNsecs(1)));
+        assert(cmp(p("1ns,3ms,67h"), timeNsecs(1)+timeMsecs(3)+timeHours(67)));
+        assert(cmp(p("  - 1 ns,  3 ms , 67 h "),
+            -(timeNsecs(1)+timeMsecs(3)+timeHours(67))));
+        assert(cmp(p("  -  0  "), Time.Null));
+        assert(cmp(p("   never  "), Time.Never));
+        assert(cmp(p("   infinite  "), Time.Never));
+        assert(cmp(p("  -  never  "), -Time.Never));
         assert(timeNsecs(1).fromStringRev() == "1 ns");
         assert(timeHms(55, 45, 5).fromStringRev() == "55 h, 45 min, 5 s");
         assert((-timeHms(55, 45, 5)).fromStringRev() == "- 55 h, 45 min, 5 s");
@@ -269,7 +271,7 @@ public struct Time {
     }
 
     ///Get: Time value as nanoseconds
-    public long nsecs() {
+    public long nsecs() const {
         return cNS ? timeVal : timeVal*1000;
     }
 
@@ -279,7 +281,7 @@ public struct Time {
     }
 
     ///Get: Time value as microseconds
-    public long musecs() {
+    public long musecs() const {
         return cNS ? timeVal/1000 : timeVal;
     }
 
@@ -289,7 +291,7 @@ public struct Time {
     }
 
     ///Get: Time value as milliseconds
-    public long msecs() {
+    public long msecs() const {
         return musecs / 1000;
     }
 
@@ -299,17 +301,17 @@ public struct Time {
     }
 
     ///Get: Time value as seconds
-    public long secs() {
+    public long secs() const {
         return musecs / (1000 * 1000);
     }
 
     //return as float in seconds (should only be used for small relative times)
-    public float secsf() {
+    public float secsf() const {
         return secsd();
     }
 
     //seconds in double
-    double secsd() {
+    double secsd() const {
         return cast(double)musecs / (1000.0 * 1000.0);
     }
 
@@ -319,7 +321,7 @@ public struct Time {
     }
 
     ///Get: Time value as minutes
-    public long mins() {
+    public long mins() const {
         return musecs / (60 * 1000 * 1000);
     }
 
@@ -329,7 +331,7 @@ public struct Time {
     }
 
     ///Get: Time value as hours
-    public long hours() {
+    public long hours() const {
         return musecs / (60 * 60 * 1000 * 1000);
     }
 
@@ -341,9 +343,9 @@ public struct Time {
 
 //give the same kind of numeric type as T, but with maximal value range
 private template maxttype(T) {
-    static if (isIntegerType!(T)) {
+    static if (isIntegral!(T)) {
         alias long maxttype;
-    } else static if (isFloatingPointType!(T)) {
+    } else static if (isFloat!(T)) {
         alias real maxttype;
     } else {
         static assert(false);
@@ -401,15 +403,17 @@ public Time timeHms(int h, int m, int s) {
 //time (i.e. not the process time) - so why not?
 //ok, might not be available under Win95
 
-import tango.time.StopWatch;
-private StopWatch gTimer;
+//import tango.time.StopWatch;
+import core.time;
 
-static this()  {
-    gTimer.start();
+private ulong gBaseTime;
+
+private ulong rawtime() {
+    return TickDuration.currSystemTick.usecs;
 }
 
 public Time timeCurrentTime() {
-    return timeMusecs(cast(long)gTimer.microsec());
+    return timeMusecs(rawtime() - gBaseTime);
 }
 
 //xxx: using toDelegate(&timeCurrentTime) multiple times produces linker
@@ -417,6 +421,7 @@ public Time timeCurrentTime() {
 Time delegate() timeCurrentTimeDg;
 
 static this() {
+    gBaseTime = rawtime();
     timeCurrentTimeDg = toDelegate(&timeCurrentTime);
 }
 

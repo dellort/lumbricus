@@ -228,8 +228,8 @@ class SettingVar(T, bool GuardNan = true) {
 //helper to show user help string
 string settingValueHelp(string setting) {
     string res;
-    void write(string fmt, ...) {
-        res ~= myformat_fx(fmt, _arguments, _argptr) ~ "\n";
+    void write(T...)(string fmt, T args) {
+        res ~= myformat(fmt, args) ~ "\n";
     }
 
     Setting s = findSetting(setting);

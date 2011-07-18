@@ -9,7 +9,7 @@ import physics.base;
 import physics.force;
 import physics.physobj;
 
-import math = tango.math.Math;
+import std.math;
 
 const Time cEarthQuakeChangeTime = timeMsecs(200);
 
@@ -84,7 +84,7 @@ class EarthQuakeForce : PhysicForce {
         //using an angle here is a simple way to create a normalized vector
         if (mDoImpulse) {
             mEarthQuakeImpulse = Vector2f.fromPolar(1.0f,
-                world.rnd.nextDouble() * math.PI * 2.0f) * mEarthQuakeStrength;
+                world.rnd.nextDouble() * PI * 2.0f) * mEarthQuakeStrength;
         }
         mEarthQuakeLastChangeTime = 0;
     }

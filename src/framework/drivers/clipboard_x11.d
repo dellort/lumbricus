@@ -2,6 +2,9 @@
 //(most dependencies come from glue code and initialization)
 module framework.drivers.clipboard_x11;
 
+//XXXTANGO ditched this
+version(none):
+
 version(linux):
 
 import framework.clipboard;

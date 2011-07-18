@@ -1,9 +1,8 @@
 module utils.filetools;
 
-import tango.io.model.IFile : FileConst;
-import path = tango.io.Path;
-import tango.io.FilePath;
+public import std.file;
 
+/+
 void remove_dir(string dirpath) {
     try {
         foreach (f; path.children(dirpath)) {
@@ -15,12 +14,8 @@ void remove_dir(string dirpath) {
         path.remove(dirpath);
     } catch {assert(false);} //xxx: someone remove this
 }
++/
 
 void trymkdir(string dir) {
-    try { path.createFolder(dir); } catch {}
-}
-
-string basename(string f) {
-    //return path.getBaseName(path.getName(filename));
-    return FilePath(f).name;
+    try { mkdirRecurse(dir); } catch {}
 }

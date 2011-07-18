@@ -5,8 +5,6 @@ import utils.misc;
 import utils.rect2;
 import utils.vector2;
 
-import math = tango.math.Math;
-
 //from http://en.wikipedia.org/wiki/Midpoint_circle_algorithm
 //(modified for filling)
 void circle(int x, int y, int r,
@@ -45,7 +43,7 @@ void line(Vector2i p1, Vector2i p2, void delegate(Vector2i pt) cb) {
     //copied from draw_sdl.d (unifying isn't worth it)
     Vector2f d = toVector2f(p2-p1);
     Vector2f old = toVector2f(p1);
-    int n = cast(int)(max(math.abs(d.x), math.abs(d.y)));
+    int n = cast(int)(max(abs(d.x), abs(d.y)));
     d = d / cast(float)n;
     for (int i = 0; i < n; i++) {
         int px = cast(int)(old.x+0.5f);
@@ -167,7 +165,7 @@ void rasterizePolygon(Rect2i clip, Vector2f[] points,
     Edge* all_edges;
 
     //convert points array and create Edge structs and insert them
-    void add_edge(in Vector2f a, in Vector2f b) {
+    void add_edge(Vector2f a, Vector2f b) {
         Edge* edge = new Edge();
         edge.all = all_edges;
         all_edges = edge;

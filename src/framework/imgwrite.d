@@ -11,8 +11,6 @@ import utils.stream;
 import str = utils.string;
 import net.marshal : Marshaller;
 
-//import tango.io.digest.Crc32 : Crc32;
-
 //fmt is one of the formats registered in gImageFormats
 //NOTE: stream must be seekable (used to back-patch the length), but the
 //      functions still start writing at the preset seek position, and end

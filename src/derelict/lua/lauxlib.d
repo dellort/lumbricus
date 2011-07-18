@@ -49,48 +49,48 @@ struct luaL_Buffer {
 //==============================================================================
 extern (C)
 {
-  void function(lua_State *L,  char *libname, luaL_reg *l, int nup) luaL_openlib;
-  void function(lua_State *L,  char *libname, luaL_reg *l) luaL_register;
-  int  function(lua_State *L, int obj, char *e) luaL_getmetafield;
-  int  function(lua_State *L, int obj, char *e) luaL_callmeta;
-  int  function(lua_State *L, int narg, char *tname) luaL_typerror;
-  int  function(lua_State *L, int numarg,  char *extramsg) luaL_argerror;
+  void function(lua_State *L,  const char *libname, luaL_reg *l, int nup) luaL_openlib;
+  void function(lua_State *L,  const char *libname, luaL_reg *l) luaL_register;
+  int  function(lua_State *L, int obj, const char *e) luaL_getmetafield;
+  int  function(lua_State *L, int obj, const char *e) luaL_callmeta;
+  int  function(lua_State *L, int narg, const char *tname) luaL_typerror;
+  int  function(lua_State *L, int numarg,  const char *extramsg) luaL_argerror;
   char *function(lua_State *L, int numArg, size_t *l) luaL_checklstring;
-  char *function(lua_State *L, int numArg, char *def, size_t *l) luaL_optlstring;
+  char *function(lua_State *L, int numArg, const char *def, size_t *l) luaL_optlstring;
   lua_Number  function(lua_State *L, int numArg) luaL_checknumber;
   lua_Number  function(lua_State *L, int nArg, lua_Number def) luaL_optnumber;
 
   lua_Integer  function(lua_State *L, int numArg) luaL_checkinteger;
   lua_Integer  function(lua_State *L, int nArg, lua_Integer def) luaL_optinteger;
 
-  void  function(lua_State *L, int sz,  char *msg) luaL_checkstack;
+  void  function(lua_State *L, int sz,  const char *msg) luaL_checkstack;
   void  function(lua_State *L, int narg, int t) luaL_checktype;
   void  function(lua_State *L, int narg) luaL_checkany;
 
-  int  function(lua_State *L,  char *tname) luaL_newmetatable;
-  void *function(lua_State *L, int ud,  char *tname) luaL_checkudata;
+  int  function(lua_State *L,  const char *tname) luaL_newmetatable;
+  void *function(lua_State *L, int ud,  const char *tname) luaL_checkudata;
 
   void function(lua_State *L, int lvl) luaL_where;
-  int  function(lua_State *L,  char *fmt, ...) luaL_error;
+  int  function(lua_State *L,  const char *fmt, ...) luaL_error;
 
-  int function(lua_State *L, int narg, char *def, char **lst) luaL_checkoption;
+  int function(lua_State *L, int narg, const char *def, const char **lst) luaL_checkoption;
 
   int  function(lua_State *L, int t) luaL_ref;
   void function(lua_State *L, int t, int _ref) luaL_unref;
 
-  int function(lua_State *L,  char *filename) luaL_loadfile;
-  int function(lua_State *L,  char *buff, size_t sz, char *name) luaL_loadbuffer;
+  int function(lua_State *L,  const char *filename) luaL_loadfile;
+  int function(lua_State *L,  const char *buff, size_t sz, const char *name) luaL_loadbuffer;
 
-  int function(lua_State *L, char *s) luaL_loadstring;
+  int function(lua_State *L, const char *s) luaL_loadstring;
 
-  char* function(lua_State *L, char *s, char *p, char *r) luaL_gsub;
-  char* function(lua_State *L, int idx, char *fname, int szhint) luaL_findtable;
+  char* function(lua_State *L, const char *s, const char *p, const char *r) luaL_gsub;
+  char* function(lua_State *L, int idx, const char *fname, int szhint) luaL_findtable;
 
 
   void  function(lua_State *L, luaL_Buffer *B) luaL_buffinit;
   char *function(luaL_Buffer *B) luaL_prepbuffer;
-  void  function(luaL_Buffer *B,  char *s, size_t l) luaL_addlstring;
-  void  function(luaL_Buffer *B,  char *s) luaL_addstring;
+  void  function(luaL_Buffer *B,  const char *s, size_t l) luaL_addlstring;
+  void  function(luaL_Buffer *B,  const char *s) luaL_addstring;
   void  function(luaL_Buffer *B) luaL_addvalue;
   void  function(luaL_Buffer *B) luaL_pushresult;
 }
@@ -118,7 +118,7 @@ alias luaL_optlong         luaL_opt_long;
 //#define luaL_argcheck(L, cond,numarg,extramsg) if (!(cond)) \
 //                                              luaL_argerror(L, numarg,extramsg)
 
-void luaL_argcheck(lua_State *L, bool cond, int numarg, char* extramsg)
+void luaL_argcheck(lua_State *L, bool cond, int numarg, const char* extramsg)
 {
   if (!(cond))
     luaL_argerror(L, numarg, extramsg);
@@ -132,7 +132,7 @@ char *luaL_checkstring(lua_State *L, int n)
 
 //#define luaL_optstring(L,n,d)	(luaL_optlstring(L, (n), (d), NULL))
 
-char* luaL_optstring(lua_State *L, int n, char *d)
+char* luaL_optstring(lua_State *L, int n, const char *d)
 {
   return luaL_optlstring(L, n, d, null);
 }

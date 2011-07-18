@@ -2,8 +2,7 @@ module physics.physobj;
 
 import framework.drawing;
 
-import tango.math.Math : PI, abs, isNaN;
-import tango.math.IEEE : copysign;
+import std.math;
 import utils.list2;
 import utils.log;
 import utils.misc;

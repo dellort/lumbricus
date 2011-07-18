@@ -1,6 +1,6 @@
 module physics.timedchanger;
 
-import tango.math.IEEE : copysign;
+import std.math;
 import utils.vector2;
 
 import physics.base;

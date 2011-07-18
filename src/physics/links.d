@@ -2,7 +2,7 @@ module physics.links;
 
 import framework.drawing;
 
-import tango.math.Math: abs, sqrt;
+import std.math;
 import utils.misc;
 import utils.vector2;
 

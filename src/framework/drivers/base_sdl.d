@@ -20,10 +20,9 @@ import utils.strparser;
 import math = std.math;
 import utils.stream;
 import tango.stdc.stringz;
-import tango.sys.Environment;
-import tunicode = tango.text.Unicode;
+import std.process;
 version(Windows) {
-    import tango.sys.win32.UserGdi;
+    import std.c.windows; //import tango.sys.win32.UserGdi;
 }
 
 import str = utils.string;
@@ -47,7 +46,10 @@ package {
             return *pres;
         //SDL is not very accurate here and returns unicode even for control
         //  keys like ESC
-        if (!tunicode.isPrintable(uc))
+        //--XXXTANGO
+        //--if (!tunicode.isPrintable(uc))
+        //--    return null;
+        if (uc < 32)
             return null;
         string res;
         str.encode(res, uc);
@@ -93,13 +95,13 @@ class SDLDriver : FrameworkDriver {
         //maybe there's a reason these are not official features
         version(Windows) {
             if (opts.window_pos == "center") {
-                Environment.set("SDL_VIDEO_CENTERED", "center");
+                setenv("SDL_VIDEO_CENTERED", "center", true);
             } else {
                 try {
                     //empty (or invalid) value will throw and not set the var
                     Vector2i pos = fromStr!(Vector2i)(opts.window_pos);
-                    Environment.set("SDL_VIDEO_WINDOW_POS", myformat("{},{}",
-                        pos.x, pos.y));
+                    setenv("SDL_VIDEO_WINDOW_POS", myformat("{},{}",
+                        pos.x, pos.y), true);
                 } catch (ConversionException e) {
                     //ignore
                 }

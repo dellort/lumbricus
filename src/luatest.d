@@ -1,7 +1,6 @@
 module luatest;
 
 import framework.lua;
-import tango.core.tools.TraceExceptions;
 import cinit = common.init;
 import framework.filesystem;
 
@@ -14,7 +13,7 @@ import utils.time;
 
 
 class Bar {
-    char[] meh;
+    string meh;
     int something = 666;
 
     void blu(int x) {
@@ -36,7 +35,7 @@ class Bar {
         Trace.formatln("Called Bar.test('{}')", msg);
     }
 
-    char[] blurgh() {
+    string blurgh() {
         return meh;
     }
 }
@@ -51,14 +50,14 @@ enum Test {
 }
 
 class Foo {
-    char[] bla;
+    string bla;
     Test muh;
 
-    char[] test(int x, float y = 99.0, char[] msg = "Default") {
+    string test(int x, float y = 99.0, string msg = "Default") {
         return myformat("hello from D! got: {} {} '{}'", x, y, msg);
     }
 
-    char[] test2(char[] bla = "huhu") {
+    string test2(string bla = "huhu") {
         return bla;
     }
 
@@ -153,7 +152,7 @@ LuaReference funcRef(LuaReference r) {
     return r;
 }
 
-void main(char[][] args) {
+void main(string[] args) {
     //xxx this is unkosher, but we need the full filesystem
     cinit.init(args[1..$]);
     LuaState s = new LuaState();
@@ -162,15 +161,15 @@ void main(char[][] args) {
     auto foo = new Foo();
     s.addSingleton(foo);
 
-    void loadexec(char[] code, char[] name = "blub") {
+    void loadexec(string code, string name = "blub") {
         s.loadScript(name, code);
     }
 
-    void loadscript(char[] filename) {
+    void loadscript(string filename) {
         filename = "lua/" ~ filename;
         auto st = gFS.open(filename);
         scope(exit) st.close();
-        s.loadScript(filename, cast(char[])st.readAll());
+        s.loadScript(filename, cast(string)st.readAll());
     }
 
     loadscript("vector2.lua");
@@ -371,7 +370,7 @@ void main(char[][] args) {
 
     //these are expected to fail (type checks etc.)
 
-    void fail(char[] code) {
+    void fail(string code) {
         try {
             loadexec(code);
         } catch (LuaException e) {

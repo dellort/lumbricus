@@ -7,15 +7,6 @@ import utils.configfile;
 import utils.misc;
 import utils.path;
 
-import tango.stdc.stringz;
-//hack for tango 0.99.9 <-> svn trunk change
-import tango.core.Version;
-static if (Tango.Major == 0 && Tango.Minor == 999) {
-    mixin(`import tango.io.compress.Zip;`);
-} else {
-    import tango.util.compress.Zip;
-}
-//import tango.io.model.IConduit;
 
 //shared interface for archive readers (currently: tar and zip)
 interface ArchiveReader {
@@ -147,7 +138,7 @@ class TarArchive : ArchiveReader {
             char[255] pad;
 
             string getchecksum() {
-                TarHeader copy = *this;
+                TarHeader copy = this;
                 copy.checksum[] = ' ';
                 char* ptr = cast(char*)&copy;
                 int s = 0;
@@ -161,7 +152,7 @@ class TarArchive : ArchiveReader {
             }
 
             bool iszero() {
-                char* ptr = cast(char*)this;
+                char* ptr = &filename[0];
                 for (int n = 0; n < TarHeader.sizeof; n++) {
                     if (ptr[n] != '\0')
                         return false;
@@ -193,8 +184,8 @@ class TarArchive : ArchiveReader {
                 foreach (ref digit; hcs)
                     if (digit == ' ') digit = '0';
                 if (h.getchecksum()[0..6] != hcs)
-                    throw new CustomException("tar error: CS "~h.getchecksum()[0..6]~" != "~hcs);
-                string getField(string f) {
+                    throw new CustomException("tar error: CS "~h.getchecksum()[0..6]~" != "~cast(string)hcs);
+                const(char)[] getField(in char[] f) {
                     assert (f.length > 0);
                     //else we had a buffer overflow with toString
                     //xxx: utf safety?
@@ -202,8 +193,8 @@ class TarArchive : ArchiveReader {
                         throw new CustomException("tar error");
                     return fromStringz(&f[0]);
                 }
-                e.name = VFSPath(getField(h.filename).dup);
-                string sz = h.filesize[0..11].dup;
+                e.name = VFSPath(getField(h.filename).idup);
+                char[] sz = h.filesize[0..11].dup;
                 //parse octal by myself, Phobos is too stupid to do it
                 ulong isz = 0;
                 while (sz.length) {
@@ -341,7 +332,7 @@ class TarArchive : ArchiveReader {
                 throw new CustomException("tar error (file unaligned)");
             ulong todo = npos - mFile.position();
             assert (todo < 512);
-            mFile.writeExact(waste[0..todo]);
+            mFile.writeExact(waste[0..cast(size_t)todo]);
         }
         assert ((mFile.position & 511) == 0);
     }

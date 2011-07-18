@@ -1,12 +1,6 @@
 module utils.path;
 
 import str = utils.string;
-import tango.io.model.IFile : FileConst;
-import tangopath = tango.io.Path;
-import tfs = tango.io.FileSystem;
-import tango.sys.Environment : Environment;
-import tango.io.Path; //eh, tangopath?
-import tango.io.FilePath;
 import utils.misc;
 
 string getFilePath(string fullname)
@@ -43,14 +37,13 @@ version(Windows) {
 }
 
 version(Windows) {
-import tango.sys.win32.UserGdi : GetModuleFileNameW;
-import tango.sys.win32.Types : MAX_PATH;
-import utf = tango.text.convert.Utf;
+import std.c.windows;
+import std.utf;
 
 string getExePath() {
     wchar[MAX_PATH] buf;
     size_t len = GetModuleFileNameW(null, buf.ptr, buf.length);
-    return utf.toString(buf[0..len]);
+    return toUTF8(buf[0..len]);
 }
 
 } else version(linux) {
@@ -59,9 +52,9 @@ string getExePath() {
 //  just contain "lumbricus"
 //until I get to know of a better way, just read the Linux specific
 //  /proc/self/exe symlink, which contains an absolute path to the binary
-import tango.stdc.posix.unistd;
+import core.sys.posix.unistd;
 string getExePath() {
-    string buffer = new char[80];
+    char[] buffer = new char[80];
     for (;;) {
         ssize_t res = readlink("/proc/self/exe".ptr, buffer.ptr, buffer.length);
         if (res < 0)
@@ -74,7 +67,7 @@ string getExePath() {
         buffer = buffer[0..res];
         break;
     }
-    return buffer;
+    return cast(string)buffer;
 }
 
 } else {
@@ -141,7 +134,9 @@ struct VFSPath {
         {
             absParent = absParent[0..$-1];
         }
-        return tangopath.standard(absParent ~ mPath);
+        //return tangopath.standard(absParent ~ mPath);
+        //XXXTANGO dunno, above call simply replaces \ with /
+        return absParent ~ mPath;
     }
 
     ///get the parent directory of the current path
@@ -153,7 +148,7 @@ struct VFSPath {
         if (i >= 0)
             return VFSPath(mPath[0..i]);
         else
-            return *this;
+            return this;
     }
 
     ///is the path empty (i.e. the root)
@@ -223,15 +218,16 @@ struct VFSPath {
         return isChild(other) || str.cmp(other.mPath, mPath) == 0;
     }
 
-    int opEquals(VFSPath other) {
+    bool opEquals(ref const(VFSPath) other) const {
         return str.cmp(other.mPath, mPath) == 0;
     }
 
     VFSPath relativePath(VFSPath parent) {
-        if (parent.isChildOrEqual(*this))
+        if (parent.isChildOrEqual(this))
             return VFSPath(mPath[parent.mPath.length..$]);
         else
             error("relativePath: not a subpath of parent");
+        assert(false);
     }
 
     VFSPath join(VFSPath other) {

@@ -25,8 +25,6 @@ import utils.time;
 import utils.vector2;
 
 import str = utils.string;
-import math = tango.math.Math;
-import cstdlib = tango.stdc.stdlib;
 
 Framework gFramework;
 

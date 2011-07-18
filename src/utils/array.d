@@ -1,8 +1,7 @@
 module utils.array;
 import utils.misc;
 import utils.random;
-import cstdlib = tango.stdc.stdlib;
-import array = tango.core.Array;
+import cstdlib = std.c.stdlib;
 
 //aaIfIn(a,b) works like a[b], but if !(a in b), return null
 public V aaIfIn(K, V)(V[K] aa, K key) {
@@ -115,7 +114,7 @@ int arraySearch(T)(T[] arr, T value, int def = -1) {
 
 //remove first occurence of value from arr; the order is not changed
 //(thus not O(1), but stuff is simply copied)
-void arrayRemove(T)(inout T[] arr, T value, bool allowFail = false) {
+void arrayRemove(T)(ref T[] arr, T value, bool allowFail = false) {
     auto index = arraySearch(arr, value);
     if (index < 0) {
         if (!allowFail)
@@ -126,7 +125,7 @@ void arrayRemove(T)(inout T[] arr, T value, bool allowFail = false) {
 }
 
 //like arrayRemove(), but order of array elements isn't kept -> faster
-void arrayRemoveUnordered(T)(inout T[] arr, T value, bool allowFail = false) {
+void arrayRemoveUnordered(T)(ref T[] arr, T value, bool allowFail = false) {
     auto index = arraySearch(arr, value);
     if (index < 0) {
         if (!allowFail)
@@ -143,7 +142,7 @@ void arrayRemoveUnordered(T)(inout T[] arr, T value, bool allowFail = false) {
 ///insert count entries at index
 /// old_array = new_array[0..index] ~ new_array[index+count..$]
 ///the new entries new_array[index..index+count] are uninitialized
-void arrayInsertN(T)(inout T[] arr, uint index, uint count = 1) {
+void arrayInsertN(T)(ref T[] arr, uint index, uint count = 1) {
     assert(index <= arr.length);
     arr.length = arr.length + count;
     for (uint n = arr.length; n > index + count; n--) {
@@ -163,7 +162,7 @@ unittest {
 }
 
 ///new_arr = old_arr[0..index] ~ old_arr[index+count..$]
-void arrayRemoveN(T)(inout T[] arr, uint index, uint count = 1) {
+void arrayRemoveN(T)(ref T[] arr, uint index, uint count = 1) {
     assert(index <= arr.length);
     assert(index + count <= arr.length);
     for (uint n = index; n < arr.length - count; n++) {
@@ -309,7 +308,7 @@ struct Appender(T, bool FreeOnRealloc = false) {
         }
         mArray[mLength-1] = value;
     }
-    void opCatAssign(T[] value) {
+    void opCatAssign(in T[] value) {
         mLength += value.length;
         do_grow();
         mArray[mLength-value.length .. mLength] = value;
@@ -510,9 +509,17 @@ final class BigArray(T) {
 
 alias mergeSort stableSort;
 
+struct IsLess( T ) {
+    static bool opCall( T p1, T p2 )
+    {
+        return p1 < p2;
+    }
+}
+
+
 //source: http://people.cs.ubc.ca/~harrison/Java/MergeSortAlgorithm.java.html
 //modified to make it a stable sorting algorithm
-void mergeSort(T, Pred2E = array.IsLess!(T))(T[] a, Pred2E pred = Pred2E.init) {
+void mergeSort(T, Pred2E = IsLess!(T))(T[] a, Pred2E pred = Pred2E.init) {
     if (a.length < 2) {
         return;
     }

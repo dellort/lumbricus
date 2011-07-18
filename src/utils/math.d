@@ -2,7 +2,7 @@ module utils.math;
 
 public import utils.vector2;// : Vector2f;
 import utils.rect2;
-import math = tango.math.Math;
+import std.math;
 public import utils.misc : realmod;
 
 /// Intersect two lines given (p1+dir_1*t1, p2+dir_2*t2), and return the tX
@@ -43,9 +43,9 @@ public bool lineIntersect(Vector2f p1, Vector2f dir_1, Vector2f p2,
 
 //return distance of two angles in radians
 float angleDistance(float a, float b) {
-    auto r = realmod(a - b, cast(float)math.PI*2);
-    if (r > math.PI) {
-        r = math.PI*2 - r;
+    auto r = realmod(a - b, cast(float)PI*2);
+    if (r > PI) {
+        r = PI*2 - r;
     }
     return r;
 }
@@ -53,7 +53,7 @@ float angleDistance(float a, float b) {
 //return the side the angle is facing
 // if the angle is in between, return left when it points to y+, else right
 T angleLeftRight(T)(float angle, T left, T right) {
-    return (realmod(angle+math.PI/2, math.PI*2) < math.PI) ? right : left;
+    return (realmod(angle+PI/2, PI*2) < PI) ? right : left;
 }
 
 //ewww whatever
@@ -62,7 +62,7 @@ T angleLeftRight(T)(float angle, T left, T right) {
 //maybe doesn't really belong here
 float fullAngleFromSideAngle(float rotation, float side_angle) {
     float w = angleLeftRight(rotation, -1.0f, +1.0f);
-    return (1-w)*math.PI/2 - w*side_angle;
+    return (1-w)*PI/2 - w*side_angle;
 }
 
 //...and because it's really this what's usually needed...:
@@ -76,10 +76,10 @@ Vector2f dirFromSideAngle(float rotation, float side_angle) {
 uint pickNearestAngle(int[] angles, int iangle) {
     //pick best angle (what's nearer)
     uint closest;
-    float angle = iangle/180.0f*math.PI;
+    float angle = iangle/180.0f*PI;
     float cur = float.max;
     foreach (int i, int x; angles) {
-        auto d = angleDistance(angle,x/180.0f*math.PI);
+        auto d = angleDistance(angle,x/180.0f*PI);
         if (d < cur) {
             cur = d;
             closest = i;

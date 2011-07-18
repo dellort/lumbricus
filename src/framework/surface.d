@@ -10,8 +10,7 @@ import utils.vector2;
 import rotozoom = framework.rotozoom;
 import array = utils.array;
 
-import math = tango.math.Math;
-import cstdlib = tango.stdc.stdlib;
+import std.math;
 
 
 //actual surface stored/managed in a driver specific way
@@ -391,7 +390,7 @@ final class Surface : ResourceT!(DriverSurface) {
             dst = lockpixels(n);
         }
         //looks like rotozoom uses a reversed rotation direction
-        rotozoom.rotozoomSurface(lockpixels(this), -angle/math.PI*180, scale,
+        rotozoom.rotozoomSurface(lockpixels(this), -angle/PI*180, scale,
             interpolate, &doalloc);
         unlockPixels(Rect2i.init);
         n.unlockPixels(n.rect);

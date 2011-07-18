@@ -5,6 +5,7 @@
 //- converted to Tango
 //- remove support for 8 bit palette pixel formats (only rgba32 now)
 //- make independent from SDL ('Pixels' instead of 'SDL_Surface*')
+//- converted back to Phobos2 hurrrr
 
 // converted to D by clayasaurus
 
@@ -31,10 +32,9 @@
 */
 module framework.rotozoom;
 
-import tango.stdc.stdlib : malloc, free;
-import tango.stdc.string : memset;
-import tango.math.Math : PI, sin, cos, ceil, max;
-import tango.math.IEEE : fabs;
+import std.c.stdlib : malloc, free;
+import std.c.string : memset;
+import std.math : PI, sin, cos, ceil, max, fabs;
 
 import utils.color : Color;
 

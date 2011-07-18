@@ -65,13 +65,8 @@ class Label : Widget {
         setTextFmt(as_markup, "{}", txt);
     }
     //like FormattedText.setTextFmt()
-    void setTextFmt(bool as_markup, string fmt, ...) {
-        setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
-    }
-    void setTextFmt_fx(bool as_markup, string fmt,
-        TypeInfo[] arguments, va_list argptr)
-    {
-        if (mText.setTextFmt_fx(as_markup, fmt, arguments, argptr)) {
+    void setTextFmt(T...)(bool as_markup, string fmt, T args) {
+        if (mText.setTextFmt(as_markup, fmt, args)) {
             //text was changed; possibly relayout
             needResize();
         }

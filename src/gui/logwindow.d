@@ -8,12 +8,12 @@ import gui.rendertext;
 import utils.array : AppenderVolatile;
 import utils.time;
 import utils.output;
-import utils.misc : min, max, va_list, myformat_fx;
+import utils.misc : min, max, myformat_fx;
 import utils.ringbuffer;
 
 import str = utils.string;
 
-public class LogWindow : Widget, Output {
+public class LogWindow : Widget {
     private {
         //maximum entries the backlog stores
         //if backlog would grow larger, old entries are thrown away
@@ -150,20 +150,6 @@ public class LogWindow : Widget, Output {
     public void touchConsole() {
         //reset scroll state
         mBackLog.setOffset(0);
-    }
-
-    override void writef(string fmt, ...) {
-        writef_ind(false, fmt, _arguments, _argptr);
-    }
-    override void writefln(string fmt, ...) {
-        writef_ind(true, fmt, _arguments, _argptr);
-    }
-    override void writef_ind(bool newline, string fmt, TypeInfo[] arguments,
-        va_list argptr)
-    {
-        writeString(myformat_fx(fmt, arguments, argptr));
-        if (newline)
-            writeString("\n");
     }
 
     private AppenderVolatile!(char) mLineBuffer;

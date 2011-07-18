@@ -67,18 +67,18 @@ public struct Rect2(T) {
     // 0 = p1, 1 = pB(), 2 = p2, 3 = pA()
     //4 wraps around to 0 etc.
     Point edge(uint i) {
-        return Point((*this)[(i/2) % 2].x, (*this)[((i+1)/2) % 2].y);
+        return Point((this)[(i/2) % 2].x, (this)[((i+1)/2) % 2].y);
     }
 
     //translate rect by the vector r
     Rect2 opAdd(Point r) {
-        Rect2 res = *this;
+        Rect2 res = this;
         res.p1 += r;
         res.p2 += r;
         return res;
     }
     Rect2 opSub(Point r) {
-        return *this + (-r);
+        return this + (-r);
     }
 
     void opAddAssign(Point r) {
@@ -109,7 +109,7 @@ public struct Rect2(T) {
         n.p1.x2 = min(p1.x2, p2.x2);
         n.p2.x1 = max(p1.x1, p2.x1);
         n.p2.x2 = max(p1.x2, p2.x2);
-        *this = n;
+        this = n;
     }
 
     //extend rectangle so that p is inside the rectangle
@@ -217,7 +217,7 @@ public struct Rect2(T) {
     //substract the rectangles in list from this, and return what's left over
     //the rects in list may intersect, and the resulting rects won't intersect
     Rect2[] substractRects(Rect2[] list) {
-        Rect2[] cur = [*this]; //cur = what's left over
+        Rect2[] cur = [this]; //cur = what's left over
         foreach (ref rem; list) {
             Rect2[] cur2;
             foreach (ref rc; cur) {
@@ -274,7 +274,7 @@ public struct Rect2(T) {
     Rect2 centeredAt(Point pos) {
         auto s = size();
         pos -= s/2;
-        return *this + pos;
+        return this + pos;
     }
 
     //assuming there's an object with the rect rc, move it inside the "this"

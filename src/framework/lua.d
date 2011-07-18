@@ -10,15 +10,7 @@ import utils.stream;
 import utils.strparser;
 import utils.time;      //for special Time marshalling
 
-import std.conv;
-
-char* toStringz(const(char)[] s) {
-    return to!(char*)(s);
-}
-char[] fromStringz(char* s) {
-    //XXXTANGO confirm that this doesn't heap allocate (we don't want that)
-    return to!(char[])(s);
-}
+import std.traits;
 
 //--- stolen from tango code
 template ElementTypeOfArray(T:T[])
@@ -246,7 +238,7 @@ private extern(C) int my_lua_panic(lua_State *L) {
 //this is an optimization; if unsure, use lua_todstring()
 //if geterr is set, assign it the error message, instead of raising an error
 //error handling: Lua domain
-private string lua_todstring_unsafe(lua_State* L, int i, string* geterr = null)
+private char[] lua_todstring_unsafe(lua_State* L, int i, string* geterr = null)
 {
     size_t len;
     char* s = lua_tolstring(L, i, &len);
@@ -255,7 +247,7 @@ private string lua_todstring_unsafe(lua_State* L, int i, string* geterr = null)
         error = "lua_todstring: string expected";
         goto Lerror;
     }
-    string res = s[0..len];
+    char[] res = s[0..len];
     //as long as the D program is rather fragile about utf-8 errors (anything
     //  parsing utf-8 will throw UnicodeException on invalid utf-8 => basically
     //  that exception may be thrown from random parts of the program), always
@@ -276,19 +268,19 @@ Lerror:
     } else {
         luaErrorf(L, "{}", error);
     }
-    return "";
+    return null;
 }
 
 //always allocates memory (except if string has len 0)
 private string lua_todstring(lua_State* L, int i) {
-    return lua_todstring_unsafe(L, i).dup;
+    return lua_todstring_unsafe(L, i).idup;
 }
 
 //like lua_todstring, but returns error messages in the string
 //xxx: may still lua_error is certain cases, see lua_tolstring
 private string lua_todstring_protected(lua_State* L, int i) {
     string err;
-    auto res = lua_todstring_unsafe(L, i, &err).dup;
+    auto res = lua_todstring_unsafe(L, i, &err).idup;
     if (err.length)
         return "<error: " ~ err ~ ">";
     return res;
@@ -313,7 +305,7 @@ private int luaRelToAbsIndex(lua_State* state, int index) {
 private string luaWhere(lua_State* L, int level) {
     lua_Debug ar;
     if (lua_getstack(L, level, &ar)) {  /* check function at level */
-        lua_getinfo(L, "Sl", &ar);  /* get info about it */
+        lua_getinfo(L, "Sl".ptr, &ar);  /* get info about it */
         if (ar.currentline > 0) {  /* is there info? */
             return myformat("{}:{}: ", fromStringz(ar.short_src.ptr),
                 ar.currentline);
@@ -427,8 +419,8 @@ private void luaDError(lua_State* state, CustomException e) {
 //similar to luaL_error(), but with Tango formatter instead of C sprintf
 //allocates memory
 //xxx: maybe in the future, we may want to add D backtrace info??
-private void luaErrorf(lua_State* state, string fmt, ...) {
-    string error = myformat_fx(fmt, _arguments, _argptr);
+private void luaErrorf(T...)(lua_State* state, string fmt, T args) {
+    string error = myformat(fmt, args);
     //old implementation: luaDError(state, new LuaError(error));
     lua_pushlstring(state, error.ptr, error.length);
     lua_error(state);
@@ -450,7 +442,7 @@ private string fullClassName(Object o) {
 }
 
 private bool canCast(ClassInfo from, ClassInfo to) {
-    return rtraits.isImplicitly(from, to);
+    return isImplicitly(from, to);
 }
 
 private void luaExpected(lua_State* state, int stackIdx, string expected) {
@@ -482,7 +474,8 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
                 expected("enum "~T.stringof);
             T res;
             try {
-                return stringToType!(T)(lua_todstring_unsafe(state, stackIdx));
+                //XXX: I think we don't need the memory allocation with idup
+                return stringToType!(T)(lua_todstring_unsafe(state, stackIdx).idup);
             } catch (ConversionException e) {
                 expected("enum "~T.stringof~"( error: " ~ e.msg ~ ")");
             }
@@ -497,10 +490,13 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
             expected("boolean");
         //accepts everything, true for anything except 'false' and 'nil'
         return !!lua_toboolean(state, stackIdx);
-    } else static if (is(T : string)) {
+    } else static if (is(T : string) || is(T == const(char)[])) {
         //TempString just means that the string may be deallocated later
         //Lua will keep the string as long as it is on the Lua script's stack
-        return luaStackValue!(TempString)(state, stackIdx).raw.dup;
+        return luaStackValue!(TempString)(state, stackIdx).raw.idup;
+    } else static if (is(T == char[])) {
+        //retarded^4
+        return cast(char[])(luaStackValue!(string)(state, stackIdx));
     } else static if (is(T == TempString)) {
         //there is the strange behaviour that tolstring may change the stack
         //  value, if the value is a number, and that can cause trouble with
@@ -591,7 +587,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
                     if (mode != 0 && mode != 1)
                         luaExpected(state, -2, "integer index");
                     mode = 1;
-                    string name = lua_todstring_unsafe(state, -2);
+                    auto name = lua_todstring_unsafe(state, -2);
                     bool ok = false;
                     foreach (int sidx, x; ret.tupleof) {
                         if (membernames[sidx] == name) {
@@ -656,6 +652,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
     } else {
         static assert(false, "add me, you fool: " ~ T.stringof);
     }
+    assert(false);
 }
 
 //returns the number of values pushed (for Vectors maybe, I don't know)
@@ -673,7 +670,9 @@ private int luaPush(T)(lua_State *state, T value) {
         lua_pushnumber(state, value);
     } else static if (is(T : bool)) {
         lua_pushboolean(state, cast(int)value);
-    } else static if (is(T : string)) {
+    } else static if (is(T : string) || is(T == const(char)[])
+        || is(T == char[]))
+    {
         lua_pushlstring(state, value.ptr, value.length);
     } else static if (is(T == LuaReference)) {
         if (value.valid()) {
@@ -924,7 +923,8 @@ final class LuaReference {
 private class LuaDelegateWrapper(T) {
     private LuaState mDState;
     private RealLuaRef mRef;
-    alias Pa­ra­me­ter­Type­Tu­ple!(T) Params;
+
+    alias ParameterTypeTuple!(T) Params;
     alias ReturnType!(T) RetType;
 
     //only to be called from luaStackDelegate()
@@ -1105,7 +1105,7 @@ private int callFromLua(T)(T del, lua_State* state, int skipCount,
     if (numArgs > LUA_MINSTACK/3)
         lua_checkstack(state, LUA_MINSTACK/3);
 
-    alias Pa­ra­me­ter­Type­Tu­ple!(typeof(del)) Params;
+    alias ParameterTypeTuple!(typeof(del)) Params;
 
     if (numRealArgs != Params.length) {
         luaErrorf(state, "'{}' requires {} arguments, got {}, skip={}",
@@ -1272,7 +1272,7 @@ class LuaRegistry {
             int realargs = lua_gettop(state) - 1;
 
             mixin ("alias Class."~name~" T;");
-            alias Pa­ra­me­ter­Type­Tu­ple!(T) Params;
+            alias ParameterTypeTuple!(T) Params;
             const Params x;
             foreach (int idx, _; Repeat!(Params.length)) {
                 const fn = "c."~name~"(x[0..idx])";
@@ -1315,7 +1315,7 @@ class LuaRegistry {
             int realargs = lua_gettop(state);
 
             mixin ("alias Class."~name~" T;");
-            alias Pa­ra­me­ter­Type­Tu­ple!(T) Params;
+            alias ParameterTypeTuple!(T) Params;
             const Params x;
             foreach (int idx, _; Repeat!(Params.length)) {
                 const fn = "c."~name~"(x[0..idx])";
@@ -1449,7 +1449,7 @@ class LuaRegistry {
         //stringof returns "& functionName", strip that
         //xxx this is crap, who knows what random strings .stringof will return
         //  in future compiler versions?
-        const string funcName_raw = (&Fn).stringof;
+        enum string funcName_raw = (&Fn).stringof;
         //DMD: "& funcname"
         //LDC: "&funcname"
         //if the string changes again (for any compiler vendor/version), this
@@ -1457,9 +1457,9 @@ class LuaRegistry {
         //(duh, wasn't my idea; let's hope dmd bugzilla 4133 makes it through)
         static assert(funcName_raw[0] == '&');
         static if (funcName_raw[1] == ' ') {
-            const funcName = funcName_raw[2..$];
+            enum funcName = funcName_raw[2..$];
         } else {
-            const funcName = funcName_raw[1..$];
+            enum funcName = funcName_raw[1..$];
         }
         extern(C) static int demarshal(lua_State* state) {
             //this crap is ONLY for default arguments
@@ -1468,7 +1468,7 @@ class LuaRegistry {
 
             int realargs = lua_gettop(state);
 
-            alias Pa­ra­me­ter­Type­Tu­ple!(Fn) Params;
+            alias ParameterTypeTuple!(Fn) Params;
             const Params x;
             foreach (int idx, _; Repeat!(Params.length)) {
                 const fn = "Fn(x[0..idx])";
@@ -1519,7 +1519,7 @@ private {
         lua_CFunction* func;
     }
     //cf. linit.c from lua source
-    const LuaLibReg[] luaLibs = [
+    enum LuaLibReg[] luaLibs = [
         {LuaLib.base, "", &luaopen_base},
         {LuaLib.table, LUA_TABLIBNAME, &luaopen_table},
         {LuaLib.io, LUA_IOLIBNAME, &luaopen_io},
@@ -1567,7 +1567,9 @@ class LuaState {
             if (!libname.length)
                 libname = null; //derelict uses "libname is null"
             */
-            DerelictLua.load(libname);
+            //DerelictLua.load(libname);
+            //XXXTANGO: can't pass null anymore; there are several overloaded load()
+            DerelictLua.load();
             gLibLuaLoaded = true;
         }
 
@@ -1668,8 +1670,8 @@ class LuaState {
         setGlobal("d_is_class", &script_is_class);
     }
 
-    override void dispose() {
-        super.dispose();
+    void dispose() {
+        //super.dispose();
         lua_close(mLua);
         mLua = null;
         delete mPtrList;
@@ -1687,7 +1689,7 @@ class LuaState {
         //  it will call finalizers on all GC objects that are still alive. but
         //  the module dtors will make derelict to unload liblua, so finalizers
         //  for left over LuaStates can't call lua_close() LOL
-        if (!DerelictLua.loaded())
+        if (!DerelictLua.isLoaded())
             return;
         //this is VERY questionable - it does a lot of stuff in this function,
         //  and I don't know if it's really safe (the problem is that ~this can
@@ -2199,7 +2201,7 @@ class LuaState {
     private MetaData convert_md(LuaRegistry.Method m) {
         alias LuaRegistry.MethodType MT;
         MetaData d;
-        switch (m.type) {
+        final switch (m.type) {
             case MT.Method: d.type = "Method"; break;
             case MT.StaticMethod: d.type = "StaticMethod"; break;
             case MT.Property_R: d.type = "Property_R"; break;

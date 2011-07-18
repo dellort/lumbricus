@@ -7,7 +7,6 @@ import utils.configfile;
 import utils.log;
 import utils.misc;
 import str = utils.string;
-import tango.util.Convert;
 
 //NOTE: because normal varargs suck infinitely in D (you have to deal with
 //    _arguments and _argptr), and because it's not simple to convert these
@@ -207,8 +206,8 @@ public class Translator {
 
     ///Translate a text, similar to the translate() function.
     ///Warning: doesn't do namespace resolution.
-    string opCall(string id, ...) {
-        return translatefx(id, _arguments, _argptr);
+    string opCall(T...)(string id, T args) {
+        return translatefx(id, 0, args);
     }
 
     private string lastId(string id) {
@@ -248,18 +247,15 @@ public class Translator {
         //it copies all elements from the array into p, and then expands p as
         // arguments for tovararg()
         //at runtime, the function with the correct number of params is called
-        const cMaxParam = 10;
+        enum cMaxParam = 10;
         alias GenTuple!(string, cMaxParam) Params;
         Params p;
         if (msg.args.length > p.length) {
             assert(false, "increase cMaxParam in i18n.d");
         }
-        string tovararg(...) {
-            return translatefx(msg.id, _arguments, _argptr, msg.rnd);
-        }
         foreach (int i, x; p) {
             if (i == msg.args.length) {
-                return tovararg(p[0..i]);
+                return translatefx(msg.id, msg.rnd, p[0..i]);
             }
             string s = msg.args[i];
             //prefix arguments with _ to translate them too (e.g. _messageid)
@@ -278,12 +274,10 @@ public class Translator {
     }
 
     //like formatfx, only the format string is loaded by id
-    private string translatefx(string id, TypeInfo[] arguments,
-        va_list argptr, uint rnd = 0)
-    {
+    private string translatefx(T...)(string id, uint rnd, T args) {
         if (id.length > 0 && id[0] == '.') {
             //prefix the id with a . to translate in gLocaleRoot
-            return gLocaleRoot.translatefx(id[1..$], arguments, argptr, rnd);
+            return gLocaleRoot.translatefx(id[1..$], rnd, args);
         }
         //empty id, empty result
         if (id.length == 0)
@@ -304,12 +298,10 @@ public class Translator {
                 curIdx++;
             }
         }
-        return DoTranslate(subnode, errorId(id), arguments, argptr);
+        return DoTranslate(subnode, errorId(id), args);
     }
 
-    private string DoTranslate(ConfigNode data, string id,
-        TypeInfo[] arguments, va_list argptr)
-    {
+    private string DoTranslate(T...)(ConfigNode data, string id, T args) {
         string text;
         if (data)
             text = data.value;
@@ -322,7 +314,7 @@ public class Translator {
         //seems that tango formatting can't handle that case
         if (text.length == 0)
             return "";
-        return myformat_fx(text, arguments, argptr);
+        return myformat(text, args);
     }
 }
 
@@ -398,6 +390,6 @@ public void initI18N() {
 
 ///Translate an ID into text in the selected language.
 ///Unlike GNU Gettext, this only takes an ID, not an english text.
-public string translate(string id, ...) {
-    return gLocaleRoot.translatefx(id, _arguments, _argptr);
+public string translate(T...)(string id, T args) {
+    return gLocaleRoot.translatefx(id, 0, args);
 }

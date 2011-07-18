@@ -48,19 +48,19 @@ struct LogEntry {
     Time time;
     //txt contains only the original log text, use .fmt() to get a full string
     //warning: txt may point to temporary memory; use .dup() to be sure
-    string txt;
+    const(char)[] txt;
 
     LogEntry dup() {
-        LogEntry e = *this;
+        LogEntry e = this;
         e.txt = e.txt.dup;
         return e;
     }
 
     //some sort of default formatting
-    void fmt(void delegate(string) sink) {
+    void fmt(scope void delegate(in char[]) sink) {
         //trying to keep heap activity down with that buffer thing
         char[80] buffer = void;
-        myformat_cb(sink, "[{}] [{}] [{}] {}\n", time.toString_s(buffer),
+        myformat_cb(sink, "[%s] [%s] [%s] %s\n", time.toString_s(buffer[]),
             typeToString(pri), source.category, txt);
     }
 }
@@ -158,7 +158,7 @@ final class LogBackend {
 
 static this() {
     void dump(LogEntry e) {
-        void write(string s) { Trace.write(s); }
+        void write(in char[] s) { Trace.write(s); }
         e.fmt(&write);
     }
     gDefaultBackend = new LogBackend("def", LogPriority.Minor, &dump, false);
@@ -192,32 +192,31 @@ final class Log {
     }
 
     //same as calling trace(), mainly for compatibility
-    void opCall(string fmt, ...) {
-        emitx(LogPriority.Trace, fmt, _arguments, _argptr);
+    void opCall(T...)(string fmt, T args) {
+        emitx(LogPriority.Trace, fmt, args);
     }
 
-    void trace(string fmt, ...) {
-        emitx(LogPriority.Trace, fmt, _arguments, _argptr);
+    void trace(T...)(string fmt, T args) {
+        emitx(LogPriority.Trace, fmt, args);
     }
-    void minor(string fmt, ...) {
-        emitx(LogPriority.Minor, fmt, _arguments, _argptr);
+    void minor(T...)(string fmt, T args) {
+        emitx(LogPriority.Minor, fmt, args);
     }
-    void notice(string fmt, ...) {
-        emitx(LogPriority.Notice, fmt, _arguments, _argptr);
+    void notice(T...)(string fmt, T args) {
+        emitx(LogPriority.Notice, fmt, args);
     }
-    void warn(string fmt, ...) {
-        emitx(LogPriority.Warn, fmt, _arguments, _argptr);
+    void warn(T...)(string fmt, T args) {
+        emitx(LogPriority.Warn, fmt, args);
     }
-    void error(string fmt, ...) {
-        emitx(LogPriority.Error, fmt, _arguments, _argptr);
-    }
-
-    void emit(LogPriority pri, string fmt, ...) {
-        emitx(pri, fmt, _arguments, _argptr);
+    void error(T...)(string fmt, T args) {
+        emitx(LogPriority.Error, fmt, args);
     }
 
-    void emitx(LogPriority pri, string fmt, TypeInfo[] arguments,
-        va_list argptr)
+    void emit(T...)(LogPriority pri, string fmt, T args) {
+        emitx(pri, fmt, args);
+    }
+
+    void emitx(T...)(LogPriority pri, string fmt, T args)
     {
         //see if there's anything that wants this log entry
         if (pri < minPriority)
@@ -238,17 +237,17 @@ final class Log {
 
         //format into temporary buffer
         gBuffer.length = 0;
-        void sink(string s) {
+        void sink(in char[] s) {
             gBuffer ~= s;
         }
-        myformat_cb_fx(&sink, fmt, arguments, argptr);
+        myformat_cb(&sink, fmt, args);
 
         //distribute log event
         LogEntry e;
         e.pri = pri;
         e.source = this;
         e.time = timeCurrentTime();
-        string txt = gBuffer[];
+        const(char)[] txt = gBuffer[];
         //generate multiple events if there are line breaks
         while (txt.length) {
             int idx = str.find(txt, '\n');
@@ -310,36 +309,35 @@ struct LogStruct(string cId) {
         return cId;
     }
 
-    void emitx(LogPriority pri, string fmt, TypeInfo[] arguments,
-        va_list argptr)
+    void emitx(T...)(LogPriority pri, string fmt, T args)
     {
         check();
-        mLog.emitx(pri, fmt, arguments, argptr);
+        mLog.emitx(pri, fmt, args);
     }
 
     //------ sigh... copied from Log
-    void opCall(string fmt, ...) {
-        emitx(LogPriority.Trace, fmt, _arguments, _argptr);
+    void opCall(T...)(string fmt, T args) {
+        emitx(LogPriority.Trace, fmt, args);
     }
 
-    void trace(string fmt, ...) {
-        emitx(LogPriority.Trace, fmt, _arguments, _argptr);
+    void trace(T...)(string fmt, T args) {
+        emitx(LogPriority.Trace, fmt, args);
     }
-    void minor(string fmt, ...) {
-        emitx(LogPriority.Minor, fmt, _arguments, _argptr);
+    void minor(T...)(string fmt, T args) {
+        emitx(LogPriority.Minor, fmt, args);
     }
-    void notice(string fmt, ...) {
-        emitx(LogPriority.Notice, fmt, _arguments, _argptr);
+    void notice(T...)(string fmt, T args) {
+        emitx(LogPriority.Notice, fmt, args);
     }
-    void warn(string fmt, ...) {
-        emitx(LogPriority.Warn, fmt, _arguments, _argptr);
+    void warn(T...)(string fmt, T args) {
+        emitx(LogPriority.Warn, fmt, args);
     }
-    void error(string fmt, ...) {
-        emitx(LogPriority.Error, fmt, _arguments, _argptr);
+    void error(T...)(string fmt, T args) {
+        emitx(LogPriority.Error, fmt, args);
     }
 
-    void emit(LogPriority pri, string fmt, ...) {
-        emitx(pri, fmt, _arguments, _argptr);
+    void emit(T...)(LogPriority pri, string fmt, T args) {
+        emitx(pri, fmt, args);
     }
     //------
 }
@@ -347,8 +345,8 @@ struct LogStruct(string cId) {
 //xxx probably there are better places where to put this code, maybe reconsider
 //  after killing utils.output, but then again it doesn't matter & nobody cares
 //xxx2 this is made for a dark background
-void writeColoredLogEntry(LogEntry e, bool show_source,
-    void delegate(string fmt, ...) writefln)
+void writeColoredLogEntry(T)(LogEntry e, bool show_source,
+    T writefln)
 {
     const string[] cColorString = [
         LogPriority.Trace: "0000ff",
@@ -376,17 +374,16 @@ void writeColoredLogEntry(LogEntry e, bool show_source,
 //  1. log a human readable error message with LogPriority.Error to the screen
 //  2. spam the logfile with the precious backtrace using this function
 void traceException(Log dest, Exception e, string what = "") {
-    auto write = &dest.minor;
     if (e) {
         string buffer;
         buffer ~= "Exception backtrace";
         if (what.length)
             buffer ~= " (" ~ what ~ ")";
         buffer ~= ":\n";
-        e.writeOut( (string txt) { buffer ~= txt; } );
+        //XXXTANGO e.writeOut( (string txt) { buffer ~= txt; } );
         buffer ~= "Backtrace end.\n";
-        write("{}", buffer);
+        dest.minor("{}", buffer);
     } else {
-        write("error: no error");
+        dest.minor("error: no error");
     }
 }

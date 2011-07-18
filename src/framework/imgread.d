@@ -11,7 +11,6 @@ import str = utils.string;
 import utils.misc;
 import utils.path;
 
-import tango.stdc.stringz;
 
 //this just uses SDL_image - my overengineering instincs are crying, but for now
 //  it has to be as simple as this

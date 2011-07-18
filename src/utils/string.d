@@ -6,68 +6,72 @@
 /// - I don't feel like porting all ~150 modules using the Phobos functions
 module utils.string;
 
-import textu = tango.text.Util;
-import unicode = tango.text.Unicode;
-import ascii = tango.text.Ascii;
-import utf = tango.text.convert.Utf;
+import pstr = std.string;
+import parray = std.array;
+import palgo = std.algorithm;
+import putf = std.utf;
+import prange = std.range;
+import pascii = std.ascii;
 
+import std.uni;
 
 //--- public aliases for exporting functions, which are just fine as they are
 //(but often does name changes)
 
 //yeah, "ASCII", but there seem no unicode equivalents
 
-alias ascii.compare cmp;   //compare case insensitive, return <0, 0 or >0
-alias ascii.icompare icmp; //same as cmp, case sensitive
+alias palgo.cmp cmp;   //compare case insensitive, return <0, 0 or >0
+alias parray.icmp icmp; //same as cmp, case sensitive
 
-alias unicode.toLower tolower; //return lower case version of string
-alias unicode.toUpper toupper; //return upper case version of string
+alias pstr.toLower tolower; //return lower case version of string
+alias pstr.toUpper toupper; //return upper case version of string
 
 //NOTE: there also is unicode.isSpace and unicode.isWhitespace
 //      but textu.* probably only works with text.isSpace
-alias textu.isSpace iswhite; //return true if whitespace char/dchar/wchar
+alias pascii.isWhite iswhite; //return true if whitespace char/dchar/wchar
 
 //cut whitespace
-alias textu.trim strip;
-alias textu.triml stripl;
-alias textu.trimr stripr;
+alias pstr.strip strip;
+alias pstr.stripl stripl;
+alias pstr.stripr stripr;
 
-alias textu.splitLines splitlines;
+alias pstr.splitLines splitlines;
 
 //T[] replace(T)(T[] source, T[] match, T[] replacement)
-alias textu.substitute replace;
+alias parray.replace replace;
 
 //T[] repeat(T, U = uint)(T[] src, U count, T[] dst = null)
 //in practise: string repeat(string src, int count)
-alias textu.repeat repeat;
+alias parray.replicate repeat;
+
+unittest {
+    assert(repeat("ab", 3) == "ababab");
+}
 
 //return: -1 if not found, or the first n with text[n] == tofind
-int find(string text, char tofind) {
-    size_t res = textu.locate(text, tofind);
-    return res == text.length ? -1 : res;
+int find(in char[] text, char tofind) {
+    return pstr.indexOf(text, tofind, pstr.CaseSensitive.no);
 }
 
 //return: -1 if not found, or first n with text[n..n+tofind.length] == tofind
-int find(string text, string tofind) {
-    size_t res = textu.locatePattern(text, tofind);
-    return res == text.length ? -1 : res;
+int find(in char[] text, in char[] tofind) {
+    return pstr.indexOf(text, tofind, pstr.CaseSensitive.no);
 }
 
 //return: -1 if not found, or the last n with text[n] == tofind
-int rfind(string text, char tofind) {
-    size_t res = textu.locatePrior(text, tofind);
-    return res == text.length ? -1 : res;
+int rfind(in char[] text, char tofind) {
+    return pstr.lastIndexOf(text, tofind, pstr.CaseSensitive.no);
 }
 
 //return: -1 if not found, or first n with text[n..n+tofind.length] == tofind
-int rfind(string text, string tofind) {
-    size_t res = textu.locatePatternPrior(text, tofind);
-    return res == text.length ? -1 : res;
+int rfind(in char[] text, in char[] tofind) {
+    return pstr.lastIndexOf(text, tofind, pstr.CaseSensitive.no);
 }
 
 //on every spliton in text, create a new array item, and return that array
 string[] split(string text, string spliton) {
-    string[] res = textu.split(text, spliton);
+    //XXXTANGO: check whether it's correct
+    string[] res = parray.split(text, spliton);
     //behaviour different Phobos <-> Tango:
     //split("", ",") returns
     // in Tango: [""]
@@ -85,57 +89,34 @@ unittest {
     assert(split("", ",") == null);
 }
 
-string join(string[] text, string joiner) {
-    return textu.join(text, joiner);
+string join(in char[][] text, in char[] joiner) {
+    return parray.join(cast(string[])text, cast(string)joiner);
 }
 
 //--- std.utf
 
-alias utf.isValid isValidDchar;
+alias putf.isValidDchar isValidDchar;
 
-public import tango.core.Exception : UnicodeException;
+alias putf.UtfException UnicodeException;
 
 //append c to txt (encoded as utf-8)
 void encode(ref string txt, dchar c) {
     //apparently, the string passed as first arg is only used as a buffer
     //Tango does _not_ append to it (oh Tango, you suck so much!)
-    char[8] buffer; //something long enough for a dchar
-    string data = utf.encode(buffer, c);
-    txt ~= data;
+    char[4] buffer;
+    auto len = putf.encode(buffer, c);
+    txt ~= buffer[0..len];
 }
 
 //decode one character of the utf-8 string txt, starting at txt[idx]
 //return decoded character, and write index of following character to idx
 //if decoding fails, throw UnicodeException and don't change idx
-dchar decode(string txt, ref size_t idx) {
-    /+ maybe this code would be faster; but it's also a bit buggy
-       as of Tango r5245, this didn't throw errors on some invalid utf-8
-       the Tango dev who wrote Utf.d must be an idiot
-    //apparently, Tango's decode() always starts from index 0
-    uint idx2; //uint instead of size_t: Tango and Phobos are doing it wrong
-    dchar res = utf.decode(txt[idx..$], idx2);
-    idx += idx2;
-    +/
-    //instead, enjoy this horrible hack
-    //it works because the runtime uses different code for utf-8 parsing (lol.)
-    assert(idx < txt.length);
-    dchar res;
-    bool done;
-    foreach (size_t i, dchar dec; txt[idx..$]) {
-        if (done) {
-            idx = idx + i;
-            return res;
-        }
-        res = dec;
-        done = true;
-    }
-    //no next character; so idx couldn't be set
-    idx = txt.length;
-    return res;
+dchar decode(in char[] txt, ref size_t idx) {
+    return putf.decode(txt, idx);
 }
 
 //throw UnicodeException, if txt is not valid unicode
-void validate(string txt) {
+void validate(in char[] txt) {
     size_t idx;
     while (idx < txt.length) {
         decode(txt, idx);
@@ -144,7 +125,7 @@ void validate(string txt) {
 }
 
 //exception-less version of validate
-bool isValid(string txt) {
+bool isValid(in char[] txt) {
     try {
         validate(txt);
     } catch (UnicodeException e) {
@@ -327,7 +308,7 @@ import utils.misc;
 
 /// number of bytes to a string like "number XX", where XX is "B", "KB" etc.
 /// buffer = if long enough, use this instead of allocating memory
-string sizeToHuman(long bytes, string buffer = null) {
+string sizeToHuman(long bytes, char[] buffer = null) {
     const string[] cSizes = ["B", "KB", "MB", "GB"];
     int n;
     long x;
@@ -337,7 +318,7 @@ string sizeToHuman(long bytes, string buffer = null) {
         n++;
     }
     char[80] buffer2 = void;
-    string s = myformat_s(buffer2, "{:f3}", 1.0*bytes/x);
+    string s = myformat_s(buffer2, "%.3f", 1.0*bytes/x);
     //strip ugly trailing zeros (replace with a better way if you know one)
     if (find(s, '.') >= 0) {
         while (s[$-1] == '0')
@@ -345,7 +326,7 @@ string sizeToHuman(long bytes, string buffer = null) {
         if (endsWith(s, "."))
             s = s[0..$-1];
     }
-    return myformat_s(buffer, "{} {}", s, cSizes[n]);
+    return myformat_s(buffer, "%s %s", s, cSizes[n]);
 }
 
 unittest {
@@ -490,9 +471,9 @@ string simpleEscape(string s, string exclude = "\\") {
             assert(e < 128, "only ASCII allowed in exclude");
             if (d is e) {
                 if (res.length == 0)
-                    res = s[0..index].dup;
+                    res = s[0..index].idup;
                 //escape this
-                res ~= myformat("\\x{:x}{:x}", d >> 4, d & 15);
+                res ~= myformat("\\x%x%x", d >> 4, d & 15);
                 continue outer;
             }
         }
@@ -514,12 +495,13 @@ string simpleUnescape(string s) {
 
     ubyte getN(char c) {
         if (c >= '0' && c <= '9')
-            return c - '0';
+            return cast(ubyte)(c - '0');
         if (c >= 'A' && c <= 'F')
-            return c - 'A' + 10;
+            return cast(ubyte)(c - 'A' + 10);
         if (c >= 'a' && c <= 'f')
-            return c - 'a' + 10;
+            return cast(ubyte)(c - 'a' + 10);
         check(false);
+        return 0; //make dmd happy
     }
 
     string res;
@@ -531,7 +513,7 @@ string simpleUnescape(string s) {
             check(s[n] == 'x' || s[n] == 'X');
             n++;
             check(n + 2 <= s.length);
-            char c = (getN(s[n]) << 4) | getN(s[n+1]);
+            char c = cast(char)((getN(s[n]) << 4) | getN(s[n+1]));
             n += 2;
             res ~= c;
             n -= 1;  //compensate for n++
@@ -556,6 +538,7 @@ unittest {
 //these functions assume short strings, and they don't do any heap allocation,
 //  if the (implied) free buffer space in buf is large enough
 
+/+ XXXTANGO
 //replace "search" string in buf by myformat(fmt, ...)
 void buffer_replace_fmt(ref StrBuffer buf, string search, string fmt, ...) {
     if (find(buf.get, search) < 0)
@@ -579,3 +562,4 @@ void buffer_replace(ref StrBuffer buf, string search, string replace) {
     buf.reset();
     buf.sink(buf2.get);
 }
++/

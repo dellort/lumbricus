@@ -8,7 +8,7 @@ import utils.configfile;
 import utils.misc;
 import utils.rect2;
 import utils.vector2;
-import math = tango.math.Math;
+import std.math;
 
 struct BoxProperties {
     int borderWidth = 1, cornerRadius = 5;
@@ -321,7 +321,7 @@ BoxTex getBox(BoxProperties props) {
                         //not sure if this is "correct" or completely idiotic
                         float pf = 1.0f*(x-w)/w;
                         float pb = 1.0f*(y-w)/w;
-                        float perc = math.atan2(pf, pb)/(math.PI/2) + 1.0;
+                        float perc = atan2(pf, pb)/(PI/2) + 1.0;
                         if (perc > 1.0f)
                             perc = 3.0f - perc;
                         perc = clampRangeC(perc, 0f, 1f);

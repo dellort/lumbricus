@@ -7,7 +7,7 @@ module utils.rndkiss;
 
 import utils.misc;
 
-import tango.core.Traits : isIntegerType, isRealType;
+import std.traits;
 
 /******************************************************************************
 
@@ -134,7 +134,7 @@ class Random
     //like next(), but for any integer type
     //mynext!(int) is hopefully equivalent to next()
     final T mynext(T)(T min, T max) {
-        static assert(isIntegerType!(T));
+        static assert(isIntegral!(T));
         assert(min != max);
         if (max < min)
             swap(max, min);
@@ -165,10 +165,10 @@ class Random
 
     /// min <= X <= max (works for integer and float types)
     T nextRange(T)(T min, T max) {
-        static if (isRealType!(T))
+        static if (isFloatingPoint!(T))
             return min + (max-min)*nextDouble();
         else {
-            static if (isIntegerType!(T)) {
+            static if (isIntegral!(T)) {
                 assert(max < T.max); //failing case simply doesn't work, args.
                 return mynext!(T)(min, max+1);
             } else {

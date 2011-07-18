@@ -1,5 +1,7 @@
 module framework.drivers.clipboard_win32;
 
+//XXXTANGO ditched this
+version(none):
 version(Windows):
 
 import framework.clipboard;

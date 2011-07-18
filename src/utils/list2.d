@@ -1,6 +1,7 @@
 module utils.list2;
 
 import utils.misc;
+import utils.array;
 
 //The 3rd iteration of our list class follows...
 //This is my approach to write a serializable, doubly-linked list with all
@@ -194,7 +195,7 @@ final class ObjectList(T, string member) {
     }
 
     //O(n)
-    int opApply(int delegate(inout T) del) {
+    int opApply(scope int delegate(ref T) del) {
         if (!head_item)
             return 0;
         T cur = head_item;
@@ -369,9 +370,9 @@ unittest {
         }
     }
 
-    float[] t = [2.0f, 6, 3, 5, 7.2, 7.1, 4];
+    float[] t = [2.0f, 6, 3, 5, 7.2f, 7.1f, 4];
     sorttest(t);
-    assert(t == [2.0f, 3, 4, 5, 6, 7.2, 7.1]);
+    assert(t == [2.0f, 3, 4, 5, 6, 7.2f, 7.1f]);
     float[] t2 = [1.2f, 2.3f, 2.1f, 0.6f, 1.8f, 1.7f];
     sorttest(t2);
     assert(t2 == [0.6f, 1.2f, 1.8f, 1.7f, 2.3f, 2.1f]);

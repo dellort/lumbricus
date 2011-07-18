@@ -4,10 +4,9 @@ import utils.configfile;
 import strparser = utils.strparser;
 import utils.mybox;
 import utils.misc;
+import std.math;
 
-import math = tango.math.Math;
 import str = utils.string;
-import tango.text.convert.Integer : convert;
 
 //predefined colors - used by the parser
 //global for fun and profit
@@ -69,7 +68,7 @@ public struct Color {
 
     //for use with Color.Invalid
     bool valid() {
-        return *this != Invalid;
+        return this != Invalid;
     }
 
     /// to help the OpenGL code; use with glColor4fv
@@ -140,12 +139,12 @@ public struct Color {
     }
 
     Color opMul(float m) {
-        Color res = *this;
+        Color res = this;
         res *= m;
         return res;
     }
     Color opMul(Color c) {
-        Color res = *this;
+        Color res = this;
         res *= c;
         return res;
     }
@@ -177,7 +176,7 @@ public struct Color {
         return clampChannel(0.5f + (color - 0.5f)*contrast);
     }
     static float setgamma(float color, float g) {
-        return math.pow(color, 1.0f/g);
+        return pow(color, 1.0f/g);
     }
     //return modified color
     Color applyBCG(float brightness, float contrast, float gamma) {
@@ -278,6 +277,26 @@ public struct Color {
         return newc;
     }
 
+    static int hexconv(string s, uint* ate) {
+        int number = 0;
+        *ate = 0;
+        foreach (char c; s) {
+            int x;
+            if (c >= '0' && c <= '9') {
+                x = c - '0';
+            } else if (c >= 'A' && c <= 'F') {
+                x = c - 'A' + 10;
+            } else if (c >= 'a' && c <= 'f') {
+                x = c - 'a' + 10;
+            } else {
+                break;
+            }
+            number = number * 16 + x;
+            (*ate) += 1;
+        }
+        return number;
+    }
+
     //try parsing a hexadecimal color value at the start of s (no prefix)
     //Example: 00ff00
     //Garbage may follow the color code; returns number of chars eaten
@@ -285,9 +304,9 @@ public struct Color {
         if (s.length > 5) {
             //try reading r/g/b
             uint cnt, tmp;
-            ubyte sr = cast(ubyte)convert(s[0..2], 16U, &tmp); cnt += tmp;
-            ubyte sg = cast(ubyte)convert(s[2..4], 16U, &tmp); cnt += tmp;
-            ubyte sb = cast(ubyte)convert(s[4..6], 16U, &tmp); cnt += tmp;
+            ubyte sr = cast(ubyte)hexconv(s[0..2], &tmp); cnt += tmp;
+            ubyte sg = cast(ubyte)hexconv(s[2..4], &tmp); cnt += tmp;
+            ubyte sb = cast(ubyte)hexconv(s[4..6], &tmp); cnt += tmp;
             if (cnt < 6)
                 return 0;
             r = fromByte(sr);
@@ -295,7 +314,7 @@ public struct Color {
             b = fromByte(sb);
             if (s.length > 7) {
                 //try reading optional alpha
-                ubyte sa = cast(ubyte)convert(s[6..8], 16U, &cnt);
+                ubyte sa = cast(ubyte)hexconv(s[6..8], &cnt);
                 if (cnt == 2) {
                     a = fromByte(sa);
                     return 8;
@@ -314,19 +333,19 @@ public struct Color {
     //produce string parseable by parse()
     string toString() {
         if (hasAlpha)
-            return myformat("r={}, g={}, b={}, a={}", r, g, b, a);
+            return myformat("r=%s, g=%s, b=%s, a=%s", r, g, b, a);
         else
-            return myformat("r={}, g={}, b={}", r, g, b);
+            return myformat("r=%s, g=%s, b=%s", r, g, b);
     }
 
     //produce hex string (no prefix, parseable by parse())
     string toStringHex() {
         auto rgba = toRGBA32();
         if (hasAlpha)
-            return myformat("{:x2}{:x2}{:x2}{:x2}", rgba.r, rgba.g, rgba.b,
+            return myformat("%02x%02x%02x%02x", rgba.r, rgba.g, rgba.b,
                 rgba.a);
         else
-            return myformat("{:x2}{:x2}{:x2}", rgba.r, rgba.g, rgba.b);
+            return myformat("%02x%02x%02x", rgba.r, rgba.g, rgba.b);
     }
 }
 

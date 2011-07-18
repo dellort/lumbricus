@@ -13,8 +13,7 @@ import utils.drawing;
 import utils.misc;
 import utils.vector2;
 
-import math = tango.math.Math;
-import ieee = tango.math.IEEE;
+import std.math;
 
 import str = utils.string;
 
@@ -478,7 +477,7 @@ final class SDLSurface : DriverSurface {
         //make sure the values are quantized (=> don't spam the cache)
         int k_mirror = (effect.mirrorX ? 1 : 0) | (effect.mirrorY ? 2 : 0);
         int k_rotate = realmod(cast(int)(
-            effect.rotate/(math.PI*2.0)*cRotUnits + 0.5), cRotUnits);
+            effect.rotate/(PI*2.0)*cRotUnits + 0.5), cRotUnits);
         //zoom=1.0f must map to k_zoom=0 (else you have a useless cache entry)
         float ef_sc = min(effect.scale.x, effect.scale.y);  //xxx
         int k_zoom = cast(int)((clampRangeC(ef_sc, 0.0f, cZoomMax)-1.0f)
@@ -523,7 +522,7 @@ final class SDLSurface : DriverSurface {
 
         if (k_rotate || k_zoom) {
             double rot_deg = 1.0*k_rotate/cRotUnits*360.0;
-            double rot_rad = rot_deg/180.0*math.PI;
+            double rot_rad = rot_deg/180.0*PI;
             double zoom = 1.0*k_zoom/cZoomUnitsHalf*cZoomMax + 1.0;
             bool smooth = mDrawDriver.opts.high_quality;
             SDL_Surface* nsurf;
@@ -544,8 +543,8 @@ final class SDLSurface : DriverSurface {
             //explanation see elsewhere
             //in any case, it's better to use the real zoom/rot params, instead
             //  of the unrounded values passed by the user
-            entry.a = math.cos(rot_rad) * zoom;
-            entry.b = math.sin(rot_rad) * zoom;
+            entry.a = cos(rot_rad) * zoom;
+            entry.b = sin(rot_rad) * zoom;
             auto s = toVector2f(sub.size);
             entry.x = ( entry.a*s.x + -entry.b*s.y - surf.w) / 2;
             entry.y = ( entry.b*s.x +  entry.a*s.y - surf.h) / 2;
@@ -723,7 +722,7 @@ class SDLCanvas : Canvas {
         uint c = toSDLColor(color);
         Vector2f d = Vector2f((to-from).x,(to-from).y);
         Vector2f old = toVector2f(from + mTrans);
-        int n = cast(int)(max(ieee.fabs(d.x), ieee.fabs(d.y)));
+        int n = cast(int)(max(fabs(d.x), fabs(d.y)));
         d = d / cast(float)n;
         for (int i = 0; i < n; i++) {
             int px = cast(int)(old.x+0.5f);

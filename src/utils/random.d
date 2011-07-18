@@ -16,7 +16,7 @@ version (Win32) {
         return s;
     }
 } else version (Posix) {
-    private import tango.stdc.posix.sys.time;
+    private import core.sys.posix.sys.time;
     private uint os_timestamp() {
         //xxx: there's also tango.math.random.engines.URandom...?
         timeval tv;

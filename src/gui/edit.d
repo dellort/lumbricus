@@ -13,8 +13,7 @@ import utils.time;
 import utils.timer;
 import utils.vector2;
 
-import tango.text.Util : isSpace;
-import tango.text.Unicode : isLetterOrDigit;
+import std.uni;
 import str = utils.string;
 
 ///simple editline
@@ -488,5 +487,10 @@ bool isSpaceAt(string s, size_t pos) {
     return isSpace(str.decode(s, pos));
 }
 bool isWord(string s, size_t pos) {
-    return isLetterOrDigit(str.decode(s, pos));
+    return isUniAlpha(str.decode(s, pos));
+}
+
+//unicode version missing in Phobos (there's only some ASCII version, fuck that)
+bool isSpace(dchar c) {
+    return c == ' ' || c == '\t' || c == '\n';
 }

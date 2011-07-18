@@ -3,10 +3,7 @@ module utils.configfile;
 import marray = utils.array;
 import utils.stream;
 import str = utils.string;
-import tango.util.Convert : to, ConversionException;
-import tango.text.convert.Float : toFloat;
-import tango.core.Exception;
-import base64 = tango.util.encode.Base64;
+import std.base64;
 import utils.log;
 import utils.misc;
 
@@ -14,9 +11,8 @@ import utils.misc;
 import utils.gzip;
 
 import utils.strparser : stringToType, fromStr, toStr,
-                         fromStrSupports, toStrSupports;
-import tango.core.Traits : isIntegerType, isRealType, isAssocArrayType;
-import tango.text.Util : delimiters;
+                         fromStrSupports, toStrSupports, ConversionException;
+import std.traits;
 
 //replacement for the buggy functions in std.ctype
 //(as of DMD 0.163, the is* functions silenty fail for unicode characters)
@@ -309,7 +305,7 @@ public class ConfigNode {
         setStringValue(name, value);
     }
 
-    private void doWrite(void delegate(string) sink, uint level) {
+    private void doWrite(void delegate(in char[]) sink, uint level) {
         string newline = "\n";
         const int indent = 4;
         //xxx this could produce major garbage collection thrashing when writing
@@ -405,7 +401,7 @@ public class ConfigNode {
     }
 
     //foreach(ConfigNode; ConfigNode) enumerate subnodes
-    public int opApply(int delegate(inout ConfigNode) del) {
+    public int opApply(scope int delegate(ref ConfigNode) del) {
         foreach (ConfigNode n; mItems) {
             int res = del(n);
             if (res)
@@ -415,7 +411,7 @@ public class ConfigNode {
     }
 
     //foreach(string, string; ConfigNode) enumerate (name, value) pairs
-    public int opApply(int delegate(inout string, inout string) del) {
+    public int opApply(scope int delegate(ref string, ref string) del) {
         foreach (ConfigNode v; mItems) {
             string tmp = v.name;
             int res = del(tmp, v.value);
@@ -485,7 +481,7 @@ public class ConfigNode {
                 res[idx] = n.getCurValue!(T2)();
             }
             return res;
-        } else static if (isAssocArrayType!(T)) {
+        } else static if (isAssociativeArray!(T)) {
             novalue();
             T res;
             try {
@@ -527,6 +523,7 @@ public class ConfigNode {
             }
             return res;
         }
+        assert(false);
     }
 
     ///Set the value of the current node to value
@@ -548,7 +545,7 @@ public class ConfigNode {
                 auto node = add();
                 node.setCurValue(v);
             }
-        } else static if (isAssocArrayType!(T)) {
+        } else static if (isAssociativeArray!(T)) {
             this.value = "";
             clear();
             foreach (akey, avalue; value) {
@@ -562,7 +559,7 @@ public class ConfigNode {
             const names = structMemberNames!(T)();
             foreach (int idx, x; value.tupleof) {
                 //bug 3997
-                static if (!isAssocArrayType!(typeof(x))) {
+                static if (!isAssociativeArray!(typeof(x))) {
                     bool unequal = x != T.init.tupleof[idx];
                 } else {
                     bool unequal = true;
@@ -629,15 +626,15 @@ public class ConfigNode {
         data = gzipData(data);
 
         scope(exit) delete data;
-        return base64.encode(data);
+        return cast(string)Base64.encode(data);
     }
 
     static ubyte[] decodeByteArray(string input) {
         if (input == "[]")
             return null;
         ubyte[] buf;
-        //throws Exception (really; stupid tango devs)
-        buf = base64.decode(input);
+        //throws Exception (really; stupid phobos2 devs)
+        buf = Base64.decode(input);
 
         try {
             auto res = gunzipData(buf);
@@ -708,13 +705,13 @@ public class ConfigNode {
         }
     }
 
-    void write(void delegate(string) sink) {
+    void write(void delegate(in char[]) sink) {
         doWrite(sink, 0);
     }
 
     public void writeFile(PipeOut writer) {
         //just for the damn cast that does nothing
-        void sink(string s) {
+        void sink(in char[] s) {
             writer.write(cast(ubyte[])s);
         }
         write(&sink);
@@ -724,7 +721,7 @@ public class ConfigNode {
         marray.AppenderVolatile!(char) outs;
         //is this kosher? anyway, I don't care
         write(&outs.opCatAssign);
-        return outs[];
+        return cast(string)(outs[]);
     }
 }
 
@@ -803,8 +800,8 @@ public class ConfigFile {
         uint column = 0;
     }
 
-    private static final const dchar EOF = 0xFFFF;
-    private static final uint cMaxErrors = 100;
+    private static immutable dchar EOF = 0xFFFF;
+    private static immutable uint cMaxErrors = 100;
 
     private FilePosition filePos(Position pos) {
         FilePosition res;
@@ -928,7 +925,7 @@ public class ConfigFile {
                 } else if (curChar == '*' || curChar == '+') {
                     //stream comment, search next "*/" or "+/"
                     //xxx maybe implement full D style /++/ comments
-                    char term = curChar;
+                    dchar term = curChar;
                     bool s = false;
                     do {
                         next();
@@ -968,14 +965,14 @@ public class ConfigFile {
         }
 
         int is_value = 0;
-        const final char cValueOpen = '"';
-        const final char cValueClose = '"';
-        const final char cValueOpen2 = '`';
-        const final char cValueClose2 = '`';
+        immutable char cValueOpen = '"';
+        immutable char cValueClose = '"';
+        immutable char cValueOpen2 = '`';
+        immutable char cValueClose2 = '`';
         //lololo
-        const final char cValueOpen3 = '<';
-        const final char cValueClose3 = '>';
-        const final char cValueMark3 = ':';
+        immutable char cValueOpen3 = '<';
+        immutable char cValueClose3 = '>';
+        immutable char cValueMark3 = ':';
 
         dchar value3_endmark;
 
@@ -1031,7 +1028,7 @@ public class ConfigFile {
                 if (curChar == '\\') {
                     auto skip_from = curpos;
                     next();
-                    char escape = parseEscape();
+                    dchar escape = parseEscape();
                     val_copy(skip_from);
                     curstr ~= escape;
                     continue;
@@ -1113,7 +1110,7 @@ public class ConfigFile {
     ];
 
     //parse an escape sequence, curpos is behind the leading backslash
-    private char parseEscape() {
+    private dchar parseEscape() {
         uint digits;
 
         foreach (EscapeItem item; cSimpleEscapes) {

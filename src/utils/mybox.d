@@ -320,7 +320,6 @@ struct MyBox {
 
 } //version(!OldBox)
 
-
 unittest {
     MyBox box;
 
@@ -349,6 +348,7 @@ unittest {
     box.box!(FooFoo)(test);
     assert(box.unbox!(FooFoo)().foofoo == "abcdefghijkl");
 
+/+
     typedef int huh = 4;
     box.nullify();
     assert(box.unboxMaybe!(huh)() == 4);
@@ -363,6 +363,7 @@ unittest {
 
     box.init!(huh)();
     assert(box.unbox!(huh) == huh.init);
++/
 
 version (OldBox) {
     box.initDynamic(typeid(int));

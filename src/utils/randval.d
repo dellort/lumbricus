@@ -4,8 +4,8 @@ import utils.misc;
 import utils.random;
 import strparser = utils.strparser;
 
-import str = tango.text.Util;
-import tango.util.Convert : to;
+import str = utils.string;
+import std.conv;
 
 ///stores a ranged random value, i.e. "int between 0 and 10"
 ///a random value in the range can be sample()'d multiple times
@@ -46,7 +46,8 @@ struct RandomValue(T) {
         return !!(min == max);
     }
 
-    void opAssign(T val) {
+    //was opAssign, caused trouble in D2
+    void set(T val) {
         min = max = val;
     }
 
@@ -60,15 +61,15 @@ struct RandomValue(T) {
     ///initialize from string like "<min><cRandValSeparator><max>"
     //may throw ConversionException
     static RandomValue fromString(string s) {
-        uint i = str.locate(s, cRandValSeparator);
+        int i = str.find(s, cRandValSeparator);
         //not found -> fallback
-        if (i == s.length)
-            i = str.locate(s, cRandValSeparator2);
+        if (i < 0)
+            i = str.find(s, cRandValSeparator2);
         T min, max;
         //we don't want to detect a '-' at the start as separator
         if (i > 0 && i < s.length) {
-            min = strparser.fromStr!(T)(str.trim(s[0..i]));
-            max = strparser.fromStr!(T)(str.trim(s[i+1..$]));
+            min = strparser.fromStr!(T)(str.strip(s[0..i]));
+            max = strparser.fromStr!(T)(str.strip(s[i+1..$]));
         } else {
             min = max = strparser.fromStr!(T)(s);
         }

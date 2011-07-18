@@ -9,8 +9,7 @@ import physics.collisionmap;
 import physics.physobj;
 import physics.misc;
 
-import math = tango.math.Math;
-import ieee = tango.math.IEEE;
+import std.math;
 
 alias void delegate(ref Contact c) CollideDelegate;
 
@@ -42,7 +41,7 @@ struct Contact {
 
     //init restitution and source fields
     void fromObjInit() {
-        assert(!normal.isNaN && !ieee.isNaN(depth));
+        assert(!normal.isNaN && !isNaN(depth));
         assert(!obj[0].isStatic);
 
         source = obj[1] && obj[1].isStatic
@@ -241,7 +240,7 @@ struct Contact {
         //contactPoint = (contactPoint + other.contactPoint)/2;
 
         assert(!normal.isNaN);
-        assert(!ieee.isNaN(depth));
+        assert(!isNaN(depth));
     }
 
     //this used to be in PhysicWorld.collideObjectWithGeometry()

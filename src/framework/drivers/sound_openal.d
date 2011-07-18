@@ -10,7 +10,6 @@ import framework.sound;
 import framework.sdl.sdl;
 import framework.sdl.rwops;
 import utils.stream;
-import tango.stdc.stringz;
 import utils.array;
 import utils.misc;
 import utils.time;

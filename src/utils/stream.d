@@ -7,15 +7,11 @@
 //  - SliceStream (couldn't find anything similar in Tango)
 module utils.stream;
 
-public import tango.io.device.Conduit : Conduit;
-//important for file modes (many types/constants), even if File itself is unused
-public import tango.io.device.File : File;
-
-import tango.io.model.IConduit;
-import tango.core.Runtime;
 import utils.misc;
 
 import marray = utils.array;
+
+import std.stdio;
 
 import std.file;
 // maybe? the shitty phobos docs are nebulous
@@ -44,7 +40,7 @@ struct PipeOut {
     void delegate(ubyte[]) do_write;
     void delegate() do_close;
 
-    static const PipeOut Null;
+    static PipeOut Null;
 
     static PipeOut opCall(typeof(do_write) w, typeof(do_close) c = null) {
         PipeOut r;
@@ -97,7 +93,7 @@ struct PipeIn {
     ubyte[] delegate(ubyte[]) do_read;
     void delegate() do_close;
 
-    static const PipeIn Null;
+    static PipeIn Null;
 
     static PipeIn opCall(typeof(do_read) rd, typeof(do_close) c = null) {
         PipeIn r;
@@ -282,7 +278,8 @@ abstract class Stream {
     ubyte[] readAll() {
         ubyte[] res;
         assert(position <= size);
-        res.length = size - position;
+        //xxx so what if the file is larger than 2 or 4 GB...
+        res.length = cast(size_t)(size - position);
         readExact(res);
         return res;
     }
@@ -299,7 +296,7 @@ abstract class Stream {
     }
 
     //meh
-    static ConduitStream OpenFile(string path, string mode) {
+    static ShitStream OpenFile(string path, string mode = "r") {
         return new ShitStream(File(path, mode));
     }
 }
@@ -415,6 +412,7 @@ class SliceStream : Stream {
     }
 }
 
+/+
 //add seek functionality to a non-seekable stream
 //when seeking outside the buffer area, the stream will be recreated
 //xxx holy stupidity xD
@@ -549,3 +547,4 @@ class MemoryStream : Stream {
     }
 }
 
++/

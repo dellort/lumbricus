@@ -2,7 +2,7 @@ module physics.world;
 
 import framework.drawing;
 
-import tango.math.Math : sqrt, PI;
+import std.math;
 import utils.misc;
 import utils.array;
 import utils.list2;

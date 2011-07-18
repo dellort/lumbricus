@@ -9,7 +9,8 @@ import utils.log;
 import utils.path;
 import utils.archive;
 
-//import tango.sys.Environment;
+import std.file;
+import std.process;
 
 FileSystem gFS;
 
@@ -27,6 +28,10 @@ class FilesystemException : CustomException {
     this(string m) {
         super(m);
     }
+}
+
+bool is_read_mode(string mode) {
+    return str.startsWith(mode, "r");
 }
 
 ///return true if dir exists and is a directory, false otherwise
@@ -74,7 +79,7 @@ private abstract class HandlerInstance {
     ///check if this path is valid (it does not have to contain files)
     abstract bool pathExists(VFSPath handlerPath);
 
-    abstract Stream open(VFSPath handlerPath, File.Style mode);
+    abstract Stream open(VFSPath handlerPath, string mode);
 
     ///list the files (no dirs) in the path handlerPath (relative to handler
     ///object)
@@ -83,7 +88,7 @@ private abstract class HandlerInstance {
     ///if findDir is true, also find directories
     ///if callback returns false, you should abort and return false too
     abstract bool listdir(VFSPath handlerPath, string pattern, bool findDir,
-        bool delegate(string filename) callback);
+        scope bool delegate(string filename) callback);
 
     abstract void close();
 }
@@ -98,6 +103,7 @@ private class MountPointHandlerDirectory : MountPointHandler {
         if (canHandle(absPath)) {
             return new HandlerDirectory(absPath);
         }
+        return null;
     }
 
     static this() {
@@ -152,7 +158,8 @@ private class HandlerDirectory : HandlerInstance {
 
     Stream open(VFSPath handlerPath, string mode) {
         log("Handler for '{}': Opening '{}'",mDirPath, handlerPath);
-        if (mode.open != File.Open.Exists) {
+        //if (mode.open != File.Open.Exists) {
+        if (!is_read_mode(mode)) {
             //make sure path exists
             createPath(handlerPath.parent);
         }
@@ -164,7 +171,7 @@ private class HandlerDirectory : HandlerInstance {
     }
 
     bool listdir(VFSPath handlerPath, string pattern, bool findDirs,
-        bool delegate(string filename) callback)
+        scope bool delegate(string filename) callback)
     {
         string searchPath = handlerPath.makeAbsolute(mDirPath);
 
@@ -350,8 +357,8 @@ private class MountPointHandlerArchive : MountPointHandler {
         ArchiveReader archive;
         if (fmt == "tar") {
             archive = new TarArchive(archFile, true);
-        } else if (fmt == "zip") {
-            archive = new ZipArchiveReader(archFile);
+        //} else if (fmt == "zip") {
+        //    archive = new ZipArchiveReader(archFile);
         } else {
             throw new FilesystemException(fmt ~ ": unsupported archive format");
         }
@@ -392,14 +399,14 @@ private class HandlerArchive : HandlerInstance {
         return mArchive.pathExists(handlerPath);
     }
 
-    Stream open(VFSPath handlerPath, File.Style mode) {
+    Stream open(VFSPath handlerPath, string mode) {
         return mArchive.openReadStream(handlerPath);
     }
 
     //this is so complicated because ArchiveReader only lists file, while
     //  we also want to list directories
     bool listdir(VFSPath handlerPath, string pattern, bool findDir,
-        bool delegate(string filename) callback)
+        scope bool delegate(string filename) callback)
     {
         bool[string] dirCache;
         foreach (VFSPath cur; mArchive) {
@@ -462,13 +469,13 @@ private class HandlerLink : HandlerInstance {
         return mParent.pathExists(mLinkedPath.join(handlerPath), this);
     }
 
-    Stream open(VFSPath handlerPath, File.Style mode) {
+    Stream open(VFSPath handlerPath, string mode) {
         log("Link: open({})",handlerPath);
         return mParent.open(mLinkedPath.join(handlerPath), mode, this);
     }
 
     bool listdir(VFSPath handlerPath, string pattern, bool findDirs,
-        bool delegate(string filename) callback)
+        scope bool delegate(string filename) callback)
     {
         return mParent.listdir(mLinkedPath.join(handlerPath), pattern, findDirs,
             callback, this);
@@ -535,8 +542,8 @@ class FileSystem {
             }
 
             ///Check if this mountPoint supports opening files with mode
-            public bool matchesMode(File.Style mode) {
-                return (mode.access == File.Access.Read || isWritable);
+            public bool matchesMode(string mode) {
+                return (is_read_mode(mode) || isWritable);
             }
         }
 
@@ -602,7 +609,7 @@ class FileSystem {
         string os_appid = appId;
         version(Windows) {
             //windows: Docs & Settings\AppData\Lumbricus
-            //home = Environment.get("APPDATA");
+            //home = getenv("APPDATA");
             //no, rather use My Documents\Lumbricus
             home = getSpecialPath(CSIDL_PERSONAL);
             //Uppercase (MS users like it that way)
@@ -611,7 +618,7 @@ class FileSystem {
         } else {
             //linux: ~/.lumbricus
             //XXXTANGO fix
-            home = "/home/vlx";
+            home = getenv("/home/vlx");
             //home = Environment.get("HOME");
             os_appid = "." ~ os_appid;
         }
@@ -625,7 +632,7 @@ class FileSystem {
         //try to create user directory
         try {
             tpath.mkdirRecurse(userPath);
-        } catch (IOException e) {
+        } catch {
             //directory already exists, do nothing
         }
         return userPath;
@@ -683,7 +690,7 @@ class FileSystem {
     {
         //get absolute path to object, considering mp
         string absPath;
-        switch (mp) {
+        final switch (mp) {
             case MountPath.data:
                 if (!mDataPath.length)
                     throw new FilesystemException("no app filesystem");
@@ -841,21 +848,23 @@ class FileSystem {
     ///  relFilename = path to the file, relative to VFS root
     ///  mode = how the file should be opened
     //need to make caller parameter public
-    public Stream open(VFSPath filename, File.Style mode = File.ReadShared,
+    public Stream open(VFSPath filename, string mode = "r",
         HandlerInstance caller = null)
     {
         log("Trying to open '{}'",filename);
         //always shared reading
-        if (mode.share == File.Share.None)
-            mode.share = File.Share.Read;
-        foreach (inout MountedPath p; mMountedPaths) {
+        //XXXTANGO: what the hell is this?
+        //if (mode.share == File.Share.None)
+        //    mode.share = File.Share.Read;
+        foreach (ref MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
             if (p.matchesPath(filename) && p.matchesMode(mode)) {
                 log("Found matching handler");
                 VFSPath handlerPath = p.getHandlerPath(filename);
                 if (p.handler.exists(handlerPath)
-                    || (mode.open != File.Open.Exists)) {
+                    //|| (mode.open != File.Open.Exists)) {
+                    || (!is_read_mode(mode))) {
                     //the file exists, or a new file should be created
                     return p.handler.open(handlerPath, mode);
                 }
@@ -864,7 +873,7 @@ class FileSystem {
         throw new FilesystemException("File not found: " ~ filename.toString);
     }
 
-    public Stream open(string filename, File.Style mode = File.ReadShared)
+    public Stream open(string filename, string mode = "r")
     {
         return open(VFSPath(filename), mode, null);
     }
@@ -876,22 +885,22 @@ class FileSystem {
     ///Returns:
     /// false if listing was aborted, true otherwise
     public bool listdir(VFSPath relPath, string pattern, bool findDirs,
-        bool delegate(string filename) callback)
+        scope bool delegate(string filename) callback)
     {
         return listdir(relPath, pattern, findDirs, callback, null);
     }
 
     public bool listdir(string relPath, string pattern, bool findDirs,
-        bool delegate(string filename) callback)
+        scope bool delegate(string filename) callback)
     {
         return listdir(VFSPath(relPath), pattern, findDirs, callback);
     }
 
     protected bool listdir(VFSPath relPath, string pattern, bool findDirs,
-        bool delegate(string filename) callback, HandlerInstance caller)
+        scope bool delegate(string filename) callback, HandlerInstance caller)
     {
         bool cont = true;
-        foreach (inout MountedPath p; mMountedPaths) {
+        foreach (ref MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
             if (p.matchesPathForList(relPath)) {
@@ -922,7 +931,7 @@ class FileSystem {
     }
 
     protected bool exists(VFSPath filename, HandlerInstance caller) {
-        foreach (inout MountedPath p; mMountedPaths) {
+        foreach (ref MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
             if (p.matchesPath(filename)) {
@@ -955,7 +964,7 @@ class FileSystem {
     }
 
     protected bool pathExists(VFSPath relPath, HandlerInstance caller) {
-        foreach (inout MountedPath p; mMountedPaths) {
+        foreach (ref MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
             if (p.matchesPathForList(relPath)) {
@@ -978,7 +987,7 @@ class FileSystem {
     }
 
     protected bool pathIsWritable(VFSPath relPath, HandlerInstance caller) {
-        foreach (inout MountedPath p; mMountedPaths) {
+        foreach (ref MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
             if (p.matchesPathForList(relPath)) {

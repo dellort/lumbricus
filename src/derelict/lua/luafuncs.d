@@ -65,10 +65,10 @@ extern (C)
   void  function(lua_State *L) lua_pushnil;
   void  function(lua_State *L, lua_Number n) lua_pushnumber;
   void  function(lua_State *L, lua_Integer n) lua_pushinteger;
-  void  function(lua_State *L,  char *s, size_t l) lua_pushlstring;
-  void  function(lua_State *L,  char *s) lua_pushstring;
-  char *function(lua_State *L,  char *fmt, va_list argp) lua_pushvfstring;
-  char *function(lua_State *L,  char *fmt, ...) lua_pushfstring;
+  void  function(lua_State *L,  const char *s, size_t l) lua_pushlstring;
+  void  function(lua_State *L,  const char *s) lua_pushstring;
+  char *function(lua_State *L,  const char *fmt, va_list argp) lua_pushvfstring;
+  char *function(lua_State *L,  const char *fmt, ...) lua_pushfstring;
   void  function(lua_State *L, lua_CFunction fn, int n) lua_pushcclosure;
   void  function(lua_State *L, int b) lua_pushboolean;
   void  function(lua_State *L, void *p) lua_pushlightuserdata;
@@ -78,7 +78,7 @@ extern (C)
    ** get functions (Lua -> stack)
    */
   void  function(lua_State *L, int idx) lua_gettable;
-  void  function(lua_State *L, int idx, char *k) lua_getfield;
+  void  function(lua_State *L, int idx, const char *k) lua_getfield;
   void  function(lua_State *L, int idx) lua_rawget;
   void  function(lua_State *L, int idx, int n) lua_rawgeti;
   void  function(lua_State *L, int narr, int nrec) lua_createtable;
@@ -90,7 +90,7 @@ extern (C)
    ** set functions (stack -> Lua)
    */
   void  function(lua_State *L, int idx) lua_settable;
-  void  function(lua_State *L, int idx, char *k) lua_setfield;
+  void  function(lua_State *L, int idx, const char *k) lua_setfield;
   void  function(lua_State *L, int idx) lua_rawset;
   void  function(lua_State *L, int idx, int n) lua_rawseti;
   int   function(lua_State *L, int objindex) lua_setmetatable;
@@ -102,7 +102,7 @@ extern (C)
   void function(lua_State *L, int nargs, int nresults) lua_call;
   int  function(lua_State *L, int nargs, int nresults, int errfunc) lua_pcall;
   int  function(lua_State *L, lua_CFunction func, void *ud) lua_cpcall;
-  int  function(lua_State *L, lua_Reader reader, void *dt, char *chunkname) lua_load;
+  int  function(lua_State *L, lua_Reader reader, void *dt, const char *chunkname) lua_load;
   int  function(lua_State *L, lua_Writer writer, void *data) lua_dump;
 
   /*
@@ -132,7 +132,7 @@ extern (C)
   /* Functions to be called by the debugger in specific events */
 
   int  function(lua_State *L, int level, lua_Debug *ar) lua_getstack;
-  int  function(lua_State *L,  char *what, lua_Debug *ar) lua_getinfo;
+  int  function(lua_State *L,  const char *what, lua_Debug *ar) lua_getinfo;
   char * function(lua_State *L,  lua_Debug *ar, int n) lua_getlocal;
   char * function(lua_State *L,  lua_Debug *ar, int n) lua_setlocal;
   char * function(lua_State *L, int funcindex, int n) lua_getupvalue;
@@ -155,7 +155,7 @@ void lua_pop(lua_State *L, int n) { lua_settop(L, -n-1); }
 
 void lua_newtable(lua_State *L) { lua_createtable(L, 0, 0); }
 
-void lua_register(lua_State *L, char *n, lua_CFunction f)
+void lua_register(lua_State *L, const char *n, lua_CFunction f)
 {
   lua_pushcfunction(L, f);
   lua_setglobal(L, n);
@@ -181,8 +181,8 @@ void lua_pushliteral(lua_State *L, string s)
   lua_pushlstring(L, s.ptr, s.length);
 }
 
-void lua_setglobal(lua_State *L, char *s) { lua_setfield(L, LUA_GLOBALSINDEX, s); }
-void lua_getglobal(lua_State *L, char *s) { lua_getfield(L, LUA_GLOBALSINDEX, s); }
+void lua_setglobal(lua_State *L, const char *s) { lua_setfield(L, LUA_GLOBALSINDEX, s); }
+void lua_getglobal(lua_State *L, const char *s) { lua_getfield(L, LUA_GLOBALSINDEX, s); }
 
 char* lua_tostring(lua_State* L, int i) { return lua_tolstring(L, i, null); }
 

@@ -9,7 +9,6 @@ import wwptools.image;
 import utils.stream;
 import str = utils.string;
 import utils.configfile;
-import conv = tango.util.Convert;
 import utils.log;
 import utils.math;
 import utils.misc;
@@ -472,7 +471,7 @@ RawAnimation[] getSimple(RawAnimation[] animations, char[] val, int n, int x) {
         n = strs.length;
     RawAnimation[] res;
     foreach (s; strs) {
-        auto z = conv.to!(int)(s);
+        auto z = fromStr!(int)(s);
         for (int i = 0; i < x; i++)
             res ~= getAnimation(animations, z + i);
     }

@@ -6,7 +6,6 @@ import utils.log;
 import utils.misc;
 
 import str = utils.string;
-import tango.util.Convert;
 
 //entry in matrix that defines how a collision should be handled
 //for other uses than contact generation (like triggers), any value >0

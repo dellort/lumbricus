@@ -47,6 +47,7 @@ int wrapMain(string[] args, void function(string[]) realmain) {
     } catch (Exception e) {
         version(LogExceptions) {
             //catch all exceptions, write them to logfile/console and exit
+            /+ XXXTANGO
             e.writeOut((string s) {
                 //logfile output
                 if (gLogFileSink)
@@ -54,6 +55,7 @@ int wrapMain(string[] args, void function(string[]) realmain) {
                 //console output
                 Trace.write(s);
             });
+            +/
             return 1;
         } else {
             //leave it to the D runtime
@@ -88,7 +90,7 @@ private {
 //write bytes into the logfile (null if no logfile open)
 //at initialization time, may be temporarily set to logToFileTmp
 //if logfile writing is disabled, this is null
-void delegate(string) gLogFileSink;
+void delegate(in char[]) gLogFileSink;
 
 static this() {
     gLogBackendFile = new LogBackend("logfile/console", LogPriority.Trace,
@@ -107,12 +109,12 @@ private void changeLogOpt(Setting s) {
     gLogBackendFile.enabled = gLogToFile.get() || gLogToConsole.get();
 }
 
-private void logToFileTmp(string s) {
+private void logToFileTmp(in char[] s) {
     gLogFileTmp ~= s;
 }
 
 private void logToConsoleAndFile(LogEntry e) {
-    void sink(string s) {
+    void sink(in char[] s) {
         if (gLogFileSink && gLogToFile.get())
             gLogFileSink(s);
         //Trace uses stderr
@@ -160,14 +162,15 @@ void init(string[] args) {
         gLogInit.minor("opening logfile: {}", logpath);
         //NOTE: on Linux, will just overwrite a logfile (even if it's open by
         //  another process)
-        const File.Style WriteCreateShared =
-            {File.Access.Write, File.Open.Create, File.Share.Read};
+        //XXXTANGO: phobos2 uses libc stdio, so we won't get this so soon
+        //const File.Style WriteCreateShared =
+        //    {File.Access.Write, File.Open.Create, File.Share.Read};
         try {
-            auto logf = gFS.open(logpath, WriteCreateShared);
+            auto logf = gFS.open(logpath, "w");
             //Closure just for converting write(ubyte[]) to sink(string)...
             struct Closure {
                 stream.PipeOut writer;
-                void sink(string s) {
+                void sink(in char[] s) {
                     writer.write(cast(ubyte[])s);
                 }
             }

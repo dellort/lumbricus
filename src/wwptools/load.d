@@ -18,6 +18,7 @@ import utils.log;
 import utils.misc;
 import utils.path;
 import utils.stream;
+import utils.strparser;
 import wwptools.animconv;
 import wwptools.image;
 import wwptools.untile;
@@ -28,7 +29,6 @@ import wwpdata.reader_dir;
 import wwpdata.reader_spr;
 
 import str = utils.string;
-import conv = tango.util.Convert;
 
 //bad dependency? it really just registers a delegate
 import game.gfxset : LoadedWater, gWaterLoadHack;
@@ -124,7 +124,7 @@ private Color readWaterFile(char[] vpath) {
     auto cols = str.split(lines[0]);
     require(cols.length == 3, "colour.txt doesn't contain 3 colors?");
     //xxx ignoring "fatal" conversion exception
-    auto colRGB = conv.to!(ubyte[])(cols);
+    auto colRGB = fromStr!(ubyte[])(cols);
     return Color.fromBytes(colRGB[0], colRGB[1], colRGB[2]);
 }
 

@@ -6,7 +6,7 @@ import utils.misc;
 import utils.rect2;
 import utils.vector2;
 
-import tango.math.Math: sqrt;
+import std.math;
 
 //this may be handy:
 //  http://www.realtimerendering.com/intersections.html

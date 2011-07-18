@@ -1,8 +1,7 @@
 //maybe rename to physics.shapes
 module physics.plane;
 
-import math = tango.math.Math;
-import ieee = tango.math.IEEE;
+import std.math;
 import utils.rect2;
 import utils.vector2;
 import utils.misc;
@@ -35,7 +34,7 @@ struct Plane {
         //mNormal*(start + dir*x) = mDistance;
         //mNormal*start + (mNormal*dir)*x = mDistance;
         auto div = mNormal*dir;
-        if (math.abs(div) < float.epsilon)
+        if (abs(div) < float.epsilon)
             return false;
         auto x = (mDistance - mNormal*start) / div;
         if (x >= 0f && x <= 1f) {
@@ -95,9 +94,9 @@ struct Ray {
 
         float q;
         if (b < 0)
-            q = (-b - math.sqrt(disc))/2.0f;
+            q = (-b - sqrt(disc))/2.0f;
         else
-            q = (-b + math.sqrt(disc))/2.0f;
+            q = (-b + sqrt(disc))/2.0f;
 
         float t0 = q;
         float t1 = c/q;
@@ -140,7 +139,7 @@ struct Line {
         auto qlen = to_obj.quad_length;
         if (qlen >= radius*radius)
             return false;
-        auto len = math.sqrt(qlen);
+        auto len = sqrt(qlen);
         //stuck, same hack as in glevel.d
         if (len != len || len < float.epsilon) {
             depth = float.infinity;

@@ -2,10 +2,7 @@ module utils.vector2;
 
 import strparser = utils.strparser;
 import str = utils.string;
-import math = tango.math.Math;
-import ieee = tango.math.IEEE;
-import tango.util.Convert : to, ConversionException;
-
+import std.math;
 
 public struct Vector2(T) {
     T x = 0;
@@ -38,7 +35,7 @@ public struct Vector2(T) {
     }
 
     public static Vector2 fromPolar(T length, T angle) {
-        return Vector2(cast(T)math.cos(angle*1.0), cast(T)math.sin(angle*1.0))*length;
+        return Vector2(cast(T)cos(angle*1.0), cast(T)sin(angle*1.0))*length;
     }
 
     public Vector2 X() {
@@ -127,7 +124,7 @@ public struct Vector2(T) {
     }
 
     public T length() {
-        return cast(T)math.sqrt(cast(real)(x*x + y*y));
+        return cast(T)sqrt(cast(real)(x*x + y*y));
     }
 
     //doesn't make any sense with T==int
@@ -141,12 +138,12 @@ public struct Vector2(T) {
     }
 
     public Vector2 abs() {
-        return Vector2(cast(T)math.abs(x), cast(T)math.abs(y));
+        return Vector2(cast(T).abs(x), cast(T).abs(y));
     }
 
     public Vector2 clipAbsEntries(Vector2 clip) {
-        return Vector2((math.abs(x) > clip.x)?cast(T)ieee.copysign(clip.x, x):x,
-            (math.abs(y) > clip.y)?cast(T)ieee.copysign(clip.y, y):y);
+        return Vector2((.abs(x) > clip.x)?cast(T)copysign(clip.x, x):x,
+            (.abs(y) > clip.y)?cast(T)copysign(clip.y, y):y);
     }
 
     //return vector with entry-wise maxima of this and other
@@ -159,30 +156,30 @@ public struct Vector2(T) {
 
     public void length(T new_length) {
         //xxx might be numerically stupid (especially with integers...)
-        *this = normal*new_length;
+        this = normal*new_length;
     }
 
     //if "this" is a normal, return angle to X axis in radians
     //useful for T==float only
     public T toAngle() {
-        return cast(T)math.atan2(y,x);
+        return cast(T)atan2(cast(real)y,cast(real)x);
     }
 
     public void add_length(T add) {
-        *this = normal*(length+add);
+        this = normal*(length+add);
     }
 
     //given a line by start+t*dir, return a point that's on the line and that's
     //nearest to this (the projection of this on the line)
     public Vector2 project_on(Vector2 start, Vector2 dir) {
         Vector2 n = dir.orthogonal.normal;
-        T t = (start - *this) * n;
-        return *this+n*t;
+        T t = (start - this) * n;
+        return this+n*t;
     }
 
     //get distance of this to the (infinite) line, see project_on
     public T distance_from(Vector2 start, Vector2 dir) {
-        return (*this - project_on(start, dir)).length;
+        return (this - project_on(start, dir)).length;
     }
 
     //like project_on(), but given a line by start+t*dir, return the point
@@ -199,24 +196,24 @@ public struct Vector2(T) {
     }
 
     public T distance_from_clipped(Vector2 start, Vector2 dir) {
-        return (*this - project_on_clipped(start, dir)).length;
+        return (this - project_on_clipped(start, dir)).length;
     }
 
     //return t so that: start+t*dir = this
     T get_line_index(Vector2 start, Vector2 dir) {
-        return ((*this - start) * dir) / dir.quad_length;
+        return ((this - start) * dir) / dir.quad_length;
     }
 
     //return the projected component of this on the vector other
     Vector2 project_vector(Vector2 other) {
         T len = other.length;
-        return (*this * other)/(len * len) * other;
+        return (this * other)/(len * len) * other;
     }
 
     //faster for project_vector(other).length
     T project_vector_len(Vector2 other) {
         T len = other.length;
-        return (*this * other)/len;
+        return (this * other)/len;
     }
 
     //if point is inside the rect formed by pos and size
@@ -229,18 +226,18 @@ public struct Vector2(T) {
     public Vector2 rotated(T angle_rads) {
         // | 11 12 |
         // | 21 22 |
-        T mat11 = cast(T)math.cos(angle_rads*1.0);
-        T mat21 = cast(T)math.sin(angle_rads*1.0);
+        T mat11 = cast(T)cos(angle_rads*1.0);
+        T mat21 = cast(T)sin(angle_rads*1.0);
         T mat12 = -mat21;
         T mat22 = mat11;
 
         return Vector2(mat11*x + mat12*y, mat21*x + mat22*y);
     }
 
-    public void swap(inout Vector2 other) {
+    public void swap(ref Vector2 other) {
         Vector2 tmp = other;
-        other = *this;
-        *this = tmp;
+        other = this;
+        this = tmp;
     }
 
     //don't ask
@@ -278,7 +275,7 @@ public struct Vector2(T) {
     }
 
     public string fromStringRev() {
-        return to!(string)(x1) ~ ' ' ~ to!(string)(x2);
+        return strparser.toStr(x1) ~ ' ' ~ strparser.toStr(x2);
     }
 
     public string toString() {

@@ -6,33 +6,21 @@ import utils.misc;
 /// text streams, so we have to do it)
 //xxx maybe replace this interface by a handy class, so the number of interface
 //functions could be kept to a minimum (i.e. only writeString())
-public interface Output {
-    void writef(string fmt, ...);
-    void writefln(string fmt, ...);
-    void writef_ind(bool newline, string fmt, TypeInfo[] arguments,
-        va_list argptr);
-    void writeString(string str);
+public class Output {
+    void writef(T...)(string fmt, T args) { writef_ind(false, fmt, args); }
+    void writefln(T...)(string fmt, T args) { writef_ind(true, fmt, args); }
+    void writef_ind(T...)(bool newline, string fmt, T args) {
+        myformat_cb(&writeString, fmt, args);
+        if (newline)
+            writeString("\n");
+    }
+    abstract void writeString(in char[] str);
 }
 
 /// A helper for implementers only, users shall use interface Output instead.
 /// implements everything except writeString
 public class OutputHelper : Output {
-    char[200] buffer;
-
-    void writef(string fmt, ...) {
-        writef_ind(false, fmt, _arguments, _argptr);
-    }
-    void writefln(string fmt, ...) {
-        writef_ind(true, fmt, _arguments, _argptr);
-    }
-    void writef_ind(bool newline, string fmt, TypeInfo[] arguments,
-        va_list argptr)
-    {
-        writeString(myformat_s_fx(buffer, fmt, arguments, argptr));
-        if (newline)
-            writeString("\n");
-    }
-    abstract void writeString(string str);
+    //abstract void writeString(string str);
 }
 
 /// Implements the Output interface and writes all text into a string variable.

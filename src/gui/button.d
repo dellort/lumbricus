@@ -240,13 +240,8 @@ class ButtonBase : Widget {
     void setText(bool as_markup, string txt) {
         getLabel().setText(as_markup, txt);
     }
-    void setTextFmt(bool as_markup, string fmt, ...) {
-        setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
-    }
-    void setTextFmt_fx(bool as_markup, string fmt,
-        TypeInfo[] arguments, va_list argptr)
-    {
-        getLabel().setTextFmt_fx(as_markup, fmt, arguments, argptr);
+    void setTextFmt(T...)(bool as_markup, string fmt, T args) {
+        getLabel().setTextFmt(as_markup, fmt, args);
     }
     //returns an empty string if no label set (never throws an exception)
     string text() {

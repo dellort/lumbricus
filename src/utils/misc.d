@@ -2,10 +2,24 @@ module utils.misc;
 
 import std.stdio;
 import std.format;
+import pstr = std.string;
 import std.intrinsic;
+
+import std.c.string;
 
 public import std.algorithm : min, max;
 import std.math : abs;
+
+import std.conv;
+
+const(char*) toStringz(const(char)[] s) {
+    //return to!(char*)(s);
+    //XXXTANGO I wonder if this is safe
+    return (s ~ '\0').ptr;
+}
+const(char[]) fromStringz(const char* s) {
+    return s ? s[0..strlen(s)] : null;
+}
 
 //because printf debugging is common and usefull
 //public import tango.util.log.Trace : Trace;
@@ -15,7 +29,7 @@ import std.math : abs;
 //  robust, and it is 2726 lines shorter)
 class Trace {
 
-    static void write(string s) {
+    static void write(in char[] s) {
         stderr.write(s);
     }
     static void flush() {
@@ -35,7 +49,13 @@ class Trace {
     }
 
     private static void doprint(T...)(string fmt, T args) {
-        formattedWrite(stderr, fmt, args);
+        struct Retarded {
+            void put(const char[] s) {
+                write(s);
+            }
+        }
+        Retarded r;
+        formattedWrite(r, fmt, args);
     }
 }
 
@@ -51,9 +71,9 @@ class Trace {
 //  that converting a TempString to string requires a .dup
 //  => string should be implicitly conversible to TempString
 struct TempString {
-    string raw;
+    char[] raw;
     //for the dumb
-    string get() { return raw.dup; }
+    string get() { return raw.idup; }
 }
 
 //behave mathematically correctly for negative values
@@ -65,7 +85,7 @@ T realmod(T)(T a, T m) {
     return res;
 }
 
-void swap(T)(inout T a, inout T b) {
+void swap(T)(ref T a, ref T b) {
     T t = a;
     a = b;
     b = t;
@@ -131,7 +151,7 @@ out (res) {
     assert(value < (1<<(res+1)));
 }
 body {
-    return intr.bsr(value);
+    return bsr(value);
 }
 
 /// Cast object in t to type T, and throw exception if not possible.
@@ -166,22 +186,26 @@ R delegate(T) toDelegate(R, T...)(R function(T) fn) {
     return &res.call;
 }
 
-string myformat_fx(string a_fmt, TypeInfo[] arguments, va_list argptr) {
-    return Format.convert(arguments, argptr, a_fmt);
-}
-
 //replacement for stdx.string.format()
 //trivial, but Tango really is annoyingly noisy
 //should be in utils.string, but ugh the required changes
 string myformat(T...)(string fmt, T args) {
-    return format(fmt, args);
+    return pstr.format(fmt, args);
 }
 
 //like myformat(), but use the buffer
 //if the buffer is too small, allocate a new one
 string myformat_s(T...)(char[] buffer, string fmt, T args) {
-    //XXXTANGO avoid heap allocation
+    //XXXTANGO avoid heap allocation maybe use std.range.Appender
     return myformat(fmt, args);
+}
+
+void myformat_cb(T...)(scope void delegate(in char[] s) sink, string fmt, T args) {
+    struct Bloat {
+        void put(in char[] s) { sink(s); }
+    }
+    Bloat b;
+    formattedWrite(b, fmt, args);
 }
 
 //functions cannot return static arrays, so this gets the equivalent
@@ -364,7 +388,7 @@ private template StructMemberNames(T) {
 //similar to structProcName; return an array of all members
 //unlike structProcName, this successfully works around dmd bug 2881
 //this should actually be implemented using __traits (only available in D2)
-string[] structMemberNames(T)() {
+const(string[]) structMemberNames(T)() {
     //the template is to cache the result (no idea if that works as intended)
     return StructMemberNames!(T).StructMemberNames;
 }
@@ -391,7 +415,7 @@ unittest {
         int muh;
         bool fool;
     }
-    string[] names = structMemberNames!(Foo)();
+    auto names = structMemberNames!(Foo)();
     assert(names == ["muh"[], "fool"]);
 }
 
@@ -406,8 +430,8 @@ class CustomException : Exception {
 }
 
 //I got tired of retyping throw new CustomException...
-void throwError(string fmt, ...) {
-    throw new CustomException(myformat_fx(fmt, _arguments, _argptr));
+void throwError(T...)(string fmt, T args) {
+    throw new CustomException(myformat(fmt, args));
 }
 
 //like assert(), but throw a recoverable CustomException on failure
@@ -421,10 +445,10 @@ void throwError(string fmt, ...) {
 //  argcheck(): same as require(), but hint to the user that something is wrong
 //      with the parameters passed to the function.
 //  throwError()/CustomException: really the same as require().
-void require(bool cond, string msg = "Something went wrong.", ...) {
+void require(T...)(bool cond, string msg, T args) {
     if (cond)
         return;
-    throw new CustomException(myformat_fx(msg, _arguments, _argptr));
+    throw new CustomException(myformat(msg, args));
 }
 
 //exception thrown by argcheck

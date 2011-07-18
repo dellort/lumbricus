@@ -1,8 +1,7 @@
 module utils.interpolate;
 
 import utils.time;
-import math = tango.math.Math;
-import tango.core.Traits : ParameterTupleOf;
+import std.math;
 
 typedef int Missing;
 
@@ -28,7 +27,7 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
     private float mappingFunc(float value) {
         //the mapping function may take the total interpolation time as
         //  second parameter
-        static if (is(ParameterTupleOf!(FN)[1])) {
+        static if (is(ParameterTypeTuple!(FN)[1])) {
             return FN(value, duration);
         } else {
             return FN(value);
@@ -93,8 +92,8 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
 //we need the inverse function of FN for this
 static if (!is(FN_1 == Missing)) {
     private float mappingFuncInv(float value) {
-        static if (is(ParameterTupleOf!(FN)[1])) {
-            static assert(is(ParameterTupleOf!(FN_1)[1]), "Mapping function"
+        static if (is(ParameterTypeTuple!(FN)[1])) {
+            static assert(is(ParameterTypeTuple!(FN_1)[1]), "Mapping function"
                 " and inverse function need to have same signature");
             return FN_1(value, duration);
         } else {
@@ -172,7 +171,7 @@ float interpExponential(float A)(float x) {
         //this graphs amazingly similar to the old one, but is
         //  much easier to invert
         //only drawback is it fails for A == 0, use interpLinear() then
-        return (1.0f - (math.exp(-A * x))) / (1.0f - (math.exp(-A)));
+        return (1.0f - (exp(-A * x))) / (1.0f - (exp(-A)));
     }
 }
 float interpExponential_1(float A)(float x) {
@@ -180,7 +179,7 @@ float interpExponential_1(float A)(float x) {
         return x;
     } else {
         //thx maple ;)
-        return 1.0f - math.log(x + (1.0f - x)*math.exp(A))/A;
+        return 1.0f - log(x + (1.0f - x)*exp(A))/A;
     }
 }
 
@@ -196,13 +195,13 @@ template InterpolateExp(T, float A = 4.5f) {
 //looks like this:   | 0.0 slow ... fast 0.5 fast ... slow 1.0 |
 float interpExponential2(float A)(float x) {
     auto dir = x < 0.5f;
-    auto res = (interpExponential!(A)(math.abs(2*x-1)) + 1) / 2;
+    auto res = (interpExponential!(A)(abs(2*x-1)) + 1) / 2;
     return dir ? 1 - res : res;
 }
 float interpExponential2_1(float A)(float x) {
     auto dir = x < 0.5f;
     //xxx: is it really that easy? looks right in the plotter
-    auto res = (interpExponential_1!(A)(math.abs(2*x-1)) + 1) / 2;
+    auto res = (interpExponential_1!(A)(abs(2*x-1)) + 1) / 2;
     return dir ? 1 - res : res;
 }
 

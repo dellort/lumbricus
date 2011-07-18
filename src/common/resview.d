@@ -30,7 +30,7 @@ import utils.misc;
 import utils.time;
 import utils.vector2;
 
-import tango.math : PI;
+import std.math;
 import str = utils.string;
 
 import game.animation;

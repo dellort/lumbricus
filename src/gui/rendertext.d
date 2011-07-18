@@ -16,7 +16,6 @@ import utils.vector2;
 import time = utils.time;
 import strparser = utils.strparser;
 import str = utils.string;
-import math = tango.math.Math;
 import marray = utils.array;
 
 //line breaking mode for FormattedText
@@ -757,17 +756,11 @@ public class FormattedText {
     //  work is done (and if the string is small and the format string doesn't
     //  trigger any toString()s, no memory is allocated)
     //returns if the text was changed (if not, the text was the same)
-    bool setTextFmt(bool as_markup, string fmt, ...) {
-        return setTextFmt_fx(as_markup, fmt, _arguments, _argptr);
-    }
-
-    bool setTextFmt_fx(bool as_markup, string fmt,
-        TypeInfo[] arguments, va_list argptr)
-    {
+    bool setTextFmt(T...)(bool as_markup, string fmt, T args) {
         //tries not to change anything if the text to be set is the same
 
         char[80] buffer = void;
-        string res = myformat_s_fx(buffer, fmt, arguments, argptr);
+        string res = myformat_s(buffer, fmt, args);
         bool r = setTextCopy(as_markup, TempString(res));
         //formatfx_s allocates on the heap if buffer isn't big enough
         //delete the buffer if it was heap-allocated
