@@ -4,18 +4,18 @@ module net.marshal;
 
 import utils.misc;
 
-import tango.core.Traits;
-import tango.core.ByteSwap;
+import std.traits;
 
 import marray = utils.array;
 import str = utils.string;
-import base64 = tango.util.encode.Base64; //lol
+import std.base64;
+import core.bitop;
 
 //data is always written as big endian aka network byteorder
 version (BigEndian) {
-    private const bool cSwapBytes = false;
+    private enum bool cSwapBytes = false;
 } else version (LittleEndian) {
-    private const bool cSwapBytes = true;
+    private enum bool cSwapBytes = true;
 } else {
     static assert(false, "no endian");
 }
@@ -23,13 +23,18 @@ version (BigEndian) {
 //do byte swapping, can be used to convert big <=> little endian
 //xxx: could be extended to write arrays
 void swapBytes(T)(ref T data) {
+    //NOTE: core.bitop.bswap is apparently 32 bit (uint) only
     static if (T.sizeof <= 1) {
     } else static if (T.sizeof == 2) {
-        ByteSwap.swap16(&data, 2);
+        ushort udata = cast(ushort)data;
+        data = cast(T)((udata >> 8) | (udata << 8));
     } else static if (T.sizeof == 4) {
-        ByteSwap.swap32(&data, 4);
+        data = cast(T)(bswap(cast(uint)data));
     } else static if (T.sizeof == 8) {
-        ByteSwap.swap64(&data, 8);
+        ulong udata = cast(ulong)data;
+        uint hi = udata >> 32;
+        uint lo = udata & uint.max;
+        data = cast(T)(bswap(hi) | ((cast(ulong)bswap(lo)) << 32));
     } else {
         static assert(false);
     }
@@ -61,9 +66,11 @@ struct Marshaller {
             writeArray!(T)(data);
         } else static if (is(T T2 == enum)) {
             write!(T2)(cast(T2)data);
-        } else static if (isIntegerType!(T) || isRealType!(T)) {
+        } else static if (isIntegral!(T) || isFloatingPoint!(T)) {
             writeNumeric!(T)(data);
-        } else static if (is(T == char)) {
+        } else static if (is(T == char) || is(T == immutable(char))
+            || is(T == const(char)))
+        {
             write!(ubyte)(data);
         } else static if (is(T == bool)) {
             write!(ubyte)(data ? 1 : 0);
@@ -77,7 +84,7 @@ struct Marshaller {
     }
 
     private void writeArray(T)(T data) {
-        static if (isDynamicArrayType!(T)) {
+        static if (isDynamicArray!(T)) {
             //always write as uint (length is size_t; usually uint or ulong)
             write!(uint)(data.length);
         }
@@ -129,9 +136,11 @@ struct Unmarshaller {
             if (tmp < T.min || tmp > T.max)
                 throw new UnmarshalException("enum out of bounds");
             return tmp;
-        } else static if (isIntegerType!(T) || isRealType!(T)) {
+        } else static if (isIntegral!(T) || isFloatingPoint!(T)) {
             return readNumeric!(T)();
-        } else static if (is(T == char)) {
+        } else static if (is(T == char) || is(T == immutable(char))
+            || is(T == const(char)))
+        {
             return read!(ubyte)();
         } else static if (is(T == bool)) {
             return !!read!(ubyte)();
@@ -139,12 +148,7 @@ struct Unmarshaller {
             T ret;
             foreach (int idx, x; ret.tupleof) {
                 alias typeof(ret.tupleof[idx]) ElementT;
-                static if (isStaticArrayType!(ElementT)) {
-                    //need slice operator to assign to static array
-                    ret.tupleof[idx][] = read!(ElementT)();
-                } else {
-                    ret.tupleof[idx] = read!(ElementT)();
-                }
+                ret.tupleof[idx] = read!(ElementT)();
             }
             return ret;
         } else {
@@ -153,10 +157,12 @@ struct Unmarshaller {
     }
 
     private RetType!(T) readArray(T)() {
+        alias Unqual!(ForeachType!(T)) ElementUT;
         //even for static arrays, the return type needs to be dynamic
-        RetType!(T) ret;
+        //XXXTANGO avoid memory allocation?
+        ElementUT[] ret;
 
-        static if (isDynamicArrayType!(T)) {
+        static if (isDynamicArray!(T)) {
             //dynamic arrays store their size in the stream
             size_t arr_length = read!(uint)();
             //if a nonsensical value was read (corrupted data), avoid
@@ -172,17 +178,16 @@ struct Unmarshaller {
         //xxx: specialize for arrays that can be read on one go? (like ubyte[])
         //     1. must keep byteswapping (make swapBytes() work with arrays?)
         //     2. some types like bool or enums still need special handling
-        alias typeof(ret[0]) ElementT;
-        static if (is(ElementT == char) || is(ElementT == ubyte)) {
+        static if (is(ElementUT == char) || is(ElementUT == ubyte)) {
             //for char and ubyte (and maybe byte), this is simple enough
             undump(ret.ptr, ret.length);
         } else {
             foreach (ref e; ret) {
-                e = read!(ElementT)();
+                e = read!(ElementUT)();
             }
         }
 
-        static if (isCharType!(ElementT)) {
+        static if (isSomeString!(T)) {
             try {
                 str.validate(ret);
             } catch (str.UnicodeException e) {
@@ -190,7 +195,7 @@ struct Unmarshaller {
             }
         }
 
-        return ret;
+        return cast(RetType!(T))(ret);
     }
 
     //T is any integer or float type
@@ -303,13 +308,13 @@ class UnmarshalBuffer {
 string marshalBase64(T)(T data) {
     auto marsh = new MarshalBuffer();
     marsh.write!(T)(data);
-    return base64.encode(marsh.data());
+    return Base64.encode(marsh.data()).idup;
 }
 
 RetType!(T) unmarshalBase64(T)(string data) {
     ubyte[] dec;
     try {
-        dec = base64.decode(data);
+        dec = Base64.decode(data);
     } catch (Exception e) {
         //base64 decoding errors (maybe)
         //the tango idiots didn't use a more appropriate Exception type
@@ -385,8 +390,10 @@ debug unittest {
 
     auto m = new MarshalBuffer();
     S s;
-    s.a = s.c = s.e = s.g = -5;
-    s.b = s.d = s.f = s.h = 5;
+    s.a = s.c = s.e = -5;
+    s.g = 123;
+    s.b = s.d = s.f = 5;
+    s.h = 5;
     s.i = /+s.j = s.k =+/ 'A';
     s.l[] = "Hello";
     s.l2[] = [1,2,3];

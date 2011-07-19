@@ -55,11 +55,11 @@ alias LuaInterpreter ScriptInterpreter;
 class LuaInterpreter {
     private {
         LuaState mLua;
-        void delegate(string) mSink;
+        void delegate(cstring) mSink;
     }
 
     //a_sink = output of Lua and the wrapper, will include '\n's
-    this(void delegate(string) a_sink, LuaState a_state = null,
+    this(void delegate(cstring) a_sink, LuaState a_state = null,
         bool suppressVersionMessage = false)
     {
         mSink = a_sink;
@@ -130,7 +130,7 @@ class LuaInterpreter {
 
     //what this function does and its parameters see GuiConsole.setTabCompletion
     void tabcomplete(string line, int cursor1, int cursor2,
-        void delegate(int, int, string) edit)
+        scope void delegate(int, int, string) edit)
     {
         auto res = autocomplete(line, cursor1 + 1, cursor2 + 1);
         if (res.matches.length == 0)

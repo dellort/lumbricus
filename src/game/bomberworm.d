@@ -17,18 +17,18 @@ import utils.time;
 import utils.vector2;
 import utils.misc;
 
-import tango.math.Math : abs;
+import std.math;
 
 //Pyro clone, which again was a bomberman clone
 class BomberWorm {
 private:
-    const cW = 19, cH = 13;
-    const cTileSize = 32;
-    const TILE_SIZE = Vector2i(cTileSize);
-    const cTileStopWindow = 1; //no movement here
-    const Vector2i PLAYER_SIZE = Vector2i(15, 15);
+    enum cW = 19, cH = 13;
+    enum cTileSize = 32;
+    enum TILE_SIZE = Vector2i(cTileSize);
+    enum cTileStopWindow = 1; //no movement here
+    enum Vector2i PLAYER_SIZE = Vector2i(15, 15);
     //how long it takes the player to move one pixel
-    const cPlayerSpeed = timeMsecs(10);
+    enum cPlayerSpeed = timeMsecs(10);
 
     TimeSource mTime;
 
@@ -248,7 +248,7 @@ private:
         int[4] mStop = [int.max,int.max,int.max,int.max];
         Time mStarted;
 
-        const cDuration = timeMsecs(1000);
+        enum cDuration = timeMsecs(1000);
 
         this(Vector2i pos, int strength) {
             assert(strength >= 1);
@@ -359,7 +359,7 @@ private:
                     middletype |= (sidetype[1] || sidetype[3]) ? 2 : 0;
                     //drawing...
                     //quadratic, middle segment is (cSizeH,cSizeH)*2
-                    const cSizeH = 5;
+                    enum cSizeH = 5;
                     void drawSide(int index, int axis, int dir) {
                         if (!sidetype[index])
                             return;
@@ -444,7 +444,7 @@ private:
         mWindow = gWindowFrame.createWindow(new IO(), "BomberWorm");
 
         ConfigNode config = loadConfig("bomberworm.conf");
-        const nPlayers = 1;
+        enum nPlayers = 1;
         for (int n = 0; n < nPlayers; n++) {
             auto p = new Player();
             p.bindings.loadFrom(config.getSubNode("bindings")

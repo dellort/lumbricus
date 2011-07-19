@@ -480,7 +480,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
     }
 
     class Viewer : Widget {
-        const radius = 50;
+        enum radius = 50;
         bool md;
         override void onDraw(Canvas c) {
             auto bnds = mAnim.bounds;

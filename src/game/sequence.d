@@ -283,7 +283,7 @@ final class Sequence : SceneObject {
     }
 
     override void draw(Canvas c) {
-        const cInterpolate = true;
+        enum cInterpolate = true;
 
         static if (cInterpolate) {
             mIP.time = engine.interpolateTime.current;
@@ -392,7 +392,7 @@ final class Sequence : SceneObject {
             if (cameraArrows)
                 bounds = c.visibleArea();
             if (!bounds.isInside(ipos) && ipos.y < bounds.p2.y) {
-                const int cMargin = 20; //est. size for arrow / 2
+                enum int cMargin = 20; //est. size for arrow / 2
 
                 auto itime = interpolated_time();
 
@@ -622,10 +622,10 @@ class WwpNapalmDisplay : AniStateDisplay {
 
     //xxx make this configurable
     //velocity where fly animation begins
-    const cTresholdVelocity = 300.0f;
+    enum cTresholdVelocity = 300.0f;
     //velocity where fly animation is at maximum
-    const cFullVelocity = 450.0f;
-    const cVelDelta = cFullVelocity - cTresholdVelocity;
+    enum cFullVelocity = 450.0f;
+    enum cVelDelta = cFullVelocity - cTresholdVelocity;
 
     this (Sequence a_owner) { super(a_owner); }
 
@@ -944,7 +944,7 @@ class WwpWeaponDisplay : AniStateDisplay {
         bool mRequestStopFire;
     }
 
-    const cLowHpTreshold = 30f;   //different (ill-looking) animation below
+    enum cLowHpTreshold = 30f;   //different (ill-looking) animation below
 
     this (Sequence a_owner) { super(a_owner); }
 
@@ -1226,8 +1226,8 @@ class WwpWeaponDisplay : AniStateDisplay {
                 swap(a1, a2);
             auto anglediff = angleDistance(a1, a2);
             float dist;
-            const cFixedAngularTime = true;
-            const cAngularSpeed = 10f;
+            enum cFixedAngularTime = true;
+            enum cAngularSpeed = 10f;
             if (cFixedAngularTime) {
                 //delta_angle = delta_t * (rad/second)
                 dist = timediff.secsf * cAngularSpeed;
@@ -1340,7 +1340,7 @@ class WwpWeaponState : SequenceState {
             weapons[key] = w;
         }
 
-        const string cUnknown = "#unknown";
+        enum string cUnknown = "#unknown";
 
         loadcheck(!!(cUnknown in weapons), "no "~cUnknown~" field.");
         weapon_unknown = weapons[cUnknown];

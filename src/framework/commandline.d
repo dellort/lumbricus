@@ -14,9 +14,6 @@ import utils.output;
 import utils.strparser;
 import utils.time;
 
-public import utils.mybox : MyBox;
-public import utils.output : Output;
-
 //the coin has decided
 alias MyBox function(string args) TypeHandler;
 
@@ -416,7 +413,7 @@ class CommandBucket {
     }
 
     //iterate over all added commands with foreach
-    int opApply(int delegate(ref Entry e) dg) {
+    int opApply(scope int delegate(ref Entry e) dg) {
         foreach (cmd; mCommands) {
             auto e = Entry(cmd.name, cmd, mHelpTrans);
             if (auto i = dg(e))
@@ -503,8 +500,8 @@ class CommandLineInstance {
         string[] mHistory;
         int mCurrentHistoryEntry = 0;
 
-        const uint MAX_HISTORY_ENTRIES = 20;
-        const uint MAX_AUTO_COMPLETIONS = 10;
+        enum uint MAX_HISTORY_ENTRIES = 20;
+        enum uint MAX_AUTO_COMPLETIONS = 10;
 
         alias CommandBucket.Entry CommandEntry;
     }
@@ -599,7 +596,7 @@ class CommandLineInstance {
     private void setHistory(string line) {
         if (line.length == 0)
             return;
-        line = line.dup;
+        line = line.idup;
         if (!mHistory.length || mCurrentHistoryEntry >= mHistory.length) {
             mHistory ~= line;
             mCurrentHistoryEntry = mHistory.length - 1;
@@ -655,7 +652,7 @@ class CommandLineInstance {
                 if (mCurrentHistoryEntry != mHistory.length - 1) {
                     //modified older entry, append to end
                     if (cmdline.length)
-                        mHistory ~= cmdline.dup;
+                        mHistory ~= cmdline;
                 } else {
                     //as usual
                     setHistory(cmdline);
@@ -709,12 +706,12 @@ class CommandLineInstance {
 
     /// Replace the text between start and end by text
     /// operation: newline = line[0..start] ~ text ~ line[end..$];
-    public alias void delegate(int start, int end, string text) EditDelegate;
+    public alias void delegate(int start, int end, cstring text) EditDelegate;
 
     /// Do tab completion for the given line. The delegate by edit inserts
     /// completed text.
     /// at = cursor position; currently unused
-    public void tabCompletion(string line, int at, EditDelegate edit) {
+    public void tabCompletion(string line, int at, scope EditDelegate edit) {
         void do_edit(int start, int end, string text) {
             line = line[0..start] ~ text ~ line[end..$];
             if (edit)
@@ -813,7 +810,7 @@ class CommandLineInstance {
     //if there's a perfect match (whole string equals), then it is returned,
     //  else return null (for the .cmd field)
     private CommandEntry find_command_completions(string cmd,
-        inout CommandEntry[] res)
+        ref CommandEntry[] res)
     {
         CommandEntry exact;
 

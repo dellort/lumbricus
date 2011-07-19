@@ -174,7 +174,7 @@ class LevelLandscape : LevelItemObject {
     //for each landscape side if there should be an impenetrable wall
     // 0=north, 1=east, 2=south, 3=west
     bool[4] impenetrable;
-    const cWallNames = ["wall_n", "wall_e", "wall_s", "wall_w"];
+    enum cWallNames = ["wall_n", "wall_e", "wall_s", "wall_w"];
 
     protected override void copyFrom(LevelItem other) {
         super.copyFrom(other);

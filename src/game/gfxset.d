@@ -104,8 +104,8 @@ class GfxSet {
 
         ConfigNode gfx = cfg.gfx;
 
-        const string cPreferredGraphics = "wwp.conf";
-        const string cFailsafeGraphics = "freegraphics.conf";
+        enum string cPreferredGraphics = "wwp.conf";
+        enum string cFailsafeGraphics = "freegraphics.conf";
 
         ResourceFile resfile;
 

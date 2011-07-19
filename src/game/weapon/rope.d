@@ -69,7 +69,7 @@ class Rope : Shooter, Controllable {
         bool mSecondShot = false;
         bool mCanRefire;
 
-        const cSegmentRadius = 3;
+        enum cSegmentRadius = 3;
         //segments go from anchor to object
         //(because segments are added in LIFO-order as the object moves around)
         RopeSegment[] ropeSegments;

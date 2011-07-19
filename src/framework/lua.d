@@ -60,7 +60,7 @@ struct applyInterfaces
     }
 
     ///
-    int opApply (int delegate (ref ClassInfo) dg)
+    int opApply (scope int delegate (ref ClassInfo) dg)
     {
         int result = 0;
         for (; type; type = type.base)
@@ -320,8 +320,8 @@ private string luaWhere(lua_State* L, int level) {
 //License: MIT
 //looks like Lua 5.2 will have luaL_traceback(), making this unneeded
 private string luaStackTrace(lua_State* state, int level = 1) {
-    const LEVELS1 = 12;      /* size of the first part of the stack */
-    const LEVELS2 = 10;      /* size of the second part of the stack */
+    enum LEVELS1 = 12;      /* size of the first part of the stack */
+    enum LEVELS2 = 10;      /* size of the second part of the stack */
 
     string ret;
     int firstpart = 1;  /* still before eventual `...' */
@@ -528,7 +528,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
             expected("struct table");
         T ret;
         int tablepos = luaRelToAbsIndex(state, stackIdx);
-        const string[] membernames = structMemberNames!(T)();
+        enum string[] membernames = structMemberNames!(T)();
         version (none) {
         //the code below works well, but it can't detect table entries that
         //  are not part of the struct (changing this would make it very
@@ -557,7 +557,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
         //in any case, the code is more complicated, but I wanted to have it
         //  for debugging
         //it also detects mixed by-name/by-index access
-            const cTName = "'struct " ~ T.stringof ~ "'";
+            enum cTName = "'struct " ~ T.stringof ~ "'";
             int mode = 0; //0: not known yet, 1: by-name, 2: by-index
             lua_pushnil(state);  //first key
             while (lua_next(state, tablepos) != 0) {
@@ -609,7 +609,7 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
         }
         return ret;
     } else static if (isArray!(T) || isAssociativeArray!(T)) {
-        const is_assoc = isAssociativeArray!(T);
+        enum is_assoc = isAssociativeArray!(T);
         if (!lua_istable(state, stackIdx))
             expected("array table");
         T ret;
@@ -692,7 +692,7 @@ private int luaPush(T)(lua_State *state, T value) {
         //a special "marker constant", and all contained values will be returned
         //separately. S.numReturnValues can be defined to dynamically change
         //the number of return values
-        const membernames = structMemberNames!(T)();
+        enum membernames = structMemberNames!(T)();
         static if (is(typeof(T.cTupleReturn)) && T.cTupleReturn) {
             int numv = int.max;
             //special marker to set how many values were returned
@@ -938,7 +938,7 @@ private class LuaDelegateWrapper(T) {
     //delegate to this is returned by luaStackDelegate/luaStackValue!(T)
     //of course in the D error domain
     RetType cbfunc(Params args) {
-        const bool novoid = !is(RetType == void);
+        enum bool novoid = !is(RetType == void);
         static if (novoid)
             RetType res;
         try {
@@ -1024,7 +1024,7 @@ extern (C) private int pcall_invoke_handler(lua_State* state) {
 //      try { ...code... } catch (CustomException e) { luaDError(state, e); }
 //  (converts the D exception into a lua_error)
 //it is guaranteed that the only thrown recoverable exception is LuaException
-private void luaProtected(lua_State* state, void delegate() code) {
+private void luaProtected(lua_State* state, scope void delegate() code) {
     //NOTE: heavily relies on the fact that all these functions don't raise any
     //  Lua errors (check the manual for the API); neutral error domain
     //get the cached C closure for the pcall_err_handler function
@@ -1093,7 +1093,7 @@ private RetType luaCall(RetType, T...)(lua_State* state, T args) {
 //stack size must match the requirements of del
 //T must be something callable (delegate or function ptr)
 //error handling: Lua domain
-private int callFromLua(T)(T del, lua_State* state, int skipCount,
+private int callFromLua(T)(scope T del, lua_State* state, int skipCount,
     string funcName)
 {
     debug gLuaToDCalls++;
@@ -1248,7 +1248,7 @@ class LuaRegistry {
     //Register a class method
     void method(Class, string name)(string rename = null) {
         extern(C) static int demarshal(lua_State* state) {
-            const methodName = Class.stringof ~ '.' ~ name;
+            enum methodName = Class.stringof ~ '.' ~ name;
 
             Object o = LuaState.luaToDObject(state, 1);
             Class c = cast(Class)(o);
@@ -1274,9 +1274,9 @@ class LuaRegistry {
 
             mixin ("alias Class."~name~" T;");
             alias ParameterTypeTuple!(T) Params;
-            const Params x;
+            enum Params x;
             foreach (int idx, _; Repeat!(Params.length)) {
-                const fn = "c."~name~"(x[0..idx])";
+                enum fn = "c."~name~"(x[0..idx])";
                 static if (is(typeof( mixin(fn)))) {
                     if (idx >= realargs) {
                         //delegate indirection => runtime slowdown, additional
@@ -1306,7 +1306,7 @@ class LuaRegistry {
     //  singleton crap)
     void static_method(Class, string name)(string rename = null) {
         extern(C) static int demarshal(lua_State* state) {
-            const methodName = Class.stringof ~ '.' ~ name;
+            enum methodName = Class.stringof ~ '.' ~ name;
             alias Class C;
 
             //this crap is ONLY for default arguments
@@ -1317,9 +1317,9 @@ class LuaRegistry {
 
             mixin ("alias Class."~name~" T;");
             alias ParameterTypeTuple!(T) Params;
-            const Params x;
+            enum Params x;
             foreach (int idx, _; Repeat!(Params.length)) {
-                const fn = "c."~name~"(x[0..idx])";
+                enum fn = "c."~name~"(x[0..idx])";
                 static if (is(typeof( mixin(fn)))) {
                     if (idx >= realargs) {
                         //delegate indirection => runtime slowdown, additional
@@ -1349,7 +1349,7 @@ class LuaRegistry {
     //you have to explicitly pass the argument types and a name
     void ctor(Class, Args...)(string name = "ctor") {
         extern(C) static int demarshal(lua_State* state) {
-            const cDebugName = "constructor " ~ Class.stringof;
+            enum cDebugName = "constructor " ~ Class.stringof;
             static Class construct(Args args) {
                 //if you get an error here, it means ctor registration and
                 //  declaration mismatch
@@ -1381,7 +1381,7 @@ class LuaRegistry {
         auto ci = Class.classinfo;
 
         extern(C) static int demarshal_get(lua_State* state) {
-            const cDebugName = "property get " ~ name;
+            enum cDebugName = "property get " ~ name;
             Type get(Class o) {
                 if (!o) {
                     methodThisError(state, cDebugName, Class.classinfo, null);
@@ -1397,7 +1397,7 @@ class LuaRegistry {
             //xxx: a bit strange how it does three nested calls for stuff known
             //     at compile time...
             extern(C) static int demarshal_set(lua_State* state) {
-                const cDebugName = "property set " ~ name;
+                enum cDebugName = "property set " ~ name;
                 void set(Class o, Type t) {
                     if (!o) {
                         methodThisError(state, cDebugName,
@@ -1470,9 +1470,9 @@ class LuaRegistry {
             int realargs = lua_gettop(state);
 
             alias ParameterTypeTuple!(Fn) Params;
-            const Params x;
+            enum Params x;
             foreach (int idx, _; Repeat!(Params.length)) {
-                const fn = "Fn(x[0..idx])";
+                enum fn = "Fn(x[0..idx])";
                 static if (is(typeof( mixin(fn)))) {
                     if (idx >= realargs) {
                         //delegate indirection => runtime slowdown, additional

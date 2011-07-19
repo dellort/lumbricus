@@ -30,7 +30,7 @@ import math = tango.math.Math;
 import tango.util.Convert : to;
 
 //time for which it takes to add/remove 1 health point in the animation
-const Time cTimePerHealthTick = timeMsecs(4);
+enum Time cTimePerHealthTick = timeMsecs(4);
 
 //starting to blow itself up
 //xxx is this really needed
@@ -348,7 +348,7 @@ class Team : GameObject2 {
         return "[team '" ~ name ~ "']";
     }
 
-    int opApply(int delegate(inout TeamMember member) del) {
+    int opApply(scope int delegate(ref TeamMember member) del) {
         foreach (m; mMembers) {
             int res = del(m);
             if (res)

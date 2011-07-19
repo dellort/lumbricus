@@ -6,7 +6,7 @@ import utils.misc;
 import std.traits;
 
 //if true, use nanosecond resolution instead of milliseconds
-const bool cNS = true;
+enum bool cNS = true;
 
 //internal type for storing a time value
 private alias long TType_Int;
@@ -15,14 +15,14 @@ public struct Time {
     //represents the time value in microseconds (or nanoseconds if cNS == true)
     private TType_Int timeVal;
 
-    public const Time Null = {0};
+    enum Time Null = {0};
     //seems to be a convenient hack, remove it if you don't like it
     //NOTE: exact value is subject to change (but is bound to be a very big)
-    public const Time Never = {typeof(timeVal).max};
+    enum Time Never = {typeof(timeVal).max};
     //same, "Never" was a bad choice, "Always" would be another choice
     //of course, this doesn't behave like float.Infinity; if you do calculations
     //  with it, the special meaning of this value is ignored and destroyed
-    public const Time Infinite = Never;
+    enum Time Infinite = Never;
 
     //create a new Time structure from an internal value
     //not to be called from another class
@@ -110,12 +110,12 @@ public struct Time {
         if (this == Never)
             return "<unknown>";
 
-        const string[] cTimeName = ["ns", "us", "ms", "s", "min", "h"];
+        enum string[] cTimeName = ["ns", "us", "ms", "s", "min", "h"];
         //divisior to get from one time unit to the next
-        const int[] cTimeDiv =       [1, 1000, 1000, 1000, 60,    60, 0];
+        enum int[] cTimeDiv =       [1, 1000, 1000, 1000, 60,    60, 0];
         //precission which should be used to display the time
         //XXXTANGO: Phobos2 might be able to read precisiion from arg like C printf
-        const string[] cPrec =["%.0f","%.1f","%.3f","%.2f","%.2f","%.2f"];
+        enum string[] cPrec =["%.0f","%.1f","%.3f","%.2f","%.2f","%.2f"];
         string sign;
         long time = nsecs;
         long timeDiv = 1;
@@ -141,8 +141,8 @@ public struct Time {
     //also, there's this nasty detail that for "ms" must be before "s"
     //  (ambiguous for fromString())
     //for fromStringRev, the list must be sorted by time value (ascending)
-    const string[] cTimeUnitNames = ["ns", "us", "ms", "s", "min", "h"];
-    const Time[] cTimeUnits = [timeNsecs(1), timeMusecs(1), timeMsecs(1),
+    enum string[] cTimeUnitNames = ["ns", "us", "ms", "s", "min", "h"];
+    enum Time[] cTimeUnits = [timeNsecs(1), timeMusecs(1), timeMsecs(1),
         timeSecs(1), timeMins(1), timeHours(1)];
 
     //format: comma seperated items of "<time> <unit>"
@@ -153,7 +153,7 @@ public struct Time {
     //special values: "never" (=> Time.Never) and "0" (=> Time.Null)
     //example: "1s,30 ms"
     //if the resolution of Time is worse than ns, some are possibly ignored
-    public static Time fromString(string s) {
+    public static Time fromString(const(char)[] s) {
         s = str.strip(s);
         bool neg = false;
         if (str.startsWith(s, "-")) {
@@ -168,7 +168,7 @@ public struct Time {
             return Time.Null;
 
         //normal parsing
-        string[] stuff = str.split(s, ",");
+        auto stuff = str.split(s, ",");
         if (stuff.length == 0)
             throw strparser.newConversionException!(Time)(s, "empty string");
         Time value;
@@ -345,7 +345,7 @@ public struct Time {
 private template maxttype(T) {
     static if (isIntegral!(T)) {
         alias long maxttype;
-    } else static if (isFloat!(T)) {
+    } else static if (isFloatingPoint!(T)) {
         alias real maxttype;
     } else {
         static assert(false);

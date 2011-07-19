@@ -21,7 +21,7 @@ enum ContactHandling : ubyte {
 }
 
 //for loading from ConfigNode
-private const string[ContactHandling.max+1] cChNames =
+private enum string[ContactHandling.max+1] cChNames =
     ["", "hit", "hit_noimpulse", "hit_pushback", "hit_weirdhacks"];
 
 //the physics stuff uses an ID to test if collision between objects is wanted
@@ -50,7 +50,7 @@ final class CollisionType {
 }
 
 //it's illegal to use CollisionType_Invalid in PhysicBase.collision
-const CollisionType CollisionType_Invalid = null;
+enum CollisionType CollisionType_Invalid = null;
 
 //the collision map is a helper for the game logic, and decides which objects
 //  can or can not collide

@@ -85,7 +85,7 @@ string getAppPath() {
 ///inspired by tango.io.FilePath, but will remove all platform-dependency
 ///instead of preserving it and contains no file manipulation functions
 struct VFSPath {
-    const cPathSep = '/';
+    enum cPathSep = '/';
 
     private {
         string mPath;
@@ -274,7 +274,7 @@ struct VFSPath {
 
         //first pass: go through the path in reverse, check illegal chars and
         //split into parts
-        foreach_reverse (int i, inout char c; mPath) {
+        foreach_reverse (int i, ref char c; mPath) {
             switch (c) {
                 case '*', '?':
                     if (allowWildcards) {
@@ -304,12 +304,12 @@ struct VFSPath {
 
         //now join everything back together
         mPath = null;
-        foreach (inout string p; parts) {
+        foreach (ref string p; parts) {
             mPath ~= cPathSep ~ p;
         }
 
         //second pass: scan for filename and extension index
-        foreach_reverse (int i, inout char c; mPath) {
+        foreach_reverse (int i, ref char c; mPath) {
             switch (c) {
                 case '.':
                     //filename/extension separator

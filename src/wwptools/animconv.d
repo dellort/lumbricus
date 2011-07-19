@@ -58,7 +58,7 @@ enum ParamType {
     P3,
 }
 
-const char[][] cParamTypeStr = [
+enum char[][] cParamTypeStr = [
     "Null",
     "Time",
     "P1",
@@ -153,8 +153,8 @@ class AniEntry {
     }
 
     void appendMirrorY_A() {
-        foreach (inout cframes; mFrames) {
-            foreach (inout fl; cframes) {
+        foreach (ref cframes; mFrames) {
+            foreach (ref fl; cframes) {
                 int count = fl.length;
                 for (int i = 0; i < count; i++) {
                     //append in reverse order (the only case where we use Y_A
@@ -169,11 +169,11 @@ class AniEntry {
 
     //append animations mirrored to Y axis along axis B
     void appendMirrorY_B() {
-        foreach (inout cframes; mFrames) {
+        foreach (ref cframes; mFrames) {
             int count = cframes.length;
             for (int i = 0; i < count; i++) {
                 auto cur = cframes[i].dup;
-                foreach (inout f; cur) {
+                foreach (ref f; cur) {
                     f.mirrorY = !f.mirrorY;
                 }
                 cframes ~= cur;
@@ -182,8 +182,8 @@ class AniEntry {
     }
 
     void reverseA() {
-        foreach (inout cframes; mFrames) {
-            foreach (inout fl; cframes) {
+        foreach (ref cframes; mFrames) {
+            foreach (ref fl; cframes) {
                 for (int i = 0; i < fl.length/2; i++) {
                     swap(fl[i], fl[$-i-1]);
                 }
@@ -192,8 +192,8 @@ class AniEntry {
     }
 
     void appendBackwardsA() {
-        foreach (inout cframes; mFrames) {
-            foreach (inout fl; cframes) {
+        foreach (ref cframes; mFrames) {
+            foreach (ref fl; cframes) {
                 int count = fl.length;
                 for (int i = count-1; i >= 0; i--) {
                     fl ~= fl[i];
@@ -205,11 +205,11 @@ class AniEntry {
     //special case for jetpack; could avoid this by making framelist
     //manipulation available to the "user"
     void appendMirroredY_Backwards_B() {
-        foreach (inout cframes; mFrames) {
+        foreach (ref cframes; mFrames) {
             foreach_reverse (fl; cframes.dup) {
                 //mirror them
                 auto list = fl.dup;
-                foreach (inout a; list) {
+                foreach (ref a; list) {
                     a.mirrorY = !a.mirrorY;
                 }
                 cframes ~= list;
@@ -221,8 +221,8 @@ class AniEntry {
     //drank when writing their code, but forward movements seems to be
     //integrated into the animation, which is removed by this code
     void fixWwpWalkAni() {
-        foreach (inout cframes; mFrames) {
-            foreach (inout fl; cframes) {
+        foreach (ref cframes; mFrames) {
+            foreach (ref fl; cframes) {
                 for (int i = 0; i < fl.length; i++) {
                     fl[i].center.x += (i*10)/15;
                 }
@@ -244,8 +244,8 @@ class AniEntry {
     void discardFrames(int num) {
         if (num == 0)
             return;
-        foreach (inout cframes; mFrames) {
-            foreach (inout fl; cframes) {
+        foreach (ref cframes; mFrames) {
+            foreach (ref fl; cframes) {
                 assert(fl.length > 2*num);
                 fl = fl[num..$-num];
             }
@@ -504,7 +504,7 @@ private void loadWormWeaponAnimation(AniFile anims, RawAnimation[] animations,
 
 //parse flags which are separated by a ",", flags end with the first ";"
 //"s" is modified to contain the original string without the flags
-char[][] parseFlags(inout char[] s, bool flagnode) {
+char[][] parseFlags(ref char[] s, bool flagnode) {
     char[] f;
     if (!flagnode) {
         auto start = str.find(s, ';');
@@ -519,8 +519,8 @@ char[][] parseFlags(inout char[] s, bool flagnode) {
     return str.split(f, ",");
 }
 
-const cFlagItem = "_flags";
-const cParamItem = "_params";
+enum cFlagItem = "_flags";
+enum cParamItem = "_params";
 
 ParamType paramTypeFromStr(char[] s) {
     foreach (int idx, char[] ts; cParamTypeStr) {

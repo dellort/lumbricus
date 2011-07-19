@@ -39,16 +39,16 @@ class PainterWidget : Widget {
         LandscapeBitmap mLevel;
 
         //can be overridden by config file
-        const Color[Lexel.Max+1] cDefLexelToColor = [Color(0.2, 0.2, 1.0),
+        enum Color[Lexel.Max+1] cDefLexelToColor = [Color(0.2, 0.2, 1.0),
             Color(1, 1, 1), Color(0, 0, 0)];
-        const cPenRadius = [10, 75];
-        const cPenChange = 5;
-        const cPenColor = Color(1, 0, 0, 0.5);
+        enum cPenRadius = [10, 75];
+        enum cPenChange = 5;
+        enum cPenColor = Color(1, 0, 0, 0.5);
 
         Color[Lexel] mLexelToColor;
 
         //normally, this is unused; remove it if it's in the way
-        const Color[Lexel.Max+1] cDefLexelToBmpColor = [Color.Transparent,
+        enum Color[Lexel.Max+1] cDefLexelToBmpColor = [Color.Transparent,
             Color(0.5), Color(0)];
         Surface[Lexel.Max+1] mTex;
 
@@ -69,7 +69,7 @@ class PainterWidget : Widget {
     }
 
     //?
-    const Vector2i cLevelSize = Vector2i(2000, 700);
+    enum Vector2i cLevelSize = Vector2i(2000, 700);
 
     //called when levelData is changed (also by external calls like setData)
     void delegate(PainterWidget sender) onChange;

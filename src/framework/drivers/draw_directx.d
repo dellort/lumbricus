@@ -12,9 +12,9 @@ import tango.sys.win32.Types;
 import utils.misc;
 import utils.transform;
 
-const cDrvName = "draw_directx";
+enum cDrvName = "draw_directx";
 
-const uint D3DFVF_TLVERTEX = D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1;
+enum uint D3DFVF_TLVERTEX = D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1;
 struct TLVERTEX {
     Vector2f p;
     float z = 0.0f;      //always 0 for 2D
@@ -246,7 +246,7 @@ class DXSurface : DriverSurface {
 
 class DXCanvas : Canvas3DHelper {
     private {
-        const cMaxVertices = 100;
+        enum cMaxVertices = 100;
         DXDrawDriver mDrawDriver;
         IDirect3DVertexBuffer9 mDXVertexBuffer;
         TLVERTEX[cMaxVertices] mVertexBuffer;

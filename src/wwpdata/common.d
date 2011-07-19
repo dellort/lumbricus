@@ -19,7 +19,7 @@ class WWPPalette {
         require(palSize <= 255, "palette too big");
         //entry 0 is hard-wired to transparent; also clear the unused rest
         ret.palEntries[] = Color.Transparent.toRGBA32();
-        foreach (inout pe; ret.palEntries[1..1 + palSize]) {
+        foreach (ref pe; ret.palEntries[1..1 + palSize]) {
             struct RGBColor {
                 ubyte r, g, b;
             }
@@ -42,8 +42,8 @@ class WWPPalette {
     }
 }
 
-const WWP_ANIMFLAG_REPEAT = 0x1;
-const WWP_ANIMFLAG_BACKWARDS = 0x2;
+enum WWP_ANIMFLAG_REPEAT = 0x1;
+enum WWP_ANIMFLAG_BACKWARDS = 0x2;
 
 ubyte[] wormsDecompress(ubyte[] data, ubyte[] buffer) {
     return decompress_wlz77(data, buffer);

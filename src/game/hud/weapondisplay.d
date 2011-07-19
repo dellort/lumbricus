@@ -90,7 +90,7 @@ class WeaponIconAmmo : SimpleContainer {
         Color mCDColor = Color.Invalid, mMisfireColor = Color.Invalid;
         int mLastAmmo = -1;
 
-        const cMisfireFlashTime = timeMsecs(250);
+        enum cMisfireFlashTime = timeMsecs(250);
     }
 
     this(GameInfo game) {

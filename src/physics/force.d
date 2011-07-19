@@ -46,7 +46,7 @@ class ConstantAccel: PhysicForce {
 
 class WindyForce : PhysicForce {
     Vector2f windSpeed;
-    private const cStokesConstant = 6*PI;
+    private enum cStokesConstant = 6*PI;
 
     this() {
     }
@@ -96,7 +96,7 @@ class GravityCenter : PhysicForce {
 //(StokesDragFixed uses a force-specific fixed viscosity)
 class StokesDragObject : PhysicForce {
     //constant from Stokes's drag
-    private const cStokesConstant = -6*PI;
+    private enum cStokesConstant = -6*PI;
 
     this() {
     }
@@ -114,7 +114,7 @@ class StokesDragObject : PhysicForce {
 //best used together with ForceZone
 class StokesDragFixed : PhysicForce {
     //constant from Stokes's drag
-    private const cStokesConstant = -6*PI;
+    private enum cStokesConstant = -6*PI;
     //medium viscosity
     float viscosity = 0.0f;
 

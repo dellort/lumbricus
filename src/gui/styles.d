@@ -166,7 +166,7 @@ private {
     alias MyBox function(string, MyBox) ParserFn;
     ParserFn[string] gParserFns;
 
-    alias MyBox function(string, MyBox delegate(string)) SummarizerFn;
+    alias MyBox function(string, scope MyBox delegate(string)) SummarizerFn;
     //not using an AA, because the order may (possibly) be important
     struct Summarizer {
         string name;
@@ -613,11 +613,11 @@ MyBox parseStrparser(T)(string src, MyBox prev) {
 
 //only here because dmd is too dumb to put templates inside of functions
 //only reason for this function is that I was too lazy to rearrange stuff
-private T getprop(T)(MyBox delegate(string) props, string base, string name) {
+private T getprop(T)(scope MyBox delegate(string) props, string base, string name) {
     return props(base~name).unbox!(T)();
 }
 
-MyBox summarizeBorder(string base, MyBox delegate(string) props) {
+MyBox summarizeBorder(string base, scope MyBox delegate(string) props) {
     BoxProperties p;
     p.border = getprop!(Color)(props, base, "-color");
     p.back = getprop!(Color)(props, base, "-back-color");
@@ -629,7 +629,7 @@ MyBox summarizeBorder(string base, MyBox delegate(string) props) {
     return MyBox.Box!(BoxProperties)(p);
 }
 
-MyBox summarizeFont(string base, MyBox delegate(string) props) {
+MyBox summarizeFont(string base, scope MyBox delegate(string) props) {
     FontProperties p;
     p.face = getprop!(string)(props, base, "-face");
     p.back_color = getprop!(Color)(props, base, "-back-color");

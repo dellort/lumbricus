@@ -14,7 +14,18 @@ public class Output {
         if (newline)
             writeString("\n");
     }
-    abstract void writeString(in char[] str);
+    abstract void writeString(cstring str);
+}
+
+//*shrug*... notice that this Output thing was supposed to be phased out anyway
+class OutputCb : Output {
+    void delegate(cstring str) onWriteString;
+    this(void delegate(cstring str) cb) {
+        assert(cb); onWriteString = cb;
+    }
+    override void writeString(cstring str) {
+        onWriteString(str);
+    }
 }
 
 /// A helper for implementers only, users shall use interface Output instead.

@@ -11,7 +11,7 @@ import physics.physobj;
 
 import std.math;
 
-const Time cEarthQuakeChangeTime = timeMsecs(200);
+enum Time cEarthQuakeChangeTime = timeMsecs(200);
 
 //causes a one-frame earthquake with the strength accumulated by
 //addEarthQuakePerFrameStrength, use EarthQuakeDegrader to generate strength
@@ -106,7 +106,7 @@ class EarthQuakeForce : PhysicForce {
 }
 
 //in seconds, change rate for degrading the earthquake
-const cEarthQuakeDegradeInterval = 1.0;
+enum cEarthQuakeDegradeInterval = 1.0;
 
 //causes an EarthQuake and also is able to degrade it down by time
 class EarthQuakeDegrader : PhysicBase {

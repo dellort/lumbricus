@@ -8,7 +8,7 @@ import gui.global;
 import gui.rendertext;
 import gui.widget;
 import utils.array;
-import utils.misc: swap, min, max;
+import utils.misc;
 import utils.time;
 import utils.timer;
 import utils.vector2;
@@ -174,9 +174,9 @@ class EditLine : Widget {
         }
     }
 
-    protected void clipInsertPaste(string text) {
+    protected void clipInsertPaste(cstring text) {
         //only text to first newline by default
-        string txt = str.split2(text, '\n')[0];
+        auto txt = str.split2(text, '\n')[0];
         insertEvent(txt);
     }
 
@@ -184,13 +184,14 @@ class EditLine : Widget {
     //if mCursor was between start and end, it's set to end; if mCursor was
     //  after end, its value is fixed
     //onChange is not emitted
-    void editText(int start, int end, string replace) {
+    void editText(int start, int end, cstring replace) {
         assert(start >= 0 && start <= end && end <= mCurline.length);
         debug str.validate(replace);
         killSelection();
         //xxx could be changed to inplace editing to waste less memory
         //  (but then, EditLine.text() should return a copy)
-        mCurline = mCurline[0..start] ~ replace ~ mCurline[end..$];
+        //.idup sponsored by fuck you dmd
+        mCurline = (mCurline[0..start] ~ replace ~ mCurline[end..$]).idup;
         if (mCursor >= start) {
             mCursor = mCursor < end ? start : mCursor - (end - start);
             mCursor += replace.length;
@@ -201,7 +202,7 @@ class EditLine : Widget {
     }
 
     //do everything what's typically done when text is entered by the user
-    void insertEvent(string text) {
+    void insertEvent(cstring text) {
         deleteSelection();
         editText(mCursor, mCursor, text);
         doOnChange();
@@ -267,7 +268,7 @@ class EditLine : Widget {
         return mRender.indexFromPosFuzzy(pos + mOffset);
     }
 
-    private const cCursorWidth = 1;
+    private enum cCursorWidth = 1;
 
     Rect2i cursorRect() {
         Rect2i rc = mRender.getCursorPos(mCursor) - mOffset;
@@ -431,7 +432,7 @@ class MultilineEdit : EditLine {
         mRender.shrink = ShrinkMode.wrap;
     }
 
-    override void clipInsertPaste(string text) {
+    override void clipInsertPaste(cstring text) {
         //no need to remove newlines in multiline mode
         insertEvent(text);
     }

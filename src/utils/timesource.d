@@ -51,7 +51,7 @@ final class TimeSource : TimeSourcePublic {
 
         //maximum time one frame can last before an error is detected
         //(i.e. longer frames do not count)
-        const cMaxFrameTime = timeSecs(1);
+        enum cMaxFrameTime = timeSecs(1);
 
         TimeSourcePublic mParent;
     }
@@ -236,7 +236,7 @@ class TimeSourceFixFramerate : TimeSourcePublic {
     ///runs n frames in increments of the fixed frame length, and calls
     ///do_update() for each frame; the time is stepped before each do_update()
     ///  overdue: how long ago the frame should have optimally executed
-    void update(void delegate(Time overdue) do_update, int maxFrames = int.max) {
+    void update(scope void delegate(Time overdue) do_update, int maxFrames = int.max) {
         mChain.update();
         //xxx: is it ok that mSimTime still can be < mParent.current after this?
         while (mSimTime + mFrameLength <= mChain.current) {

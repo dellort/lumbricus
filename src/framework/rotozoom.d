@@ -32,15 +32,16 @@
 */
 module framework.rotozoom;
 
-import std.c.stdlib : malloc, free;
-import std.c.string : memset;
-import std.math : PI, sin, cos, ceil, max, fabs;
+import std.c.stdlib;
+import std.c.string;
+import std.math;
+import std.algorithm;
 
-import utils.color : Color;
+import utils.color;
 
 private
 {
-   const float VALUE_LIMIT = 0.001;
+   enum float VALUE_LIMIT = 0.001;
 
    alias ubyte Uint8;
    alias uint Uint32;
@@ -51,8 +52,8 @@ private
    real MAX(real a, real b) { if (a > b) return a; return b; }
 }
 
-const bool SMOOTHING_OFF = 0;
-const bool SMOOTHING_ON  = 1;
+enum bool SMOOTHING_OFF = 0;
+enum bool SMOOTHING_ON  = 1;
 
 //reference a bitmap or a sub-bitmap (for sub-bitmaps, pitch != w*4)
 struct Pixels {
@@ -164,16 +165,16 @@ int zoomSurfaceRGBA (Pixels src, Pixels dst, int smooth)
             ey = (*csay & 0xffff);
             t1 = ((((c01.r - c00.r) * ex) >> 16) + c00.r) & 0xff;
             t2 = ((((c11.r - c10.r) * ex) >> 16) + c10.r) & 0xff;
-            dp.r = (((t2 - t1) * ey) >> 16) + t1;
+            dp.r = cast(ubyte)((((t2 - t1) * ey) >> 16) + t1);
             t1 = ((((c01.g - c00.g) * ex) >> 16) + c00.g) & 0xff;
             t2 = ((((c11.g - c10.g) * ex) >> 16) + c10.g) & 0xff;
-            dp.g = (((t2 - t1) * ey) >> 16) + t1;
+            dp.g = cast(ubyte)((((t2 - t1) * ey) >> 16) + t1);
             t1 = ((((c01.b - c00.b) * ex) >> 16) + c00.b) & 0xff;
             t2 = ((((c11.b - c10.b) * ex) >> 16) + c10.b) & 0xff;
-            dp.b = (((t2 - t1) * ey) >> 16) + t1;
+            dp.b = cast(ubyte)((((t2 - t1) * ey) >> 16) + t1);
             t1 = ((((c01.a - c00.a) * ex) >> 16) + c00.a) & 0xff;
             t2 = ((((c11.a - c10.a) * ex) >> 16) + c10.a) & 0xff;
-            dp.a = (((t2 - t1) * ey) >> 16) + t1;
+            dp.a = cast(ubyte)((((t2 - t1) * ey) >> 16) + t1);
             /* Advance source pointers */
             csax++;
             sstep = (*csax >> 16);
@@ -374,16 +375,16 @@ void transformSurfaceRGBA (Pixels src, Pixels dst, int cx, int cy,
          ey = (sdy & 0xffff);
          t1 = ((((c01.r - c00.r) * ex) >> 16) + c00.r) & 0xff;
          t2 = ((((c11.r - c10.r) * ex) >> 16) + c10.r) & 0xff;
-         pc.r = (((t2 - t1) * ey) >> 16) + t1;
+         pc.r = cast(ubyte)((((t2 - t1) * ey) >> 16) + t1);
          t1 = ((((c01.g - c00.g) * ex) >> 16) + c00.g) & 0xff;
          t2 = ((((c11.g - c10.g) * ex) >> 16) + c10.g) & 0xff;
-         pc.g = (((t2 - t1) * ey) >> 16) + t1;
+         pc.g = cast(ubyte)((((t2 - t1) * ey) >> 16) + t1);
          t1 = ((((c01.b - c00.b) * ex) >> 16) + c00.b) & 0xff;
          t2 = ((((c11.b - c10.b) * ex) >> 16) + c10.b) & 0xff;
-         pc.b = (((t2 - t1) * ey) >> 16) + t1;
+         pc.b = cast(ubyte)((((t2 - t1) * ey) >> 16) + t1);
          t1 = ((((c01.a - c00.a) * ex) >> 16) + c00.a) & 0xff;
          t2 = ((((c11.a - c10.a) * ex) >> 16) + c10.a) & 0xff;
-         pc.a = (((t2 - t1) * ey) >> 16) + t1;
+         pc.a = cast(ubyte)((((t2 - t1) * ey) >> 16) + t1);
    
          }
             sdx += icos;
@@ -433,8 +434,8 @@ or 32bit RGBA/ABGR it will be converted into a 32bit RGBA format on the fly.
 
 
 void rotozoomSurface (Pixels src, double angle, double zoom, int smooth,
-    CreatePixelsDg create_dg)
-   {
+    scope CreatePixelsDg create_dg)
+{
    double zoominv;
    double radangle, sanglezoom, canglezoom, sanglezoominv, canglezoominv;
    int dstwidthhalf, dstwidth, dstheighthalf, dstheight;
@@ -539,8 +540,8 @@ or 32bit RGBA/ABGR it will be converted into a 32bit RGBA format on the fly.
 */
 
 void zoomSurface (Pixels src, double zoomx, double zoomy, int smooth,
-    CreatePixelsDg create_dg)
-   {
+    scope CreatePixelsDg create_dg)
+{
    int dstwidth, dstheight;
    int is32bit;
    int i, src_converted;

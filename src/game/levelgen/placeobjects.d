@@ -280,7 +280,7 @@ public class PlaceObjects {
         return true;
     }
 
-    const Vector2i cBla = {-1, -1};
+    enum Vector2i cBla = {-1, -1};
     //render object _under_ the level and adjust level mask
     public void placeObject(PlaceableObject obj, Vector2i at,
         Vector2i size = cBla)

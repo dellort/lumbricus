@@ -54,7 +54,7 @@ class CmdNetClientTask {
         Widget mDirectMarker;
         static Setting mNickSetting;
 
-        const cRefreshInterval = timeSecs(2);
+        enum cRefreshInterval = timeSecs(2);
         int mMode = -1;
         AnnounceSt[] mAnnounce;
         ServerAddress[] mCurServers;

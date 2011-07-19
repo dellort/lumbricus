@@ -189,8 +189,8 @@ class ALSound : DriverSound {
         bool streamEOF;
         uint mStreamedBytes;
 
-        const cReadSampleBuffer = 1024*1024;
-        const cStreamBuffer = 4096*8;
+        enum cReadSampleBuffer = 1024*1024;
+        enum cStreamBuffer = 4096*8;
     }
 
     this(ALSoundDriver drv, Sample sample) {
@@ -430,7 +430,7 @@ class ALSoundDriver : SoundDriver {
         ALCdevice* mALDevice;
     }
 
-    const cDefaultChannelCount = 20;
+	enum cDefaultChannelCount = 20;
 
     this() {
         assert(!gBase);

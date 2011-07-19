@@ -82,7 +82,7 @@ abstract class Splitter : Container {
     }
 
     override void removeChild(Widget w) {
-        foreach (inout c; mChildren) {
+        foreach (ref c; mChildren) {
             c = c is w ? null : c;
         }
         super.removeChild(w);

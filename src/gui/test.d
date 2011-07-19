@@ -198,7 +198,7 @@ class TestFrame7 : Container {
     this() {
         auto tc = new TableContainer(3, 3, Vector2i(10));
         CheckBox[4] chk;
-        foreach (inout b; chk) {
+        foreach (ref b; chk) {
             b = new CheckBox();
             b.onClick = &onChk;
             mChk.add(b);
@@ -403,7 +403,7 @@ class TestTask {
 }
 
 class TestTask2 {
-    const cBorder = Vector2i(10);
+    enum cBorder = Vector2i(10);
 
     class FontTest : Widget {
         FontProperties font;
@@ -918,7 +918,7 @@ class PixelTest {
             return true;
         }
         override void onDraw(Canvas canvas) {
-            const m = 5;
+            enum m = 5;
             int f = ((x % m) + m) % m;
             auto c = Color(!!(f==0),!!(f==1),!!(f==2));
             if (f == 3)
@@ -1067,7 +1067,7 @@ class CanvasTest {
 import utils.interpolate;
 
 //Interpolation function parameter is compile-time
-const cFuncCount = 200;
+enum cFuncCount = 200;
 float function(float)[cFuncCount] gFuncsExp;
 float function(float)[cFuncCount] gFuncsExp2;
 static float getP(int i) {

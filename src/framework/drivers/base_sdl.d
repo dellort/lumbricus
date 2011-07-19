@@ -19,7 +19,7 @@ import utils.strparser;
 
 import math = std.math;
 import utils.stream;
-import tango.stdc.stringz;
+
 import std.process;
 version(Windows) {
     import std.c.windows; //import tango.sys.win32.UserGdi;
@@ -27,7 +27,7 @@ version(Windows) {
 
 import str = utils.string;
 
-const cDrvName = "base_sdl";
+enum cDrvName = "base_sdl";
 
 package {
     Keycode[int] gSdlToKeycode;

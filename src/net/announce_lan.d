@@ -20,11 +20,11 @@ import tango.util.Convert;
 //   --> (marshalled AnnounceInfo + 4) bytes/sec + udp overhead
 
 //default broadcast port, can be changed by configfile
-const cDefBroadcastPort = 20610;
+enum cDefBroadcastPort = 20610;
 //how often servers send updates
 //Note that this also sets how up-to-date the client's information about the
 //   server (e.g. current player count) is
-const cBroadcastInterval = timeSecs(1);
+enum cBroadcastInterval = timeSecs(1);
 
 class LanAnnouncer : NetAnnouncer {
     private {

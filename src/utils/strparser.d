@@ -23,8 +23,8 @@ BoxUnParse[TypeInfo] gBoxUnParsers;
 ///T = the type being parsed (for the fromString() function)
 ///parsetext = the string being parsed (for now, the whole string)
 ///details = optional human readable error description
-ConversionException newConversionException(T)(string parsetext,
-    string details = "")
+ConversionException newConversionException(T)(in char[] parsetext,
+    in char[] details = "")
 {
     return new ConversionException(myformat("Can not parse %s: '%s'"
         ~ " %s%s", typeid(T), parsetext, details.length ? ", reason: " : "",
@@ -69,7 +69,7 @@ string boxToString(MyBox box) {
 //throws ConversionException if s could not be parsed, or an overflow occured
 //xxx the tango to() function should do exactly that, but because the tango
 //    runtime is not compiled with the project, template lookup fails
-T fromStr(T)(string s) {
+T fromStr(T)(in char[] s) {
     static if (is(T == string)) {
         return s;
     } else static if (is( typeof(T.fromString(s)) : T )) {
@@ -87,11 +87,11 @@ T fromStr(T)(string s) {
     }
 }
 template fromStrSupports(T) {
-    const bool fromStrSupports =
-        is(typeof( { fromStr!(T)(cast(string)null); } ));
+    enum bool fromStrSupports =
+        is(typeof( { fromStr!(T)(cast(const(char)[])null); } ));
 }
 //return false and leaves destVal unmodified if parsing failed
-bool tryFromStr(T)(string s, ref T destVal) {
+bool tryFromStr(T)(in char[] s, ref T destVal) {
     try {
         destVal = fromStr!(T)(s);
         return true;
@@ -100,7 +100,7 @@ bool tryFromStr(T)(string s, ref T destVal) {
     }
 }
 
-T tryFromStrDef(T)(string s, T def = T.init) {
+T tryFromStrDef(T)(in char[] s, T def = T.init) {
     try {
         return fromStr!(T)(s);
     } catch (ConversionException e) {
@@ -125,7 +125,7 @@ string toStr(T)(T value) {
     }
 }
 template toStrSupports(T) {
-    const bool toStrSupports = is(typeof( { toStr!(T)(T.init); } ));
+    enum bool toStrSupports = is(typeof( { toStr!(T)(T.init); } ));
 }
 
 static this() {
@@ -179,7 +179,7 @@ public string boxUnParseStr(MyBox b) {
     return b.unbox!(string);
 }
 
-public MyBox boxParseBool(string s) {
+public MyBox boxParseBool(in char[] s) {
     //strings for truth values, alternating (sorry it was 4:28 AM)
     static string[] bool_strings = ["true", "false", "yes", "no"]; //etc.
     bool ret_value = true;
@@ -231,7 +231,7 @@ private static EnumItem[] enum_get_vals(EnumType, string fields)() {
 void enumStrings(EnumType, string fields)() {
     static assert(is(EnumType == enum));
 
-    static const EnumItem[] items = enum_get_vals!(EnumType, fields)();
+    static enum EnumItem[] items = enum_get_vals!(EnumType, fields)();
 
     static string box_unparse_enum(MyBox b) {
         EnumType val = b.unbox!(EnumType)();

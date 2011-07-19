@@ -9,8 +9,8 @@ module utils.boxpacker;
 import utils.vector2;
 
 private {
-    const float acceptableHeightRatio = 0.7f;
-    const float heightExtraMult = 1.1f;
+    enum float acceptableHeightRatio = 0.7f;
+    enum float heightExtraMult = 1.1f;
 
     static assert (1.f / heightExtraMult >= acceptableHeightRatio);
     static assert (heightExtraMult >= 1.f);
@@ -43,8 +43,8 @@ class BoxPacker {
         PackerLine* bestLine = null;
 
         // find the 'best' line
-        foreach (inout page; pages) {
-            foreach (inout line; page.lines) {
+        foreach (ref page; pages) {
+            foreach (ref line; page.lines) {
                 if (line.size.y < size.y) continue;     // won't fit our request vertically ...
                 if (line.size.x - line.xoffset < size.x) continue;      // ... horizontally
 
@@ -61,7 +61,7 @@ class BoxPacker {
             return bestLine.getBlock(size);
         } else {
             // we haven't found any line that would suit our needs, try to create a new one
-            foreach (inout page; pages) {
+            foreach (ref page; pages) {
                 auto line = page.extendCache(Vector2i(size.x, extendedHeight(size.y)));
                 if (line) return line.getBlock(size);
             }
@@ -102,7 +102,7 @@ class PackerPage {
     Block* getBlock(Vector2i size) {
         Block* res;
 
-        foreach (inout line; lines) {
+        foreach (ref line; lines) {
             if ((res = line.getBlock(size)) !is null) return res;
         }
 

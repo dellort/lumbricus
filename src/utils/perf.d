@@ -32,7 +32,7 @@ version (UseFishyStuff) {
             assert(false); //should never happen if getcpuclockid was ok?
         }
         long nsecs = tp.tv_nsec;
-        const ulong cSecInNs = 1000UL*1000*1000;
+        enum ulong cSecInNs = 1000UL*1000*1000;
         nsecs = nsecs + tp.tv_sec*cSecInNs;
         return timeNsecs(nsecs);
     }

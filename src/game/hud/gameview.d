@@ -53,31 +53,31 @@ import math = tango.math.Math;
 
 import utils.random : rngShared;
 
-const Time cArrowDelta = timeSecs(5);
+enum Time cArrowDelta = timeSecs(5);
 //time and length (in pixels) the health damage indicator will move upwards
-const Time cHealthHintTime = timeMsecs(1000);
-const int cHealthHintDistance = 75;
+enum Time cHealthHintTime = timeMsecs(1000);
+enum int cHealthHintDistance = 75;
 //time before the label disappears
-const Time cHealthHintWait = timeMsecs(500);
+enum Time cHealthHintWait = timeMsecs(500);
 //same as above for the worm labels when they're shown/hidden for active worms
-const Time cLabelsMoveTimeUp = timeMsecs(300); //moving up
-const Time cLabelsMoveTimeDown = timeMsecs(1000); //and down
-const int cLabelsMoveDistance = 200;
-const float cDrownLabelSpeed = 50; //pixels/sec
+enum Time cLabelsMoveTimeUp = timeMsecs(300); //moving up
+enum Time cLabelsMoveTimeDown = timeMsecs(1000); //and down
+enum int cLabelsMoveDistance = 200;
+enum float cDrownLabelSpeed = 50; //pixels/sec
 //time swap left/right position of weapon icon
-const Time cWeaponIconMoveTime = timeMsecs(300);
+enum Time cWeaponIconMoveTime = timeMsecs(300);
 //time to zoom out
-const Time cZoomTime = timeMsecs(500);
+enum Time cZoomTime = timeMsecs(500);
 //min/max zooming level
-const float cZoomMin = 0.6f;
-const float cZoomMax = 1.0f;
+enum float cZoomMin = 0.6f;
+enum float cZoomMax = 1.0f;
 
 private {
     SettingVar!(int) gTeamLabels, gDetailLevel;
 }
 
-const cTeamLabelCount = 4;
-const cDetailLevelCount = 7;
+enum cTeamLabelCount = 4;
+enum cDetailLevelCount = 7;
 
 static this() {
     gTeamLabels = gTeamLabels.Add("game.teamlabels", 2);
@@ -173,7 +173,7 @@ private class ViewMember : SceneObject {
             return;
 
         //ughh, needs correct bounding box
-        const d = 30;
+        enum d = 30;
         Rect2i bounds = Rect2i(-d, -d, d, d);
         bounds += graphic.interpolated_position();
 
@@ -388,7 +388,7 @@ class DrownLabel : SceneObject {
         float mSpeed; //pixels/second
         Vector2i mFrom, mTo;
         Color mWaterBlendColor;
-        const cWaterBlendFactor = 0.6;
+        enum cWaterBlendFactor = 0.6;
     }
 
     //member inf drowned at pos (pos is on the ground)
@@ -421,8 +421,8 @@ class DrownLabel : SceneObject {
         }
 
         if (mEffect == MoveLabelEffect.bubble) {
-            const cPxArc = 50; //so many sinus curves over a pixel distance
-            const cArcAmp = 10; //amplitude of sinus curve
+            enum cPxArc = 50; //so many sinus curves over a pixel distance
+            enum cArcAmp = 10; //amplitude of sinus curve
             auto idx = px / cPxArc * math.PI * 2;
             move.x += math.sin(idx) * cArcAmp;
         }
@@ -469,12 +469,12 @@ class GameView : Widget {
         int mCurCamPriority;
         //AnimationGraphic mCurCamObject;
         Time mLastCamChange;
-        const cCamChangeDelay = timeSecs(1.2);
+        enum cCamChangeDelay = timeSecs(1.2);
         TeamMember mLastActiveMember; //hack to detect worm activation
         Time mActivateTime;
         Vector2i mLastCamBorder;
         Time[2] mCBLastInc;
-        const cMaxBorderSpeed = 350.0f;
+        enum cMaxBorderSpeed = 350.0f;
 
         float mZoomChange = 1.0f, mCurZoom = 1.0f;
 
@@ -513,7 +513,7 @@ class GameView : Widget {
         Vector2i mShakeOffset;
         //time after which a new shake offset is computed (to make shaking
         //  framerate independent), in ms
-        const cShakeIntervalMs = 50;
+        enum cShakeIntervalMs = 50;
         Time mLastShake;
 
         PerfTimer mGameDrawTime;

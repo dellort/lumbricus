@@ -45,7 +45,7 @@ abstract class DriverSurface : DriverResource {
     }
 }
 
-const int cAlphaTestRef = 128;
+enum int cAlphaTestRef = 128;
 
 //this function by definition returns if a pixel is considered transparent
 //dear compiler, you should always inline this
@@ -58,7 +58,7 @@ bool pixelIsTransparent(Color.RGBA32* p) {
 //some good (but completely random) pick for a colorkey
 //should be a rarely used color, and be representable in 16 bit colors
 //PNG image writer and SDL driver may use this
-const Color cStdColorKey = Color(1,0,1,0);
+enum Color cStdColorKey = Color(1,0,1,0);
 
 /// a Surface
 /// This is used by the user and this also can survive framework driver
@@ -87,7 +87,7 @@ final class Surface : ResourceT!(DriverSurface) {
     ///"best" size for a large texture
     //just needed because OpenGL has an unknown max texture size
     //actually, it doesn't make sense at all
-    const cStdSize = Vector2i(512, 512);
+    enum cStdSize = Vector2i(512, 512);
 
     this(Vector2i size) {
         argcheck(size.x >= 0 && size.y >= 0);
@@ -277,11 +277,11 @@ final class Surface : ResourceT!(DriverSurface) {
     ///for each pixel (and color channel) change the color to fn(original_color)
     ///because really doing that for each Color would be too slow, this is only
     ///done per channel (fn() is used to contruct the lookup table)
-    void mapColorChannels(Color delegate(Color c) fn) {
+    void mapColorChannels(scope Color delegate(Color c) fn) {
         ubyte[256][4] map;
         for (int n = 0; n < 256; n++) {
             Color c;
-            c.r = c.g = c.b = c.a = Color.fromByte(n);
+            c.r = c.g = c.b = c.a = Color.fromByte(cast(ubyte)n);
             c = fn(c);
             c.clamp();
             Color.RGBA32 c32 = c.toRGBA32();
@@ -491,7 +491,7 @@ Transparency mergeTransparency(Transparency base, Transparency part) {
 //if this returns true, blitWithColorkey can be used
 //otherwise, you have to find an unique colorkey, or use alpha transparency
 bool checkColorkey(Color.RGBA32 ckey, Color.RGBA32[] data) {
-    const uint cColorMask = Color.cMaskR | Color.cMaskG | Color.cMaskB;
+    enum uint cColorMask = Color.cMaskR | Color.cMaskG | Color.cMaskB;
 
     uint ckeyval = ckey.uint_val;
     auto pcur = data.ptr;
@@ -510,9 +510,9 @@ bool checkColorkey(Color.RGBA32 ckey, Color.RGBA32[] data) {
 //  Transparency.Colorkey: only pixels with 0% or 100% transparency
 //  Transparency.Alpha: any alpha values are in use
 Transparency checkAlphaness(Color.RGBA32[] data) {
-    const uint cAlphaMask = Color.cMaskA;
-    const uint cAlphaOpaque = cAlphaMask;
-    const uint cAlphaNone = 0;
+    enum uint cAlphaMask = Color.cMaskA;
+    enum uint cAlphaOpaque = cAlphaMask;
+    enum uint cAlphaNone = 0;
 
     auto pcur = data.ptr;
     auto pend = data.ptr + data.length;

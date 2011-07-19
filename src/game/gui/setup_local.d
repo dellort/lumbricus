@@ -44,8 +44,8 @@ class LevelWidget : SimpleContainer {
         WindowWidget mLevelWindow;
         LevelSelector mSelector;  //8-level window, created once and reused then
 
-        const cSavedLevelsPath = "storedlevels/";
-        const cLastlevelConf = "lastlevel.conf";
+        enum cSavedLevelsPath = "storedlevels/";
+        enum cLastlevelConf = "lastlevel.conf";
     }
 
     void delegate(bool busy) onSetBusy;
@@ -248,7 +248,7 @@ class LocalGameSetupTask {
         DropDownList mWeaponSet;
         CheckBox mRecordDemo;
 
-        const cMaxPower = 200;
+        enum cMaxPower = 200;
 
         //holds team info specific to current game (not saved in teams.conf)
         struct TeamDef {

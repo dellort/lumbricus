@@ -19,7 +19,7 @@ class TeamTheme {
 
     //wwp hardcodes these colors (there are separate bitmaps for each)
     //the indices are also hardcoded to wwp (0 must be red etc.)
-    static const string[] cTeamColors = [
+    static enum string[] cTeamColors = [
         "red",
         "blue",
         "green",

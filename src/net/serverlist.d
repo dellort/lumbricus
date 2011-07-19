@@ -16,15 +16,15 @@ private LogStruct!("serverlist") log;
 //  servers and query them regularly for ping time and more information
 class ServerList {
     //time for query retry
-    const cQueryTimeout = timeSecs(8);
+    enum cQueryTimeout = timeSecs(8);
     //re-query interval (must be > cQueryTimeout)
-    const cSeenTimeout = timeSecs(60);
+    enum cSeenTimeout = timeSecs(60);
     //announcer refresh interval (sync announcer's server list with ours)
     //Note: announcers use custom internal refresh times
-    const cRefreshInterval = timeSecs(1);
+    enum cRefreshInterval = timeSecs(1);
     //don't kill the router and try to get good ping values
     //xxx not sure about a good value (it's only 1 udp packet per server)
-    const cMaxQueriesPerSec = 50;
+    enum cMaxQueriesPerSec = 50;
 
     struct ServerInfo {
         ServerAddress addr;

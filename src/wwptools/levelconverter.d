@@ -218,7 +218,7 @@ char[] fillTemplate(char[] template_str, char[][char[]] stuff) {
 }
 
 //level.conf template (yeah, backticked string literals!)
-const char[] LEVEL_CONF = `//automatically created by extractdata
+enum char[] LEVEL_CONF = `//automatically created by extractdata
 environment {
   resources {
     animations {

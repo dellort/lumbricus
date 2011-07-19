@@ -25,7 +25,7 @@ class WeaponSet : GameObject {
         //for the public: all fields readonly (writing getters would be bloat)
         WeaponClass weapon;
         uint quantity; //cINF means infinite
-        const cINF = typeof(quantity).max;
+        enum cINF = typeof(quantity).max;
         Time lastFire;
 
         bool infinite() {
@@ -100,13 +100,13 @@ class WeaponSet : GameObject {
         }
     }
 
-    void iterate(void delegate(Entry e) dg) {
+    void iterate(scope void delegate(Entry e) dg) {
         foreach (e; mEntries)
             dg(e);
     }
 
     //xxx can't use overloading because of Lua wrapper
-    void iterate2(void delegate(WeaponClass weapon, uint quantity) dg) {
+    void iterate2(scope void delegate(WeaponClass weapon, uint quantity) dg) {
         foreach (e; mEntries)
             dg(e.weapon, e.quantity);
     }

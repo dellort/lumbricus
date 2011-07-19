@@ -98,7 +98,7 @@ abstract class DrawDriver : ResDriver {
 /// For drawing; the driver inherits his own class from this and overrides the
 /// abstract methods.
 public class Canvas {
-    const int MAX_STACK = 30;
+    enum int MAX_STACK = 30;
 
     private {
         struct State {
@@ -162,7 +162,7 @@ public class Canvas {
             //xxx: not quite sure if this correct etc
             //m = conservative estimate of max. distance of a pixel of the
             //    sprite to the dest pos
-            const cSqrt_2 = 1.42; //rounded up
+            enum cSqrt_2 = 1.42; //rounded up
             float m = max(max(s.size.x - eff.center.x, eff.center.x)
                 * eff.scale.x, max(s.size.y - eff.center.y, eff.center.y)
                 * eff.scale.y) * cSqrt_2;
@@ -503,7 +503,7 @@ public class Canvas {
             style = ImageDrawStyle.center;
         }
         bool outer = true;
-        switch (style) {
+        final switch (style) {
             case ImageDrawStyle.center:
                 draw(source, destPos + destSize/2 - source.size/2);
                 break;
@@ -549,7 +549,7 @@ public class Canvas {
 //  slower due to the additional overhead, but they are seldomly used, and it
 //  doesn't really matter
 class Canvas3DHelper : Canvas {
-    import tango.math.Math : PI, cos, sin, abs;
+    import std.math;
 
     enum Primitive {
         INVALID,
@@ -621,7 +621,7 @@ class Canvas3DHelper : Canvas {
     private int getSlices(int radius) {
         //one vertex every 30 pixels on the circumcircle
         //xxx I don't know if this makes much sense
-        const cRadiusToSteps = 2*PI/30;
+        enum cRadiusToSteps = 2*PI/30;
         return clampRangeC(cast(uint)(radius*cRadiusToSteps), 16U,
             mBuffer.length-2);
     }
@@ -731,7 +731,7 @@ class Canvas3DHelper : Canvas {
         p2.y -= 1;
 
         //fixes blurry lines with GL_LINE_SMOOTH
-        const c = 0.5f;
+        enum c = 0.5f;
 
         mColor = color;
         lineWidth(1);

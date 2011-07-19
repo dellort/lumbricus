@@ -37,7 +37,7 @@ public class LandscapeGeometry {
         n.size = size;
         n.fill = fill;
 
-        foreach (inout Polygon p; n.polygons) {
+        foreach (ref Polygon p; n.polygons) {
             p.points = p.points.dup;
             p.nochange = p.nochange.dup;
         }
@@ -680,7 +680,7 @@ private:
     //minlen, maxlen: valid range for the shape's length
     //returns false if failed (shape's length out of range)
     //if not failed, at_start and at_end is set to the segment rang...
-    bool doWormsify(inout SegmentRange at, float from_ratio, float to_ratio,
+    bool doWormsify(ref SegmentRange at, float from_ratio, float to_ratio,
         float dir, float fdir, float frontlen, float maxlen, float minlen,
         float min_baselen)
     {

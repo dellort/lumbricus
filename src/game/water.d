@@ -17,7 +17,7 @@ import utils.random;
 
 
 //height in pixels of the alpha blend-out region
-const cBlendOutHeight = 75;
+enum cBlendOutHeight = 75;
 
 class WaterDrawer : SceneObject {
     protected Color mWaterColor;
@@ -71,12 +71,12 @@ class WaterDrawerBack : WaterDrawer {
 }
 
 class GameWater {
-    package const cBackLayers = 2;
-    package const cFrontLayers = 3;
-    package const cWaterLayerDist = 20;
-    package const cWaveAnimMult = 0.7f;
+    package enum cBackLayers = 2;
+    package enum cFrontLayers = 3;
+    package enum cWaterLayerDist = 20;
+    package enum cWaveAnimMult = 0.7f;
     //delay between spawning bubbles in a cave level (scaled if world is larger)
-    package const cBubbleInterval = timeMsecs(150);
+    package enum cBubbleInterval = timeMsecs(150);
 
     private WaterDrawer mWaterDrawerBack, mWaterDrawerBlendOut;
     private Animation mWaveAnim;
@@ -118,7 +118,7 @@ class GameWater {
 
         mWaveAnim = mEngine.resources.get!(Animation)("water_waves");
         Scene scene = mEngine.scene;
-        foreach (int i, inout a; mWaveAnimBack) {
+        foreach (int i, ref a; mWaveAnimBack) {
             a = new HorizontalFullsceneAnimator();
             a.animator = new Animator(ts);
             a.animator.setAnimation(mWaveAnim);
@@ -127,7 +127,7 @@ class GameWater {
             a.size = size;
             a.scrollMult = -0.16666f+i*0.08333f;
         }
-        foreach (int i, inout a; mWaveAnimFront) {
+        foreach (int i, ref a; mWaveAnimFront) {
             a = new HorizontalFullsceneAnimator();
             a.animator = new Animator(ts);
             a.animator.setAnimation(mWaveAnim);
@@ -162,7 +162,7 @@ class GameWater {
         //make sure to kill all, then
         if (simple) {
             //no background layers, one front layer
-            foreach (inout a; mWaveAnimBack) {
+            foreach (ref a; mWaveAnimBack) {
                 a.active = false;
             }
             for (int i = 1; i < mWaveAnimFront.length; i++) {
@@ -170,10 +170,10 @@ class GameWater {
             }
         } else {
             //all on
-            foreach (inout a; mWaveAnimBack) {
+            foreach (ref a; mWaveAnimBack) {
                 a.active = true;
             }
-            foreach (inout a; mWaveAnimFront) {
+            foreach (ref a; mWaveAnimFront) {
                 a.active = true;
             }
         }
@@ -196,14 +196,14 @@ class GameWater {
             assert(!!mWaveAnim);
             waveCenterDiff = - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult)
                 + mWaveAnim.bounds.size.y/2;
-            foreach_reverse (inout a; mWaveAnimBack) {
+            foreach_reverse (ref a; mWaveAnimBack) {
                 p -= cWaterLayerDist;
                 a.ypos = p - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult);
                 a.size = size;
             }
             backAnimTop = p + waveCenterDiff;
             p = waterOffs;
-            foreach (inout a; mWaveAnimFront) {
+            foreach (ref a; mWaveAnimFront) {
                 a.ypos = p - cast(int)(mWaveAnim.bounds.size.y*cWaveAnimMult);
                 p += cWaterLayerDist;
             }

@@ -31,7 +31,7 @@ enum GameZOrder {
 
 //fixed framerate for the game logic (all of GameEngine)
 //also check physic frame length cPhysTimeStepMs in world.d
-const Time cFrameLength = timeMsecs(20);
+enum Time cFrameLength = timeMsecs(20);
 
 //see GameShell.engineHash()
 //type of hash might be changed in the future

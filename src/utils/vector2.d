@@ -12,12 +12,12 @@ public struct Vector2(T) {
     alias y x2;
 
     //unit vectors (not to confuse with .X and .Y properties)
-    const Vector2 cX = {1,0};
-    const Vector2 cY = {0,1};
+    enum Vector2 cX = {1,0};
+    enum Vector2 cY = {0,1};
 
     //can be used for static initialization, i.e. as Vector2!(float).nan
     static if (is(T == float) || is(T == double)) {
-        const Vector2 nan = {T.nan, T.nan};
+        enum Vector2 nan = {T.nan, T.nan};
     }
 
     public static Vector2 opCall(T x1, T x2) {
@@ -38,19 +38,19 @@ public struct Vector2(T) {
         return Vector2(cast(T)cos(angle*1.0), cast(T)sin(angle*1.0))*length;
     }
 
-    public Vector2 X() {
+    public Vector2 X() const {
         return Vector2(x1,0);
     }
-    public Vector2 Y() {
+    public Vector2 Y() const {
         return Vector2(0,x2);
     }
 
     //for floats only
-    public bool isNaN() {
+    public bool isNaN() const {
          return x != x || y != y;
     }
 
-    public T opIndex(uint index) {
+    public T opIndex(uint index) const {
         //is that kosher?
         return ((&x1)[0..2])[index];
     }
@@ -58,7 +58,7 @@ public struct Vector2(T) {
         ((&x1)[0..2])[index] = val;
     }
 
-    public Vector2 opAdd(Vector2 v) {
+    public Vector2 opAdd(Vector2 v) const {
         return Vector2(x1+v.x1, x2+v.x2);
     }
     public void opAddAssign(Vector2 v) {
@@ -66,7 +66,7 @@ public struct Vector2(T) {
         x2 += v.x2;
     }
 
-    public Vector2 opSub(Vector2 v) {
+    public Vector2 opSub(Vector2 v) const {
         return Vector2(x1-v.x1, x2-v.x2);
     }
     public void opSubAssign(Vector2 v) {
@@ -74,14 +74,14 @@ public struct Vector2(T) {
         x2 -= v.x2;
     }
 
-    public T opMul(Vector2 v) {
+    public T opMul(Vector2 v) const {
         return x1*v.x1 + x2*v.x2;
     }
 
-    public Vector2 opMul(T scalar) {
+    public Vector2 opMul(T scalar) const {
         return Vector2(x1*scalar, x2*scalar);
     }
-    public Vector2 opMul_r(T scalar) {
+    public Vector2 opMul_r(T scalar) const {
         return opMul(scalar);
     }
     public void opMulAssign(T scalar) {
@@ -89,68 +89,68 @@ public struct Vector2(T) {
         x2 *= scalar;
     }
 
-    public Vector2 mulEntries(Vector2 v) {
+    public Vector2 mulEntries(Vector2 v) const {
         return Vector2(x1*v.x1, x2*v.x2);
     }
     //the same thing
-    public Vector2 opXor(Vector2 v) {
+    public Vector2 opXor(Vector2 v) const {
         return mulEntries(v);
     }
 
-    public Vector2 opDiv(T scalar) {
+    public Vector2 opDiv(T scalar) const {
         return Vector2(x1/scalar, x2/scalar);
     }
 
     //entry-wise division (like mulEntries)
-    public Vector2 opDiv(Vector2 v) {
+    public Vector2 opDiv(Vector2 v) const {
         return Vector2(x1/v.x1, x2/v.x2);
     }
 
-    public Vector2 opMod(T scalar) {
+    public Vector2 opMod(T scalar) const {
         return Vector2(x1%scalar, x2%scalar);
     }
 
     //entry-wise modulo
-    public Vector2 opMod(Vector2 v) {
+    public Vector2 opMod(Vector2 v) const {
         return Vector2(x1%v.x1, x2%v.x2);
     }
 
-    public Vector2 opNeg() {
+    public Vector2 opNeg() const {
         return Vector2(-x1, -x2);
     }
 
-    public T quad_length() {
+    public T quad_length() const {
         return x*x + y*y;
     }
 
-    public T length() {
+    public T length() const {
         return cast(T)sqrt(cast(real)(x*x + y*y));
     }
 
     //doesn't make any sense with T==int
-    public Vector2 normal() {
+    public Vector2 normal() const {
         T len = length();
         return Vector2(cast(T)(x/len), cast(T)(y/len));
     }
 
-    public Vector2 orthogonal() {
+    public Vector2 orthogonal() const {
         return Vector2(y, -x);
     }
 
-    public Vector2 abs() {
+    public Vector2 abs() const {
         return Vector2(cast(T).abs(x), cast(T).abs(y));
     }
 
-    public Vector2 clipAbsEntries(Vector2 clip) {
+    public Vector2 clipAbsEntries(Vector2 clip) const {
         return Vector2((.abs(x) > clip.x)?cast(T)copysign(clip.x, x):x,
             (.abs(y) > clip.y)?cast(T)copysign(clip.y, y):y);
     }
 
     //return vector with entry-wise maxima of this and other
-    public Vector2 max(Vector2 other) {
+    public Vector2 max(Vector2 other) const {
         return Vector2(x>other.x ? x : other.x, y>other.y ? y : other.y);
     }
-    public Vector2 min(Vector2 other) {
+    public Vector2 min(Vector2 other) const {
         return Vector2(x<other.x ? x : other.x, y<other.y ? y : other.y);
     }
 
@@ -161,7 +161,7 @@ public struct Vector2(T) {
 
     //if "this" is a normal, return angle to X axis in radians
     //useful for T==float only
-    public T toAngle() {
+    public T toAngle() const {
         return cast(T)atan2(cast(real)y,cast(real)x);
     }
 
@@ -171,20 +171,20 @@ public struct Vector2(T) {
 
     //given a line by start+t*dir, return a point that's on the line and that's
     //nearest to this (the projection of this on the line)
-    public Vector2 project_on(Vector2 start, Vector2 dir) {
+    public Vector2 project_on(Vector2 start, Vector2 dir) const {
         Vector2 n = dir.orthogonal.normal;
         T t = (start - this) * n;
         return this+n*t;
     }
 
     //get distance of this to the (infinite) line, see project_on
-    public T distance_from(Vector2 start, Vector2 dir) {
+    public T distance_from(Vector2 start, Vector2 dir) const {
         return (this - project_on(start, dir)).length;
     }
 
     //like project_on(), but given a line by start+t*dir, return the point
     //that's nearest to the line, but for which 0 <= t <= 1 is true
-    public Vector2 project_on_clipped(Vector2 start, Vector2 dir) {
+    public Vector2 project_on_clipped(Vector2 start, Vector2 dir) const {
         auto pt = project_on(start, dir);
         //sorry, I'm stupid, do you know a better way?
         auto t = pt.get_line_index(start, dir);
@@ -195,35 +195,35 @@ public struct Vector2(T) {
         return start+dir*t;
     }
 
-    public T distance_from_clipped(Vector2 start, Vector2 dir) {
+    public T distance_from_clipped(Vector2 start, Vector2 dir) const {
         return (this - project_on_clipped(start, dir)).length;
     }
 
     //return t so that: start+t*dir = this
-    T get_line_index(Vector2 start, Vector2 dir) {
+    T get_line_index(Vector2 start, Vector2 dir) const {
         return ((this - start) * dir) / dir.quad_length;
     }
 
     //return the projected component of this on the vector other
-    Vector2 project_vector(Vector2 other) {
+    Vector2 project_vector(Vector2 other) const {
         T len = other.length;
         return (this * other)/(len * len) * other;
     }
 
     //faster for project_vector(other).length
-    T project_vector_len(Vector2 other) {
+    T project_vector_len(Vector2 other) const {
         T len = other.length;
         return (this * other)/len;
     }
 
     //if point is inside the rect formed by pos and size
     //the border of that rect is exclusive
-    public bool isInside(Vector2 pos, Vector2 size) {
+    public bool isInside(Vector2 pos, Vector2 size) const {
         return x >= pos.x && y >= pos.y
             && x < pos.x + size.x && y < pos.y + size.y;
     }
 
-    public Vector2 rotated(T angle_rads) {
+    public Vector2 rotated(T angle_rads) const {
         // | 11 12 |
         // | 21 22 |
         T mat11 = cast(T)cos(angle_rads*1.0);
@@ -241,13 +241,13 @@ public struct Vector2(T) {
     }
 
     //don't ask
-    public T sum() {
+    public T sum() const {
         return x1 + x2;
     }
 
     //fit this vector into an area of size destArea, keeping our aspect ratio
     //just for real size vectors (no negative/0 values)
-    public Vector2 fitKeepAR(Vector2 destArea, bool outer = false) {
+    public Vector2 fitKeepAR(Vector2 destArea, bool outer = false) const {
         Vector2 ret;
         assert(destArea.x>0 && destArea.y>0);
         assert(x>0 && y>0);
@@ -263,8 +263,8 @@ public struct Vector2(T) {
         return ret;
     }
 
-    public static Vector2 fromString(string s) {
-        string[] items = str.split(s);
+    public static Vector2 fromString(const(char)[] s) {
+        auto items = str.split(s);
         if (items.length != 2) {
             throw strparser.newConversionException!(Vector2)(s);
         }
@@ -274,11 +274,11 @@ public struct Vector2(T) {
         return pt;
     }
 
-    public string fromStringRev() {
+    public string fromStringRev() const {
         return strparser.toStr(x1) ~ ' ' ~ strparser.toStr(x2);
     }
 
-    public string toString() {
+    public string toString() const {
         return "("~strparser.toStr(x1)~", "~strparser.toStr(x2)~")";
     }
 }

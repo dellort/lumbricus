@@ -38,7 +38,7 @@ class HudMessageViewer : HudElementWidget {
 ///a random int is passed along, so all clients with the same locale
 ///will select the same message
 struct GameMessage {
-    const cMessageTime = timeSecs(1.5f);
+    enum cMessageTime = timeSecs(1.5f);
 
     LocalizedMessage lm;
     //Actor actor;    //who did the action (normally a TeamMember), may be null
@@ -50,8 +50,8 @@ struct GameMessage {
 
 //Linear up -> wait -> down -> wait
 float msgAnimate(float x, Time total) {
-    const cAnimateMs = 0.15f;
-    const cPauseMs = 0.25f;
+    enum cAnimateMs = 0.15f;
+    enum cPauseMs = 0.25f;
 
     float totalSecs = total.secsf();
     float curSecs = totalSecs*x;

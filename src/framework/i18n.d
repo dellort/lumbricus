@@ -44,11 +44,11 @@ private {
     LocaleDir[] gAdditionalDirs;
 }
 
-private const cDefLang = "en";
+private enum cDefLang = "en";
 
 ///localePath: Path in VFS where locale files are stored (<langId>.conf)
 ///locale-specific files in <localePath>/<langId> will be mounted to root
-private const cLocalePath = "/locale";
+private enum cLocalePath = "/locale";
 
 static this() {
     gRootNode = new ConfigNode();
@@ -81,7 +81,7 @@ struct LocalizedMessage {
     uint rnd;       ///value for randomized selection of translations
 }
 
-private ConfigNode findNamespaceNode(ConfigNode rel, string idpath) {
+private ConfigNode findNamespaceNode(ConfigNode rel, in char[] idpath) {
     return rel.getPath(idpath, true);
 }
 
@@ -206,18 +206,18 @@ public class Translator {
 
     ///Translate a text, similar to the translate() function.
     ///Warning: doesn't do namespace resolution.
-    string opCall(T...)(string id, T args) {
+    string opCall(T...)(in char[] id, T args) {
         return translatefx(id, 0, args);
     }
 
-    private string lastId(string id) {
+    private const(char)[] lastId(const(char)[] id) {
         int pos = str.rfind(id, '.');
         if (pos < 0)
             assert(pos == -1);
         return id[pos+1 .. $];
     }
 
-    private string errorId(string id) {
+    private const(char)[] errorId(const(char)[] id) {
         return mFullIdOnError?id:lastId(id);
     }
 
@@ -274,7 +274,7 @@ public class Translator {
     }
 
     //like formatfx, only the format string is loaded by id
-    private string translatefx(T...)(string id, uint rnd, T args) {
+    private string translatefx(T...)(in char[] id, uint rnd, T args) {
         if (id.length > 0 && id[0] == '.') {
             //prefix the id with a . to translate in gLocaleRoot
             return gLocaleRoot.translatefx(id[1..$], rnd, args);
@@ -301,8 +301,8 @@ public class Translator {
         return DoTranslate(subnode, errorId(id), args);
     }
 
-    private string DoTranslate(T...)(ConfigNode data, string id, T args) {
-        string text;
+    private string DoTranslate(T...)(ConfigNode data, const(char)[] id, T args) {
+        const(char)[] text;
         if (data)
             text = data.value;
         if (text.length == 0) {
@@ -320,9 +320,9 @@ public class Translator {
 
 //search locale directory for translation files (<lang>.conf)
 //  e.g. cb("de", "German", "Deutsch")
-void scanLocales(void delegate(string id, string name_en, string name_loc) cb) {
+void scanLocales(scope void delegate(string id, string name_en, string name_loc) cb) {
     gFS.listdir("/locale/", "*.conf", false, (string filename) {
-        const trail = ".conf";
+        enum trail = ".conf";
         if (!str.endsWith(filename, trail))
             return true;
         auto node = loadConfig(cLocalePath ~ '/' ~ filename, true);
@@ -390,6 +390,6 @@ public void initI18N() {
 
 ///Translate an ID into text in the selected language.
 ///Unlike GNU Gettext, this only takes an ID, not an english text.
-public string translate(T...)(string id, T args) {
+public string translate(T...)(in char[] id, T args) {
     return gLocaleRoot.translatefx(id, 0, args);
 }

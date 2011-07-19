@@ -509,7 +509,7 @@ class ParticleWorld {
     //this is the smallest deltaT possible... or so
     //not sure if this is a good idea or if it even works
     //probably still better than using a fixed framerate or ignoring the problem
-    const float cMinStep = 1e-9f;
+    enum float cMinStep = 1e-9f;
 
     this(TimeSourcePublic t = null) {
         if (!t) {

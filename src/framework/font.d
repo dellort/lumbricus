@@ -66,8 +66,8 @@ alias BigArray!(ubyte) FontData;
 abstract class DriverFont : DriverResource {
     //w == int.max for unlimited text
     //fore, back, border_color: Color.Invalid to use predefined color
-    abstract Vector2i draw(Canvas canvas, Vector2i pos, string text);
-    abstract Vector2i textSize(string text, bool forceHeight);
+    abstract Vector2i draw(Canvas canvas, Vector2i pos, cstring text);
+    abstract Vector2i textSize(cstring text, bool forceHeight);
 }
 
 //creates DriverFont from Font
@@ -93,14 +93,14 @@ final class Font : ResourceT!(DriverFont) {
 
     /// draw UTF8 encoded text
     /// returns position beyond last drawn glyph
-    Vector2i drawText(Canvas canvas, Vector2i pos, string text) {
+    Vector2i drawText(Canvas canvas, Vector2i pos, cstring text) {
         return get.draw(canvas, pos, text);
     }
 
     /// return pixel width/height of the text
     /// forceHeight: if true (default), an empty string will return
     ///              (0, fontHeight) instead of (0,0)
-    Vector2i textSize(string text, bool forceHeight = true) {
+    Vector2i textSize(cstring text, bool forceHeight = true) {
         return get.textSize(text, forceHeight);
     }
 
@@ -110,7 +110,7 @@ final class Font : ResourceT!(DriverFont) {
     /// word/whitespace boundary
     //added long after findIndex, because findIndex seems to have quadratic
     //  complexity, and doesn't quite compute what we want
-    uint textFit(string text, int w, bool atWhitespace = false,
+    uint textFit(cstring text, int w, bool atWhitespace = false,
         bool disallow_nofit = false)
     {
         if (w <= 0)
@@ -140,7 +140,7 @@ final class Font : ResourceT!(DriverFont) {
     ///return the utf character index closest to posX
     ///(0 for start, text.length for end)
     ///posX is relative to left edge of text
-    public uint findIndex(string text, int posX) {
+    public uint findIndex(cstring text, int posX) {
         int twold = 0, ilast = 0, i = 0;
         //check width from start until it is over the requested position
         while (i < text.length) {
@@ -252,7 +252,7 @@ class FontManager : ResourceManagerT!(FontDriver) {
     ///return the font style for that id
     /// fail_exception = if it couldn't be found, raise an exception
     ///   (else return a default)
-    FontProperties getStyle(string id, bool fail_exception = false) {
+    FontProperties getStyle(cstring id, bool fail_exception = false) {
         assert(!!mNodes, "not initialized using readFontDefinitions()");
 
         ConfigNode font = mNodes.findNode(id);
@@ -267,7 +267,7 @@ class FontManager : ResourceManagerT!(FontDriver) {
     }
 
     //driver uses this
-    FontData findFace(string face, FaceStyle style = FaceStyle.normal) {
+    FontData findFace(cstring face, FaceStyle style = FaceStyle.normal) {
         FaceStyles* fstyles = face in mFaces;
         if (!fstyles)
             return null;
@@ -279,7 +279,7 @@ class FontManager : ResourceManagerT!(FontDriver) {
     //for driver: determine if a face with passed style is available
     //note that while a face does not need to have all styles,
     //  it always has FaceStyle.normal
-    bool faceExists(string face, FaceStyle style = FaceStyle.normal) {
+    bool faceExists(cstring face, FaceStyle style = FaceStyle.normal) {
         FaceStyles* fstyles = face in mFaces;
         if (!fstyles)
             return false;

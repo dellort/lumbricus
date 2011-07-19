@@ -39,11 +39,11 @@ class ScrollBar : Widget {
         bool mSizesValid;
 
         //constraints for drag thing
-        const int cMinSliderSize = 8;
-        const int cDefSliderSize = 16;
+        enum int cMinSliderSize = 8;
+        enum int cDefSliderSize = 16;
 
-        const string[] cAddImg = ["scroll_right","scroll_down"];
-        const string[] cSubImg = ["scroll_left","scroll_up"];
+        enum string[] cAddImg = ["scroll_right","scroll_down"];
+        enum string[] cSubImg = ["scroll_left","scroll_up"];
     }
 
     //that thing which sits between the two buttons

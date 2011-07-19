@@ -10,11 +10,11 @@ import utils.vector2;
 import wwpdata.common;
 import wwpdata.reader;
 
-const IMG_FLAG_COMPRESSED = 0x40;
+enum IMG_FLAG_COMPRESSED = 0x40;
 
 //tango sucks
 import tango.io.model.IFile : FileConst;
-const pathsep = FileConst.PathSeparatorChar;
+enum pathsep = FileConst.PathSeparatorChar;
 
 Surface readImgFile(Stream st) {
     char[4] hdr;

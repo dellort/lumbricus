@@ -178,7 +178,7 @@ public class ConfigNode {
 
     /// find an entry, return null if not found
     /// if there are several items with the same name, return the first one
-    ConfigNode find(string name) {
+    ConfigNode find(in char[] name) {
         //unnamed items don't count?
         if (name.length == 0)
             return null;
@@ -208,7 +208,7 @@ public class ConfigNode {
 
     /// Find a subnode by following a path.
     /// Path component separator is "."
-    public ConfigNode getPath(string path, bool create = false) {
+    public ConfigNode getPath(in char[] path, bool create = false) {
         //needed for recursion temrination :)
         if (path.length == 0) {
             return this;
@@ -253,14 +253,15 @@ public class ConfigNode {
     /// like find(), but return null if item has the wrong type
     /// for create==true, create a new / overwrite existing values/nodes
     /// instead of returning null
-    public ConfigNode findNode(string name, bool create = false) {
+    public ConfigNode findNode(in char[] name, bool create = false) {
         ConfigNode sub = find(name);
         if (sub !is null || !create)
             return sub;
 
         //create & add
         sub = new ConfigNode();
-        addNode(name, sub);
+        //idup: can't know whether name was immutable or mutable
+        addNode(name.idup, sub);
         return sub;
     }
 
@@ -305,9 +306,9 @@ public class ConfigNode {
         setStringValue(name, value);
     }
 
-    private void doWrite(void delegate(in char[]) sink, uint level) {
+    private void doWrite(scope void delegate(in char[]) sink, uint level) {
         string newline = "\n";
-        const int indent = 4;
+        enum int indent = 4;
         //xxx this could produce major garbage collection thrashing when writing
         //    big files
         string indent_str = str.repeat(" ", indent*level);
@@ -422,7 +423,7 @@ public class ConfigNode {
     }
 
     ///visit all existing (transitive) subitems, including "this"
-    public void visitAllNodes(void delegate(ConfigNode item) visitor) {
+    public void visitAllNodes(scope void delegate(ConfigNode item) visitor) {
         visitor(this);
         foreach (ConfigNode item; mItems) {
             visitor(item);
@@ -506,7 +507,7 @@ public class ConfigNode {
         } else static if (is(T == struct)) {
             novalue();
             T res;
-            const names = structMemberNames!(T)();
+            enum names = structMemberNames!(T)();
             foreach (int idx, x; res.tupleof) {
                 res.tupleof[idx] = getValue(names[idx], T.init.tupleof[idx]);
             }
@@ -556,7 +557,7 @@ public class ConfigNode {
         } else static if (is(T == struct)) {
             this.value = "";
             clear();
-            const names = structMemberNames!(T)();
+            enum names = structMemberNames!(T)();
             foreach (int idx, x; value.tupleof) {
                 //bug 3997
                 static if (!isAssociativeArray!(typeof(x))) {
@@ -705,7 +706,7 @@ public class ConfigNode {
         }
     }
 
-    void write(void delegate(in char[]) sink) {
+    void write(scope void delegate(in char[]) sink) {
         doWrite(sink, 0);
     }
 
@@ -786,7 +787,7 @@ public class ConfigFile {
         //if there's one, skip the unicode BOM
         //NOTE: tried to use tango.text.convert.UnicodeBom, but that thing sucks
         //also fuck Microsoft for introducing useless crap
-        const string cUtf8Bom = [0xEF, 0xBB, 0xBF];
+        enum string cUtf8Bom = [0xEF, 0xBB, 0xBF];
         str.eatStart(mData, cUtf8Bom);
 
         //read first char, inits mPos and mCurChar
@@ -1102,7 +1103,7 @@ public class ConfigFile {
 
     //arrrg I want initializeable associative arrays
     private struct EscapeItem {char escape; char produce;}
-    private static const EscapeItem cSimpleEscapes[] = [
+    private static enum EscapeItem cSimpleEscapes[] = [
         {'\\', '\\'}, {'\'', '\''}, {'\"', '\"'}, {'?', '?'},
         {'n', '\n'}, {'t', '\t'}, {'v', '\v'}, {'b', '\b'}, {'f', '\f'},
         {'a', '\a'},

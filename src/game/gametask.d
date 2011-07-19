@@ -143,8 +143,8 @@ class GameTask : IKillable {
         CommandBucket mCmds;
 
         Fader mFader;
-        const cFadeOutDuration = timeSecs(2);
-        const cFadeInDuration = timeMsecs(500);
+        enum cFadeOutDuration = timeSecs(2);
+        enum cFadeInDuration = timeMsecs(500);
 
         bool mDelayedFirstFrame; //draw screen before loading first chunk
 
@@ -255,7 +255,7 @@ class GameTask : IKillable {
     //  code = code to be executed; exceptions will be catched and treated as
     //      load errors
     //  returns if code was executed successfully
-    private bool tryLoad(string phase, void delegate() code) {
+    private bool tryLoad(string phase, scope void delegate() code) {
         try {
             code();
             return true;
@@ -276,7 +276,7 @@ class GameTask : IKillable {
     //creator is called first
     //xxx: I'd like to put "creator" as extra chunk with addChunk, but that
     //  would require proper closure support; so it's called immediately for now
-    void doInit(void delegate() creator) {
+    void doInit(scope void delegate() creator) {
         //kill remains?
         killGame();
 

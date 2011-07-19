@@ -288,7 +288,7 @@ class WeaponSelWindow : Container {
             //reverse-resolve shortcut and show
             auto shortcut = new Label();
             //and yes, the shortcut bind-name is the category-id itself
-            const cCShortcut = "category_"; //xxx duplicated in gameview.d
+            enum cCShortcut = "category_"; //xxx duplicated in gameview.d
             shortcut.text = selectionBindings ?
                 translateBind(selectionBindings, cCShortcut ~ category)
                 : category;

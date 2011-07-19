@@ -23,10 +23,10 @@ import utils.vector2;
 alias bool delegate(InputEvent event) CatchInput;
 CatchInput[] gCatchInput;
 
-const cVideoNode = "video";
-const cVideoFS = cVideoNode ~ ".fullscreen";
-const cVideoSizeWnd = cVideoNode ~ ".size.window";
-const cVideoSizeFS = cVideoNode ~ ".size.fullscreen";
+enum cVideoNode = "video";
+enum cVideoFS = cVideoNode ~ ".fullscreen";
+enum cVideoSizeWnd = cVideoNode ~ ".size.window";
+enum cVideoSizeFS = cVideoNode ~ ".size.fullscreen";
 
 static this() {
     addSetting!(bool)(cVideoFS, false);

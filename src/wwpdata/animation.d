@@ -13,7 +13,7 @@ import utils.filetools;
 import utils.misc;
 
 //XXXTANGO
-const pathsep = "/";
+enum pathsep = "/";
 
 //xxx should be moved somewhere else, no reason to compile this into the game
 void saveAnimations(RawAnimation[] animations, char[] outPath, char[] fnBase,
@@ -137,7 +137,7 @@ class RawAnimation {
         if (this.packer)
             return;
         this.packer = packer;
-        foreach (int iframe, inout FrameInfo fi; frames) {
+        foreach (int iframe, ref FrameInfo fi; frames) {
             //request page and offset for frame from packer
             auto sub = packer.add(fi.size);
             //blit frame data from animation onto page image

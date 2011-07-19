@@ -22,10 +22,10 @@ import md5 = tango.util.digest.Md5;
 
 //don't know where to put this, moved it out of blastHole() because this thing
 //affects the bitmap modification bounding box
-const int cBlastBorder = 4;
+enum int cBlastBorder = 4;
 
 //can be set to a high value to disable tiling
-const int cTileSize = 256;
+enum int cTileSize = 256;
 
 class LandscapeBitmap {
     private {
@@ -42,7 +42,7 @@ class LandscapeBitmap {
         static assert(Lexel.sizeof == 1);
 
         //blastHole: Distance from explosion outer circle to inner (free) circle
-        const int cBlastCenterDist = 25;
+        enum int cBlastCenterDist = 25;
 
         int[][] mCircles; //getCircle()
 
@@ -562,7 +562,7 @@ class LandscapeBitmap {
     //dorasterize() will use l/s for rendering it, and will clip, draw,
     //  automatically update the dirty rect, and so on
     //s can be null (intended for data-only renderers)
-    void rasterize(Surface s, Lexel l, void delegate(ref RasterCtx) dg) {
+    void rasterize(Surface s, Lexel l, scope void delegate(ref RasterCtx) dg) {
         Rect2i drc = Rect2i.Abnormal();
 
         scope pixels = new PixelAccess();
@@ -969,7 +969,7 @@ class LandscapeBitmap {
         LandscapeTheme theme = null)
     {
         argcheck(!mDataOnly, "Not for data-only renderer");
-        const ubyte cAllMeta = Lexel.SolidSoft | Lexel.SolidHard;
+        enum ubyte cAllMeta = Lexel.SolidSoft | Lexel.SolidHard;
 
         assert(radius >= 0);
         assert(blast_border >= 0);

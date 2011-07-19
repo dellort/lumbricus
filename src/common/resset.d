@@ -49,7 +49,7 @@ class ResourceSet {
         }
     }
 
-    override void dispose() {
+    void free() {
         foreach (string n, ref Entry e; mResByName) {
             e = null;
         }
@@ -90,7 +90,7 @@ class ResourceSet {
         return mResByName.values;
     }
 
-    Entry resourceByName(string name, bool canfail = false) {
+    Entry resourceByName(in char[] name, bool canfail = false) {
         auto pres = name in mResByName;
         if (!pres) {
             if (!canfail) {
@@ -103,7 +103,7 @@ class ResourceSet {
     }
 
     ///get a resource by name...
-    T get(T)(string name, bool canfail = false) {
+    T get(T)(in char[] name, bool canfail = false) {
         auto res = resourceByName(name, canfail);
         if (canfail && !res) {
             return null;
@@ -156,13 +156,13 @@ class ResourceSet {
 
 ///use this for recoverable loading errors
 class LoadException : CustomException {
-    this(string name, string why) {
-        super("Failed to load '" ~ name ~ "': " ~ why ~ ".");
+    this(in char[] name, in char[] why) {
+        super(("Failed to load '" ~ name ~ "': " ~ why ~ ".").idup);
     }
 }
 
 class ResourceException : LoadException {
-    this(string a, string b) {
+    this(in char[] a, in char[] b) {
         super(a, b);
     }
 }
@@ -232,7 +232,7 @@ struct applyInterfaces
     }
 
     ///
-    int opApply (int delegate (ref ClassInfo) dg)
+    int opApply (scope int delegate (ref ClassInfo) dg)
     {
         int result = 0;
         for (; type; type = type.base)

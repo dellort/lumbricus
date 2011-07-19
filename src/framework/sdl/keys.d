@@ -260,4 +260,4 @@ SDLToKeycode g_sdl_to_code[] = [
 
 //hope SDL never uses negative values for its key constants
 //at least this is more reliable than using SDLK_LAST
-public static final const int g_sdl_mouse_button1 = -20;
+enum int g_sdl_mouse_button1 = -20;

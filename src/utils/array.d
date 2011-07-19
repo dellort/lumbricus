@@ -19,7 +19,7 @@ public V[K] aaDup(K, V)(V[K] aa) {
 }
 
 //as you know it from your Haskell lessons
-T_to[] arrayMap(T_from, T_to)(T_from[] arr, T_to delegate(T_from x) del) {
+T_to[] arrayMap(T_from, T_to)(T_from[] arr, scope T_to delegate(T_from x) del) {
     T_to[] res;
     res.length = arr.length;
     for (int n = 0; n < res.length; n++) {
@@ -28,7 +28,7 @@ T_to[] arrayMap(T_from, T_to)(T_from[] arr, T_to delegate(T_from x) del) {
     return res;
 }
 
-T[] arrayFilter(T)(T[] arr, bool delegate(T x) pred) {
+T[] arrayFilter(T)(T[] arr, scope bool delegate(T x) pred) {
     T[] res;
     foreach (i; arr) {
         if (pred(i))
@@ -77,7 +77,7 @@ T arrayFindPrev(T)(T[] arr, T w) {
 //cf. arrayFindNextPred()()
 //iterate(arr, w): find the element following w in arr
 T arrayFindFollowingPred(T)(T[] arr, T w, T function(T[] arr, T w) iterate,
-    bool delegate(T t) pred)
+    scope bool delegate(T t) pred)
 {
     T first = iterate(arr, w);
     if (!first)
@@ -96,11 +96,11 @@ T arrayFindFollowingPred(T)(T[] arr, T w, T function(T[] arr, T w) iterate,
 //searches for next element with pred(element)==true, wraps around, if w is null
 //start search with first element, if no element found, return null
 //if w is the only valid element, return w
-T arrayFindNextPred(T)(T[] arr, T w, bool delegate(T t) pred) {
+T arrayFindNextPred(T)(T[] arr, T w, scope bool delegate(T t) pred) {
     return arrayFindFollowingPred(arr, w, &arrayFindNext!(T), pred);
 }
 //for the preceeding element
-T arrayFindPrevPred(T)(T[] arr, T w, bool delegate(T t) pred) {
+T arrayFindPrevPred(T)(T[] arr, T w, scope bool delegate(T t) pred) {
     return arrayFindFollowingPred(arr, w, &arrayFindPrev!(T), pred);
 }
 
@@ -326,6 +326,9 @@ struct Appender(T, bool FreeOnRealloc = false) {
     T[] dup() {
         return opSlice().dup;
     }
+    immutable(T)[] idup() {
+        return opSlice().idup;
+    }
 
     //setting length to 0 may not free anything at all
     void length(size_t nlen) {
@@ -467,14 +470,12 @@ final class BigArray(T) {
         return narr;
     }
 
-    override void dispose() {
+    void free() {
         length = 0;
     }
 
-    alias dispose free;
-
     ~this() {
-        dispose(); //safe in this specific case
+        free(); //safe in this specific case??? XXXTANGO
         assert(mData is null);
     }
 
@@ -496,11 +497,11 @@ final class BigArray(T) {
     }
     void opCatAssign(T value) {
         setLengthNoInit(length + 1);
-        mData[length - 1] = value;
+        mData[this.length - 1] = value;
     }
     void opCatAssign(T[] value) {
         setLengthNoInit(length + value.length);
-        mData[length - value.length .. $] = value;
+        mData[this.length - value.length .. $] = value;
     }
     T* ptr() {
         return mData.ptr;

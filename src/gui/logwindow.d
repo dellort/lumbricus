@@ -8,7 +8,7 @@ import gui.rendertext;
 import utils.array : AppenderVolatile;
 import utils.time;
 import utils.output;
-import utils.misc : min, max, myformat_fx;
+import utils.misc;
 import utils.ringbuffer;
 
 import str = utils.string;
@@ -17,7 +17,7 @@ public class LogWindow : Widget {
     private {
         //maximum entries the backlog stores
         //if backlog would grow larger, old entries are thrown away
-        const int BACKLOG_LENGTH = 150;
+        enum int BACKLOG_LENGTH = 150;
 
         //output font (from constructor)
         Font mConsoleFont;
@@ -34,10 +34,12 @@ public class LogWindow : Widget {
         //time after which old lines are faded out (0 to disable)
         Time mFadeDelay;
         //time over which to fade alpha from visible to invisible
-        const cFadeTime = timeSecs(1);
+        enum cFadeTime = timeSecs(1);
         //if true, will use FormattedText for drawing
         bool mTextFormatted;
     }
+
+    Output output;
 
     //break lines on window width (primitive algorithm)
     //quite inefficient algorithm, which is why it can be deactivated here
@@ -45,6 +47,7 @@ public class LogWindow : Widget {
 
     ///initialize console, consoleFont will be used for rendering text
     public this(Font consoleFont = null) {
+        output = new OutputCb(&writeString);
         doClipping = true;
         focusable = false;
         font = consoleFont ? consoleFont : gFontManager.loadFont("console");
@@ -119,7 +122,7 @@ public class LogWindow : Widget {
                 //(because we want to render the text from bottom to top, but
                 //  break from top to bottom)
                 //the first part is the symbol "Rightwards Arrow With Hook"
-                const cBreaker = "\u21aa ";
+                enum cBreaker = "\u21aa ";
                 void bla(string txt, int frame) {
                     if (frame > 0 && (txt.length == 0 || cur.y < 0))
                         return;
@@ -156,7 +159,7 @@ public class LogWindow : Widget {
 
     //NOTE: parses '\n's
     //xxx might be inefficient; at least it's correct, unlike the last version
-    void writeString(string s) {
+    void writeString(cstring s) {
         foreach (char c; s) {
             if (c == '\n') {
                 println();
@@ -186,7 +189,7 @@ public class LogWindow : Widget {
             newEntry.fmtText.setMarkup(mLineBuffer[]);
         } else {
             delete newEntry.text;
-            newEntry.text = mLineBuffer.dup;
+            newEntry.text = mLineBuffer.idup;
         }
         newEntry.timestamp = timeCurrentTime();
         mLineBuffer.length = 0;

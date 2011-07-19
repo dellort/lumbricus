@@ -32,7 +32,7 @@ abstract class BroadPhase {
 
     //call on potential collision
     final protected void checkObjectCollision(PhysicObject obj1,
-        PhysicObject obj2, CollideDelegate contactHandler)
+        PhysicObject obj2, scope CollideDelegate contactHandler)
     {
         //no collision if unwanted
         //xxx only place where mWorld is needed
@@ -80,7 +80,7 @@ abstract class BroadPhase {
 
     //the shape_ params are as in PhysicObject
     void collideShape(uint shape_id, void* shape_ptr, CollisionType filter,
-        CollideDelegate contactHandler)
+        scope CollideDelegate contactHandler)
     {
         //naive algorithm
         for (PhysicObject o = list.head; o; o = list.next(o)) {
@@ -130,7 +130,7 @@ class BPIterate : BroadPhase {
         super(cmap);
     }
 
-    override void collide(CollideDelegate contactHandler) {
+    override void collide(scope CollideDelegate contactHandler) {
         foreach (o1; list) {
             PhysicObject o2 = list.next(o1);
             while (o2) {

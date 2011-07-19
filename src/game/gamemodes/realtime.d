@@ -37,15 +37,15 @@ class ModeRealtime : Gamemode {
         }
         ModeConfig config;
 
-        const cWinTime = timeSecs(4);
+        enum cWinTime = timeSecs(4);
         //time from being hit until you can move again
-        const cHitDelay = timeMsecs(1000);
+        enum cHitDelay = timeMsecs(1000);
         //time of inactivity until health update / worm blowup
-        const cUpdateDelay = timeSecs(2.5f);
+        enum cUpdateDelay = timeSecs(2.5f);
         //time of inactivity until a worm can become active
-        const cActivateDelay = timeMsecs(500);
+        enum cActivateDelay = timeMsecs(500);
         //how long you can still move before control is taken on victory
-        const cWinRetreatTime = timeSecs(10);
+        enum cWinRetreatTime = timeSecs(10);
         Time[Team] mTeamDeactivateTime;
         HudGameTimer mStatus;
         bool mSuddenDeath;

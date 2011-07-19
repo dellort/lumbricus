@@ -23,7 +23,7 @@ import tango.util.Convert : to;
 class MessagePlugin : GameObject {
     private {
         GameController mController;
-        const cWinMessageTime = timeSecs(5.0f);
+        enum cWinMessageTime = timeSecs(5.0f);
         Time mMessagesDone;
         int mMessageCounter;
         GameMessage[] mPendingMessages;

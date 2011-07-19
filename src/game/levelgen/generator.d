@@ -36,7 +36,7 @@ static this() {
     mGeneratorFactory = new typeof(mGeneratorFactory);
 }
 
-private const cLoadTemplateName = "load_defaults";
+private enum cLoadTemplateName = "load_defaults";
 
 Surface createPixelSurface(Color c) {
     auto s = new Surface(Vector2i(1));
@@ -1017,8 +1017,8 @@ template BlaList(T : Object) {
     }
 }
 
-const cLevelsPath = "/level";
-const cTemplatesPath = "/levelgen";
+enum cLevelsPath = "/level";
+enum cTemplatesPath = "/levelgen";
 
 //list of found level themes, created from a directory listing on instantiation
 //must call update() to read the stuff from disk

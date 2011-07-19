@@ -11,7 +11,7 @@ import utils.misc;
 /// (currently only one Wiget tree per file / LoadGui object)
 class LoadGui {
     private {
-        const cTemplate = "template";
+        enum cTemplate = "template";
 
         Widget[string] mWidgets;
         Widget mRoot;

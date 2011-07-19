@@ -11,7 +11,7 @@ import std.conv;
 ///a random value in the range can be sample()'d multiple times
 struct RandomValue(T) {
     //separator for strings; 2nd is used if 1st not found
-    private const cRandValSeparator = ':', cRandValSeparator2 = '-';
+    private enum cRandValSeparator = ':', cRandValSeparator2 = '-';
 
     T min;
     T max;

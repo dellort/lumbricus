@@ -303,7 +303,7 @@ struct ContactMerger {
 class PhysicContactGen : PhysicBase {
     ObjListNode!(typeof(this)) cgen_node;
 
-    abstract void process(float deltaT, CollideDelegate contactHandler);
+    abstract void process(float deltaT, scope CollideDelegate contactHandler);
 
     void afterResolve(float deltaT) {
     }

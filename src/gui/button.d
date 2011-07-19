@@ -200,9 +200,9 @@ class ButtonBase : Widget {
 
         autoRepeat = node.getBoolValue("auto_repeat", autoRepeat);
         autoRepeatDelay = timeMsecs(node.getIntValue("auto_repeat_delay",
-            autoRepeatDelay.msecs));
+            cast(int)autoRepeatDelay.msecs));
         autoRepeatInterval = timeMsecs(node.getIntValue("auto_repeat_interval",
-            autoRepeatInterval.msecs));
+            cast(int)autoRepeatInterval.msecs));
 
         super.loadFrom(loader);
     }

@@ -107,7 +107,7 @@ class Drill : Shooter {
         auto at = owner.physics.pos + advVec;
         GameEngine rengine = GameEngine.fromCore(engine);
         rengine.damageLandscape(toVector2i(at), myclass.tunnelRadius, owner);
-        const cPush = 3.0f; //multiplier so that other worms get pushed away
+        enum cPush = 3.0f; //multiplier so that other worms get pushed away
         rengine.explosionAt(at,
             myclass.tunnelRadius/GameEngine.cDamageToRadius*cPush, owner,
             false, &checkApply);

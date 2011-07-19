@@ -33,7 +33,7 @@ final class ObjectList(T, string member) {
     //some string-mixin magic, so we can access the ObjListNode embedded in the
     //  item class
     private Node* node(T inst) {
-        const getnode = `&inst.`~member;
+        enum getnode = `&inst.`~member;
         //if something is wrong, try to output a nice error message
         static if (!is(typeof(mixin(getnode)) == Node*)) {
             static assert(false, typeof(this).stringof ~ ": type '"~T.stringof

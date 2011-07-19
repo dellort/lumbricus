@@ -98,7 +98,7 @@ class PhysicWorld {
         }
     }
 
-    private const cPhysTimeStepMs = 10;
+    private enum cPhysTimeStepMs = 10;
     Vector2f gravity = {0, 0};
 
     public void simulate(Time currentTime) {
@@ -275,8 +275,8 @@ class PhysicWorld {
         if (maxLen > 10000)
             maxLen = 10000;
         dir = dir.normal;
-        const float t_inc = 0.75f;
-        const float ray_radius = 1.0f;
+        enum float t_inc = 0.75f;
+        enum float ray_radius = 1.0f;
         //check against objects
         Ray r;
         r.define(start, dir);
@@ -387,7 +387,7 @@ class PhysicWorld {
     }
 
     void objectsAt(Vector2f pos, float r,
-        bool delegate(PhysicObject obj) del)
+        scope bool delegate(PhysicObject obj) del)
     {
         argcheck(!!del);
         Circle circle = Circle(pos, r);
@@ -405,7 +405,7 @@ class PhysicWorld {
 
 /+ xxx bring back
     struct CollideGeometryStruct {
-        const cTupleReturn = true;
+        enum cTupleReturn = true;
         int numReturnValues;
         Contact contact;
     }
@@ -432,7 +432,7 @@ class PhysicWorld {
 +/
 
     struct ShootRayStruct {
-        const cTupleReturn = true;
+        enum cTupleReturn = true;
         int numReturnValues;
         Vector2f hitPoint;  //always returned
         Vector2f normal;    //only on collision
@@ -457,7 +457,7 @@ class PhysicWorld {
 
     //xxx renamed thickRay to thickLine (that's what it does)
     struct ThickLineStruct {
-        const cTupleReturn = true;
+        enum cTupleReturn = true;
         int numReturnValues;
         Vector2f hit1, hit2;
     }
@@ -473,7 +473,7 @@ class PhysicWorld {
     }
 
     struct ThickRayStruct {
-        const cTupleReturn = true;
+        enum cTupleReturn = true;
         int numReturnValues;
         Vector2f hit;
         Contact contact;
@@ -492,7 +492,7 @@ class PhysicWorld {
     }
 
     struct FreePointStruct {
-        const cTupleReturn = true;
+        enum cTupleReturn = true;
         int numReturnValues;
         Vector2f p;
     }

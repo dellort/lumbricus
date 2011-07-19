@@ -248,8 +248,8 @@ enum Keycode {
     //mice with more than 10 buttons???
 }
 
-final const Keycode cKeycodeMouseStart = Keycode.MOUSE_LEFT;
-final const Keycode cKeycodeMouseEnd = Keycode.MOUSE_BUTTON10;
+enum Keycode cKeycodeMouseStart = Keycode.MOUSE_LEFT;
+enum Keycode cKeycodeMouseEnd = Keycode.MOUSE_BUTTON10;
 
 bool keycodeIsMouseButton(Keycode c) {
     return c >= cKeycodeMouseStart && c <= cKeycodeMouseEnd;
@@ -270,7 +270,7 @@ struct KeycodeToName {
     string name;
 }
 
-const KeycodeToName g_keycode_to_name[] = [
+enum KeycodeToName g_keycode_to_name[] = [
     {Keycode.BACKSPACE, "backspace"},
     {Keycode.TAB, "tab"},
     {Keycode.CLEAR, "clear"},

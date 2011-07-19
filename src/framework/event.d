@@ -16,7 +16,7 @@ public enum Modifier {
 }
 
 string modifierToString(Modifier mod) {
-    switch (mod) {
+    final switch (mod) {
         case Modifier.Alt: return "mod_alt";
         case Modifier.Control: return "mod_ctrl";
         case Modifier.Shift: return "mod_shift";
@@ -62,11 +62,11 @@ alias uint ModifierSet;
 public bool modifierIsSet(ModifierSet s, Modifier m) {
     return !!((1<<m) & s);
 }
-public void modifierSet(inout ModifierSet s, Modifier m) {
+public void modifierSet(ref ModifierSet s, Modifier m) {
     s |= (1<<m);
 }
 /// Call the delegate for each modifier which is set in s.
-public void foreachSetModifier(ModifierSet s, void delegate(Modifier m) cb) {
+public void foreachSetModifier(ModifierSet s, scope void delegate(Modifier m) cb) {
     for (Modifier m = Modifier.min; m <= Modifier.max; m++) {
         if (modifierIsSet(s, m)) cb(m);
     }

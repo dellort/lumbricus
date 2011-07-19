@@ -51,7 +51,7 @@ Surface loadImage(Stream source, string extension = null) {
 Surface loadImage(string path) {
     //mLog("load image: %s", path);
     auto p = VFSPath(path);
-    scope stream = gFS.open(p, File.ReadShared);
+    scope stream = gFS.open(p, "rb");
     scope(exit) stream.close();
     auto image = loadImage(stream, p.extension);
     return image;

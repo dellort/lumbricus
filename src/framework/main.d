@@ -75,7 +75,7 @@ struct VideoWindowState {
     }
 }
 
-private const Time cFPSTimeSpan = timeSecs(1); //how often to recalc FPS
+private enum Time cFPSTimeSpan = timeSecs(1); //how often to recalc FPS
 
 ///what mouse cursor to display
 struct MouseCursor {
@@ -86,12 +86,12 @@ struct MouseCursor {
     //offset to "click point" for custom cursor
     Vector2i graphic_spot;
 
-    const None = MouseCursor(false);
-    const Standard = MouseCursor();
+    enum None = MouseCursor(false);
+    enum Standard = MouseCursor();
 }
 
-const cDrvBase = "base";
-const cDrvDraw = "draw";
+enum cDrvBase = "base";
+enum cDrvDraw = "draw";
 
 private {
     SettingVar!(int) gFrameRate;

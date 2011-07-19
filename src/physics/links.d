@@ -25,7 +25,7 @@ class PhysicConstraint : PhysicContactGen {
     ///false will also enforce minimum length
     bool isCable;
 
-    private const cTolerance = 0.01f;
+    private enum cTolerance = 0.01f;
     private float lcInt;
 
     this(PhysicObject obj, Vector2f anchor, float length, float restitution = 0,
@@ -115,7 +115,7 @@ class PhysicObjectsRod : PhysicContactGen {
     //viscous damper
     float dampingCoeff = 0;
 
-    private const cTolerance = 0.01f;
+    private enum cTolerance = 0.01f;
 
     //length is intialized from current distance
     this(PhysicObject obj1, PhysicObject obj2) {
@@ -236,7 +236,7 @@ class PhysicFixate : PhysicContactGen {
     //position on time of fixate
     private Vector2f mFixatePos;
 
-    private const cTolerance = 0.01f;
+    private enum cTolerance = 0.01f;
 
     this(PhysicObject obj, Vector2f fixate) {
         argcheck(obj);

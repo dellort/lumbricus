@@ -6,13 +6,13 @@ import derelict.lua.luaconf;
 // Types
 //==============================================================================
 // add: constants
-const string LUA_VERSION     = "Lua 5.1";
-const string LUA_RELEASE     = "Lua 5.1.1";
-const int    LUA_VERSION_NUM = 501;
-const string LUA_COPYRIGHT   = "Copyright (C) 1994-2006 Lua.org, PUC-Rio";
-const string LUA_AUTHORS 	   = "R. Ierusalimschy, L. H. de Figueiredo & W.  Celes";
+enum string LUA_VERSION     = "Lua 5.1";
+enum string LUA_RELEASE     = "Lua 5.1.1";
+enum int    LUA_VERSION_NUM = 501;
+enum string LUA_COPYRIGHT   = "Copyright (C) 1994-2006 Lua.org, PUC-Rio";
+enum string LUA_AUTHORS 	   = "R. Ierusalimschy, L. H. de Figueiredo & W.  Celes";
 
-const string LUA_SIGNATURE   = "\033Lua";
+enum string LUA_SIGNATURE   = "\033Lua";
 
 /* option for multiple returns in `lua_pcall' and `lua_call' */
 int LUA_MULTRET =	-1;
@@ -20,9 +20,9 @@ int LUA_MULTRET =	-1;
 /*
 ** pseudo-indices
 */
-const int LUA_REGISTRYINDEX	= -10000;
-const int LUA_ENVIRONINDEX	= -10001;
-const int LUA_GLOBALSINDEX	= -10002;
+enum int LUA_REGISTRYINDEX	= -10000;
+enum int LUA_ENVIRONINDEX	= -10001;
+enum int LUA_GLOBALSINDEX	= -10002;
 int lua_upvalueindex(int i) { return LUA_GLOBALSINDEX - i; }
 
 /* error codes for `lua_load' and `lua_pcall' */
@@ -118,16 +118,16 @@ enum
 /*
  ** Event masks
  */
-const int LUA_MASKCALL  =	(1 << LUA_HOOKCALL);
-const int LUA_MASKRET   = (1 << LUA_HOOKRET);
-const int LUA_MASKLINE  =	(1 << LUA_HOOKLINE);
-const int LUA_MASKCOUNT =	(1 << LUA_HOOKCOUNT);
+enum int LUA_MASKCALL  =	(1 << LUA_HOOKCALL);
+enum int LUA_MASKRET   = (1 << LUA_HOOKRET);
+enum int LUA_MASKLINE  =	(1 << LUA_HOOKLINE);
+enum int LUA_MASKCOUNT =	(1 << LUA_HOOKCOUNT);
 
 /* compatibility with ref system */
 
 /* pre-defined references */
-const int LUA_NOREF	= (-2);
-const int LUA_REFNIL	= (-1);
+enum int LUA_NOREF	= (-2);
+enum int LUA_REFNIL	= (-1);
 
 enum
 {

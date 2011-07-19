@@ -57,7 +57,7 @@ struct LogEntry {
     }
 
     //some sort of default formatting
-    void fmt(scope void delegate(in char[]) sink) {
+    void fmt(scope void delegate(cstring) sink) {
         //trying to keep heap activity down with that buffer thing
         char[80] buffer = void;
         myformat_cb(sink, "[%s] [%s] [%s] %s\n", time.toString_s(buffer[]),
@@ -158,7 +158,7 @@ final class LogBackend {
 
 static this() {
     void dump(LogEntry e) {
-        void write(in char[] s) { Trace.write(s); }
+        void write(cstring s) { Trace.write(s); }
         e.fmt(&write);
     }
     gDefaultBackend = new LogBackend("def", LogPriority.Minor, &dump, false);
@@ -237,7 +237,7 @@ final class Log {
 
         //format into temporary buffer
         gBuffer.length = 0;
-        void sink(in char[] s) {
+        void sink(cstring s) {
             gBuffer ~= s;
         }
         myformat_cb(&sink, fmt, args);
@@ -345,10 +345,8 @@ struct LogStruct(string cId) {
 //xxx probably there are better places where to put this code, maybe reconsider
 //  after killing utils.output, but then again it doesn't matter & nobody cares
 //xxx2 this is made for a dark background
-void writeColoredLogEntry(T)(LogEntry e, bool show_source,
-    T writefln)
-{
-    const string[] cColorString = [
+void writeColoredLogEntry(alias writefln)(LogEntry e, bool show_source) {
+    enum string[] cColorString = [
         LogPriority.Trace: "0000ff",
         LogPriority.Minor: "bbbbbb",
         LogPriority.Notice: "ffffff",
@@ -363,7 +361,7 @@ void writeColoredLogEntry(T)(LogEntry e, bool show_source,
     if (show_source)
         source = myformat_s(buffer, "[%s] ", e.source.category);
     //the \litx prevents tag interpretation in msg
-    string msg = e.txt;
+    auto msg = e.txt;
     writefln("\\c(%s)%s\\litx(%s,%s)", c, source, msg.length, msg);
 }
 

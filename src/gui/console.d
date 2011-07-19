@@ -14,6 +14,7 @@ import utils.output;
 import utils.time;
 import utils.interpolate;
 import utils.vector2;
+import utils.misc;
 
 //need to make this available to derived classes
 class ConsoleEditLine : EditLine {
@@ -69,11 +70,11 @@ class ConsoleEditLine : EditLine {
 
 //Replace the text between start and end by text
 //operation: newline = line[0..start] ~ text ~ line[end..$];
-alias void delegate(int start, int end, string text) EditDelegate;
+alias void delegate(int start, int end, cstring text) EditDelegate;
 
 //line is the current line, cursor1+cursor2 are the selection/cursor-
 //  position, and edit can be used to change the text
-alias void delegate(string line, int cursor1, int cursor2, EditDelegate edit)
+alias void delegate(cstring line, int cursor1, int cursor2, EditDelegate edit)
     TabCompleteDelegate;
 
 //a generic console (basically just a LogWindow over an EditLine)
@@ -93,8 +94,8 @@ class GuiConsole : VBoxContainer {
     this(CommandLine cmdline = null) {
         mLogWindow = new LogWindow();
 
-        mRealCmdline = cmdline ? cmdline : new CommandLine(mLogWindow);
-        mCmdline = new CommandLineInstance(mRealCmdline, mLogWindow);
+        mRealCmdline = cmdline ? cmdline : new CommandLine(mLogWindow.output);
+        mCmdline = new CommandLineInstance(mRealCmdline, mLogWindow.output);
 
         mEdit = createEdit();
         mEdit.styles.addClass("console-edit");
@@ -137,7 +138,7 @@ class GuiConsole : VBoxContainer {
     }
 
     final Output output() {
-        return mLogWindow;
+        return mLogWindow.output;
     }
     //"compatibility"
     alias output console;

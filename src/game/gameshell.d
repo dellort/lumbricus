@@ -46,7 +46,7 @@ import convert = tango.util.Convert;
 //xxx: for optimum performance, this should be calculated dynamically based
 //     on connection jitter (higher values give more jitter protection, but
 //     higher introduced lag)
-const int cOptimumInputLag = 1;
+enum int cOptimumInputLag = 1;
 
 private LogStruct!("gameshell") log;
 
@@ -55,11 +55,11 @@ private LogStruct!("gameshell") log;
 //could be easily made a runtime option
 //NOTE: when playing demos, the hash value will be checked if the file contains
 //      hash values (actually, it's per LogEntry)
-const bool WriteDemoHashFrames = true;
+enum bool WriteDemoHashFrames = true;
 
 //check hashes on replays - might put a little pressure on the GC, because each
 //  frame a LogEntry is appended to the replay log
-const bool ReplayHashFrames = true;
+enum bool ReplayHashFrames = true;
 
 //to implement a pre-load mechanism
 //for normal games:
@@ -924,8 +924,8 @@ abstract:
     void sendChat(string msg);
 }
 
-const string cDemoFileSignature = "=== lumbricus demo file ===\n";
-const string cDemoFileStartLog = "\n=== start log entries ===\n";
+enum string cDemoFileSignature = "=== lumbricus demo file ===\n";
+enum string cDemoFileStartLog = "\n=== start log entries ===\n";
 
 //oh how I wish D had real tuples
 struct ParseDemoFileResult {

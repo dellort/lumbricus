@@ -9,7 +9,7 @@ import common.gui_init;
 import toplevel = common.toplevel;
 import utils.misc;
 
-version = Game;
+//version = Game;
 
 //these imports register classes in a factory on module initialization
 //so be carefull not to remove them accidentally

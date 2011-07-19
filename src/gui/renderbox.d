@@ -278,7 +278,7 @@ BoxTex getBox(BoxProperties props) {
         }
 
         //resolution of the AA grid (will do cGrid*cGrid samples)
-        const int cGrid = 4;
+        enum int cGrid = 4;
 
         //draw a circle inside a w x w rect with center c and radius w
         //offset the result by offs

@@ -17,7 +17,7 @@ import std.math;
 
 import str = utils.string;
 
-const cDrvName = "draw_sdl";
+enum cDrvName = "draw_sdl";
 
 private struct Options {
     bool RLE = true;
@@ -93,7 +93,7 @@ class SDLDrawDriver : DrawDriver {
         if (s)
             return *s;
 
-        const cTileSize = 64;
+        enum cTileSize = 64;
 
         Surface tile = new Surface(Vector2i(cTileSize));
 
@@ -467,7 +467,7 @@ final class SDLSurface : DriverSurface {
         //should be divisible by 8 (to have good 45° steps)
         int cRotUnits = 16;
         int cZoomUnitsHalf = 16; //scale subdivisions
-        const float cZoomMax = 4; //scale is clamped to [0, cZoomMax]
+        enum float cZoomMax = 4; //scale is clamped to [0, cZoomMax]
         if (mDrawDriver.opts.high_quality) {
             cRotUnits *= 4;
             cZoomUnitsHalf *= 4;

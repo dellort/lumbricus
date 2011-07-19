@@ -15,9 +15,9 @@ version (Win32) {
     uint _IOR(T)(ubyte x, ubyte y) {
         return IOC_OUT | ((cast(uint)(T.sizeof)&IOCPARM_MASK)<<16) | (x<<8) | y;
     }
-    const IOC_OUT = 0x40000000;
-    const IOCPARM_MASK = 0x7f;
-    const SIO_GET_INTERFACE_LIST = _IOR!(uint)('t', 127);
+    enum IOC_OUT = 0x40000000;
+    enum IOCPARM_MASK = 0x7f;
+    enum SIO_GET_INTERFACE_LIST = _IOR!(uint)('t', 127);
 
     union sockaddr_gen {
         ubyte[16]  Address;

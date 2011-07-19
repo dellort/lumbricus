@@ -42,8 +42,8 @@ class GirderControl : WeaponSelector, Controllable {
         //rectangle for the girder; used as bounding box
         Vector2i mBaseSize;
 
-        const cRotateSteps = 8;
-        const cMaxDistance = 500;  //in pixels from worm position
+        enum cRotateSteps = 8;
+        enum cMaxDistance = 500;  //in pixels from worm position
     }
 
     this(Sprite a_owner) {

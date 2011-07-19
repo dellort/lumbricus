@@ -8,7 +8,7 @@ import utils.rect2;
 import utils.time;
 import utils.vector2;
 
-const int cDefFrameTimeMS = 50;
+enum int cDefFrameTimeMS = 50;
 
 //--- animation display
 

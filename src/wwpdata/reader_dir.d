@@ -14,7 +14,7 @@ import tango.io.FilePath;
 import tango.io.Path;
 
 import tango.io.model.IFile : FileConst;
-const pathsep = FileConst.PathSeparatorChar;
+enum pathsep = FileConst.PathSeparatorChar;
 
 struct WWPDirEntry {
     uint offset, size;

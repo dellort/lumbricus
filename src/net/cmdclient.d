@@ -76,7 +76,7 @@ class CmdNetClient : SimpleNetConnection {
         MyPlayerInfo[] mPlayerInfo;
         int mPlayerCount;
         //send ack packet if (timestamp % cAckInterval == 0)
-        const cAckInterval = 10;
+        enum cAckInterval = 10;
     }
 
     void delegate(CmdNetClient sender) onConnect;
@@ -281,7 +281,7 @@ class CmdNetClient : SimpleNetConnection {
         return false;
     }
 
-    int opApply(int delegate(ref NetPlayerInfo info) del) {
+    int opApply(scope int delegate(ref NetPlayerInfo info) del) {
         foreach (ref pl; mPlayerInfo) {
             if (pl.valid) {
                 int res = del(pl.info);

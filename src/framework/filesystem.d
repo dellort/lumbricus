@@ -308,7 +308,7 @@ private class HandlerTangoVfs : HandlerInstance {
     }
 
     bool listdir(VFSPath handlerPath, string pattern, bool findDir,
-        bool delegate(string filename) callback)
+        scope bool delegate(string filename) callback)
     {
         //xxx I don't know how many useless classes this function creates...
         auto fld = mVfsFolder;
@@ -574,7 +574,7 @@ class FileSystem {
     static string fixFilename(string fn) {
         //ranges of valid characters (must be ASCII)
         //orig.: Regex(`[^-+!.,;a-zA-Z0-9()\[\]]`);
-        static const string[] valid = ["az", "AZ", "09", ".", "_"];
+        enum string[] valid = ["az", "AZ", "09", ".", "_"];
         string res;
         //this will reduce utf-8 to ASCII (a bit dirty, but effective)
         foreach (char d; fn) {

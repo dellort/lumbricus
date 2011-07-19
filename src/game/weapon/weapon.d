@@ -250,7 +250,7 @@ abstract class Shooter : GameObject {
         ParticleEmitter mParticleEmitter;
         ParticleType mCurrentParticle;
 
-        const Time cWeaponLoadTime = timeMsecs(1500);
+        enum Time cWeaponLoadTime = timeMsecs(1500);
     }
     protected {
         WeaponClass mClass;

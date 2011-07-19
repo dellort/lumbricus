@@ -14,7 +14,7 @@ import game.temp : EngineHash;
 //anytime you change some detail about the protocol, increment this
 //  (including encoding/marshalling changes)
 //only clients with the same version will be accepted
-const ushort cProtocolVersion = 4;
+enum ushort cProtocolVersion = 4;
 
 
 //-------------------- Query protocol ----------------------
@@ -23,7 +23,7 @@ const ushort cProtocolVersion = 4;
 //query port is the same as gameport, so no port in response
 
 //Note: enet header is 8 bytes, so no danger of mixup
-const cQueryIdent = "LQ";
+enum cQueryIdent = "LQ";
 
 //contents of this may depend on server version
 //so check version before reading response data
@@ -95,7 +95,7 @@ enum DiscReason : uint {
     serverFull,
 }
 
-const string[DiscReason.max+1] reasonToString = [
+enum string[DiscReason.max+1] reasonToString = [
     "none",
     "internal_error",
     "protocol_error",

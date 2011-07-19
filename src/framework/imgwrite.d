@@ -26,14 +26,14 @@ void saveImage(Surface img, Stream stream, string extension = ".png") {
 
 void saveImage(Surface img, string path) {
     auto p = VFSPath(path);
-    scope stream = gFS.open(p, File.WriteCreate);
+    scope stream = gFS.open(p, "wb");
     scope(exit) stream.close();
     saveImage(img, stream, p.extension);
 }
 
 //libpng sucks, all is done manually
 
-const ubyte[] cPNGSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+enum ubyte[] cPNGSignature = [137, 80, 78, 71, 13, 10, 26, 10];
 
 struct PNG_IHDR {
     uint width, height;
@@ -48,8 +48,8 @@ struct PNG_tRNS {
     ushort r, g, b;
 }
 
-const cPNGTruecolor = 2;            //"Truecolour", possible use of colorkey
-const cPNGTruecolorWithAlpha = 6;   //"Truecolour with alpha"
+enum cPNGTruecolor = 2;            //"Truecolour", possible use of colorkey
+enum cPNGTruecolorWithAlpha = 6;   //"Truecolour with alpha"
 
 private void writePNG(Surface img, Stream stream) {
     auto chunk_crc = new ZLibCrc32(); //Crc32();
@@ -64,7 +64,7 @@ private void writePNG(Surface img, Stream stream) {
         ulong end = stream.position;
         assert (end >= chunk_start + 8);
         stream.position = chunk_start;
-        uint len = end - chunk_start - 8;
+        uint len = cast(uint)(end - chunk_start - 8);
         Marshaller(&marshw_raw).write(len);
         stream.position = end;
         //NOTE: this call also resets the crc stored in the chunk_crc

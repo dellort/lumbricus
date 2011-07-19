@@ -115,7 +115,7 @@ class PhpAnnouncer : NetAnnouncer {
         HttpGetter mLastGetter;
     }
 
-    const Time cUpdateTime = timeSecs(30);
+    enum Time cUpdateTime = timeSecs(30);
 
     this(ConfigNode cfg) {
         mUrl = cfg.getStringValue("script_url");
@@ -192,7 +192,7 @@ class PhpAnnounceClient : NetAnnounceClient {
     }
 
     //regular update of server list (will also be updated when active gets true)
-    const Time cUpdateTime = timeSecs(60);
+    enum Time cUpdateTime = timeSecs(60);
 
     this(ConfigNode cfg) {
         mUrl = cfg.getStringValue("script_url");
@@ -236,7 +236,7 @@ class PhpAnnounceClient : NetAnnounceClient {
     ///loop over internal server list
     ///behavior is implementation-specific, but it should be implemented to
     ///block as short as possible (best not at all)
-    override int opApply(int delegate(ref ServerAddress) del) {
+    override int opApply(scope int delegate(ref ServerAddress) del) {
         int result = 0;
         foreach (s; mServers) {
             result = del(s);

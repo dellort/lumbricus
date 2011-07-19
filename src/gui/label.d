@@ -21,7 +21,7 @@ class Label : Widget {
 
         bool mFontOverride;
 
-        const cSpacing = 3; //between images and text
+        enum cSpacing = 3; //between images and text
     }
 
     this() {

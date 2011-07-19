@@ -43,7 +43,7 @@ static this() {
 
 MountId gLastWWpMount;
 
-const char[] cWwpVfsPath = "/WWP-import/";
+enum string cWwpVfsPath = "/WWP-import/";
 
 private LogStruct!("wwp_loader") gLog;
 

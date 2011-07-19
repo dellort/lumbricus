@@ -17,11 +17,11 @@ class Win32Clipboard : ClipboardHandler {
         if (clipboard)
             setText(text);
     }
-    void pasteText(bool clipboard, void delegate(string text) cb) {
+    void pasteText(bool clipboard, scope void delegate(string text) cb) {
         if (clipboard)
             cb(getText());
     }
-    void pasteCancel(void delegate(string text) cb) {
+    void pasteCancel(scope void delegate(string text) cb) {
     }
 
     //return text in the clipboard; if the format is not CF_UNICODETEXT,

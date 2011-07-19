@@ -836,7 +836,7 @@ class Widget {
 
     /// according to WidgetLayout, adjust area such that the Widget feels warm
     /// and snugly <- what
-    final void layoutCalculateSubAllocation(inout Rect2i area) {
+    final void layoutCalculateSubAllocation(ref Rect2i area) {
         //xxx doesn't handle under-sized stuff
         Vector2i psize = area.size();
         Vector2i offset;
@@ -1727,7 +1727,7 @@ class Widget {
 
     //only intended for debugging; not to subvert any protection
     //rather use this.children() (which is protected)
-    void enumChildren(void delegate(Widget w) callback) {
+    void enumChildren(scope void delegate(Widget w) callback) {
         foreach (w; children.dup) {
             callback(w);
         }
@@ -2066,7 +2066,7 @@ final class GUI {
             }
         }
 
-        const dirs = [Keycode.RIGHT, Keycode.DOWN, Keycode.LEFT, Keycode.UP];
+        enum dirs = [Keycode.RIGHT, Keycode.DOWN, Keycode.LEFT, Keycode.UP];
         foreach (int i, d; dirs) {
             if (event.code == d && event.mods == 0) {
                 taken |= keynavFocus(i % 2, i/2 ? -1 : +1);
@@ -2230,8 +2230,8 @@ final class GUI {
 
     //xxx not very happy about having filesystem code and dependencies in the
     //    GUI core
-    const cThemeFolder = "/gui_themes/";
-    const cThemeNone = "<none>";
+    enum cThemeFolder = "/gui_themes/";
+    enum cThemeNone = "<none>";
 
     //theme = relative filename of the theme, can be cThemeNone for no theme
     void loadTheme(string theme) {
@@ -2289,7 +2289,7 @@ final class GUI {
 
 Setting gThemeSetting;
 
-const cDefTheme = "normal.conf";
+enum cDefTheme = "normal.conf";
 
 static this() {
     gThemeSetting = addSetting!(string)("gui.theme", cDefTheme,

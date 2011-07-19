@@ -237,7 +237,7 @@ class TarArchive : ArchiveReader {
         return false;
     }
 
-    int opApply(int delegate(ref VFSPath filename) del) {
+    int opApply(scope int delegate(ref VFSPath filename) del) {
         foreach (Entry e; mEntries) {
             int res = del(e.name);
             if (res)

@@ -76,14 +76,14 @@ class GameSky {
 
         Animation[] mStarAnims;
 
-        const cNumClouds = 50;
-        const cCloudHeightRange = 50;
-        const cCloudSpeedRange = 100;
-        const cWindMultiplier = 150;
+        enum cNumClouds = 50;
+        enum cCloudHeightRange = 50;
+        enum cCloudSpeedRange = 100;
+        enum cWindMultiplier = 150;
 
-        const cNumDebris = 100;
+        enum cNumDebris = 100;
         //this is not gravity, as debris is not accelerated
-        const cDebrisFallSpeed = 70; //pixels/sec
+        enum cDebrisFallSpeed = 70; //pixels/sec
 
         struct CloudInfo {
             Animator anim;
@@ -138,7 +138,7 @@ class GameSky {
         }
 
         int nAnim = 0;
-        foreach (inout CloudInfo ci; mCloudAnimators) {
+        foreach (ref CloudInfo ci; mCloudAnimators) {
             ci.anim = new Animator(ts);
             ci.anim.setAnimation(mCloudAnims[nAnim],
                 timeMsecs(rngShared.nextRange(0,
@@ -154,7 +154,7 @@ class GameSky {
         }
 
         if (mDebrisAnim) {
-            foreach (inout DebrisInfo di; mDebrisAnimators) {
+            foreach (ref DebrisInfo di; mDebrisAnimators) {
                 di.anim = new Animator(ts);
                 di.anim.setAnimation(mDebrisAnim, timeMsecs(rngShared.nextRange
                     (0, cast(int)(mDebrisAnim.duration.msecs))));
@@ -205,12 +205,12 @@ class GameSky {
     private void initialize() {
         updateOffsets();
         initialWaterOffset = mEngine.level.waterBottomY;
-        foreach (inout CloudInfo ci; mCloudAnimators) {
+        foreach (ref CloudInfo ci; mCloudAnimators) {
             ci.x = rngShared.nextRange(-ci.animSizex, size.x);
         }
 
         if (mDebrisAnim) {
-            foreach (inout DebrisInfo di; mDebrisAnimators) {
+            foreach (ref DebrisInfo di; mDebrisAnimators) {
                 di.x = rngShared.nextRange(-mDebrisAnim.bounds.size.x, size.x);
                 di.y = rngShared.nextRange(skyOffset, skyBottom);
             }
@@ -258,7 +258,7 @@ class GameSky {
     }
 
     void simulate() {
-        void clip(inout float v, float s, float min, float max) {
+        void clip(ref float v, float s, float min, float max) {
             if (v > max)
                 v -= (max-min) + s;
             if (v + s < min)
@@ -270,7 +270,7 @@ class GameSky {
         float deltaT = ts.difference.secsf;
 
         if (mCloudsVisible && mEnableClouds) {
-            foreach (inout ci; mCloudAnimators) {
+            foreach (ref ci; mCloudAnimators) {
                 //XXX this is acceleration, how to get a constant speed from this??
                 ci.x += (ci.xspeed + mREngine.windSpeed*cWindMultiplier)
                     * deltaT;
@@ -280,7 +280,7 @@ class GameSky {
         }
         if (mDebrisAnim && mEnableDebris) {
             //XXX (and, XXX) handmade physics
-            foreach (inout di; mDebrisAnimators) {
+            foreach (ref di; mDebrisAnimators) {
                 //XXX same here
                 di.x += 2 * mREngine.windSpeed * cWindMultiplier * deltaT
                     * di.speedPerc;

@@ -17,7 +17,7 @@ extern (C) {
         default:
             return -1; //eh what
     }
-    return str.position;
+    return cast(int)str.position;
   }
 
   int rw_read (SDL_RWops *context, void *ptr, int size, int maxnum) {

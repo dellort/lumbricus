@@ -12,6 +12,8 @@ import std.math : abs;
 
 import std.conv;
 
+alias const(char)[] cstring;
+
 const(char*) toStringz(const(char)[] s) {
     //return to!(char*)(s);
     //XXXTANGO I wonder if this is safe
@@ -171,6 +173,7 @@ T castStrict(T)(Object t) {
 }
 
 /// convert a function-ptr to a delegate (thanks to downs, it's his code)
+//XXXTANGO: phobos has somthing for this
 R delegate(T) toDelegate(R, T...)(R function(T) fn) {
     struct holder {
         typeof(fn) _fn;
@@ -189,18 +192,18 @@ R delegate(T) toDelegate(R, T...)(R function(T) fn) {
 //replacement for stdx.string.format()
 //trivial, but Tango really is annoyingly noisy
 //should be in utils.string, but ugh the required changes
-string myformat(T...)(string fmt, T args) {
+string myformat(T...)(cstring fmt, T args) {
     return pstr.format(fmt, args);
 }
 
 //like myformat(), but use the buffer
 //if the buffer is too small, allocate a new one
-string myformat_s(T...)(char[] buffer, string fmt, T args) {
+string myformat_s(T...)(char[] buffer, cstring fmt, T args) {
     //XXXTANGO avoid heap allocation maybe use std.range.Appender
     return myformat(fmt, args);
 }
 
-void myformat_cb(T...)(scope void delegate(in char[] s) sink, string fmt, T args) {
+void myformat_cb(T...)(scope void delegate(cstring s) sink, cstring fmt, T args) {
     struct Bloat {
         void put(in char[] s) { sink(s); }
     }
@@ -315,7 +318,7 @@ private template StructMemberNames(T) {
     version (bug2881) {
         private string[] get() {
             string[] res;
-            const string st = T.tupleof.stringof;
+            enum string st = T.tupleof.stringof;
             //currently, dmd produces something like "tuple((Type).a,(Type).b)"
             //the really bad thing is that it really inline expands the Type,
             //  and "Type" can contain further brackets and quoted strings (!!!)
@@ -323,7 +326,7 @@ private template StructMemberNames(T) {
             //  is a template with strings as parameter, stuff might break
             static assert(st[0..6] == "tuple(");
             static assert(st[$-1] == ')');
-            const s = st[6..$-1];
+            enum s = st[6..$-1];
             //(Type).a,(Type).b
             //p = current position in s (slicing is costly in CTFE mode)
             int p = 0;
@@ -375,14 +378,14 @@ private template StructMemberNames(T) {
             string[] res;
             T x;
             foreach (int idx, _; x.tupleof) {
-                const n = structProcName(x.tupleof[idx].stringof);
+                enum n = structProcName(x.tupleof[idx].stringof);
                 res ~= n;
             }
             return res;
         }
     }
 
-    const StructMemberNames = get();
+    enum StructMemberNames = get();
 }
 
 //similar to structProcName; return an array of all members
@@ -405,7 +408,7 @@ debug {
     alias N!(int, "foo\"hu") X;
 
     unittest {
-        const names = structMemberNames!(X)();
+        enum names = structMemberNames!(X)();
         static assert(names == ["abc", "defg"]);
     }
 }
@@ -485,6 +488,7 @@ void argcheck(Object value) {
 //NOTE: it's forced to one bindable parameter, because that's simpler; surely
 //  you could use tuples to extend it further
 //toDelegate() would be a version of this function with no bound parameters
+//XXXTANGO: not needed in D2
 template bindfn(Tret, BoundParam1, ParamRest...) {
     Tret delegate(ParamRest)
         bindfn(BoundParam1 p1, Tret function(BoundParam1, ParamRest) fn)

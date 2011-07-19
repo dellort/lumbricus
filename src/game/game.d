@@ -69,8 +69,8 @@ class GameEngine : GameCore {
     //     needed and can be moved into some dark corner of the game
     GameLandscape[] gameLandscapes;
 
-    const cDamageToImpulse = 140.0f;
-    const cDamageToRadius = 2.0f;
+    enum cDamageToImpulse = 140.0f;
+    enum cDamageToRadius = 2.0f;
 
     private {
         PhysicZonePlane mWaterBorder;
@@ -94,17 +94,17 @@ class GameEngine : GameCore {
 
         Sprite[] mPlaceQueue;
 
-        const cWindChange = 80.0f;
-        const cMaxWind = 150f;
+        enum cWindChange = 80.0f;
+        enum cMaxWind = 150f;
 
-        const cWaterRaisingSpeed = 50.0f; //pixels per second
+        enum cWaterRaisingSpeed = 50.0f; //pixels per second
 
         //minimum distance between placed objects
-        const cPlaceMinDistance = 50.0f;
+        enum cPlaceMinDistance = 50.0f;
         //position increment for deterministic placement
-        const cPlaceIncDistance = 55.0f;
+        enum cPlaceIncDistance = 55.0f;
         //distance when creating a platform in empty space
-        const cPlacePlatformDistance = 90.0f;
+        enum cPlacePlatformDistance = 90.0f;
     }
 
     class DrawParticles : SceneObject {
@@ -520,7 +520,7 @@ class GameEngine : GameCore {
     }
 
     struct PlaceObjectStruct {
-        const cTupleReturn = true;
+        enum cTupleReturn = true;
         int numReturnValues;
         Vector2f drop;
         Vector2f dest;
@@ -642,7 +642,7 @@ class GameEngine : GameCore {
     private void applyExplosion(PhysicObject o, Vector2f pos, float damage,
         Object cause = null)
     {
-        const cDistDelta = 0.01f;
+        enum cDistDelta = 0.01f;
 
         assert(damage != 0f && !ieee.isNaN(damage));
 
@@ -673,7 +673,7 @@ class GameEngine : GameCore {
     }
 
     override void explosionAt(Vector2f pos, float damage, GameObject cause,
-        bool effect = true, bool delegate(PhysicObject) selective = null)
+        bool effect = true, scope bool delegate(PhysicObject) selective = null)
     {
         if (damage < float.epsilon)
             return;
@@ -706,7 +706,7 @@ class GameEngine : GameCore {
 
     //destroy a circular area of the damageable landscape
     void damageLandscape(Vector2i pos, int radius, GameObject cause = null,
-        bool delegate(PhysicObject) selective = null)
+        scope bool delegate(PhysicObject) selective = null)
     {
         //xxx maybe should be unified with applyExplosion(), now that the
         //  landscape itself is a normal physic object

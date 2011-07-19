@@ -11,6 +11,8 @@ import gui.widget;
 import gui.window;
 import utils.log;
 import utils.misc;
+import utils.mybox;
+import utils.output;
 import utils.vector2;
 
 //global list of commands (variable is read only, object is read/write)
@@ -18,7 +20,7 @@ CommandBucket gCommands;
 
 alias void delegate(string) InputDelegate;
 
-const string cConsoleTagTS = "console.inputmodes";
+enum string cConsoleTagTS = "console.inputmodes";
 
 private {
     LogBackend gLogBackendGui;
@@ -41,24 +43,24 @@ static this() {
 //  easily turned into delegates
 //not using utils.output because that is legacy crap
 struct ConsoleOutput {
-    void writef(string fmt, ...) {
-        writef_ind(fmt, _arguments, _argptr);
+    void writef(T...)(string fmt, T args) {
+        writef_ind(fmt, args);
     }
-    void writefln(string fmt, ...) {
-        writef_ind(fmt, _arguments, _argptr);
+    void writefln(T...)(string fmt, T args) {
+        writef_ind(fmt, args);
         writef("\n");
     }
     void writeString(string text) {
         writef("%s", text);
     }
 
-    private void writef_ind(string fmt, TypeInfo[] arguments, va_list argptr) {
+    private void writef_ind(T...)(string fmt, T args) {
         if (gConsoleWidget) {
-            gConsoleWidget.output.writef_ind(false, fmt, arguments, argptr);
+            gConsoleWidget.output.writef_ind(false, fmt, args);
         } else {
             //does this happen at all? (but it's easy to support)
             gLog.notice("console output: %s",
-                myformat_fx(fmt, arguments, argptr));
+                myformat(fmt, args));
         }
     }
 }
@@ -161,7 +163,7 @@ private void onActivate(MyBox[] args, Output output) {
     activateConsole();
 }
 
-private void onTabComplete(string line, int cursor1, int cursor2,
+private void onTabComplete(cstring line, int cursor1, int cursor2,
     EditDelegate edit)
 {
     //xxx: somehow should call CommandLine tabhandler if the line starts with
@@ -171,7 +173,7 @@ private void onTabComplete(string line, int cursor1, int cursor2,
 }
 
 private void logGui(LogEntry e) {
-    writeColoredLogEntry(e, false, &gConsoleOut.writefln);
+    writeColoredLogEntry!(gConsoleOut.writefln)(e, false);
 }
 
 private CommandBucket onGetWindowCommands() {

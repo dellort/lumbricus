@@ -121,7 +121,7 @@ void setSetting(T)(string name, T value) {
 
 void addSettingsStruct(T)(string prefix, T init_val = T.init) {
     T x = init_val;
-    const names = structMemberNames!(T)();
+    enum names = structMemberNames!(T)();
     foreach (int idx, i; x.tupleof) {
         addSetting!(typeof(i))(prefix ~ "." ~ names[idx], i);
     }
@@ -129,7 +129,7 @@ void addSettingsStruct(T)(string prefix, T init_val = T.init) {
 //NOTE: this is slow because of string memory allocation
 T getSettingsStruct(T)(string prefix, T def = T.init) {
     T x = def;
-    const names = structMemberNames!(T)();
+    enum names = structMemberNames!(T)();
     foreach (int idx, i; x.tupleof) {
         x.tupleof[idx] = getSetting!(typeof(i))(prefix ~ "." ~ names[idx], i);
     }
@@ -267,7 +267,7 @@ string settingValueHelp(string setting) {
 
 //helpers to load/save to disk
 
-const cSettingsFile = "settings2.conf";
+enum cSettingsFile = "settings2.conf";
 
 void loadSettings() {
     log.minor("Loading global settings from %s", cSettingsFile);

@@ -109,12 +109,11 @@ class ResourceItem : ResourceObject {
 
     //display non-fatal load error (non-fatal as in, we can continue with a
     //  dummy replacement, such as an error graphic for bitmaps)
-    void loadError(string fmt, ...) {
+    void loadError(T...)(string fmt, T args) {
         Resources.log.error("Loading resource '%s' specified in %s failed: %s",
-            id, location(),
-            myformat_fx(fmt, _arguments, _argptr));
+            id, location(), myformat(fmt, args));
     }
-    void loadError(CustomException e) {
+    void loadError()(CustomException e) {
         loadError("%s", e);
     }
 }
@@ -273,7 +272,7 @@ public class Resources {
     }
 
     //"fullname" is the resource ID, prefixed by the filename
-    void enumResources(void delegate(string fullname, ResourceItem res) cb) {
+    void enumResources(scope void delegate(string fullname, ResourceItem res) cb) {
         foreach (file; mLoadedResourceFiles) {
             foreach (ResourceItem res; file.resources) {
                 cb(res.fullname, res);
@@ -294,10 +293,11 @@ public class Resources {
         } catch (ClassNotFoundException e) {
             throwError("when loading resource in '%s': resource type '%s'"
                 " unknown", it.locationString, type);
+            assert(false);
         }
     }
 
-    const cResourcePathName = "resource_path";
+    enum cResourcePathName = "resource_path";
 
     ///load a resource file and add them to dest
     ///config itself or any parent must contain a value named "resource_path"

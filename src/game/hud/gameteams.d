@@ -59,13 +59,13 @@ class WormLabel : Widget {
 
 //the team-bars on the bottom of the screen
 class TeamWindow : Widget {
-    const Time cSwapLinesDuration = timeMsecs(500);
-    const Time cRemoveLinesDuration = timeMsecs(500);
-    const Time cDropLineDuration = timeMsecs(150);
-    const Time cFlashInterval = timeMsecs(500);
+    enum Time cSwapLinesDuration = timeMsecs(500);
+    enum Time cRemoveLinesDuration = timeMsecs(500);
+    enum Time cDropLineDuration = timeMsecs(150);
+    enum Time cFlashInterval = timeMsecs(500);
     private {
         //for memory managment reasons, make larger if too small
-        const cWidgetsPerRow = 3;
+        enum cWidgetsPerRow = 3;
         TableContainer mTable;
         PerTeam[Team] mTeam;
         GameController mController;

@@ -22,9 +22,9 @@ class AirstrikeControl : WeaponSelector, Controllable {
         InterpolateExp!(float, 3.0f) mIP;  //for rotating the cursor
         int mCurSide;  //index into c...Angles
         //[left to right, right to left]
-        const cFireAngles = [40, 140];   //how the strike is fired
+        enum cFireAngles = [40, 140];   //how the strike is fired
         //xxx the animation has a strange rotation
-        const cMouseAngles = [230, 310]; //how the cursor animation is rotated
+        enum cMouseAngles = [230, 310]; //how the cursor animation is rotated
     }
 
     this(Sprite a_owner) {

@@ -47,7 +47,7 @@ class Input {
 class InputProxy : Input {
     Input delegate(string) onDispatch;
 
-    this(Input delegate(string) a_onDispatch) {
+    this(scope Input delegate(string) a_onDispatch) {
         onDispatch = a_onDispatch;
     }
 

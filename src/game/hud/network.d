@@ -20,7 +20,7 @@ class NetworkHud : SimpleContainer {
         Label mLagLabel;
         BoxContainer mCloseBox;
         //time when lagging until "waiting for server" is shown
-        const cAcceptedLag = timeSecs(1);
+        enum cAcceptedLag = timeSecs(1);
     }
 
     this(GameInfo game) {

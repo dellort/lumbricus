@@ -8,7 +8,7 @@ import utils.vector2;
 //from http://en.wikipedia.org/wiki/Midpoint_circle_algorithm
 //(modified for filling)
 void circle(int x, int y, int r,
-    void delegate(int x1, int x2, int y) cb)
+    scope void delegate(int x1, int x2, int y) cb)
 {
     if (r <= 0)
         return;
@@ -37,7 +37,7 @@ void circle(int x, int y, int r,
     cb(x-cy,x+cy,y-cx);
 }
 
-void line(Vector2i p1, Vector2i p2, void delegate(Vector2i pt) cb) {
+void line(Vector2i p1, Vector2i p2, scope void delegate(Vector2i pt) cb) {
     //my computer science prof said bresenham isn't it worth these days
     //that's a good excuse for this crap, isn't it
     //copied from draw_sdl.d (unifying isn't worth it)
@@ -134,7 +134,7 @@ private int myround(float f) {
 //clip rect: renderScanline will never be called with coordinates outside the
 //  rect; pixels on the bottom/right border are not considered to be included
 void rasterizePolygon(Rect2i clip, Vector2f[] points,
-    void delegate (int x1, int x2, int y) renderScanline)
+    scope void delegate (int x1, int x2, int y) renderScanline)
 {
     void scanline(int x1, int x2, int y) {
         if (x2 < clip.p1.x || x1 >= clip.p2.x)

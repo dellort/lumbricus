@@ -42,7 +42,7 @@ struct BindKey {
         }
         bool success = (out_bind.code != Keycode.INVALID);
         if (success)
-            *this = out_bind;
+            this = out_bind;
         return success;
     }
 
@@ -155,7 +155,7 @@ public class KeyBindings {
 
     /// Enum all defined bindings.
     /// Caller must not add or remove bindings while enumerating.
-    void enumBindings(void delegate(string bind, BindKey k) callback) {
+    void enumBindings(scope void delegate(string bind, BindKey k) callback) {
         if (!callback)
             return;
 

@@ -4,7 +4,7 @@ import framework.surface;
 import utils.vector2;
 import wwptools.image;
 
-const pathsep = FileConst.PathSeparatorChar;
+enum pathsep = FileConst.PathSeparatorChar;
 
 struct RGBTriple {
     float r, g, b;

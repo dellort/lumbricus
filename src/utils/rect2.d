@@ -14,10 +14,10 @@ public struct Rect2(T) {
      +  pB (1)   p2 (2)
      +  number in (x) for return value of Rect2.edge(x)
      +/
-    Point pA() {
+    Point pA() const {
         return Point(p2.x, p1.y);
     }
-    Point pB() {
+    Point pB() const {
         return Point(p1.x, p2.y);
     }
 
@@ -55,7 +55,7 @@ public struct Rect2(T) {
         return r;
     }
 
-    Point opIndex(uint index) {
+    Point opIndex(uint index) const {
         //is that kosher?
         return ((&p1)[0..2])[index];
     }
@@ -66,18 +66,18 @@ public struct Rect2(T) {
     //get one of edge 0-3
     // 0 = p1, 1 = pB(), 2 = p2, 3 = pA()
     //4 wraps around to 0 etc.
-    Point edge(uint i) {
+    Point edge(uint i) const {
         return Point((this)[(i/2) % 2].x, (this)[((i+1)/2) % 2].y);
     }
 
     //translate rect by the vector r
-    Rect2 opAdd(Point r) {
+    Rect2 opAdd(Point r) const {
         Rect2 res = this;
         res.p1 += r;
         res.p2 += r;
         return res;
     }
-    Rect2 opSub(Point r) {
+    Rect2 opSub(Point r) const {
         return this + (-r);
     }
 
@@ -90,15 +90,15 @@ public struct Rect2(T) {
         p2 -= r;
     }
 
-    Point size() {
+    Point size() const {
         return p2 - p1;
     }
 
-    Point center() {
+    Point center() const {
         return p1 + (p2-p1)/2;
     }
 
-    bool isNormal() {
+    bool isNormal() const {
         return (p1.x1 <= p2.x1) && (p1.x2 <= p2.x2);
     }
 
@@ -168,32 +168,32 @@ public struct Rect2(T) {
             p2.y = r.p2.y;
     }
 
-    bool isInside(Point p) {
+    bool isInside(Point p) const {
         return (p.x1 >= p1.x1 && p.x2 >= p1.x2 && p.x1 < p2.x1 && p.x2 < p2.x2);
     }
-    bool isInsideB(Point p) {
+    bool isInsideB(Point p) const {
         return (p.x1 >= p1.x1 && p.x2 >= p1.x2
             && p.x1 <= p2.x1 && p.x2 <= p2.x2);
     }
 
     //border is exclusive
-    bool intersects(in Rect2 rc) {
+    bool intersects(in Rect2 rc) const {
         return intersects(rc.p1, rc.p2);
     }
-    bool intersects(in Point rc_p1, in Point rc_p2) {
+    bool intersects(in Point rc_p1, in Point rc_p2) const {
         return (rc_p2.x1 > p1.x1 && rc_p2.x2 > p1.x2
             && rc_p1.x1 < p2.x1 && rc_p1.x2 < p2.x2);
     }
 
     //return true if this contains rc completely
-    bool contains(in Rect2 rc) {
+    bool contains(in Rect2 rc) const {
         return (p1.x1 <= rc.p1.x1 && p2.x1 >= rc.p2.x1
             && p1.x2 <= rc.p1.x2 && p2.x2 >= rc.p2.x2);
     }
 
     //the common rectangle covered by both rectangles
     //result.isNormal() will return false if there's no intersection
-    Rect2 intersection(in Rect2 rc) {
+    Rect2 intersection(in Rect2 rc) const {
         Rect2 r;
         r.p1.x1 = max(p1.x1, rc.p1.x1);
         r.p1.x2 = max(p1.x2, rc.p1.x2);
@@ -207,7 +207,7 @@ public struct Rect2(T) {
     //in some corner cases (literally), the function will return true, even if
     //  the rect and circle don't really collide
     //this matters only when the circle is big compared to the rect
-    bool collideCircleApprox(Point pos, T radius) {
+    bool collideCircleApprox(Point pos, T radius) const {
         return (pos.x + radius > p1.x
             && pos.x - radius < p2.x
             && pos.y + radius > p1.y
@@ -216,7 +216,7 @@ public struct Rect2(T) {
 
     //substract the rectangles in list from this, and return what's left over
     //the rects in list may intersect, and the resulting rects won't intersect
-    Rect2[] substractRects(Rect2[] list) {
+    Rect2[] substractRects(Rect2[] list) const {
         Rect2[] cur = [this]; //cur = what's left over
         foreach (ref rem; list) {
             Rect2[] cur2;
@@ -255,7 +255,7 @@ public struct Rect2(T) {
 
     //clip pt to this rect; isInsideB(clip(pt)) will always return true
     //(isInside() won't; also NaNs may mess it all up when using floats)
-    Point clip(in Point pt)
+    Point clip(in Point pt) const
     //removed because sometimes it's inconvenient out(r) {assert(isInsideB(r));}
     body {
         Point r = pt;
@@ -271,7 +271,7 @@ public struct Rect2(T) {
     }
 
     //return this rectangle centered at pos
-    Rect2 centeredAt(Point pos) {
+    Rect2 centeredAt(Point pos) const {
         auto s = size();
         pos -= s/2;
         return this + pos;
@@ -279,7 +279,7 @@ public struct Rect2(T) {
 
     //assuming there's an object with the rect rc, move it inside the "this"
     //  rect; if it's already inside, don't move
-    Rect2 moveInside(Rect2 rc) {
+    Rect2 moveInside(Rect2 rc) const {
         if (rc.p1.x < p1.x)
             rc += Point(p1.x - rc.p1.x, 0);
         if (rc.p2.x > p2.x)
@@ -309,7 +309,7 @@ public struct Rect2(T) {
         doalign(p2.y, tilesize.y, true);
     }
 
-    string toString() {
+    string toString() const {
         return myformat("[%s - %s]", p1, p2);
     }
 }

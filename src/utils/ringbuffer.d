@@ -58,7 +58,7 @@ class RingBuffer(T) {
     }
 
     //start at oldest element, iterate to newest
-    int opApply(int delegate(ref T value) del) {
+    int opApply(scope int delegate(ref T value) del) {
         int result;
         if (!mLength) {
             //empty buffer
@@ -76,7 +76,7 @@ class RingBuffer(T) {
     }
 
     //start at newest element, iterate to oldest
-    int opApplyReverse(int delegate(ref T value) del) {
+    int opApplyReverse(scope int delegate(ref T value) del) {
         int result;
         if (!mLength) {
             //empty buffer

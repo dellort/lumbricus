@@ -71,15 +71,15 @@ class ModeTurnbased : Gamemode {
         //xxx actually it's "turn"
         int mRoundCounter;
 
-        const cSilenceWait = timeMsecs(400);
-        const cNextRoundWait = timeMsecs(750);
+        enum cSilenceWait = timeMsecs(400);
+        enum cNextRoundWait = timeMsecs(750);
         //how long winning animation is shown
-        const cWinTime = timeSecs(5);
+        enum cWinTime = timeSecs(5);
         //delay for crate rain
-        const cTurnCrateDelay = timeSecs(5);
-        const cInTurnActCheckC = 3;
+        enum cTurnCrateDelay = timeSecs(5);
+        enum cInTurnActCheckC = 3;
         //don't drop crate on start of the game
-        const cNoCrateOnStart = true;
+        enum cNoCrateOnStart = true;
     }
 
     this(GameCore a_engine, ConfigNode config) {

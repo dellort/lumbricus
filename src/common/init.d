@@ -22,7 +22,7 @@ import strparser = utils.strparser;
 import std.stdio;
 
 //Currently, this is just used in FileSystem to determine data/user paths
-const string APP_ID = "lumbricus";
+enum string APP_ID = "lumbricus";
 
 private LogStruct!("init") gLogInit;
 
@@ -90,7 +90,7 @@ private {
 //write bytes into the logfile (null if no logfile open)
 //at initialization time, may be temporarily set to logToFileTmp
 //if logfile writing is disabled, this is null
-void delegate(in char[]) gLogFileSink;
+void delegate(cstring) gLogFileSink;
 
 static this() {
     gLogBackendFile = new LogBackend("logfile/console", LogPriority.Trace,
@@ -109,12 +109,12 @@ private void changeLogOpt(Setting s) {
     gLogBackendFile.enabled = gLogToFile.get() || gLogToConsole.get();
 }
 
-private void logToFileTmp(in char[] s) {
+private void logToFileTmp(cstring s) {
     gLogFileTmp ~= s;
 }
 
 private void logToConsoleAndFile(LogEntry e) {
-    void sink(in char[] s) {
+    void sink(cstring s) {
         if (gLogFileSink && gLogToFile.get())
             gLogFileSink(s);
         //Trace uses stderr
@@ -163,14 +163,14 @@ void init(string[] args) {
         //NOTE: on Linux, will just overwrite a logfile (even if it's open by
         //  another process)
         //XXXTANGO: phobos2 uses libc stdio, so we won't get this so soon
-        //const File.Style WriteCreateShared =
+        //enum File.Style WriteCreateShared =
         //    {File.Access.Write, File.Open.Create, File.Share.Read};
         try {
             auto logf = gFS.open(logpath, "w");
             //Closure just for converting write(ubyte[]) to sink(string)...
             struct Closure {
                 stream.PipeOut writer;
-                void sink(in char[] s) {
+                void sink(cstring s) {
                     writer.write(cast(ubyte[])s);
                 }
             }

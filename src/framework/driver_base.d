@@ -139,8 +139,9 @@ abstract class Resource {
         }
     }
 
-    override void dispose() {
-        super.dispose();
+    //XXXTANGO
+    void dispose() {
+        //super.dispose();
         if (driverResource) {
             driverResource.loseDataAndDestroy();
             assert(!driverResource());

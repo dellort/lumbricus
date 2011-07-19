@@ -25,7 +25,7 @@ version = CircularCollision;
 //red border around bitmap
 //version = DebugShowLandscape;
 
-//const cLandscapeSnowBit = Lexel.Type_Bit_Min << 0;
+//enum cLandscapeSnowBit = Lexel.Type_Bit_Min << 0;
 
 uint Landscape_ID;
 

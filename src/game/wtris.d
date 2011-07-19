@@ -22,7 +22,7 @@ import utils.misc;
 //registers itself as Task "wtris"
 public class WTris {
     private {
-        const PIECE_W = 4, PIECE_H = 4;
+        enum PIECE_W = 4, PIECE_H = 4;
 
         //pieces[stone][rotation][x][y]
         alias bool[][] Piece;
@@ -48,13 +48,13 @@ public class WTris {
         TimeSource thetime;
         Time last_piece;
 
-        const PIECE_DROP_MS = 300;
-        const PIECE_STEP_MS = 500;
+        enum PIECE_DROP_MS = 300;
+        enum PIECE_STEP_MS = 500;
         //substracted time per speed
-        const SPEED_SUB_MS = 50;
+        enum SPEED_SUB_MS = 50;
 
         Surface boxes;
-        const BOX_TYPE_COUNT = 7;
+        enum BOX_TYPE_COUNT = 7;
         int PIECE_DRAW_W, PIECE_DRAW_H;
 
         Widget thegui;
@@ -92,9 +92,9 @@ public class WTris {
             int curpos = 0;
             int currot = 0;
             pieces[n].length = rotcount;
-            foreach (inout x; pieces[n]) {
+            foreach (ref x; pieces[n]) {
                 x.length = PIECE_W;
-                foreach (inout y; x) {
+                foreach (ref y; x) {
                     y.length = PIECE_H;
                 }
             }
@@ -125,7 +125,7 @@ public class WTris {
         field_w = 10;
         field_h = 20;
         field.length = field_w;
-        foreach (inout x; field) {
+        foreach (ref x; field) {
             x.length = field_h;
         }
         do_clear_field();
@@ -206,7 +206,7 @@ public class WTris {
         }
     }
 
-    private const Vector2i border = {5,5};
+    private enum Vector2i border = {5,5};
 
     //the main field, and also eat events
     private class GameView : Widget {

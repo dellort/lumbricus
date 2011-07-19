@@ -14,10 +14,10 @@ import utils.time;
 //  (overengineering ftw)
 class ControllerPersistence : GameObject {
     private {
-        const cKeepWeaponsDef = false;
-        const cGiveWeaponsDef = int.max;   //default: always give
-        const cVictoryDef = "absolute";
-        const cVictoryCountDef = 2;
+        enum cKeepWeaponsDef = false;
+        enum cGiveWeaponsDef = int.max;   //default: always give
+        enum cVictoryDef = "absolute";
+        enum cVictoryCountDef = 2;
         GameController mController;
     }
 

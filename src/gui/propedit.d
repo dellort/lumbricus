@@ -136,7 +136,7 @@ class EditProperty {
 
     //call this with code to set a value (to prevent recursion with listener)
     //xxx add handling for invalid values (catch PropertyException)
-    protected void set(void delegate() doset) {
+    protected void set(scope void delegate() doset) {
         mChanging++;
         scope (exit) mChanging--;
         doset();

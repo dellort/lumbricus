@@ -27,7 +27,7 @@ class AbstractListWidget : Widget {
         bool mMouseInside;
     }
 
-    const cUnselected = -1;
+    enum cUnselected = -1;
 
     /// event for selection; for meaning of index cf. selectedIndex(int)
     /// xxx: unselect event?

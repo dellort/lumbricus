@@ -32,8 +32,8 @@ alias pascii.isWhite iswhite; //return true if whitespace char/dchar/wchar
 
 //cut whitespace
 alias pstr.strip strip;
-alias pstr.stripl stripl;
-alias pstr.stripr stripr;
+alias pstr.stripLeft stripl;
+alias pstr.stripRight stripr;
 
 alias pstr.splitLines splitlines;
 
@@ -69,9 +69,9 @@ int rfind(in char[] text, in char[] tofind) {
 }
 
 //on every spliton in text, create a new array item, and return that array
-string[] split(string text, string spliton) {
+string[] split(string text, const(char)[] spliton) {
     //XXXTANGO: check whether it's correct
-    string[] res = parray.split(text, spliton);
+    auto res = parray.split(text, spliton);
     //behaviour different Phobos <-> Tango:
     //split("", ",") returns
     // in Tango: [""]
@@ -81,6 +81,20 @@ string[] split(string text, string spliton) {
         return null;
     return res;
 }
+//XXXTANGO
+const(char)[][] split(const(char)[] text, const(char)[] spliton) {
+    //XXXTANGO: check whether it's correct
+    auto res = parray.split(text, spliton);
+    //behaviour different Phobos <-> Tango:
+    //split("", ",") returns
+    // in Tango: [""]
+    // in Phobos: []
+    //I think Phobos behaviour is more useful (less special cases in user code)
+    if (res.length == 1 && res[0] == "")
+        return null;
+    return res;
+}
+
 
 unittest {
     assert(split("a,b", ",") == ["a"[], "b"]);
@@ -166,21 +180,21 @@ unittest {
 }
 
 //return length of the unicode character at txt[idx] (in bytes)
-size_t stride(string txt, size_t idx) {
+size_t stride(cstring txt, size_t idx) {
     size_t idx2 = idx;
     decode(txt, idx2);
     return idx2 - idx;
 }
 
 //decode one char; if txt.length==0, return dchar.init
-dchar decode_first(string txt) {
+dchar decode_first(cstring txt) {
     if (txt.length == 0)
         return dchar.init;
     size_t idx = 0;
     return decode(txt, idx);
 }
 //probably badly named; make it better
-string utf8_get_first(string txt) {
+cstring utf8_get_first(cstring txt) {
     return txt.length ? txt[0..stride(txt, 0)] : "";
 }
 
@@ -231,6 +245,11 @@ string[] split(string text) {
     return ps;
 }
 
+//XXXTANGO
+const(char[])[] split(in char[] text) {
+    return cast(const(char[])[])split(cast(string)text);
+}
+
 unittest {
     assert(split(" 1b  2ghj     y3") == ["1b", "2ghj", "y3"]);
     assert(split("1 ") == ["1"]);
@@ -240,26 +259,34 @@ unittest {
     assert(split("    ") == null);
 }
 
-bool startsWith(string str, string prefix) {
+bool startsWith(in char[] str, in char[] prefix) {
     if (str.length < prefix.length)
         return false;
     return str[0..prefix.length] == prefix;
 }
 
-bool endsWith(string str, string suffix) {
+bool endsWith(in char[] str, in char[] suffix) {
     if (str.length < suffix.length)
         return false;
     return str[$-suffix.length..$] == suffix;
 }
 
-bool eatStart(ref string str, string prefix) {
+bool eatStart(ref const(char)[] str, in char[] prefix) {
     if (!startsWith(str, prefix))
         return false;
     str = str[prefix.length .. $];
     return true;
 }
 
-bool eatEnd(ref string str, string suffix) {
+//XXXTANGO dunno
+bool eatStart(ref string str, in char[] prefix) {
+    if (!startsWith(str, prefix))
+        return false;
+    str = str[prefix.length .. $];
+    return true;
+}
+
+bool eatEnd(ref const(char)[] str, in char[] suffix) {
     if (!endsWith(str, suffix))
         return false;
     str = str[0 .. $ - suffix.length];
@@ -271,37 +298,28 @@ bool eatEnd(ref string str, string suffix) {
 //result[0] contains the rest (especially if nothing found)
 //  split2("abcd", 'c') == ["ab", "cd"]
 //  split2("abcd", 'x') == ["abcd", ""]
-struct Split2Result {
-    string[2] res;
-    string opIndex(uint i) {
-        return res[i];
-    }
-}
-Split2Result split2(string txt, char tofind) {
+const(char)[][2] split2(const(char)[] txt, char tofind) {
     int idx = find(txt, tofind);
-    string before = txt[0 .. idx >= 0 ? idx : $];
-    string after = txt[before.length .. $];
-    Split2Result r;
-    r.res[0] = before;
-    r.res[1] = after;
-    return r;
+    auto before = txt[0 .. idx >= 0 ? idx : $];
+    auto after = txt[before.length .. $];
+    return [before, after];
 }
 //hm I guess I'm a little bit tired
 //like split2(), but excludes tofind
-Split2Result split2_b(string txt, char tofind) {
+const(char)[][2] split2_b(const(char)[] txt, char tofind) {
     auto res = split2(txt, tofind);
     if (res[1].length) {
         assert(res[1][0] == tofind);
-        res.res[1] = res.res[1][1..$];
+        res[1] = res[1][1..$];
     }
     return res;
 }
 
 unittest {
-    assert(split2("abcd", 'c').res == ["ab", "cd"]);
-    assert(split2_b("abcd", 'c').res == ["ab", "d"]);
-    assert(split2("abcd", 'x').res == ["abcd", ""]);
-    assert(split2_b("abcd", 'x').res == ["abcd", ""]);
+    assert(split2("abcd", 'c') == ["ab", "cd"]);
+    assert(split2_b("abcd", 'c') == ["ab", "d"]);
+    assert(split2("abcd", 'x') == ["abcd", ""]);
+    assert(split2_b("abcd", 'x') == ["abcd", ""]);
 }
 
 import utils.misc;
@@ -309,7 +327,7 @@ import utils.misc;
 /// number of bytes to a string like "number XX", where XX is "B", "KB" etc.
 /// buffer = if long enough, use this instead of allocating memory
 string sizeToHuman(long bytes, char[] buffer = null) {
-    const string[] cSizes = ["B", "KB", "MB", "GB"];
+    enum string[] cSizes = ["B", "KB", "MB", "GB"];
     int n;
     long x;
     x = 1;
@@ -380,14 +398,14 @@ string ctfe_firstupper(string s) {
 
 
 /// Return the index of the character following the character at "index"
-int charNext(string s, int index) {
+int charNext(cstring s, int index) {
     assert(index >= 0 && index <= s.length);
     if (index == s.length)
         return s.length;
     return index + stride(s, index);
 }
 /// Return the index of the character prepending the character at "index"
-int charPrev(string s, int index) {
+int charPrev(cstring s, int index) {
     assert(index >= 0 && index <= s.length);
     debug if (index < s.length) {
         //assert valid UTF-8 character (stride will throw an exception)

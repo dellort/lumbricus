@@ -120,7 +120,7 @@ abstract:
     ///loop over internal server list
     ///behavior is implementation-specific, but it should be implemented to
     ///block as short as possible (best not at all)
-    int opApply(int delegate(ref ServerAddress) del);
+    int opApply(scope int delegate(ref ServerAddress) del);
 
     ///Client starts inactive
     ///by definition, setting active from false to true will cause an announce
@@ -148,7 +148,7 @@ abstract class NACPeriodically : NetAnnounceClient {
 
     //Returns the current internal server list, and also checks if server
     //entries have timed out
-    int opApply(int delegate(ref ServerAddress) del) {
+    int opApply(scope int delegate(ref ServerAddress) del) {
         Time t = timeCurrentTime();
         ulong[] invalid;
         foreach (ulong key, ref MyServerInfo srv; mServers) {

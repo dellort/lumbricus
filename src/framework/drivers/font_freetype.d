@@ -19,7 +19,7 @@ import utils.configfile;
 
 import utils.stream;
 
-const cDrvName = "font_freetype";
+enum cDrvName = "font_freetype";
 
 private struct GlyphData {
     SubSurface tex;     //glyph texture
@@ -160,7 +160,7 @@ class FTGlyphCache {
         //xxx 2: should probably be more forgiving about errors (e.g. display
         //  nothing or an error texture instead of crashing)
         //(also, I check allocating functions only)
-        void ftcheck(string name) {
+        void ftcheck(cstring name) {
             if (ftres)
                 throw new Exception(
                     myformat("fontft.d failed: err=%s in %s", ftres, name));
@@ -353,7 +353,7 @@ class FTFont : DriverFont {
         c.drawSprite(glyph.tex, pos+glyph.offset);
     }
 
-    Vector2i draw(Canvas canvas, Vector2i pos, string text) {
+    Vector2i draw(Canvas canvas, Vector2i pos, cstring text) {
         int orgx = pos.x;
         foreach (dchar c; text) {
             auto glyph = mCache.getGlyph(c);
@@ -381,7 +381,7 @@ class FTFont : DriverFont {
         return pos;
     }
 
-    Vector2i textSize(string text, bool forceHeight) {
+    Vector2i textSize(cstring text, bool forceHeight) {
         Vector2i res = Vector2i(0, 0);
         foreach (dchar c; text) {
             auto glyph = mCache.getGlyph(c);

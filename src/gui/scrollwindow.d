@@ -27,8 +27,8 @@ class ScrollArea : SimpleContainer {
         long mTimeLast;
         Vector2i mLastUpdateSize;
 
-        const cScrollStepMs = 10;
-        const float K_SCROLL = 0.01f;
+        enum cScrollStepMs = 10;
+        enum float K_SCROLL = 0.01f;
     }
 
     //changes to scroll size or scrollability
@@ -322,9 +322,10 @@ class ScrollWindow : Container {
         }
         //sizes as set
         Vector2i setsizes;
-        if (mBars[0] && scr)
+        //XXXTANGO: scr was used as such
+        if (mBars[0] && scr[0])
             setsizes[0] = mBars[0].maxValue;
-        if (mBars[1] && scr)
+        if (mBars[1] && scr[1])
             setsizes[1] = mBars[1].maxValue;
 
         //if GUI is existing, check if anything that must be changed below is

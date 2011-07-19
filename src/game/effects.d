@@ -39,8 +39,8 @@ class NukeSplatEffect : SceneObject {
 //draw the red zones on the left and right edges of the level
 class LevelEndDrawer : SceneObject {
     Vertex2f[4] mQuad;
-    const cIn = Color.Transparent;
-    const cOut = Color(1.0, 0, 0, 0.5);
+    enum cIn = Color.Transparent;
+    enum cOut = Color(1.0, 0, 0, 0.5);
     bool mLeft, mRight;
 
     this(bool left, bool right) {

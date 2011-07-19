@@ -9,7 +9,7 @@ import net.iflist;
 ///maximum message size is 1kb
 class NetBroadcast {
     private {
-        const cBufSize = 1024;
+        enum cBufSize = 1024;
         ubyte[cBufSize] mBuffer;
 
         ushort mPort;

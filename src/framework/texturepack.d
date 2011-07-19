@@ -77,10 +77,6 @@ class TexturePack {
         delete mSurfaces;
     }
 
-    override void dispose() {
-        free();
-    }
-
     //all surfaces that have been returned by add()
     //this includes "exceptions" (oversized images)
     Surface[] surfaces() {

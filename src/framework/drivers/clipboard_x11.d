@@ -172,7 +172,7 @@ public void copyText(bool clipboard, string text) {
     });
 }
 
-public void pasteText(bool clipboard, void delegate(string text) cb) {
+public void pasteText(bool clipboard, scope void delegate(string text) cb) {
     int buffer = clipboard ? 1 : 0;
     if (gIsOwnSelection[buffer]) {
         cb(gSelectionBuffer[buffer]);
@@ -186,7 +186,7 @@ public void pasteText(bool clipboard, void delegate(string text) cb) {
     });
 }
 
-public void pasteCancel(void delegate(string text) cb) {
+public void pasteCancel(scope void delegate(string text) cb) {
     if (gSelectionRequestor == cb)
         gSelectionRequestor = null;
 }
@@ -326,7 +326,7 @@ void loadfuncs(T...)() {
         return;
     //this is evil, but works... get the name the function as declared as
     //blame Walter for adding underspecified obscure features to his language
-    const name = T[0].stringof;
+    enum name = T[0].stringof;
     void* sym = dlsym(gXlib, czstr.toStringz(name));
     assert(!!sym, "symbol not found: "~name);
     //this also may be evil: assign the actual variable
@@ -400,8 +400,8 @@ void onVideoInit(bool is_loading) {
 
 class Handler : ClipboardHandler {
     void copyText(bool a, string b) { .copyText(a, b); }
-    void pasteText(bool a, void delegate(string) b) { .pasteText(a, b); }
-    void pasteCancel(void delegate(string) a) { .pasteCancel(a); }
+    void pasteText(bool a, scope void delegate(string) b) { .pasteText(a, b); }
+    void pasteCancel(scope void delegate(string) a) { .pasteCancel(a); }
 }
 
 //loads itself when SDL is loaded

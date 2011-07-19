@@ -5,9 +5,9 @@ import derelict.sdl.sdl;
 
 extern(C):
 
-const SOUND_VER_MAJOR = 1;
-const SOUND_VER_MINOR = 0;
-const SOUND_VER_PATCH = 3;
+enum SOUND_VER_MAJOR = 1;
+enum SOUND_VER_MINOR = 0;
+enum SOUND_VER_PATCH = 3;
 
 typedef int Sound_SampleFlags;
 enum : Sound_SampleFlags {

@@ -238,7 +238,7 @@ class TableContainer : PublicContainer {
 
     //some stupid code needed this sigh
     Widget get(int x, int y) {
-        foreach (inout pc; mChildren) {
+        foreach (ref pc; mChildren) {
             if (pc.p[0] == x && pc.p[1] == y)
                 return pc.w;
         }
@@ -247,11 +247,11 @@ class TableContainer : PublicContainer {
 
     //find all children which cover a cell in the given range (cf. add())
     //never calls d twice for a child
-    void findCellsAt(int x, int y, int s_x, int s_y, void delegate(Widget c) d)
+    void findCellsAt(int x, int y, int s_x, int s_y, scope void delegate(Widget c) d)
     {
         //lol why not
         auto rc = Rect2i.Span(Vector2i(x, y), Vector2i(s_x, s_y));
-        foreach (inout pc; mChildren) {
+        foreach (ref pc; mChildren) {
             auto rc2 = Rect2i.Span(Vector2i(pc.p[0], pc.p[1]),
                 Vector2i(pc.join[0], pc.join[1]));
             if (rc2.intersects(rc) && pc.w)
@@ -264,13 +264,13 @@ class TableContainer : PublicContainer {
         Header[] heads = mHeaders[dir];
         int space = max(0, mCellSpacing[dir]);
 
-        foreach (inout h; heads) {
+        foreach (ref h; heads) {
             h.expand = h.forceExpand | mForceExpand[dir] | mHomogeneous[dir];
             h.minSize = 0;
         }
 
         //set expand, but only if it doesn't join multiple cells
-        foreach (inout pc; mChildren) {
+        foreach (ref pc; mChildren) {
             if (pc.join[dir] == 1) {
                 int n = pc.p[dir];
                 heads[n].expand |= pc.expand[dir];
@@ -278,7 +278,7 @@ class TableContainer : PublicContainer {
         }
 
         //set minimal sizes (processes normal and spanning cells)
-        foreach (inout pc; mChildren) {
+        foreach (ref pc; mChildren) {
             int requestSize = pc.minSize[dir];
             int n = pc.p[dir];
             int count = pc.join[dir];
@@ -313,10 +313,10 @@ class TableContainer : PublicContainer {
         if (mHomogeneous[dir]) {
             //homogenize
             int minWidth;
-            foreach (inout h; heads) {
+            foreach (ref h; heads) {
                 minWidth = max(minWidth, h.minSize);
             }
-            foreach (inout h; heads) {
+            foreach (ref h; heads) {
                 h.minSize = minWidth;
             }
         } else {
@@ -351,7 +351,7 @@ class TableContainer : PublicContainer {
 
         //sum up (could speed up this when homogeneous)
         int sum;
-        foreach (inout h; heads) {
+        foreach (ref h; heads) {
             sum += h.minSize + space;
         }
         //only space between cells; when grid has size 0 it becomes -space
@@ -373,7 +373,7 @@ class TableContainer : PublicContainer {
         //distribute extra space equally accross all expanding cells
 
         int expandcount;
-        foreach (inout h; heads) {
+        foreach (ref h; heads) {
             expandcount += h.expand ? 1 : 0;
         }
 
@@ -383,7 +383,7 @@ class TableContainer : PublicContainer {
         auto extra = expandcount ? (extrasize/++expandcount-1+/)/expandcount : 0;
 
         int cur;
-        foreach (inout h; heads) {
+        foreach (ref h; heads) {
             h.allocA = cur;
             cur += h.minSize + (h.expand ? extra : 0);
             h.allocB = cur;
@@ -392,7 +392,7 @@ class TableContainer : PublicContainer {
     }
 
     protected Vector2i layoutSizeRequest() {
-        foreach (inout pc; mChildren) {
+        foreach (ref pc; mChildren) {
             assert(pc.w !is null);
             pc.minSize = pc.w.layoutCachedContainerSizeRequest();
             pc.expand[] = pc.w.layout.expand;
@@ -412,7 +412,7 @@ class TableContainer : PublicContainer {
         doSizeAlloc(1, extra[1]);
 
         //and then assign them
-        foreach (inout pc; mChildren) {
+        foreach (ref pc; mChildren) {
             pc.w.layoutContainerAllocate(cellRect(pc.p[0], pc.p[1], pc.join[0],
                 pc.join[1]));
         }
@@ -456,7 +456,7 @@ class TableContainer : PublicContainer {
         }
         foreach (ConfigNode child; node.getSubNode("cells")) {
             //if a cell contains "table_skip", it doesn't contain a Widget
-            const cSkip = "table_skip";
+            enum cSkip = "table_skip";
             if (child.hasValue(cSkip)) {
                 skip(child.getIntValue(cSkip, 1));
             } else {

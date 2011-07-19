@@ -35,36 +35,36 @@ public struct Color {
     }
 
     //for RGBA32.colors
-    const cIdxR = 0, cIdxG = 1, cIdxB = 2, cIdxA = 3;
+    enum cIdxR = 0, cIdxG = 1, cIdxB = 2, cIdxA = 3;
 
     //for RGBA32.uint_val
     version (LittleEndian) {
-        const cMaskR = 0x00_00_00_FF;
-        const cMaskG = 0x00_00_FF_00;
-        const cMaskB = 0x00_FF_00_00;
-        const cMaskA = 0xFF_00_00_00;
+        enum cMaskR = 0x00_00_00_FF;
+        enum cMaskG = 0x00_00_FF_00;
+        enum cMaskB = 0x00_FF_00_00;
+        enum cMaskA = 0xFF_00_00_00;
     } else version (BigEndian) {
-        const cMaskR = 0xFF_00_00_00;
-        const cMaskG = 0x00_FF_00_00;
-        const cMaskB = 0x00_00_FF_00;
-        const cMaskA = 0x00_00_00_FF;
+        enum cMaskR = 0xFF_00_00_00;
+        enum cMaskG = 0x00_FF_00_00;
+        enum cMaskB = 0x00_00_FF_00;
+        enum cMaskA = 0x00_00_00_FF;
     } else {
         static assert(false, "no endian");
     }
 
     //black transparent pixel
-    const Color Transparent = Color(0, 0, 0, 0);
+    enum Color Transparent = Color(0, 0, 0, 0);
     //some other common colors (but not too many)
-    const Color Black = Color(0, 0, 0, 1);
-    const Color White = Color(1, 1, 1, 1);
+    enum Color Black = Color(0, 0, 0, 1);
+    enum Color White = Color(1, 1, 1, 1);
     //"null" value (for default parameters)
-    const Color Invalid = Color(float.infinity, float.infinity,
+    enum Color Invalid = Color(float.infinity, float.infinity,
         float.infinity, float.infinity);
 
     /// a value that can be used as epsilon when comparing colors
     //0.3f is a fuzzify value, with 255 I expect colors to be encoded with at
     //most 8 bits
-    public static const float epsilon = 0.3f * 1.0f / 255;
+    enum float epsilon = 0.3f * 1.0f / 255;
 
     //for use with Color.Invalid
     bool valid() {
@@ -211,12 +211,12 @@ public struct Color {
      + Previous member values of Color are used, if the color spec is
      + incomplete, e.g. "a=0.5" will simply do this.a = 0.5f;
      +/
-    static Color fromString(string s, Color previous = Color.init) {
+    static Color fromString(const(char)[] s, Color previous = Color.init) {
         Color newc = previous;
 
         //old parsing
 
-        string[] values = str.split(s);
+        auto values = str.split(s);
         if (values.length == 3 || values.length == 4) {
             try {
                 newc.r = strparser.fromStr!(float)(values[0]);
@@ -238,13 +238,13 @@ public struct Color {
 
         //new parsing
 
-        string[] stuff = str.split(s, ",");
+        auto stuff = str.split(s, ",");
 
         if (stuff.length == 0)
             throw strparser.newConversionException!(Color)(s, "empty string");
 
         foreach (x; stuff) {
-            string[] sub = str.split(x, "=");
+            auto sub = str.split(x, "=");
             if (sub.length == 1) {
                 auto pcolor = str.tolower(str.strip(sub[0])) in gColors;
                 if (!pcolor)
@@ -277,7 +277,7 @@ public struct Color {
         return newc;
     }
 
-    static int hexconv(string s, uint* ate) {
+    static int hexconv(in char[] s, uint* ate) {
         int number = 0;
         *ate = 0;
         foreach (char c; s) {
@@ -300,7 +300,7 @@ public struct Color {
     //try parsing a hexadecimal color value at the start of s (no prefix)
     //Example: 00ff00
     //Garbage may follow the color code; returns number of chars eaten
-    private int parseHex(string s) {
+    private int parseHex(in char[] s) {
         if (s.length > 5) {
             //try reading r/g/b
             uint cnt, tmp;

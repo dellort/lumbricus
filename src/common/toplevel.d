@@ -281,7 +281,7 @@ private:
         }
     }
 
-    const cScreenshotDir = "/screenshots/";
+    enum cScreenshotDir = "/screenshots/";
 
     private void cmdScreenshot(MyBox[] args, Output write) {
         string filename = args[0].unboxMaybe!(string);

@@ -250,7 +250,7 @@ class FMODSoundDriver : SoundDriver {
     }
 
     //Number of "virtual" FMOD channels to use
-    const cVirtualChannelCount = 512;
+    enum cVirtualChannelCount = 512;
 
     this() {
         assert(!gBase);

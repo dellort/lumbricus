@@ -13,10 +13,10 @@ interface ClipboardHandler {
     //when cb() is actually called:
     //  Windows: immediately by this function
     //  Linux: somewhere from the framework event loop
-    void pasteText(bool clipboard, void delegate(string text) cb);
+    void pasteText(bool clipboard, scope void delegate(string text) cb);
     //remove the callback set by pasteText(); rarely needed because the callback
     //  gets automatically removed when it is called.
-    void pasteCancel(void delegate(string text) cb);
+    void pasteCancel(scope void delegate(string text) cb);
 }
 
 ClipboardHandler gClipboardHandler;
@@ -34,14 +34,14 @@ static:
             gLocalClipboard[clipboard ? 1 : 0] = text;
         }
     }
-    void pasteText(bool clipboard, void delegate(string text) cb) {
+    void pasteText(bool clipboard, scope void delegate(string text) cb) {
         if (gClipboardHandler) {
             gClipboardHandler.pasteText(clipboard, cb);
         } else {
             cb(gLocalClipboard[clipboard ? 1 : 0]);
         }
     }
-    void pasteCancel(void delegate(string text) cb) {
+    void pasteCancel(scope void delegate(string text) cb) {
         if (gClipboardHandler)
             gClipboardHandler.pasteCancel(cb);
     }

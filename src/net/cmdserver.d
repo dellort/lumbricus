@@ -61,7 +61,7 @@ class CmdNetServer {
         uint[] mRecentDisconnects;
         MarshalBuffer mQueryMarshal;
 
-        const cInfoInterval = timeSecs(2);
+        enum cInfoInterval = timeSecs(2);
     }
 
     //create the server thread object
@@ -347,7 +347,7 @@ class CmdNetServer {
         checkLoading();
     }
 
-    int opApply(int delegate(ref CmdNetClientConnection cl) del) {
+    int opApply(scope int delegate(ref CmdNetClientConnection cl) del) {
         foreach (cl; mClients) {
             int res = del(cl);
             if (res)
@@ -356,7 +356,7 @@ class CmdNetServer {
         return 0;
     }
 
-    private void listConnectedClients(void delegate(CmdNetClientConnection) d) {
+    private void listConnectedClients(scope void delegate(CmdNetClientConnection) d) {
         foreach (cl; mClients) {
             if (cl.state != ClientConState.connected)
                 continue;
@@ -589,8 +589,8 @@ class CmdNetClientConnection {
         bool loadDone;
         uint mId;  //immutable during lifetime
 
-        const cPingInterval = timeSecs(1.5); //ping every x seconds...
-        const cPingAvgOver = timeSecs(9); //and average the result over y
+        enum cPingInterval = timeSecs(1.5); //ping every x seconds...
+        enum cPingAvgOver = timeSecs(9); //and average the result over y
 
         struct PongEntry {
             Time cur = Time.Never, rtt = Time.Never;
@@ -606,7 +606,7 @@ class CmdNetClientConnection {
         //time when this client requested to host a game
         Time hostRequestTime = Time.Never;
         //time a player has from opening the "create game" dialog to clicking ok
-        const cHostTimeout = timeSecs(30);
+        enum cHostTimeout = timeSecs(30);
     }
 
     private this(CmdNetServer owner, NetPeer peer, uint id) {

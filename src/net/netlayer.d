@@ -237,7 +237,7 @@ class NetHost {
         return ret;
     }
 
-    private bool handleEvent(inout ENetEvent event) {
+    private bool handleEvent(ref ENetEvent event) {
         switch (event.type) {
             case ENET_EVENT_TYPE_CONNECT:
                 auto peer = getNetPeer(event.peer);

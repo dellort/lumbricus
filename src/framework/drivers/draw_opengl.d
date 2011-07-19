@@ -3,7 +3,6 @@ module framework.drivers.draw_opengl;
 
 import derelict.opengl.gl;
 import derelict.opengl.glu;
-import derelict.opengl.extension.arb.texture_non_power_of_two;
 import framework.globalsettings;
 import framework.drawing;
 import framework.driver_base;
@@ -16,11 +15,10 @@ import utils.log;
 
 import marray = utils.array;
 import str = utils.string;
-import cstdlib = tango.stdc.stdlib;
 
-const GLuint GLID_INVALID = 0;
+enum GLuint GLID_INVALID = 0;
 
-const cDrvName = "draw_opengl";
+enum cDrvName = "draw_opengl";
 
 private LogStruct!("OpenGL") mLog;
 
@@ -298,8 +296,8 @@ final class GLSurface : DriverSurface {
                 min(bmp.y + 1, tex.y), GL_RGBA, GL_UNSIGNED_BYTE, zero.ptr);
         delete zero;+/
 
-        const cSizePx = 4;
-        const uint[cSizePx*cSizePx] zero;
+        enum cSizePx = 4;
+        static const uint[cSizePx*cSizePx] zero;
 
         auto clip = Rect2i(tex);
 
@@ -510,7 +508,7 @@ class GLCanvas : Canvas3DHelper {
     //NOTE: the stuff I used before (GL_T2F_V3F) is just legacy crap
     private void set_vertex_array(MyVertex* ptr) {
         //commonly used "trick" to define an interleaved vertex array
-        const stride = MyVertex.sizeof;
+        enum stride = MyVertex.sizeof;
         glVertexPointer(2, GL_FLOAT, stride, &ptr[0].p);
         glTexCoordPointer(2, GL_FLOAT, stride, &ptr[0].t);
         glColorPointer(4, GL_FLOAT, stride, &ptr[0].c);
@@ -758,7 +756,7 @@ class GLCanvas : Canvas3DHelper {
         checkGLError("clear", true);
     }
 
-    private static const int[] cPrimMap = [
+    private static enum int[] cPrimMap = [
         Primitive.LINES : GL_LINES,
         Primitive.LINE_STRIP : GL_LINE_STRIP,
         Primitive.LINE_LOOP : GL_LINE_LOOP,

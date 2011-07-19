@@ -329,7 +329,7 @@ void paramType(ParamType)(string event_name) {
     //register both
 
     //mangleof is the simplest way to get an unique name
-    const string c_name = ParamType.mangleof;
+    enum string c_name = ParamType.mangleof;
 
     static string register_marshallers(LuaState lua) {
         lua.scriptExec(`

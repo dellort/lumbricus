@@ -42,7 +42,7 @@ class Tabs : Container {
         TabPage mActive;
         Vector2i mButtons;
 
-        const cBorder = 1;
+        enum cBorder = 1;
     }
 
     void delegate(Tabs sender) onActiveChange;

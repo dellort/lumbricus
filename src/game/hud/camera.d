@@ -31,10 +31,10 @@ class Camera {
 
     //if the scene was scrolled by the mouse, scroll back to the camera focus
     //after this time
-    private const cScrollIdleTimeMs = 2500;
+    private enum cScrollIdleTimeMs = 2500;
     //in pixels the width of the border in which a follower camera becomes
     //active and scrolls towards the followed object again
-    const Vector2i cCameraBorder = {150, 150};
+    enum Vector2i cCameraBorder = {150, 150};
     private Vector2i mCameraBorder = cCameraBorder;
 
     this(TimeSourcePublic ts) {
@@ -62,7 +62,7 @@ class Camera {
 
         if (mAutoScroll.x || mAutoScroll.y) {
             control.noticeAction();
-            const float speed = 3000f; //pixels/sec
+            enum float speed = 3000f; //pixels/sec
             control.scrollDeltaSmooth(toVector2f(mAutoScroll) * speed
                 * mTime.difference.secsf);
         }
