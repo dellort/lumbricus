@@ -617,9 +617,7 @@ class FileSystem {
                 os_appid = str.toupper(os_appid[0..1]) ~ os_appid[1..$];
         } else {
             //linux: ~/.lumbricus
-            //XXXTANGO fix
-            home = getenv("/home/vlx");
-            //home = Environment.get("HOME");
+            home = getenv("HOME");
             os_appid = "." ~ os_appid;
         }
         if (home != null)
