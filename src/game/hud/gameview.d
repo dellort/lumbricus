@@ -49,7 +49,6 @@ import utils.vector2;
 import utils.interpolate;
 
 import str = utils.string;
-import math = tango.math.Math;
 
 import utils.random : rngShared;
 
@@ -364,7 +363,7 @@ private class ViewMember : SceneObject {
             pos.y -= moveHealth.value();
             canvas.pushState();
             canvas.setBlend(
-                Color(1, 1, 1, math.sqrt(1.0f - moveHealth.fvalue())));
+                Color(1, 1, 1, sqrt(1.0f - moveHealth.fvalue())));
             addLabel(healthHint);
             canvas.popState();
         }
@@ -423,8 +422,8 @@ class DrownLabel : SceneObject {
         if (mEffect == MoveLabelEffect.bubble) {
             enum cPxArc = 50; //so many sinus curves over a pixel distance
             enum cArcAmp = 10; //amplitude of sinus curve
-            auto idx = px / cPxArc * math.PI * 2;
-            move.x += math.sin(idx) * cArcAmp;
+            auto idx = px / cPxArc * PI * 2;
+            move.x += sin(idx) * cArcAmp;
         }
 
         auto curpos = mFrom + toVector2i(move);
@@ -911,7 +910,7 @@ class GameView : Widget {
 
             //100f? I don't know what it means, but it works (kind of)
             auto shake = Vector2f.fromPolar(1.0f,
-                rngShared.nextDouble()*math.PI*2)
+                rngShared.nextDouble()*PI*2)
                 * (rengine.earthQuakeStrength()/100f);
             mShakeOffset = toVector2i(shake);
 

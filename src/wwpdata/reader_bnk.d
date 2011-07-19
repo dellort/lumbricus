@@ -7,7 +7,7 @@ import utils.stream;
 import wwpdata.common;
 import wwpdata.reader;
 import wwpdata.animation;
-import tango.io.Stdout;
+import std.stdio;
 
 struct WWPBnkAnimHdr {
     ushort flags, x, y;
@@ -102,10 +102,10 @@ RawAnimation[] readBnkFile(Stream st) {
 
 void readBnk(Stream st, char[] outputDir, char[] fnBase) {
     scope alist = readBnkFile(st);
-    Stdout.newline();
-    Stdout("Saving\r");
+    writefln("");
+    writefln("Saving\r");
     saveAnimations(alist, outputDir, fnBase);
-    Stdout.newline();
+    writefln("");
 }
 
 static this() {

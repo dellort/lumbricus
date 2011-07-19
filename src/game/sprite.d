@@ -14,7 +14,7 @@ import utils.rect2;
 import utils.misc;
 import utils.log;
 import utils.math;
-import tango.math.Math : abs, PI;
+import std.math;
 import utils.time;
 
 

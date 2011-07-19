@@ -7,7 +7,7 @@ import utils.time;
 import utils.configfile;
 import utils.strparser;
 import utils.color;
-import math = tango.math.Math;
+import std.math;
 
 public import common.animation;
 import common.restypes.animation;
@@ -34,7 +34,7 @@ class AnimEffectRotate : AnimEffect {
             default:
                 f = relTime(t);
         }
-        eff.rotate = f * math.PI * 2 * multiplier;
+        eff.rotate = f * PI * 2 * multiplier;
     }
 
     static this() {
@@ -53,7 +53,7 @@ class AnimEffectMirrorY : AnimEffect {
     {
         //only p1 for now
         float f = p.p[0] / 360.0f;
-        eff.mirrorY = mymath.angleLeftRight(f * math.PI * 2, false, true);
+        eff.mirrorY = mymath.angleLeftRight(f * PI * 2, false, true);
     }
 
     static this() {
@@ -101,7 +101,7 @@ class AnimEffectStretch : AnimEffect {
     {
         //time only
         float f = relTime(t);
-        float c = math.cos(f * math.PI * 2);
+        float c = cos(f * PI * 2);
         eff.scale.x = sx * c + 1.0f;
         eff.scale.y = -sy * c + 1.0f;
     }

@@ -10,8 +10,6 @@ import utils.misc;
 import utils.vector2;
 import utils.time;
 
-import tango.util.Convert : to;
-
 //number of weapons changed
 alias DeclareEvent!("weaponset_changed", WeaponSet) OnWeaponSetChanged;
 

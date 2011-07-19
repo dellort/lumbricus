@@ -50,8 +50,6 @@ import utils.log;
 //remove it if you hate it
 import game.gui.levelpaint;
 
-import tango.math.Math;
-
 SettingVar!(bool) gPauseOnNofocus;
 
 static this() {

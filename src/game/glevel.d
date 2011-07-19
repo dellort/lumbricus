@@ -15,7 +15,7 @@ import utils.log;
 import utils.misc;
 
 import drawing = utils.drawing;
-import tango.math.Math : sqrt, PI;
+import std.math;
 
 //if deactivated, use a rectangle (which surrounds the old circle)
 //circular looks better on collisions (reflecting from walls)

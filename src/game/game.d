@@ -36,8 +36,8 @@ import utils.rect2;
 import utils.timesource;
 import common.resset;
 
-import tango.math.Math;
-import tango.util.Convert : to;
+import std.math;
+import strparser = utils.strparser;
 
 import game.levelgen.renderer;// : LandscapeBitmap;
 
@@ -159,7 +159,7 @@ class GameEngine : GameCore {
         //game initialization must be deterministic; so unless GameConfig
         //contains a good pre-generated seed, use a fixed seed (see above)
         if (config.randomSeed.length > 0) {
-            rnd.seed(to!(uint)(config.randomSeed));
+            rnd.seed(strparser.fromStr!(uint)(config.randomSeed));
         }
 
         persistentState = config.gamestate.copy();

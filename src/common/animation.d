@@ -110,6 +110,7 @@ struct AnimationParams {
 //  - the Lua marshaller wants to return int[3] from a function at some point,
 //  but dmd/D1 is fucking stupid and doesn't allow for it... oops
 //so, instead, this shitcrap will have to do... enjoy
+//XXXTANGO: can D2 do this
 import str = utils.string;
 struct StaticArray(T, int N) {
     private static string entries() {
@@ -123,11 +124,11 @@ struct StaticArray(T, int N) {
 
     T opIndex(int i) {
         assert(i >= 0 && i < N);
-        return *((cast(T*)this) + i);
+        return *((cast(T*)&this) + i);
     }
     void opIndexAssign(T val, int i) {
         assert(i >= 0 && i < N);
-        *((cast(T*)this) + i) = val;
+        *((cast(T*)&this) + i) = val;
     }
 }
 
@@ -192,7 +193,7 @@ abstract class Animation {
         if (length_ms <= 0)
             return 0;
 
-        int ms = t.msecs;
+        int ms = cast(int)t.msecs;
         if (ms < 0) {
             //negative time needed for reversed animations
             //maybe also needed to set an animation start offset

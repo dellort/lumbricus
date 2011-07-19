@@ -5,7 +5,7 @@ import game.particles;
 import game.sprite;
 import game.sequence;
 import physics.all;
-import tango.math.Math;
+import std.math;
 import utils.misc;
 import utils.vector2;
 import utils.time;

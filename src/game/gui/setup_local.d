@@ -29,7 +29,7 @@ import utils.misc;
 import utils.path;
 import utils.random;
 
-import tango.util.Convert : to;
+import std.conv;
 
 class LevelWidget : SimpleContainer {
     private {

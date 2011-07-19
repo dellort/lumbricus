@@ -20,7 +20,6 @@ import utils.misc;
 import utils.time;
 import utils.vector2;
 
-import tango.math.Math : PI;
 import marray = utils.array;
 
 class HudTeams : HudElementWidget {

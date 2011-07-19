@@ -34,10 +34,10 @@ import utils.vector2;
 import utils.timesource;
 import utils.queue;
 import str = utils.string;
+import strparser = utils.strparser;
 
 import utils.stream;
-import tango.math.Math : pow;
-import convert = tango.util.Convert;
+import std.math;
 
 
 //the optimum length of the input queue in network mode (i.e. what the engine
@@ -953,9 +953,8 @@ ParseDemoFileResult parseDemoFile(string data) {
         if (cols.length != 4)
             throwError("error in log entry");
         GameShell.LogEntry entry;
-        //xxx not catching ConversionException
-        entry.timestamp = convert.to!(long)(cols[0]);
-        entry.hash.hash = convert.to!(typeof(entry.hash.hash))(cols[1]);
+        entry.timestamp = strparser.fromStr!(long)(cols[0]);
+        entry.hash.hash = strparser.fromStr!(typeof(entry.hash.hash))(cols[1]);
         entry.access_tag = str.simpleUnescape(cols[2]);
         entry.cmd = str.simpleUnescape(cols[3]);
         //for some reason non-unique timestamps are allowed, so it's > not >=

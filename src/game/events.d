@@ -106,11 +106,13 @@ private class EventType {
 
     this() {}
 
+    /+ XXXTANGO
     override void dispose() {
         super.dispose();
         delete handlers;
         delete unreg_list;
     }
+    +/
 }
 
 //create marshaller for D <-> Lua event transport
@@ -164,6 +166,7 @@ final class Events {
         mTargetType = target_type;
     }
 
+    /+ XXXTANGO
     override void dispose() {
         super.dispose();
         foreach (ref e; mEvents) {
@@ -171,6 +174,7 @@ final class Events {
         }
         delete mEvents;
     }
+    +/
 
     //this is a hack insofar, that only the global Events instance should have
     //  this method, and it doesn't really make sense for per-class Events

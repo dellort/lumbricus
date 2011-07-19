@@ -61,7 +61,6 @@ import str = utils.string;
 //import game.serialize_register : initGameSerialization;
 
 import utils.stream;
-import tango.io.device.File : File;
 
 //these imports register classes in a factory on module initialization
 import game.animation;

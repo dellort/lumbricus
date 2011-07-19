@@ -15,7 +15,7 @@ import utils.configfile;
 import utils.misc;
 import utils.time;
 
-import tango.util.Convert : to;
+import std.conv;
 
 //the idea was that the whole game state should be observable (including
 //events), so you can move displaying all messages into a separate piece of

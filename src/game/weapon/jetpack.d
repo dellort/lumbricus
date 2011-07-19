@@ -14,7 +14,7 @@ import utils.time;
 import utils.vector2;
 import utils.misc;
 
-import tango.math.Math : abs;
+import std.math;
 
 
 //jetpack for a worm (special because it changes worm state)

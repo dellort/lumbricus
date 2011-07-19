@@ -24,7 +24,7 @@ import utils.misc;
 import drawing = utils.drawing;
 import rand = utils.random;
 
-import tango.math.Math : abs;
+import std.math;
 
 enum DrawMode {
     circle,

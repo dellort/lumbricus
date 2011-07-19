@@ -15,8 +15,8 @@ import utils.random;
 import utils.randval;
 import utils.strparser;
 
-import math = tango.math.Math;
-import cstdlib = tango.stdc.stdlib;
+import std.math;
+import cstdlib = std.c.stdlib;
 
 debug import stats = common.stats;
 debug import utils.perf;
@@ -267,7 +267,7 @@ struct Particle {
             //acceleration (?) simply depends from y coordinate
             //sin() also does the modulo operation needed here
             //adding random just changes the phase (for each particle)
-            add.x += math.sin((pos.y/props.bubble_x_h+random)*math.PI*2)
+            add.x += sin((pos.y/props.bubble_x_h+random)*PI*2)
                 * props.bubble_x * add.y;
         }
 
@@ -388,7 +388,7 @@ struct Particle {
                 //actually emit
                 auto at = pos;
                 auto nvel = Vector2f(0, -1) * e.absolute_speed;
-                nvel = nvel.rotated(e.spread_angle*(180.0f/math.PI) *
+                nvel = nvel.rotated(e.spread_angle*(180.0f/PI) *
                     (rngShared.nextDouble() - 0.5f));
                 nvel += velocity*e.initial_speed;
                 if (e.offset != 0f) {
@@ -806,7 +806,7 @@ class TestTask : Task {
         y.gravity = 0f;
         y.color = Color(0,0,1);
         y.lifetime = timeSecs(3);
-        y.emit_on_death ~= ParticleEmit(x, 2, 0, 1, math.PI*2);
+        y.emit_on_death ~= ParticleEmit(x, 2, 0, 1, PI*2);
         y.emit_on_death_count = 6;
         auto z = new ParticleType;
         z.wind_influence = 0.8;
@@ -814,7 +814,7 @@ class TestTask : Task {
         z.gravity = 10f;
         z.emit_delay = timeMsecs(500);
         z.emit_count = int.max;
-        z.emit ~= ParticleEmit(y, 0.7f, 0, 1.0f, math.PI/180*60);
+        z.emit ~= ParticleEmit(y, 0.7f, 0, 1.0f, PI/180*60);
         for (int n = 0; n < 10; n++) {
             mWorld.emitParticle(Vector2f(50,50), Vector2f(0.2,0.2), z);
         }

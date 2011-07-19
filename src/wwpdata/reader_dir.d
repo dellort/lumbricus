@@ -1,7 +1,6 @@
 module wwpdata.reader_dir;
 
 import str = utils.string;
-import tango.stdc.stringz : fromStringz;
 import utils.stream;
 import utils.misc;
 import wwpdata.common;
@@ -9,16 +8,12 @@ import wwpdata.reader;
 import wwptools.unworms;
 import utils.filetools;
 
-import tango.io.Stdout;
-import tango.io.FilePath;
-import tango.io.Path;
-
-import tango.io.model.IFile : FileConst;
-enum pathsep = FileConst.PathSeparatorChar;
+//XXXTANGO
+enum pathsep = "/";
 
 struct WWPDirEntry {
     uint offset, size;
-    char[] filename;
+    string filename;
 
     static WWPDirEntry read(Stream st) {
         WWPDirEntry ret;
@@ -36,7 +31,7 @@ struct WWPDirEntry {
         return ret;
     }
 
-    void writeFile(Stream st, char[] outPath) {
+    void writeFile(Stream st, string outPath) {
         st.position = offset;
         scope fileOut = Stream.OpenFile(outPath ~ pathsep ~ filename,
             File.WriteCreate);
@@ -64,14 +59,14 @@ class Dir {
         mEntries = doReadDir(st);
     }
 
-    this(char[] filename) {
+    this(string filename) {
         //NOTE: file isn't closed; you had to add that to ~this(), but D doesn't
         //   allow this because of the garbage collector destructor rules!
         this(Stream.OpenFile(filename, File.ReadExisting));
     }
 
     //filesystem-like interface, was too lazy to use filesystem.d
-    Stream open(char[] filename) {
+    Stream open(string filename) {
         foreach (e; mEntries) {
             if (str.icmp(e.filename, filename) == 0) {
                 return e.open(mStream);
@@ -85,14 +80,14 @@ class Dir {
     }
 
     //works exactly like do_unworms, just filename is opened from the .dir-file
-    void unworms(char[] filename, char[] outputPath) {
+    void unworms(string filename, string outputPath) {
         do_unworms(this.open(filename), FilePath(filename).name,
             outputPath);
     }
 
     //works like std.file.listdir(pathname, pattern), on the .dir-filelist
-    char[][] listdir(char[] pattern) {
-        char[][] res;
+    string[] listdir(string pattern) {
+        string[] res;
         foreach (e; mEntries) {
             if (patternMatch(e.filename, pattern))
                 res ~= e.filename;
@@ -101,8 +96,8 @@ class Dir {
     }
 }
 
-void readDir(Stream st, char[] outputDir, char[] fnBase) {
-    char[] outPath = outputDir ~ pathsep ~ fnBase;
+void readDir(Stream st, string outputDir, string fnBase) {
+    string outPath = outputDir ~ pathsep ~ fnBase;
     trymkdir(outPath);
 
     auto content = doReadDir(st);

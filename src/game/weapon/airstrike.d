@@ -12,7 +12,6 @@ import utils.vector2;
 import utils.misc;
 import utils.interpolate;
 
-import math = tango.math.Math;
 
 //draws the arrow mouse cursor, and updates FireInfo with the selected direction
 class AirstrikeControl : WeaponSelector, Controllable {
@@ -62,7 +61,7 @@ class AirstrikeControl : WeaponSelector, Controllable {
     override bool canFire(ref FireInfo info) {
         //insert throwing direction
         info.dir = Vector2f.fromPolar(1.0f,
-            cFireAngles[mCurSide]*math.PI/180.0f);
+            cFireAngles[mCurSide]*PI/180.0f);
         return true;
     }
 

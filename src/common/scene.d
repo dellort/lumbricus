@@ -132,7 +132,7 @@ class Scene : SceneObjectCentered {
 }
 
 class SceneObject {
-    public SList.Node node;
+    public ObjListNode!(SceneObject) node;
     private Scene mParent;
     private ushort mZorder;
     bool active = true; //if draw should be called
@@ -155,12 +155,13 @@ class SceneObject {
     }
     //set the zorder... must be a low >=0 value (Scene uses arrays for zorder)
     final void zorder(int z) {
+        //xxx scripts might violate this
         assert (z >= 0 && z <= ushort.max);
         if (z == mZorder)
             return;
         Scene p = mParent;
         if (p) p.remove(this);
-        mZorder = z;
+        mZorder = cast(ushort)z;
         if (p) p.add(this);
     }
 

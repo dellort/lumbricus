@@ -16,9 +16,7 @@ import utils.log;
 import utils.misc;
 import utils.array : BigArray, arrayMap;
 import drawing = utils.drawing;
-import math = tango.math.Math;
-import digest = tango.util.digest.Digest;
-import md5 = tango.util.digest.Md5;
+import utils.gzip; //for MD5 digest
 
 //don't know where to put this, moved it out of blastHole() because this thing
 //affects the bitmap modification bounding box
@@ -331,7 +329,8 @@ class LandscapeBitmap {
     private this() {
     }
 
-    override void dispose() {
+    //XXXTANGO was dispose
+    void free() {
         super.dispose();
         previewDestroy();
         foreach (ref t; mTiles) {
@@ -341,8 +340,6 @@ class LandscapeBitmap {
         mLevelData = null;
         delete mLDStorage;
     }
-
-    alias dispose free;
 
     //if the level was created as "data only", add the image part
     //this means after this call the level is not data only anymore
@@ -1181,7 +1178,7 @@ class LandscapeBitmap {
     //  collision testing; further, image saving and reloading with colorkeyed
     //  images may change the color value for transparent pixels)
     string checksum() {
-        digest.Digest hash = new md5.Md5();
+        Digest hash = new MD5();
         hash.update(cast(void[])mLevelData);
         return hash.hexDigest();
     }

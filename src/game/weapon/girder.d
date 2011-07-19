@@ -13,12 +13,11 @@ import utils.time;
 import utils.vector2;
 import utils.misc;
 
-import math = tango.math.Math;
 import mymath = utils.math;
 
 float girder_rotation(int n, int steps) {
     //start horizontal, 22.5° steps, no upside-down
-    return math.PI/steps * realmod!(int)(n+steps/2, steps) - math.PI/2;
+    return PI/steps * realmod!(int)(n+steps/2, steps) - PI/2;
 }
 
 Surface[] create_girders(Surface girder, int steps) {

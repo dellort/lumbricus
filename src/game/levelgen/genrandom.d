@@ -5,7 +5,7 @@ import utils.array : arrayMap;
 import utils.vector2;
 import utils.list2;
 import utils.math : lineIntersect;
-import tango.math.Math : PI;
+import std.math;
 import utils.color;
 import utils.random : rngShared;
 import utils.configfile : ConfigNode;

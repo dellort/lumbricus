@@ -8,7 +8,7 @@ import utils.strparser;
 import str = utils.string;
 
 //return (cmd-name, cmd-args)
-str.Split2Result parseCommand(string cmd) {
+cstring[2] parseCommand(cstring cmd) {
     return str.split2_b(cmd, ' ');
 }
 

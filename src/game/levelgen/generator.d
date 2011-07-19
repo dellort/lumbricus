@@ -373,8 +373,8 @@ class GenerateFromTemplate : LevelGenerator {
 
     //create a Level again from its Level.saved member (all generated levels can
     //be saved and regenerated again)
-    this(LevelGeneratorShared shared, ConfigNode saved) {
-        mShared = shared;
+    this(LevelGeneratorShared shared_, ConfigNode saved) {
+        mShared = shared_;
 
         loadStuff(saved);
         if (!mCurTheme) {
@@ -383,10 +383,10 @@ class GenerateFromTemplate : LevelGenerator {
     }
 
     //generate a level from templ; if this is null, pick a random one
-    this(LevelGeneratorShared shared, LevelTemplate templ,
+    this(LevelGeneratorShared shared_, LevelTemplate templ,
         LandscapeBitmap data = null)
     {
-        mShared = shared;
+        mShared = shared_;
 
         if (!templ) {
             templ = mShared.templates.findRandom();
@@ -630,14 +630,14 @@ class GenerateFromBitmap : LevelGenerator {
         return res;
     }
 
-    this(LevelGeneratorShared shared) {
-        assert(!!shared);
-        mShared = shared;
+    this(LevelGeneratorShared shared_) {
+        assert(!!shared_);
+        mShared = shared_;
     }
 
     //load saved stuff
-    this(LevelGeneratorShared shared, ConfigNode from) {
-        mShared = shared;
+    this(LevelGeneratorShared shared_, ConfigNode from) {
+        mShared = shared_;
 
         mIsCave = from.getBoolValue("is_cave");
         mPlaceObjects = from.getBoolValue("place_objects");
@@ -692,17 +692,17 @@ class GenerateFromSaved : LevelGenerator {
         return mReal.properties();
     }
 
-    this(LevelGeneratorShared shared, ConfigNode from) {
+    this(LevelGeneratorShared shared_, ConfigNode from) {
         auto t = from.getStringValue("type");
-        mReal = mGeneratorFactory.instantiate(t, shared, from);
+        mReal = mGeneratorFactory.instantiate(t, shared_, from);
     }
 }
 
 ///load saved level, use GenerateFromSaved directly to have more control
-Level loadSavedLevel(LevelGeneratorShared shared, ConfigNode from,
+Level loadSavedLevel(LevelGeneratorShared shared_, ConfigNode from,
     bool renderBitmaps = true)
 {
-    auto gen = new GenerateFromSaved(shared, from);
+    auto gen = new GenerateFromSaved(shared_, from);
     return gen.render(renderBitmaps);
 }
 
@@ -948,9 +948,9 @@ void saveLevelLexels(LandscapeBitmap level, ConfigNode node) {
 
 //level is expected to be a data-only level and is taken by reference
 GenerateFromTemplate generatorFromLevelLexels(LandscapeBitmap level,
-    LevelGeneratorShared shared, bool isCave, bool placeObjects, bool[4] walls)
+    LevelGeneratorShared shared_, bool isCave, bool placeObjects, bool[4] walls)
 {
-    auto gc = shared.generatorConfig;
+    auto gc = shared_.generatorConfig;
     auto node = gc.getSubNode("import_pregenerated").copy();
     auto cave_node = "import_" ~ (isCave ? "cave" : "nocave");
     node.mixinNode(gc.getSubNode(cave_node), false, true);
@@ -965,7 +965,7 @@ GenerateFromTemplate generatorFromLevelLexels(LandscapeBitmap level,
     }
     //
     auto templ = new LevelTemplate(node, "imported");
-    return new GenerateFromTemplate(shared, templ, level);
+    return new GenerateFromTemplate(shared_, templ, level);
 }
 
 //common code for LevelThemes/LevelTemplates ("list" managment)

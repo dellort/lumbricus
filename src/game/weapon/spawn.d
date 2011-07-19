@@ -8,8 +8,6 @@ import utils.random;
 import utils.randval;
 import utils.misc;
 
-import math = tango.math.Math;
-
 /+
 stuff that needs to be done:
 - fix createdBy crap
@@ -71,7 +69,7 @@ void spawnAirstrike(SpriteClass sclass, int count, GameObject shootbyObject,
         destPos = about.pointto.currentPos;
     //y travel distance (spawn -> clicked point)
     float dy = destPos.y - engine.level.airstrikeY;
-    if (dy > float.epsilon && math.abs(about.dir.x) > float.epsilon
+    if (dy > float.epsilon && abs(about.dir.x) > float.epsilon
         && about.strength > float.epsilon)
     {
         //correct spawn position, so airstrikes thrown at an angle
@@ -79,7 +77,7 @@ void spawnAirstrike(SpriteClass sclass, int count, GameObject shootbyObject,
         float a = engine.physicWorld.gravity.y;
         float v = about.dir.y*about.strength;
         //elementary physics ;)
-        float t = (-v + math.sqrt(v*v+2.0f*a*dy))/a;  //time for drop
+        float t = (-v + sqrt(v*v+2.0f*a*dy))/a;  //time for drop
         float dx = t*about.dir.x*about.strength; //x movement while drop
         destPos.x -= dx;          //correct for x movement
     }
@@ -112,7 +110,7 @@ void spawnCluster(SpriteClass sclass, Sprite parent, int count,
     for (int i = 0; i < count; i++) {
         auto strength = engine.rnd.rangef(strength_min, strength_max);
         auto theta = engine.rnd.rangef(-0.5, 0.5) * random_range
-            * math.PI/180;
+            * PI/180;
         auto dir = custom_dir.rotated(theta);
         //15???
         //-- dir * 15: add some distance from parent to clusters

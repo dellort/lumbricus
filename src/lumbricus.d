@@ -9,7 +9,8 @@ import common.gui_init;
 import toplevel = common.toplevel;
 import utils.misc;
 
-//version = Game;
+version = Game;
+//version = Net;
 
 //these imports register classes in a factory on module initialization
 //so be carefull not to remove them accidentally
@@ -25,9 +26,12 @@ version (Game) {
     import game.gui.teamedit;
     import game.gui.setup_local;
     import game.gui.levelpaint;
-    import net.cmdserver;
-    import net.cmdserver_gui;
-    import net.lobby;
+
+    version (Net) {
+        import net.cmdserver;
+        import net.cmdserver_gui;
+        import net.lobby;
+    }
 
     //support for directly loading WWP data without running extractdata
     //all that can be removed from the final binary by commenting this line (if

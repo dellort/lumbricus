@@ -26,9 +26,6 @@ import utils.misc;
 import utils.array;
 import utils.queue;
 
-import math = tango.math.Math;
-import tango.util.Convert : to;
-
 //time for which it takes to add/remove 1 health point in the animation
 enum Time cTimePerHealthTick = timeMsecs(4);
 
@@ -573,7 +570,7 @@ class TeamMember : Actor {
         assert(change >= 0);
         int diff = mHealthTarget - mCurrentHealth;
         if (diff != 0) {
-            int c = min(math.abs(diff), change);
+            int c = min(abs(diff), change);
             mCurrentHealth += (diff < 0) ? -c : c;
         }
     }
@@ -589,7 +586,7 @@ class TeamMember : Actor {
             h = h < 0 ? h : 0;
         }
         //ceil: never display 0 if the worm is still alive
-        return cast(int)(math.ceil(h));
+        return cast(int)(ceil(h));
     }
 
     private void place() {

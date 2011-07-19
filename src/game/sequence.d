@@ -18,8 +18,7 @@ import utils.vector2;
 import game.core;
 import game.teamtheme;
 
-import math = tango.math.Math;
-import ieee = tango.math.IEEE;
+import std.math;
 import str = utils.string;
 
 alias StaticFactory!("SequenceStates", SequenceState, SequenceType, ConfigNode)
@@ -409,7 +408,7 @@ final class Sequence : SceneObject {
                 }
                 int a = 90;
                 if (dir.quad_length > float.epsilon)
-                    a = cast(int)(dir.toAngle()*180.0f/math.PI);
+                    a = cast(int)(dir.toAngle()*180.0f/PI);
                 AnimationParams aparams;
                 //arrow animation seems rotated by 180° <- no it's not!!1
                 aparams.p[0] = (a+180)%360;
@@ -498,7 +497,7 @@ class AniStateDisplay : StateDisplay {
     }
 
     final void std_anim_params() {
-        ani_params.p[0] = cast(int)(owner.rotation_angle/math.PI*180f);
+        ani_params.p[0] = cast(int)(owner.rotation_angle/PI*180f);
         //this is quite WWP specific
         ani_params.p[2] = owner.team ? owner.team.colorIndex + 1 : 0;
     }
@@ -645,7 +644,7 @@ class WwpNapalmDisplay : AniStateDisplay {
         } else {
             //fast napalm
             new_animation = myclass.animFly;
-            ani_params.p[0] = cast(int)(owner.rotation_angle*180.0f/math.PI);
+            ani_params.p[0] = cast(int)(owner.rotation_angle*180.0f/PI);
             ani_params.p[1] = cast(int)(100
                 * (speed-cTresholdVelocity) / cVelDelta);
         }
@@ -952,7 +951,7 @@ class WwpWeaponDisplay : AniStateDisplay {
 
     //always -PI/2 .. PI/2
     void angle(float a) {
-        mAngle = clampRangeC!(typeof(a))(a, -math.PI/2, math.PI/2);
+        mAngle = clampRangeC!(typeof(a))(a, -PI/2, PI/2);
     }
     float angle() {
         return mAngle;
@@ -1252,12 +1251,12 @@ class WwpWeaponDisplay : AniStateDisplay {
             } else {
                 //xxx a2-a1 is wrong for angles, because angles are modulo 2*PI
                 // for the current use (worm-weapon), this works by luck
-                wangle = a1 + dist*ieee.copysign(1.0f, a2-a1);
+                wangle = a1 + dist*copysign(1.0f, a2-a1);
             }
         }
 
         std_anim_params();
-        ani_params.p[1] = cast(int)(wangle/math.PI*180);
+        ani_params.p[1] = cast(int)(wangle/PI*180);
     }
 
     override void leave() {

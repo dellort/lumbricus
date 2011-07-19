@@ -15,7 +15,7 @@ import utils.time;
 import utils.log;
 import utils.misc;
 import utils.math;
-import tango.math.Math;
+import std.math;
 
 //crosshair
 import common.scene;

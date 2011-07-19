@@ -22,7 +22,6 @@ import utils.array;
 import utils.configfile;
 import utils.log;
 import str = utils.string;
-import tango.util.Convert;
 
 //hack for message display
 alias DeclareEvent!("team_member_collect_crate", TeamMember, CrateSprite)

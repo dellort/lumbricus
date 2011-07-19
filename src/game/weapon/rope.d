@@ -22,9 +22,7 @@ import utils.color;
 import utils.log;
 import utils.misc;
 
-import math = tango.math.Math;
-import tango.math.IEEE : signbit;
-
+import std.math;
 
 class RopeClass : WeaponClass {
     float shootSpeed = 1000;     //speed when firing
@@ -134,8 +132,8 @@ class Rope : Shooter, Controllable {
             //angle of last rope segment, mirrored along y axis for next shot
             mShootDir = ropeSegments[$-1].start - ropeSegments[$-1].end;
             mShootDir.x = -mShootDir.x;          //mirror along y axis
-            mShootDir.y = -math.abs(mShootDir.y);//always shoot upwards
-            float ax = -math.abs(mShootDir.x);   //at least 45deg up
+            mShootDir.y = -abs(mShootDir.y);//always shoot upwards
+            float ax = -abs(mShootDir.x);   //at least 45deg up
             if (ax < mShootDir.y)
                 mShootDir.y = ax;
             mShootDir = mShootDir.normal;
@@ -461,7 +459,7 @@ class Rope : Shooter, Controllable {
         }
 
         AnimationParams ap;
-        ap.p[0] = cast(int)(mAnchorAngle/math.PI*180);
+        ap.p[0] = cast(int)(mAnchorAngle/PI*180);
         myclass.anchorAnim.draw(c, toVector2i(anchorPos), ap,
             mShootStart);
     }
