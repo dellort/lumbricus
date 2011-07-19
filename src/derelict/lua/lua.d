@@ -204,7 +204,7 @@ class DerelictLuaLoader : SharedLibLoader {
     }
 }
 
-DerelictLuaLoader DerelictLua;
+__gshared DerelictLuaLoader DerelictLua;
 static this()
 {
     DerelictLua = new DerelictLuaLoader;

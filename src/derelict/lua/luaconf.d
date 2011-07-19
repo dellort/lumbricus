@@ -1,6 +1,6 @@
 module derelict.lua.luaconf;
 
-const int LUA_IDSIZE   = 60;   
+enum int LUA_IDSIZE   = 60;
 
 /*
 @@ LUA_INTEGER is the integral type used by lua_pushinteger/lua_tointeger.
@@ -23,7 +23,7 @@ alias double LUA_NUMBER;
 /*
 @@ LUAL_BUFFERSIZE is the buffer size used by the lauxlib buffer system.
 */
-const int BUFSIZ = 0x4000; // add (BUFSIZ)
+enum int BUFSIZ = 0x4000; // add (BUFSIZ)
 alias BUFSIZ LUAL_BUFFERSIZE;	  
 
 

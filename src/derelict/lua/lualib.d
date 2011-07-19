@@ -29,39 +29,30 @@ import derelict.lua.luatypes;
 //==============================================================================
 // Types
 //==============================================================================
-const string LUA_FILEHANDLE  = "FILE*";
-
-const string LUA_COLIBNAME	 = "coroutine";
-const string LUA_TABLIBNAME  = "table";
-const string LUA_IOLIBNAME   = "io";
-const string LUA_OSLIBNAME   = "os";
-const string LUA_STRLIBNAME  = "string";
-const string LUA_MATHLIBNAME = "math";
-const string LUA_DBLIBNAME   = "debug";
-const string LUA_LOADLIBNAME = "package";
+enum string LUA_FILEHANDLE  = "FILE*";
+enum string LUA_COLIBNAME	 = "coroutine";
+enum string LUA_TABLIBNAME  = "table";
+enum string LUA_IOLIBNAME   = "io";
+enum string LUA_OSLIBNAME   = "os";
+enum string LUA_STRLIBNAME  = "string";
+enum string LUA_MATHLIBNAME = "math";
+enum string LUA_DBLIBNAME   = "debug";
+enum string LUA_LOADLIBNAME = "package";
 
 extern (C)
 {
-  alias lua_CFunction pfOpen;
-
-  pfOpen luaopen_base;
-  pfOpen luaopen_table;
-  pfOpen luaopen_io;
-  pfOpen luaopen_os;
-  pfOpen luaopen_string;
-  pfOpen luaopen_math;
-  pfOpen luaopen_debug;
-  pfOpen luaopen_package;
-
-  pfOpen luaL_openlibs;
+  private alias lua_CFunction pfOpen;
 }
 
-// add: the following compatibility code
-/* compatibility code */
-alias luaopen_base      lua_baselibopen;
-alias luaopen_table     lua_tablibopen;
-alias luaopen_io        lua_iolibopen;
-alias luaopen_string    lua_strlibopen;
-alias luaopen_math      lua_mathlibopen;
-alias luaopen_debug     lua_dblibopen;
+__gshared {
+    pfOpen luaopen_base;
+    pfOpen luaopen_table;
+    pfOpen luaopen_io;
+    pfOpen luaopen_os;
+    pfOpen luaopen_string;
+    pfOpen luaopen_math;
+    pfOpen luaopen_debug;
+    pfOpen luaopen_package;
 
+    pfOpen luaL_openlibs;
+}

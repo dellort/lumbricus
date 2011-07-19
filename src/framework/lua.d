@@ -1,4 +1,5 @@
 module framework.lua;
+import std.stdio;
 
 import derelict.lua.lua;
 //import tango.core.WeakRef : WeakRef;
@@ -194,17 +195,17 @@ In general:
 +/
 
 //table that maps chunk_name->environment_table
-const string cEnvTable = "D_chunk_environment";
+enum string cEnvTable = "D_chunk_environment";
 
 //c closure used as __gc metatable function - frees D object wrappers
-const string cGCHandler = "D_gc_handler";
+enum string cGCHandler = "D_gc_handler";
 
 //map ClassInfos (wrapped as light userdata) to the userdata metatables
-const string cMetatableCache = "D_metatables";
+enum string cMetatableCache = "D_metatables";
 
 //the _addresses_ of these are wrapped as lightuserdata, and then used as key in
 //  the registry; doing this for speed and safety (no string hashing/allocation)
-private {
+private __gshared {
     //reference to LuaState
     int cLuaStateKey;
     //the table with all cached objects (must be separate because weak values)
@@ -1075,8 +1076,8 @@ private RetType luaCall(RetType, T...)(lua_State* state, T args) {
     foreach (int idx, x; args) {
         argc += luaPush(state, args[idx]);
     }
-    const bool ret_void = is(RetType == void);
-    const int retc = ret_void ? 0 : 1;
+    enum bool ret_void = is(RetType == void);
+    enum int retc = ret_void ? 0 : 1;
     lua_call(state, argc, retc);
     static if (!ret_void) {
         RetType res = luaStackValue!(RetType)(state, -1);
@@ -1553,7 +1554,7 @@ class LuaState {
     //if onError isn't set, "throw e;" is executed instead
     void delegate(LuaException e) onError;
 
-    const cLanguageAndVersion = LUA_VERSION;
+    enum cLanguageAndVersion = LUA_VERSION;
 
     static bool gLibLuaLoaded = false;
 

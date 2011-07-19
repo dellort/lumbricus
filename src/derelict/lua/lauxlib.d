@@ -47,68 +47,88 @@ struct luaL_Buffer {
 //==============================================================================
 // Functions
 //==============================================================================
-extern (C)
-{
-  void function(lua_State *L,  const char *libname, luaL_reg *l, int nup) luaL_openlib;
-  void function(lua_State *L,  const char *libname, luaL_reg *l) luaL_register;
-  int  function(lua_State *L, int obj, const char *e) luaL_getmetafield;
-  int  function(lua_State *L, int obj, const char *e) luaL_callmeta;
-  int  function(lua_State *L, int narg, const char *tname) luaL_typerror;
-  int  function(lua_State *L, int numarg,  const char *extramsg) luaL_argerror;
-  char *function(lua_State *L, int numArg, size_t *l) luaL_checklstring;
-  char *function(lua_State *L, int numArg, const char *def, size_t *l) luaL_optlstring;
-  lua_Number  function(lua_State *L, int numArg) luaL_checknumber;
-  lua_Number  function(lua_State *L, int nArg, lua_Number def) luaL_optnumber;
+private extern (C) {
+  alias void function(lua_State *L,  const char *libname, luaL_reg *l, int nup) pfluaL_openlib;
+  alias void function(lua_State *L,  const char *libname, luaL_reg *l) pfluaL_register;
+  alias int  function(lua_State *L, int obj, const char *e) pfluaL_getmetafield;
+  alias int  function(lua_State *L, int obj, const char *e) pfluaL_callmeta;
+  alias int  function(lua_State *L, int narg, const char *tname) pfluaL_typerror;
+  alias int  function(lua_State *L, int numarg,  const char *extramsg) pfluaL_argerror;
+  alias char *function(lua_State *L, int numArg, size_t *l) pfluaL_checklstring;
+  alias char *function(lua_State *L, int numArg, const char *def, size_t *l) pfluaL_optlstring;
+  alias lua_Number  function(lua_State *L, int numArg) pfluaL_checknumber;
+  alias lua_Number  function(lua_State *L, int nArg, lua_Number def) pfluaL_optnumber;
+  alias lua_Integer  function(lua_State *L, int numArg) pfluaL_checkinteger;
+  alias lua_Integer  function(lua_State *L, int nArg, lua_Integer def) pfluaL_optinteger;
+  alias void  function(lua_State *L, int sz,  const char *msg) pfluaL_checkstack;
+  alias void  function(lua_State *L, int narg, int t) pfluaL_checktype;
+  alias void  function(lua_State *L, int narg) pfluaL_checkany;
+  alias int  function(lua_State *L,  const char *tname) pfluaL_newmetatable;
+  alias void *function(lua_State *L, int ud,  const char *tname) pfluaL_checkudata;
+  alias void function(lua_State *L, int lvl) pfluaL_where;
+  alias int  function(lua_State *L,  const char *fmt, ...) pfluaL_error;
+  alias int function(lua_State *L, int narg, const char *def, const char **lst) pfluaL_checkoption;
+  alias int  function(lua_State *L, int t) pfluaL_ref;
+  alias void function(lua_State *L, int t, int _ref) pfluaL_unref;
+  alias int function(lua_State *L,  const char *filename) pfluaL_loadfile;
+  alias int function(lua_State *L,  const char *buff, size_t sz, const char *name) pfluaL_loadbuffer;
+  alias int function(lua_State *L, const char *s) pfluaL_loadstring;
+  alias char* function(lua_State *L, const char *s, const char *p, const char *r) pfluaL_gsub;
+  alias char* function(lua_State *L, int idx, const char *fname, int szhint) pfluaL_findtable;
+  alias void  function(lua_State *L, luaL_Buffer *B) pfluaL_buffinit;
+  alias char *function(luaL_Buffer *B) pfluaL_prepbuffer;
+  alias void  function(luaL_Buffer *B,  const char *s, size_t l) pfluaL_addlstring;
+  alias void  function(luaL_Buffer *B,  const char *s) pfluaL_addstring;
+  alias void  function(luaL_Buffer *B) pfluaL_addvalue;
+  alias void  function(luaL_Buffer *B) pfluaL_pushresult;
+}
+__gshared {
+  pfluaL_openlib luaL_openlib;
+  pfluaL_register luaL_register;
+  pfluaL_getmetafield luaL_getmetafield;
+  pfluaL_callmeta luaL_callmeta;
+  pfluaL_typerror luaL_typerror;
+  pfluaL_argerror luaL_argerror;
+  pfluaL_checklstring luaL_checklstring;
+  pfluaL_optlstring luaL_optlstring;
+  pfluaL_checknumber luaL_checknumber;
+  pfluaL_optnumber luaL_optnumber;
 
-  lua_Integer  function(lua_State *L, int numArg) luaL_checkinteger;
-  lua_Integer  function(lua_State *L, int nArg, lua_Integer def) luaL_optinteger;
+  pfluaL_checkinteger luaL_checkinteger;
+  pfluaL_optinteger luaL_optinteger;
 
-  void  function(lua_State *L, int sz,  const char *msg) luaL_checkstack;
-  void  function(lua_State *L, int narg, int t) luaL_checktype;
-  void  function(lua_State *L, int narg) luaL_checkany;
+  pfluaL_checkstack luaL_checkstack;
+  pfluaL_checktype luaL_checktype;
+  pfluaL_checkany luaL_checkany;
 
-  int  function(lua_State *L,  const char *tname) luaL_newmetatable;
-  void *function(lua_State *L, int ud,  const char *tname) luaL_checkudata;
+  pfluaL_newmetatable luaL_newmetatable;
+  pfluaL_checkudata luaL_checkudata;
 
-  void function(lua_State *L, int lvl) luaL_where;
-  int  function(lua_State *L,  const char *fmt, ...) luaL_error;
+  pfluaL_where luaL_where;
+  pfluaL_error luaL_error;
 
-  int function(lua_State *L, int narg, const char *def, const char **lst) luaL_checkoption;
+  pfluaL_checkoption luaL_checkoption;
 
-  int  function(lua_State *L, int t) luaL_ref;
-  void function(lua_State *L, int t, int _ref) luaL_unref;
+  pfluaL_ref luaL_ref;
+  pfluaL_unref luaL_unref;
 
-  int function(lua_State *L,  const char *filename) luaL_loadfile;
-  int function(lua_State *L,  const char *buff, size_t sz, const char *name) luaL_loadbuffer;
+  pfluaL_loadfile luaL_loadfile;
+  pfluaL_loadbuffer luaL_loadbuffer;
 
-  int function(lua_State *L, const char *s) luaL_loadstring;
+  pfluaL_loadstring luaL_loadstring;
 
-  char* function(lua_State *L, const char *s, const char *p, const char *r) luaL_gsub;
-  char* function(lua_State *L, int idx, const char *fname, int szhint) luaL_findtable;
+  pfluaL_gsub luaL_gsub;
+  pfluaL_findtable luaL_findtable;
 
 
-  void  function(lua_State *L, luaL_Buffer *B) luaL_buffinit;
-  char *function(luaL_Buffer *B) luaL_prepbuffer;
-  void  function(luaL_Buffer *B,  const char *s, size_t l) luaL_addlstring;
-  void  function(luaL_Buffer *B,  const char *s) luaL_addstring;
-  void  function(luaL_Buffer *B) luaL_addvalue;
-  void  function(luaL_Buffer *B) luaL_pushresult;
+  pfluaL_buffinit luaL_buffinit;
+  pfluaL_prepbuffer luaL_prepbuffer;
+  pfluaL_addlstring luaL_addlstring;
+  pfluaL_addstring luaL_addstring;
+  pfluaL_addvalue luaL_addvalue;
+  pfluaL_pushresult luaL_pushresult;
 }
 
-/*
- ** Compatibility macros and functions
- */
-alias luaL_checklstring    luaL_check_lstr;
-alias luaL_optlstring      luaL_opt_lstr;
-alias luaL_checknumber     luaL_check_number;
-alias luaL_optnumber       luaL_opt_number;
-alias luaL_argcheck        luaL_arg_check;
-alias luaL_checkstring     luaL_check_string;
-alias luaL_optstring       luaL_opt_string;
-alias luaL_checkint        luaL_check_int;
-alias luaL_checklong       luaL_check_long;
-alias luaL_optint          luaL_opt_int;
-alias luaL_optlong         luaL_opt_long;
 /* add: macros
  ** ===============================================================
  ** some useful macros
