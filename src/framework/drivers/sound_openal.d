@@ -20,8 +20,8 @@ import utils.log;
 private void checkALError(string msg) {
     int code = alGetError();
     if (code != AL_NO_ERROR) {
-        throw new Exception("call of "~msg~" failed: "~fromStringz(
-            alGetString(code)));
+        throw new CustomException(myformat("call of %s failed: %s", msg,
+            fromStringz(alGetString(code))));
     }
 }
 
@@ -289,7 +289,7 @@ class ALSound : DriverSound {
                 gLog.warn("ALSound.initPlay warning: tried to"
                     " play stream multiple times, current playback cut off");
             }
-            Sound_Seek(mSample, startAt.msecs);
+            Sound_Seek(mSample, cast(uint)startAt.msecs);
             mStreamedBytes = cast(uint)(startAt.secsf * formatBps(mSample));
             //streamed, queue first 2 buffers
             if (!stream(mALBuffer[0]) || !stream(mALBuffer[1]))

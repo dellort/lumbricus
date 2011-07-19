@@ -4,7 +4,7 @@ module framework.stuff;
 
 //factory-imports (static ctors register stuff globally)
 import framework.drivers.base_sdl;
-//import framework.drivers.sound_openal;
+import framework.drivers.sound_openal;
 import framework.drivers.font_freetype;
 import framework.drivers.draw_opengl;
 import framework.drivers.draw_sdl;
