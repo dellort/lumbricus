@@ -218,7 +218,7 @@ public class WTris {
             //draw the complete background; could be quite expensive
             c.drawFilledRect(Rect2i(size), Color(0.7,0.7,0.7));
 
-            int diff = (thetime.current - last_piece).msecs;
+            int diff = cast(int)((thetime.current - last_piece).msecs);
             int foo = cast(int)(PIECE_DRAW_H*(1.0f*diff/PIECE_DROP_MS));
 
             Vector2i add = border;
@@ -434,7 +434,7 @@ public class WTris {
             new_piece();
         }
 
-        uint mstime = (cur - last_piece).msecs;
+        uint mstime = cast(uint)(cur - last_piece).msecs;
 
         if (removing_lines) {
             if (mstime >= PIECE_DROP_MS) {

@@ -237,7 +237,7 @@ final class SDLSurface : DriverSurface {
         }
     }
 
-    override void unlockData(in Rect2i rc) {
+    override void unlockData(Rect2i rc) {
         rc.fitInsideB(Rect2i(mSize));
 
         if (rc.size.quad_length <= 0)
@@ -608,10 +608,10 @@ class SDLCanvas : Canvas {
 
     override void updateClip(Vector2i p1, Vector2i p2) {
         SDL_Rect rc;
-        rc.x = p1.x;
-        rc.y = p1.y;
-        rc.w = p2.x-p1.x;
-        rc.h = p2.y-p1.y;
+        rc.x = cast(ushort)p1.x;
+        rc.y = cast(ushort)p1.y;
+        rc.w = cast(ushort)(p2.x-p1.x);
+        rc.h = cast(ushort)(p2.y-p1.y);
         SDL_SetClipRect(mSurface, &rc);
     }
 
@@ -649,8 +649,8 @@ class SDLCanvas : Canvas {
         SDL_Surface* src;
         sdls.get_from_effect_cache(source, effect, src, destPos);
         SDL_Rect rc;
-        rc.w = src.w;
-        rc.h = src.h;
+        rc.w = cast(ushort)src.w;
+        rc.h = cast(ushort)src.h;
         sdl_draw(destPos, src, rc);
     }
 
@@ -660,10 +660,10 @@ class SDLCanvas : Canvas {
         SDLSurface sdls =
             cast(SDLSurface)mDrawDriver.requireDriverResource(source);
         SDL_Rect rc;
-        rc.x = sourcePos.x;
-        rc.y = sourcePos.y;
-        rc.w = sourceSize.x;
-        rc.h = sourceSize.y;
+        rc.x = cast(ushort)sourcePos.x;
+        rc.y = cast(ushort)sourcePos.y;
+        rc.w = cast(ushort)sourceSize.x;
+        rc.h = cast(ushort)sourceSize.y;
         sdl_draw(destPos, sdls.get_normal(), rc);
     }
 
@@ -746,10 +746,10 @@ class SDLCanvas : Canvas {
         void* ptr = s.pixels + s.pitch*y + s.format.BytesPerPixel*x;
         switch (s.format.BitsPerPixel) {
             case 8:
-                *cast(ubyte*)ptr = color;
+                *cast(ubyte*)ptr = cast(ubyte)color;
                 break;
             case 16:
-                *cast(ushort*)ptr = color;
+                *cast(ushort*)ptr = cast(ushort)color;
                 break;
             case 32:
                 *cast(uint*)ptr = color;
@@ -758,9 +758,9 @@ class SDLCanvas : Canvas {
                 //this is why 32 bps is usually faster than 24 bps
                 //xxx what about endian etc.
                 ubyte* p = cast(ubyte*)ptr;
-                p[0] = color;
-                p[1] = color >> 8;
-                p[2] = color >> 16;
+                p[0] = cast(ubyte)color;
+                p[1] = cast(ubyte)(color >> 8);
+                p[2] = cast(ubyte)(color >> 16);
                 break;
             default:
                 //err what?
@@ -802,10 +802,10 @@ class SDLCanvas : Canvas {
         } else {
             SDL_Rect rect;
             rc += mTrans;
-            rect.x = rc.p1.x;
-            rect.y = rc.p1.y;
-            rect.w = rc.p2.x-rc.p1.x;
-            rect.h = rc.p2.y-rc.p1.y;
+            rect.x = cast(ushort)rc.p1.x;
+            rect.y = cast(ushort)rc.p1.y;
+            rect.w = cast(ushort)(rc.p2.x-rc.p1.x);
+            rect.h = cast(ushort)(rc.p2.y-rc.p1.y);
             int res = SDL_FillRect(mSurface, &rect, toSDLColor(color));
             assert(res == 0);
         }

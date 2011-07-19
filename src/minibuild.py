@@ -26,7 +26,6 @@ COMPILER = "dmd2"
 
 COMPILERS = {
     # uses hack to do without -oq (probably fails on windows)
-    # dmd_patched later sets oq to true
     "dmd2": {
         # On my system, dmd is called "dmd2". That's because I have installed
         #   both dmd 1 and 2 (for D1 and D2). You can't install them side by
@@ -47,7 +46,7 @@ COMPILERS = {
 USE_RSP = True
 
 # don't compile std packages/modules
-IGNORE_MODULES = ["object", "tango.", "std.", "core."]
+IGNORE_MODULES = ["object", "tango.", "std.", "core.", "etc."]
 
 import sys
 import re

@@ -7,9 +7,9 @@ import utils.misc;
 //xxx maybe replace this interface by a handy class, so the number of interface
 //functions could be kept to a minimum (i.e. only writeString())
 public class Output {
-    void writef(T...)(string fmt, T args) { writef_ind(false, fmt, args); }
-    void writefln(T...)(string fmt, T args) { writef_ind(true, fmt, args); }
-    void writef_ind(T...)(bool newline, string fmt, T args) {
+    void writef(T...)(cstring fmt, T args) { writef_ind(false, fmt, args); }
+    void writefln(T...)(cstring fmt, T args) { writef_ind(true, fmt, args); }
+    void writef_ind(T...)(bool newline, cstring fmt, T args) {
         myformat_cb(&writeString, fmt, args);
         if (newline)
             writeString("\n");

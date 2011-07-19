@@ -207,7 +207,7 @@ class DXSurface : DriverSurface {
         ctor(draw_driver, surface);
     }
 
-    override void unlockData(in Rect2i rc) {
+    override void unlockData(Rect2i rc) {
         rc.fitInsideB(Rect2i(mSize));
         if (rc.size.x <= 0 || rc.size.y <= 0)
             return;

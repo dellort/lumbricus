@@ -35,12 +35,12 @@ abstract class FrameworkDriver : Driver {
     abstract void processInput();
 
     abstract DriverInputState getInputState();
-    abstract void setInputState(in DriverInputState state);
+    abstract void setInputState(DriverInputState state);
     abstract void setMousePos(Vector2i p);
 
     abstract VideoWindowState getVideoWindowState();
     ///returns success (for switching the video mode, only)
-    abstract bool setVideoWindowState(in VideoWindowState state);
+    abstract bool setVideoWindowState(VideoWindowState state);
     ///returns desktop video resolution at program start
     abstract Vector2i getDesktopResolution();
 

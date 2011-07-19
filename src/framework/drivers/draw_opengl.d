@@ -38,7 +38,7 @@ private struct Options {
 }
 
 string glErrorToString(GLenum errCode) {
-    string res = fromStringz(cast(char*)gluErrorString(errCode));
+    string res = fromStringz(cast(char*)gluErrorString(errCode)).idup;
     //hur, the man page said, "The string is in ISO Latin 1 format." (!=ASCII?)
     //so check it, not that invalid utf-8 strings leak into the GUI or so
     str.validate(res);
@@ -69,6 +69,7 @@ class GLDrawDriver : DrawDriver {
         Vector2i mScreenSize;
         GLCanvas mCanvas;
         Options opts;
+        bool has_npot;
     }
 
     this() {
@@ -96,9 +97,12 @@ class GLDrawDriver : DrawDriver {
     override void initVideoMode(Vector2i screen_size) {
         assert(screen_size.quad_length > 0);
         mScreenSize = screen_size;
-        DerelictGL.loadExtensions();
-        mLog.minor("GL supports non-power-of-two: %s",
-            ARBTextureNonPowerOfTwo.isEnabled);
+
+        //this blows up *shrug*
+        //DerelictGL.loadExtensions();
+        has_npot =
+            DerelictGL.isExtensionSupported("GL_ARB_texture_non_power_of_two");
+        mLog.minor("GL supports non-power-of-two: %s", has_npot);
 
         //initialize some static OpenGL context attributes
         if (!opts.low_quality) {
@@ -193,8 +197,7 @@ final class GLSurface : DriverSurface {
 
         //OpenGL textures need width and height to be a power of two
         //at least with older GL drivers
-        if (!ARBTextureNonPowerOfTwo.isEnabled
-            || !mDrawDriver.opts.non_power_of_two)
+        if (!mDrawDriver.has_npot || !mDrawDriver.opts.non_power_of_two)
         {
             mTexSize = Vector2i(powerOfTwoRoundUp(mSize.x),
                 powerOfTwoRoundUp(mSize.y));
@@ -426,7 +429,7 @@ final class GLSurface : DriverSurface {
         }
     }
 
-    override void unlockData(in Rect2i rc) {
+    override void unlockData(Rect2i rc) {
         mLocked = false;
         do_update(rc);
     }

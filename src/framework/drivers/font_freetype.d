@@ -254,7 +254,7 @@ class FTGlyphCache {
                     //  making the background shine through
                     //but it still looks better than before + mostly invisible
                     ubyte b = *pb, n = *pn;
-                    *pb = b > n ? b - (n / 2) : 0;
+                    *pb = cast(ubyte)(b > n ? b - (n / 2) : 0);
                     pn++; pb++;
                 }
                 p1.y++; p2.y++;

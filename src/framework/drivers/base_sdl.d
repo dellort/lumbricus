@@ -208,7 +208,7 @@ class SDLDriver : FrameworkDriver {
         return mCurVideoState;
     }
 
-    bool setVideoWindowState(in VideoWindowState state) {
+    bool setVideoWindowState(VideoWindowState state) {
         auto tmp1 = state, tmp2 = mCurVideoState;
         tmp1.window_caption = tmp2.window_caption = null;
         tmp1.window_icon = tmp2.window_icon = null;
@@ -277,7 +277,7 @@ class SDLDriver : FrameworkDriver {
         return mInputState;
     }
 
-    void setInputState(in DriverInputState state) {
+    void setInputState(DriverInputState state) {
         if (state == mInputState)
             return;
         setLockMouse(state.mouse_locked);
@@ -306,7 +306,7 @@ class SDLDriver : FrameworkDriver {
 
     void setMousePos(Vector2i p) {
         if (mInputFocus)
-            SDL_WarpMouse(p.x, p.y);
+            SDL_WarpMouse(cast(ushort)p.x, cast(ushort)p.y);
     }
 
     private Keycode sdlToKeycode(int sdl_sym) {
@@ -478,7 +478,7 @@ class SDLDriver : FrameworkDriver {
     }
 
     void sleepTime(Time t) {
-        SDL_Delay(t.msecs);
+        SDL_Delay(cast(uint)t.msecs);
     }
 
     static this() {

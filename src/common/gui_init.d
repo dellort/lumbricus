@@ -47,6 +47,7 @@ void initGUI() {
     assert(!guiInitialized());
 
     setVideoFromConf();
+
     if (!gFramework.videoActive) {
         //this means we're F****D!!1  ("FOOLED")
         gLog.error("couldn't initialize video");

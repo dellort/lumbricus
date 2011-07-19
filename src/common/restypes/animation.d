@@ -3,6 +3,7 @@ module common.restypes.animation;
 import common.animation;
 import common.resources;
 import common.resset;
+
 import framework.drawing;
 import framework.filesystem;
 import framework.surface;

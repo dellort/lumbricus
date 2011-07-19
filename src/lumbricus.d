@@ -17,6 +17,8 @@ import utils.misc;
 //drivers etc.
 import framework.stuff;
 
+import gui.test;
+
 version (Game) {
     import game.gametask; //the game itself
     import game.gui.welcome;

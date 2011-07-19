@@ -77,7 +77,8 @@ abstract class StylesLookup {
     //  single inheritance, sigh.)
     final void addClass(string name) {
         //no duplicates
-        if (arr.arraySearch(mSortedClasses, name) < 0)
+        Trace.formatln("addc %s", name);
+        if (arr.arraySearch(mSortedClasses, name) >= 0)
             return;
         mSortedClasses ~= name;
         algorithm.sort(mSortedClasses);
@@ -391,7 +392,7 @@ class StylesPseudoCSS : StylesBase {
             }
         }
 
-/+
+        /+
         Trace.formatln("create prop...");
         Trace.formatln("classes: %s", res.mSortedClasses);
         Trace.formatln("all states: %s", res.mAllStates.keys);
@@ -405,7 +406,7 @@ class StylesPseudoCSS : StylesBase {
                 }
             }
         }
-+/
+        +/
 
         mLoadedProps ~= res;
         return res;

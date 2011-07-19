@@ -43,18 +43,18 @@ static this() {
 //  easily turned into delegates
 //not using utils.output because that is legacy crap
 struct ConsoleOutput {
-    void writef(T...)(string fmt, T args) {
+    void writef(T...)(cstring fmt, T args) {
         writef_ind(fmt, args);
     }
-    void writefln(T...)(string fmt, T args) {
+    void writefln(T...)(cstring fmt, T args) {
         writef_ind(fmt, args);
         writef("\n");
     }
-    void writeString(string text) {
+    void writeString(cstring text) {
         writef("%s", text);
     }
 
-    private void writef_ind(T...)(string fmt, T args) {
+    private void writef_ind(T...)(cstring fmt, T args) {
         if (gConsoleWidget) {
             gConsoleWidget.output.writef_ind(false, fmt, args);
         } else {
@@ -173,7 +173,7 @@ private void onTabComplete(cstring line, int cursor1, int cursor2,
 }
 
 private void logGui(LogEntry e) {
-    writeColoredLogEntry!(gConsoleOut.writefln)(e, false);
+    writeColoredLogEntry(&gConsoleOut.writeString, e, false);
 }
 
 private CommandBucket onGetWindowCommands() {

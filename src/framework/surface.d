@@ -31,7 +31,7 @@ abstract class DriverSurface : DriverResource {
     //update pixel data; it is unspecified if changes to the pixel data will
     //  be reflected immediately or only after this function is called; also,
     //  the driver may deallocate the pixel data again after this call
-    void unlockData(in Rect2i rc) { }
+    void unlockData(Rect2i rc) { }
     //notify about new SubSurface instance attached to this Surface
     //if the driver doesn't care about SubSurface, this is just unimplemented
     void newSubSurface(SubSurface ss) { }
@@ -234,7 +234,7 @@ final class Surface : ResourceT!(DriverSurface) {
     }
     /// must be called after done with lockPixelsRGBA32()
     /// "rc" is for the offset and size of the region to update
-    void unlockPixels(in Rect2i rc) {
+    void unlockPixels(Rect2i rc) {
         assert(mLocked, "unlock called on unlocked surface");
         mLocked = false;
         if (driverSurface)

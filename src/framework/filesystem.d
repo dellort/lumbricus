@@ -179,7 +179,11 @@ private class HandlerDirectory : HandlerInstance {
             if (findDirs || !de.isDir) {
                 //listdir does a path.join with searchpath and found file,
                 //remove this
-                VFSPath vfn = VFSPath(de.name);
+                //xxx not really sure how this is supposed to work
+                auto fname = de.name;
+                assert(str.startsWith(fname, searchPath));
+                fname = fname[searchPath.length .. $];
+                VFSPath vfn = VFSPath(fname);
                 //add trailing '/' for directories
                 string fn = vfn.get(false, de.isDir);
                 //match search pattern

@@ -1,6 +1,6 @@
 module common.init;
 
-version = LogExceptions;  //set to write exceptions into logfile, too
+//version = LogExceptions;  //set to write exceptions into logfile, too
 
 import framework.config;
 import framework.filesystem;

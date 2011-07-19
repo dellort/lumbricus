@@ -100,7 +100,7 @@ public struct Time {
     }
 
     ///return string representation of value
-    public string toString() const {
+    public string toString() {
         char[80] buffer = void;
         return toString_s(buffer).idup;
     }

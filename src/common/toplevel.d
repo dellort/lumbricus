@@ -23,6 +23,7 @@ import gui.console;
 import gui.propedit;
 import gui.widget;
 import gui.window;
+
 import utils.configfile;
 import utils.factory;
 import utils.log;
@@ -322,7 +323,7 @@ private:
 
         auto surf = gFramework.screenshot();
         scope(exit) surf.free();
-        auto ssFile = gFS.open(filename, File.WriteCreate);
+        auto ssFile = gFS.open(filename, "wb");
         scope(exit) ssFile.close();
         if (activeWindow) {
             //copy out area of active window

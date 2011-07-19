@@ -768,7 +768,7 @@ class TestTask4 {
         auto log = new LogWindow(gFontManager.loadFont("normal"));
 
         auto x = new W1();
-        x.log = log;
+        x.log = log.output;
         auto t = gWindowFrame.createWindow(x, "huh", Vector2i(400, 200));
 
         auto wnd = gWindowFrame.createWindow(log, "log",

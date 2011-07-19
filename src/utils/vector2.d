@@ -278,7 +278,7 @@ public struct Vector2(T) {
         return strparser.toStr(x1) ~ ' ' ~ strparser.toStr(x2);
     }
 
-    public string toString() const {
+    public string toString() {
         return "("~strparser.toStr(x1)~", "~strparser.toStr(x2)~")";
     }
 }

@@ -345,7 +345,9 @@ struct LogStruct(string cId) {
 //xxx probably there are better places where to put this code, maybe reconsider
 //  after killing utils.output, but then again it doesn't matter & nobody cares
 //xxx2 this is made for a dark background
-void writeColoredLogEntry(alias writefln)(LogEntry e, bool show_source) {
+void writeColoredLogEntry(scope void delegate(cstring) cb, LogEntry e,
+    bool show_source)
+{
     enum string[] cColorString = [
         LogPriority.Trace: "0000ff",
         LogPriority.Minor: "bbbbbb",
@@ -362,7 +364,7 @@ void writeColoredLogEntry(alias writefln)(LogEntry e, bool show_source) {
         source = myformat_s(buffer, "[%s] ", e.source.category);
     //the \litx prevents tag interpretation in msg
     auto msg = e.txt;
-    writefln("\\c(%s)%s\\litx(%s,%s)", c, source, msg.length, msg);
+    myformat_cb(cb, "\\c(%s)%s\\litx(%s,%s)", c, source, msg.length, msg);
 }
 
 //Java style!
@@ -379,6 +381,7 @@ void traceException(Log dest, Exception e, string what = "") {
             buffer ~= " (" ~ what ~ ")";
         buffer ~= ":\n";
         //XXXTANGO e.writeOut( (string txt) { buffer ~= txt; } );
+        dest.minor("%s", e);
         buffer ~= "Backtrace end.\n";
         dest.minor("%s", buffer);
     } else {

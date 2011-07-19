@@ -23,8 +23,8 @@ BoxUnParse[TypeInfo] gBoxUnParsers;
 ///T = the type being parsed (for the fromString() function)
 ///parsetext = the string being parsed (for now, the whole string)
 ///details = optional human readable error description
-ConversionException newConversionException(T)(in char[] parsetext,
-    in char[] details = "")
+ConversionException newConversionException(T)(cstring parsetext,
+    cstring details = "")
 {
     return new ConversionException(myformat("Can not parse %s: '%s'"
         ~ " %s%s", typeid(T), parsetext, details.length ? ", reason: " : "",
@@ -69,9 +69,9 @@ string boxToString(MyBox box) {
 //throws ConversionException if s could not be parsed, or an overflow occured
 //xxx the tango to() function should do exactly that, but because the tango
 //    runtime is not compiled with the project, template lookup fails
-T fromStr(T)(in char[] s) {
+T fromStr(T)(cstring s) {
     static if (is(T == string)) {
-        return s;
+        return s.idup; //can't know whether s was immutable or mutable
     } else static if (is( typeof(T.fromString(s)) : T )) {
         //Type.fromString()
         return T.fromString(s);
@@ -91,7 +91,7 @@ template fromStrSupports(T) {
         is(typeof( { fromStr!(T)(cast(const(char)[])null); } ));
 }
 //return false and leaves destVal unmodified if parsing failed
-bool tryFromStr(T)(in char[] s, ref T destVal) {
+bool tryFromStr(T)(cstring s, ref T destVal) {
     try {
         destVal = fromStr!(T)(s);
         return true;
@@ -100,7 +100,7 @@ bool tryFromStr(T)(in char[] s, ref T destVal) {
     }
 }
 
-T tryFromStrDef(T)(in char[] s, T def = T.init) {
+T tryFromStrDef(T)(cstring s, T def = T.init) {
     try {
         return fromStr!(T)(s);
     } catch (ConversionException e) {
@@ -179,7 +179,7 @@ public string boxUnParseStr(MyBox b) {
     return b.unbox!(string);
 }
 
-public MyBox boxParseBool(in char[] s) {
+public MyBox boxParseBool(cstring s) {
     //strings for truth values, alternating (sorry it was 4:28 AM)
     static string[] bool_strings = ["true", "false", "yes", "no"]; //etc.
     bool ret_value = true;
