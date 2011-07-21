@@ -129,7 +129,7 @@ class PainterWidget : Widget {
         if (mMouseInside) {
             //draw the current pen for visual feedback of what will be drawn
             int r = cast(int)(mPenRadius*mPaintScale);
-            switch (mDrawMode) {
+            final switch (mDrawMode) {
                 case DrawMode.circle:
                     c.drawFilledCircle(mousePos, r, cPenColor);
                     break;

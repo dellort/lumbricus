@@ -331,7 +331,7 @@ class LandscapeBitmap {
 
     //XXXTANGO was dispose
     void free() {
-        super.dispose();
+        //super.dispose();
         previewDestroy();
         foreach (ref t; mTiles) {
             t.surface.free();
@@ -848,7 +848,7 @@ class LandscapeBitmap {
 
                     if (*meta_scanline == a) {
                         if (pline == 0xFF)
-                            pline = tex_h+1;
+                            pline = cast(ubyte)(tex_h+1);
                         if (pline > 0)
                             pline -= 1;
                     } else if (*meta_scanline == b) {

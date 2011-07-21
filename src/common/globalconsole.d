@@ -141,9 +141,9 @@ void setConsoleTabHandler(TabCompleteDelegate on_tab) {
 }
 
 //some code needs this, I'd consider this mostly legacy crap
-void executeGlobalCommand(string cmd) {
+void executeGlobalCommand(cstring cmd) {
     if (gConsoleWidget) {
-        gConsoleWidget.cmdline.execute("/" ~ cmd);
+        gConsoleWidget.cmdline.execute(("/" ~ cmd).idup);
     } else {
         //no GUI and no cmdline in early initialization
         gLog.error("Can't execute command at this stage: %s", cmd);

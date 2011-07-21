@@ -153,7 +153,7 @@ class SampleHandler : ResViewHandler!(Sample) {
     SoundSourceInfo pos;
 
     string state() {
-        switch (ch.state) {
+        final switch (ch.state) {
             case PlaybackState.stopped: return "stopped";
             case PlaybackState.stopping: return "stopping";
             case PlaybackState.playing: return "playing";

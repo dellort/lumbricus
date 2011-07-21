@@ -102,7 +102,7 @@ class PhysicWorld {
     Vector2f gravity = {0, 0};
 
     public void simulate(Time currentTime) {
-        uint ms = currentTime.msecs();
+        uint ms = cast(uint)(currentTime.msecs());
         while (mLastTime + cPhysTimeStepMs <= ms) {
             mLastTime += cPhysTimeStepMs;
             doSimulate(cast(float)cPhysTimeStepMs/1000.0f);

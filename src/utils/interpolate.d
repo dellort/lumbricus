@@ -2,6 +2,7 @@ module utils.interpolate;
 
 import utils.time;
 import std.math;
+import std.traits;
 
 typedef int Missing;
 
@@ -27,7 +28,7 @@ struct InterpolateFnTime(T, alias FN, alias FN_1 = Missing) {
     private float mappingFunc(float value) {
         //the mapping function may take the total interpolation time as
         //  second parameter
-        static if (is(ParameterTypeTuple!(FN)[1])) {
+        static if (ParameterTypeTuple!(FN).length == 2) {
             return FN(value, duration);
         } else {
             return FN(value);

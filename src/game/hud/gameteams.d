@@ -20,6 +20,7 @@ import utils.misc;
 import utils.time;
 import utils.vector2;
 
+import std.math;
 import marray = utils.array;
 
 class HudTeams : HudElementWidget {

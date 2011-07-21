@@ -62,9 +62,9 @@ final class SequenceType {
     final GameCore engine() { return mEngine; }
 
     //if cond is false, throw load-error as CustomException
-    void loadcheck(bool cond, string fmt, ...) {
+    void loadcheck(T...)(bool cond, cstring fmt, T args) {
         if (!cond)
-            throw new CustomException(myformat_fx(fmt, _arguments, _argptr));
+            throw new CustomException(myformat(fmt, args));
     }
 
     //helper; may return null
@@ -136,11 +136,11 @@ class SequenceState {
     final GameCore engine() { return mOwner.engine; }
 
     //same as owner.loadcheck
-    void loadcheck(bool cond, string fmt, ...) {
+    void loadcheck(T...)(bool cond, cstring fmt, T args) {
         if (cond)
             return;
         //meh, varargs not chainable
-        owner.loadcheck(false, "%s", myformat_fx(fmt, _arguments, _argptr));
+        owner.loadcheck(false, "%s", myformat(fmt, args));
     }
 
     protected abstract DisplayType getDisplayType();
@@ -178,7 +178,7 @@ class SequenceState {
 ///trigger sound and particle effects (not yet).
 ///This is the public interface to it.
 final class Sequence : SceneObject {
-    final GameCore engine;
+    GameCore engine;
 
     private {
         SequenceState mCurrentState;
@@ -430,7 +430,7 @@ final class Sequence : SceneObject {
 
 //xxx: could be made a SceneObject (for fun and profit)
 abstract class StateDisplay {
-    final Sequence owner;
+    Sequence owner;
     //only for Sequence.setDisplay()
     private StateDisplay mNext;
 

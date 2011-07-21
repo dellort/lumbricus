@@ -12,7 +12,7 @@ import game.sprite;
 import game.weapon.weapon;
 import game.worm;
 import game.sequence;
-import game.temp : GameZOrder;
+import game.temp;
 import game.particles;
 import game.wcontrol;
 import physics.all;

@@ -6,7 +6,7 @@ import game.core;
 import game.sequence;
 import game.sprite;
 import game.teamtheme;
-import game.temp : GameZOrder;
+import game.temp;
 import game.particles;
 import physics.all;
 import utils.misc;
@@ -232,7 +232,7 @@ class WormSprite : Sprite {
             return;
 
         if (currentState is wsc.st_jump) {
-            switch (mJumpMode) {
+            final switch (mJumpMode) {
                 case JumpMode.normal, JumpMode.smallBack, JumpMode.straightUp:
                     auto state = wsc.findSequenceState("jump_normal", true);
                     graphic.setState(state);

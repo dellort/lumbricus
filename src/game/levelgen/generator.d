@@ -584,7 +584,7 @@ class GenerateFromBitmap : LevelGenerator {
     //handle things like fixing up the transparency of the bitmap etc.
     void bitmap(Surface s, string filename = "") {
         mBitmap = s;
-        mFilename = filename.dup;
+        mFilename = filename.idup;
         mGenerate = null;
         mLandscape = null;
     }

@@ -14,15 +14,15 @@ import wwpdata.common;
 
 alias Color.RGBA32 RGBAColor;
 
-void saveImageToFile(Surface img, char[] filename) {
-    auto f = Stream.OpenFile(filename, File.WriteCreate);
+void saveImageToFile(Surface img, string filename) {
+    auto f = Stream.OpenFile(filename, "wb");
     scope(exit) f.close();
     //xxx extension gets lost; but default (png) is ok => too lazy to fix
     saveImage(img, f);
 }
 
-//there's a loadImage(char[] path) in imgread.d, but that uses gFS
-Surface loadImageFromFile(char[] path) {
+//there's a loadImage(cstring path) in imgread.d, but that uses gFS
+Surface loadImageFromFile(string path) {
     Stream f = Stream.OpenFile(path);
     scope(exit) f.close();
     return loadImage(f);
@@ -70,7 +70,7 @@ void applyAlphaMask(Surface img, Surface mask, bool invert = false) {
     img.lockPixelsRGBA32(dst, pdst);
     for (int y = 0; y < img.size.y; y++) {
         for (int x = 0; x < img.size.x; x++) {
-            int a = src[x].r;
+            ubyte a = src[x].r;
             if (invert)
                 a = 255 - a;
             dst[x].a = a;

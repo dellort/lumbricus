@@ -6,7 +6,7 @@ import framework.drawing;
 import game.controller;
 import game.core;
 import game.sprite;
-import game.temp : GameZOrder;
+import game.temp;
 import game.worm;
 import game.wcontrol;
 import physics.all;

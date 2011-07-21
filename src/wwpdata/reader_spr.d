@@ -54,7 +54,7 @@ RawAnimation readSprFile(Stream st) {
     return anim;
 }
 
-void readSpr(Stream st, char[] outputDir, char[] fnBase) {
+void readSpr(Stream st, string outputDir, string fnBase) {
     scope alist = readSprFile(st);
     saveAnimations([alist], outputDir, fnBase);
 }

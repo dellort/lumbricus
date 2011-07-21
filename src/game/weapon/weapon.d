@@ -10,6 +10,7 @@ import game.sprite;
 import game.weapon.types;
 import game.sequence;
 import game.particles;
+import game.temp;
 import utils.log;
 import utils.misc;
 import utils.math;
@@ -17,6 +18,8 @@ import utils.time;
 import utils.timesource;
 import utils.vector2;
 import utils.interpolate;
+
+import std.math;
 
 //a crate is being blown up, and the crate contains this weapon
 //  Sprite = the sprite for the crate
@@ -64,7 +67,7 @@ abstract class WeaponClass : EventTarget {
         assert(a_core !is null);
         super("weapon_" ~ a_name, a_core.events);
         mCore = a_core;
-        name = a_name.dup;
+        name = a_name.idup;
     }
 
     //called when the sprite selected_by selects this weapon

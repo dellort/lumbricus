@@ -8,10 +8,12 @@ import wwpdata.reader_dir;
 import wwpdata.reader_img;
 import wwpdata.reader_spr;
 import utils.filetools;
+import std.path;
+import std.stdio;
 
-void do_unworms(char[] filename, char[] outputDir) {
-    char[] fnBase = basename(filename);
-    auto st = Stream.OpenFile(filename, File.ReadExisting);
+void do_unworms(string filename, string outputDir) {
+    string fnBase = basename(filename);
+    auto st = Stream.OpenFile(filename, "rb");
     scope(exit) st.close();
 
     if (auto readFunc = findReader(st)) {
@@ -25,8 +27,8 @@ WWPReader findReader(Stream st) {
     st.position = 0;
     st.readExact(hdr.ptr, 4);
     st.position = 0;
-    if (hdr in registeredReaders) {
-        return registeredReaders[hdr];
+    if (auto phdr = hdr in registeredReaders) {
+        return *phdr;
     } else {
         writefln("Error: Unknown filetype");
         return null;
@@ -35,7 +37,7 @@ WWPReader findReader(Stream st) {
 
 //stream-version of unworms
 //pathBase = what getBaseName returns for the filename st was opened from
-void do_unworms(Stream st, char[] pathBase, char[] outputDir) {
+void do_unworms(Stream st, string pathBase, string outputDir) {
     if (auto readFunc = findReader(st)) {
         readFunc(st, outputDir, pathBase);
     }

@@ -39,7 +39,7 @@ class PhysicConstraint : PhysicContactGen {
         this.isCable = isCable;
     }
 
-    override void process(float deltaT, CollideDelegate contactHandler) {
+    override void process(float deltaT, scope CollideDelegate contactHandler) {
         if (lengthChange > float.epsilon || lengthChange < -float.epsilon) {
             lcInt = lengthChange;
             if (lcInt > 0 && obj.mSurfaceCtr > 0) {
@@ -153,7 +153,7 @@ class PhysicObjectsRod : PhysicContactGen {
         dampingCoeff = dampingRatio * 2.0f * m * sqrt(springConstant / m);
     }
 
-    override void process(float deltaT, CollideDelegate contactHandler) {
+    override void process(float deltaT, scope CollideDelegate contactHandler) {
         if (obj[0].dead || (obj[1] && obj[1].dead)) {
             kill();
             return;
@@ -254,7 +254,7 @@ class PhysicFixate : PhysicContactGen {
         mFixate.y = fix.y>float.epsilon?0.0f:1.0f;
     }
 
-    override void process(float deltaT, CollideDelegate contactHandler) {
+    override void process(float deltaT, scope CollideDelegate contactHandler) {
         //hack, so it won't generate a contact for a killed object
         if (!obj.active)
             return;
@@ -312,7 +312,7 @@ class WaterSurfaceGeometry : PhysicContactGen {
         collision = world.collide.findCollisionID("water_surface");
     }
 
-    override void process(float deltaT, CollideDelegate contactHandler) {
+    override void process(float deltaT, scope CollideDelegate contactHandler) {
         void handler(ref Contact c) {
             PhysicObject obj = c.obj[0];
             //only works for horizontal surface

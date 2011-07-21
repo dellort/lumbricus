@@ -644,7 +644,7 @@ class GameEngine : GameCore {
     {
         enum cDistDelta = 0.01f;
 
-        assert(damage != 0f && !ieee.isNaN(damage));
+        assert(damage != 0f && !isNaN(damage));
 
         //influence radius
         float radius = damage * cDamageToRadius;

@@ -2,7 +2,7 @@
 module framework.event;
 
 import utils.vector2;
-import utils.misc : myformat;
+import utils.misc;
 public import framework.keysyms;
 
 public enum Modifier {
@@ -23,7 +23,7 @@ string modifierToString(Modifier mod) {
     }
 }
 
-bool stringToModifier(string str, out Modifier mod) {
+bool stringToModifier(cstring str, out Modifier mod) {
     switch (str) {
         case "mod_alt": mod = Modifier.Alt; return true;
         case "mod_ctrl": mod = Modifier.Control; return true;
@@ -45,7 +45,7 @@ string translateKeycodeToKeyID(Keycode code) {
 }
 
 /// reverse operation of translateKeycodeToKeyID()
-Keycode translateKeyIDToKeycode(string keyid) {
+Keycode translateKeyIDToKeycode(cstring keyid) {
     foreach (KeycodeToName item; g_keycode_to_name) {
         if (item.name == keyid) {
             return item.code;

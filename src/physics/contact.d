@@ -70,7 +70,7 @@ struct Contact {
             //generate 2 contacts that behave like the objects hit a wall
             // (avoids special code in the complicated mess below)
             if (obj[0].velocity.length > float.epsilon || obj[0].isWalking()) {
-                Contact c1 = *this;
+                Contact c1 = this;
                 c1.obj[1] = null;
                 c1.depth /= 2;
                 c1.handling = ContactHandling.normal;
@@ -78,7 +78,7 @@ struct Contact {
                 c1.resolve(deltaT);
             }
             if (obj[1].velocity.length > float.epsilon || obj[1].isWalking()) {
-                Contact c2 = *this;
+                Contact c2 = this;
                 c2.obj[0] = c2.obj[1];
                 c2.obj[1] = null;
                 c2.depth /= 2;

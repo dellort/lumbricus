@@ -28,14 +28,15 @@ private LogStruct!("init") gLogInit;
 
 //catched in main function
 private class ExitApp : Exception {
-    this() { super(""); }
+    int result;
+    this(int result) { super(""); this.result = result; }
 }
 
 //why not use the C function? probably Tango misbehaves then
 //works like exit(0), but lets D module dtors etc. run
 //think about nasty stuff like flushing files
-void exit() {
-    throw new ExitApp();
+void exit(int result = 0) {
+    throw new ExitApp(result);
 }
 
 //handle exception logging (windows users haet stdout/stderr) and ExitApp
@@ -44,6 +45,7 @@ int wrapMain(string[] args, void function(string[]) realmain) {
     try {
         realmain(args);
     } catch (ExitApp e) {
+        return e.result;
     } catch (Exception e) {
         version(LogExceptions) {
             //catch all exceptions, write them to logfile/console and exit

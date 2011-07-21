@@ -31,7 +31,7 @@ class HudManager {
         auto me = engine.querySingleton!(HudManager)();
         if (!me) {
             me = new HudManager();
-            engine.addSingleton!(HudManager)(me);
+            engine.addSingleton(me);
         }
         return me;
     }

@@ -251,8 +251,9 @@ abstract class GameCore {
         scripting.onError = &scriptingObjError;
     }
 
-    override void dispose() {
-        super.dispose();
+    //XXXTANGO: was dispose
+    void free() {
+        //super.dispose();
         delete mScripting;
         delete mResources;
         delete mParticleWorld;
@@ -357,7 +358,7 @@ abstract class GameCore {
     //benchmark mode over simtime game time
     void benchStart(Time simtime) {
         mBenchMode = true;
-        mBenchFramesMax = simtime/cFrameLength;
+        mBenchFramesMax = cast(int)(simtime/cFrameLength);
         log.notice("Start benchmark, %s => %s frames...", simtime,
             mBenchFramesMax);
         mBenchFramesCur = 0;
@@ -544,9 +545,9 @@ abstract class GameCore {
     //- for very transient labels, this probably performs better than allocating
     //  a FormattedText and keeping it around
     //- no need to be deterministic
-    final void drawTextFmt(Canvas c, Vector2i pos, string fmt, ...) {
+    final void drawTextFmt(T...)(Canvas c, Vector2i pos, cstring fmt, T args) {
         auto txt = getTempLabel();
-        txt.setTextFmt_fx(true, fmt, _arguments, _argptr);
+        txt.setTextFmt(true, fmt, args);
         txt.draw(c, pos);
     }
 

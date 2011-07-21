@@ -189,7 +189,7 @@ class GameLoader {
             demoConf.addNode("game_config", mGameConfig.save());
 
             try {
-                auto outstr = gFS.open("last_demo.demo", File.WriteCreate);
+                auto outstr = gFS.open("last_demo.demo", "wb");
                 mDemoOutput = outstr.pipeOut();
                 startDemoFile(mDemoOutput, demoConf);
             } catch (CustomException e) {
@@ -353,7 +353,7 @@ class GameShell {
         long end_ts;
 
         InputLog clone() {
-            auto res = *this;
+            auto res = this;
             res.entries = res.entries.dup;
             return res;
         }
@@ -373,14 +373,14 @@ class GameShell {
     }
 
     //xxx: not networking save, I guess
-    private bool inpSetPaused(string s) {
+    private bool inpSetPaused(cstring s) {
         bool nstate = !mGameTime.paused;
         tryFromStr(s, nstate);
         log.minor("pause: %s", nstate);
         pauseBlock(nstate, this);
         return true;
     }
-    private bool inpSetSlowdown(string s) {
+    private bool inpSetSlowdown(cstring s) {
         float state = tryFromStrDef(s, 1.0f);
         if (state != state)
             return false;
@@ -388,7 +388,7 @@ class GameShell {
         mGameTime.slowDown = state;
         return true;
     }
-    private bool inpSinglestep(string s) {
+    private bool inpSinglestep(cstring s) {
         int step = tryFromStrDef(s, 1);
         mSingleStep += max(step, 0);
         return true;
@@ -457,7 +457,7 @@ class GameShell {
     //command to be executed by GameEngine.executeCommand()
     //this is logged/timestamped for networking, snapshot/replays, and demo mode
     //NOTE: cmd=="" is abused as a special case for demo hash frames
-    void addLoggedInput(string access_tag, string cmd, long cmdTimeStamp = -1) {
+    void addLoggedInput(cstring access_tag, cstring cmd, long cmdTimeStamp = -1) {
         //yeh, this might be a really bad idea
         if (replayMode() && str.startsWith(cmd, "weapon_fire")) {
             replaySkip();
@@ -472,8 +472,9 @@ class GameShell {
 
         LogEntry e;
 
-        e.access_tag = access_tag;
-        e.cmd = cmd;
+        //XXXTANGO: sad memory allocations that weren't here before
+        e.access_tag = access_tag.idup;
+        e.cmd = cmd.idup;
 
         //assume time increases monotonically => list stays always sorted
         if (cmdTimeStamp >= 0)
@@ -540,7 +541,7 @@ class GameShell {
             //this code tries to keep the input queue length (local lag)
             //  at cOptimumInputLag by varying game speed
             //how far the server is ahead
-            int lag = mTimeStampAvail - mTimeStamp;
+            int lag = cast(int)(mTimeStampAvail - mTimeStamp);
             //log("lag = %s",lag);
             if (lag < 0) {
                 //no server frame coming -> wait
@@ -578,7 +579,7 @@ class GameShell {
                     (Time overdue) {
                         assert(mSingleStep > 0);
                         mSingleStep--; exec_frame(overdue);
-                    }, mSingleStep);
+                    }, cast(int)mSingleStep);
                 if (mSingleStep == 0)
                     mGameTime.paused = true;
             } else {
@@ -806,11 +807,11 @@ class ClientControl {
 
     //NOTE: CmdNetControl overrides this method and redirects it so, that cmd
     //  gets sent over network, instead of being interpreted here
-    protected void sendCommand(string cmd) {
+    protected void sendCommand(cstring cmd) {
         mShell.addLoggedInput(mAccessTag, cmd);
     }
 
-    final void execCommand(string cmd) {
+    final void execCommand(cstring cmd) {
         if (checkCommand(cmd)) {
             sendCommand(cmd);
         } else {
@@ -820,7 +821,7 @@ class ClientControl {
 
     //whether the game code would likely accept the input
     //(too high network lag may introduce random false results)
-    final bool checkCommand(string cmd) {
+    final bool checkCommand(cstring cmd) {
         return mShell.serverEngine.input.checkCommand(mAccessTag, cmd);
     }
 
@@ -972,7 +973,7 @@ void startDemoFile(PipeOut dest, ConfigNode config) {
 }
 
 void writeDemoEntry(PipeOut dest, GameShell.LogEntry e) {
-    void dump(string s) {
+    void dump(cstring s) {
         dest.write(cast(ubyte[])s);
     }
     string demoesc(string s) {

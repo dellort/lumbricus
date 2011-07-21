@@ -7,6 +7,8 @@ import wwpdata.common;
 import wwpdata.reader;
 import wwptools.unworms;
 import utils.filetools;
+import std.path;
+import std.stdio;
 
 //XXXTANGO
 enum pathsep = "/";
@@ -27,14 +29,13 @@ struct WWPDirEntry {
             i += 4;
         } while (buf[i-1] != 0);
         //cut off zeros
-        ret.filename = fromStringz(buf.ptr).dup;
+        ret.filename = fromStringz(buf.ptr).idup;
         return ret;
     }
 
     void writeFile(Stream st, string outPath) {
         st.position = offset;
-        scope fileOut = Stream.OpenFile(outPath ~ pathsep ~ filename,
-            File.WriteCreate);
+        scope fileOut = Stream.OpenFile(outPath ~ pathsep ~ filename, "wb");
         scope(exit) fileOut.close();
         fileOut.pipeOut.copyFrom(st.pipeIn, size);
     }
@@ -62,7 +63,7 @@ class Dir {
     this(string filename) {
         //NOTE: file isn't closed; you had to add that to ~this(), but D doesn't
         //   allow this because of the garbage collector destructor rules!
-        this(Stream.OpenFile(filename, File.ReadExisting));
+        this(Stream.OpenFile(filename, "rb"));
     }
 
     //filesystem-like interface, was too lazy to use filesystem.d
@@ -73,6 +74,7 @@ class Dir {
             }
         }
         throwError("file within .dir not found: " ~ filename);
+        assert(false);
     }
 
     void close() {
@@ -81,7 +83,7 @@ class Dir {
 
     //works exactly like do_unworms, just filename is opened from the .dir-file
     void unworms(string filename, string outputPath) {
-        do_unworms(this.open(filename), FilePath(filename).name,
+        do_unworms(this.open(filename), filename,
             outputPath);
     }
 
@@ -89,7 +91,7 @@ class Dir {
     string[] listdir(string pattern) {
         string[] res;
         foreach (e; mEntries) {
-            if (patternMatch(e.filename, pattern))
+            if (fnmatch(e.filename, pattern))
                 res ~= e.filename;
         }
         return res;
@@ -103,7 +105,7 @@ void readDir(Stream st, string outputDir, string fnBase) {
     auto content = doReadDir(st);
 
     foreach (c; content) {
-        Stdout(c.filename).newline;
+        writefln("%s", c.filename);
         c.writeFile(st, outPath);
     }
 }

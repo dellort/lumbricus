@@ -77,7 +77,6 @@ abstract class StylesLookup {
     //  single inheritance, sigh.)
     final void addClass(string name) {
         //no duplicates
-        Trace.formatln("addc %s", name);
         if (arr.arraySearch(mSortedClasses, name) >= 0)
             return;
         mSortedClasses ~= name;

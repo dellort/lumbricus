@@ -123,6 +123,7 @@ final class CollisionMap {
             return *pres;
 
         throwError("collision ID '%s' not found.", name);
+        assert(false);
     }
 
     alias find findCollisionID;

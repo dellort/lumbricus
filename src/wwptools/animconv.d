@@ -18,6 +18,7 @@ import utils.time;
 import utils.vector2;
 import wwpdata.animation;
 import wwpdata.reader_bnk;
+import std.math;
 
 //handlers to convert a parameter to an actual frame
 //  p = the source parameter
@@ -25,7 +26,7 @@ import wwpdata.reader_bnk;
 //  returns sth. useful between [0, count)
 //wonderful type name!
 alias int function(int p, int count) ParamConvert;
-ParamConvert[char[]] gParamConverters;
+ParamConvert[string] gParamConverters;
 
 //handlers to load specialized animation descriptions
 //(because the generic one is too barfed)
@@ -34,7 +35,7 @@ ParamConvert[char[]] gParamConverters;
 //ConfigNode = import description file (e.g. map animation number to name)
 private alias void function(AniFile, RawAnimation[], ConfigNode)
     AnimationLoadHandler;
-private AnimationLoadHandler[char[]] gAnimationLoadHandlers;
+private AnimationLoadHandler[string] gAnimationLoadHandlers;
 
 static this() {
     gAnimationLoadHandlers["general"] = &loadGeneralW;
@@ -58,7 +59,7 @@ enum ParamType {
     P3,
 }
 
-enum char[][] cParamTypeStr = [
+enum string[] cParamTypeStr = [
     "Null",
     "Time",
     "P1",
@@ -90,18 +91,18 @@ class AniEntry {
     Vector2i box; //user defined "bounding" box
 
     private {
-        char[] mName;
+        string mName;
         AnimationFrame[][][] mFrames; //indexed [c][b][a] (lol even more)
         TexturePack mPacker;
     }
 
-    this(char[] a_name, TexturePack a_packer) {
+    this(string a_name, TexturePack a_packer) {
         defaultParamInfo(params);
         mName = a_name;
         mPacker = a_packer;
     }
 
-    char[] name() {
+    string name() {
         return mName;
     }
 
@@ -265,7 +266,7 @@ class AniEntry {
     }
 
     int length(int dim) {
-        switch (dim) {
+        final switch (dim) {
             case 0: return length_a();
             case 1: return length_b();
             case 2: return length_c();
@@ -378,10 +379,10 @@ class ImportedWWPAnimation : Animation, DebugAniFrames {
     }
 
     //DebugAniFrames
-    char[][] paramInfos() {
-        char[][] inf;
+    string[] paramInfos() {
+        string[] inf;
         foreach (int i, ParamInfo p; mData.params) {
-            char[] pconv = "?";
+            string pconv = "?";
             foreach (name, fn; gParamConverters) {
                 if (fn is p.conv)
                     pconv = name;
@@ -407,7 +408,7 @@ class ImportedWWPAnimation : Animation, DebugAniFrames {
 class AniFile {
     private {
         AniEntry[] mEntries;
-        Surface[char[]] mBitmaps;
+        Surface[string] mBitmaps;
     }
 
     TexturePack packer;
@@ -416,13 +417,13 @@ class AniFile {
         packer = new TexturePack();
     }
 
-    AniEntry addEntry(char[] name) {
+    AniEntry addEntry(string name) {
         auto res = new AniEntry(name, packer);
         mEntries ~= res;
         return res;
     }
 
-    void addBitmap(char[] name, Surface bmp) {
+    void addBitmap(string name, Surface bmp) {
         argcheck(!(name in mBitmaps));
         mBitmaps[name] = bmp;
     }
@@ -433,7 +434,7 @@ class AniFile {
     }
 
     //the returned AA and data are strictly read-only
-    Surface[char[]] bitmaps() {
+    Surface[string] bitmaps() {
         return mBitmaps;
     }
 }
@@ -465,8 +466,8 @@ RawAnimation getAnimation(RawAnimation[] animations, int index) {
 //so getSimple("x1 x2",2,3) returns [x1+1, x1+2, x1+3, x2+1, ...]
 //actual number of returned animations is n*x
 //when n is -1, n is set to the number of components found in the string
-RawAnimation[] getSimple(RawAnimation[] animations, char[] val, int n, int x) {
-    char[][] strs = str.split(val);
+RawAnimation[] getSimple(RawAnimation[] animations, string val, int n, int x) {
+    string[] strs = str.split(val);
     if (n < 0)
         n = strs.length;
     RawAnimation[] res;
@@ -504,8 +505,8 @@ private void loadWormWeaponAnimation(AniFile anims, RawAnimation[] animations,
 
 //parse flags which are separated by a ",", flags end with the first ";"
 //"s" is modified to contain the original string without the flags
-char[][] parseFlags(ref char[] s, bool flagnode) {
-    char[] f;
+string[] parseFlags(ref string s, bool flagnode) {
+    string f;
     if (!flagnode) {
         auto start = str.find(s, ';');
         if (start < 0)
@@ -522,24 +523,25 @@ char[][] parseFlags(ref char[] s, bool flagnode) {
 enum cFlagItem = "_flags";
 enum cParamItem = "_params";
 
-ParamType paramTypeFromStr(char[] s) {
-    foreach (int idx, char[] ts; cParamTypeStr) {
+ParamType paramTypeFromStr(string s) {
+    foreach (int idx, string ts; cParamTypeStr) {
         if (str.icmp(ts, s) == 0)
             return cast(ParamType)idx;
     }
     throwError("unknown param type: '%s'", s);
+    assert(false);
 }
 
 //s has the format x ::= <param>[ "/" <string>] , s ::= s (s ",")*
 //param is one of map (below) and returned in p
 //warning: p is passed by-ref (in D1; but not in D2, there you must add ref)
-void parseParams(char[] s, ParamInfo[3] p) {
+void parseParams(string s, ParamInfo[3] p) {
     auto stuff = str.split(s, ",");
     require(stuff.length <= 3, "only 3 param mappings or less allowed");
     for (int n = 0; n < stuff.length; n++) {
         auto sub = str.split(stuff[n], "/");
         require(sub.length <= 2, "too many '/'");
-        char[] pname = sub[0];
+        string pname = sub[0];
         ParamType param = paramTypeFromStr(pname);
         p[n].map = param;
         bool is_real_param = param >= ParamType.P1 && param <= ParamType.P3;
@@ -548,7 +550,7 @@ void parseParams(char[] s, ParamInfo[3] p) {
             continue;
         }
         require(is_real_param, "%s can't have a param mapping", pname);
-        char[] pmap = sub[1];
+        string pmap = sub[1];
         auto pconv = pmap in gParamConverters;
         if (!pconv)
             throwError("param conv. '%s' not found", pmap);
@@ -557,21 +559,21 @@ void parseParams(char[] s, ParamInfo[3] p) {
 }
 
 private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
-    void loadAnim(char[][] flags, ParamInfo[3] params, char[] name,
-        char[] value)
+    void loadAnim(string[] flags, ParamInfo[3] params, string name,
+        string value)
     {
         //actually load an animation
         auto ani = anims.addEntry(name);
 
         ani.params[] = params;
 
-        bool[char[]] boolFlags;
-        int[char[]] intFlags;
-        char[][] usedFlags; //for error reporting
+        bool[string] boolFlags;
+        int[string] intFlags;
+        string[] usedFlags; //for error reporting
 
         intFlags["f"] = 50; //default framerate
 
-        foreach (char[] f; flags) {
+        foreach (string f; flags) {
             if (!f.length)
                 continue;
             if (f[0] == '+') {
@@ -590,18 +592,18 @@ private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
             }
         }
 
-        bool boolFlag(char[] name, bool def = false) {
+        bool boolFlag(string name, bool def = false) {
             usedFlags ~= name;
             return (name in boolFlags) ? boolFlags[name] : def;
         }
-        int intFlag(char[] name, int def = 0) {
+        int intFlag(string name, int def = 0) {
             usedFlags ~= name;
             return (name in intFlags) ? intFlags[name] : def;
         }
 
         bool bnk_backwards;
 
-        char[][] vals = str.split(value, "|");
+        string[] vals = str.split(value, "|");
         foreach (int c_idx, v; vals) {
             int x = intFlag("x", 1);
             auto anims = getSimple(anis, str.strip(v), intFlag("n", -1), x);
@@ -685,12 +687,12 @@ private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
         }
     }
 
-    void loadRec(char[][] flags, ParamInfo[3] params, ConfigNode node) {
+    void loadRec(string[] flags, ParamInfo[3] params, ConfigNode node) {
         ParamInfo[3] nparams;
         nparams[] = params; //copy, as params is passed by-ref
         if (node.value.length == 0) {
-            char[] flagstr = node.getStringValue(cFlagItem);
-            char[] paramstr = node.getStringValue(cParamItem);
+            string flagstr = node.getStringValue(cFlagItem);
+            string paramstr = node.getStringValue(cParamItem);
             auto subflags = flags ~ parseFlags(flagstr, true);
             if (flagstr.length > 0)
                 throwError("unparsed flag values: %s", flagstr);
@@ -719,10 +721,10 @@ private void loadBitmapFrames(AniFile anims, RawAnimation[] anis,
     ConfigNode node)
 {
     foreach (ConfigNode sub; node) {
-        char[] name = sub.name;
+        string name = sub.name;
         //frame is "animationnumber,framenumber"
-        char[] frame = sub.value;
-        char[][] x = str.split(frame, ",");
+        string frame = sub.value;
+        string[] x = str.split(frame, ",");
         if (x.length != 2)
             throwError("invalid frame reference: %s", frame);
         int[2] f;
@@ -741,8 +743,7 @@ private void loadBitmapFrames(AniFile anims, RawAnimation[] anis,
 
 static this() {
     gParamConverters = [
-        // []: dmd's type inference is shit, turns char[6] into char[]
-        "direct"[]: &paramConvertDirect,
+        "direct": &paramConvertDirect,
         "step3": &paramConvertStep3,
         "twosided": &paramConvertTwosided,
         "twosided_inv": &paramConvertTwosidedInv,
@@ -789,10 +790,10 @@ private int paramConvertStep3(int angle, int count) {
 }
 //expects count to be 2 (two sides)
 private int paramConvertTwosided(int angle, int count) {
-    return angleLeftRight(cast(float)(angle/180.0f*math.PI), 0, 1);
+    return angleLeftRight(cast(float)(angle/180.0f*PI), 0, 1);
 }
 private int paramConvertTwosidedInv(int angle, int count) {
-    return angleLeftRight(cast(float)(angle/180.0f*math.PI), 1, 0);
+    return angleLeftRight(cast(float)(angle/180.0f*PI), 1, 0);
 }
 //360 degrees freedom
 private int paramConvertFreeRot(int angle, int count) {

@@ -11,18 +11,20 @@ import utils.rect2;
 import utils.vector2;
 import utils.filetools;
 import utils.misc;
+import std.stdio;
+import std.math;
 
 //XXXTANGO
 enum pathsep = "/";
 
 //xxx should be moved somewhere else, no reason to compile this into the game
-void saveAnimations(RawAnimation[] animations, char[] outPath, char[] fnBase,
+void saveAnimations(RawAnimation[] animations, string outPath, string fnBase,
     bool tosubdir = true)
 {
     //scope stMeta = new File(outPath ~ pathsep ~ fnBase ~ ".meta",
         //  FileMode.OutNew);
     foreach (int i, a; animations) {
-        char[] afn, apath;
+        string afn, apath;
         if (tosubdir) {
             //ah, how I love those "intuitive" formatting parameters...
             afn = myformat("anim_%03d", i);
@@ -33,10 +35,10 @@ void saveAnimations(RawAnimation[] animations, char[] outPath, char[] fnBase,
             apath = outPath;
         }
         saveImageToFile(a.toBitmap(), apath ~ pathsep ~ afn ~ ".png");
-        Stdout.format("Saving %s/%s   \r",i+1 , animations.length);
-        Stdout.flush();
+        writef("Saving %s/%s   \r",i+1 , animations.length);
+        stdout.flush();
     }
-    Stdout.newline; //??
+    writefln("");
 }
 
 //free the data violently (with delete)
@@ -67,7 +69,7 @@ class RawAnimation {
         SubSurface image; //converted image (valid if savePacked() was used)
 
         FrameInfo dup() {
-            FrameInfo n = *this;
+            FrameInfo n = this;
             n.data = data.dup;
             return n;
         }

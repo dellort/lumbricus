@@ -49,23 +49,23 @@ unittest {
 }
 
 //return: -1 if not found, or the first n with text[n] == tofind
-int find(in char[] text, char tofind) {
-    return pstr.indexOf(text, tofind, pstr.CaseSensitive.no);
+int find(cstring text, char tofind) {
+    return pstr.indexOf(text, tofind);
 }
 
 //return: -1 if not found, or first n with text[n..n+tofind.length] == tofind
-int find(in char[] text, in char[] tofind) {
-    return pstr.indexOf(text, tofind, pstr.CaseSensitive.no);
+int find(cstring text, cstring tofind) {
+    return pstr.indexOf(text, tofind);
 }
 
 //return: -1 if not found, or the last n with text[n] == tofind
-int rfind(in char[] text, char tofind) {
-    return pstr.lastIndexOf(text, tofind, pstr.CaseSensitive.no);
+int rfind(cstring text, char tofind) {
+    return pstr.lastIndexOf(text, tofind);
 }
 
 //return: -1 if not found, or first n with text[n..n+tofind.length] == tofind
-int rfind(in char[] text, in char[] tofind) {
-    return pstr.lastIndexOf(text, tofind, pstr.CaseSensitive.no);
+int rfind(cstring text, cstring tofind) {
+    return pstr.lastIndexOf(text, tofind);
 }
 
 //on every spliton in text, create a new array item, and return that array
@@ -103,7 +103,7 @@ unittest {
     assert(split("", ",") == null);
 }
 
-string join(in char[][] text, in char[] joiner) {
+string join(cstring[] text, cstring joiner) {
     return parray.join(cast(string[])text, cast(string)joiner);
 }
 
@@ -125,12 +125,12 @@ void encode(ref string txt, dchar c) {
 //decode one character of the utf-8 string txt, starting at txt[idx]
 //return decoded character, and write index of following character to idx
 //if decoding fails, throw UnicodeException and don't change idx
-dchar decode(in char[] txt, ref size_t idx) {
+dchar decode(cstring txt, ref size_t idx) {
     return putf.decode(txt, idx);
 }
 
 //throw UnicodeException, if txt is not valid unicode
-void validate(in char[] txt) {
+void validate(cstring txt) {
     size_t idx;
     while (idx < txt.length) {
         decode(txt, idx);
@@ -139,7 +139,7 @@ void validate(in char[] txt) {
 }
 
 //exception-less version of validate
-bool isValid(in char[] txt) {
+bool isValid(cstring txt) {
     try {
         validate(txt);
     } catch (UnicodeException e) {
@@ -246,7 +246,7 @@ string[] split(string text) {
 }
 
 //XXXTANGO
-const(char[])[] split(in char[] text) {
+const(char[])[] split(cstring text) {
     return cast(const(char[])[])split(cast(string)text);
 }
 
@@ -259,34 +259,40 @@ unittest {
     assert(split("    ") == null);
 }
 
-bool startsWith(in char[] str, in char[] prefix) {
+bool startsWith(cstring str, cstring prefix) {
     if (str.length < prefix.length)
         return false;
     return str[0..prefix.length] == prefix;
 }
 
-bool endsWith(in char[] str, in char[] suffix) {
+bool endsWith(cstring str, cstring suffix) {
     if (str.length < suffix.length)
         return false;
     return str[$-suffix.length..$] == suffix;
 }
 
-bool eatStart(ref const(char)[] str, in char[] prefix) {
+bool eatStart(ref const(char)[] str, cstring prefix) {
     if (!startsWith(str, prefix))
         return false;
     str = str[prefix.length .. $];
+    return true;
+}
+
+bool eatEnd(ref const(char)[] str, cstring suffix) {
+    if (!endsWith(str, suffix))
+        return false;
+    str = str[0 .. $ - suffix.length];
     return true;
 }
 
 //XXXTANGO dunno
-bool eatStart(ref string str, in char[] prefix) {
+bool eatStart(ref string str, cstring prefix) {
     if (!startsWith(str, prefix))
         return false;
     str = str[prefix.length .. $];
     return true;
 }
-
-bool eatEnd(ref const(char)[] str, in char[] suffix) {
+bool eatEnd(ref string str, cstring suffix) {
     if (!endsWith(str, suffix))
         return false;
     str = str[0 .. $ - suffix.length];
@@ -556,28 +562,44 @@ unittest {
 //these functions assume short strings, and they don't do any heap allocation,
 //  if the (implied) free buffer space in buf is large enough
 
-/+ XXXTANGO
 //replace "search" string in buf by myformat(fmt, ...)
-void buffer_replace_fmt(ref StrBuffer buf, string search, string fmt, ...) {
+void buffer_replace_fmt(T...)(ref StrBuffer buf, cstring search, cstring fmt, T args) {
     if (find(buf.get, search) < 0)
         return;
     char[40] buffer2 = void;
-    string repl = myformat_s_fx(buffer2, fmt, _arguments, _argptr);
+    string repl = myformat_s(buffer2, fmt, args);
     buffer_replace(buf, search, repl);
 }
 
-import tsearch = tango.text.Search;
-
 //replace "search" by "replace" in buf
-void buffer_replace(ref StrBuffer buf, string search, string replace) {
+void buffer_replace(ref StrBuffer buf, cstring search, cstring replace) {
     if (find(buf.get, search) < 0)
         return;
     char[40] buffer2 = void;
-    auto buf2 = StrBuffer(buffer2);
-    auto match = tsearch.find(search);
-    foreach (token; match.tokens(buf.get, replace))
-        buf2.sink(token);
+    auto dest = StrBuffer(buffer2);
+    auto rest = buf.get();
+    while (rest.length) {
+        auto pos = pstr.indexOf(rest, search);
+        if (pos < 0) {
+            dest.sink(rest);
+            break;
+        }
+        dest.sink(rest[0 .. pos]); //string before search term
+        rest = rest[pos + search.length .. $]; //string after search term
+        dest.sink(replace); //replace search term
+    }
     buf.reset();
-    buf.sink(buf2.get);
+    buf.sink(dest.get);
 }
-+/
+
+unittest {
+    char[6] buffer;
+    StrBuffer x = StrBuffer(buffer);
+    x.sink("hurr durr murrr");
+    buffer_replace(x, "ur", "dumb");
+    assert(x.get() == "hdumbr ddumbr mdumbrr");
+    x.reset();
+    x.sink("hum");
+    buffer_replace(x, "um", "bla");
+    assert(x.get() == "hbla");
+}

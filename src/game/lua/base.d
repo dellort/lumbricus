@@ -15,6 +15,7 @@ import utils.rect2;
 import utils.time;
 import utils.timesource;
 import utils.vector2;
+import utils.strparser;
 
 import str = utils.string;
 
@@ -28,11 +29,12 @@ debug {
 LuaRegistry gScripting;
 
 //sigh..
-private Time timeParse(string s) {
+private Time timeParse(cstring s) {
     try {
         return Time.fromString(s);
     } catch (ConversionException e) {
         throwError("%s", e);
+        assert(false);
     }
 }
 

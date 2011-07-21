@@ -3,7 +3,7 @@ module game.effects;
 
 import common.scene;
 import framework.drawing;
-import game.temp : GameZOrder;
+import game.temp;
 import utils.interpolate;
 import utils.time;
 

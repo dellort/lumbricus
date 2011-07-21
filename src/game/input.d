@@ -15,26 +15,26 @@ cstring[2] parseCommand(cstring cmd) {
 class Input {
     //client_id: identifier for sender (e.g. in network case)
     //args: command arguments (without name)
-    alias bool delegate(string client_id, string args) Endpoint;
+    alias bool delegate(cstring client_id, cstring args) Endpoint;
 
     //client_id: see Endpoint
     //name: command name (without arguments)
     //xxx: don't know if I'll keep this (it made the code simpler for now)
     //  another possibility is to kill class Input and replace it by a delegate
-    abstract Endpoint findCommand(string client_id, string name);
+    abstract Endpoint findCommand(cstring client_id, cstring name);
 
     //-- helpers ("frontend" stuff for the user)
 
     //a client with client_id checks if the keybinding in cmd could be executed
     //  if it were sent to execCommand()
-    final bool checkCommand(string client_id, string cmd) {
+    final bool checkCommand(cstring client_id, cstring cmd) {
         auto pcmd = parseCommand(cmd);
         return !!findCommand(client_id, pcmd[0]);
     }
 
     //execute a command; if the command has parameters, the parameters are
     //  considered to start after the first space character
-    final bool execCommand(string client_id, string cmd) {
+    final bool execCommand(cstring client_id, cstring cmd) {
         auto pcmd = parseCommand(cmd);
         auto endp = findCommand(client_id, pcmd[0]);
         if (!endp)
@@ -45,17 +45,17 @@ class Input {
 
 //redirect input to a specific other Input instance based on client_id
 class InputProxy : Input {
-    Input delegate(string) onDispatch;
+    Input delegate(cstring) onDispatch;
 
-    this(scope Input delegate(string) a_onDispatch) {
+    this(scope Input delegate(cstring) a_onDispatch) {
         onDispatch = a_onDispatch;
     }
 
-    Input getDispatcher(string client_id) {
+    Input getDispatcher(cstring client_id) {
         return onDispatch ? onDispatch(client_id) : null;
     }
 
-    override Endpoint findCommand(string client_id, string name) {
+    override Endpoint findCommand(cstring client_id, cstring name) {
         if (auto inp = getDispatcher(client_id))
             return inp.findCommand(client_id, name);
         return null;
@@ -76,7 +76,7 @@ class InputGroup : Input {
             //identifies this entry in the key bindings map
             //it is assumed it contains no spaces (see execCommand())
             string name;
-            bool delegate(string client_id, string params) callback;
+            Input.Endpoint callback;
         }
     }
 
@@ -86,7 +86,7 @@ class InputGroup : Input {
 
     //cb: takes client_id and the command's parameters
     //(as frontend function the least common case; only needed for cheats, urgh)
-    void add(string name, bool delegate(string, string) cb) {
+    void add(string name, Input.Endpoint cb) {
         argcheck(name.length > 0);
         argcheck(!!cb);
         foreach (ref c; mCommands) {
@@ -102,10 +102,10 @@ class InputGroup : Input {
     //cb: takes the command's parameters, and returns whether the command has
     //  been accepted (if not, other InputGroups that may contain the same
     //  command will be tried)
-    void add(string name, bool delegate(string) cb) {
+    void add(string name, bool delegate(cstring) cb) {
         struct Closure {
-            bool delegate(string) cb;
-            bool call(string client_id, string params) { return cb(params); }
+            bool delegate(cstring) cb;
+            bool call(cstring client_id, cstring params) { return cb(params); }
         }
         auto c = new Closure;
         c.cb = cb;
@@ -116,7 +116,7 @@ class InputGroup : Input {
     void add(string name, bool delegate() cb) {
         struct Closure {
             bool delegate() cb;
-            bool call(string client_id, string params) { return cb(); }
+            bool call(cstring client_id, cstring params) { return cb(); }
         }
         auto c = new Closure;
         c.cb = cb;
@@ -128,7 +128,7 @@ class InputGroup : Input {
     void addT(T...)(string name, bool delegate(T) cb) {
         struct Closure {
             bool delegate(T) cb;
-            bool call(string client_id, string params) {
+            bool call(cstring client_id, cstring params) {
                 return cb(parseParams!(T)(params).expand);
             }
         }
@@ -147,11 +147,11 @@ class InputGroup : Input {
     //void removeSub(Input sub) {
     //}
 
-    private bool checkAccess(string client_id) {
+    private bool checkAccess(cstring client_id) {
         return enabled;
     }
 
-    override Endpoint findCommand(string client_id, string name) {
+    override Endpoint findCommand(cstring client_id, cstring name) {
         if (!checkAccess(client_id))
             return null;
 
@@ -172,11 +172,14 @@ class InputGroup : Input {
 //convenience function for parameter parsing
 //returns true on success or false on failure
 //doesn't change "result" if it fails
-bool parseParamsMaybe(T...)(string s, ref Tuple!(T) result) {
+bool parseParamsMaybe(T...)(cstring s, ref Tuple!(T) result) {
     try {
         Tuple!(T) ret;
         foreach (uint idx, x; ret.fields) {
-            static if (is(typeof(x) == string)) {
+            //don't use string, use cstring and then idup the result if you need
+            static if (is(typeof(x) == string))
+                static assert(false, "nope.");
+            static if (is(typeof(x) == cstring)) {
                 if (idx + 1 == T.length) {
                     //last type is a string => include everything, including
                     //  whitespace
@@ -199,7 +202,7 @@ bool parseParamsMaybe(T...)(string s, ref Tuple!(T) result) {
 }
 
 //don't-care-if-error version of parseParams()
-Tuple!(T) parseParams(T...)(string s) {
+Tuple!(T) parseParams(T...)(cstring s) {
     Tuple!(T) res;
     parseParamsMaybe!(T)(s, res);
     return res;
@@ -221,7 +224,7 @@ struct MoveStateXY {
         return keyState_rd - keyState_lu;
     }
 
-    bool handleKeys(string key, bool down) {
+    bool handleKeys(cstring key, bool down) {
         int v = down ? 1 : 0;
         switch (key) {
             case "left":
@@ -245,8 +248,8 @@ struct MoveStateXY {
         return true;
     }
 
-    bool handleCommand(string args) {
-        auto p = parseParams!(string, bool)(args);
+    bool handleCommand(cstring args) {
+        auto p = parseParams!(cstring, bool)(args);
         return handleKeys(p.expand);
     }
 

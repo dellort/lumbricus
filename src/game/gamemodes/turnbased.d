@@ -144,7 +144,7 @@ class ModeTurnbased : Gamemode {
 
     //lol, just like before
     private TurnState doState() {
-        switch (mCurrentTurnState) {
+        final switch (mCurrentTurnState) {
             case TurnState.prepare:
                 mPrepareSt.prepareRemaining = waitRemain(config.hotseattime, 1,
                     false);
@@ -316,7 +316,7 @@ class ModeTurnbased : Gamemode {
         mTimeSt.showGameTime = mTimeSt.showTurnTime =
             ((st == TurnState.prepare || st == TurnState.playing
                 || st == TurnState.inTurnCleanup));
-        switch (st) {
+        final switch (st) {
             case TurnState.prepare:
                 modeTime.paused = true;
                 mTimeSt.turnRemaining = config.turntime;

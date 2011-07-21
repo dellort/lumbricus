@@ -72,9 +72,9 @@ RawAnimation[] readBnkFile(Stream st) {
         foreach (hframe; frameHdr[hanim.startFrameNr..hanim.startFrameNr+hanim.frameCount]) {
             if (hframe.chunkNr > curChunkIdx) {
                 curChunkIdx = hframe.chunkNr;
-                uint len;
+                size_t len;
                 if (curChunkIdx >= chunkHdr.length-1) {
-                    len = dataLen - st.position;
+                    len = cast(size_t)(dataLen - st.position);
                 } else {
                     len = chunkHdr[curChunkIdx+1].startOffset - chunkHdr[curChunkIdx].startOffset;
                 }
@@ -100,7 +100,7 @@ RawAnimation[] readBnkFile(Stream st) {
     return alist;
 }
 
-void readBnk(Stream st, char[] outputDir, char[] fnBase) {
+void readBnk(Stream st, string outputDir, string fnBase) {
     scope alist = readBnkFile(st);
     writefln("");
     writefln("Saving\r");

@@ -4,7 +4,7 @@ import framework.drawing;
 import game.core;
 import game.events;
 import game.sequence;
-import game.temp : GameZOrder;
+import game.temp;
 import game.particles;
 import net.marshal; // : Hasher;
 import physics.all;

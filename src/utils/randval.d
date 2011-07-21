@@ -60,7 +60,7 @@ struct RandomValue(T) {
 
     ///initialize from string like "<min><cRandValSeparator><max>"
     //may throw ConversionException
-    static RandomValue fromString(string s) {
+    static RandomValue fromString(cstring s) {
         int i = str.find(s, cRandValSeparator);
         //not found -> fallback
         if (i < 0)

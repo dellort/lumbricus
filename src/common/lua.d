@@ -106,7 +106,7 @@ class LuaInterpreter {
 
     //cursor1..cursor2: indices into line for cursor position + selection
     //parameters are similar to TabCompletionDelegate in GuiConsole
-    CompletionResult autocomplete(string line, int cursor1, int cursor2) {
+    CompletionResult autocomplete(cstring line, int cursor1, int cursor2) {
         try {
             return mLua.scriptExecR!(CompletionResult)
                 ("return ConsoleUtils.autocomplete(...)", line, cursor1, cursor2);
@@ -129,8 +129,8 @@ class LuaInterpreter {
     }
 
     //what this function does and its parameters see GuiConsole.setTabCompletion
-    void tabcomplete(string line, int cursor1, int cursor2,
-        scope void delegate(int, int, string) edit)
+    void tabcomplete(cstring line, int cursor1, int cursor2,
+        scope void delegate(int, int, cstring) edit)
     {
         auto res = autocomplete(line, cursor1 + 1, cursor2 + 1);
         if (res.matches.length == 0)

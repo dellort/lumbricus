@@ -137,7 +137,7 @@ class WeaponSelWindow : Container {
     //also hack-liek
     //checks if "key" is a shortcut, and if so, cycle the weapon
     //c is the currently selected weapon
-    bool checkNextWeaponInCategoryShortcut(string category, WeaponClass c) {
+    bool checkNextWeaponInCategoryShortcut(cstring category, WeaponClass c) {
         auto parr = category in mRows;
         if (!parr)
             return false;
@@ -173,7 +173,7 @@ class WeaponSelWindow : Container {
         updateWeaponInfoline();
     }
 
-    private string translateWeapon(string id) {
+    private string translateWeapon(cstring id) {
         auto tr = mWeaponTranslate(id);
         auto count = mWeaponPostfixes.length;
         if (count == 0)

@@ -12,6 +12,8 @@ import utils.vector2;
 import utils.misc;
 import utils.interpolate;
 
+import game.worm; //for JumpMode
+import std.math;
 
 //draws the arrow mouse cursor, and updates FireInfo with the selected direction
 class AirstrikeControl : WeaponSelector, Controllable {

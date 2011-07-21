@@ -19,7 +19,7 @@ import game.input;
 import game.sequence;
 import game.sky;
 import game.teamtheme;
-import game.temp : GameZOrder;
+import game.temp;
 import game.controller;
 import game.hud.camera;
 import game.weapon.weapon;
@@ -50,7 +50,9 @@ import utils.interpolate;
 
 import str = utils.string;
 
-import utils.random : rngShared;
+import utils.random;
+
+import std.math;
 
 enum Time cArrowDelta = timeSecs(5);
 //time and length (in pixels) the health damage indicator will move upwards
@@ -445,7 +447,7 @@ class GameView : Widget {
     void delegate() onKeyHelp;
     void delegate() onToggleWeaponWindow, onToggleScroll;
     void delegate() onToggleChat, onToggleScript;
-    void delegate(string category) onSelectCategory;
+    void delegate(cstring category) onSelectCategory;
     bool canUseMouse;
 
     //what a stupid type name
@@ -662,24 +664,24 @@ class GameView : Widget {
     //  shortcut input went to the game; otherwise the key shortcuts for
     //  teamlabels ("delete") would be globally catched, and you couldn't use
     //  them e.g. in a text edit field
-    private bool inpCmd(string cmd) {
+    private bool inpCmd(cstring cmd) {
         executeGlobalCommand(cmd);
         return true;
     }
 
-    private bool inpCategory(string catname) {
+    private bool inpCategory(cstring catname) {
         if (onSelectCategory)
             onSelectCategory(catname);
         return true;
     }
 
-    private bool inpZoom(string cmd) {
+    private bool inpZoom(cstring cmd) {
         bool isDown = tryFromStrDef(cmd, false);
         mZoomChange = isDown?-1:1;
         return true;
     }
 
-    private bool inpCameraDisable(string cmd) {
+    private bool inpCameraDisable(cstring cmd) {
         enableCamera = !tryFromStrDef(cmd, enableCamera);
         //gLog.warn("set camera enable: %s", enableCamera);
         return true;
@@ -749,7 +751,7 @@ class GameView : Widget {
         return table;
     }
 
-    private bool inpMoveCamera(string cmd) {
+    private bool inpMoveCamera(cstring cmd) {
         mCameraMovement.handleCommand(cmd);
         mCamera.setAutoScroll(mCameraMovement.direction);
         return true;
@@ -774,7 +776,7 @@ class GameView : Widget {
 
     //find a WeaponClass of the weapon named "name" in the current team's
     //weapon-set (or return null)
-    private WeaponClass findWeapon(string name) {
+    private WeaponClass findWeapon(cstring name) {
         return mGame.engine.resources.get!(WeaponClass)(name, true);
     }
 
@@ -825,7 +827,7 @@ class GameView : Widget {
 
     private bool doKeyEvent(KeyInfo ki) {
         BindKey key = BindKey.FromKeyInfo(ki);
-        string bind = bindings.findBinding(key);
+        cstring bind = bindings.findBinding(key);
 
         //xxx is there a reason not to use the command directly?
         if (auto pcmd = bind in mKeybindToCommand) {
@@ -850,7 +852,7 @@ class GameView : Widget {
     //  %mx, %my -> mouse position
     //also, will not trigger an up event for commands without %d param
     //buffer can be memory of any size that will be used to reduce heap allocs
-    private string processBinding(string bind, KeyInfo ki, string buffer = null)
+    private char[] processBinding(cstring bind, KeyInfo ki, char[] buffer = null)
     {
         bool isUp = !ki.isDown;
         //no up/down parameter, and key was released -> no event
@@ -864,7 +866,7 @@ class GameView : Widget {
         return txt.get;
     }
 
-    private bool doInput(string s) {
+    private bool doInput(cstring s) {
         if (!s.length)
             return false;
 

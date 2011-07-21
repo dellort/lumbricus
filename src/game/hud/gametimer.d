@@ -123,7 +123,7 @@ class GameTimer : BoxContainer {
 
     private void setGameTime(Time tRemain) {
         Time gt = tRemain - timeMsecs(1);
-        int gt_sec = gt > Time.Null ? gt.secs+1 : 0;
+        auto gt_sec = gt > Time.Null ? gt.secs+1 : 0;
         mGameTime.setTextFmt(false, "%02d:%02d", gt_sec / 60, gt_sec % 60);
     }
 

@@ -98,7 +98,7 @@ class Fader : Widget {
             swap(mStartCol, mEndCol);
         mColor = mStartCol;
         mFadeStartTime = timeCurrentTime;
-        mFadeDur = fadeTime.msecs;
+        mFadeDur = cast(int)fadeTime.msecs;
     }
 
     override void onDraw(Canvas c) {
@@ -107,7 +107,7 @@ class Fader : Widget {
 
     override void simulate() {
         super.simulate();
-        int mstime = (timeCurrentTime - mFadeStartTime).msecs;
+        auto mstime = (timeCurrentTime - mFadeStartTime).msecs;
         if (mstime > mFadeDur) {
             //end of fade
             done = true;
@@ -435,7 +435,7 @@ class GameTask : IKillable {
         auto log = new LogWindow();
         log.formatted = true;
         foreach (LogEntry e; logentries) {
-            writeColoredLogEntry(e, true, &log.writefln);
+            writeColoredLogEntry(&log.writeString, e, true);
         }
         //probably add some buttons such as "ok"?
         auto dialog = new SimpleContainer();

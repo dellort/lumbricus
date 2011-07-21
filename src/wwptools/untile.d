@@ -5,8 +5,8 @@ import utils.stream;
 import utils.misc;
 import utils.vector2;
 
-char[][] readNamefile(Stream f) {
-    return str.splitlines(cast(char[])f.readAll());
+string[] readNamefile(Stream f) {
+    return str.splitlines(cast(string)f.readAll());
 }
 
 Surface[] untileImages(Surface img) {

@@ -21,11 +21,11 @@ import utils.misc;
 import utils.time;
 import utils.vector2;
 
-import game.temp : GameZOrder;
+import game.temp;
 
 //make available for other modules
 //renamed imports being public is actually a dmd bug
-public import game.worm : JumpMode;
+import game.worm;
 
 //for GUI, to give the user some feedback when the keypress did nothing
 //xxx I would love to use TeamMember as sender, but that would get messy
@@ -125,7 +125,7 @@ class WormControl : WeaponController {
     }
 
     //return null on failure
-    private WeaponClass findWeapon(string name) {
+    private WeaponClass findWeapon(cstring name) {
         return engine.resources.get!(WeaponClass)(name, true);
     }
 
@@ -134,14 +134,14 @@ class WormControl : WeaponController {
         return true;
     }
 
-    private bool inpMove(string cmd) {
+    private bool inpMove(cstring cmd) {
         mInputMoveState.handleCommand(cmd);
         engine.log.trace("move state for %#x: %s", toHash, mInputMoveState);
         move(toVector2f(mInputMoveState.direction));
         return true;
     }
 
-    private bool inpWeapon(string weapon) {
+    private bool inpWeapon(cstring weapon) {
         WeaponClass wc;
         if (weapon != "-")
             wc = findWeapon(weapon);
@@ -162,13 +162,13 @@ class WormControl : WeaponController {
         return true;
     }
 
-    private bool inpSelRefire(string m, bool down) {
+    private bool inpSelRefire(cstring m, bool down) {
         WeaponClass wc = findWeapon(m);
         selectFireRefire(wc, down, false);
         return true;
     }
 
-    private bool inpSelFire(string m, bool down) {
+    private bool inpSelFire(cstring m, bool down) {
         WeaponClass wc = findWeapon(m);
         selectFireRefire(wc, down, true);
         return true;
@@ -808,7 +808,22 @@ class WormControl : WeaponController {
             transferMove = true;
         }
         //c does not have to be at the top of mControlStack
+
+        /+ xxx dmd is too fucking stupid to handle this, fuck you dmd
+           Error: function object.opEquals (Object lhs, Object rhs) is not callable using argument types (Controllable,Controllable)
         arrayRemove(mControlStack, c);
+        +/
+        //manual implementation instead
+        int found = -1;
+        for (size_t n = 0; n < mControlStack.length; n++) {
+            if (mControlStack[n] is c) {
+                found = cast(int)n;
+                break;
+            }
+        }
+        if (found >= 0)
+            arrayRemoveN(mControlStack, found);
+
         if (transferMove) {
             controllableMove(mMoveVector);
         }

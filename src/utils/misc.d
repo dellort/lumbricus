@@ -196,6 +196,47 @@ string myformat(T...)(cstring fmt, T args) {
     return pstr.format(fmt, args);
 }
 
+//make it simpler to append to a string without memory allocation
+//StrBuffer.sink() will append a string using the provided memory buffer
+//if the memory buffer is too short, it falls back to heap allocation
+struct StrBuffer {
+    char[] buffer;  //static buffer passed by user
+    char[] output;  //append buffer (may be larger than actual string)
+    size_t outpos;  //output[0..outpos] is actual (valid) string
+
+    static StrBuffer opCall(char[] buffer) {
+        StrBuffer s;
+        s.buffer = buffer;
+        s.output = s.buffer;
+        return s;
+    }
+
+    void sink(cstring append) {
+        auto end = outpos + append.length;
+        if (end > buffer.length) {
+            //(force reallocation, never resize buffer's memory block)
+            if (output.ptr == buffer.ptr)
+                output = buffer.dup;
+            output = output[0..outpos];
+            output ~= append;
+        } else {
+            output[outpos..end] = append;
+        }
+        outpos = end;
+    }
+
+    //retrieve actual string
+    char[] get() {
+        return output[0..outpos];
+    }
+
+    //reuse the buffer by setting outpos to 0
+    //the previous result of get() will get invalid
+    void reset() {
+        outpos = 0;
+    }
+}
+
 //like myformat(), but use the buffer
 //if the buffer is too small, allocate a new one
 string myformat_s(T...)(char[] buffer, cstring fmt, T args) {
@@ -397,11 +438,11 @@ const(string[]) structMemberNames(T)() {
 }
 
 debug {
-    enum E { x }
+    enum Esdf { x }
 
     struct N(T, string S) {
         T abc;
-        E defg;
+        Esdf defg;
     }
 
     //brackets in the template parameter string would break it

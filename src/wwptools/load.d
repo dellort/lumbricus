@@ -38,7 +38,7 @@ Setting gWwpDataPath;
 static this() {
     gResLoadHacks["wwp"] = toDelegate(&loadWwp);
     gWaterLoadHack["wwp"] = toDelegate(&loadWwpWater);
-    gWwpDataPath = addSetting!(char[])("game.wwp_data_path");
+    gWwpDataPath = addSetting!(string)("game.wwp_data_path");
 }
 
 MountId gLastWWpMount;
@@ -48,7 +48,7 @@ enum string cWwpVfsPath = "/WWP-import/";
 private LogStruct!("wwp_loader") gLog;
 
 private void mountWwp() {
-    char[] path = gWwpDataPath.value;
+    string path = gWwpDataPath.value;
     if (!path.length)
         throwError("%s not set, can't load data", gWwpDataPath.name);
 
@@ -66,7 +66,7 @@ private void mountWwp() {
     gLastWWpMount = gFS.mount(MountPath.absolute, path, cWwpVfsPath, false);
 }
 
-private Dir openDir(char[] dpath) {
+private Dir openDir(string dpath) {
     return new Dir(gFS.open(dpath));
 }
 
@@ -87,8 +87,8 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
 
     //sounds
     auto sndinfo = importsound.getSubNode("sounds").getSubNode("normal");
-    char[] sndpath = cWwpVfsPath ~ sndinfo["source_path"] ~ "/";
-    foreach (char[] name, char[] value; sndinfo.getSubNode("files")) {
+    string sndpath = cWwpVfsPath ~ sndinfo["source_path"] ~ "/";
+    foreach (string name, string value; sndinfo.getSubNode("files")) {
         auto fn = sndpath ~ value;
         auto res = new SampleResource(resfile, name, SoundType.sfx, fn);
         resfile.addResource(res);
@@ -100,7 +100,7 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
     applyAlphaMask(iconlo, icMask);
     Stream names = gFS.open("import_wwp/iconnames.txt");
     scope(exit) names.close();
-    char[][] inames = readNamefile(names);
+    string[] inames = readNamefile(names);
     Surface[] imgs = untileImages(iconlo);
     foreach (int idx, img; imgs) {
         require(indexValid(inames, idx), "error in namefile");
@@ -111,11 +111,11 @@ void loadWwp(ConfigNode node, ResourceFile resfile) {
 }
 
 //code for reading colors from wwp colours.txt
-private Color readWaterFile(char[] vpath) {
+private Color readWaterFile(string vpath) {
     auto file = gFS.open(vpath);
     scope(exit) file.close();
     //xxx missing invalid-utf-8 sanity check
-    auto contents = cast(char[])file.readAll();
+    auto contents = cast(string)file.readAll();
 
     //colour.txt contains the water background color as RGB
     //  ex.: 47 55 123 for a blue color
@@ -124,11 +124,11 @@ private Color readWaterFile(char[] vpath) {
     auto cols = str.split(lines[0]);
     require(cols.length == 3, "colour.txt doesn't contain 3 colors?");
     //xxx ignoring "fatal" conversion exception
-    auto colRGB = fromStr!(ubyte[])(cols);
-    return Color.fromBytes(colRGB[0], colRGB[1], colRGB[2]);
+    return Color.fromBytes(fromStr!(ubyte)(cols[0]), fromStr!(ubyte)(cols[1]),
+        fromStr!(ubyte)(cols[2]));
 }
 
-private void importWater(ResourceFile resfile, char[] vpath) {
+private void importWater(ResourceFile resfile, string vpath) {
     ConfigNode importconf = loadConfig("import_wwp/animations.conf");
 
     Dir waterdir = openDir(vpath ~ "Water.dir");
@@ -145,15 +145,15 @@ private void importWater(ResourceFile resfile, char[] vpath) {
 LoadedWater loadWwpWater(ConfigNode info) {
     mountWwp();
 
-    char[] color = info.value;
+    string color = info.value;
 
     //attempt to find the waterset directory with the correct case
     //e.g. if color=="blue2", find the directory "Blue2"
     //maybe gFS should have an case-insensitive mode for WWP mounted data (as
     //  WWP is a Windows game, where paths are always case-insensitive, damn you
     //  Microsoft); but sorry, I'd rather not hack filesystem.d
-    char[] pathprefix = cWwpVfsPath ~ "data/Water/";
-    gFS.listdir(pathprefix, "*", true, (char[] fn) {
+    string pathprefix = cWwpVfsPath ~ "data/Water/";
+    gFS.listdir(pathprefix, "*", true, (string fn) {
         str.eatEnd(fn, "/");  //for some reason, directories have trailing '/'
         if (str.icmp(fn, color) == 0) {
             color = fn;
@@ -161,7 +161,7 @@ LoadedWater loadWwpWater(ConfigNode info) {
         }
         return true;
     });
-    char[] vpath = pathprefix ~ color ~ "/";
+    string vpath = pathprefix ~ color ~ "/";
 
     //awful hack; just wanted it to get done (we really should rewrite
     //  resource.d instead of attempting to make this code here "cleaner")
@@ -198,7 +198,7 @@ void doImportAnis(ResourceFile dest, RawAnimation[] rawanis,
         auto a = new ImportedWWPAnimation(e);
         dest.addPseudoResource(e.name, a);
     }
-    foreach (char[] name, Surface bmp; anims.bitmaps) {
+    foreach (string name, Surface bmp; anims.bitmaps) {
         dest.addPseudoResource(name, bmp);
     }
     int[] unused;

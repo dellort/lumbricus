@@ -10,7 +10,7 @@ import utils.list2;
 
 //if you need to check a normal when there's almost no collision (i.e. when worm
 //  is sitting on ground), add this value to the radius
-final float cNormalCheck = 5;
+enum float cNormalCheck = 5;
 
 //base type for physic objects (which are contained in a PhysicWorld)
 class PhysicBase {

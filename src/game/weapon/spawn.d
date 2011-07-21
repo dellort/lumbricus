@@ -7,6 +7,7 @@ import utils.vector2;
 import utils.random;
 import utils.randval;
 import utils.misc;
+import std.math;
 
 /+
 stuff that needs to be done:

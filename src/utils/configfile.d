@@ -10,8 +10,7 @@ import utils.misc;
 //only for byte[]
 import utils.gzip;
 
-import utils.strparser : stringToType, fromStr, toStr,
-                         fromStrSupports, toStrSupports, ConversionException;
+import utils.strparser;
 import std.traits;
 
 //replacement for the buggy functions in std.ctype

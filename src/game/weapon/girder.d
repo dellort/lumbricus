@@ -13,7 +13,10 @@ import utils.time;
 import utils.vector2;
 import utils.misc;
 
+import game.worm; //for JumpMode
+
 import mymath = utils.math;
+import std.math;
 
 float girder_rotation(int n, int steps) {
     //start horizontal, 22.5° steps, no upside-down

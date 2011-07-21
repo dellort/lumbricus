@@ -1,6 +1,7 @@
 module utils.gzip;
 
 import utils.stream;
+import utils.misc;
 
 import czlib = etc.c.zlib;
 import std.md5;
@@ -246,6 +247,13 @@ class Digest {
     abstract void update(void[] input);
     abstract uint digestSize();
     abstract ubyte[] binaryDigest(ubyte[] buf = null);
+    string hexDigest() {
+        string res;
+        foreach (ubyte u; binaryDigest()) {
+            res ~= myformat("%02x", u);
+        }
+        return res;
+    }
 }
 
 final class ZLibCrc32 : Digest {

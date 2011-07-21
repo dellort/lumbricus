@@ -4,7 +4,7 @@ import framework.drawing;
 import game.core;
 import game.game;
 import game.gfxset;
-import game.temp : GameZOrder;
+import game.temp;
 import game.particles;
 import common.animation;
 import common.scene;

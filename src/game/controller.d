@@ -26,6 +26,8 @@ import utils.misc;
 import utils.array;
 import utils.queue;
 
+import std.math;
+
 //time for which it takes to add/remove 1 health point in the animation
 enum Time cTimePerHealthTick = timeMsecs(4);
 
@@ -560,7 +562,7 @@ class TeamMember : Actor {
         //if you have an event, which shall occur all duration times, return the
         //number of events which fit in t and return the rest time in t (divmod)
         static int removeNTimes(ref Time t, Time duration) {
-            int r = t/duration;
+            int r = cast(int)(t/duration);
             t -= duration*r;
             return r;
         }
@@ -775,15 +777,14 @@ class GameController : GameObject2 {
             }
         }
 
-        auto p = &log.trace;
-        p("access map:");
+        log.trace("access map:");
         foreach (string[2] a; mAccessMap) {
-            p("  '%s' -> '%s'", a[0], a[1]);
+            log.trace("  '%s' -> '%s'", a[0], a[1]);
         }
-        p("access map end.");
+        log.trace("access map end.");
     }
 
-    bool checkAccess(string client_id, Team team) {
+    bool checkAccess(cstring client_id, Team team) {
         //single player, no network
         if (client_id == "local")
             return true;
@@ -795,7 +796,7 @@ class GameController : GameObject2 {
         return false;
     }
 
-    private Team getInputTeam(string client_id) {
+    private Team getInputTeam(cstring client_id) {
         foreach (Team t; teams) {
             if (t.active) {
                 if (checkAccess(client_id, t))
@@ -809,14 +810,14 @@ class GameController : GameObject2 {
     //in network & realtime mode, multiple teams can be active, and the
     //  client_id helps delivering a client's input to the right team
     //this is also needed for cheat-prevention (client_id is verified)
-    private Input getTeamInput(string client_id) {
+    private Input getTeamInput(cstring client_id) {
         //hurrr
         if (auto team = getInputTeam(client_id))
             return team.mInput;
         return null;
     }
 
-    private bool inpExec(string client_id, string cmd) {
+    private bool inpExec(cstring client_id, cstring cmd) {
         //security? security is for idiots!
         //(all scripts are already supposed to be sandboxed; still this enables
         //  anyone who is connected to do anything to the game)
@@ -834,7 +835,7 @@ class GameController : GameObject2 {
     //there's remove_control somewhere in cmdclient.d, and apparently this is
     //  called when a client disconnects; the teams owned by that client
     //  surrender
-    private bool inpRemoveControl(string client_id, string cmd) {
+    private bool inpRemoveControl(cstring client_id, cstring cmd) {
         //quite ugly: the team doesn't have to be active when the player leaves
         foreach (Team t; teams) {
             if (checkAccess(client_id, t)) {

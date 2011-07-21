@@ -47,6 +47,8 @@ import utils.output;
 import utils.vector2;
 import utils.log;
 
+import strparser = utils.strparser;
+
 //remove it if you hate it
 import game.gui.levelpaint;
 
@@ -63,7 +65,7 @@ static this() {
 class GameLuaInterpreter : LuaInterpreter {
     private GameInfo mGame;
 
-    this(void delegate(string) a_sink, GameInfo game) {
+    this(void delegate(cstring) a_sink, GameInfo game) {
         super(a_sink, game.engine.scripting, true);
         mGame = game;
     }
@@ -131,7 +133,7 @@ class GameFrame : SimpleContainer {
         game.control.execCommand("weapon "~c.name);
     }
 
-    private void selectCategory(string category) {
+    private void selectCategory(cstring category) {
         auto m = game.control.getControlledMember();
         mWeaponSel.checkNextWeaponInCategoryShortcut(category,
             m?m.control.currentWeapon():null);
@@ -398,7 +400,7 @@ class GameFrame : SimpleContainer {
         string color = "white";
         //hacky hack hack
         foreach (team; game.engine.singleton!(GameController)().teams) {
-            uint ownerId = to!(uint)(team.netId);
+            uint ownerId = strparser.fromStr!(uint)(team.netId);
             if (ownerId == player.id) {
                 color = team.theme.color.toString();
             }

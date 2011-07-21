@@ -9,6 +9,8 @@ import common.gui_init;
 import toplevel = common.toplevel;
 import utils.misc;
 
+import std.stdio;
+
 version = Game;
 //version = Net;
 
@@ -51,7 +53,12 @@ void lmain(string[] args) {
 
     version (Game) {
         if (is_server) {
-            runCmdServer();
+            version (Net) {
+                runCmdServer();
+            } else {
+                writefln("networking not compiled in");
+                exit(1);
+            }
             return;
         }
     }
