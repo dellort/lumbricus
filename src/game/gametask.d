@@ -12,6 +12,7 @@ import framework.drawing;
 import framework.filesystem;
 import framework.font;
 import framework.i18n;
+import framework.main;
 import framework.surface;
 import utils.timesource;
 import framework.lua;
@@ -57,6 +58,8 @@ import utils.path;
 import utils.perf;
 import utils.archive;
 import str = utils.string;
+
+import core.memory;
 
 //import game.serialize_register : initGameSerialization;
 
@@ -279,6 +282,9 @@ class GameTask : IKillable {
         //kill remains?
         killGame();
 
+        //may help a bit getting rid of unused cached crap
+        gFramework.releaseCaches(false);
+
         //prepare loading - set up logger so we can show that to the user if
         //  loading fails
         assert(!mLoadLog);
@@ -420,7 +426,7 @@ class GameTask : IKillable {
         //this helps a small little bit to reduce heap growth, and also defers
         //  the first collection to a later point in the game, giving the user
         //  the impression that using a GC in a game is a good idea - INGENIOUS!
-        //XXXTANGO memory.GC.collect();
+        GC.collect();
     }
 
     private void loadingFailed() {

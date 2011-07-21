@@ -2,7 +2,7 @@
 
 -- crude test: spawn the game over and over, and look at memory use at the end
 function testgc(count)
-    spawn("stats")
+    --spawn("stats")
     count = count or 10
     cospawn(function()
         for y = 1, count do
@@ -17,5 +17,5 @@ function testgc(count)
         end
     end)
 end
-
+print("hi")
 --testgc()
