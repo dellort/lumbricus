@@ -28,9 +28,11 @@ Missing:
 - simple way to compile/install
 - active development
 
-The code is written in the D Programming Language version 1.x, see:
-http://www.digitalmars.com/d/1.0/
-Because of this the code is very hard to compile.
+The code is written in the D Programming Language version 2.x, see:
+  http://www.d-programming-language.org
+
+This project is kind of dead. There are better/popular/more active projects too,
+and Worms(tm) is being published in new versions. Nothing to see here. Go away.
 
 ---- Free unused space ----
 
