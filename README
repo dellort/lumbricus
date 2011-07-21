@@ -1,0 +1,156 @@
+This is Lumbricus Terrestris. There's also a no info on our project page:
+    https://github.com/dellort/lumbricus
+
+Clone of the popular 2D game "Worms World Party" (© Team17). Main focus (in
+contrast to similar projects) is staying as close as possible to the original
+game regarding gameplay and visuals while extending it at the right places.
+
+We need free graphics. For now, we rely on the original WWP graphics, or
+alternatively on our horrible programmer art. If you like to draw some worms,
+you could join us.
+
+----  Status ----
+
+Sorry, it's at a very late alpha/beta state, it is not really ready yet.
+
+Working:
+- it's playable
+- can use original WWP (Worms World Party) graphics
+
+Missing:
+- free graphics (there are only "stub" graphics)
+- and free sounds
+- nicer and more complete user interface
+- network mode that actually works (or just forget about it)
+    (the current one relies on FP determinism, which is not always given; also
+    it may have too large lag when playing over internet. and in general, the
+    determinism requirement makes it fragile as hell.)
+- simple way to compile/install
+- active development
+
+The code is written in the D Programming Language version 1.x, see:
+http://www.digitalmars.com/d/1.0/
+Because of this the code is very hard to compile.
+
+---- Free unused space ----
+
+YOUR AD HERE
+
+---- Version status for tools and libraries ----
+
+D compiler:
+    You need one of those...
+    dmd: v2.054 works
+    ldc: dunno
+    gdc: dunno
+Derelict (D bindings for various C libs):
+    http://svn.dsource.org/projects/derelict/branches/Derelict2
+    svn r572: works
+    needed Derelict components: util, freetype, opengl, sdl, openal
+    NOTE: as of r572, you need to remove this export-dynamic switch from
+          dmd.conf, otherwise it will segfault on program start.
+
+---- D2 conversion info
+
+- originally written in pre-D1 and D1
+- now converted to D2
+- the standard library was changed too (Tango -> Phobos2)
+- it's buggy, ugly, and full of issues
+- still keeping a D1 branch
+- D2 version is bound to have regressions because D2 is changed all the time
+- currently the D2 version probably doesn't build under Windows
+- network mode is not ported to D2
+- due to Phobos2 being from thr 18th century, lumbricus has a giant memory leak
+  that is 100% unfixable (search source code for XXXTANGO)
+- no idea why I converted it to D2, maybe I thought it's better if the code is
+  not in the DEPRECATED ANCIENT version of an EXPERIMENTAL AND SHITTY language,
+  with all development NOT IN D1 BUT IN D2 and where you need to install an
+  ALTERNATIVE STANDARD LIBRARY (holy oxymoron) where even I HAVE TROUBLE
+  COMPILING AND INSTALLING it... so uh, what... is this my blog? who cares,
+  nobody will read this shit anyway.
+
+---- Building it ----
+
+This is can be very hard (depending how much D experience you have).
+Your options:
+- Forget it, give up.
+- Ask us on the lonely plains in irc.freenode.net #lumbricus
+- Send us spam by e-mail. (Addresses are somewhere on
+    https://gna.org/projects/lumbricus/)
+- Try building the debian package (execute dpkg-buildpackage in the trunk/
+    directory) - may be randomly broken, though.
+    The LDC/Tango packages are outdated, all you will get is a world of pain.
+
+
+---- Required libraries ----
+
+Dynamic linked (.dll/.so):
+    - SDL
+    - SDL_image
+    - Freetype
+    - Zlib
+    - OpenGL
+    - Lua 5.1
+    Optional:
+    - ENet (enet.bespin.org)
+    - FMod
+    - OpenAL + SDL_sound (icculus.org/SDL_sound)
+    For Win32, all required .dll files can be found in <svn_root>/downloads/win32_dlls
+Static linked D libraries:
+    - Derelict for the 2 SDL libraries
+    - Tango (comes not with DMD)
+
+
+---- Using the WWP data files ----
+
+General stuff about the WWP data files:
+  Lumbricus can use the original WWP (Worms World Party) data files, by loading
+  them directly. For some optional stuff like WWP level themes, there's a
+  converter, extractdata.
+
+  Both direct loading and conversion require a WWP installation.
+
+  The WWP datafiles just contain lists of compressed images/animations, which
+  are obviously (?) only addressed by their index-number. So we had to create
+  our own description file, which maps the animation index to a name. This is
+  trunk/share/lumbricus/data/import_wwp/animations.conf. If your WWP datafiles
+  are different, using them may fail randomly. The animation numbers in
+  animations.conf may need to be changed.
+
+  It appears Worms Armageddon puts each animation into a named .spr file.
+  Supporting Worms Armageddon data files would require us to map the .spr file-
+  names to the actual animations. No clue about later 2D Worms games.
+
+Using the WWP data:
+  Start lumbricus with these options:
+
+    bin/lumbricus[.exe] --game.wwp_data_path=/path/to/WWP
+
+  (Or hope we will add a more user-friendly way to do it.)
+
+  The /path/to/WWP should point to the directory that contains the wwp.exe.
+  Lumbricus actually only reads some of the files (mostly .dir and .wav).
+
+  Unless the game crashes before saving the WWP path to the user's config
+  directory, you don't need to pass the option anymore later on.
+
+Converting level themes with extractdata:
+  extractdata expects the Worms(TM) directory as arguments, and converts the
+  file to images/conf-files Lumbricus can understand. Call it like this:
+
+   extractdata /path/to/WWP
+
+  Note that this needs some additional data files from
+    trunk/share/lumbricus/data/import_wwp
+  The files are searched in
+    <path_to_extractdata_binary>/../share/lumbricus/data/import_wwp
+  so if you leave your executable in the default output path you should be fine.
+
+  The converted files will be written to
+    <path_to_extractdata_binary>/../share/lumbricus/data2/
+  Make sure that is writeable by extractdata.
+
+Inspecting the WWP data:
+  To inspect the WWP datafiles, you can unpack them with unworms. Compile
+  unworms with "dsss build ../bin/unworms". You can call it on .dir, .bnk, .img
+  and .spr files.
