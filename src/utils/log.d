@@ -359,7 +359,7 @@ void writeColoredLogEntry(scope void delegate(cstring) cb, LogEntry e,
     if (indexValid(cColorString, e.pri))
         c = cColorString[e.pri];
     char[40] buffer;
-    string source;
+    char[] source;
     if (show_source)
         source = myformat_s(buffer, "[%s] ", e.source.category);
     //the \litx prevents tag interpretation in msg

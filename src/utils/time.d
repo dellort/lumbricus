@@ -106,7 +106,7 @@ public struct Time {
     }
 
     //I needed this hack I'm sorry I'm sorry I'm sorry
-    public string toString_s(char[] buffer) const {
+    public cstring toString_s(char[] buffer) const {
         if (this == Never)
             return "<unknown>";
 

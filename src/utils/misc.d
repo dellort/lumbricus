@@ -199,6 +199,7 @@ string myformat(T...)(cstring fmt, T args) {
 //make it simpler to append to a string without memory allocation
 //StrBuffer.sink() will append a string using the provided memory buffer
 //if the memory buffer is too short, it falls back to heap allocation
+//xxx maybe use std.range.Appender
 struct StrBuffer {
     char[] buffer;  //static buffer passed by user
     char[] output;  //append buffer (may be larger than actual string)
@@ -239,9 +240,10 @@ struct StrBuffer {
 
 //like myformat(), but use the buffer
 //if the buffer is too small, allocate a new one
-string myformat_s(T...)(char[] buffer, cstring fmt, T args) {
-    //XXXTANGO avoid heap allocation maybe use std.range.Appender
-    return myformat(fmt, args);
+char[] myformat_s(T...)(char[] buffer, cstring fmt, T args) {
+    auto sb = StrBuffer(buffer);
+    myformat_cb(&sb.sink, fmt, args);
+    return sb.get();
 }
 
 void myformat_cb(T...)(scope void delegate(cstring s) sink, cstring fmt, T args) {

@@ -331,8 +331,13 @@ unittest {
 import utils.misc;
 
 /// number of bytes to a string like "number XX", where XX is "B", "KB" etc.
+string sizeToHuman(long bytes) {
+    char[40] buffer;
+    return cast(string)sizeToHuman(bytes, buffer).idup;
+}
+
 /// buffer = if long enough, use this instead of allocating memory
-string sizeToHuman(long bytes, char[] buffer = null) {
+cstring sizeToHuman(long bytes, char[] buffer) {
     enum string[] cSizes = ["B", "KB", "MB", "GB"];
     int n;
     long x;
@@ -342,7 +347,7 @@ string sizeToHuman(long bytes, char[] buffer = null) {
         n++;
     }
     char[80] buffer2 = void;
-    string s = myformat_s(buffer2, "%.3f", 1.0*bytes/x);
+    char[] s = myformat_s(buffer2, "%.3f", 1.0*bytes/x);
     //strip ugly trailing zeros (replace with a better way if you know one)
     if (find(s, '.') >= 0) {
         while (s[$-1] == '0')
@@ -567,7 +572,7 @@ void buffer_replace_fmt(T...)(ref StrBuffer buf, cstring search, cstring fmt, T 
     if (find(buf.get, search) < 0)
         return;
     char[40] buffer2 = void;
-    string repl = myformat_s(buffer2, fmt, args);
+    char[] repl = myformat_s(buffer2, fmt, args);
     buffer_replace(buf, search, repl);
 }
 
