@@ -7,6 +7,7 @@ import utils.configfile;
 import utils.log;
 import utils.misc;
 import str = utils.string;
+import strparser = utils.strparser;
 
 //NOTE: because normal varargs suck infinitely in D (you have to deal with
 //    _arguments and _argptr), and because it's not simple to convert these
@@ -123,6 +124,51 @@ private void reloadLocaleDir(LocaleDir dir) {
     newNode.mixinNode(node);
 }
 
+//format a string according to a small subset of Tango/C# formatting rules
+//it allows {} and {n} as format specifiers, where n is an integer in [0,N),
+//  where N==args.length. {n} refers the n-th argument.
+private string miniformat(cstring fmt, string[] args) {
+    string res;
+    size_t curarg = 0;
+    while (fmt.length) {
+        auto pos = str.find(fmt, "{");
+        if (pos < 0) {
+            res ~= fmt;
+            break;
+        }
+        res ~= fmt[0 .. pos];
+        fmt = fmt[pos + 1 .. $];
+        auto end = str.find(fmt, "}");
+        if (end < 0) {
+            res ~= "[error: no matching closing '}' in format string]";
+            break;
+        }
+        auto opts = fmt[0 .. end];
+        fmt = fmt[end + 1 .. $];
+        if (opts != "") {
+            if (!strparser.tryFromStr(opts, curarg)) {
+                res ~= "[error: format option not an integer (" ~ opts ~ ")]";
+                break;
+            }
+        }
+        if (curarg >= args.length) {
+            res ~= myformat("[error: format argument out of bounds (%s in %s)",
+                curarg, args.length);
+            break;
+        }
+        res ~= args[curarg];
+        curarg++;
+    }
+    return res;
+}
+
+unittest {
+    assert(miniformat("a {} c {}", ["b", "d"]) == "a b c d");
+    assert(miniformat("a {1} c {0}", ["b", "d"]) == "a d c b");
+    //allow unused args
+    assert(miniformat("a {} c", ["b", "d"]) == "a b c");
+}
+
 ///Translator
 ///This is used for every translation and contains an open locale file
 ///with a specific namespace
@@ -206,33 +252,19 @@ public class Translator {
 
     ///Translate a text, similar to the translate() function.
     ///Warning: doesn't do namespace resolution.
-    string opCall(T...)(in char[] id, T args) {
-        return translatefx(id, 0, args);
+    string opCall(T...)(cstring id, T args) {
+        return translatefx(id, 0, [args]);
     }
 
-    private const(char)[] lastId(const(char)[] id) {
+    private cstring lastId(cstring id) {
         int pos = str.rfind(id, '.');
         if (pos < 0)
             assert(pos == -1);
         return id[pos+1 .. $];
     }
 
-    private const(char)[] errorId(const(char)[] id) {
+    private cstring errorId(cstring id) {
         return mFullIdOnError?id:lastId(id);
-    }
-
-    template Tuple(T...) {
-        alias T Tuple;
-    }
-
-    //generate a tuple than contains T Repeat-times
-    //e.g. GenTuple!(int, 3) => Tuple!(int, int, int)
-    template GenTuple(T, uint Repeat) {
-        static if (Repeat > 0) {
-            alias Tuple!(T, GenTuple!(T, Repeat-1)) GenTuple;
-        } else {
-            alias T GenTuple;
-        }
     }
 
     /** Pass arguments as string[] instead of vararg
@@ -243,28 +275,15 @@ public class Translator {
      * }
      */
     string translateLocalizedMessage(LocalizedMessage msg) {
-        //basically, this generates 10 function calls to tovararg()
-        //it copies all elements from the array into p, and then expands p as
-        // arguments for tovararg()
-        //at runtime, the function with the correct number of params is called
-        enum cMaxParam = 10;
-        alias GenTuple!(string, cMaxParam) Params;
-        Params p;
-        if (msg.args.length > p.length) {
-            assert(false, "increase cMaxParam in i18n.d");
-        }
-        foreach (int i, x; p) {
-            if (i == msg.args.length) {
-                return translatefx(msg.id, msg.rnd, p[0..i]);
-            }
-            string s = msg.args[i];
+        string[] params = msg.args.dup;
+        foreach (ref p; params) {
             //prefix arguments with _ to translate them too (e.g. _messageid)
-            if (s.length > 1 && s[0] == '_') {
-                s = opCall(s[1..$]);
+            //xxx this is unsafe, lol. it changes any input starting with _
+            if (str.eatStart(p, "_")) {
+                p = opCall(p);
             }
-            p[i] = s;
         }
-        assert(false);
+        return translatefx(msg.id, msg.rnd, params);
     }
 
     ///returns true if the passed id is available
@@ -274,7 +293,7 @@ public class Translator {
     }
 
     //like formatfx, only the format string is loaded by id
-    private string translatefx(T...)(in char[] id, uint rnd, T args) {
+    private string translatefx(cstring id, uint rnd, string[] args) {
         if (id.length > 0 && id[0] == '.') {
             //prefix the id with a . to translate in gLocaleRoot
             return gLocaleRoot.translatefx(id[1..$], rnd, args);
@@ -301,8 +320,8 @@ public class Translator {
         return DoTranslate(subnode, errorId(id), args);
     }
 
-    private string DoTranslate(T...)(ConfigNode data, const(char)[] id, T args) {
-        const(char)[] text;
+    private string DoTranslate(ConfigNode data, cstring id, string[] args) {
+        cstring text;
         if (data)
             text = data.value;
         if (text.length == 0) {
@@ -311,10 +330,7 @@ public class Translator {
             else
                 text = id;
         }
-        //seems that tango formatting can't handle that case
-        if (text.length == 0)
-            return "";
-        return myformat(text, args);
+        return miniformat(text, args);
     }
 }
 
@@ -391,5 +407,5 @@ public void initI18N() {
 ///Translate an ID into text in the selected language.
 ///Unlike GNU Gettext, this only takes an ID, not an english text.
 public string translate(T...)(in char[] id, T args) {
-    return gLocaleRoot.translatefx(id, 0, args);
+    return gLocaleRoot(id, args);
 }

@@ -13,6 +13,8 @@ import utils.misc;
 import utils.time;
 import utils.vector2;
 
+import std.conv;
+
 class HudPrepare : HudElementWidget {
     Time prepareRemaining;
 
@@ -74,7 +76,7 @@ class PrepareDisplay : Label {
             props.fore_color = curTeam.theme.font_flash.properties.fore_color;
             mFontFlash = gFontManager.create(props);
 
-            text = tr("teamgetready", curTeam.name, secs);
+            text = tr("teamgetready", curTeam.name, to!(string)(secs));
         }
 
         bool flash = (cast(int)(pt_secs*2)%2 == 0);
