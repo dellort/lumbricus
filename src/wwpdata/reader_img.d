@@ -9,11 +9,9 @@ import utils.stream;
 import utils.vector2;
 import wwpdata.common;
 import wwpdata.reader;
+import std.path;
 
 enum IMG_FLAG_COMPRESSED = 0x40;
-
-//XXXTANGO
-enum pathsep = "/";
 
 Surface readImgFile(Stream st) {
     char[4] hdr;
@@ -59,7 +57,7 @@ Surface readImgFile(Stream st) {
 
 void readImg(Stream st, string outputDir, string fnBase) {
     scope img = readImgFile(st);
-    saveImageToFile(img, outputDir ~ pathsep ~ fnBase ~ ".png");
+    saveImageToFile(img, outputDir ~ sep ~ fnBase ~ ".png");
     img.free();
 }
 

@@ -49,15 +49,14 @@ int wrapMain(string[] args, void function(string[]) realmain) {
     } catch (Exception e) {
         version(LogExceptions) {
             //catch all exceptions, write them to logfile/console and exit
-            /+ XXXTANGO
-            e.writeOut((string s) {
+            void sink(cstring s) {
                 //logfile output
                 if (gLogFileSink)
                     gLogFileSink(s);
                 //console output
                 Trace.write(s);
-            });
-            +/
+            }
+            traceException(&sink, e);
             return 1;
         } else {
             //leave it to the D runtime
@@ -162,25 +161,23 @@ void init(string[] args) {
         //    _there_; rather they'd expect it in the working dir or so?
         string logpath = "/logall.txt";
         gLogInit.minor("opening logfile: %s", logpath);
+        //Open logfile in non-shared mode.
         //NOTE: on Linux, will just overwrite a logfile (even if it's open by
         //  another process)
-        //XXXTANGO: phobos2 uses libc stdio, so we won't get this so soon
+        //xxx: phobos2 uses libc stdio, so we won't get this so soon
         //enum File.Style WriteCreateShared =
         //    {File.Access.Write, File.Open.Create, File.Share.Read};
         try {
-            auto logf = gFS.open(logpath, "w");
+            auto logf = gFS.open(logpath, "wb");
+            logf.set_line_buffered();
+            stream.PipeOut writer = logf.pipeOut();
             //Closure just for converting write(ubyte[]) to sink(string)...
-            struct Closure {
-                stream.PipeOut writer;
-                void sink(cstring s) {
-                    writer.write(cast(ubyte[])s);
-                }
+            void sink(cstring s) {
+                writer.write(cast(ubyte[])s);
             }
-            auto c = new Closure;
-            c.writer = logf.pipeOut();
             //write buffered log
-            c.sink(gLogFileTmp);
-            gLogFileSink = &c.sink;
+            sink(gLogFileTmp);
+            gLogFileSink = &sink;
         } catch (FilesystemException e) {
             gLogInit.error("Failed to open logfile: %s", e.msg);
             gLogFileSink = null;

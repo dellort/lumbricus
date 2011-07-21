@@ -322,7 +322,6 @@ class ScrollWindow : Container {
         }
         //sizes as set
         Vector2i setsizes;
-        //XXXTANGO: scr was used as such
         if (mBars[0] && scr[0])
             setsizes[0] = mBars[0].maxValue;
         if (mBars[1] && scr[1])

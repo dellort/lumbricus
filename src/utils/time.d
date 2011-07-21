@@ -110,12 +110,11 @@ public struct Time {
         if (this == Never)
             return "<unknown>";
 
-        enum string[] cTimeName = ["ns", "us", "ms", "s", "min", "h"];
+        enum string[] cTimeName = ["ns", "us", "ms", "s",  "min", "h"];
         //divisior to get from one time unit to the next
-        enum int[] cTimeDiv =       [1, 1000, 1000, 1000, 60,    60, 0];
+        enum int[] cTimeDiv =     [1,    1000, 1000, 1000, 60,     60, 0];
         //precission which should be used to display the time
-        //XXXTANGO: Phobos2 might be able to read precisiion from arg like C printf
-        enum string[] cPrec =["%.0f","%.1f","%.3f","%.2f","%.2f","%.2f"];
+        enum int[] cPrec =        [0,    1,    3,    2,    2,      2];
         string sign;
         long time = nsecs;
         long timeDiv = 1;
@@ -126,13 +125,8 @@ public struct Time {
         for (int i = 0; ; i++) {
             timeDiv *= cTimeDiv[i];
             if (time < timeDiv*cTimeDiv[i+1] || i == cTimeName.length-1) {
-                //auto s = myformat("%.*f %s", cPrec[i],
-                //    cast(double)time / cTimeDiv[i], cTimeName[i]);
-                char[20] fmt_b = void;
-                auto fmt = myformat_s(fmt_b, "%s%s %s", sign, cPrec[i], "%s");
-                auto s = myformat_s(buffer, fmt,
+                return myformat_s(buffer, "%s%.*f %s", sign, cPrec[i],
                     cast(double)time / timeDiv, cTimeName[i]);
-                return s;
             }
         }
     }

@@ -1,9 +1,8 @@
-///Sorry about this. It wraps Tango string functions.
-///Reasons:
-/// - Tango API (and implementation) sucks donkeyballs
-/// - if we're switching to D2, we can use the Phobos functions; and there will
-///   be changes to Phobos anyway (probably)
-/// - I don't feel like porting all ~150 modules using the Phobos functions
+///Sorry about this. The reason this exists (in this form) are:
+///- the project was converted from ancient Phobos to Tango, and this module
+///  was created as substitute for std.string (and others) for easy porting
+///- then it was converted back to Phobos (recent, D2 version) - actually it's
+///  not really compatible to ancient Phobos anymore, e.g. stuff got renamed
 module utils.string;
 
 import pstr = std.string;
@@ -69,8 +68,7 @@ int rfind(cstring text, cstring tofind) {
 }
 
 //on every spliton in text, create a new array item, and return that array
-string[] split(string text, const(char)[] spliton) {
-    //XXXTANGO: check whether it's correct
+string[] split(string text, cstring spliton) {
     auto res = parray.split(text, spliton);
     //behaviour different Phobos <-> Tango:
     //split("", ",") returns
@@ -81,18 +79,10 @@ string[] split(string text, const(char)[] spliton) {
         return null;
     return res;
 }
-//XXXTANGO
-const(char)[][] split(const(char)[] text, const(char)[] spliton) {
-    //XXXTANGO: check whether it's correct
-    auto res = parray.split(text, spliton);
-    //behaviour different Phobos <-> Tango:
-    //split("", ",") returns
-    // in Tango: [""]
-    // in Phobos: []
-    //I think Phobos behaviour is more useful (less special cases in user code)
-    if (res.length == 1 && res[0] == "")
-        return null;
-    return res;
+
+//xxx const
+cstring[] split(cstring text, cstring spliton) {
+    return cast(cstring[])split(cast(string)text, spliton);
 }
 
 
@@ -245,7 +235,7 @@ string[] split(string text) {
     return ps;
 }
 
-//XXXTANGO
+//xxx const
 const(char[])[] split(cstring text) {
     return cast(const(char[])[])split(cast(string)text);
 }
@@ -285,7 +275,7 @@ bool eatEnd(ref const(char)[] str, cstring suffix) {
     return true;
 }
 
-//XXXTANGO dunno
+//xxx const
 bool eatStart(ref string str, cstring prefix) {
     if (!startsWith(str, prefix))
         return false;

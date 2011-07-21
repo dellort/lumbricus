@@ -283,8 +283,6 @@ unittest {
     assert(stringToBox!(int)("1abc").type is null);
     assert(stringToBox!(int)("").type is null);
 
-    //bug or feature?
-    //XXXTANGO: Phobos2 accepts no spaces at all
     assert(stringToBox!(int)(" 123").type is null);
     assert(stringToBox!(int)("123 ").type is null);
 
@@ -328,7 +326,6 @@ unittest {
     assert(stringToType!(BlaTest)("x2") == BlaTest.x2);
     assert(boxToString(MyBox.Box(BlaTest.fgf)) == "fgf");
 
-    //XXXTANGO: Phobos2 to!() probably makes use of toString??
-    //static assert(!toStrSupports!(X));
+    //static assert(!toStrSupports!(X)); Phobos2 does its own stuff via std.conv
     static assert(!fromStrSupports!(X));
 }

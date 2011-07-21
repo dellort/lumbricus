@@ -46,10 +46,8 @@ package {
             return *pres;
         //SDL is not very accurate here and returns unicode even for control
         //  keys like ESC
-        //--XXXTANGO
-        //--if (!tunicode.isPrintable(uc))
-        //--    return null;
-        if (uc < 32)
+        //xxx should actually check whether the char is "printable"
+        if (uc < 32 || !str.isValidDchar(uc))
             return null;
         string res;
         str.encode(res, uc);

@@ -2,7 +2,6 @@ module framework.filesystem;
 
 import str = utils.string;
 import utils.stream;
-import tpath = std.file; //XXXTANGO old name
 import std.path;
 import utils.misc;
 import utils.log;
@@ -10,6 +9,8 @@ import utils.path;
 import utils.archive;
 
 import std.file;
+import tpath = std.file;
+
 import std.process;
 
 FileSystem gFS;
@@ -850,14 +851,10 @@ class FileSystem {
     ///  relFilename = path to the file, relative to VFS root
     ///  mode = how the file should be opened
     //need to make caller parameter public
-    public Stream open(VFSPath filename, string mode = "r",
+    public Stream open(VFSPath filename, string mode = "rb",
         HandlerInstance caller = null)
     {
         log("Trying to open '%s'",filename);
-        //always shared reading
-        //XXXTANGO: what the hell is this?
-        //if (mode.share == File.Share.None)
-        //    mode.share = File.Share.Read;
         foreach (ref MountedPath p; mMountedPaths) {
             if (p.handler == caller)
                 continue;
@@ -875,7 +872,7 @@ class FileSystem {
         throw new FilesystemException("File not found: " ~ filename.toString);
     }
 
-    public Stream open(string filename, string mode = "r")
+    public Stream open(string filename, string mode = "rb")
     {
         return open(VFSPath(filename), mode, null);
     }

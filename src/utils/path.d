@@ -135,8 +135,8 @@ struct VFSPath {
             absParent = absParent[0..$-1];
         }
         //return tangopath.standard(absParent ~ mPath);
-        //XXXTANGO dunno, above call simply replaces \ with /
-        return absParent ~ mPath;
+        //about same as .standard does; maybe windows needs it
+        return str.replace(absParent ~ mPath, "\\", "/");
     }
 
     ///get the parent directory of the current path

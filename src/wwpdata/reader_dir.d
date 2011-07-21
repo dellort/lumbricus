@@ -10,9 +10,6 @@ import utils.filetools;
 import std.path;
 import std.stdio;
 
-//XXXTANGO
-enum pathsep = "/";
-
 struct WWPDirEntry {
     uint offset, size;
     string filename;
@@ -35,7 +32,7 @@ struct WWPDirEntry {
 
     void writeFile(Stream st, string outPath) {
         st.position = offset;
-        scope fileOut = Stream.OpenFile(outPath ~ pathsep ~ filename, "wb");
+        scope fileOut = Stream.OpenFile(outPath ~ sep ~ filename, "wb");
         scope(exit) fileOut.close();
         fileOut.pipeOut.copyFrom(st.pipeIn, size);
     }
@@ -99,7 +96,7 @@ class Dir {
 }
 
 void readDir(Stream st, string outputDir, string fnBase) {
-    string outPath = outputDir ~ pathsep ~ fnBase;
+    string outPath = outputDir ~ sep ~ fnBase;
     trymkdir(outPath);
 
     auto content = doReadDir(st);

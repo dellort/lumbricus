@@ -74,7 +74,7 @@ private bool doSaveConfig(ConfigNode node, string filename, bool compress,
     bool logerror = true)
 {
     try {
-        auto stream = gFS.open(filename, "w");
+        auto stream = gFS.open(filename, "wb");
         scope(exit) stream.close();
         auto outw = stream.pipeOut();
         if (compress)

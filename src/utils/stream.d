@@ -202,9 +202,8 @@ struct ArrayWriter {
 
 abstract class Stream {
     abstract {
+        //these might actually throw
         ulong position();
-        //I define that the actual position is only checked on read/write
-        //  accesses => IOException never thrown
         void position(ulong pos);
         ulong size();
 
@@ -295,13 +294,17 @@ abstract class Stream {
         return PipeIn(&readUntilEof, allow_close ? &close : null);
     }
 
+    void set_line_buffered() {
+    }
+
     //meh
-    static ShitStream OpenFile(string path, string mode = "r") {
+    static ShitStream OpenFile(string path, string mode = "rb") {
         return new ShitStream(File(path, mode));
     }
 }
 
 //I wanted to name this PhobosStream, but I think this name is better
+//will rename to something classier if the Phobos API improves
 class ShitStream : Stream {
     private {
         File mShit;
@@ -313,13 +316,10 @@ class ShitStream : Stream {
     }
 
     ulong position() {
-        //XXXTANGO may throw
         return mShit.tell;
     }
-    //I define that the actual position is only checked on read/write accesses
-    // => IOException never thrown
+
     void position(ulong pos) {
-        //XXXTANGO may throw
         mShit.seek(pos);
     }
 
@@ -339,6 +339,10 @@ class ShitStream : Stream {
 
     void close() {
         mShit.close();
+    }
+
+    void set_line_buffered() {
+        mShit.setvbuf(null, _IOLBF); //switch to line buffered
     }
 }
 

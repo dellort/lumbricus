@@ -475,7 +475,7 @@ final class BigArray(T) {
     }
 
     ~this() {
-        free(); //safe in this specific case??? XXXTANGO
+        free();
         assert(mData is null);
     }
 

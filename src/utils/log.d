@@ -374,17 +374,31 @@ void writeColoredLogEntry(scope void delegate(cstring) cb, LogEntry e,
 //  1. log a human readable error message with LogPriority.Error to the screen
 //  2. spam the logfile with the precious backtrace using this function
 void traceException(Log dest, Exception e, string what = "") {
+    //inefficient, but nimportant
+    string stuff;
+    void sink(cstring s) {
+        stuff ~= s;
+    }
+    traceException(&sink, e, what);
+    dest.minor("%s", stuff);
+}
+
+//other version that simply uses a callback
+void traceException(scope void delegate(cstring) sink, Exception e,
+    string what = "")
+{
     if (e) {
-        string buffer;
-        buffer ~= "Exception backtrace";
-        if (what.length)
-            buffer ~= " (" ~ what ~ ")";
-        buffer ~= ":\n";
-        //XXXTANGO e.writeOut( (string txt) { buffer ~= txt; } );
-        dest.minor("%s", e);
-        buffer ~= "Backtrace end.\n";
-        dest.minor("%s", buffer);
+        sink("Exception backtrace");
+        if (what.length) {
+            sink(" ("); sink(what); sink(")");
+        }
+        sink(":\n");
+        //apparently toString handles printing out the backtrace?
+        //e.writeOut( (string txt) { buffer ~= txt; } );
+        //xxx isn't there a better way than making 'e' allocate a string
+        sink(e.toString());
+        sink("Backtrace end.\n");
     } else {
-        dest.minor("error: no error");
+        sink("error: no error");
     }
 }

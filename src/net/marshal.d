@@ -159,7 +159,6 @@ struct Unmarshaller {
     private RetType!(T) readArray(T)() {
         alias Unqual!(ForeachType!(T)) ElementUT;
         //even for static arrays, the return type needs to be dynamic
-        //XXXTANGO avoid memory allocation?
         ElementUT[] ret;
 
         static if (isDynamicArray!(T)) {

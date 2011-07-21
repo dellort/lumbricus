@@ -12,6 +12,7 @@ import utils.strparser;
 import utils.time;      //for special Time marshalling
 
 import std.traits;
+import std.process; //for getenv()
 
 //--- stolen from tango code
 template ElementTypeOfArray(T:T[])
@@ -1562,15 +1563,12 @@ class LuaState {
         mRefList = new typeof(mRefList)();
 
         if (!gLibLuaLoaded) {
-            string libname = null;
-            /* XXXTANGO
-            string libname = env.Environment.get("LUALIB");
-            if (!libname.length)
-                libname = null; //derelict uses "libname is null"
-            */
-            //DerelictLua.load(libname);
-            //XXXTANGO: can't pass null anymore; there are several overloaded load()
-            DerelictLua.load();
+            string libname = getenv("LUALIB");
+            if (libname.length) {
+                DerelictLua.load(libname);
+            } else {
+                DerelictLua.load();
+            }
             gLibLuaLoaded = true;
         }
 

@@ -190,6 +190,7 @@ class GameLoader {
 
             try {
                 auto outstr = gFS.open("last_demo.demo", "wb");
+                outstr.set_line_buffered();
                 mDemoOutput = outstr.pipeOut();
                 startDemoFile(mDemoOutput, demoConf);
             } catch (CustomException e) {

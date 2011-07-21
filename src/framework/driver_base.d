@@ -139,7 +139,7 @@ abstract class Resource {
         }
     }
 
-    //XXXTANGO
+    //XXXTANGO dispose
     void dispose() {
         //super.dispose();
         if (driverResource) {

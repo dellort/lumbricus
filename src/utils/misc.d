@@ -15,8 +15,10 @@ import std.conv;
 alias const(char)[] cstring;
 
 const(char*) toStringz(const(char)[] s) {
-    //return to!(char*)(s);
-    //XXXTANGO I wonder if this is safe
+    if (s.length == 0)
+        return "".ptr;
+    if (s[$ - 1] == '\0')
+        return s.ptr;
     return (s ~ '\0').ptr;
 }
 const(char[]) fromStringz(const char* s) {

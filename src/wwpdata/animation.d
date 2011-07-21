@@ -13,28 +13,26 @@ import utils.filetools;
 import utils.misc;
 import std.stdio;
 import std.math;
-
-//XXXTANGO
-enum pathsep = "/";
+import std.path;
 
 //xxx should be moved somewhere else, no reason to compile this into the game
 void saveAnimations(RawAnimation[] animations, string outPath, string fnBase,
     bool tosubdir = true)
 {
-    //scope stMeta = new File(outPath ~ pathsep ~ fnBase ~ ".meta",
+    //scope stMeta = new File(outPath ~ sep ~ fnBase ~ ".meta",
         //  FileMode.OutNew);
     foreach (int i, a; animations) {
         string afn, apath;
         if (tosubdir) {
             //ah, how I love those "intuitive" formatting parameters...
             afn = myformat("anim_%03d", i);
-            apath = outPath ~ pathsep ~ fnBase;
+            apath = outPath ~ sep ~ fnBase;
             trymkdir(apath);
         } else {
             afn = fnBase;
             apath = outPath;
         }
-        saveImageToFile(a.toBitmap(), apath ~ pathsep ~ afn ~ ".png");
+        saveImageToFile(a.toBitmap(), apath ~ sep ~ afn ~ ".png");
         writef("Saving %s/%s   \r",i+1 , animations.length);
         stdout.flush();
     }

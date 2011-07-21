@@ -9,7 +9,8 @@ import framework.drivers.font_freetype;
 import framework.drivers.draw_opengl;
 import framework.drivers.draw_sdl;
 version(Windows) {
-    import framework.drivers.draw_directx;
+    //would not compile for sure, need to fix tons of windows-specific imports
+    //import framework.drivers.draw_directx;
 }
 
 //--> FMOD is not perfectly GPL compatible, so you may need to comment

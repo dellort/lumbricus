@@ -106,7 +106,7 @@ private class EventType {
 
     this() {}
 
-    /+ XXXTANGO
+    /+ XXXTANGO dispose
     override void dispose() {
         super.dispose();
         delete handlers;
@@ -166,7 +166,7 @@ final class Events {
         mTargetType = target_type;
     }
 
-    /+ XXXTANGO
+    /+ XXXTANGO dispose
     override void dispose() {
         super.dispose();
         foreach (ref e; mEvents) {
