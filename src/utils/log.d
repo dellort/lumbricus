@@ -364,7 +364,7 @@ void writeColoredLogEntry(scope void delegate(cstring) cb, LogEntry e,
         source = myformat_s(buffer, "[%s] ", e.source.category);
     //the \litx prevents tag interpretation in msg
     auto msg = e.txt;
-    myformat_cb(cb, "\\c(%s)%s\\litx(%s,%s)", c, source, msg.length, msg);
+    myformat_cb(cb, "\\c(%s)%s\\litx(%s,%s)\n", c, source, msg.length, msg);
 }
 
 //Java style!
@@ -393,8 +393,7 @@ void traceException(scope void delegate(cstring) sink, Exception e,
             sink(" ("); sink(what); sink(")");
         }
         sink(":\n");
-        //apparently toString handles printing out the backtrace?
-        //e.writeOut( (string txt) { buffer ~= txt; } );
+        //apparently toString hardcodes printing out the backtrace
         //xxx isn't there a better way than making 'e' allocate a string
         sink(e.toString());
         sink("Backtrace end.\n");

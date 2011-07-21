@@ -17,5 +17,5 @@ function testgc(count)
         end
     end)
 end
-print("hi")
+
 --testgc()
