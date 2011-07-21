@@ -72,7 +72,7 @@ struct ParamInfo {
     ParamConvert conv;  //map input parameter value to frame number
 }
 
-void defaultParamInfo(ParamInfo[3] p) {
+void defaultParamInfo(ref ParamInfo[3] p) {
     p[0].map = ParamType.Time;
     p[1].map = ParamType.P1;
     p[2].map = ParamType.Null;
