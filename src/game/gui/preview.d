@@ -21,6 +21,8 @@ import utils.rect2;
 import utils.log;
 import utils.misc;
 
+import algorithm = std.algorithm;
+
 class LevelSelector : SimpleContainer {
     private {
         int mPreviewHeight = 70;
@@ -72,7 +74,7 @@ class LevelSelector : SimpleContainer {
         mDdGfx.onSelect = &gfxSelect;
         string[] themes = ([translate("levelselect.randomgfx")]
             ~ mGenerator.themes.names());
-        themes.sort;
+        algorithm.sort(themes);
         mDdGfx.list.setContents(themes);
         mDdGfx.selection = themes[0];
 

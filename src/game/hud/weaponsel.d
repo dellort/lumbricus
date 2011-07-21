@@ -28,6 +28,8 @@ import utils.time;
 
 import str = utils.string;
 
+import algorithm = std.algorithm;
+
 class WeaponSelWindow : Container {
     private {
         GameCore mEngine;
@@ -105,6 +107,7 @@ class WeaponSelWindow : Container {
 
             //used by init() code to sort row lines
             //(not used by the GUI or so)
+            //xxx not const correct, because D2 was designed by idiots
             override int opCmp(Object o) {
                 auto w = castStrict!(typeof(this))(o); //blergh
                 auto res = -(w.weapon.value - this.weapon.value);
@@ -283,7 +286,7 @@ class WeaponSelWindow : Container {
 
             assert(pwlist !is null);
             Cell[] wlist = *pwlist;
-            wlist.sort; //see Weapon; order by weapon-value
+            algorithm.sort(wlist); //see Weapon; order by weapon-value
 
             //reverse-resolve shortcut and show
             auto shortcut = new Label();

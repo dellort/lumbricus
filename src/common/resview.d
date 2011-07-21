@@ -36,6 +36,8 @@ import str = utils.string;
 import game.animation;
 import game.particles;
 
+import algorithm = std.algorithm;
+
 alias StaticFactory!("ResViewers", ResViewHandlerGeneric, Object)
     ResViewHandlers;
 
@@ -556,7 +558,7 @@ class ResViewerTask {
             string name;
             Object res;
 
-            int opCmp(ResEntry* other) {
+            int opCmp(in ResEntry other) const {
                 return str.cmp(name, other.name);
             }
         }
@@ -667,7 +669,7 @@ class ResViewerTask {
                     }
                 );
             }
-            mResources.sort;
+            algorithm.sort(mResources);
             foreach (s; mResources) {
                 list ~= s.name;
             }

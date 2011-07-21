@@ -16,6 +16,8 @@ import utils.color;
 import utils.configfile;
 import utils.misc;
 
+import algorithm = std.algorithm;
+
 class TeamEditorTask {
     private {
         Widget mEditor;
@@ -72,7 +74,7 @@ class TeamEditorTask {
         foreach (ConfigNode t; mTeams) {
             teams ~= t.name;
         }
-        teams.sort;
+        algorithm.sort(teams);
         teams ~= translate("teameditor.newteam");
         mTeamsDropdown.list.setContents(teams);
         if (!mEditedTeam && mTeams.count > 0)

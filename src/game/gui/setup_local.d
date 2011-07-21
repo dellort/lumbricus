@@ -31,6 +31,8 @@ import utils.random;
 
 import std.conv;
 
+import algorithm = std.algorithm;
+
 class LevelWidget : SimpleContainer {
     private {
         DropDownList mSavedLevels;
@@ -350,8 +352,8 @@ class LocalGameSetupTask {
             } else
                 teams ~= t.name;
         }
-        teams.sort;
-        actteams.sort;
+        algorithm.sort(teams);
+        algorithm.sort(actteams);
         mGoBtn.enabled = actteams.length>1;
         mAllTeamsList.setContents(teams);
         mActiveTeamsList.setContents(actteams);

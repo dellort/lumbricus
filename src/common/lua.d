@@ -6,6 +6,8 @@ import utils.log;
 import utils.misc;
 import utils.time;
 
+import algorithm = std.algorithm;
+
 //didn't want to put this in framework.lua (too many weird dependencies)
 void loadScript(LuaState state, string filename, string environment = null) {
     auto st = gFS.open(filename);
@@ -165,7 +167,7 @@ class LuaInterpreter {
         }
         //
         mSink("Completions:\n");
-        res.matches.sort;
+        algorithm.sort(res.matches);
         foreach (c; res.matches) {
             auto xlen = prefix.length;
             myformat_cb(mSink, "    %s|%s\n", c[0..xlen], c[xlen..$]);

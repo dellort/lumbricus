@@ -21,6 +21,7 @@ import str = utils.string;
 import math = std.math;
 import mymath = utils.math;
 
+import algorithm = std.algorithm;
 
 //placeholder animation when loading failed; just displays error.png
 class ErrorAnimation : Animation {
@@ -198,7 +199,7 @@ class AnimationList : AnimationSimple {
         //  file01.png, file02.png, ..., file10.png
         //and not
         //  file1.png, file2.png, ..., file10.png
-        flist.sort;
+        algorithm.sort(flist);
 
         SubSurface[] frames;
         foreach (f; flist) {

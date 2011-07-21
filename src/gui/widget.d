@@ -2277,7 +2277,7 @@ final class GUI {
             return true;
         });
         //sorting prevents random order
-        list.sort;
+        algorithm.sort(list);
         list ~= cThemeNone;
         return list;
     }
