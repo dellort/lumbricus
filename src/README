@@ -1,5 +1,13 @@
-This is Lumbricus Terrestris. There's also a little info on our project page:
+This is Lumbricus Terrestris. There's also a no info on our project page:
     https://github.com/dellort/lumbricus
+
+Clone of the popular 2D game "Worms World Party" (© Team17). Main focus (in
+contrast to similar projects) is staying as close as possible to the original
+game regarding gameplay and visuals while extending it at the right places.
+
+We need free graphics. For now, we rely on the original WWP graphics, or
+alternatively on our horrible programmer art. If you like to draw some worms,
+you could join us.
 
 ----  Status ----
 
@@ -18,28 +26,48 @@ Missing:
     it may have too large lag when playing over internet. and in general, the
     determinism requirement makes it fragile as hell.)
 - simple way to compile/install
+- active development
 
 The code is written in the D Programming Language version 1.x, see:
 http://www.digitalmars.com/d/1.0/
 Because of this the code is very hard to compile.
 
+---- Free unused space ----
+
+YOUR AD HERE
 
 ---- Version status for tools and libraries ----
 
 D compiler:
     You need one of those...
-    dmd: 1.065 works
-    ldc: newest version may work, though there are often regressions
-    gdc: forget it (maybe one day...)
-         actually gdc got revived recently
-Tango (alternative D standard library):
-    svn r5599: works
-    release 0.99.9: should work
+    dmd: v2.054 works
+    ldc: dunno
+    gdc: dunno
 Derelict (D bindings for various C libs):
-    http://svn.dsource.org/projects/derelict/trunk/
-    svn r515: works
-    needed: DerelictUtil, DerelictFT, DerelictGL, DerelictGLU, DerelictSDL, DerelictSDLImage, DerelictAL
+    http://svn.dsource.org/projects/derelict/branches/Derelict2
+    svn r572: works
+    needed Derelict components: util, freetype, opengl, sdl, openal
+    NOTE: as of r572, you need to remove this export-dynamic switch from
+          dmd.conf, otherwise it will segfault on program start.
 
+---- D2 conversion info
+
+- originally written in pre-D1 and D1
+- now converted to D2
+- the standard library was changed too (Tango -> Phobos2)
+- it's buggy, ugly, and full of issues
+- still keeping a D1 branch
+- D2 version is bound to have regressions because D2 is changed all the time
+- currently the D2 version probably doesn't build under Windows
+- network mode is not ported to D2
+- due to Phobos2 being from thr 18th century, lumbricus has a giant memory leak
+  that is 100% unfixable (search source code for XXXTANGO)
+- no idea why I converted it to D2, maybe I thought it's better if the code is
+  not in the DEPRECATED ANCIENT version of an EXPERIMENTAL AND SHITTY language,
+  with all development NOT IN D1 BUT IN D2 and where you need to install an
+  ALTERNATIVE STANDARD LIBRARY (holy oxymoron) where even I HAVE TROUBLE
+  COMPILING AND INSTALLING it... so uh, what... is this my blog? who cares,
+  nobody will read this shit anyway.
 
 ---- Building it ----
 
