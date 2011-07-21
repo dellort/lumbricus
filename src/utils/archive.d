@@ -145,7 +145,8 @@ class TarArchive : ArchiveReader {
                 for (int n = 0; n < copy.sizeof; n++) {
                     s += cast(ubyte)ptr[n];
                 }
-                auto res = myformat("0{:o5}", s);
+                //XXXTANGO: was {:05}
+                auto res = myformat("%#05o", s);
                 res ~= "\0 ";
                 assert (res.length == 8);
                 return res;

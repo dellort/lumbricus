@@ -40,7 +40,7 @@ package {
             return null;
         if (!str.isValidDchar(uc)) {
             //special "error" case
-            return myformat("?[0x{:x}]", cast(uint)uc);
+            return myformat("?[%#x]", cast(uint)uc);
         }
         if (auto pres = uc in gUniCache)
             return *pres;

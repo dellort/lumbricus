@@ -1191,11 +1191,11 @@ public class ConfigFile {
                 output ~= '\\';
 
                 //encode it as hex; ugly but... ugly
-                string fmt = "x{:x2}";
+                string fmt = "x%02x";
                 if (c > 0xff) {
-                    fmt = "u{:x4}";
+                    fmt = "u%04x";
                 } else if (c > 0xffff) {
-                    fmt = "U{:x8}"; //???
+                    fmt = "U%08x"; //???
                 }
 
                 output ~= myformat(fmt, c);
