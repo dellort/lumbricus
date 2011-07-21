@@ -102,34 +102,7 @@ class Animator : SceneObjectCentered {
 //  p[1] = weapon angle
 //  p[2] = team color index + 1, or 0 when neutral
 struct AnimationParams {
-    //int[3] p;
-    StaticArray!(int, 3) p;
-}
-
-//I wanted to use a static array somewhere, but this breaks the Lua marshaller
-//  - the Lua marshaller wants to return int[3] from a function at some point,
-//  but dmd/D1 is fucking stupid and doesn't allow for it... oops
-//so, instead, this shitcrap will have to do... enjoy
-//XXXTANGO: can D2 do this
-import str = utils.string;
-struct StaticArray(T, int N) {
-    private static string entries() {
-        string code;
-        for (int i = 0; i < N; i++) {
-            code ~= "T _" ~ str.ctfe_itoa(i) ~ ";";
-        }
-        return code;
-    }
-    mixin(entries());
-
-    T opIndex(int i) {
-        assert(i >= 0 && i < N);
-        return *((cast(T*)&this) + i);
-    }
-    void opIndexAssign(T val, int i) {
-        assert(i >= 0 && i < N);
-        *((cast(T*)&this) + i) = val;
-    }
+    int[3] p;
 }
 
 //for some derived classes see below

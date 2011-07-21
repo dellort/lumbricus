@@ -620,10 +620,17 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
             //but this function will never support static arrays (in D1)
             //xxx change to lua_rawlen in Lua 5.2
             auto tlen = lua_objlen(state, tablepos);
-            //xxx evil Lua scripts could easily cause an out of memory error
-            //  due to '#' not returning the array length, but something
-            //  along the last integer key (see Lua manual)
-            ret.length = tlen;
+            static if (isStaticArray!(T)) {
+                if (ret.length != tlen) {
+                    luaErrorf(state, "expected array of length %d, "
+                        "but got length %d", ret.length, tlen);
+                }
+            } else {
+                //xxx evil Lua scripts could easily cause an out of memory error
+                //  due to '#' not returning the array length, but something
+                //  along the last integer key (see Lua manual)
+                ret.length = tlen;
+            }
         }
         //arrays are the only data structure that cause data to be read
         //  recursively, and may lead to infinite recursion
