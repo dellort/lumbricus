@@ -534,8 +534,7 @@ ParamType paramTypeFromStr(string s) {
 
 //s has the format x ::= <param>[ "/" <string>] , s ::= s (s ",")*
 //param is one of map (below) and returned in p
-//warning: p is passed by-ref (in D1; but not in D2, there you must add ref)
-void parseParams(string s, ParamInfo[3] p) {
+void parseParams(string s, ref ParamInfo[3] p) {
     auto stuff = str.split(s, ",");
     require(stuff.length <= 3, "only 3 param mappings or less allowed");
     for (int n = 0; n < stuff.length; n++) {
@@ -559,7 +558,7 @@ void parseParams(string s, ParamInfo[3] p) {
 }
 
 private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
-    void loadAnim(string[] flags, ParamInfo[3] params, string name,
+    void loadAnim(string[] flags, ref ParamInfo[3] params, string name,
         string value)
     {
         //actually load an animation
@@ -687,7 +686,7 @@ private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
         }
     }
 
-    void loadRec(string[] flags, ParamInfo[3] params, ConfigNode node) {
+    void loadRec(string[] flags, ref ParamInfo[3] params, ConfigNode node) {
         ParamInfo[3] nparams;
         nparams[] = params; //copy, as params is passed by-ref
         if (node.value.length == 0) {

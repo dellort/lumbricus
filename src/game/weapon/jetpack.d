@@ -110,7 +110,7 @@ class Jetpack : Shooter, Controllable {
         }
         if (mTimeLabel) {
             float remain = myclass.maxTime.secsf - mJetTimeUsed;
-            mTimeLabel.setTextFmt(true, "{:f1}", remain);
+            mTimeLabel.setTextFmt(true, "%.1f", remain);
         }
 
         //force!

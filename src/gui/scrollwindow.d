@@ -52,7 +52,7 @@ class ScrollArea : SimpleContainer {
         mEnableScroll[] = enable;
         needRelayout();
     }
-    void getEnableScroll(bool[2] enable) {
+    void getEnableScroll(ref bool[2] enable) {
         enable[] = mEnableScroll;
     }
 
@@ -323,9 +323,9 @@ class ScrollWindow : Container {
         //sizes as set
         Vector2i setsizes;
         //XXXTANGO: scr was used as such
-        if (mBars[0])// && scr)
+        if (mBars[0] && scr[0])
             setsizes[0] = mBars[0].maxValue;
-        if (mBars[1])// && scr)
+        if (mBars[1] && scr[1])
             setsizes[1] = mBars[1].maxValue;
 
         //if GUI is existing, check if anything that must be changed below is

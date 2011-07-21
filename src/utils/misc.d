@@ -87,6 +87,11 @@ T realmod(T)(T a, T m) {
     return res;
 }
 
+unittest {
+    assert(realmod(4.0f, 3.0f) == 1.0f);
+    assert(realmod(-1.0f, 3.0f) == 2.0f);
+}
+
 void swap(T)(ref T a, ref T b) {
     T t = a;
     a = b;

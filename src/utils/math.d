@@ -88,6 +88,12 @@ uint pickNearestAngle(int[] angles, int iangle) {
     return closest;
 }
 
+unittest {
+    static int[] ex = [90, 180, 270, 360];
+    assert(pickNearestAngle(ex, 185) == 1);
+    assert(pickNearestAngle(ex, 230) == 2);
+}
+
 ///place nrc relative to prc (trivial, but has to be somewhere)
 ///  nrc = rectangle of the object to be placed
 ///  g = the direction and distance (exactly one component of this should be 0)

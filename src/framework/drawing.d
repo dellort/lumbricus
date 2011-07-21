@@ -365,8 +365,7 @@ public class Canvas {
 
     //if no 3D engine is available, nothing is drawn
     //if it is available is indicated by DriverFeatures.transformedQuads
-    //NOTE: the quad parameter is already by ref (one of the most stupied Disms)
-    public abstract void drawQuad(Surface tex, Vertex2f[4] quad);
+    public abstract void drawQuad(Surface tex, ref Vertex2f[4] quad);
 
     /// Fill the area (destPos, destPos+destSize) with source, tiled on wrap
     //will be specialized in OpenGL
@@ -583,7 +582,7 @@ class Canvas3DHelper : Canvas {
         draw_verts(primitive, tex, verts);
     }
 
-    override void drawQuad(Surface tex, Vertex2f[4] quad) {
+    override void drawQuad(Surface tex, ref Vertex2f[4] quad) {
         draw_verts(Primitive.QUADS, tex, quad);
     }
 
