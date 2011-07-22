@@ -277,7 +277,9 @@ class DropDownList : Container {
     void loadFrom(GuiLoader loader) {
         auto node = loader.node;
         mAllowEdit = node.getValue("allow_edit", mAllowEdit);
-        mList.setContents(node.getValue!(string[])("contents"));
+        auto contents = node.findNode("contents");
+        if (contents)
+            mList.setContents(contents.getCurValue!(string[])());
         //select first if any
         if (mList.contents.length > 0)
             selection = mList.contents[0];
