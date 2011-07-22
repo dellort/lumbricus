@@ -43,8 +43,8 @@ YOUR AD HERE
 D compiler:
     You need one of those...
     dmd: v2.054 works
-    ldc: dunno
-    gdc: dunno
+    ldc: dunno (but the D2 version seems alpha/unuseable/unavailable)
+    gdc: dunno (there's a chance it works)
 Derelict (D bindings for various C libs):
     http://svn.dsource.org/projects/derelict/branches/Derelict2
     svn r572: works
@@ -73,16 +73,19 @@ Derelict (D bindings for various C libs):
 
 ---- Building it ----
 
-This is can be very hard (depending how much D experience you have).
-Your options:
-- Forget it, give up.
-- Ask us on the lonely plains in irc.freenode.net #lumbricus
-- Send us spam by e-mail. (Addresses are somewhere on
-    https://gna.org/projects/lumbricus/)
-- Try building the debian package (execute dpkg-buildpackage in the trunk/
-    directory) - may be randomly broken, though.
-    The LDC/Tango packages are outdated, all you will get is a world of pain.
+Linux:
+    - Install dmd
+    - Download Derelict2, create a directory named "derelict" in a dmd include
+      directory (or use "src/derelict2"), and put each of the required derelict
+      packages under that directory. For example, it should work if the
+      directory layout is such that src/derelict/opengl/gl.d exists.
+    - ./minibuild.py lumbricus.d (rename dmd2 to dmd in the Python script)
+    - The lumbricus binary will try to find the data directory by looking at
+      ../share/lumbricus/mount.conf relative to the binary's location (i.e. it
+      will work if the binary is located in bin, where minibuild.py puts it).
+    - (Note: the debian packaging stuff might be broken in arbitrary ways)
 
+Windows: lol dunno
 
 ---- Required libraries ----
 
@@ -100,7 +103,6 @@ Dynamic linked (.dll/.so):
     For Win32, all required .dll files can be found in <svn_root>/downloads/win32_dlls
 Static linked D libraries:
     - Derelict for the 2 SDL libraries
-    - Tango (comes not with DMD)
 
 
 ---- Using the WWP data files ----
@@ -137,6 +139,8 @@ Using the WWP data:
   directory, you don't need to pass the option anymore later on.
 
 Converting level themes with extractdata:
+  NOTE: extractdata is broken and I removed it for now
+
   extractdata expects the Worms(TM) directory as arguments, and converts the
   file to images/conf-files Lumbricus can understand. Call it like this:
 
