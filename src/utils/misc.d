@@ -254,11 +254,7 @@ char[] myformat_s(T...)(char[] buffer, cstring fmt, T args) {
 }
 
 void myformat_cb(T...)(scope void delegate(cstring s) sink, cstring fmt, T args) {
-    struct Bloat {
-        void put(in char[] s) { sink(s); }
-    }
-    Bloat b;
-    formattedWrite(b, fmt, args);
+    formattedWrite(sink, fmt, args);
 }
 
 //functions cannot return static arrays, so this gets the equivalent
