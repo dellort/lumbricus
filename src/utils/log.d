@@ -396,7 +396,7 @@ void traceException(scope void delegate(cstring) sink, Exception e,
         //apparently toString hardcodes printing out the backtrace
         //xxx isn't there a better way than making 'e' allocate a string
         sink(e.toString());
-        sink("Backtrace end.\n");
+        sink("\nBacktrace end.\n");
     } else {
         sink("error: no error");
     }
