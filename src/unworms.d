@@ -1,15 +1,15 @@
 module unworms;
 
-import tango.io.Stdout;
+import std.stdio;
 import wwptools.unworms;
 
-int main(char[][] args)
+int main(string[] args)
 {
     if (args.length < 2) {
-        Stdout("Syntax: unworms <wormsFile> [<outputDir>]").newline;
+        writefln("Syntax: unworms <wormsFile> [<outputDir>]");
         return 1;
     }
-    char[] outputDir;
+    string outputDir;
     if (args.length >= 3)
         outputDir = args[2];
     else

@@ -27,7 +27,8 @@ WWPReader findReader(Stream st) {
     st.position = 0;
     st.readExact(hdr.ptr, 4);
     st.position = 0;
-    if (auto phdr = hdr in registeredReaders) {
+    //fun fact: segfaults in the D runtime when passing hdr without []
+    if (auto phdr = hdr[] in registeredReaders) {
         return *phdr;
     } else {
         writefln("Error: Unknown filetype");
