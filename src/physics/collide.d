@@ -146,13 +146,13 @@ void collidefn(T1, T2)(CollideFn fn) {
 //should be considered to be relatively slow (cache when using in inner loops)
 uint getShapeID(T)() {
     TypeInfo t = typeid(T);
-    foreach (uint i, TypeInfo ti; mShapeIDs) {
+    foreach (size_t i, TypeInfo ti; mShapeIDs) {
         if (ti is t)
-            return i;
+            return cast(uint)i;
     }
     mShapeIDs ~= t;
     rebuildCollide();
-    return mShapeIDs.length - 1;
+    return cast(uint)mShapeIDs.length - 1;
 }
 
 

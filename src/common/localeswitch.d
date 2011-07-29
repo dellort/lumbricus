@@ -78,7 +78,7 @@ class LocaleSwitch {
     }
 
     private void localeSelect(DropDownList sender) {
-        int idx = sender.list.selectedIndex;
+        auto idx = sender.list.selectedIndex;
         if (idx >= 0) {
             //a locale was selected, activate it for preview
             mSelLanguage = mLocaleIds[idx];

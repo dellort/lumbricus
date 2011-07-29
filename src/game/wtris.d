@@ -244,8 +244,8 @@ public class WTris {
         }
 
         override Vector2i layoutSizeRequest() {
-            return Vector2i(field.length*PIECE_DRAW_W,
-                field[0].length*PIECE_DRAW_H) + border*2;
+            return Vector2i(cast(int)(field.length*PIECE_DRAW_W),
+                cast(int)(field[0].length*PIECE_DRAW_H)) + border*2;
         }
 
         bool greedyFocus() {
@@ -291,7 +291,7 @@ public class WTris {
             {
                 auto npiece = currentPiece;
                 npiece.rot = realmod(rel_rot+npiece.rot,
-                    pieces[npiece.piece].length);
+                    cast(int)(pieces[npiece.piece].length));
                 npiece.x += rel_x;
                 if (!check_collision(npiece)) {
                     currentPiece = npiece;

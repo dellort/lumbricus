@@ -163,7 +163,7 @@ private void onActivate(MyBox[] args, Output output) {
     activateConsole();
 }
 
-private void onTabComplete(cstring line, int cursor1, int cursor2,
+private void onTabComplete(cstring line, size_t cursor1, size_t cursor2,
     EditDelegate edit)
 {
     //xxx: somehow should call CommandLine tabhandler if the line starts with

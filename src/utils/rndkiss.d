@@ -185,13 +185,13 @@ class Random
     /// Randomly permutate the passed array
     void randomizeArray(T)(ref T[] arr) {
         for (int i = 0; i < arr.length; i++) {
-            swap(arr[i], arr[next(i, arr.length)]);
+            swap(arr[i], arr[next(i, cast(int)arr.length)]);
         }
     }
 
     /// pick random array item - if array is empty, return def
     T pickArray(T)(T[] arr, T def = T.init) {
-        return arr.length ? arr[next(0, arr.length)] : def;
+        return arr.length ? arr[next(0, cast(int)arr.length)] : def;
     }
 
     /**

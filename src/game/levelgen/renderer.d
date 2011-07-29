@@ -72,12 +72,13 @@ class LandscapeBitmap {
         //temporary during accessing pixels
         //PixelAccess takes care of this
         Color.RGBA32* _pixels;
-        uint _pitch;
+        size_t _pitch;
     }
 
     private struct TexData {
         //also not good and nice
-        uint pitch, w, h;
+        size_t pitch;
+        uint w, h;
         Color.RGBA32* data;
         Vector2i offs;
 
@@ -517,7 +518,7 @@ class LandscapeBitmap {
         s_rc.fitInsideB(mPreviewImage.rect());
 
         Color.RGBA32* data;
-        uint pitch;
+        size_t pitch;
         mPreviewImage.lockPixelsRGBA32(data, pitch);
 
         for (int y = s_rc.p1.y; y < s_rc.p2.y; y++) {
@@ -826,7 +827,7 @@ class LandscapeBitmap {
         {
             int dir = up ? -1 : +1;
 
-            uint tex_pitch;
+            size_t tex_pitch;
             Color.RGBA32* texptr;
             texture.lockPixelsRGBA32(texptr, tex_pitch);
             uint tex_w = texture.size.x;
@@ -1145,7 +1146,7 @@ class LandscapeBitmap {
 
         scope pixels = new PixelAccess();
 
-        Color.RGBA32* data; uint pitch;
+        Color.RGBA32* data; size_t pitch;
         source.lockPixelsRGBA32(data, pitch);
 
         for (int y = cy1; y < cy2; y++) {

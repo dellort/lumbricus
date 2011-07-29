@@ -17,7 +17,8 @@ version (Win32) {
     }
 } else version (Posix) {
     private import core.sys.posix.sys.time;
-    private uint os_timestamp() {
+    import core.stdc.config; //:c_ulong
+    private c_ulong os_timestamp() {
         //xxx: there's also tango.math.random.engines.URandom...?
         timeval tv;
         gettimeofday (&tv, null);
@@ -29,7 +30,7 @@ version (Win32) {
 
 
 uint generateRandomSeed() {
-    uint some = os_timestamp();
+    uint some = cast(uint)os_timestamp();
     uint more = rngShared ? rngShared.next() : 0;
     return some ^ more;
 }

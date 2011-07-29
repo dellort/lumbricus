@@ -939,7 +939,7 @@ ParseDemoFileResult parseDemoFile(string data) {
     if (!str.eatStart(data, cDemoFileSignature))
         throwError("no header");
     //hurrr.... but it works
-    int logpos = str.find(data, cDemoFileStartLog);
+    auto logpos = str.find(data, cDemoFileStartLog);
     if (logpos < 0)
         throwError("no log entries");
     string s_conf = data[0..logpos];

@@ -76,7 +76,7 @@ public class Command {
             string help = "no help";
 
             //<rest> ':' <help>
-            int p = str.find(arg, ':');
+            auto p = str.find(arg, ':');
             if (p >= 0) {
                 help = arg[p+1..$];
                 arg = arg[0..p];
@@ -157,7 +157,7 @@ private:
     TypeHandler[] param_types;
     MyBox[] param_defaults;
     string[] param_help;
-    int minArgCount;
+    size_t minArgCount;
     //pass rest of the commandline as string for the last parameter
     bool textArgument;
 
@@ -168,11 +168,11 @@ private:
         //parsed string (i.e. quotes and escapes removed)
         string s;
         //start and end in the raw string (without surrounding white space)
-        int start, end;
+        size_t start, end;
     }
     public static CmdItem[] parseLine(string cmdline) {
         CmdItem[] res;
-        int orglen = cmdline.length;
+        size_t orglen = cmdline.length;
 
         for (;;) {
             //leading whitespace
@@ -181,7 +181,8 @@ private:
             if (!cmdline.length)
                 break;
 
-            int start = orglen - cmdline.length;
+            assert(orglen >= cmdline.length);
+            size_t start = orglen - cmdline.length;
 
             //find end of the argument
             //it end with string end or whitespace, but there can be quotes
@@ -204,7 +205,7 @@ private:
                 cmdline = cmdline[1..$];
             }
 
-            int end = orglen - cmdline.length;
+            size_t end = orglen - cmdline.length;
             res ~= CmdItem(arg_string, start, end);
         }
 
@@ -216,9 +217,9 @@ private:
     public CmdItem[] parseLine2(string cmdline) {
         CmdItem[] items = parseLine(cmdline);
         if (textArgument) {
-            int start = param_types.length - 1;
-            assert(start >= 0);
-            int end = items.length - 1;
+            assert(param_types.length > 0);
+            size_t start = param_types.length - 1;
+            sizediff_t end = items.length - 1;
             if (end >= start) {
                 CmdItem nitem;
                 nitem.start = items[start].start;
@@ -240,11 +241,11 @@ private:
     // cmdline, argument: argument number, preceeding: text in the current
     // argument, which is preceeding the cursor
     //returns true if output params are valid
-    public bool findArgAt(string cmdline, int cursor, out int argument,
+    public bool findArgAt(string cmdline, size_t cursor, out size_t argument,
         out string preceeding)
     {
         //only parse up to the cursor => simpler
-        assert(cursor >= 0 && cursor <= cmdline.length);
+        assert(cursor <= cmdline.length);
         CmdItem[] items = parseLine2(cmdline[0..cursor]);
         if (items.length == 0) {
             argument = 0;
@@ -498,7 +499,7 @@ class CommandLineInstance {
         CommandBucket mCommands;
         Output mConsole;
         string[] mHistory;
-        int mCurrentHistoryEntry = 0;
+        sizediff_t mCurrentHistoryEntry = 0;
 
         enum uint MAX_HISTORY_ENTRIES = 20;
         enum uint MAX_AUTO_COMPLETIONS = 10;
@@ -608,8 +609,8 @@ class CommandLineInstance {
     //get the command part of the command line
     //start-end: position of command literal, excluding whitespace or prefix
     //argstart: start-index of the arguments (line.length if none)
-    private bool parseCommand(string line, out string command, out uint start,
-        out uint end, out uint argstart)
+    private bool parseCommand(string line, out string command, out size_t start,
+        out size_t end, out size_t argstart)
     {
         auto plen = mCmdline.mCommandPrefix.length;
         auto len = line.length;
@@ -639,7 +640,7 @@ class CommandLineInstance {
         bool silentOnError = false)
     {
         string cmd, args;
-        uint start, end, argstart;
+        size_t start, end, argstart;
 
         if (!parseCommand(cmdline, cmd, start, end, argstart)) {
             //nothing, but show some reaction...
@@ -693,8 +694,8 @@ class CommandLineInstance {
     }
 
     private static string common_prefix(string s1, string s2) {
-        uint slen = min(s1.length, s2.length);
-        for (int n = 0; n < slen; n++) {
+        size_t slen = min(s1.length, s2.length);
+        for (size_t n = 0; n < slen; n++) {
             if (s1[n] != s2[n]) {
                 slen = n;
                 break;
@@ -706,25 +707,25 @@ class CommandLineInstance {
 
     /// Replace the text between start and end by text
     /// operation: newline = line[0..start] ~ text ~ line[end..$];
-    public alias void delegate(int start, int end, cstring text) EditDelegate;
+    public alias void delegate(size_t start, size_t end, cstring text) EditDelegate;
 
     /// Do tab completion for the given line. The delegate by edit inserts
     /// completed text.
     /// at = cursor position; currently unused
-    public void tabCompletion(string line, int at, scope EditDelegate edit) {
-        void do_edit(int start, int end, string text) {
+    public void tabCompletion(string line, size_t at, scope EditDelegate edit) {
+        void do_edit(size_t start, size_t end, string text) {
             line = line[0..start] ~ text ~ line[end..$];
             if (edit)
                 edit(start, end, text);
         }
 
         string cmd;
-        uint start, end, argstart;
+        size_t start, end, argstart;
         if (!parseCommand(line, cmd, start, end, argstart))
             return;
 
         //find out, what or where to complete
-        int arg_e; //position where to insert completion
+        size_t arg_e; //position where to insert completion
         string argstr; //(uncompleted) thing which then user wants to complete
         string[] all_completions; //list of possible completions
 
@@ -741,7 +742,7 @@ class CommandLineInstance {
                 return;
             }
             auto args = line[argstart..$];
-            int arg;
+            size_t arg;
             if (!ccmd.findArgAt(args, at - argstart, arg, argstr)) {
                 //no hit - no idea what's going on
                 return;
@@ -776,7 +777,7 @@ class CommandLineInstance {
             if (common.length > argstr.length) {
                 //if there's a common substring longer than the commandline,
                 //  extend it
-                int diff = common.length - argstr.length;
+                size_t diff = common.length - argstr.length;
 
                 do_edit(arg_e, arg_e, common[$-diff..$]);
                 arg_e += diff;

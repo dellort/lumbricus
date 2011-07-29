@@ -101,13 +101,13 @@ void swap(T)(ref T a, ref T b) {
 }
 
 //whether an index into the array is valid
-bool indexValid(T)(T[] array, uint index) {
+bool indexValid(T)(T[] array, size_t index) {
     //uint takes care of the >= 0
     return index < array.length;
 }
 
 //whether array[a..b] would be valid (and not cause an exception)
-bool sliceValid(T)(T[] array, uint a, uint b) {
+bool sliceValid(T)(T[] array, size_t a, size_t b) {
     //uint takes care of the >= 0
     return a <= array.length && b <= array.length && a <= b;
 }

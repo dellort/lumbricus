@@ -14,7 +14,7 @@ class Loader {
     }
 
     int chunkCount() {
-        return mChunks.length;
+        return cast(int)mChunks.length;
     }
 
     int currentChunk() {

@@ -108,7 +108,7 @@ class LuaInterpreter {
 
     //cursor1..cursor2: indices into line for cursor position + selection
     //parameters are similar to TabCompletionDelegate in GuiConsole
-    CompletionResult autocomplete(cstring line, int cursor1, int cursor2) {
+    CompletionResult autocomplete(cstring line, size_t cursor1, size_t cursor2) {
         try {
             return mLua.scriptExecR!(CompletionResult)
                 ("return ConsoleUtils.autocomplete(...)", line, cursor1, cursor2);
@@ -119,8 +119,8 @@ class LuaInterpreter {
     }
 
     private static string common_prefix(string s1, string s2) {
-        uint slen = min(s1.length, s2.length);
-        for (int n = 0; n < slen; n++) {
+        auto slen = min(s1.length, s2.length);
+        for (size_t n = 0; n < slen; n++) {
             if (s1[n] != s2[n]) {
                 slen = n;
                 break;
@@ -131,8 +131,8 @@ class LuaInterpreter {
     }
 
     //what this function does and its parameters see GuiConsole.setTabCompletion
-    void tabcomplete(cstring line, int cursor1, int cursor2,
-        scope void delegate(int, int, cstring) edit)
+    void tabcomplete(cstring line, size_t cursor1, size_t cursor2,
+        scope void delegate(size_t, size_t, cstring) edit)
     {
         auto res = autocomplete(line, cursor1 + 1, cursor2 + 1);
         if (res.matches.length == 0)
@@ -149,7 +149,7 @@ class LuaInterpreter {
                 res.match_end);
             return;
         }
-        uint len = res.match_end - res.match_start;
+        size_t len = res.match_end - res.match_start;
         if (res.matches.length == 1) {
             //insert the completion and be done with it
             auto c = res.matches[0];

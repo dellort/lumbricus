@@ -30,7 +30,7 @@ private enum string[ContactHandling.max+1] cChNames =
 final class CollisionType {
     private {
         //index into the collision-matrix
-        int mIndex;
+        sizediff_t mIndex;
 
         string mName;
 

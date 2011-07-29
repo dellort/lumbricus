@@ -157,7 +157,7 @@ class TableContainer : PublicContainer {
         //remove children that have invalid table coordinates
         //iterates backwards; .remove calls removeChildren => array changes
         Widget[] removelist; //removing triggers relayout -> delay it
-        for (int n = mChildren.length-1; n >= 0; n--) {
+        for (sizediff_t n = mChildren.length-1; n >= 0; n--) {
             if (!checkCoordinates(mChildren[n])) {
                 removelist ~= mChildren[n].w;
                 mChildren = mChildren[0..n] ~ mChildren[n+1..$];

@@ -34,7 +34,7 @@ Surface loadImageFromFile(string path) {
 void blitPALData(Surface img, WWPPalette pal, ubyte[] data, Rect2i rc) {
     argcheck(img.rect.contains(rc));
     Color.RGBA32* pixels;
-    uint pitch;
+    size_t pitch;
     img.lockPixelsRGBA32(pixels, pitch);
     uint w = rc.size.x;
     for (int y = rc.p1.y; y < rc.p2.y; y++) {
@@ -48,7 +48,7 @@ void blitPALData(Surface img, WWPPalette pal, ubyte[] data, Rect2i rc) {
 RGBAColor getPixel(Surface img, int x, int y) {
     RGBAColor ret;
     Color.RGBA32* pixels;
-    uint pitch;
+    size_t pitch;
     argcheck(img.rect.isInside(Vector2i(x, y)));
     img.lockPixelsRGBA32(pixels, pitch);
     pixels += y*pitch + x;
@@ -65,7 +65,7 @@ void applyAlphaMask(Surface img, Surface mask, bool invert = false) {
     argcheck(img.size == mask.size);
 
     Color.RGBA32* src, dst;
-    uint psrc, pdst;
+    size_t psrc, pdst;
     mask.lockPixelsRGBA32(src, psrc);
     img.lockPixelsRGBA32(dst, pdst);
     for (int y = 0; y < img.size.y; y++) {

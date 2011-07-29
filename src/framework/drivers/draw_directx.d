@@ -129,7 +129,7 @@ class DXDrawDriver : DrawDriver {
         Surface res = new Surface(
             Vector2i(displayMode.Width, displayMode.Height));
         Color.RGBA32* pDest;
-        uint pitch;
+        size_t pitch;
         res.lockPixelsRGBA32(pDest, pitch);
         assert(pitch == res.size.x);
 

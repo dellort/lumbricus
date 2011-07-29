@@ -44,8 +44,8 @@ T arrayFindNext(T)(T[] arr, T w) {
     if (!arr)
         return null;
 
-    int found = -1;
-    foreach (int i, T c; arr) {
+    sizediff_t found = -1;
+    foreach (size_t i, T c; arr) {
         if (w is c) {
             found = i;
             break;
@@ -61,8 +61,8 @@ T arrayFindPrev(T)(T[] arr, T w) {
     if (!arr)
         return null;
 
-    int found = 0;
-    foreach_reverse (int i, T c; arr) {
+    sizediff_t found = 0;
+    foreach_reverse (size_t i, T c; arr) {
         if (w is c) {
             found = i;
             break;
@@ -145,7 +145,7 @@ void arrayRemoveUnordered(T)(ref T[] arr, T value, bool allowFail = false) {
 void arrayInsertN(T)(ref T[] arr, uint index, uint count = 1) {
     assert(index <= arr.length);
     arr.length = arr.length + count;
-    for (uint n = arr.length; n > index + count; n--) {
+    for (size_t n = arr.length; n > index + count; n--) {
         arr[n-1] = arr[n-count-1];
     }
 }
@@ -488,7 +488,7 @@ final class BigArray(T) {
     T[] opSlice() {
         return mData;
     }
-    T[] opSlice(uint low, uint high) {
+    T[] opSlice(size_t low, size_t high) {
         return mData[low..high];
     }
     void opSliceAssign(T v) {
@@ -524,7 +524,7 @@ void mergeSort(T, Pred2E = IsLess!(T))(T[] a, Pred2E pred = Pred2E.init) {
     if (a.length < 2) {
         return;
     }
-    int mid = (a.length-1) / 2;
+    size_t mid = (a.length-1) / 2;
 
     /*
      *  Partition the list into two lists and sort them recursively
@@ -535,9 +535,9 @@ void mergeSort(T, Pred2E = IsLess!(T))(T[] a, Pred2E pred = Pred2E.init) {
     /*
      *  Merge the two sorted lists
      */
-    int lo = 0;
-    int end_lo = mid;
-    int start_hi = mid + 1;
+    sizediff_t lo = 0;
+    sizediff_t end_lo = mid;
+    sizediff_t start_hi = mid + 1;
     while ((lo <= end_lo) && (start_hi < a.length)) {
         if (pred(a[start_hi], a[lo])) {
             /*
@@ -547,7 +547,7 @@ void mergeSort(T, Pred2E = IsLess!(T))(T[] a, Pred2E pred = Pred2E.init) {
              *  position and shuffle all the other elements up.
              */
             T item = a[start_hi];
-            for (int k = start_hi - 1; k >= lo; k--) {
+            for (sizediff_t k = start_hi - 1; k >= lo; k--) {
                 a[k+1] = a[k];
             }
             a[lo] = item;

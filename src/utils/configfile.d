@@ -213,7 +213,7 @@ public class ConfigNode {
             return this;
         }
 
-        int pos = str.find(path, ".");
+        auto pos = str.find(path, ".");
         if (pos < 0)
             pos = path.length;
 
@@ -270,7 +270,7 @@ public class ConfigNode {
     }
 
     //number of nodes and values
-    int count() {
+    size_t count() {
         return mItems.length;
     }
 
@@ -813,14 +813,14 @@ public class ConfigFile {
 
     //fatal==false: continue parsing allthough config file is invalid
     //fatal==true: parsing won't be continued (abort by throwing an exception)
-    private void reportError(bool fatal, string fmt, ...) {
+    private void reportError(T...)(bool fatal, string fmt, T args) {
         mErrorCount++;
 
         auto log = registerLog("configparse");
 
         log.error("error in %s(%s,%s): ", mFilename, mPos.line, mPos.column);
         //scary D varargs!
-        log.emitx(LogPriority.Error, fmt, _arguments, _argptr);
+        log.emitx(LogPriority.Error, fmt, args);
 
         //abuse exception handling to abort parsing
         if (fatal) {

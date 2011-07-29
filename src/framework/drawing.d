@@ -622,7 +622,7 @@ class Canvas3DHelper : Canvas {
         //xxx I don't know if this makes much sense
         enum cRadiusToSteps = 2*PI/30;
         return clampRangeC(cast(uint)(radius*cRadiusToSteps), 16U,
-            mBuffer.length-2);
+            cast(uint)(mBuffer.length-2));
     }
     override void drawCircle(Vector2i center, int radius, Color color) {
         mColor = color;

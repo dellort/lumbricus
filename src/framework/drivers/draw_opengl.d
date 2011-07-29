@@ -135,7 +135,7 @@ class GLDrawDriver : DrawDriver {
         //get screen contents, (0, 0) is bottom left in OpenGL, so
         //  image will be upside-down
         Color.RGBA32* ptr;
-        uint pitch;
+        size_t pitch;
         res.lockPixelsRGBA32(ptr, pitch);
         assert(pitch == res.size.x);
         glReadPixels(0, 0, mScreenSize.x, mScreenSize.y, GL_RGBA,
@@ -561,7 +561,7 @@ class GLCanvas : Canvas3DHelper {
         }
 
         assert(mVertexCount <= mVertices.length);
-        glDrawArrays(mCurrentVertexMode, 0, mVertexCount);
+        glDrawArrays(mCurrentVertexMode, 0, cast(int)mVertexCount);
         mVertexCount = 0;
     }
 

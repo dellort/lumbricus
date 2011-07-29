@@ -379,7 +379,7 @@ class CratePlugin : GameObject2 {
             ret ~= new CollectableMedkit(50);
         } else if (r < mCrateProbs[1]) {
             //tool
-            ret ~= new CollectableTool(mActiveCrateTools[engine.rnd.next($)]);
+            ret ~= new CollectableTool(mActiveCrateTools[engine.rnd.next(cast(uint)$)]);
         } else {
             //weapon
             auto content = mCrateSet ? mCrateSet.chooseRandomForCrate() : null;

@@ -137,7 +137,7 @@ class GameSky {
             mStarAnims ~= mEngine.resources.get!(Animation)(value);
         }
 
-        int nAnim = 0;
+        size_t nAnim = 0;
         foreach (ref CloudInfo ci; mCloudAnimators) {
             ci.anim = new Animator(ts);
             ci.anim.setAnimation(mCloudAnims[nAnim],

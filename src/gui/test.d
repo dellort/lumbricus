@@ -620,7 +620,7 @@ class TestTask3 {
         mView.update();
     }
 
-    void onSelFile(int index) {
+    void onSelFile(sizediff_t index) {
         if (index >= 0) {
             loadFile(mFList.contents[index]);
         }

@@ -26,7 +26,7 @@ extern (C) {
     //consider rw_read(_,_,128,1), and s.length is 123 - what should the file
     //position be?
     //from experiments with C it seems having the file pointer at EOF is ok
-    return s.length/size;
+    return cast(int)(s.length/size);
   }
 
   int rw_write (SDL_RWops *context, void *ptr, int size, int num) {

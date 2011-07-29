@@ -48,22 +48,22 @@ unittest {
 }
 
 //return: -1 if not found, or the first n with text[n] == tofind
-int find(cstring text, char tofind) {
+sizediff_t find(cstring text, char tofind) {
     return pstr.indexOf(text, tofind);
 }
 
 //return: -1 if not found, or first n with text[n..n+tofind.length] == tofind
-int find(cstring text, cstring tofind) {
+sizediff_t find(cstring text, cstring tofind) {
     return pstr.indexOf(text, tofind);
 }
 
 //return: -1 if not found, or the last n with text[n] == tofind
-int rfind(cstring text, char tofind) {
+sizediff_t rfind(cstring text, char tofind) {
     return pstr.lastIndexOf(text, tofind);
 }
 
 //return: -1 if not found, or first n with text[n..n+tofind.length] == tofind
-int rfind(cstring text, cstring tofind) {
+sizediff_t rfind(cstring text, cstring tofind) {
     return pstr.lastIndexOf(text, tofind);
 }
 
@@ -295,7 +295,7 @@ bool eatEnd(ref string str, cstring suffix) {
 //  split2("abcd", 'c') == ["ab", "cd"]
 //  split2("abcd", 'x') == ["abcd", ""]
 const(char)[][2] split2(const(char)[] txt, char tofind) {
-    int idx = find(txt, tofind);
+    auto idx = find(txt, tofind);
     auto before = txt[0 .. idx >= 0 ? idx : $];
     auto after = txt[before.length .. $];
     return [before, after];
@@ -399,22 +399,22 @@ string ctfe_firstupper(string s) {
 
 
 /// Return the index of the character following the character at "index"
-int charNext(cstring s, int index) {
-    assert(index >= 0 && index <= s.length);
+size_t charNext(cstring s, size_t index) {
+    assert(index <= s.length);
     if (index == s.length)
         return s.length;
     return index + stride(s, index);
 }
 /// Return the index of the character prepending the character at "index"
-int charPrev(cstring s, int index) {
-    assert(index >= 0 && index <= s.length);
+size_t charPrev(cstring s, size_t index) {
+    assert(index <= s.length);
     debug if (index < s.length) {
         //assert valid UTF-8 character (stride will throw an exception)
         stride(s, index);
     }
     //you just had to find the first char starting with 0b0... or 0b11...
     //but this was most simple
-    foreach_reverse(int byteindex, dchar c; s[0..index]) {
+    foreach_reverse(size_t byteindex, dchar c; s[0..index]) {
         return byteindex;
     }
     return 0;
@@ -425,10 +425,10 @@ int charPrev(cstring s, int index) {
 //rest of documentation see unittest lol
 string[] splitPrefixDelimiters(string s, string[] delimiters) {
     string[] res;
-    int last_delim = 0;
+    size_t last_delim = 0;
     for (;;) {
-        int next = -1;
-        int delim_len;
+        sizediff_t next = -1;
+        size_t delim_len;
         foreach (del; delimiters) {
             auto v = find(s[last_delim..$], del);
             if (v >= 0 && (next < 0 || v <= next)) {

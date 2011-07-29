@@ -284,7 +284,7 @@ BoxTex getBox(BoxProperties props) {
         //offset the result by offs
         void drawCircle(Vector2i offs, Vector2f c, int w) {
             Color.RGBA32* pixels;
-            uint pitch;
+            size_t pitch;
             s.lockPixelsRGBA32(pixels, pitch);
 
             for (int y = 0; y < w*2; y++) {

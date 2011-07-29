@@ -27,7 +27,7 @@ enum ShrinkMode {
 
 struct TextRange {
     //start and end indices
-    int start, end;
+    sizediff_t start, end;
 
     TextRange ordered() {
         auto sstart = min(start, end);
@@ -143,7 +143,7 @@ public class FormattedText {
             bool startline; //hack for indexFromPosFuzzy()
             //validity depends from PartType
             const(char)[] text;
-            int text_start = -1; //if >=0, start index into mText
+            sizediff_t text_start = -1; //if >=0, start index into mText
             Surface image;
         }
         //NOTE: the memory for mText is always owned by us
@@ -359,9 +359,9 @@ public class FormattedText {
     //utf-8 and line breaks
     //the start_index is the offset of txt into mText, use -1 for invalid
     //  (only pass a valid index if txt has not been modified etc.)
-    private void parseLiteral(const(char)[] txt, int start_index) {
+    private void parseLiteral(const(char)[] txt, sizediff_t start_index) {
         //assumes that t is a slice of txt, and that nothing of txt is skipped
-        Part* add(PartType type, int stop) {
+        Part* add(PartType type, sizediff_t stop) {
             auto t = txt[0..stop];
             if (t.length == 0)
                 return null;
@@ -688,7 +688,7 @@ public class FormattedText {
                 if (cur.type != PartType.Text || cur.text_start < 0)
                     continue;
                 //split off a part from cur, and add it after cur
-                void split(int at) {
+                void split(sizediff_t at) {
                     assert(at > 0 && at < cur.text.length);
                     Part* n = allocpart();
                     *n = *cur;
@@ -811,9 +811,9 @@ public class FormattedText {
     //find the position of the first char after the last whitespace
     //e.g. find_after_ws_pos("a  b cd") == 5
     //return -1 if no white space found
-    private static int find_after_ws_pos(in char[] s) {
-        int at = -1;
-        foreach (uint idx, dchar c; s) {
+    private static sizediff_t find_after_ws_pos(in char[] s) {
+        sizediff_t at = -1;
+        foreach (size_t idx, dchar c; s) {
             if (str.iswhite(c)) {
                 at = idx;
             }
@@ -905,7 +905,7 @@ public class FormattedText {
                         continue;
                     Font f = p.style.font;
                     Vector2i s = f.textSize(cDotDot);
-                    uint at = f.textFit(p.text, max_w - s.x - p.pos.x);
+                    size_t at = f.textFit(p.text, max_w - s.x - p.pos.x);
                     //breaking here may look stupid ("..." in different
                     //  style)
                     if (at == 0) {
@@ -975,14 +975,14 @@ public class FormattedText {
                 if (break_on.type == PartType.Text) {
                     //text part, do word wrapping
                     Font f = break_on.style.font;
-                    uint at;
+                    size_t at;
                     if (toowide) {
                         //break on width
                         at = f.textFit(break_on.text,
                             max_w - break_on.pos.x, true);
                     } else {
                         //break on last whitespace
-                        int p = find_after_ws_pos(break_on.text);
+                        auto p = find_after_ws_pos(break_on.text);
                         at = p >= 0 ? p : break_on.text.length;
                     }
                     if (at == 0) {
@@ -1203,7 +1203,7 @@ public class FormattedText {
     //  the rect in your drawing coordinate system
     //Rect2i.Abnormal() is returned on error (e.g. index out of bounds, or
     //  points into formatting commands)
-    Rect2i getGlyphRect(int index, bool fuzzy) {
+    Rect2i getGlyphRect(size_t index, bool fuzzy) {
         //assumes that parts have the same order as the referenced text
         //(valid Part.text_start values monotonically increase)
         Part* last;
@@ -1239,7 +1239,7 @@ public class FormattedText {
     //  char is returned (just a line, width 0)
     //- if text has length 0, return a line (width 0) at the beginning in the
     //  default style
-    Rect2i getCursorPos(int index) {
+    Rect2i getCursorPos(size_t index) {
         Rect2i rc = Rect2i.Abnormal();
         bool rightline = false;
         if (index >= mText.length && mText.length > 0) {
@@ -1265,14 +1265,14 @@ public class FormattedText {
     //find the text index for the given point (range [0, text.length] )
     //to get the correct pos, don't forget to add whatever you pass to draw()
     //the "Fuzzy" means it returns the nearest match, even if not exact
-    int indexFromPosFuzzy(Vector2i pos) {
+    size_t indexFromPosFuzzy(Vector2i pos) {
         pos -= innerOffset();
-        int def = 0;
-        int def_x = int.max;
+        size_t def = 0;
+        size_t def_x = size_t.max;
         Part* first, last;
         for (Part* p = mParts; !!p; p = p.next) {
             if (p.startline)
-                def_x = int.max;
+                def_x = size_t.max;
             if (p.type != PartType.Text || p.text_start < 0)
                 continue;
             int x1 = p.pos.x, x2 = p.pos.x + p.size.x;

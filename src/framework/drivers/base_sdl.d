@@ -247,11 +247,11 @@ class SDLDriver : FrameworkDriver {
             //see http://www.libsdl.org/cgi/docwiki.cgi/SDL_WM_SetIcon
             if (!iconDone) {
                 Color.RGBA32* pixels;
-                uint pitch;
+                size_t pitch;
                 ico.lockPixelsRGBA32(pixels, pitch);
                 scope (exit) ico.unlockPixels(Rect2i.init);
                 SDL_Surface* sicon = SDL_CreateRGBSurfaceFrom(pixels,
-                    ico.size.x, ico.size.y, 32, pitch * Color.RGBA32.sizeof,
+                    ico.size.x, ico.size.y, 32, cast(int)(pitch * Color.RGBA32.sizeof),
                     Color.cMaskR, Color.cMaskG, Color.cMaskB, Color.cMaskA);
                 if (sicon) {
                     SDL_WM_SetIcon(sicon, null);

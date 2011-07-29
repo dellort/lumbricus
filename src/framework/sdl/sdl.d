@@ -77,7 +77,7 @@ Surface convertFromSDLSurface(SDL_Surface* surf, bool free_surf) {
     Surface res = new Surface(Vector2i(surf.w, surf.h));
 
     Color.RGBA32* ptr;
-    uint pitch;
+    size_t pitch;
 
     res.lockPixelsRGBA32(ptr, pitch);
     assert(pitch == res.size.x); //lol, for block copy
@@ -92,7 +92,7 @@ Surface convertFromSDLSurface(SDL_Surface* surf, bool free_surf) {
     auto rgba32 = sdlpfRGBA32();
     if (!(not_crap && cmpPixelFormat(surf.format, &rgba32))) {
         SDL_Surface* ns = SDL_CreateRGBSurfaceFrom(ptr,
-            surf.w, surf.h, rgba32.BitsPerPixel, pitch*Color.RGBA32.sizeof,
+            surf.w, surf.h, rgba32.BitsPerPixel, cast(int)(pitch*Color.RGBA32.sizeof),
             rgba32.Rmask, rgba32.Gmask, rgba32.Bmask, rgba32.Amask);
         if (!ns)
             throw new Exception("out of memory?");
