@@ -97,10 +97,10 @@ class GZWriter {
         while (data.length) {
             buffer_flush();
             zs.next_out = &buffer[buffer_pos];
-            zs.avail_out = buffer.length - buffer_pos;
-            int was_avail = zs.avail_out;
+            zs.avail_out = cast(uint)(buffer.length - buffer_pos);
+            auto was_avail = zs.avail_out;
             zs.next_in = data.ptr;
-            zs.avail_in = data.length;
+            zs.avail_in = cast(uint)data.length;
             int res = czlib.deflate(&zs, czlib.Z_NO_FLUSH);
             zerror(res);
             buffer_pos += was_avail - zs.avail_out;
@@ -115,8 +115,8 @@ class GZWriter {
         for (;;) {
             buffer_flush();
             zs.next_out = &buffer[buffer_pos];
-            zs.avail_out = buffer.length - buffer_pos;
-            int was_avail = zs.avail_out;
+            zs.avail_out = cast(uint)(buffer.length - buffer_pos);
+            auto was_avail = zs.avail_out;
             zs.next_in = null;
             zs.avail_in = 0;
             int res = czlib.deflate(&zs, czlib.Z_FINISH);
@@ -197,10 +197,10 @@ class GZReader {
                 buffer = onRead(real_buffer);
             }
             zs.next_in = buffer.ptr;
-            zs.avail_in = buffer.length;
+            zs.avail_in = cast(uint)buffer.length;
             zs.next_out = &data[data_read];
-            zs.avail_out = data.length - data_read;
-            int was_avail = zs.avail_out;
+            zs.avail_out = cast(uint)(data.length - data_read);
+            auto was_avail = zs.avail_out;
             int res = czlib.inflate(&zs, czlib.Z_NO_FLUSH);
             bool end = (res == czlib.Z_STREAM_END);
             if (!end) {
@@ -263,7 +263,7 @@ final class ZLibCrc32 : Digest {
         crc32Digest();
     }
     override ZLibCrc32 update(void[] input) {
-        crc = czlib.crc32(crc, cast(ubyte*)input.ptr, input.length);
+        crc = czlib.crc32(crc, cast(ubyte*)input.ptr, cast(uint)input.length);
         return this; //why, oh god why, Tango team?
     }
     override uint digestSize() {

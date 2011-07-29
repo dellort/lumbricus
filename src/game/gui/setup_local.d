@@ -360,7 +360,7 @@ class LocalGameSetupTask {
         mEditTeamsBtn.visible = !mGamePersist;
     }
 
-    private void allteamsSelect(int index) {
+    private void allteamsSelect(sizediff_t index) {
         if (index < 0)
             return;
         //team names are unique, but may change
@@ -370,7 +370,7 @@ class LocalGameSetupTask {
         updateTeams();
     }
 
-    private void activeteamsSelect(int index) {
+    private void activeteamsSelect(sizediff_t index) {
         if (index < 0)
             return;
         auto tNode = mTeams.getSubNode(mActiveTeamsList.contents[index]);

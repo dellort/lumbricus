@@ -16,6 +16,7 @@ import gui.widget;
 import gui.window;
 import gui.edit;
 
+import utils.misc;
 import utils.vector2;
 
 ///a DropDownControl consists of a popup, a button to trigger the popup, and a
@@ -200,7 +201,7 @@ class DropDownList : Container {
         mClient.text = v;
     }
 
-    private void listSelect(int index) {
+    private void listSelect(sizediff_t index) {
         mDropDown.killPopup(true);
         endEdit();
         if (index >= 0 && index < mList.contents.length) {

@@ -101,7 +101,7 @@ class RawAnimation {
 
     //store as strip (only useful for inspecting animations with unworms)
     Surface toBitmap() {
-        auto img = new Surface(Vector2i(box.x*frames.length, box.y));
+        auto img = new Surface(Vector2i(cast(int)(box.x*frames.length), box.y));
         foreach (int i, FrameInfo fi; frames) {
             blitPALData(img, palette, fi.data, Rect2i.Span(
                 Vector2i(i*box.x+fi.at.x, fi.at.y), fi.size));

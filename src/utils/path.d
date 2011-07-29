@@ -16,7 +16,7 @@ char[] getFilePath(char[] fullname)
     }
     body
     {
-        uint i;
+        size_t i;
 
         for (i = fullname.length; i > 0; i--)
         {
@@ -96,7 +96,7 @@ struct VFSPath {
 
     private {
         char[] mPath;
-        int mNameIdx, mExtIdx;
+        sizediff_t mNameIdx, mExtIdx;
     }
 
     ///create VFSPath struct and set path (see set())
@@ -149,7 +149,7 @@ struct VFSPath {
     ///ex: /foo -> (empty)
     ///empty dir (i.e. root) will return itself
     VFSPath parent() {
-        int i = str.rfind(mPath, '/');
+        auto i = str.rfind(mPath, '/');
         if (i >= 0)
             return VFSPath(mPath[0..i]);
         else
@@ -185,7 +185,7 @@ struct VFSPath {
 
     ///return base name (without extension) of the last path component
     char[] filebase() {
-        int ext = mExtIdx;
+        auto ext = mExtIdx;
         if (ext < 0)
             ext = mPath.length;
 
@@ -278,7 +278,7 @@ struct VFSPath {
 
         //first pass: go through the path in reverse, check illegal chars and
         //split into parts
-        foreach_reverse (int i, inout char c; mPath) {
+        foreach_reverse (size_t i, inout char c; mPath) {
             switch (c) {
                 case '*', '?':
                     if (allowWildcards) {
@@ -313,7 +313,7 @@ struct VFSPath {
         }
 
         //second pass: scan for filename and extension index
-        foreach_reverse (int i, inout char c; mPath) {
+        foreach_reverse (size_t i, inout char c; mPath) {
             switch (c) {
                 case '.':
                     //filename/extension separator

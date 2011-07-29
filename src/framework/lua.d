@@ -136,7 +136,7 @@ private {
 
 private struct UD_Object {
     Object o;
-    int pinID; //hack to make pinning code simpler
+    size_t pinID; //hack to make pinning code simpler
 }
 
 
@@ -630,9 +630,9 @@ private int luaPush(T)(lua_State *state, T value) {
         lua_rawget(state, LUA_REGISTRYINDEX);
         lua_setmetatable(state, -2);
     } else static if (isArrayType!(T)) {
-        lua_createtable(state, value.length, 0);
+        lua_createtable(state, cast(int)value.length, 0);
         foreach (k, v; value) {
-            lua_pushinteger(state, k+1);
+            lua_pushinteger(state, cast(int)(k+1));
             luaPush(state, v);
             lua_rawset(state, -3);
         }
@@ -1126,7 +1126,7 @@ class LuaRegistry {
             } else {
                 clsname = ci.name;
                 //strip package/module path
-                int i = str.rfind(clsname, ".");
+                auto i = str.rfind(clsname, ".");
                 if (i >= 0) {
                     clsname = clsname[i+1..$];
                 }
@@ -1699,7 +1699,7 @@ class LuaState {
 
         LuaState lstate = getInstance(state);
 
-        int pinID = lstate.mPtrList.pinPointer(cast(void*)value);
+        auto pinID = lstate.mPtrList.pinPointer(cast(void*)value);
         auto ud = cast(UD_Object*)lua_newuserdata(state, UD_Object.sizeof); //ud
         ud.o = value;
         ud.pinID = pinID;
@@ -2382,7 +2382,7 @@ private class PointerPinTable {
         size_t _int; //will mark ptr as ambiguous (also, used for freelist)
     }
     AmbPtr[] mPinList;
-    int mFreeList = -1; //point to next free entry
+    sizediff_t mFreeList = -1; //point to next free entry
 
     //makes sure the pointer won't be free'd or relocated by the GC
     //it doesn't protect the pointer against manual free'ing
@@ -2392,7 +2392,7 @@ private class PointerPinTable {
     //  but me is too lazy and the pinID thing simply makes it easier)
     //must not pin the same pointer twice (unless it was unpinned before); this
     //  is not checked yet, but I may convert this to a hashtable
-    int pinPointer(void* ptr) {
+    size_t pinPointer(void* ptr) {
         if (mFreeList == -1) {
             extend();
         }
@@ -2404,7 +2404,7 @@ private class PointerPinTable {
 
     //undo pinPointer - pinID is the return value of pinPointer
     //xxx ptr is just passed for debugging
-    void unpinPointer(int pinID, void* ptr) {
+    void unpinPointer(size_t pinID, void* ptr) {
         assert(mPinList[pinID].ptr is ptr);
         mPinList[pinID] = AmbPtr.init;
         mPinList[pinID]._int = mFreeList;

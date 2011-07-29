@@ -212,7 +212,7 @@ class WeaponSet : GameObject {
     //xxx: Implement different drop probabilities (by value/current count)
     WeaponClass chooseRandomForCrate() {
         if (mEntries.length > 0) {
-            uint r = engine.rnd.next(0, mEntries.length);
+            auto r = engine.rnd.next(0, cast(int)mEntries.length);
             return mEntries[r].weapon;
         } else {
             return null;

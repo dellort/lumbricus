@@ -578,7 +578,7 @@ class ParticleWorld {
     }
 
     int particleCount() {
-        return mParticleStorage.length;
+        return cast(int)mParticleStorage.length;
     }
 
     void draw(Canvas c) {

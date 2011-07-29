@@ -21,14 +21,14 @@ import str = utils.string;
 class EditLine : Widget {
     private {
         char[] mCurline;
-        uint mCursor;       //call updateCursor on change
+        size_t mCursor;       //call updateCursor on change
         Vector2i mOffset;   //text rendering offset for scrolling
         FormattedText mRender;
         FormattedText.StyleRange* mRenderSel; //render text selection
         //not necessarily mSelStart >= mSelEnd, can also be backwards
         //if they're equal, there's no selection
         //must always be valid indices into mCurline (or be == mCurline.length)
-        uint mSelStart, mSelEnd;
+        size_t mSelStart, mSelEnd;
         bool mMouseDown;
         Font mSelFont;
         bool mCursorVisible = true;
@@ -52,7 +52,7 @@ class EditLine : Widget {
         bool ctrl = modifierIsSet(infos.mods, Modifier.Control);
         bool shift = modifierIsSet(infos.mods, Modifier.Shift);
         bool had_sel = mSelStart != mSelEnd;
-        uint oldcursor = mCursor;
+        auto oldcursor = mCursor;
 
         void handleSelOnMove() {
             if (shift) {
@@ -109,7 +109,7 @@ class EditLine : Widget {
                 deleteSelection();
                 doOnChange();
             } else if (mCursor > 0) {
-                int del = mCursor - str.charPrev(mCurline, mCursor);
+                size_t del = mCursor - str.charPrev(mCurline, mCursor);
                 editText(mCursor - del, mCursor, "");
                 doOnChange();
             }
@@ -119,7 +119,7 @@ class EditLine : Widget {
                 deleteSelection();
                 doOnChange();
             } else if (mCursor < mCurline.length) {
-                int del = str.stride(mCurline, mCursor);
+                size_t del = str.stride(mCurline, mCursor);
                 editText(mCursor, mCursor + del, "");
                 doOnChange();
             }
@@ -185,8 +185,8 @@ class EditLine : Widget {
     //if mCursor was between start and end, it's set to end; if mCursor was
     //  after end, its value is fixed
     //onChange is not emitted
-    void editText(int start, int end, char[] replace) {
-        assert(start >= 0 && start <= end && end <= mCurline.length);
+    void editText(size_t start, size_t end, char[] replace) {
+        assert(start <= end && end <= mCurline.length);
         debug str.validate(replace);
         killSelection();
         //xxx could be changed to inplace editing to waste less memory
@@ -196,7 +196,7 @@ class EditLine : Widget {
             mCursor = mCursor < end ? start : mCursor - (end - start);
             mCursor += replace.length;
         }
-        assert(mCursor >= 0 && mCursor <= mCurline.length);
+        assert(mCursor <= mCurline.length);
         mRender.setLiteral(mCurline);
         updateCursor();
     }
@@ -264,7 +264,7 @@ class EditLine : Widget {
     }
 
     ///byteindex into text at the given pixel pos
-    uint indexAt(Vector2i pos) {
+    size_t indexAt(Vector2i pos) {
         return mRender.indexFromPosFuzzy(pos + mOffset);
     }
 
@@ -386,10 +386,10 @@ class EditLine : Widget {
         cursorPos = 0;
     }
 
-    public uint cursorPos() {
+    public size_t cursorPos() {
         return mCursor;
     }
-    public void cursorPos(uint newPos) {
+    public void cursorPos(size_t newPos) {
         if (mCursor == newPos)
             return;
         mCursor = newPos;
@@ -453,7 +453,7 @@ private:
 //if there are spaces, the cursor is positioned at the start of the sequence
 //both are just helpers and require "pos" not to be at the end resp. beginning
 
-uint findNextWord(char[] astr, uint pos) {
+size_t findNextWord(char[] astr, size_t pos) {
     bool what = isWord(astr, pos);
     while (pos < astr.length) {
         pos = str.charNext(astr, pos);
@@ -468,7 +468,7 @@ uint findNextWord(char[] astr, uint pos) {
     return pos;
 }
 
-uint findPrevWord(char[] astr, uint pos) {
+size_t findPrevWord(char[] astr, size_t pos) {
     pos = str.charPrev(astr, pos);
     //overjump spaces, if any
     while (pos > 0 && isSpaceAt(astr, pos))

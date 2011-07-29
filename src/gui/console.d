@@ -69,11 +69,11 @@ class ConsoleEditLine : EditLine {
 
 //Replace the text between start and end by text
 //operation: newline = line[0..start] ~ text ~ line[end..$];
-alias void delegate(int start, int end, char[] text) EditDelegate;
+alias void delegate(size_t start, size_t end, char[] text) EditDelegate;
 
 //line is the current line, cursor1+cursor2 are the selection/cursor-
 //  position, and edit can be used to change the text
-alias void delegate(char[] line, int cursor1, int cursor2, EditDelegate edit)
+alias void delegate(char[] line, size_t cursor1, size_t cursor2, EditDelegate edit)
     TabCompleteDelegate;
 
 //a generic console (basically just a LogWindow over an EditLine)

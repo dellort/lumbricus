@@ -105,7 +105,7 @@ class Scene : SceneObjectCentered {
         return 0;
     }
     int zmax() {
-        return mActiveObjects.length; //huh off by one, but nobody cares
+        return cast(int)mActiveObjects.length; //huh off by one, but nobody cares
     }
 
     //only draw objects with z order z

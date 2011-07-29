@@ -60,7 +60,7 @@ struct RandomValue(T) {
     ///initialize from string like "<min><cRandValSeparator><max>"
     //may throw ConversionException
     static RandomValue fromString(char[] s) {
-        uint i = str.locate(s, cRandValSeparator);
+        auto i = str.locate(s, cRandValSeparator);
         //not found -> fallback
         if (i == s.length)
             i = str.locate(s, cRandValSeparator2);

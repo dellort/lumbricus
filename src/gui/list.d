@@ -19,9 +19,9 @@ class AbstractListWidget : Widget {
     private {
         int mHeight; //as requested by user
         int mRHeight = 1; //real height
-        int mCount;
-        int mSelected = cUnselected;
-        int mHoverIndex = cUnselected;
+        size_t mCount;
+        sizediff_t mSelected = cUnselected;
+        sizediff_t mHoverIndex = cUnselected;
         //twice on all border for each coord.
         Vector2i mSpacing = {5,1};
         bool mMouseInside;
@@ -31,7 +31,7 @@ class AbstractListWidget : Widget {
 
     /// event for selection; for meaning of index cf. selectedIndex(int)
     /// xxx: unselect event?
-    void delegate(int index) onSelect;
+    void delegate(sizediff_t index) onSelect;
 
     this() {
         styles.addClass("w-list");
@@ -39,17 +39,17 @@ class AbstractListWidget : Widget {
         doClipping = true;
     }
 
-    int count() {
+    size_t count() {
         return mCount;
     }
 
     /// selected item, or cUnselected (always below 0) if none selected
-    int selectedIndex() {
+    sizediff_t selectedIndex() {
         return mSelected;
     }
 
     //is it ok that this is public writeable?
-    void selectedIndex(int index) {
+    void selectedIndex(sizediff_t index) {
         mSelected = (index >= 0 && index < mCount) ? index : cUnselected;
         if (onSelect)
             onSelect(index);
@@ -67,7 +67,7 @@ class AbstractListWidget : Widget {
     }
 
     /// notify about changed numbers of entries
-    protected void notifyResize(int acount) {
+    protected void notifyResize(sizediff_t acount) {
         if (acount == mCount)
             return;
         mCount = acount;
@@ -92,7 +92,7 @@ class AbstractListWidget : Widget {
         mRHeight = mHeight + mSpacing.y*2;
         if (mRHeight <= 0)
             mRHeight = 1;
-        return Vector2i(size_request_x + mSpacing.x*2, mRHeight*mCount);
+        return Vector2i(size_request_x + mSpacing.x*2, mRHeight*cast(int)mCount);
     }
 
     override void onDraw(Canvas canvas) {
@@ -134,7 +134,7 @@ class AbstractListWidget : Widget {
             }
             case Keycode.MOUSE_LEFT: {
                 mHoverIndex = cUnselected;
-                int newIndex = mousePos.y / mRHeight;
+                sizediff_t newIndex = mousePos.y / mRHeight;
                 newIndex = newIndex>=count ? count-1 : newIndex;
                 if ((key.isDown) && mMouseInside) {
                     mHoverIndex = newIndex;

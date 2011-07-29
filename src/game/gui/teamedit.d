@@ -110,7 +110,7 @@ class TeamEditorTask {
 
     //Team selection dropdown clicked
     private void teamSelect(DropDownList l) {
-        int idx = l.list.selectedIndex;
+        auto idx = l.list.selectedIndex;
         if (idx == mTeamsDropdown.list.count-1)
             doSelectTeam("", true);
         else
@@ -183,7 +183,7 @@ class TeamEditorTask {
     //Control dropdown changed
     private void controlSelect(DropDownList l) {
         if (mEditedTeam) {
-            int idx = l.list.selectedIndex;
+            auto idx = l.list.selectedIndex;
             if (idx > 0)
                 mEditedTeam["control"] = "worms";
             else
@@ -221,8 +221,8 @@ class TeamEditorTask {
             if (arr.length == 0)
                 return "";
 
-            int found = -1;
-            foreach (int i, char[] c; arr) {
+            sizediff_t found = -1;
+            foreach (size_t i, char[] c; arr) {
                 if (w == c) {
                     found = i;
                     break;

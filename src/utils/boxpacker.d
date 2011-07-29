@@ -74,7 +74,7 @@ class BoxPacker {
 
     PackerPage extendCache(Vector2i minSize) {
         //writefln(`BoxPacker: Creating a new cache page: {}`, pages.length);
-        pages ~= new PackerPage(pageSizeContaining(minSize), pages.length);
+        pages ~= new PackerPage(pageSizeContaining(minSize), cast(int)pages.length);
         return pages[$-1];
     }
 

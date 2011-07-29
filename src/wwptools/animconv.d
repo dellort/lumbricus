@@ -115,7 +115,7 @@ class AniEntry {
     //  sequentially (like a2 is played after a1 has ended)
     void addFrames(RawAnimation[] src, int c_idx = 0, bool append_A = false) {
         void addAnimation(RawAnimation a, int b_idx) {
-            int len_a = a.frames.length;
+            auto len_a = a.frames.length;
             //xxx: using append_A could lead to deformed "non-square"
             //  rectangular array, if used incorrectly (maybe)
             if (!append_A && (length_b() > 0 && len_a != length_a())) {
@@ -130,7 +130,7 @@ class AniEntry {
             box = box.max(bb);
             a.savePacked(mPacker);
             AnimationFrame[] cframes;
-            foreach (int idx, frame; a.frames) {
+            foreach (size_t idx, frame; a.frames) {
                 AnimationFrame cur;
                 cur.bitmap = frame.image;
                 //frame.at is the offset of the bitmap within a.box
@@ -156,8 +156,8 @@ class AniEntry {
     void appendMirrorY_A() {
         foreach (inout cframes; mFrames) {
             foreach (inout fl; cframes) {
-                int count = fl.length;
-                for (int i = 0; i < count; i++) {
+                auto count = fl.length;
+                for (size_t i = 0; i < count; i++) {
                     //append in reverse order (the only case where we use Y_A
                     //needs it in this way)
                     auto cur = fl[count-i-1];
@@ -171,8 +171,8 @@ class AniEntry {
     //append animations mirrored to Y axis along axis B
     void appendMirrorY_B() {
         foreach (inout cframes; mFrames) {
-            int count = cframes.length;
-            for (int i = 0; i < count; i++) {
+            auto count = cframes.length;
+            for (size_t i = 0; i < count; i++) {
                 auto cur = cframes[i].dup;
                 foreach (inout f; cur) {
                     f.mirrorY = !f.mirrorY;
@@ -185,7 +185,7 @@ class AniEntry {
     void reverseA() {
         foreach (inout cframes; mFrames) {
             foreach (inout fl; cframes) {
-                for (int i = 0; i < fl.length/2; i++) {
+                for (size_t i = 0; i < fl.length/2; i++) {
                     swap(fl[i], fl[$-i-1]);
                 }
             }
@@ -195,8 +195,8 @@ class AniEntry {
     void appendBackwardsA() {
         foreach (inout cframes; mFrames) {
             foreach (inout fl; cframes) {
-                int count = fl.length;
-                for (int i = count-1; i >= 0; i--) {
+                size_t count = fl.length;
+                for (sizediff_t i = count-1; i >= 0; i--) {
                     fl ~= fl[i];
                 }
             }
@@ -224,7 +224,7 @@ class AniEntry {
     void fixWwpWalkAni() {
         foreach (inout cframes; mFrames) {
             foreach (inout fl; cframes) {
-                for (int i = 0; i < fl.length; i++) {
+                for (size_t i = 0; i < fl.length; i++) {
                     fl[i].center.x += (i*10)/15;
                 }
             }
@@ -254,15 +254,15 @@ class AniEntry {
     }
 
     int length_a() {
-        return length_b ? mFrames[0][0].length : 0;
+        return cast(int)(length_b ? mFrames[0][0].length : 0);
     }
 
     int length_b() {
-        return length_c ? mFrames[0].length : 0;
+        return cast(int)(length_c ? mFrames[0].length : 0);
     }
 
     int length_c() {
-        return mFrames.length;
+        return cast(int)mFrames.length;
     }
 
     int length(int dim) {
@@ -469,7 +469,7 @@ RawAnimation getAnimation(RawAnimation[] animations, int index) {
 RawAnimation[] getSimple(RawAnimation[] animations, char[] val, int n, int x) {
     char[][] strs = str.split(val);
     if (n < 0)
-        n = strs.length;
+        n = cast(int)strs.length;
     RawAnimation[] res;
     foreach (s; strs) {
         auto z = conv.to!(int)(s);
@@ -581,7 +581,7 @@ private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
                 boolFlags[f[1..$]] = false;
             } else {
                 //use this as an int-flag; syntax: <name> ":" <number>
-                int sp = str.find(f, ":");
+                auto sp = str.find(f, ":");
                 if (sp < 0)
                     throwError("name:number expected, got: {}", f);
                 auto n = f[0..sp];
@@ -606,14 +606,14 @@ private void loadGeneralW(AniFile anims, RawAnimation[] anis, ConfigNode node) {
         foreach (int c_idx, v; vals) {
             int x = intFlag("x", 1);
             auto anims = getSimple(anis, str.strip(v), intFlag("n", -1), x);
-            int n = anims.length / x;
+            int n = cast(int)(anims.length / x);
             assert(anims.length==n*x); //should be guaranteed by getSimple()
             if (boolFlag("fill_length")) {
                 //make all animations in anims the same length
                 //fill the shorter animations by appending the last frame
                 int len = 0;
                 foreach (a; anims) {
-                    len = max(len, a.frames.length);
+                    len = max(len, cast(int)a.frames.length);
                 }
                 foreach (a; anims) {
                     while (a.frames.length < len) {

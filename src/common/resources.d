@@ -521,7 +521,7 @@ public class Resources {
         ///total count of resources to load
         ///not guaranteed to be constant!
         int totalCount() {
-            return mOffset + mToLoad.length;
+            return cast(int)(mOffset + mToLoad.length);
         }
 
         ///number of loaded resources, monotonically growing

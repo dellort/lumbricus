@@ -502,7 +502,7 @@ private:
             e.simulate();
         }
         //kill dead ones
-        for (int n = mObjects.length - 1; n >= 0; n--) {
+        for (sizediff_t n = mObjects.length - 1; n >= 0; n--) {
             if (mObjects[n].mDead) {
                 mObjects = mObjects[0..n] ~ mObjects[n+1..$];
             }

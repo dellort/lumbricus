@@ -212,9 +212,7 @@ public class Translator {
     }
 
     private char[] lastId(char[] id) {
-        int pos = str.rfind(id, '.');
-        if (pos < 0)
-            assert(pos == -1);
+        auto pos = str.rfind(id, '.');
         return id[pos+1 .. $];
     }
 

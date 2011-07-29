@@ -127,7 +127,7 @@ public class LogWindow : Widget, Output {
                     //possibly prepend wrap-around symbol
                     if (frame > 0)
                         w -= mConsoleFont.textSize(cBreaker).x;
-                    uint n = mConsoleFont.textFit(txt, w, true);
+                    size_t n = mConsoleFont.textFit(txt, w, true);
                     if (n == 0) {
                         //pathologic case, avoid infinite recursion
                         if (txt.length)

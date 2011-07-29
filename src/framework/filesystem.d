@@ -646,10 +646,10 @@ class FileSystem {
 
     //find array index after which to insert new MountedPath with precedence
     //does a binary search, returns -1 for an empty array
-    private int findInsertIndex(uint prec) {
-        int l = 0, r = mMountedPaths.length-1;
+    private sizediff_t findInsertIndex(uint prec) {
+        sizediff_t l = 0, r = mMountedPaths.length-1;
         while (l <= r) {
-            int m = (l + r) / 2;
+            auto m = (l + r) / 2;
             if (mMountedPaths[m].precedence < prec) {
                 l = m + 1;
             } else if (mMountedPaths[m].precedence > prec) {
@@ -662,7 +662,7 @@ class FileSystem {
     }
 
     private void addMountedPath(MountedPath m) {
-        int i = findInsertIndex(m.precedence);
+        auto i = findInsertIndex(m.precedence);
         //the following line should work for all cases, even an empty array
         mMountedPaths = mMountedPaths[0..i+1] ~ m ~ mMountedPaths[i+1..$];
     }

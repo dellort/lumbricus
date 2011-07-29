@@ -79,7 +79,7 @@ struct Marshaller {
     private void writeArray(T)(T data) {
         static if (isDynamicArrayType!(T)) {
             //always write as uint (length is size_t; usually uint or ulong)
-            write!(uint)(data.length);
+            write!(uint)(cast(uint)data.length);
         }
 
         alias typeof(data[0]) ElementT;
@@ -280,7 +280,7 @@ class UnmarshalBuffer {
         return Unmarshaller(&readRaw).read!(T)();
     }
 
-    private void require(uint nbytes) {
+    private void require(size_t nbytes) {
         if (mBuffer.length < nbytes) {
             throw new UnmarshalException("Not enough data");
         }

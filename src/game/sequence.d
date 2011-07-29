@@ -813,7 +813,7 @@ class EnterLeaveDisplay : AniStateDisplay {
             if (animation_start + mNextIdle <= now()) {
                 mNextIdle = myclass.idle_wait.sample(owner.engine.rnd);
                 Animation[] arr = myclass.idle_animations;
-                setAnimation(arr[owner.engine.rnd.next(arr.length)]);
+                setAnimation(arr[owner.engine.rnd.next(cast(uint)arr.length)]);
             }
         }
 
@@ -1100,7 +1100,7 @@ class WwpWeaponDisplay : AniStateDisplay {
         {
             arr = myclass.idle_animations_poisoned;
         }
-        setAnimation(arr[owner.engine.rnd.next(arr.length)]);
+        setAnimation(arr[owner.engine.rnd.next(cast(uint)arr.length)]);
     }
 
     //deselect weapon (only does something if weapon is selected in any way)

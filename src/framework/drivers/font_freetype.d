@@ -33,10 +33,10 @@ private struct GlyphData {
 //thx SDL_ttf
 /* Handy routines for converting from fixed point */
 private int FT_Floor(FT_Long x) {
-    return (x & -64) / 64;
+    return cast(int)((x & -64) / 64);
 }
 private int FT_Ceil(FT_Long x) {
-    return ((x + 63) & -64) / 64;
+    return cast(int)(((x + 63) & -64) / 64);
 }
 
 //renderer and cache for font glyphs
@@ -109,7 +109,7 @@ class FTGlyphCache {
     }
 
     int cachedGlyphs() {
-        return mFrags.length;
+        return cast(int)mFrags.length;
     }
 
     int releaseCache() {
@@ -268,7 +268,7 @@ class FTGlyphCache {
 
         FT_Done_Glyph(glyph);
 
-        ret.size.x = mFace.glyph.advance.x >> 6;
+        ret.size.x = cast(int)(mFace.glyph.advance.x >> 6);
         //small hack
         //ret.size.x += props.border_width;
         ret.size.y = mHeight;
@@ -284,7 +284,7 @@ class FTGlyphCache {
 
         //copy the (monochrome) glyph data to the 32bit surface
         //color values come from foreground color, alpha from glyph data
-        Color.RGBA32* sdata; uint spitch;
+        Color.RGBA32* sdata; size_t spitch;
         ubyte* srcptr = bmp.buffer;
         tmp.lockPixelsRGBA32(sdata, spitch);
         for (int y = 0; y < tmp.size.y; y++) {

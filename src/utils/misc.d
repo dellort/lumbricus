@@ -11,6 +11,10 @@ public import tango.stdc.stdarg : va_list;
 public import tango.math.Math : min, max;
 import tango.math.Math : abs;
 
+//I don't know why Phobos2 defines this alias
+//maybe they were afraid of the "ptr"
+alias ptrdiff_t sizediff_t;
+
 //because printf debugging is common and usefull
 //public import tango.util.log.Trace : Trace;
 //tango.util.log.Trace now redirects to the Tango logging API, and the format()
@@ -81,13 +85,13 @@ void swap(T)(inout T a, inout T b) {
 }
 
 //whether an index into the array is valid
-bool indexValid(T)(T[] array, uint index) {
+bool indexValid(T)(T[] array, size_t index) {
     //uint takes care of the >= 0
     return index < array.length;
 }
 
 //whether array[a..b] would be valid (and not cause an exception)
-bool sliceValid(T)(T[] array, uint a, uint b) {
+bool sliceValid(T)(T[] array, size_t a, size_t b) {
     //uint takes care of the >= 0
     return a <= array.length && b <= array.length && a <= b;
 }

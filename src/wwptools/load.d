@@ -204,7 +204,7 @@ void doImportAnis(ResourceFile dest, RawAnimation[] rawanis,
     int[] unused;
     foreach (idx, a; rawanis) {
         if (!a.seen)
-            unused ~= idx;
+            unused ~= cast(int)idx;
     }
     if (unused.length)
         gLog.trace("unused animation indices: {}", unused);

@@ -101,7 +101,7 @@ abstract class AnimationSimple : Animation {
         foreach (f; mFrames) {
             frame_size = frame_size.max(f.size);
         }
-        doInit(mFrames.length, Rect2i(frame_size) - frame_size / 2,
+        doInit(cast(int)mFrames.length, Rect2i(frame_size) - frame_size / 2,
             mLoadFrameTime);
     }
 

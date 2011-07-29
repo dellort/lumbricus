@@ -702,7 +702,7 @@ class ResViewerTask {
             doUpdate2();
         }
 
-        private void onSelectType(int index) {
+        private void onSelectType(sizediff_t index) {
             mCurRes = mShowNothing;
             if (index >= 0)
                 mCurRes = mResTypes[index];
@@ -724,7 +724,7 @@ class ResViewerTask {
             }
         }
 
-        private void onSelect(int index) {
+        private void onSelect(sizediff_t index) {
             doSelect(index < 0 ? null : &mResources[index], mCurRes);
         }
     }

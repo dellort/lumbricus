@@ -396,7 +396,7 @@ class WormControl : WeaponController {
             if (mWeapons.length == 2 && weapon && weapon.allowSecondary)
                 return false;
             //replace current main / secondary
-            unselectWeapon(mWeapons.length - 1);
+            unselectWeapon(cast(uint)(mWeapons.length) - 1);
             return true;
         }
         if (mWeapons.length == 1 && mWeapons[0].weapon.allowSecondary && weapon

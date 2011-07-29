@@ -581,8 +581,8 @@ class GameTask : IKillable {
         this() {
             auto ph = mGameShell.serverEngine.physicWorld;
             auto types = ph.collide.collisionTypes;
-            auto table = new TableContainer(types.length+1, types.length+1,
-                Vector2i(2));
+            auto tlen = cast(uint)(types.length+1);
+            auto table = new TableContainer(tlen, tlen, Vector2i(2));
             void addc(int x, int y, Widget l) {
                 Cell c = new Cell();
                 c.bla = (y>0) && (x > y);

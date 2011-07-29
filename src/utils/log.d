@@ -251,7 +251,7 @@ final class Log {
         char[] txt = gBuffer[];
         //generate multiple events if there are line breaks
         while (txt.length) {
-            int idx = str.find(txt, '\n');
+            auto idx = str.find(txt, '\n');
             if (idx >= 0) {
                 e.txt = txt[0 .. idx];
                 txt = txt[idx + 1 .. $];

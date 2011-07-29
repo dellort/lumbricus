@@ -110,7 +110,7 @@ final class Font : ResourceT!(DriverFont) {
     /// word/whitespace boundary
     //added long after findIndex, because findIndex seems to have quadratic
     //  complexity, and doesn't quite compute what we want
-    uint textFit(char[] text, int w, bool atWhitespace = false,
+    size_t textFit(char[] text, int w, bool atWhitespace = false,
         bool disallow_nofit = false)
     {
         if (w <= 0)
@@ -140,7 +140,7 @@ final class Font : ResourceT!(DriverFont) {
     ///return the utf character index closest to posX
     ///(0 for start, text.length for end)
     ///posX is relative to left edge of text
-    public uint findIndex(char[] text, int posX) {
+    public size_t findIndex(char[] text, int posX) {
         int twold = 0, ilast = 0, i = 0;
         //check width from start until it is over the requested position
         while (i < text.length) {

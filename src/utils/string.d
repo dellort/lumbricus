@@ -42,25 +42,25 @@ alias textu.substitute replace;
 alias textu.repeat repeat;
 
 //return: -1 if not found, or the first n with text[n] == tofind
-int find(char[] text, char tofind) {
+sizediff_t find(char[] text, char tofind) {
     size_t res = textu.locate(text, tofind);
     return res == text.length ? -1 : res;
 }
 
 //return: -1 if not found, or first n with text[n..n+tofind.length] == tofind
-int find(char[] text, char[] tofind) {
+sizediff_t find(char[] text, char[] tofind) {
     size_t res = textu.locatePattern(text, tofind);
     return res == text.length ? -1 : res;
 }
 
 //return: -1 if not found, or the last n with text[n] == tofind
-int rfind(char[] text, char tofind) {
+sizediff_t rfind(char[] text, char tofind) {
     size_t res = textu.locatePrior(text, tofind);
     return res == text.length ? -1 : res;
 }
 
 //return: -1 if not found, or first n with text[n..n+tofind.length] == tofind
-int rfind(char[] text, char[] tofind) {
+sizediff_t rfind(char[] text, char[] tofind) {
     size_t res = textu.locatePatternPrior(text, tofind);
     return res == text.length ? -1 : res;
 }
@@ -297,7 +297,7 @@ struct Split2Result {
     }
 }
 Split2Result split2(char[] txt, char tofind) {
-    int idx = find(txt, tofind);
+    auto idx = find(txt, tofind);
     char[] before = txt[0 .. idx >= 0 ? idx : $];
     char[] after = txt[before.length .. $];
     Split2Result r;
@@ -399,22 +399,22 @@ char[] ctfe_firstupper(char[] s) {
 
 
 /// Return the index of the character following the character at "index"
-int charNext(char[] s, int index) {
-    assert(index >= 0 && index <= s.length);
+size_t charNext(char[] s, size_t index) {
+    assert(index <= s.length);
     if (index == s.length)
         return s.length;
     return index + stride(s, index);
 }
 /// Return the index of the character prepending the character at "index"
-int charPrev(char[] s, int index) {
-    assert(index >= 0 && index <= s.length);
+size_t charPrev(char[] s, size_t index) {
+    assert(index <= s.length);
     debug if (index < s.length) {
         //assert valid UTF-8 character (stride will throw an exception)
         stride(s, index);
     }
     //you just had to find the first char starting with 0b0... or 0b11...
     //but this was most simple
-    foreach_reverse(int byteindex, dchar c; s[0..index]) {
+    foreach_reverse(size_t byteindex, dchar c; s[0..index]) {
         return byteindex;
     }
     return 0;
@@ -425,10 +425,10 @@ int charPrev(char[] s, int index) {
 //rest of documentation see unittest lol
 char[][] splitPrefixDelimiters(char[] s, char[][] delimiters) {
     char[][] res;
-    int last_delim = 0;
+    size_t last_delim = 0;
     for (;;) {
-        int next = -1;
-        int delim_len;
+        sizediff_t next = -1;
+        size_t delim_len;
         foreach (del; delimiters) {
             auto v = find(s[last_delim..$], del);
             if (v >= 0 && (next < 0 || v <= next)) {

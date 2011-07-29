@@ -107,7 +107,7 @@ class GameSummary {
         }
 
         mScoreTable.clear();
-        mScoreTable.setSize(2, teamsNode.count);
+        mScoreTable.setSize(2, cast(int)teamsNode.count);
         int i;
         foreach (ConfigNode tn; teamsNode) {
             auto nameLbl = new Label();

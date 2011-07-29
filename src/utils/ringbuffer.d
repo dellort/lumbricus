@@ -8,14 +8,14 @@ class RingBuffer(T) {
     private {
         T[] mBuffer;
         //index into buffer pointing to next empty entry
-        int mIndex;
+        size_t mIndex;
         //number of valid entries
-        int mLength;
+        size_t mLength;
         //iteration offset
-        int mOffset;
+        size_t mOffset;
     }
 
-    this(uint bufferSize) {
+    this(size_t bufferSize) {
         assert(bufferSize > 0);
         mBuffer.length = bufferSize;
     }
@@ -46,14 +46,14 @@ class RingBuffer(T) {
 
     //set iteration offset: skip offset elements at the start of the iteration
     //returns the actual offset that was set
-    int setOffset(int offset) {
+    size_t setOffset(sizediff_t offset) {
         if (!mLength) {
             return 0;
         }
-        mOffset = clampRangeC(offset, 0, cast(int)mLength-1);
+        mOffset = clampRangeC(offset, cast(sizediff_t)0, cast(sizediff_t)mLength-1);
         return mOffset;
     }
-    void addOffset(int delta) {
+    void addOffset(sizediff_t delta) {
         setOffset(mOffset + delta);
     }
 
@@ -64,7 +64,7 @@ class RingBuffer(T) {
             //empty buffer
             return 0;
         }
-        int idx = (mIndex - mLength + mOffset + mBuffer.length)
+        size_t idx = (mIndex - mLength + mOffset + mBuffer.length)
             % mBuffer.length;
         do {
             result = del(mBuffer[idx]);
@@ -82,9 +82,9 @@ class RingBuffer(T) {
             //empty buffer
             return 0;
         }
-        int idx = mIndex - 1 - mOffset;
+        sizediff_t idx = mIndex - 1 - mOffset;
         //index of the last valid entry (== mBackLogIdx if buffer full)
-        int lastValid = (mIndex - mLength + mBuffer.length)
+        size_t lastValid = (mIndex - mLength + mBuffer.length)
             % mBuffer.length;
         do {
             if (idx < 0)

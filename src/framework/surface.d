@@ -224,7 +224,7 @@ final class Surface : ResourceT!(DriverSurface) {
     ///     represent sub-surfaces (so that a Surface can reference a part of a
     ///     larger Surface), but maybe that idea is already dead...
     //xxx: add a "Rect2i area" parameter to return the pixels for a subrect?
-    void lockPixelsRGBA32(out Color.RGBA32* pixels, out uint pitch) {
+    void lockPixelsRGBA32(out Color.RGBA32* pixels, out size_t pitch) {
         assert(!mLocked, "surface already locked!");
         mLocked = true;
         if (driverSurface)
@@ -298,7 +298,7 @@ final class Surface : ResourceT!(DriverSurface) {
     //channels are r=0, g=1, b=2, a=3
     //xxx is awfully slow
     void mapColorChannels(ubyte[256][4] colormap) {
-        Color.RGBA32* data; uint pitch;
+        Color.RGBA32* data; size_t pitch;
         lockPixelsRGBA32(data, pitch);
         for (int y = 0; y < size.y; y++) {
             Color.RGBA32* ptr = data + y*pitch;
@@ -337,8 +337,8 @@ final class Surface : ResourceT!(DriverSurface) {
             "copyFrom(): overlapping memory");
         auto sz = dest.size.min(src.size);
         assert(sz.x >= 0 && sz.y >= 0);
-        Color.RGBA32* pdest; uint destpitch;
-        Color.RGBA32* psrc; uint srcpitch;
+        Color.RGBA32* pdest; size_t destpitch;
+        Color.RGBA32* psrc; size_t srcpitch;
         lockPixelsRGBA32(pdest, destpitch);
         source.lockPixelsRGBA32(psrc, srcpitch);
         pdest += destpitch*dest.p1.y + dest.p1.x;
@@ -359,9 +359,9 @@ final class Surface : ResourceT!(DriverSurface) {
         if (!rc.isNormal())
             return;
         auto c = color.toRGBA32();
-        Color.RGBA32* px; uint pitch;
+        Color.RGBA32* px; size_t pitch;
         lockPixelsRGBA32(px, pitch);
-        for (int y = rc.p1.y; y < rc.p2.y; y++) {
+        for (sizediff_t y = rc.p1.y; y < rc.p2.y; y++) {
             auto dest = px + pitch*y;
             dest[rc.p1.x .. rc.p2.x] = c;
         }
@@ -378,9 +378,9 @@ final class Surface : ResourceT!(DriverSurface) {
             r.w = s.size.x;
             r.h = s.size.y;
             Color.RGBA32* pixels;
-            uint pitch32;
+            size_t pitch32;
             s.lockPixelsRGBA32(pixels, pitch32);
-            r.pitch = pitch32*Color.RGBA32.sizeof;
+            r.pitch = cast(uint)(pitch32*Color.RGBA32.sizeof);
             r.pixels = pixels;
             return r;
         }
@@ -401,7 +401,7 @@ final class Surface : ResourceT!(DriverSurface) {
     //mirror around x/y-axis
     void mirror(bool x, bool y) {
         Color.RGBA32* data;
-        uint pitch;
+        size_t pitch;
         lockPixelsRGBA32(data, pitch);
         if (x) pixelsMirrorX(data, pitch, size);
         if (y) pixelsMirrorY(data, pitch, size);
@@ -413,7 +413,7 @@ final class Surface : ResourceT!(DriverSurface) {
 //used to speed up drawing (HOPEFULLY)
 final class SubSurface {
     private {
-        int mIndex;
+        size_t mIndex;
         Surface mSurface;
         Rect2i mRect;
     }
@@ -425,7 +425,7 @@ final class SubSurface {
 
     //index into the corresponding Surface's SubSurface array
     //can be used by the framework driver to lookup driver specific stuff
-    int index() {
+    size_t index() {
         return mIndex;
     }
 }

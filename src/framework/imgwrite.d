@@ -100,7 +100,7 @@ private void writePNG(Surface img, Stream stream) {
     startChunk("IHDR");
 
     Color.RGBA32* data;
-    uint pitch;
+    size_t pitch;
     img.lockPixelsRGBA32(data, pitch);
 
     assert(pitch == img.size.x);

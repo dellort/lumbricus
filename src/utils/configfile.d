@@ -218,7 +218,7 @@ public class ConfigNode {
             return this;
         }
 
-        int pos = str.find(path, ".");
+        auto pos = str.find(path, ".");
         if (pos < 0)
             pos = path.length;
 
@@ -274,7 +274,7 @@ public class ConfigNode {
     }
 
     //number of nodes and values
-    int count() {
+    size_t count() {
         return mItems.length;
     }
 

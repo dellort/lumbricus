@@ -213,7 +213,7 @@ class TeamWindow : Widget {
     //check step 3., possibly initiate 3.1. (return true then)
     bool checkMoveOut() {
         int lines_to_remove = 0;
-        for (int n = mLines.length-1; n >= 0; n--) {
+        for (sizediff_t n = mLines.length-1; n >= 0; n--) {
             if (mLines[n].totalCurrentHealth > 0)
                 break;
             lines_to_remove++;

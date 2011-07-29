@@ -163,7 +163,7 @@ void settingCycle(char[] name, int dir = +1) {
             }
         }
         if (found >= 0) {
-            s.set(s.choices[realmod!(int)(found + dir, $)]);
+            s.set(s.choices[realmod!(size_t)(found + dir, $)]);
         } else if (s.choices.length) {
             s.set(s.choices[0]);
         }

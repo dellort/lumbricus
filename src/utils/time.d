@@ -223,7 +223,7 @@ public struct Time {
             return res ~ "infinite";
 
         int count = 0; //number of non-0 components so far
-        foreach_reverse(int i, Time t; cTimeUnits) {
+        foreach_reverse(size_t i, Time t; cTimeUnits) {
             long c = cur / t;
             Time rest = cur - c*t;
             assert(rest.timeVal >= 0);
