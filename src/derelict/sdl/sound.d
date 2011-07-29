@@ -114,7 +114,7 @@ private void load_ssound(SharedLib lib) {
 
 class DerelictSDLSoundLoader : SharedLibLoader {
     this() {
-        super("SDL_sound.dll", "libSDL_sound.so, libSDL_sound.so.0",
+        super("SDL_sound.dll", "libSDL_sound.so, libSDL_sound.so.0, libSDL_sound-1.0.so.1",
             "TODO: add mac");
     }
 
