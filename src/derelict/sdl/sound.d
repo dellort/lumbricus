@@ -97,7 +97,7 @@ GenericLoader DerelictSDLSound;
 static this() {
     DerelictSDLSound.setup(
         "SDL_sound.dll",
-        "libSDL_sound.so, libSDL_sound.so.0",
+        "libSDL_sound.so, libSDL_sound.so.0, libSDL_sound-1.0.so.1",
         "",
         &load
     );
