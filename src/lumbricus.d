@@ -14,6 +14,20 @@ import std.stdio;
 version = Game;
 //version = Net;
 
+debug {
+    //version = EnableDBacktrace;
+}
+
+version (EnableDBacktrace) {
+    import dbacktrace.autoinit;
+} else {
+    import core.runtime;
+    static this() {
+        //disable backtrace - why the fuck is this enabled by default
+        Runtime.traceHandler = null;
+    }
+}
+
 //these imports register classes in a factory on module initialization
 //so be carefull not to remove them accidentally
 
