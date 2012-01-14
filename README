@@ -9,6 +9,10 @@ We need free graphics. For now, we rely on the original WWP graphics, or
 alternatively on our horrible programmer art. If you like to draw some worms,
 you could join us.
 
+The source code is licensed at GPLv2 or any later version. There are some
+exceptions (for example fragments of BSD licensed code), which should be
+marked in the source code.
+
 ----  Status ----
 
 Sorry, it's at a very late alpha/beta state, it is not really ready yet.
