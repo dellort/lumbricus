@@ -102,7 +102,7 @@ class BitmapHandler : ResViewHandler!(Surface) {
                 Color(0, 0, 0));
         }
 
-        Vector2i layoutSizeRequest() {
+        override Vector2i layoutSizeRequest() {
             return resource.size()+Vector2i(2); //with frame hurhur
         }
     }
@@ -325,7 +325,7 @@ class ViewAniFrames : Container {
             c.drawRect(Rect2i(Vector2i(), size-Vector2i(1)), Color(1,1,0));
         }
 
-        Vector2i layoutSizeRequest() {
+        override Vector2i layoutSizeRequest() {
             return size;
         }
     }
@@ -522,7 +522,7 @@ class AnimationHandler : ResViewHandler!(Animation) {
             return true;
         }
 
-        Vector2i layoutSizeRequest() {
+        override Vector2i layoutSizeRequest() {
             return mAnim.bounds.size()+Vector2i(2);
         }
     }
@@ -565,7 +565,7 @@ class ResViewerTask {
 
         this(ResourceSet resset) {
             //some random non-null ClassInfo, that a resource isn't derived of
-            mShowNothing = this.classinfo;
+            mShowNothing = cast(ClassInfo)this.classinfo;
 
             mSourceSet = resset;
 
@@ -629,7 +629,8 @@ class ResViewerTask {
         }
 
         //check if sub is equal to or is below c
-        static bool isSub(ClassInfo sub, ClassInfo c) {
+        static bool isSub(const(ClassInfo) sub_, const(ClassInfo) c) {
+            ClassInfo sub = cast(ClassInfo)sub_;
             while (sub) {
                 if (sub is c)
                     return true;
@@ -680,7 +681,7 @@ class ResViewerTask {
             string[] list = null;
             mResTypes = null;
             foreach (name; ResViewHandlers.classes) {
-                auto cinf = ClassInfo.find(name);
+                auto cinf = cast(ClassInfo)ClassInfo.find(name);
                 if (cinf) {
                     mResTypes ~= cinf;
                     auto s = cinf.name;
@@ -711,7 +712,7 @@ class ResViewerTask {
             doUpdate();
         }
 
-        private void doSelect(ResEntry* s, ClassInfo type) {
+        private void doSelect(ResEntry* s, const(ClassInfo) type) {
             mName.text = s ? s.name : "-";
             mClient.clear();
             if (s && type) {

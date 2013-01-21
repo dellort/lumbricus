@@ -755,7 +755,7 @@ class TestTask4 {
 
     class W1 : Widget {
         mixin ReportEvents;
-        string toString() {
+        override string toString() {
             return "W1";
         }
     }

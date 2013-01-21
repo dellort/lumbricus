@@ -57,7 +57,7 @@ Surface readImgFile(Stream st) {
 
 void readImg(Stream st, string outputDir, string fnBase) {
     scope img = readImgFile(st);
-    saveImageToFile(img, outputDir ~ sep ~ fnBase ~ ".png");
+    saveImageToFile(img, outputDir ~ dirSeparator ~ fnBase ~ ".png");
     img.free();
 }
 

@@ -12,8 +12,8 @@ private {
     enum float acceptableHeightRatio = 0.7f;
     enum float heightExtraMult = 1.1f;
 
-    static assert (1.f / heightExtraMult >= acceptableHeightRatio);
-    static assert (heightExtraMult >= 1.f);
+    static assert (1f / heightExtraMult >= acceptableHeightRatio);
+    static assert (heightExtraMult >= 1f);
 
 
     int extendedHeight(int h) {
@@ -39,7 +39,7 @@ class BoxPacker {
 
         Block* res;
 
-        float               bestRatio = 0.f;
+        float               bestRatio = 0f;
         PackerLine* bestLine = null;
 
         // find the 'best' line

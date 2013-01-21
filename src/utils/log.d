@@ -266,7 +266,7 @@ final class Log {
         }
     }
 
-    string toString() {
+    override string toString() {
         return "Log: >" ~ mCategory ~ "<";
     }
 }

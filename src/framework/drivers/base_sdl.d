@@ -142,7 +142,7 @@ class SDLDriver : FrameworkDriver {
         }
     }
 
-    void destroy() {
+    override void destroy() {
         //the framework should have destroyed all DriverSurfaces
         //check that!
         //assert(mDriverSurfaceCount == 0);
@@ -202,11 +202,11 @@ class SDLDriver : FrameworkDriver {
             SDL_GL_SwapBuffers();
     }
 
-    VideoWindowState getVideoWindowState() {
+    override VideoWindowState getVideoWindowState() {
         return mCurVideoState;
     }
 
-    bool setVideoWindowState(VideoWindowState state) {
+    override bool setVideoWindowState(VideoWindowState state) {
         auto tmp1 = state, tmp2 = mCurVideoState;
         tmp1.window_caption = tmp2.window_caption = null;
         tmp1.window_icon = tmp2.window_icon = null;
@@ -266,16 +266,16 @@ class SDLDriver : FrameworkDriver {
         return mCurVideoState.video_active;
     }
 
-    Vector2i getDesktopResolution() {
+    override Vector2i getDesktopResolution() {
         return mDesktopRes;
     }
 
-    DriverInputState getInputState() {
+    override DriverInputState getInputState() {
         //SDL_ShowCursor(SDL_QUERY);
         return mInputState;
     }
 
-    void setInputState(DriverInputState state) {
+    override void setInputState(DriverInputState state) {
         if (state == mInputState)
             return;
         setLockMouse(state.mouse_locked);
@@ -302,7 +302,7 @@ class SDLDriver : FrameworkDriver {
         SDL_SetCursor(cursor_visible ? mCursorStd : mCursorNull);
     }
 
-    void setMousePos(Vector2i p) {
+    override void setMousePos(Vector2i p) {
         if (mInputFocus)
             SDL_WarpMouse(cast(ushort)p.x, cast(ushort)p.y);
     }
@@ -383,7 +383,7 @@ class SDLDriver : FrameworkDriver {
         gFramework.driver_doUpdateMousePos(npos, nrel);
     }
 
-    void processInput() {
+    override void processInput() {
         bool queuedVideoResize;
         Vector2i newVideoSize;
         SDL_Event event;
@@ -475,7 +475,7 @@ class SDLDriver : FrameworkDriver {
         }
     }
 
-    void sleepTime(Time t) {
+    override void sleepTime(Time t) {
         SDL_Delay(cast(uint)t.msecs);
     }
 

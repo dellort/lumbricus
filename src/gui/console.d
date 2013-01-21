@@ -146,7 +146,7 @@ class GuiConsole : VBoxContainer {
         return mRealCmdline;
     }
 
-    void clear() {
+    override void clear() {
         mLogWindow.clear();
     }
 

@@ -33,7 +33,7 @@ class SkyDrawer : SceneObject {
         mGradient[2] = theme.skyGradientBottom;
     }
 
-    void draw(Canvas canvas) {
+    override void draw(Canvas canvas) {
         if (mParent.enableSkyTex) {
             if (mSkyTex) {
                 canvas.drawTiled(mSkyTex, Vector2i(0, mParent.skyOffset),

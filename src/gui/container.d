@@ -21,7 +21,7 @@ class Container : Widget {
 ///xxx: maybe do it right, I didn't even catch all functions, but it makes
 ///     problems in widget.d/Widget
 class PublicContainer : Container {
-    void clear() {
+    override void clear() {
         super.clear();
     }
 }

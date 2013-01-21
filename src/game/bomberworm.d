@@ -427,11 +427,11 @@ private:
             return false;
         }
 
-        bool greedyFocus() {
+        override bool greedyFocus() {
             return true;
         }
 
-        Vector2i layoutSizeRequest() {
+        override Vector2i layoutSizeRequest() {
             return TILE_SIZE ^ Vector2i(cW, cH);
         }
     }

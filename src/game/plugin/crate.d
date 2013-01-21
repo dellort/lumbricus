@@ -63,7 +63,7 @@ class Collectable {
         //default is do nothing
     }
 
-    string toString() {
+    override string toString() {
         return id();
     }
 
@@ -77,11 +77,11 @@ class CollectableBomb : Collectable {
     this() {
     }
 
-    string id() {
+    override string id() {
         return "game_msg.crate.bomb";
     }
 
-    void collect(CrateSprite parent, GameObject finder) {
+    override void collect(CrateSprite parent, GameObject finder) {
         //harharhar :D
         parent.detonate();
     }
@@ -104,15 +104,15 @@ class CollectableWeapon : TeamCollectable {
         this.quantity = quantity;
     }
 
-    void teamcollect(CrateSprite parent, TeamMember member) {
+    override void teamcollect(CrateSprite parent, TeamMember member) {
         member.team.addWeapon(weapon, quantity);
     }
 
-    CrateType type() {
+    override CrateType type() {
         return CrateType.weapon;
     }
 
-    string id() {
+    override string id() {
         return "weapons." ~ weapon.name;
     }
 
@@ -131,15 +131,15 @@ class CollectableMedkit : TeamCollectable {
         this.amount = amount;
     }
 
-    CrateType type() {
+    override CrateType type() {
         return CrateType.med;
     }
 
-    string id() {
+    override string id() {
         return "game_msg.crate.medkit";
     }
 
-    void teamcollect(CrateSprite parent, TeamMember member) {
+    override void teamcollect(CrateSprite parent, TeamMember member) {
         member.addHealth(amount);
     }
 }
@@ -165,7 +165,7 @@ class CollectableTool : TeamCollectable {
         return mToolID;
     }
 
-    void teamcollect(CrateSprite parent, TeamMember member) {
+    override void teamcollect(CrateSprite parent, TeamMember member) {
         //roundabout way, but I hope it makes a bit sense with double time tool?
         OnCollectTool.raise(member, this);
     }

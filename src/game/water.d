@@ -30,21 +30,21 @@ class WaterDrawer : SceneObject {
 }
 
 class WaterDrawerFront1 : WaterDrawer {
-    void draw(Canvas canvas) {
+    override void draw(Canvas canvas) {
         canvas.drawFilledRect(Rect2i(0, mParent.animTop,
             mParent.size.x, mParent.animBottom), mWaterColor);
     }
 }
 
 class WaterDrawerFront2 : WaterDrawer {
-    void draw(Canvas canvas) {
+    override void draw(Canvas canvas) {
         canvas.drawFilledRect(Rect2i(Vector2i(0, mParent.animBottom),
             mParent.size), mWaterColor);
     }
 }
 
 class WaterDrawerBlendOut : WaterDrawer {
-    void draw(Canvas canvas) {
+    override void draw(Canvas canvas) {
         auto a0 = mWaterColor;
         a0.a = 0;
         canvas.drawVGradient(
@@ -63,7 +63,7 @@ class WaterDrawerBlendOut : WaterDrawer {
 }
 
 class WaterDrawerBack : WaterDrawer {
-    void draw(Canvas canvas) {
+    override void draw(Canvas canvas) {
         canvas.drawFilledRect(Rect2i(0, mParent.backAnimTop,
             mParent.size.x, mParent.animTop),
             mWaterColor);
@@ -230,7 +230,7 @@ class HorizontalFullsceneAnimator : SceneObject {
 
     Animator animator;
 
-    void draw(Canvas canvas) {
+    override void draw(Canvas canvas) {
         if (!animator)
             return;
 

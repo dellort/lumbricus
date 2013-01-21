@@ -96,11 +96,11 @@ private abstract class HandlerInstance {
 
 ///Specific MountPointHandler for mounting directories
 private class MountPointHandlerDirectory : MountPointHandler {
-    bool canHandle(string absPath) {
+    override bool canHandle(string absPath) {
         return dirExists(absPath);
     }
 
-    HandlerInstance mount(string absPath) {
+    override HandlerInstance mount(string absPath) {
         if (canHandle(absPath)) {
             return new HandlerDirectory(absPath);
         }
@@ -125,17 +125,17 @@ private class HandlerDirectory : HandlerInstance {
         log("New dir handler for '%s'",mDirPath);
     }
 
-    bool isWritable() {
+    override bool isWritable() {
         return true;
     }
 
-    bool exists(VFSPath handlerPath) {
+    override bool exists(VFSPath handlerPath) {
         string p = handlerPath.makeAbsolute(mDirPath);
         log("Checking for existance: '%s'",p);
         return tpath.exists(p) && !tpath.isDir(p);
     }
 
-    bool pathExists(VFSPath handlerPath) {
+    override bool pathExists(VFSPath handlerPath) {
         string p = handlerPath.makeAbsolute(mDirPath);
         return tpath.exists(p) && tpath.isDir(p);
     }
@@ -157,7 +157,7 @@ private class HandlerDirectory : HandlerInstance {
         }
     }
 
-    Stream open(VFSPath handlerPath, string mode) {
+    override Stream open(VFSPath handlerPath, string mode) {
         log("Handler for '%s': Opening '%s'",mDirPath, handlerPath);
         //if (mode.open != File.Open.Exists) {
         if (!is_read_mode(mode)) {
@@ -171,7 +171,7 @@ private class HandlerDirectory : HandlerInstance {
         }
     }
 
-    bool listdir(VFSPath handlerPath, string pattern, bool findDirs,
+    override bool listdir(VFSPath handlerPath, string pattern, bool findDirs,
         scope bool delegate(string filename) callback)
     {
         string searchPath = handlerPath.makeAbsolute(mDirPath);
@@ -188,7 +188,7 @@ private class HandlerDirectory : HandlerInstance {
                 //add trailing '/' for directories
                 string fn = vfn.get(false, de.isDir);
                 //match search pattern
-                if (fnmatch(fn, pattern)) {
+                if (globMatch(fn, pattern)) {
                     if (!callback(fn))
                         return false;
                 }
@@ -198,7 +198,7 @@ private class HandlerDirectory : HandlerInstance {
         return true;
     }
 
-    void close() {
+    override void close() {
         mDirPath = null;
     }
 }
@@ -347,7 +347,7 @@ private class HandlerTangoVfs : HandlerInstance {
 
 ///Specific MountPointHandler for mounting TAR/ZIP archives
 private class MountPointHandlerArchive : MountPointHandler {
-    bool canHandle(string absPath) {
+    override bool canHandle(string absPath) {
         //exisiting files, name ending with ".tar" or ".zip"
         if (tpath.exists(absPath) && !tpath.isDir(absPath)
             && absPath.length > 4)
@@ -370,7 +370,7 @@ private class MountPointHandlerArchive : MountPointHandler {
         return new HandlerArchive(archive);
     }
 
-    HandlerInstance mount(string absPath) {
+    override HandlerInstance mount(string absPath) {
         assert(canHandle(absPath));
         string ext = str.tolower(absPath[$-4..$]);
         auto archFile = Stream.OpenFile(absPath);
@@ -392,25 +392,25 @@ private class HandlerArchive : HandlerInstance {
         mArchive = archive;
     }
 
-    bool isWritable() {
+    override bool isWritable() {
         return false;
     }
 
-    bool exists(VFSPath handlerPath) {
+    override bool exists(VFSPath handlerPath) {
         return mArchive.fileExists(handlerPath);
     }
 
-    bool pathExists(VFSPath handlerPath) {
+    override bool pathExists(VFSPath handlerPath) {
         return mArchive.pathExists(handlerPath);
     }
 
-    Stream open(VFSPath handlerPath, string mode) {
+    override Stream open(VFSPath handlerPath, string mode) {
         return mArchive.openReadStream(handlerPath);
     }
 
     //this is so complicated because ArchiveReader only lists file, while
     //  we also want to list directories
-    bool listdir(VFSPath handlerPath, string pattern, bool findDir,
+    override bool listdir(VFSPath handlerPath, string pattern, bool findDir,
         scope bool delegate(string filename) callback)
     {
         bool[string] dirCache;
@@ -420,7 +420,7 @@ private class HandlerArchive : HandlerInstance {
                 if (rel.parent.isEmpty) {
                     //entry is a file in the directory
                     string filen = rel.get(false);
-                    if (!fnmatch(filen, pattern))
+                    if (!globMatch(filen, pattern))
                         continue;
                     if (!callback(filen))
                         return false;
@@ -428,7 +428,7 @@ private class HandlerArchive : HandlerInstance {
                     //entry is a file in a direct subdirectory
                     if (findDir) {
                         string dirn = rel.parent.get(false);
-                        if (!fnmatch(dirn, pattern))
+                        if (!globMatch(dirn, pattern))
                             continue;
                         if (!(dirn in dirCache)) {
                             dirCache[dirn] = true;
@@ -442,7 +442,7 @@ private class HandlerArchive : HandlerInstance {
         return true;
     }
 
-    void close() {
+    override void close() {
         mArchive.close();
         mArchive = null;
     }
@@ -459,41 +459,41 @@ private class HandlerLink : HandlerInstance {
         mParent = parent;
     }
 
-    bool isWritable() {
+    override bool isWritable() {
         log("Link: isWritable");
         return mParent.pathIsWritable(mLinkedPath, this);
     }
 
-    bool exists(VFSPath handlerPath) {
+    override bool exists(VFSPath handlerPath) {
         log("Link: exists(%s)",handlerPath);
         return mParent.exists(mLinkedPath.join(handlerPath), this);
     }
 
-    bool pathExists(VFSPath handlerPath) {
+    override bool pathExists(VFSPath handlerPath) {
         log("Link: pathexists(%s)",handlerPath);
         return mParent.pathExists(mLinkedPath.join(handlerPath), this);
     }
 
-    Stream open(VFSPath handlerPath, string mode) {
+    override Stream open(VFSPath handlerPath, string mode) {
         log("Link: open(%s)",handlerPath);
         return mParent.open(mLinkedPath.join(handlerPath), mode, this);
     }
 
-    bool listdir(VFSPath handlerPath, string pattern, bool findDirs,
+    override bool listdir(VFSPath handlerPath, string pattern, bool findDirs,
         scope bool delegate(string filename) callback)
     {
         return mParent.listdir(mLinkedPath.join(handlerPath), pattern, findDirs,
             callback, this);
     }
 
-    void close() {
+    override void close() {
         mLinkedPath.set("");
         mParent = null;
     }
 }
 
 //MountId.init is guaranteed to be never used
-typedef uint MountId;
+alias uint MountId;
 
 class FileSystem {
     protected {
@@ -1012,7 +1012,7 @@ class FileSystem {
             i++;
             fn = myformat(nameTemplate, i);
         } while (exists(ret = path //detect invalid characters in name
-            ~ fixFilename(fn) ~ ext))
+            ~ fixFilename(fn) ~ ext));
         tries = i-1;
         return ret;
     }

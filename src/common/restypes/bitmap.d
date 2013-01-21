@@ -13,7 +13,7 @@ protected class BitmapResource : ResourceItem {
         super(context, id, item);
     }
 
-    protected void load() {
+    override protected void load() {
         Surface bmp;
         try {
             bmp = loadImage(mContext.fixPath(mConfig.value));

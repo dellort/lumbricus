@@ -218,6 +218,11 @@ private:
         CmdItem[] items = parseLine(cmdline);
         if (textArgument) {
             assert(param_types.length > 0);
+            // this fixes an out of bounds access below when doing "spawn "<tab>
+            // in the command line (it's a regression since this commit, didn't
+            // pursue why)
+            if (items.length < param_types.length)
+                return items;
             size_t start = param_types.length - 1;
             sizediff_t end = items.length - 1;
             if (end >= start) {

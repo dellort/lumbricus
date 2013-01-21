@@ -123,7 +123,7 @@ class PainterWidget : Widget {
         lineTo = lineFrom + d;
     }
 
-    protected void onDraw(Canvas c) {
+    override protected void onDraw(Canvas c) {
         if (auto img = mLevel.previewImage())
             c.draw(img, Vector2i(0, 0));
         if (mMouseInside) {
@@ -283,7 +283,7 @@ class PainterWidget : Widget {
         fill(Lexel.SolidSoft);
     }
 
-    void clear() {
+    override void clear() {
         fill(Lexel.Null);
     }
 

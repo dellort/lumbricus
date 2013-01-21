@@ -197,7 +197,7 @@ class StylesPseudoCSS : StylesBase {
         //reevaluated
         ConfigNode contents;
 
-        string toString() {
+        override string toString() {
             assert(contents.name == name);
             return myformat("%s: '%s' '%s'", name, selector.toString(),
                 contents.value/+writeAsString()+/);
@@ -253,7 +253,7 @@ class StylesPseudoCSS : StylesBase {
             return (a << 8*4) | (b << 8*3) | c;
         }
 
-        string toString() {
+        override string toString() {
             string res;
             void addstuff(string pref, string[] arr) {
                 foreach (x; arr) {
@@ -274,7 +274,7 @@ class StylesPseudoCSS : StylesBase {
     }
 
     //the rules node contains "selector { rulelist }" entries
-    void addRules(ConfigNode rules) {
+    override void addRules(ConfigNode rules) {
         foreach (ConfigNode item; rules) {
             auto selectors = parse_selector(item.name);
             //xxx: check if rule names are unique in item node
@@ -302,7 +302,7 @@ class StylesPseudoCSS : StylesBase {
         return selectors;
     }
 
-    void clearRules() {
+    override void clearRules() {
         mSortedRules = null;
         mRuleDeclarationCounter = 0;
         reload();
@@ -454,7 +454,7 @@ final class StylesLookupImpl : StylesLookup {
         return mParent;
     }
 
-    final void checkChanges() {
+    override final void checkChanges() {
         if (mParent && mParent.mReloadCounter == mAge)
             return;
         if (mParent)

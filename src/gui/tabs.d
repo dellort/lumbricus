@@ -191,7 +191,7 @@ class Tabs : Container {
         }
     }
 
-    void loadFrom(GuiLoader loader) {
+    override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
         //load children; order in list decides layout

@@ -460,8 +460,9 @@ final class SDLSurface : DriverSurface {
         }
 +/
         //sigh... the full-subsurface-thing wrecks up a lot
+        BitmapEffect dummy;
         if (!effect)
-            effect = &BitmapEffect.init;
+            effect = &dummy;
 
         //number of rotation subdivisions for quantization
         //should be divisible by 8 (to have good 45° steps)
@@ -598,11 +599,11 @@ class SDLCanvas : Canvas {
         mSurface = null;
     }
 
-    int features() {
+    override int features() {
         return 0;
     }
 
-    void clear(Color color) {
+    override void clear(Color color) {
         SDL_FillRect(mSurface, null, toSDLColor(color));
     }
 
@@ -654,7 +655,7 @@ class SDLCanvas : Canvas {
         sdl_draw(destPos, src, rc);
     }
 
-    void drawPart(Surface source, Vector2i destPos,
+    override void drawPart(Surface source, Vector2i destPos,
         Vector2i sourcePos, Vector2i sourceSize)
     {
         SDLSurface sdls =
@@ -672,7 +673,7 @@ class SDLCanvas : Canvas {
     }
 
     //inefficient, wanted this for debugging
-    public void drawCircle(Vector2i center, int radius, Color color) {
+    override public void drawCircle(Vector2i center, int radius, Color color) {
         center += mTrans;
         uint c = toSDLColor(color);
         circle(center.x, center.y, radius,
@@ -684,7 +685,7 @@ class SDLCanvas : Canvas {
     }
 
     //xxx: replace by a more serious implementation
-    public void drawFilledCircle(Vector2i center, int radius,
+    override public void drawFilledCircle(Vector2i center, int radius,
         Color color)
     {
         circle(center.x, center.y, radius,
@@ -696,7 +697,7 @@ class SDLCanvas : Canvas {
 
     //last pixel included
     //width not supported
-    public void drawLine(Vector2i from, Vector2i to, Color color, int width = 1)
+    override public void drawLine(Vector2i from, Vector2i to, Color color, int width = 1)
     {
         //special cases for vlines/hlines
         if (from.y == to.y) {
@@ -811,7 +812,7 @@ class SDLCanvas : Canvas {
         }
     }
 
-    public void drawVGradient(Rect2i rc, Color c1, Color c2) {
+    override public void drawVGradient(Rect2i rc, Color c1, Color c2) {
         auto dy = rc.p2.y - rc.p1.y;
         auto dc = c2 - c1;
         auto a = rc.p1;
@@ -832,7 +833,7 @@ class SDLCanvas : Canvas {
     }
 
     //unsupported
-    public void drawQuad(Surface tex, ref Vertex2f[4] quad) {
+    override public void drawQuad(Surface tex, ref Vertex2f[4] quad) {
     }
 }
 

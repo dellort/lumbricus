@@ -353,7 +353,7 @@ class FTFont : DriverFont {
         c.drawSprite(glyph.tex, pos+glyph.offset);
     }
 
-    Vector2i draw(Canvas canvas, Vector2i pos, cstring text) {
+    override Vector2i draw(Canvas canvas, Vector2i pos, cstring text) {
         int orgx = pos.x;
         foreach (dchar c; text) {
             auto glyph = mCache.getGlyph(c);
@@ -381,7 +381,7 @@ class FTFont : DriverFont {
         return pos;
     }
 
-    Vector2i textSize(cstring text, bool forceHeight) {
+    override Vector2i textSize(cstring text, bool forceHeight) {
         Vector2i res = Vector2i(0, 0);
         foreach (dchar c; text) {
             auto glyph = mCache.getGlyph(c);

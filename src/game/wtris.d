@@ -248,7 +248,7 @@ public class WTris {
                 cast(int)(field[0].length*PIECE_DRAW_H)) + border*2;
         }
 
-        bool greedyFocus() {
+        override bool greedyFocus() {
             return true;
         }
 

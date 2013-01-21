@@ -12,7 +12,7 @@ import std.path;
 import std.stdio;
 
 void do_unworms(string filename, string outputDir) {
-    string fnBase = basename(filename);
+    string fnBase = baseName(filename);
     auto st = Stream.OpenFile(filename, "rb");
     scope(exit) st.close();
 

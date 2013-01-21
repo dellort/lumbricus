@@ -27,7 +27,7 @@ class SpriteHandler : GameObject {
         internal_active = true;
     }
 
-    bool activity() {
+    override bool activity() {
         return internal_active;
     }
 

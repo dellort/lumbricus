@@ -44,7 +44,7 @@ final class CollisionType {
 
     string name() { return mName; }
 
-    string toString() {
+    override string toString() {
         return "[CollisionType "~name~"]";
     }
 }

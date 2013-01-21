@@ -26,7 +26,7 @@ class Foobar : Widget {
         setVirtualFrame();
     }
 
-    Vector2i layoutSizeRequest() {
+    override Vector2i layoutSizeRequest() {
         return Vector2i(xpadding*2);
     }
 

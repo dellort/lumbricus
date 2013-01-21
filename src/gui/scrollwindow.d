@@ -400,7 +400,7 @@ class ScrollWindow : Container {
         recreateGui();
     }
 
-    void loadFrom(GuiLoader loader) {
+    override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
         //possibly load a child, which must be a ScrollArea (or a subtype of it)

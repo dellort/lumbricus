@@ -40,7 +40,7 @@ template PhysicTimedChanger(T) {
             onValueChange(mValue);
     }
 
-    protected void simulate(float deltaT) {
+    override protected void simulate(float deltaT) {
         super.simulate(deltaT);
         if (mValue != target) {
             //this is expensive, but only executed when the value is changing

@@ -149,7 +149,7 @@ abstract class Splitter : Container {
         }
     }
 
-    void loadFrom(GuiLoader loader) {
+    override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
         //left or right

@@ -315,33 +315,33 @@ class ShitStream : Stream {
         mShit = s;
     }
 
-    ulong position() {
+    override ulong position() {
         return mShit.tell;
     }
 
-    void position(ulong pos) {
+    override void position(ulong pos) {
         mShit.seek(pos);
     }
 
-    ulong size() {
+    override ulong size() {
         //XXXTANGO may throw
         return mShit.size;
     }
 
-    size_t writePartial(ubyte[] data) {
+    override size_t writePartial(ubyte[] data) {
         mShit.rawWrite(data);
         return data.length;
     }
 
-    size_t readPartial(ubyte[] data) {
+    override size_t readPartial(ubyte[] data) {
         return mShit.rawRead(data).length;
     }
 
-    void close() {
+    override void close() {
         mShit.close();
     }
 
-    void set_line_buffered() {
+    override void set_line_buffered() {
         mShit.setvbuf(null, _IOLBF); //switch to line buffered
     }
 }
@@ -366,14 +366,14 @@ class SliceStream : Stream {
             assert(false, "SliceStream: low > high");
     }
 
-    ulong position() {
+    override ulong position() {
         return mPos;
     }
-    void position(ulong pos) {
+    override void position(ulong pos) {
         mPos = pos;
     }
 
-    ulong size() {
+    override ulong size() {
         return clampRangeC(mSource.size, mLow, mHigh) - mLow;
     }
 
@@ -389,21 +389,21 @@ class SliceStream : Stream {
         mSource.position = dest;
     }
 
-    size_t writePartial(ubyte[] data) {
+    override size_t writePartial(ubyte[] data) {
         fixAndSeek(data);
         auto res = mSource.writePartial(data);
         mPos += res;
         return res;
     }
 
-    size_t readPartial(ubyte[] data) {
+    override size_t readPartial(ubyte[] data) {
         fixAndSeek(data);
         auto res = mSource.readPartial(data);
         mPos += res;
         return res;
     }
 
-    void close() {
+    override void close() {
         //you don't want to close the source stream
         //actually, the source stream should be ref-counted or so
         //disable access to source stream, though

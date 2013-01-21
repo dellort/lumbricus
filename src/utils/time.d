@@ -81,7 +81,7 @@ public struct Time {
         return timeVal / t.timeVal;
     }
 
-    public bool opEquals(ref const(Time) t2) const {
+    public bool opEquals(Time t2) const {
         return timeVal == t2.timeVal;
     }
 

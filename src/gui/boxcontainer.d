@@ -104,7 +104,7 @@ class BoxContainer : SimpleContainer {
         }
     }
 
-    void loadFrom(GuiLoader loader) {
+    override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
         clear();
         mHomogeneous = node.getBoolValue("homogeneous", mHomogeneous);

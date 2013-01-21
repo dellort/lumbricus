@@ -14,6 +14,15 @@ import utils.time;      //for special Time marshalling
 import std.traits;
 import std.process; //for getenv()
 
+private template isReallyIntegral(T) {
+    enum isReallyIntegral = isIntegral!(T) && !is(T == enum);
+}
+
+enum testenum {
+fffffffff,
+};
+static assert(!isReallyIntegral!(testenum));
+
 //--- stolen from tango code
 template ElementTypeOfArray(T:T[])
 {
@@ -47,7 +56,7 @@ bool isDerived_ (ClassInfo derived, ClassInfo base)
     do
         if (derived is base)
             return true;
-    while ((derived = derived.base) !is null)
+    while ((derived = derived.base) !is null);
     return false;
 }
 struct applyInterfaces
@@ -462,7 +471,7 @@ private void luaExpected(lua_State* state, const(char)[] expected, const(char)[]
 private T luaStackValue(T)(lua_State *state, int stackIdx) {
     void expected(string t) { luaExpected(state, stackIdx, t); }
     //xxx no check if stackIdx is valid (is checked in demarshal() anyway)
-    static if (isIntegral!(T) || isFloatingPoint!(T)) {
+    static if (isReallyIntegral!(T) || isFloatingPoint!(T)) {
         lua_Number ret = lua_tonumber(state, stackIdx);
         if (ret == 0 && !lua_isnumber(state, stackIdx))
             expected("number");
@@ -669,8 +678,8 @@ private T luaStackValue(T)(lua_State *state, int stackIdx) {
 //XXX: ok that tuple return is really weird... should be killed off IMHO
 //Lua error domain
 private int luaPush(T)(lua_State *state, T value) {
-    static if (isFloatingPoint!(T) || isIntegral!(T) ||
-        (is(T Base == enum) && isIntegral!(Base)))
+    static if (isFloatingPoint!(T) || isReallyIntegral!(T) ||
+        (is(T Base == enum) && isReallyIntegral!(Base)))
     {
         //everything is casted to double internally anyway; avoids overflows
         //NOTE about enums: we could convert enums to strings (with

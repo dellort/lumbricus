@@ -4,7 +4,7 @@ import utils.time;
 import std.math;
 import std.traits;
 
-typedef int Missing;
+alias int Missing;
 
 //this is a try to get rid of the code duplication (although it's too late)
 //it's rather trivial, but annoying

@@ -235,12 +235,12 @@ class ReversedAnimation : Animation {
         doInit(mBase.frameCount, mBase.bounds, mBase.frameTimeMS());
     }
 
-    void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p, Time t) {
+    override void drawFrame(Canvas c, Vector2i pos, ref AnimationParams p, Time t) {
         mBase.drawFrame(c, pos, p, duration() - t);
     }
 
     //hurhur
-    Animation reversed() {
+    override Animation reversed() {
         return mBase;
     }
 }

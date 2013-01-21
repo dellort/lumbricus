@@ -29,7 +29,7 @@ extern (C) {
     return cast(int)(s.length/size);
   }
 
-  int rw_write (SDL_RWops *context, void *ptr, int size, int num) {
+  int rw_write (SDL_RWops *context, const(void *) ptr, int size, int num) {
     Stream str = cast(Stream)context.hidden.unknown.data1;
     str.writeExact(cast(ubyte[])ptr[0..size*num]);
     return num;

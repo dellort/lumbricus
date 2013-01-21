@@ -52,7 +52,7 @@ class WindMeter : Widget {
         mBoxStyle = WormLabels.textWormBorderStyle();
     }
 
-    protected void onDraw(Canvas canvas) {
+    override protected void onDraw(Canvas canvas) {
         auto time = timeCurrentTime;
         if (mGame.engine) {
             drawBox(canvas, Vector2i(0), size, mBoxStyle);

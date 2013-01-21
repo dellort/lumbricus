@@ -354,7 +354,7 @@ class PhysicObject : PhysicBase {
         move(velocity * deltaT);
     }
 
-    string toString() {
+    override string toString() {
         return myformat("[%s: %s %s]", toHash(), pos, velocity);
     }
 

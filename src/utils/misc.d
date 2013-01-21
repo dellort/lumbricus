@@ -3,7 +3,8 @@ module utils.misc;
 import std.stdio;
 import std.format;
 import pstr = std.string;
-import std.intrinsic;
+import core.bitop;
+import putf = std.utf;
 
 import std.c.string;
 
@@ -54,8 +55,13 @@ class Trace {
 
     private static void doprint(T...)(string fmt, T args) {
         struct Retarded {
-            void put(const char[] s) {
+            void put(const(char)[] s) {
                 write(s);
+            }
+            void put(dchar c) {
+                char[4] buf;
+                size_t len = putf.encode(buf, c);
+                write(buf[0 .. len]);
             }
         }
         Retarded r;
@@ -254,7 +260,19 @@ char[] myformat_s(T...)(char[] buffer, cstring fmt, T args) {
 }
 
 void myformat_cb(T...)(scope void delegate(cstring s) sink, cstring fmt, T args) {
-    formattedWrite(sink, fmt, args);
+    struct ranges_suck {
+        scope void delegate(cstring s) sink;
+        void put(const(char)[] c) {
+            sink(c);
+        }
+        void put(dchar c) {
+            char[4] buf;
+            size_t len = putf.encode(buf, c);
+            sink(buf[0 .. len]);
+        }
+    }
+    scope ranges_suck s = ranges_suck(sink);
+    formattedWrite(s, fmt, args);
 }
 
 //functions cannot return static arrays, so this gets the equivalent
@@ -344,7 +362,7 @@ unittest {
 +/
 
 //can remove this as soon as dmd bug 2881 gets fixed
-version = bug2881;
+//version = bug2881;
 
 version (bug2881) {
 } else {
@@ -439,7 +457,7 @@ private template StructMemberNames(T) {
 //this should actually be implemented using __traits (only available in D2)
 const(string[]) structMemberNames(T)() {
     //the template is to cache the result (no idea if that works as intended)
-    return StructMemberNames!(T).StructMemberNames;
+    return StructMemberNames!(T);
 }
 
 debug {

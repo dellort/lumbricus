@@ -488,7 +488,7 @@ bool isSpaceAt(string s, size_t pos) {
     return isSpace(str.decode(s, pos));
 }
 bool isWord(string s, size_t pos) {
-    return isUniAlpha(str.decode(s, pos));
+    return isAlpha(str.decode(s, pos));
 }
 
 //unicode version missing in Phobos (there's only some ASCII version, fuck that)

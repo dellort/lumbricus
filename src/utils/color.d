@@ -52,14 +52,23 @@ public struct Color {
         static assert(false, "no endian");
     }
 
+    public static Color opCall(float r, float g, float b, float a) {
+        Color res;
+        res.r = r;
+        res.g = g;
+        res.b = b;
+        res.a = a;
+        return res;
+    }
+
     //black transparent pixel
-    enum Color Transparent = Color(0, 0, 0, 0);
+    static enum Color Transparent = {0, 0, 0, 0};
     //some other common colors (but not too many)
-    enum Color Black = Color(0, 0, 0, 1);
-    enum Color White = Color(1, 1, 1, 1);
+    static enum Color Black = Color(0, 0, 0, 1);
+    static enum Color White = {1, 1, 1, 1};
     //"null" value (for default parameters)
-    enum Color Invalid = Color(float.infinity, float.infinity,
-        float.infinity, float.infinity);
+    enum Color Invalid = {float.infinity, float.infinity,
+        float.infinity, float.infinity};
 
     /// a value that can be used as epsilon when comparing colors
     //0.3f is a fuzzify value, with 255 I expect colors to be encoded with at
@@ -91,14 +100,6 @@ public struct Color {
         return c;
     }
 
-    public static Color opCall(float r, float g, float b, float a) {
-        Color res;
-        res.r = r;
-        res.g = g;
-        res.b = b;
-        res.a = a;
-        return res;
-    }
     public static Color opCall(float r, float g, float b) {
         return opCall(r,g,b,1.0f);
     }

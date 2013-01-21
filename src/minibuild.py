@@ -22,16 +22,17 @@ RELEASE = False
 # -lrt is just for utils/perf.d version UseFishyStuff (can be disabled)
 LIBS = ["z", "dl", "rt"]
 
-COMPILER = "dmd2"
+COMPILER = "dmd"
 
 COMPILERS = {
     # uses hack to do without -oq (probably fails on windows)
-    "dmd2": {
+    "dmd": {
         # On my system, dmd is called "dmd2". That's because I have installed
         #   both dmd 1 and 2 (for D1 and D2). You can't install them side by
         #   side by default, unless you put them into different directories and
         #   give them different names. You can thank Walter for that.
-        "exe": "dmd2",
+        # EDIT: above statements retracted. But still a fun historic note.
+        "exe": "dmd",
         "oq": False,
         "std_args": [],
         "def": "-version=",
@@ -62,6 +63,9 @@ parser.add_option("-c", "--compiler",
     action="store", type="choice", dest="compiler", default=COMPILER,
     choices=COMPILERS.keys(),
     help=("compiler preset %s, default: %s" % (COMPILERS.keys(), COMPILER)))
+parser.add_option("-e", "--compiler-executable",
+    action="store", type="string", dest="compiler_bin", default=None,
+    help=("compiler path"))
 parser.add_option("-f",
     action="store_true", dest="clean", default=False,
     help="force clean (skip check if source was not changed)")
@@ -87,6 +91,9 @@ parser.add_option("-X",
 (options, args) = parser.parse_args()
 
 compiler = COMPILERS[options.compiler]
+
+if options.compiler_bin is not None:
+    compiler["exe"] = options.compiler_bin
 
 def compare_module_name(name, pattern):
     if name == pattern: return True

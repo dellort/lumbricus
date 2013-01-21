@@ -81,7 +81,7 @@ public class LogWindow : Widget {
         return mFadeDelay;
     }
 
-    void onDraw(Canvas scrCanvas) {
+    override void onDraw(Canvas scrCanvas) {
         Vector2i size = scrCanvas.clientSize;
 
         int renderWidth = size.x;
@@ -207,7 +207,7 @@ public class LogWindow : Widget {
 
     ///clear backlog and output display
     ///input line is not touched
-    public void clear() {
+    override public void clear() {
         touchConsole();
         mBackLog.clear();
     }

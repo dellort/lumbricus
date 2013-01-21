@@ -399,7 +399,8 @@ class Source {
             dc = createDC();
         if (dc) {
             dc.setInfo(info);
-            if (fadeinTime == Time.Null) {
+            auto foo = Time.Null;
+            if (fadeinTime == foo) {
                 mFading = FadeType.none;
                 updateVolume();
             } else {
@@ -448,7 +449,8 @@ class Source {
 
     ///stop playback
     void stop(Time fadeOut = Time.Null) {
-        if (fadeOut == Time.Null) {
+        auto foo = Time.Null;
+        if (fadeOut == foo) {
             //stop now
             mFading = FadeType.none;
             if (auto dc = createDC(false)) {
@@ -566,7 +568,7 @@ class NullSound : SoundDriver {
         return null;
     }
 
-    DriverChannel getChannel(Object reserve_for, float priority = 0) {
+    override DriverChannel getChannel(Object reserve_for, float priority = 0) {
         return null;
     }
 

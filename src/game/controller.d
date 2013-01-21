@@ -343,7 +343,7 @@ class Team : GameObject2 {
         return true;
     }
 
-    string toString() {
+    override string toString() {
         return "[team '" ~ name ~ "']";
     }
 
@@ -626,7 +626,7 @@ class TeamMember : Actor {
         return mWormControl.sprite;
     }
 
-    string toString() {
+    override string toString() {
         return "[tworm " ~ (mTeam ? mTeam.toString() : null) ~ ":'" ~ name ~ "']";
     }
 

@@ -801,7 +801,7 @@ abstract class Shooter : GameObject {
         }
     }
 
-    bool activity() {
+    override bool activity() {
         return mState == WeaponState.prepare || mState == WeaponState.fire
             || mState == WeaponState.charge;
     }

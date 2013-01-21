@@ -52,7 +52,7 @@ class ResourceItem : ResourceObject {
         return mConfig;
     }
 
-    package this(ResourceFile context, string id, ConfigNode item)
+    protected this(ResourceFile context, string id, ConfigNode item)
     {
         mContext = context;
         this.id = id;
@@ -61,7 +61,7 @@ class ResourceItem : ResourceObject {
     }
 
     ///get the contents of this resource
-    Object get() {
+    override Object get() {
         if (!mContents) {
             preload();
         }
@@ -142,7 +142,7 @@ private class AliasResource : ResourceItem {
         alias_name = item.getCurValue!(string)();
     }
 
-    protected void load() {
+    override protected void load() {
         //set dummy; not that having null as content breaks
         mContents = new Object();
     }

@@ -4,7 +4,7 @@ import utils.stream;
 import utils.misc;
 
 import czlib = etc.c.zlib;
-import std.md5;
+import stdmd = std.digest.md;
 
 enum {
     MAX_WBITS = 15,  //from zconf.h
@@ -288,21 +288,20 @@ final class ZLibCrc32 : Digest {
 }
 
 final class MD5 : Digest {
-    MD5_CTX md5;
+    stdmd.MD5 md5;
 
     this() {
         //reset
         md5.start();
     }
     override void update(void[] input) {
-        md5.update(input);
+        md5.put(cast(ubyte[])input);
     }
     override uint digestSize() {
         return 16;
     }
     override ubyte[] binaryDigest(ubyte[] buf = null) {
-        ubyte[16] digest;
-        md5.finish(digest);
+        ubyte[16] digest = md5.finish();
         if (buf.length < 16)
             buf.length = 16;
         buf[0..16] = digest;

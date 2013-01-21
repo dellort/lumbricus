@@ -164,7 +164,7 @@ class SequenceState {
         return engine.resources.get!(Animation)(name, optional);
     }
 
-    string toString() {
+    override string toString() {
         foreach (string name, SequenceState val; owner.mStates) {
             if (val is this)
                 return "[SequenceState:"~name~"]";

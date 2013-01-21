@@ -320,7 +320,7 @@ class Sprite : GameObject {
         c.drawCircle(p, 3, Color(1,1,1));
     }
 
-    string toString() {
+    override string toString() {
         return myformat("[Sprite %#x %s at %s]", cast(void*)this, type.name,
             physics.pos);
     }
@@ -371,6 +371,6 @@ class SpriteClass {
         return sequenceType;
     }
 
-    string toString() { return "SpriteClass["~name~"]"; }
+    override string toString() { return "SpriteClass["~name~"]"; }
 }
 

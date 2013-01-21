@@ -274,7 +274,7 @@ class GameLandscape : GameObject {
         return mPhysics;
     }+/
 
-    bool activity() {
+    override bool activity() {
         return false;
     }
 

@@ -32,7 +32,7 @@ struct WWPDirEntry {
 
     void writeFile(Stream st, string outPath) {
         st.position = offset;
-        scope fileOut = Stream.OpenFile(outPath ~ sep ~ filename, "wb");
+        scope fileOut = Stream.OpenFile(outPath ~ dirSeparator ~ filename, "wb");
         scope(exit) fileOut.close();
         fileOut.pipeOut.copyFrom(st.pipeIn, size);
     }
@@ -88,7 +88,7 @@ class Dir {
     string[] listdir(string pattern) {
         string[] res;
         foreach (e; mEntries) {
-            if (fnmatch(e.filename, pattern))
+            if (globMatch(e.filename, pattern))
                 res ~= e.filename;
         }
         return res;
@@ -96,7 +96,7 @@ class Dir {
 }
 
 void readDir(Stream st, string outputDir, string fnBase) {
-    string outPath = outputDir ~ sep ~ fnBase;
+    string outPath = outputDir ~ dirSeparator ~ fnBase;
     trymkdir(outPath);
 
     auto content = doReadDir(st);

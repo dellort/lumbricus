@@ -274,7 +274,7 @@ struct VFSPath {
 
         //first pass: go through the path in reverse, check illegal chars and
         //split into parts
-        foreach_reverse (size_t i, ref char c; mPath) {
+        foreach_reverse (size_t i, char c; mPath) {
             switch (c) {
                 case '*', '?':
                     if (allowWildcards) {
@@ -309,7 +309,7 @@ struct VFSPath {
         }
 
         //second pass: scan for filename and extension index
-        foreach_reverse (size_t i, ref char c; mPath) {
+        foreach_reverse (size_t i, char c; mPath) {
             switch (c) {
                 case '.':
                     //filename/extension separator

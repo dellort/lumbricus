@@ -647,7 +647,7 @@ class GLCanvas : Canvas3DHelper {
         }
     }
 
-    public int features() {
+    override public int features() {
         return DriverFeatures.canvasScaling | DriverFeatures.transformedQuads
             | DriverFeatures.usingOpenGL;
     }
@@ -749,7 +749,7 @@ class GLCanvas : Canvas3DHelper {
         checkGLError("doClip", true);
     }
 
-    public void clear(Color color) {
+    override public void clear(Color color) {
         flush();
 
         //NOTE: glClear respects the scissor test (glScissor)
@@ -792,8 +792,9 @@ class GLCanvas : Canvas3DHelper {
         if (!spriteVisible(source, destPos, effect))
             return;
 
+        BitmapEffect dummy;
         if (!effect)
-            effect = &BitmapEffect.init;
+            effect = &dummy;
 
         //create an explicit 2D matrix according to BitmapEffect
         //the version using glTranslate etc. is still in r920 in drawFast()

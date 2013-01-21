@@ -274,7 +274,7 @@ class DropDownList : Container {
         return mEdit;
     }
 
-    void loadFrom(GuiLoader loader) {
+    override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
         mAllowEdit = node.getValue("allow_edit", mAllowEdit);
         auto contents = node.findNode("contents");

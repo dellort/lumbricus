@@ -60,7 +60,7 @@ class LoadingScreen : Container {
         }
     }
 
-    Vector2i layoutSizeRequest() {
+    override Vector2i layoutSizeRequest() {
         return Vector2i(0);
     }
 

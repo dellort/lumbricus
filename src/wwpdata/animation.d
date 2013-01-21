@@ -19,20 +19,20 @@ import std.path;
 void saveAnimations(RawAnimation[] animations, string outPath, string fnBase,
     bool tosubdir = true)
 {
-    //scope stMeta = new File(outPath ~ sep ~ fnBase ~ ".meta",
+    //scope stMeta = new File(outPath ~ dirSeparator ~ fnBase ~ ".meta",
         //  FileMode.OutNew);
     foreach (int i, a; animations) {
         string afn, apath;
         if (tosubdir) {
             //ah, how I love those "intuitive" formatting parameters...
             afn = myformat("anim_%03d", i);
-            apath = outPath ~ sep ~ fnBase;
+            apath = outPath ~ dirSeparator ~ fnBase;
             trymkdir(apath);
         } else {
             afn = fnBase;
             apath = outPath;
         }
-        saveImageToFile(a.toBitmap(), apath ~ sep ~ afn ~ ".png");
+        saveImageToFile(a.toBitmap(), apath ~ dirSeparator ~ afn ~ ".png");
         writef("Saving %s/%s   \r",i+1 , animations.length);
         stdout.flush();
     }

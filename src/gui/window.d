@@ -493,7 +493,7 @@ class WindowWidget : Widget {
         }
     }
 
-    protected void onMouseMove(MouseInfo mouse) {
+    override protected void onMouseMove(MouseInfo mouse) {
         if (mDraging) {
             if (mCanMove && !mFullScreen) {
                 position = position + mouse.rel;
@@ -570,7 +570,7 @@ class WindowWidget : Widget {
         return !parent;
     }
 
-    string toString() {
+    override string toString() {
         return "["~super.toString~" '"~mTitleBar.text~"']";
     }
 }

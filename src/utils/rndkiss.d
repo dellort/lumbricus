@@ -127,7 +127,7 @@ class Random
         if (max <= uint.max) {
             return next() % cast(uint)max;
         } else {
-            return (next() | (next() << 32)) % max;
+            return (next() | (cast(ulong)next() << 32)) % max;
         }
     }
 

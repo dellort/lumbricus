@@ -391,7 +391,7 @@ class TableContainer : PublicContainer {
         }
     }
 
-    protected Vector2i layoutSizeRequest() {
+    override protected Vector2i layoutSizeRequest() {
         foreach (ref pc; mChildren) {
             assert(pc.w !is null);
             pc.minSize = pc.w.layoutCachedContainerSizeRequest();
@@ -429,7 +429,7 @@ class TableContainer : PublicContainer {
     }
 
     //xxx change this to use public methods only
-    void loadFrom(GuiLoader loader) {
+    override void loadFrom(GuiLoader loader) {
         auto node = loader.node;
 
         auto size = Vector2i(mSize[0], mSize[1]);

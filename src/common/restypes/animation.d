@@ -219,7 +219,7 @@ class AnimationResource : ResourceItem {
         super(context, id, item);
     }
 
-    protected void load() {
+    override protected void load() {
         ConfigNode node = mConfig;
         assert(node !is null);
         try {

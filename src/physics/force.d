@@ -27,7 +27,7 @@ class ConstantForce : PhysicForce {
     this() {
     }
 
-    void applyTo(PhysicObject o, float deltaT) {
+    override void applyTo(PhysicObject o, float deltaT) {
         o.addForce(force, true);
     }
 }
@@ -39,7 +39,7 @@ class ConstantAccel: PhysicForce {
     this() {
     }
 
-    void applyTo(PhysicObject o, float deltaT) {
+    override void applyTo(PhysicObject o, float deltaT) {
         o.addForce(accel * o.posp.mass, true);
     }
 }
@@ -51,7 +51,7 @@ class WindyForce : PhysicForce {
     this() {
     }
 
-    void applyTo(PhysicObject o, float deltaT) {
+    override void applyTo(PhysicObject o, float deltaT) {
         //xxx physical crap, but the way Worms does it (using windSpeed as
         //    acceleration)
         o.addForce(windSpeed * o.posp.mass * o.posp.windInfluence, true);
@@ -77,7 +77,7 @@ class GravityCenter : PhysicForce {
     }
 
     private float cDistDelta = 0.01f;
-    void applyTo(PhysicObject o, float deltaT) {
+    override void applyTo(PhysicObject o, float deltaT) {
         if (attach) {
             pos = attach.pos;
         }
@@ -101,7 +101,7 @@ class StokesDragObject : PhysicForce {
     this() {
     }
 
-    void applyTo(PhysicObject o, float deltaT) {
+    override void applyTo(PhysicObject o, float deltaT) {
         if (o.posp.mediumViscosity != 0.0f) {
             //F = -6*PI*r*eta*v
             o.addForce(cStokesConstant*o.posp.radius*o.posp.mediumViscosity
@@ -122,7 +122,7 @@ class StokesDragFixed : PhysicForce {
         viscosity = visc;
     }
 
-    void applyTo(PhysicObject o, float deltaT) {
+    override void applyTo(PhysicObject o, float deltaT) {
         if (viscosity != 0.0f) {
             //F = -6*PI*r*eta*v
             o.addForce(cStokesConstant*o.posp.radius*viscosity*o.velocity
@@ -141,7 +141,7 @@ class ObjectForce : PhysicForce {
         target = t;
     }
 
-    void applyTo(PhysicObject o, float deltaT) {
+    override void applyTo(PhysicObject o, float deltaT) {
         if (o is target) {
             force.applyTo(target, deltaT);
         }
@@ -160,7 +160,7 @@ class ForceZone : PhysicForce {
         invert = inv;
     }
 
-    void applyTo(PhysicObject o, float deltaT) {
+    override void applyTo(PhysicObject o, float deltaT) {
         if (zone.check(o) ^ invert) {
             force.applyTo(o, deltaT);
         }
@@ -218,7 +218,7 @@ class HomingForce : PhysicForce {
         return fAccel + fTurn;
     }
 
-    void applyTo(PhysicObject o, float deltaT) {
+    override void applyTo(PhysicObject o, float deltaT) {
         if (o is mover) {
             auto pos = targetObj ? targetObj.pos : targetPos;
             o.addForce(calcForce(pos));

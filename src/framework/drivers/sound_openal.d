@@ -40,7 +40,7 @@ class ALChannel : DriverChannel {
         checkALError("alGenSources");
     }
 
-    void setInfo(ref SoundSourceInfo info) {
+    override void setInfo(ref SoundSourceInfo info) {
         //listener orientation is (0, 0, -1), so this should position the source
         //in front of the listener with a 90° FOV, meaning x values close
         //to -1 / 1 will sound "off-screen"
@@ -48,7 +48,7 @@ class ALChannel : DriverChannel {
         alSource3f(source,AL_POSITION, info.position.x, info.position.y, -1.0f);
     }
 
-    void play(DriverSound s, Time startAt) {
+    override void play(DriverSound s, Time startAt) {
         mSound = castStrict!(ALSound)(s);
         assert(!!mSound);
         assert(!!reserved_for);
@@ -60,7 +60,7 @@ class ALChannel : DriverChannel {
         //--assert (oalState() == AL_PLAYING);
     }
 
-    void stop(bool unreserve) {
+    override void stop(bool unreserve) {
         if (state != PlaybackState.stopped)
             alSourceStop(source);
         if (mSound) {
@@ -75,7 +75,7 @@ class ALChannel : DriverChannel {
         }
     }
 
-    void paused(bool p) {
+    override void paused(bool p) {
         if (p) {
             alSourcePause(source);
         } else if (oalState() == AL_PAUSED) {
@@ -83,7 +83,7 @@ class ALChannel : DriverChannel {
         }
     }
 
-    void looping(bool loop) {
+    override void looping(bool loop) {
         if (mSound) {
             //xxx AL_LOOPING does not work with streaming; currently, playback
             //    will stop and be immediately restarted by code in
@@ -93,14 +93,14 @@ class ALChannel : DriverChannel {
         }
     }
 
-    void priority(float prio) {
+    override void priority(float prio) {
         mPriority = prio;
     }
     float priority() {
         return mPriority;
     }
 
-    void setVolume(float value) {
+    override void setVolume(float value) {
         alSourcef(source, AL_GAIN, value);
     }
 
@@ -111,7 +111,7 @@ class ALChannel : DriverChannel {
         return s;
     }
 
-    PlaybackState state() {
+    override PlaybackState state() {
         switch (oalState()) {
             case AL_PLAYING:
                 return PlaybackState.playing;
@@ -122,7 +122,7 @@ class ALChannel : DriverChannel {
         }
     }
 
-    Time position() {
+    override Time position() {
         ALint st = oalState();
         if (state != PlaybackState.stopped) {
             ALfloat pos;
@@ -394,7 +394,7 @@ class ALSound : DriverSound {
             return Time.Null;
     }
 
-    Time length() {
+    override Time length() {
         return mLength;
     }
 
@@ -467,7 +467,7 @@ class ALSoundDriver : SoundDriver {
         //AL_ORIENTATION), but there are defaults
     }
 
-    DriverChannel getChannel(Object reserve_for, float priority = 0) {
+    override DriverChannel getChannel(Object reserve_for, float priority = 0) {
         foreach (c; mChannels) {
             c.check();
             if (!c.reserved_for) {
@@ -487,7 +487,7 @@ class ALSoundDriver : SoundDriver {
         return null;
     }
 
-    void tick() {
+    override void tick() {
         foreach (ref c; mChannels) {
             c.tick();
         }

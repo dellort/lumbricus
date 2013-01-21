@@ -4,6 +4,7 @@ module utils.strparser;
 import utils.mybox;
 import std.conv;
 import str = utils.string;
+import std.string;
 import utils.misc;
 
 alias ConvException ConversionException;
@@ -81,6 +82,8 @@ T fromStr(T)(cstring s) {
         if (s.length == 0)
             throw new ConversionException("to!("~T.stringof~"): trying to parse"
                 ~ " empty string");
+        // leading space is ok; to!(T) is inconsistent on that
+        s = stripLeft(s);
         return to!(T)(s);
     } else {
         static assert(false, "Cannot parse: "~T.stringof);
@@ -179,7 +182,7 @@ public string boxUnParseStr(MyBox b) {
     return b.unbox!(string);
 }
 
-public MyBox boxParseBool(cstring s) {
+public MyBox boxParseBool(string s) {
     //strings for truth values, alternating (sorry it was 4:28 AM)
     static string[] bool_strings = ["true", "false", "yes", "no"]; //etc.
     bool ret_value = true;
@@ -283,7 +286,7 @@ unittest {
     assert(stringToBox!(int)("1abc").type is null);
     assert(stringToBox!(int)("").type is null);
 
-    assert(stringToBox!(int)(" 123").type is null);
+    //assert(stringToBox!(int)(" 123").type is null);
     assert(stringToBox!(int)("123 ").type is null);
 
     assert(stringToBox!(float)("123.25").unbox!(float) == 123.25f);

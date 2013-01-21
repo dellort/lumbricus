@@ -90,7 +90,7 @@ class EarthQuakeForce : PhysicForce {
     }
 
     //this _force_ generator applies an impulse, hope this is correct
-    void applyTo(PhysicObject o, float deltaT) {
+    override void applyTo(PhysicObject o, float deltaT) {
         //xxx sorry, but this needs to be called after all degrader's simulate
         if (mNeedForceUpdate)
             updateImpulse(deltaT);

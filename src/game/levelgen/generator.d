@@ -596,18 +596,18 @@ class GenerateFromBitmap : LevelGenerator {
         mLandscape = null;
     }
 
-    Surface preview(Vector2i size) {
+    override Surface preview(Vector2i size) {
         update();
         return mGenerate ? mGenerate.preview(size) : null;
     }
-    float previewAspect() {
+    override float previewAspect() {
         update();
         return mGenerate ? mGenerate.previewAspect() : float.nan;
     }
     override LandscapeBitmap renderData() {
         return mGenerate ? mGenerate.renderData() : null;
     }
-    Level render(bool render_stuff = true) {
+    override Level render(bool render_stuff = true) {
         update();
         Level res = mGenerate ? mGenerate.render() : null;
         if (res) {

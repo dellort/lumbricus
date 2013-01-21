@@ -31,7 +31,7 @@ class SampleResource : ResourceItem {
         path = a_path;
     }
 
-    protected void load() {
+    override protected void load() {
         Sample sample;
         try {
 

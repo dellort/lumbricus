@@ -93,7 +93,7 @@ unittest {
     assert(split("", ",") == null);
 }
 
-string join(cstring[] text, cstring joiner) {
+string join(string[] text, cstring joiner) {
     return parray.join(cast(string[])text, cast(string)joiner);
 }
 
@@ -470,7 +470,7 @@ bool isIdentifier(string name) {
     if (name.length == 0 || !isid(name[0], true)) {
         return false;
     }
-    foreach (ref char c; name[1..$]) {
+    foreach (char c; name[1..$]) {
         if (!isid(c)) {
             return false;
         }
