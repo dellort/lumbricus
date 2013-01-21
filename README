@@ -46,15 +46,9 @@ YOUR AD HERE
 
 D compiler:
     You need one of those...
-    dmd: v2.054 works
+    dmd: v2.061 works
     ldc: dunno (but the D2 version seems alpha/unuseable/unavailable)
     gdc: dunno (there's a chance it works)
-Derelict (D bindings for various C libs):
-    http://svn.dsource.org/projects/derelict/branches/Derelict2
-    svn r572: works
-    needed Derelict components: util, freetype, opengl, sdl, openal
-    NOTE: as of r572, you need to remove this export-dynamic switch from
-          dmd.conf, otherwise it will segfault on program start.
 
 ---- D2 conversion info
 
@@ -74,16 +68,13 @@ Derelict (D bindings for various C libs):
   ALTERNATIVE STANDARD LIBRARY (holy oxymoron) where even I HAVE TROUBLE
   COMPILING AND INSTALLING it... so uh, what... is this my blog? who cares,
   nobody will read this shit anyway.
+  (This is what happens to you when using D. Don't use D, kids. Not even once.)
 
 ---- Building it ----
 
 Linux:
-    - Install dmd
-    - Download Derelict2, create a directory named "derelict" in a dmd include
-      directory (or use "src/derelict2"), and put each of the required derelict
-      packages under that directory. For example, it should work if the
-      directory layout is such that src/derelict/opengl/gl.d exists.
-    - ./minibuild.py lumbricus.d (rename dmd2 to dmd in the Python script)
+    - Install dmd (make sure compiling a hello world program works)
+    - ./minibuild.py lumbricus.d
     - The lumbricus binary will try to find the data directory by looking at
       ../share/lumbricus/mount.conf relative to the binary's location (i.e. it
       will work if the binary is located in bin, where minibuild.py puts it).
